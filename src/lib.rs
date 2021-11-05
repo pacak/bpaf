@@ -6,15 +6,35 @@ mod args;
 pub mod info;
 pub use crate::args::Args;
 use crate::info::Item;
+pub use info::Info;
 
 #[cfg(test)]
 mod tests;
 
+mod tuple;
 use info::{Meta, ParserInfo};
+pub use tuple::{tparse, Tuple};
 
 #[macro_export]
 macro_rules! curry {
     (|$($pat:ident),*| $expr:expr) => ($(move |$pat| )* $expr);
+}
+
+#[macro_export]
+macro_rules! pack {
+    ($fn:ident, struct $st:ident { $( $field:ident: $ty:ty ),* $(,)?}) => {
+
+       #[derive(Debug, Clone)]
+        struct $st{
+            $($field: $ty),*
+        }
+
+        let $fn = Parser::pure(
+            $(move |$field:$ty|)* $st {
+                $($field: $field.clone()),*
+            }
+        );
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -72,61 +92,6 @@ pub struct Parser<T> {
     parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
     meta: Meta,
 }
-/*
-#[derive(Default)]
-pub struct Argument {
-    short: Option<char>,
-    long: Option<&'static str>,
-    help: Option<&'static str>,
-    metavar: Option<&'static str>,
-}
-
-impl Argument {
-    pub fn build(self) -> Parser<String> {
-        let parse = move |mut i: Args| {
-            if let Some(v) = self.short.and_then(|f| i.take_short_arg(f)) {
-                return Ok(v);
-            }
-            if let Some(v) = self.long.and_then(|f| i.take_long_arg(f)) {
-                return Ok(v);
-            }
-            Err(format!("missing {:?}", (self.short, self.long)))
-        };
-        let meta = Vec::new();
-        Parser {
-            parse: Rc::new(parse),
-            meta,
-        }
-    }
-
-    pub fn short(mut self, short: char) -> Self {
-        self.short = Some(short);
-        self
-    }
-    pub fn long(mut self, long: &'static str) -> Self {
-        self.long = Some(long);
-        self
-    }
-    pub fn help(mut self, help: &'static str) -> Self {
-        self.help = Some(help);
-        self
-    }
-    pub fn metavar(mut self, metavar: &'static str) -> Self {
-        self.metavar = Some(metavar);
-        self
-    }
-}*/
-
-pub struct Unnamed;
-pub struct Named;
-
-// TODO:
-// - switch - boolean flag
-// - flag - enabled/disabled flag
-// - flag' - enabled only flag
-// - option - argument parsed from string
-// - argument - positional argument
-// - subcommand
 
 impl<T> Parser<T> {
     // succeed without consuming anything
@@ -154,7 +119,7 @@ impl<T> Parser<T> {
         };
         Parser {
             parse: Rc::new(parse),
-            meta: self.meta.and(other.meta),
+            meta: self.meta.clone().and(other.meta.clone()),
         }
     }
 
@@ -212,14 +177,14 @@ impl<T> Parser<T> {
     }
 
     //
-    pub fn guard<F>(self, m: F) -> Parser<T>
+    pub fn guard<F>(self, m: F, message: &'static str) -> Parser<T>
     where
         F: Fn(&T) -> bool + 'static,
         T: 'static,
     {
         let parse = move |i: Args| match (self.parse)(i) {
             Ok((ok, i)) if m(&ok) => Ok((ok, i)),
-            Ok(_) => Err(Error::Stderr(format!("Guard failed"))), // TODO - see what exactly we tried to parse
+            Ok(_) => Err(Error::Stderr(message.to_string())), // TODO - see what exactly we tried to parse
             Err(err) => Err(err),
         };
         Parser {
@@ -233,7 +198,7 @@ impl<T> Parser<T> {
     where
         T: 'static,
     {
-        self.many().guard(|x| !x.is_empty())
+        self.many().guard(|x| !x.is_empty(), "must not be empty")
     }
 
     // zero or one
@@ -288,7 +253,7 @@ impl<T> Parser<T> {
         };
         Parser {
             parse: Rc::new(parse),
-            meta: self.meta,
+            meta: Meta::optional(self.meta),
         }
     }
 

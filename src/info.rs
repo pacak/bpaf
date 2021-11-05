@@ -102,7 +102,11 @@ impl Meta {
         }
     }
     pub fn optional(self) -> Self {
-        Meta::Optional(Box::new(self))
+        match self {
+            Meta::Required(m) => Meta::Optional(m),
+            m @ Meta::Optional(_) => m,
+            m => Meta::Optional(Box::new(m)),
+        }
     }
     pub fn required(self) -> Self {
         Meta::Required(Box::new(self))
@@ -339,7 +343,7 @@ impl Info {
         }
 
         if let Some(t) = self.footer {
-            write!(res, "{}\n\n", t)?;
+            write!(res, "\n{}\n", t)?;
         }
         Ok(res)
     }

@@ -1,5 +1,42 @@
+# bpaf
 
+Parse command line arguments by composing a parser from the components
 
+# Usage
+
+Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+
+```toml
+[dependencies]
+bpaf = "0.1"
+```
+
+Define fields used in parser
+
+```rust
+let speed_in_kph
+    = short('k').long("speed_kph")         // give it a name
+      .argument()                          // it's an argument
+      .metavar("SPEED")                    // with metavar
+      .help(("speed in KPH").build()       // and help message
+      .parse(|s| f64::from_str(&s).map(|s| s / 0.62)); // that is parsed from string
+
+let speed_in_mph
+    = short('m').long("speed_mph")
+      .argument()
+      .metavar("SPEED")
+      .help(("speed in KPH").build()
+      .parse(|s| f64::from_str(&s));
+```
+
+Arguments can be composed in multiple ways, for example
+if application wants speed - it can accept it in either of two formats
+
+```rust
+let speed: Parser<f64> = speed_in_kph.or_else(speed_in_mph);
+```
+
+As far as the rest of the application is concerned - there's only one parameter
 
 # main features
 

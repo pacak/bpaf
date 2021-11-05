@@ -1,5 +1,5 @@
-use super::*;
-use crate::info::Info;
+use crate::*;
+use std::str::FromStr;
 
 #[test]
 fn simple_two_optional_flags() {
@@ -110,4 +110,26 @@ Available options:
     // fallback to default
     let res = run_inner(Args::from(&[]), decorated.clone()).unwrap();
     assert_eq!(res, false);
+}
+
+#[test]
+fn default_arguments() {
+    let a = short('a')
+        .argument()
+        .build()
+        .parse(|s| i32::from_str(&s))
+        .fallback(42);
+    let info = Info::default();
+    let decorated = info.for_parser(a);
+
+    let help = run_inner(Args::from(&["-h"]), decorated)
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: [-a]
+Available options:
+    -a
+    -h, help   Prints help information
+";
+    assert_eq!(expected_help, help);
 }
