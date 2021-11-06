@@ -27,7 +27,7 @@ fn simple_two_optional_flags() {
         .unwrap_stdout();
 
     let expected_help = "\
-Usage: [-a|--AAAAA] [-b]
+Usage: [-a] [-b]
 this is a test
 
 Available options:
@@ -155,4 +155,35 @@ fn parse_errors() {
         .unwrap_stderr();
     let expected_err = "-b is not expected in this context";
     assert_eq!(expected_err, err);
+}
+
+#[test]
+fn long_usage_string() {
+    let a = short('a').long("a-very-long-flag-with").argument().build();
+    let b = short('b').long("b-very-long-flag-with").argument().build();
+    let c = short('c').long("c-very-long-flag-with").argument().build();
+    let d = short('d').long("d-very-long-flag-with").argument().build();
+    let e = short('e').long("e-very-long-flag-with").argument().build();
+    let f = short('f').long("f-very-long-flag-with").argument().build();
+
+    let p = tuple!(a, b, c, d, e, f);
+    let decorated = Info::default().for_parser(p);
+
+    let help = run_inner(Args::from(&["--help"]), decorated)
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: (-a) (-b) (-c) (-d) (-e) (-f)
+Available options:
+    -a, --a-very-long-flag-with
+    -b, --b-very-long-flag-with
+    -c, --c-very-long-flag-with
+    -d, --d-very-long-flag-with
+    -e, --e-very-long-flag-with
+    -f, --f-very-long-flag-with
+    -h, --help                    Prints help information
+";
+
+    assert_eq!(expected_help, help);
 }

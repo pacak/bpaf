@@ -19,9 +19,7 @@ impl std::fmt::Display for Item {
         match (self.short, self.long) {
             (None, None) => unreachable!(),
             (None, Some(l)) => write!(f, "--{}", l),
-            (Some(s), None) => write!(f, "-{}", s),
-            (Some(s), Some(l)) if f.alternate() => write!(f, "-{}|--{}", s, l),
-            (Some(s), Some(l)) => write!(f, "-{}", s),
+            (Some(s), _) => write!(f, "-{}", s),
         }
     }
 }
@@ -202,7 +200,7 @@ impl std::fmt::Display for Meta {
             Meta::Required(m) => write!(f, "({})", m),
             Meta::Optional(m) => write!(f, "[{}]", m),
             Meta::Many(m) => write!(f, "{}...", m),
-            Meta::Item(i) => write!(f, "{:#}", i),
+            Meta::Item(i) => write!(f, "{}", i),
             Meta::Id => Ok(()),
         }
     }
