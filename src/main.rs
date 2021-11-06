@@ -1,9 +1,4 @@
-use bpaf::{
-    curry,
-    info::Info,
-    params::{command, short},
-    run, Parser,
-};
+use bpaf::*;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -47,7 +42,7 @@ pub fn main() {
         .help("Use faster acceleration")
         .build();
     let acc_parser = Parser::pure(Cmd::Accelerate).ap(fast);
-    let acc = command(
+    let cmd = command(
         "accel",
         "command for acceleration",
         info.clone().descr("accelerating").for_parser(acc_parser),
@@ -62,10 +57,12 @@ pub fn main() {
         .req_switch()
         .help("also maps to a boolean but mandatory")
         .build();
+    let c = speed();
 
-    let mk = Parser::pure(curry!(|a, b, c, cmd| Foo { a, b, c, cmd }));
-    let x = mk.ap(a).ap(b).ap(speed()).ap(acc);
-    let y = info.for_parser(x);
+    let parser = construct!(Foo: a, b, c, cmd);
+    //    let mk = Parser::pure(curry!(|a, b, c, cmd| Foo { a, b, c, cmd }));
+    //  let x = mk.ap(a).ap(b).ap(speed()).ap(acc);
+    let y = info.for_parser(parser);
 
     let xx = run(y);
     println!("{:?}", xx);

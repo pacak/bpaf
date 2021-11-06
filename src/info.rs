@@ -50,8 +50,11 @@ impl Item {
 
 #[derive(Clone, Debug)]
 pub enum Meta {
+    /// always fails
     Empty,
-    And(Box<Meta>, Box<Meta>),
+
+    ///
+    And(Vec<Meta>),
     Or(Vec<Meta>),
     Required(Box<Meta>),
     Optional(Box<Meta>),
@@ -64,13 +67,13 @@ impl Meta {
     pub fn is_required(&self) -> bool {
         match self {
             Meta::Empty => false,
-            Meta::And(a, b) => a.is_required() || b.is_required(),
+            Meta::And(xs) => xs.iter().any(|x| x.is_required()),
             Meta::Or(xs) => xs.iter().all(|x| x.is_required()),
             Meta::Required(_) => true,
             Meta::Optional(_) => false,
-            Meta::Item(_) => todo!(),
+            Meta::Item(_) => unreachable!(),
             Meta::Many(_) => false,
-            Meta::Id => todo!(),
+            Meta::Id => false,
         }
     }
     pub fn or(self, other: Meta) -> Self {
@@ -98,7 +101,19 @@ impl Meta {
         match (self, other) {
             (Meta::Id, a) => a,
             (b, Meta::Id) => b,
-            (a, b) => Meta::And(Box::new(a), Box::new(b)),
+            (Meta::And(mut xs), Meta::And(mut ys)) => {
+                xs.append(&mut ys);
+                Meta::And(xs)
+            }
+            (Meta::And(mut xs), b) => {
+                xs.push(b);
+                Meta::And(xs)
+            }
+            (a, Meta::And(mut ys)) => {
+                ys.push(a);
+                Meta::And(ys)
+            }
+            (a, b) => Meta::And(vec![a, b]),
         }
     }
     pub fn optional(self) -> Self {
@@ -132,9 +147,10 @@ impl Meta {
     fn collect_items(&self, res: &mut Vec<Item>) {
         match self {
             Meta::Empty => {}
-            Meta::And(a, b) => {
-                a.collect_items(res);
-                b.collect_items(res);
+            Meta::And(xs) => {
+                for x in xs {
+                    x.collect_items(res);
+                }
             }
             Meta::Or(xs) => {
                 for x in xs {
@@ -154,7 +170,15 @@ impl std::fmt::Display for Meta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Meta::Empty => Ok(()),
-            Meta::And(a, b) => write!(f, "{} {}", a, b),
+            Meta::And(xs) => {
+                for (ix, x) in xs.iter().enumerate() {
+                    write!(f, "{}", x)?;
+                    if ix + 1 < xs.len() {
+                        write!(f, " ")?;
+                    }
+                }
+                Ok(())
+            }
             Meta::Or(xs) => {
                 let required = self.is_required();
                 if required {

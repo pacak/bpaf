@@ -78,11 +78,10 @@ Available options:
 
 #[test]
 fn either_of_two_required_flags_and_one_optional() {
-    let mk = Parser::pure(|a| a);
     let a = short('a').req_switch().build();
     let b = short('b').req_switch().build();
     let c = short('c').switch().build();
-    let p = mk.ap(a.or_else(b).or_else(c));
+    let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
     let decorated = info.for_parser(p);
 
@@ -132,4 +131,16 @@ Available options:
     -h, help   Prints help information
 ";
     assert_eq!(expected_help, help);
+}
+
+#[test]
+fn parse_errors() {
+    let a = short('a').argument().build().parse(|s| i32::from_str(&s));
+    let decorated = Info::default().for_parser(a);
+
+    let err = run_inner(Args::from(&["-a", "123x"]), decorated)
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected_err = "invalid digit found in string";
+    assert_eq!(expected_err, err);
 }

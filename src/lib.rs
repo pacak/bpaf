@@ -12,7 +12,7 @@ pub use info::Info;
 mod tests;
 
 mod tuple;
-use info::{Meta, ParserInfo};
+pub use info::{Meta, ParserInfo};
 pub use tuple::{tparse, Tuple};
 
 #[macro_export]
@@ -21,28 +21,49 @@ macro_rules! curry {
 }
 
 #[macro_export]
-macro_rules! pack {
-    ($fn:ident, struct $st:ident { $( $field:ident: $ty:ty ),* $(,)?}) => {
-
-       #[derive(Debug, Clone)]
-        struct $st{
-            $($field: $ty),*
+macro_rules! construct {
+    ($struct:ident : $( $field:ident ),* $(,)?) => {
+        Parser {
+            parse: ::std::rc::Rc::new(move |rest| {
+                $(let ($field, rest) = ($field.parse)(rest)?;)*
+                Ok(($struct {$($field),*}, rest))
+            }),
+            meta: Meta::And(vec![ $($field.meta),*])
         }
+    }
+}
 
-        let $fn = Parser::pure(
-            $(move |$field:$ty|)* $st {
-                $($field: $field.clone()),*
-            }
-        );
+macro_rules! tuple {
+    ($($x:ident),* $(,)?) => {
+        Parser {
+            parse: Rc::new(move |rest| {
+                $(let ($x, rest) = ($x.parse)(rest)?;)*
+                Ok((($($x),*), rest))
+            }),
+            meta: Meta::And(vec![ $($x.meta),*])
+        }
+    }
+}
+
+#[macro_export]
+macro_rules! apply {
+    ($fn:ident : $( $field:ident ),* $(,)?) => {
+        Parser {
+            parse: ::std::rc::Rc::new(move |rest| {
+                $(let ($field, rest) = ($field.parse)(rest)?;)*
+                Ok(($fn($($field),*), rest))
+            }),
+            meta: Meta::And(vec![ $($field.meta),*])
+        }
     }
 }
 
 #[derive(Clone, Debug)]
-pub(crate) enum Error {
+pub enum Error {
     Stdout(String),
     Stderr(String),
     Missing(Vec<Meta>),
-    Unexpected(String),
+    //    Unexpected(String),
 }
 
 impl Error {
@@ -50,7 +71,7 @@ impl Error {
     pub fn unwrap_stderr(self) -> String {
         match self {
             Error::Stderr(err) => err,
-            Error::Stdout(_) | Error::Missing(_) | Error::Unexpected(_) => {
+            Error::Stdout(_) | Error::Missing(_) => {
                 panic!("not an stderr: {:?}", self)
             }
         }
@@ -60,7 +81,7 @@ impl Error {
     pub fn unwrap_stdout(self) -> String {
         match self {
             Error::Stdout(err) => err,
-            Error::Stderr(_) | Error::Missing(_) | Error::Unexpected(_) => {
+            Error::Stderr(_) | Error::Missing(_) => {
                 panic!("not an stdout: {:?}", self)
             }
         }
@@ -143,8 +164,8 @@ impl<T> Parser1<T> {
 
 #[derive(Clone)]
 pub struct Parser<T> {
-    parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
-    meta: Meta,
+    pub parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
+    pub meta: Meta,
 }
 
 /// TODO:
@@ -156,15 +177,7 @@ impl<T> Parser<T> {
         A: 'static + Clone,
         B: 'static + Clone,
     {
-        let parse = move |rest| {
-            let (a, rest) = (a.parse)(rest)?;
-            let (b, rest) = (b.parse)(rest)?;
-            Ok(((a, b), rest))
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: a.meta.clone().and(b.meta.clone()),
-        }
+        tuple!(a, b)
     }
 
     // succeed without consuming anything
@@ -307,7 +320,14 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| {
             let (a, i) = (self.parse)(i)?;
-            Ok((m(a).map_err(|e| Error::Stderr(e.to_string()))?, i))
+            match m(a) {
+                Ok(ok) => Ok((ok, i)),
+                Err(e) => Err(Error::Stderr(format!(
+                    "Not a valid argument: {}",
+                    e.to_string()
+                ))),
+            }
+            //            Ok((m(a).map_err(|e| Error::Stderr(e.to_string()))?, i))
         };
         Parser {
             parse: Rc::new(parse),
@@ -353,14 +373,14 @@ pub fn run<T>(parser: ParserInfo<T>) -> T {
             eprint!("{}", msg);
             std::process::exit(1);
         }
-        Err(err) => panic!("failed: {:?}", err),
+        Err(err) => unreachable!("failed: {:?}", err),
     }
 }
 
 fn run_inner<T>(args: Args, parser: ParserInfo<T>) -> Result<T, Error> {
     match (parser.parse)(args) {
         Ok((t, rest)) if rest.is_empty() => Ok(t),
-        Ok((_, rest)) => Err(Error::Unexpected(format!("unexpected {:?}", rest))),
+        Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),
         Err(Error::Missing(metas)) => {
             if metas.len() == 1 {
                 Err(Error::Stderr(format!("Expected {}", metas[0])))
@@ -377,6 +397,6 @@ fn run_inner<T>(args: Args, parser: ParserInfo<T>) -> Result<T, Error> {
                 Err(Error::Stderr(res))
             }
         }
-        Err(err) => Err(err), // TODO
+        Err(err) => Err(err),
     }
 }
