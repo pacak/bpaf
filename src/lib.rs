@@ -33,6 +33,7 @@ macro_rules! construct {
     }
 }
 
+#[macro_export]
 macro_rules! tuple {
     ($($x:ident),* $(,)?) => {
         Parser {
@@ -320,12 +321,13 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| {
             let (a, i) = (self.parse)(i)?;
+
             match m(a) {
                 Ok(ok) => Ok((ok, i)),
-                Err(e) => Err(Error::Stderr(format!(
-                    "Not a valid argument: {}",
-                    e.to_string()
-                ))),
+                Err(e) => Err(Error::Stderr(match i.current {
+                    Some(arg) => format!("Couldn't parse {:?}: {}", arg, e.to_string()),
+                    None => format!("Couldn't parse: {}", e.to_string()),
+                })),
             }
             //            Ok((m(a).map_err(|e| Error::Stderr(e.to_string()))?, i))
         };

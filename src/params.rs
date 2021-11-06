@@ -177,19 +177,6 @@ pub struct Argument {
 
 impl Argument {
     pub fn build(self) -> Parser<String> {
-        let parse = move |mut i: Args| {
-            if let Some(v) = self.short.and_then(|f| i.take_short_arg(f)) {
-                return Ok(v);
-            }
-            if let Some(v) = self.long.and_then(|f| i.take_long_arg(f)) {
-                return Ok(v);
-            }
-            Err(Error::Stderr(format!(
-                "missing {:?}",
-                (self.short, self.long)
-            )))
-        };
-
         let item = Item {
             is_command: false,
             short: self.short,
@@ -198,6 +185,17 @@ impl Argument {
             help: self.help,
         };
         let meta = item.required(true);
+        let meta2 = meta.clone();
+        let parse = move |mut i: Args| {
+            if let Some(v) = self.short.and_then(|f| i.take_short_arg(f)) {
+                return Ok(v);
+            }
+            if let Some(v) = self.long.and_then(|f| i.take_long_arg(f)) {
+                return Ok(v);
+            }
+            Err(Error::Missing(vec![meta2.clone()]))
+        };
+
         Parser {
             parse: Rc::new(parse),
             meta,

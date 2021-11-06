@@ -53,7 +53,7 @@ pub fn main() {
         .switch()
         .help("maps to a boolean, is optional")
         .build();
-    let b = short('b')
+    let b = long("bbbb")
         .req_switch()
         .help("also maps to a boolean but mandatory")
         .build();

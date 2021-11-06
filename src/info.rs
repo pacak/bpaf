@@ -20,7 +20,8 @@ impl std::fmt::Display for Item {
             (None, None) => unreachable!(),
             (None, Some(l)) => write!(f, "--{}", l),
             (Some(s), None) => write!(f, "-{}", s),
-            (Some(s), Some(l)) => write!(f, "-{}|--{}", s, l),
+            (Some(s), Some(l)) if f.alternate() => write!(f, "-{}|--{}", s, l),
+            (Some(s), Some(l)) => write!(f, "-{}", s),
         }
     }
 }
@@ -201,7 +202,7 @@ impl std::fmt::Display for Meta {
             Meta::Required(m) => write!(f, "({})", m),
             Meta::Optional(m) => write!(f, "[{}]", m),
             Meta::Many(m) => write!(f, "{}...", m),
-            Meta::Item(i) => write!(f, "{}", i),
+            Meta::Item(i) => write!(f, "{:#}", i),
             Meta::Id => Ok(()),
         }
     }
@@ -314,7 +315,7 @@ impl Info {
             if i.is_command {}
             match i.short {
                 Some(c) => write!(res, "    -{}", c)?,
-                None => write!(res, "       ")?,
+                None => write!(res, "      ")?,
             }
             if i.short.is_some() && i.long.is_some() {
                 write!(res, ", ")?
@@ -322,12 +323,12 @@ impl Info {
                 write!(res, "  ")?
             }
             match (i.long, i.metavar) {
-                (None, None) => write!(res, "{:ident$}", "", ident = max_name_width)?,
-                (None, Some(m)) => write!(res, "{:ident$}", m, ident = max_name_width)?,
-                (Some(l), None) => write!(res, "{:ident$}", l, ident = max_name_width)?,
+                (None, None) => write!(res, "{:ident$}", "", ident = max_name_width + 2)?,
+                (None, Some(m)) => write!(res, "{:ident$}", m, ident = max_name_width + 2)?,
+                (Some(l), None) => write!(res, "--{:ident$}", l, ident = max_name_width)?,
                 (Some(l), Some(m)) => write!(
                     res,
-                    "{:ident$}",
+                    "--{:ident$}",
                     format!("{} <{}>", l, m),
                     ident = max_name_width
                 )?,

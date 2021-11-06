@@ -1,6 +1,7 @@
 #[derive(Clone, Debug, Default)]
 pub struct Args {
     items: Vec<Arg>,
+    pub(crate) current: Option<String>,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -84,24 +85,30 @@ impl From<&[String]> for Args {
                 res.push(Arg::Word(x.to_string()))
             }
         }
-        Args { items: res }
+        Args {
+            items: res,
+            current: None,
+        }
     }
 }
 
 impl Args {
     pub fn take_short_flag(&mut self, flag: char) -> Option<Self> {
+        self.current = None;
         let ix = self.items.iter().position(|elt| elt.short(flag))?;
         self.items.remove(ix);
         Some(std::mem::take(self))
     }
 
     pub fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
+        self.current = None;
         let ix = self.items.iter().position(|elt| elt.long(flag))?;
         self.items.remove(ix);
         Some(std::mem::take(self))
     }
 
     pub fn take_short_arg(&mut self, flag: char) -> Option<(String, Self)> {
+        self.current = None;
         let ix = self.items.iter().position(|elt| elt.short(flag))?;
         if ix + 1 > self.items.len() {
             return None;
@@ -112,10 +119,12 @@ impl Args {
         };
         self.items.remove(ix);
         self.items.remove(ix);
+        self.current = Some(w.clone());
         Some((w, std::mem::take(self)))
     }
 
     pub fn take_long_arg(&mut self, flag: &str) -> Option<(String, Self)> {
+        self.current = None;
         let ix = self.items.iter().position(|elt| elt.long(flag))?;
         if ix + 1 > self.items.len() {
             return None;
@@ -126,10 +135,12 @@ impl Args {
         };
         self.items.remove(ix);
         self.items.remove(ix);
+        self.current = Some(w.clone());
         Some((w, std::mem::take(self)))
     }
 
     pub fn take_word(&mut self, word: &str) -> Option<Self> {
+        self.current = None;
         if self.items.is_empty() {
             return None;
         }
@@ -142,6 +153,7 @@ impl Args {
     }
 
     pub fn take_positional(&mut self) -> Option<(String, Self)> {
+        self.current = None;
         if self.items.is_empty() {
             return None;
         }
@@ -150,6 +162,7 @@ impl Args {
             Arg::Word(w) => std::mem::take(w),
         };
         self.items.remove(0);
+        self.current = Some(w.clone());
         Some((w, std::mem::take(self)))
     }
 

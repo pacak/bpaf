@@ -31,9 +31,9 @@ Usage: [-a|--AAAAA] [-b]
 this is a test
 
 Available options:
-    -a, AAAAA
+    -a, --AAAAA
     -b
-    -h, help    Prints help information
+    -h, --help    Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -64,8 +64,8 @@ Available options:
     -a
     -b
     -c
-    -h, help      Prints help information
-    -v, version   Prints version information
+    -h, --help      Prints help information
+    -v, --version   Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -101,8 +101,8 @@ Available options:
     -a
     -b
     -c
-    -h, help      Prints help information
-    -v, version   Prints version information
+    -h, --help      Prints help information
+    -v, --version   Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -128,7 +128,7 @@ fn default_arguments() {
 Usage: [-a]
 Available options:
     -a
-    -h, help   Prints help information
+    -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -138,9 +138,21 @@ fn parse_errors() {
     let a = short('a').argument().build().parse(|s| i32::from_str(&s));
     let decorated = Info::default().for_parser(a);
 
-    let err = run_inner(Args::from(&["-a", "123x"]), decorated)
+    let err = run_inner(Args::from(&["-a", "123x"]), decorated.clone())
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "invalid digit found in string";
+    let expected_err = "Couldn't parse \"123x\": invalid digit found in string";
+    assert_eq!(expected_err, err);
+
+    let err = run_inner(Args::from(&["-b", "123x"]), decorated.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected_err = "Expected (-a)";
+    assert_eq!(expected_err, err);
+
+    let err = run_inner(Args::from(&["-a", "123", "-b"]), decorated.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected_err = "-b is not expected in this context";
     assert_eq!(expected_err, err);
 }
