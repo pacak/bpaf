@@ -456,7 +456,7 @@ impl Info {
                 .help("Prints version information")
                 .req_flag(I::Version)
                 .build();
-            let hv = if self.version.is_some() {
+            let help_version = if self.version.is_some() {
                 help.or_else(ver)
             } else {
                 help
@@ -472,15 +472,16 @@ impl Info {
 
             let err = match (parser.parse)(i.clone()).and_then(check_unexpected) {
                 Ok(r) => return Ok(r),
+                Err(Error::Stderr(e)) => Error::Stderr(e),
+                Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
                 Err(err) => err,
             };
 
-            match (hv.clone().parse)(i) {
+            match (help_version.clone().parse)(i) {
                 Ok((I::Help, _)) => {
-                    // TODO - why clone?
                     let msg = self
                         .clone()
-                        .render_help(parser.meta.clone(), hv.meta)
+                        .render_help(parser.meta.clone(), help_version.meta)
                         .unwrap();
                     return Err(Error::Stdout(msg));
                 }

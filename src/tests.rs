@@ -224,3 +224,43 @@ Available options:
 
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn subcommands() {
+    let global_info = Info::default().descr("This is global info");
+    let local_info = Info::default().descr("This is local info");
+
+    let bar = short('b').switch().build();
+
+    let bar_cmd = command("bar", "do bar", local_info.for_parser(bar));
+
+    let parser = global_info.for_parser(bar_cmd);
+
+    let help = run_inner(Args::from(&["--help"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: COMMAND
+This is global info
+
+Available options:
+    -h, --help   Prints help information
+
+Available commands:
+    bar  do bar
+";
+    assert_eq!(expected_help, help);
+
+    let help = run_inner(Args::from(&["bar", "--help"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: [-b]
+This is local info
+
+Available options:
+    -b
+    -h, --help   Prints help information
+";
+    assert_eq!(expected_help, help);
+}
