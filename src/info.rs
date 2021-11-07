@@ -382,7 +382,13 @@ impl Info {
             }
             match (i.long, i.metavar) {
                 (None, None) => write!(res, "{:ident$}", "", ident = max_name_width + 2)?,
-                (None, Some(m)) => write!(res, "{:ident$}", m, ident = max_name_width + 2)?,
+                (None, Some(m)) => write!(
+                    res,
+                    "<{}>{:ident$}",
+                    m,
+                    "",
+                    ident = max_name_width - m.len()
+                )?,
                 (Some(l), None) => write!(res, "--{:ident$}", l, ident = max_name_width)?,
                 (Some(l), Some(m)) => write!(
                     res,

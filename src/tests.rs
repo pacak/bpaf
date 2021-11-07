@@ -127,7 +127,7 @@ fn default_arguments() {
     let expected_help = "\
 Usage: [-a]
 Available options:
-    -a
+    -a  <ARG>
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -188,13 +188,13 @@ fn long_usage_string() {
     let expected_help = "\
 Usage: (-a) (-b) (-c) (-d) (-e) (-f)
 Available options:
-    -a, --a-very-long-flag-with
-    -b, --b-very-long-flag-with
-    -c, --c-very-long-flag-with
-    -d, --d-very-long-flag-with
-    -e, --e-very-long-flag-with
-    -f, --f-very-long-flag-with
-    -h, --help                    Prints help information
+    -a, --a-very-long-flag-with <ARG>
+    -b, --b-very-long-flag-with <ARG>
+    -c, --c-very-long-flag-with <ARG>
+    -d, --d-very-long-flag-with <ARG>
+    -e, --e-very-long-flag-with <ARG>
+    -f, --f-very-long-flag-with <ARG>
+    -h, --help                         Prints help information
 ";
 
     assert_eq!(expected_help, help);

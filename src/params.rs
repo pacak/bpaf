@@ -90,7 +90,7 @@ impl Named {
             short: self.short,
             long: self.long,
             help: self.help,
-            metavar: None,
+            metavar: Some("ARG"),
         }
     }
 }
