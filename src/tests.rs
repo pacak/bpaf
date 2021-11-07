@@ -187,3 +187,28 @@ Available options:
 
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn group_help() {
+    let a = short('a').help("flag A, related to B").switch().build();
+    let b = short('b').help("flag B, related to A").switch().build();
+    let c = short('c').help("flag C, unrelated").switch().build();
+    let ab = tuple!(a, b).help("Explanation applicable for both A and B");
+    let parser = Info::default().for_parser(tuple!(ab, c));
+
+    let help = run_inner(Args::from(&["--help"]), parser)
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: [-a] [-b] [-c]
+Available options:
+                 Explanation applicable for both A and B
+    -a           flag A, related to B
+    -b           flag B, related to A
+
+    -c           flag C, unrelated
+    -h, --help   Prints help information
+";
+
+    assert_eq!(expected_help, help);
+}

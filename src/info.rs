@@ -2,24 +2,33 @@ use std::rc::Rc;
 
 use crate::{args::Args, params::short, Error, Parser};
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
+pub enum ItemKind {
+    Flag,
+    Command,
+    Decor,
+}
+
+#[derive(Copy, Clone, Debug)]
 pub struct Item {
     pub short: Option<char>,
     pub long: Option<&'static str>,
     pub metavar: Option<&'static str>,
     pub help: Option<&'static str>,
-    pub is_command: bool,
+    pub kind: ItemKind,
 }
 
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.is_command {
-            return write!(f, "COMMAND");
-        }
-        match (self.short, self.long) {
-            (None, None) => unreachable!(),
-            (None, Some(l)) => write!(f, "--{}", l),
-            (Some(s), _) => write!(f, "-{}", s),
+        match self.kind {
+            ItemKind::Flag => match (self.short, self.long) {
+                (None, None) => unreachable!(),
+                (None, Some(l)) => write!(f, "--{}", l),
+                (Some(s), _) => write!(f, "-{}", s),
+            },
+
+            ItemKind::Command => return write!(f, "COMMAND"),
+            ItemKind::Decor => return Ok(()),
         }
     }
 }
@@ -45,6 +54,30 @@ impl Item {
         };
         res
     }
+
+    pub fn decoration(help: Option<&'static str>) -> Self {
+        Self {
+            short: None,
+            long: None,
+            metavar: None,
+            help,
+            kind: ItemKind::Decor,
+        }
+    }
+
+    pub fn is_command(&self) -> bool {
+        match self.kind {
+            ItemKind::Flag => false,
+            ItemKind::Command | ItemKind::Decor => true,
+        }
+    }
+
+    pub fn is_flag(&self) -> bool {
+        match self.kind {
+            ItemKind::Command => false,
+            ItemKind::Flag | ItemKind::Decor => true,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -59,6 +92,7 @@ pub enum Meta {
     Optional(Box<Meta>),
     Item(Item),
     Many(Box<Meta>),
+    Decorated(Box<Meta>, &'static str),
     Id,
 }
 
@@ -73,6 +107,7 @@ impl Meta {
             Meta::Item(_) => unreachable!(),
             Meta::Many(_) => false,
             Meta::Id => false,
+            Meta::Decorated(x, _) => x.is_required(),
         }
     }
     pub fn or(self, other: Meta) -> Self {
@@ -131,36 +166,55 @@ impl Meta {
 
     pub fn commands(&self) -> Vec<Item> {
         let mut res = Vec::new();
-        self.collect_items(&mut res);
-        res.retain(|i| i.is_command);
+        self.collect_items(&mut res, |i| i.is_command());
         res
     }
 
-    pub fn items(&self) -> Vec<Item> {
+    pub fn flags(&self) -> Vec<Item> {
         let mut res = Vec::new();
-        self.collect_items(&mut res);
-        res.retain(|i| !i.is_command);
+        self.collect_items(&mut res, |i| i.is_flag());
         res
     }
 
-    fn collect_items(&self, res: &mut Vec<Item>) {
+    pub fn decorate(self, msg: &'static str) -> Self {
+        Meta::Decorated(Box::new(self), msg)
+    }
+
+    fn collect_items<F>(&self, res: &mut Vec<Item>, pred: F)
+    where
+        F: Fn(&Item) -> bool + Copy,
+    {
         match self {
             Meta::Empty => {}
             Meta::And(xs) => {
                 for x in xs {
-                    x.collect_items(res);
+                    x.collect_items(res, pred);
                 }
             }
             Meta::Or(xs) => {
                 for x in xs {
-                    x.collect_items(res);
+                    x.collect_items(res, pred);
                 }
             }
-            Meta::Required(a) => a.collect_items(res),
-            Meta::Many(a) => a.collect_items(res),
-            Meta::Optional(a) => a.collect_items(res),
-            Meta::Item(i) => res.push(i.clone()),
+            Meta::Required(a) => a.collect_items(res, pred),
+            Meta::Many(a) => a.collect_items(res, pred),
+            Meta::Optional(a) => a.collect_items(res, pred),
+            Meta::Item(i) => {
+                if pred(i) {
+                    res.push(i.clone())
+                }
+            }
             Meta::Id => {}
+            Meta::Decorated(x, msg) => {
+                res.push(Item::decoration(Some(msg)));
+                let prev_len = res.len();
+                x.collect_items(res, pred);
+                if res.len() == prev_len {
+                    res.pop();
+                } else {
+                    res.push(Item::decoration(None));
+                }
+            }
         }
     }
 }
@@ -202,6 +256,7 @@ impl std::fmt::Display for Meta {
             Meta::Many(m) => write!(f, "{}...", m),
             Meta::Item(i) => write!(f, "{}", i),
             Meta::Id => Ok(()),
+            Meta::Decorated(x, _) => write!(f, "{}", x),
         }
     }
 }
@@ -303,14 +358,13 @@ impl Info {
             write!(res, "\n{}\n", t)?;
         }
         let meta = Meta::and(parser_meta, help_meta);
-        let items = &meta.items();
+        let flags = &meta.flags();
 
-        let max_name_width = items.iter().map(|i| i.name_len()).max().unwrap_or(0);
-        if !items.is_empty() {
+        let max_name_width = flags.iter().map(|i| i.name_len()).max().unwrap_or(0);
+        if !flags.is_empty() {
             write!(res, "\nAvailable options:\n")?;
         }
-        for i in items {
-            if i.is_command {}
+        for i in flags {
             match i.short {
                 Some(c) => write!(res, "    -{}", c)?,
                 None => write!(res, "      ")?,
@@ -332,10 +386,12 @@ impl Info {
                 )?,
             }
             match i.help {
-                Some(h) => write!(res, "{}\n", h)?,
+                Some(h) => {
+                    write!(res, "{}\n", h)?;
+                }
                 None => {
                     // strip unnecessary spaces inserted by previous writes
-                    res.truncate(res.trim_end().len());
+                    res.truncate(res.trim_end_matches(' ').len());
                     write!(res, "\n")?;
                 }
             }
@@ -347,21 +403,24 @@ impl Info {
         }
         let max_command_width = commands
             .iter()
-            .map(|i| i.long.unwrap().len())
+            .map(|i| i.long.map(|l| l.len()).unwrap_or(0))
             .max()
             .unwrap_or(0);
         for c in commands {
-            write!(
-                res,
-                "    {:indent$}",
-                c.long.unwrap(),
-                indent = max_command_width
-            )?;
-            if let Some(help) = c.help {
-                write!(res, "  {}\n", help)?;
+            if let Some(l) = c.long {
+                write!(res, "    {:indent$}", l, indent = max_command_width)?;
             } else {
-                // strip unnecessary spaces inserted by previous writes
-                res.truncate(res.trim_end().len());
+                write!(res, "    {:indent$}", "", indent = max_command_width)?;
+            }
+            match c.help {
+                Some(help) => {
+                    write!(res, "  {}\n", help)?;
+                }
+                None => {
+                    // strip unnecessary spaces inserted by previous writes
+                    res.truncate(res.trim_end_matches(' ').len());
+                    write!(res, "\n")?;
+                }
             }
         }
 

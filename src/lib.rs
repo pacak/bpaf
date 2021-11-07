@@ -356,6 +356,13 @@ impl<T> Parser<T> {
     {
         self.fallback(T::default())
     }
+
+    pub fn help(self, msg: &'static str) -> Parser<T> {
+        Parser {
+            parse: self.parse,
+            meta: Meta::decorate(self.meta, msg),
+        }
+    }
 }
 
 pub fn run<T>(parser: ParserInfo<T>) -> T {

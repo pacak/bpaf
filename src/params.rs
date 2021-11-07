@@ -1,5 +1,5 @@
 use super::*;
-use crate::info::Meta;
+use crate::info::{ItemKind, Meta};
 
 pub struct Named {
     short: Option<char>,
@@ -104,7 +104,7 @@ where
         long: Some(name),
         metavar: None,
         help: Some(help),
-        is_command: true,
+        kind: ItemKind::Command,
     });
     Parser {
         parse: Rc::new(parse),
@@ -131,7 +131,7 @@ impl<T> Flag<T> {
             long: self.long,
             metavar: None,
             help: self.help,
-            is_command: false,
+            kind: ItemKind::Flag,
         };
         let required = self.absent.is_none();
         let meta = item.required(required);
@@ -178,7 +178,7 @@ pub struct Argument {
 impl Argument {
     pub fn build(self) -> Parser<String> {
         let item = Item {
-            is_command: false,
+            kind: ItemKind::Flag,
             short: self.short,
             long: self.long,
             metavar: self.metavar,
