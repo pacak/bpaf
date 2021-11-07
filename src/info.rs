@@ -9,12 +9,12 @@ pub enum ItemKind {
     Decor,
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub struct Item {
     pub short: Option<char>,
     pub long: Option<&'static str>,
     pub metavar: Option<&'static str>,
-    pub help: Option<&'static str>,
+    pub help: Option<String>,
     pub kind: ItemKind,
 }
 
@@ -55,12 +55,15 @@ impl Item {
         res
     }
 
-    pub fn decoration(help: Option<&'static str>) -> Self {
+    pub fn decoration<M>(help: Option<M>) -> Self
+    where
+        M: Into<String>,
+    {
         Self {
             short: None,
             long: None,
             metavar: None,
-            help,
+            help: help.map(|h| h.into()),
             kind: ItemKind::Decor,
         }
     }
@@ -92,7 +95,7 @@ pub enum Meta {
     Optional(Box<Meta>),
     Item(Item),
     Many(Box<Meta>),
-    Decorated(Box<Meta>, &'static str),
+    Decorated(Box<Meta>, String),
     Id,
 }
 
@@ -176,8 +179,11 @@ impl Meta {
         res
     }
 
-    pub fn decorate(self, msg: &'static str) -> Self {
-        Meta::Decorated(Box::new(self), msg)
+    pub fn decorate<M>(self, msg: M) -> Self
+    where
+        M: Into<String>,
+    {
+        Meta::Decorated(Box::new(self), msg.into())
     }
 
     fn collect_items<F>(&self, res: &mut Vec<Item>, pred: F)
@@ -212,7 +218,7 @@ impl Meta {
                 if res.len() == prev_len {
                     res.pop();
                 } else {
-                    res.push(Item::decoration(None));
+                    res.push(Item::decoration(None::<String>));
                 }
             }
         }
@@ -385,7 +391,7 @@ impl Info {
                     ident = max_name_width
                 )?,
             }
-            match i.help {
+            match &i.help {
                 Some(h) => {
                     write!(res, "{}\n", h)?;
                 }
@@ -412,7 +418,7 @@ impl Info {
             } else {
                 write!(res, "    {:indent$}", "", indent = max_command_width)?;
             }
-            match c.help {
+            match &c.help {
                 Some(help) => {
                     write!(res, "  {}\n", help)?;
                 }

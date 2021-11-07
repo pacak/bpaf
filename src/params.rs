@@ -1,10 +1,11 @@
 use super::*;
 use crate::info::{ItemKind, Meta};
 
+#[derive(Clone, Debug)]
 pub struct Named {
     short: Option<char>,
     long: Option<&'static str>,
-    help: Option<&'static str>,
+    help: Option<String>,
 }
 
 pub fn short(short: char) -> Named {
@@ -32,8 +33,11 @@ impl Named {
         self.long = Some(long);
         self
     }
-    pub fn help(mut self, help: &'static str) -> Self {
-        self.help = Some(help);
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
         self
     }
 }
@@ -46,7 +50,7 @@ impl Named {
             absent: Some(false),
             short: self.short,
             long: self.long,
-            help: self.help,
+            help: self.help.map(|h| h.into()),
         }
     }
     pub fn req_switch(self) -> Flag<bool> {
@@ -55,7 +59,7 @@ impl Named {
             absent: None,
             short: self.short,
             long: self.long,
-            help: self.help,
+            help: self.help.map(|h| h.into()),
         }
     }
 
@@ -66,7 +70,7 @@ impl Named {
             absent: Some(absent),
             short: self.short,
             long: self.long,
-            help: self.help,
+            help: self.help.map(|h| h.into()),
         }
     }
 
@@ -77,7 +81,7 @@ impl Named {
             absent: None,
             short: self.short,
             long: self.long,
-            help: self.help,
+            help: self.help.map(|h| h.into()),
         }
     }
 
@@ -91,9 +95,10 @@ impl Named {
     }
 }
 
-pub fn command<T>(name: &'static str, help: &'static str, p: ParserInfo<T>) -> Parser<T>
+pub fn command<T, M>(name: &'static str, help: M, p: ParserInfo<T>) -> Parser<T>
 where
     T: 'static,
+    M: Into<String>,
 {
     let parse = move |mut i: Args| match i.take_word(name) {
         Some(i) => (p.parse)(i),
@@ -103,7 +108,7 @@ where
         short: None,
         long: Some(name),
         metavar: None,
-        help: Some(help),
+        help: Some(help.into()),
         kind: ItemKind::Command,
     });
     Parser {
@@ -118,7 +123,7 @@ pub struct Flag<T> {
     absent: Option<T>,
     short: Option<char>,
     long: Option<&'static str>,
-    help: Option<&'static str>,
+    help: Option<String>,
 }
 
 impl<T> Flag<T> {
@@ -162,8 +167,11 @@ impl<T> Flag<T> {
 }
 
 impl<T> Flag<T> {
-    pub fn help(mut self, help: &'static str) -> Self {
-        self.help = Some(help);
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
         self
     }
 }
@@ -171,7 +179,7 @@ impl<T> Flag<T> {
 pub struct Argument {
     short: Option<char>,
     long: Option<&'static str>,
-    help: Option<&'static str>,
+    help: Option<String>,
     metavar: Option<&'static str>,
 }
 
@@ -182,7 +190,7 @@ impl Argument {
             short: self.short,
             long: self.long,
             metavar: self.metavar,
-            help: self.help,
+            help: self.help.map(|h| h.into()),
         };
         let meta = item.required(true);
         let meta2 = meta.clone();
@@ -209,8 +217,11 @@ impl Argument {
         self.metavar = Some(metavar);
         self
     }
-    pub fn help(mut self, help: &'static str) -> Self {
-        self.help = Some(help);
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
         self
     }
 }
