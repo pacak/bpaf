@@ -1,3 +1,5 @@
+use crate::Error;
+
 #[derive(Clone, Debug, Default)]
 pub struct Args {
     items: Vec<Arg>,
@@ -107,36 +109,51 @@ impl Args {
         Some(std::mem::take(self))
     }
 
-    pub fn take_short_arg(&mut self, flag: char) -> Option<(String, Self)> {
+    pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(String, Self)>, Error> {
         self.current = None;
-        let ix = self.items.iter().position(|elt| elt.short(flag))?;
-        if ix + 1 > self.items.len() {
-            return None;
-        }
+        let mix = self.items.iter().position(|elt| elt.short(flag));
+
+        let ix = match mix {
+            Some(ix) if ix + 2 > self.items.len() => {
+                return Err(Error::Stderr(format!("-{} requires an argument", flag)))
+            }
+            Some(ix) => ix,
+            None => return Ok(None),
+        };
+
+        //        if ix + 1 > self.items.len() {
+        //            return None;
+        //        }
         let w = match &mut self.items[ix + 1] {
-            Arg::Short(_) | Arg::Long(_) => return None,
+            Arg::Short(_) | Arg::Long(_) => return Ok(None),
             Arg::Word(w) => std::mem::take(w),
         };
         self.items.remove(ix);
         self.items.remove(ix);
         self.current = Some(w.clone());
-        Some((w, std::mem::take(self)))
+        Ok(Some((w, std::mem::take(self))))
     }
 
-    pub fn take_long_arg(&mut self, flag: &str) -> Option<(String, Self)> {
+    pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(String, Self)>, Error> {
         self.current = None;
-        let ix = self.items.iter().position(|elt| elt.long(flag))?;
-        if ix + 1 > self.items.len() {
-            return None;
-        }
+
+        let mix = self.items.iter().position(|elt| elt.long(flag));
+        let ix = match mix {
+            Some(ix) if ix + 2 > self.items.len() => {
+                return Err(Error::Stderr(format!("--{} requires an argument", flag)))
+            }
+            Some(ix) => ix,
+            None => return Ok(None),
+        };
+
         let w = match &mut self.items[ix + 1] {
-            Arg::Short(_) | Arg::Long(_) => return None,
+            Arg::Short(_) | Arg::Long(_) => return Ok(None),
             Arg::Word(w) => std::mem::take(w),
         };
         self.items.remove(ix);
         self.items.remove(ix);
         self.current = Some(w.clone());
-        Some((w, std::mem::take(self)))
+        Ok(Some((w, std::mem::take(self))))
     }
 
     pub fn take_word(&mut self, word: &str) -> Option<Self> {
@@ -189,7 +206,7 @@ mod tests {
     #[test]
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
-        let (s, a) = a.take_long_arg("speed").unwrap();
+        let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -215,7 +232,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
-        let (s, a) = a.take_long_arg("speed").unwrap();
+        let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -223,7 +240,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
-        let (s, a) = a.take_long_arg("speed").unwrap();
+        let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -231,7 +248,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
-        let (s, a) = a.take_short_arg('s').unwrap();
+        let (s, a) = a.take_short_arg('s').unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -239,7 +256,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
-        let (s, a) = a.take_short_arg('s').unwrap();
+        let (s, a) = a.take_short_arg('s').unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -247,7 +264,7 @@ mod tests {
     #[test]
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
-        let (s, a) = a.take_short_arg('s').unwrap();
+        let (s, a) = a.take_short_arg('s').unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -272,7 +289,7 @@ mod tests {
     fn command_with_flags() {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         let mut a = a.take_word("cmd").unwrap();
-        let (s, a) = a.take_short_arg('s').unwrap();
+        let (s, a) = a.take_short_arg('s').unwrap().unwrap();
         assert_eq!(s, "v");
         assert!(a.is_empty());
     }
@@ -298,7 +315,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash2() {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
-        let (w, mut a) = a.take_short_arg('v').unwrap();
+        let (w, mut a) = a.take_short_arg('v').unwrap().unwrap();
         assert_eq!(w, "12");
         let (w, a) = a.take_positional().unwrap();
         assert_eq!(w, "-x");

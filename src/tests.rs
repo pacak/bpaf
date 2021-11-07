@@ -121,7 +121,7 @@ fn default_arguments() {
     let info = Info::default();
     let decorated = info.for_parser(a);
 
-    let help = run_inner(Args::from(&["-h"]), decorated)
+    let help = run_inner(Args::from(&["-h"]), decorated.clone())
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -131,6 +131,18 @@ Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
+
+    let err = run_inner(Args::from(&["-a", "x12"]), decorated.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected_err = "Couldn't parse \"x12\": invalid digit found in string";
+    assert_eq!(expected_err, err);
+
+    let err = run_inner(Args::from(&["-a"]), decorated)
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected_err = "-a requires an argument";
+    assert_eq!(expected_err, err);
 }
 
 #[test]

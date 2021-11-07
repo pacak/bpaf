@@ -187,11 +187,15 @@ impl Argument {
         let meta = item.required(true);
         let meta2 = meta.clone();
         let parse = move |mut i: Args| {
-            if let Some(v) = self.short.and_then(|f| i.take_short_arg(f)) {
-                return Ok(v);
+            if let Some(short) = self.short {
+                if let Some(x) = i.take_short_arg(short)? {
+                    return Ok(x);
+                }
             }
-            if let Some(v) = self.long.and_then(|f| i.take_long_arg(f)) {
-                return Ok(v);
+            if let Some(long) = self.long {
+                if let Some(x) = i.take_long_arg(long)? {
+                    return Ok(x);
+                }
             }
             Err(Error::Missing(vec![meta2.clone()]))
         };

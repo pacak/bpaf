@@ -341,6 +341,7 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| match (self.parse)(i.clone()) {
             Ok(ok) => Ok(ok),
+            e @ Err(Error::Stderr(_)) => e,
             Err(_) => Ok((val.clone(), i)),
         };
         Parser {
