@@ -11,9 +11,7 @@ pub use info::Info;
 #[cfg(test)]
 mod tests;
 
-mod tuple;
 pub use info::{Meta, ParserInfo};
-pub use tuple::{tparse, Tuple};
 
 #[macro_export]
 macro_rules! curry {
@@ -64,7 +62,6 @@ pub enum Error {
     Stdout(String),
     Stderr(String),
     Missing(Vec<Meta>),
-    //    Unexpected(String),
 }
 
 impl Error {
@@ -99,6 +96,7 @@ impl Error {
                 a.append(&mut b);
                 Error::Missing(a)
             }
+
             // missing takes priority
             (a @ Error::Missing(_), _) => a,
             (_, b @ Error::Missing(_)) => b,
@@ -312,7 +310,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // apply failing transformation transformation
+    // apply failing transformation
     pub fn parse<F, B, E>(self, m: F) -> Parser<B>
     where
         F: Fn(T) -> Result<B, E> + 'static,
@@ -329,7 +327,6 @@ impl<T> Parser<T> {
                     None => format!("Couldn't parse: {}", e.to_string()),
                 })),
             }
-            //            Ok((m(a).map_err(|e| Error::Stderr(e.to_string()))?, i))
         };
         Parser {
             parse: Rc::new(parse),
@@ -365,7 +362,7 @@ pub fn run<T>(parser: ParserInfo<T>) -> T {
     let mut args: Vec<String> = std::env::args().collect();
     let prog_name = args.remove(0);
     let a = Args::from(args.as_slice());
-    match run_inner(a, parser) /*(parser.parse)(a) */{
+    match run_inner(a, parser) {
         Ok(t) => t,
         Err(Error::Stdout(msg)) => {
             print!("{}", msg);
