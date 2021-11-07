@@ -37,7 +37,7 @@ macro_rules! construct {
 macro_rules! tuple {
     ($($x:ident),* $(,)?) => {
         Parser {
-            parse: Rc::new(move |rest| {
+            parse: ::std::rc::Rc::new(move |rest| {
                 $(let ($x, rest) = ($x.parse)(rest)?;)*
                 Ok((($($x),*), rest))
             }),
