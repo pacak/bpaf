@@ -4,6 +4,7 @@ use crate::Error;
 pub struct Args {
     items: Vec<Arg>,
     pub(crate) current: Option<String>,
+    pub(crate) head: usize,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -90,14 +91,20 @@ impl From<&[String]> for Args {
         Args {
             items: res,
             current: None,
+            head: usize::MAX,
         }
     }
 }
 
 impl Args {
+    fn set_head(&mut self, h: usize) {
+        self.head = self.head.min(h)
+    }
+
     pub fn take_short_flag(&mut self, flag: char) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.short(flag))?;
+        self.set_head(ix);
         self.items.remove(ix);
         Some(std::mem::take(self))
     }
@@ -105,6 +112,7 @@ impl Args {
     pub fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.long(flag))?;
+        self.set_head(ix);
         self.items.remove(ix);
         Some(std::mem::take(self))
     }
@@ -120,6 +128,7 @@ impl Args {
             Some(ix) => ix,
             None => return Ok(None),
         };
+        self.set_head(ix);
 
         //        if ix + 1 > self.items.len() {
         //            return None;
@@ -145,6 +154,7 @@ impl Args {
             Some(ix) => ix,
             None => return Ok(None),
         };
+        self.set_head(ix);
 
         let w = match &mut self.items[ix + 1] {
             Arg::Short(_) | Arg::Long(_) => return Ok(None),
@@ -165,6 +175,7 @@ impl Args {
             Arg::Word(w) if w == word => (),
             Arg::Word(_) | Arg::Short(_) | Arg::Long(_) => return None,
         };
+        self.set_head(0);
         self.items.remove(0);
         Some(std::mem::take(self))
     }
@@ -178,6 +189,7 @@ impl Args {
             Arg::Short(_) | Arg::Long(_) => return None,
             Arg::Word(w) => std::mem::take(w),
         };
+        self.set_head(0);
         self.items.remove(0);
         self.current = Some(w.clone());
         Some((w, std::mem::take(self)))

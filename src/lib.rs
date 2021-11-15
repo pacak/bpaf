@@ -213,12 +213,25 @@ impl<T> Parser<T> {
     where
         T: 'static,
     {
-        let parse = move |i: Args| match (self.parse)(i.clone()) {
-            Ok(ok) => Ok(ok),
-            Err(err1) => match (other.parse)(i) {
-                Ok(ok) => Ok(ok),
-                Err(err2) => Err(err1.combine_with(err2)),
-            },
+        let parse = move |mut i: Args| -> Result<(T, Args), Error> {
+            i.head = usize::MAX;
+            // To generate less confusing error messages give priority to the left most flag/argument
+            // from the command line:
+            // So if program accepts only one of 3 flags: -a, -b and -c and all 3 are present
+            // take the first one and reject the remaining ones.
+            let (res, new_args) = match ((self.parse)(i.clone()), (other.parse)(i)) {
+                (Ok((r1, a1)), Ok((r2, a2))) => {
+                    if a1.head < a2.head {
+                        Ok((r1, a1))
+                    } else {
+                        Ok((r2, a2))
+                    }
+                }
+                (Ok(ok), Err(_)) => Ok(ok),
+                (Err(_), Ok(ok)) => Ok(ok),
+                (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
+            }?;
+            Ok((res, new_args))
         };
 
         Parser {
@@ -248,7 +261,7 @@ impl<T> Parser<T> {
                 if new_size < size {
                     size = new_size
                 } else {
-                    panic!()
+                    panic!("many can't be used with non failing parser")
                 }
                 i = new_i;
                 res.push(elt);
@@ -343,6 +356,27 @@ impl<T> Parser<T> {
             Ok(ok) => Ok(ok),
             e @ Err(Error::Stderr(_)) => e,
             Err(_) => Ok((val.clone(), i)),
+        };
+        Parser {
+            parse: Rc::new(parse),
+            meta: Meta::optional(self.meta),
+        }
+    }
+
+    // use this default
+    pub fn fallback_with<F, E>(self, val: F) -> Parser<T>
+    where
+        F: Fn() -> Result<T, E> + Clone + 'static,
+        E: ToString,
+        T: Clone + 'static,
+    {
+        let parse = move |i: Args| match (self.parse)(i.clone()) {
+            Ok(ok) => Ok(ok),
+            e @ Err(Error::Stderr(_)) => e,
+            Err(_) => match val() {
+                Ok(ok) => Ok((ok, i)),
+                Err(e) => Err(Error::Stderr(e.to_string())),
+            },
         };
         Parser {
             parse: Rc::new(parse),

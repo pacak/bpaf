@@ -21,10 +21,12 @@ pub struct Item {
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
-            ItemKind::Flag => match (self.short, self.long) {
-                (None, None) => unreachable!(),
-                (None, Some(l)) => write!(f, "--{}", l),
-                (Some(s), _) => write!(f, "-{}", s),
+            ItemKind::Flag => match (self.short, self.long, self.metavar) {
+                (None, None, _) => unreachable!(),
+                (None, Some(l), None) => write!(f, "--{}", l),
+                (Some(s), _, None) => write!(f, "-{}", s),
+                (None, Some(l), Some(v)) => write!(f, "--{} {}", l, v),
+                (Some(s), _, Some(v)) => write!(f, "-{} {}", s, v),
             },
 
             ItemKind::Command => return write!(f, "COMMAND"),
@@ -223,6 +225,20 @@ impl Meta {
             }
         }
     }
+
+    fn is_simple(&self) -> bool {
+        match self {
+            Meta::Empty => true,
+            Meta::And(_) => false,
+            Meta::Or(_) => false,
+            Meta::Required(m) => m.is_simple(),
+            Meta::Optional(m) => m.is_simple(),
+            Meta::Item(_) => true,
+            Meta::Many(m) => m.is_simple(),
+            Meta::Decorated(m, _) => m.is_simple(),
+            Meta::Id => true,
+        }
+    }
 }
 
 impl std::fmt::Display for Meta {
@@ -257,6 +273,7 @@ impl std::fmt::Display for Meta {
                     write!(f, "]")
                 }
             }
+            Meta::Required(m) if m.is_simple() => write!(f, "{}", m),
             Meta::Required(m) => write!(f, "({})", m),
             Meta::Optional(m) => write!(f, "[{}]", m),
             Meta::Many(m) => write!(f, "{}...", m),

@@ -59,7 +59,7 @@ fn either_of_three_required_flags() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: ((-a) | (-b) | (-c))
+Usage: (-a | -b | -c)
 Available options:
     -a
     -b
@@ -73,7 +73,7 @@ Available options:
     let err = run_inner(Args::from(&[]), decorated.clone())
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("Expected one of (-a), (-b), (-c)", err);
+    assert_eq!("Expected one of -a, -b, -c", err);
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn either_of_two_required_flags_and_one_optional() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: [(-a) | (-b) | [-c]]
+Usage: [-a | -b | [-c]]
 Available options:
     -a
     -b
@@ -125,7 +125,7 @@ fn default_arguments() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: [-a]
+Usage: [-a ARG]
 Available options:
     -a  <ARG>
     -h, --help   Prints help information
@@ -159,7 +159,7 @@ fn parse_errors() {
     let err = run_inner(Args::from(&["-b", "123x"]), decorated.clone())
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Expected (-a)";
+    let expected_err = "Expected -a ARG";
     assert_eq!(expected_err, err);
 
     let err = run_inner(Args::from(&["-a", "123", "-b"]), decorated.clone())
@@ -186,7 +186,7 @@ fn long_usage_string() {
         .unwrap_stdout();
 
     let expected_help = "\
-Usage: (-a) (-b) (-c) (-d) (-e) (-f)
+Usage: -a ARG -b ARG -c ARG -d ARG -e ARG -f ARG
 Available options:
     -a, --a-very-long-flag-with <ARG>
     -b, --b-very-long-flag-with <ARG>
@@ -223,6 +223,40 @@ Available options:
 ";
 
     assert_eq!(expected_help, help);
+}
+
+#[test]
+fn from_several_alternatives_pick_more_meaningful() {
+    let a = short('a').req_switch().build();
+    let b = short('b').req_switch().build();
+    let c = short('c').req_switch().build();
+    let p = a.or_else(b).or_else(c);
+    let parser = Info::default().for_parser(p);
+
+    let err1 = run_inner(Args::from(&["-a", "-b"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err1, "-b is not expected in this context");
+
+    let err2 = run_inner(Args::from(&["-b", "-a"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err2, "-a is not expected in this context");
+
+    let err3 = run_inner(Args::from(&["-c", "-a"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err3, "-a is not expected in this context");
+
+    let err4 = run_inner(Args::from(&["-a", "-c"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err4, "-c is not expected in this context");
+
+    let err5 = run_inner(Args::from(&["-c", "-b", "-a"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err5, "-b is not expected in this context");
 }
 
 #[test]
