@@ -110,68 +110,11 @@ impl Error {
     }
 }
 
-pub struct Parser1<T> {
-    parse: Box<dyn FnOnce(Args) -> Result<(T, Args), Error>>,
-    meta: Meta,
-}
-
-impl<T> Parser1<T> {
-    // succeed without consuming anything
-    pub fn pure(val: T) -> Parser1<T>
-    where
-        T: 'static + Clone,
-    {
-        let parse = move |i| Ok((val.clone(), i));
-        Parser1 {
-            parse: Box::new(parse),
-            meta: Meta::Id,
-        }
-    }
-
-    // <*>
-    pub fn ap<A, B>(self, other: Parser<A>) -> Parser1<B>
-    where
-        T: Fn(A) -> B + 'static,
-        A: 'static,
-    {
-        let parse = move |i| {
-            let (t, rest) = (self.parse)(i)?;
-            let (a, rest) = (other.parse)(rest)?;
-            Ok((t(a), rest))
-        };
-        Parser1 {
-            parse: Box::new(parse),
-            meta: self.meta.clone().and(other.meta.clone()),
-        }
-    }
-
-    pub fn or_else(self, other: Parser1<T>) -> Parser1<T>
-    where
-        T: 'static,
-    {
-        let parse = move |i: Args| match (self.parse)(i.clone()) {
-            Ok(ok) => Ok(ok),
-            Err(err1) => match (other.parse)(i) {
-                Ok(ok) => Ok(ok),
-                Err(err2) => Err(err1.combine_with(err2)),
-            },
-        };
-
-        Parser1 {
-            parse: Box::new(parse),
-            meta: self.meta.or(other.meta),
-        }
-    }
-}
-
 #[derive(Clone)]
 pub struct Parser<T> {
     pub parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
     pub meta: Meta,
 }
-
-/// TODO:
-/// it's probably okay to make composite parsers oneshot... So add Parser1
 
 impl<T> Parser<T> {
     pub fn pair<A, B>(a: Parser<A>, b: Parser<B>) -> Parser<(A, B)>
