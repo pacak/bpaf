@@ -168,6 +168,50 @@ bpaf:
     }
 ```
 
+
+## Clap to bpaf dictionary
+
+| `Clap` |      `bpaf` |  explanation  |
+|----------|-------------|------|
+| `*_os` | [`argument_os`] | Plus any parsing you want on top of that |
+| `alias` | [`short`], [`long`] | First name becomes visible, remaining are hidden aliases |
+| `aliases` | [`short`], [`long`]  | You pay a single push per alias |
+| `allow_hyphen_values` | N/A | values like `--pattern=--bar` are accepted as is |
+| `case_insensitive` | N/A | You can use a custom parsing with [`parse`] |
+| `case_insensitive` | [`parse`] | You can use any parsing logic. |
+| `conflicts_with` | [`or_else`] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
+| `conflicts_with_all`| [`or_else`] | can be chained: `foo.or_else(bar).or_else(baz)` |
+| `default_value_if[s]`| N/A | Values produced by parsers can't depend on values produced by other parsers. Some functions are achievable with [`or_else`] |
+| `default_value`| [`fallback_value`] ||
+| `display_order` | N/A | Order is fixed by construction order, you can put more important items first. |
+| `empty_values` | [`guard`] | Same as any validation |
+| `env[_os]` | [`fallback_with`] | |
+| `fallback_value` | [`fallback`] | But it's not limited to strings: `foo.fallback(Megapotato)` |
+| `from_usage` | N/A | In the best case scenario you'll get some stringly typed values. Just no. |
+| `from_yaml` | N/A | You can share parsers between multple programs by exporting them. Yaml requires external dependencies and gives stringly typed values. Also no. |
+| `global` | N/A | Not really needed. Parsing in subcommands can't depend on any other flags but parsed values will be returned in a context that will contain global values. |
+| `group[s]` | [`or_else`], [`command`] | Instead of making a stringly typed group - you can make a real one. |
+| `help`| [`help`] ||
+| `hidden_*` | N/A | TODO? |
+| `index` | N/A | Arguments are not exposed to the user directly, `index` won't be of any use. |
+| `last` | N/A | What's the use case? |
+| `long` | [`long`] ||
+| `required` | [`req_flag`], [`req_switch`], [`argument`] | arguments with no fallback values and not optional ones are required by default. |
+| `require_equals` | N/A | What's the use case? |
+| `require*` | [`or_else`] | One and only one in chained `or_else` sequence must succeed. |
+| `takes_value` | [`argument`], [`argument_os`] | |
+| `number_of_values` | [`many`] + [`guard`] | This will require user to specify `-f` multiple times but that's how most of the applications out there do it. |
+| `(max,min)_values` | [`many`] + [`guard`]| Same. |
+| `possible_value[s]` | [`parse`], [`guard`] | You can use any parsing logic.|
+| `require_delimiter` | [`parse`], [`many`]||
+| `short` | [`short`] ||
+| `use_delimiter` | [`parse`], [`many`] ||
+| `validator[_os]`| [`parse`], [`guard`]| You can use any parsing logic. It's not limited to strings. |
+| `value_delimiter` |[`parse`], [`many`]||
+| `value_name[s]`| [`metavar`] ||
+| `visible_alias[es]` | [`or_else`] ||
+| `with_name` | N/A ||
+
 ## vs pico-args
 
 - generates help message
