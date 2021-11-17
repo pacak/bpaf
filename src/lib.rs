@@ -1,3 +1,6 @@
+#![doc = include_str!("../README.md")]
+
+extern crate self as bpaf;
 use std::rc::Rc;
 
 pub mod params;

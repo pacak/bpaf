@@ -13,30 +13,63 @@ bpaf = "0.1"
 
 Define fields used in parser
 
-```rust
-let speed_in_kph
-    = short('k').long("speed_kph")         // give it a name
-      .argument()                          // it's an argument
-      .metavar("SPEED")                    // with metavar
-      .help(("speed in KPH").build()       // and help message
-      .parse(|s| f64::from_str(&s).map(|s| s / 0.62)); // that is parsed from string
+```i
+use bpaf::*;
+use std::str::FromStr;
 
-let speed_in_mph
-    = short('m').long("speed_mph")
-      .argument()
-      .metavar("SPEED")
-      .help(("speed in KPH").build()
-      .parse(|s| f64::from_str(&s));
+fn speed() -> Parser<f64> {
+
+    let speed_in_kph
+        = short('k').long("speed_kph")         // give it a name
+          .argument()                          // it's an argument
+          .metavar("SPEED")                    // with metavar
+          .help(("speed in KPH").build()       // and help message
+          .parse(|s| f64::from_str(&s).map(|s| s / 0.62)); // that is parsed from string
+
+    let speed_in_mph
+        = short('m').long("speed_mph")
+          .argument()
+          .metavar("SPEED")
+          .help(("speed in KPH").build()
+          .parse(|s| f64::from_str(&s));
+
+    speed_in_kph.or_else(speed_in_mph)
+}
 ```
 
 Arguments can be composed in multiple ways, for example
 if application wants speed - it can accept it in either of two formats
 
 ```rust
-let speed: Parser<f64> = speed_in_kph.or_else(speed_in_mph);
 ```
 
 As far as the rest of the application is concerned - there's only one parameter
+
+# Design goals
+
+## Flexibility
+
+The main restriction library sets is that parsed values (but not the fact that parser succeeded
+or failed) can't be used to decide how to parse subsequent values. In other words parsers don't
+have the monadic strength, only the applicative one.
+
+
+To give an example, this description is allowed:
+"Program takes one of --stdout or --file flag to specify the output, when it's --flag
+program also requires -f attribute with the file name".
+
+```txt
+(--stdout | (--file -f ARG))
+```
+
+But this one isn't.
+"Program takes an -o attribute with possible values of 'stdout' and 'file', when it's 'file'
+program also requires -f attribute with the file name".
+
+
+```
+
+```
 
 # main features
 
@@ -90,9 +123,13 @@ in a multiple ways on user side
 
 ## vs clap
 
-gives parsed data back instead of stringly typed value
+Clap:
+- stringly typed value: `"v"` in declaration must match `"v"` in usage
+- magical single purpose function: `occurrences_of`
+- compile time panic if number of occurances is too much
 
-```rust
+
+```ignore
     ...
       .arg(Arg::with_name("v")
            .short("v")
@@ -111,12 +148,16 @@ gives parsed data back instead of stringly typed value
 
 ```
 
-```rust
+bpaf:
+- value is parsed into a typed variable
+- combination of two generic parsers: [`many`] and [`parse`]
+- invalid values are rejected during parse time with [`guard`]
+```ignore
 
     short('v').req_flag()
         .help("Sets the level of verbosity")
         .many().parse(|xs|xs.len())
-        .guard(|x| x <= 3)
+        .guard(|x| x < 3)
     ...
 
     match v {
@@ -135,8 +176,8 @@ gives parsed data back instead of stringly typed value
 
 ## vs macro based one
 
-vs `structopt` `gumdrop` `argh`
+vs `structopt`, `gumdrop` and `argh`
 
 - no proc macros:
 - no syn/quote/proc-macro2 dependencies => faster compilation time
-- pure rust, no cryptic commands, full support from tools
+- pure rust, no cryptic macro commands, full support from tools
