@@ -298,3 +298,32 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn multiple_aliases() {
+    let a = short('a').short('b').short('c').req_switch().build();
+    let parser = Info::default().for_parser(a);
+
+    let help = run_inner(Args::from(&["--help"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: -a
+Available options:
+    -a
+    -h, --help   Prints help information
+";
+    assert_eq!(expected_help, help);
+    assert_eq!(
+        run_inner(Args::from(&["-a"]), parser.clone()).unwrap(),
+        true
+    );
+    assert_eq!(
+        run_inner(Args::from(&["-b"]), parser.clone()).unwrap(),
+        true
+    );
+    assert_eq!(
+        run_inner(Args::from(&["-c"]), parser.clone()).unwrap(),
+        true
+    );
+}

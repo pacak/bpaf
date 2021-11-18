@@ -3,34 +3,34 @@ use crate::info::{ItemKind, Meta};
 
 #[derive(Clone, Debug)]
 pub struct Named {
-    short: Option<char>,
-    long: Option<&'static str>,
+    short: Vec<char>,
+    long: Vec<&'static str>,
     help: Option<String>,
 }
 
 pub fn short(short: char) -> Named {
     Named {
-        short: Some(short),
-        long: None,
+        short: vec![short],
+        long: Vec::new(),
         help: None,
     }
 }
 
 pub fn long(long: &'static str) -> Named {
     Named {
-        short: None,
-        long: Some(long),
+        short: Vec::new(),
+        long: vec![long],
         help: None,
     }
 }
 
 impl Named {
     pub fn short(mut self, short: char) -> Self {
-        self.short = Some(short);
+        self.short.push(short);
         self
     }
     pub fn long(mut self, long: &'static str) -> Self {
-        self.long = Some(long);
+        self.long.push(long);
         self
     }
     pub fn help<M>(mut self, help: M) -> Self
@@ -121,8 +121,8 @@ where
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
-    short: Option<char>,
-    long: Option<&'static str>,
+    short: Vec<char>,
+    long: Vec<&'static str>,
     help: Option<String>,
 }
 
@@ -132,8 +132,8 @@ impl<T> Flag<T> {
         T: Clone + 'static,
     {
         let item = Item {
-            short: self.short,
-            long: self.long,
+            short: self.short.first().copied(),
+            long: self.long.first().copied(),
             metavar: None,
             help: self.help,
             kind: ItemKind::Flag,
@@ -148,11 +148,15 @@ impl<T> Flag<T> {
         };
 
         let parse = move |mut i: Args| {
-            if let Some(i) = self.short.and_then(|f| i.take_short_flag(f)) {
-                return Ok((self.present.clone(), i));
+            for &short in self.short.iter() {
+                if let Some(i) = i.take_short_flag(short) {
+                    return Ok((self.present.clone(), i));
+                }
             }
-            if let Some(i) = self.long.and_then(|f| i.take_long_flag(f)) {
-                return Ok((self.present.clone(), i));
+            for long in self.long.iter() {
+                if let Some(i) = i.take_long_flag(long) {
+                    return Ok((self.present.clone(), i));
+                }
             }
             Ok((
                 self.absent.as_ref().ok_or_else(|| missing.clone())?.clone(),
@@ -177,8 +181,8 @@ impl<T> Flag<T> {
 }
 
 pub struct Argument {
-    short: Option<char>,
-    long: Option<&'static str>,
+    short: Vec<char>,
+    long: Vec<&'static str>,
     help: Option<String>,
     metavar: Option<&'static str>,
 }
@@ -187,20 +191,20 @@ impl Argument {
     pub fn build(self) -> Parser<String> {
         let item = Item {
             kind: ItemKind::Flag,
-            short: self.short,
-            long: self.long,
+            short: self.short.first().copied(),
+            long: self.long.first().copied(),
             metavar: self.metavar,
             help: self.help.map(|h| h.into()),
         };
         let meta = item.required(true);
         let meta2 = meta.clone();
         let parse = move |mut i: Args| {
-            if let Some(short) = self.short {
+            for &short in self.short.iter() {
                 if let Some(x) = i.take_short_arg(short)? {
                     return Ok(x);
                 }
             }
-            if let Some(long) = self.long {
+            for long in self.long.iter() {
                 if let Some(x) = i.take_long_arg(long)? {
                     return Ok(x);
                 }
