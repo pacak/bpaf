@@ -4,13 +4,18 @@ use crate::Error;
 pub struct Args {
     items: Vec<Arg>,
     pub(crate) current: Option<String>,
+
+    /// used to pick the parser that consumes the left most item
     pub(crate) head: usize,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Arg {
+pub(crate) enum Arg {
+    /// short flag
     Short(char),
+    /// long flag
     Long(String),
+    /// separate word that can be command, positional or an argument to a flag
     Word(String),
 }
 
@@ -25,14 +30,14 @@ impl std::fmt::Display for Arg {
 }
 
 impl Arg {
-    fn short(&self, short: char) -> bool {
+    fn is_short(&self, short: char) -> bool {
         match self {
             &Arg::Short(c) => c == short,
             Arg::Long(_) | Arg::Word(_) => false,
         }
     }
 
-    fn long(&self, long: &str) -> bool {
+    fn is_long(&self, long: &str) -> bool {
         match self {
             Arg::Long(l) => l == long,
             Arg::Short(_) | Arg::Word(_) => false,
@@ -103,7 +108,7 @@ impl Args {
 
     pub fn take_short_flag(&mut self, flag: char) -> Option<Self> {
         self.current = None;
-        let ix = self.items.iter().position(|elt| elt.short(flag))?;
+        let ix = self.items.iter().position(|elt| elt.is_short(flag))?;
         self.set_head(ix);
         self.items.remove(ix);
         Some(std::mem::take(self))
@@ -111,7 +116,7 @@ impl Args {
 
     pub fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
         self.current = None;
-        let ix = self.items.iter().position(|elt| elt.long(flag))?;
+        let ix = self.items.iter().position(|elt| elt.is_long(flag))?;
         self.set_head(ix);
         self.items.remove(ix);
         Some(std::mem::take(self))
@@ -119,7 +124,7 @@ impl Args {
 
     pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(String, Self)>, Error> {
         self.current = None;
-        let mix = self.items.iter().position(|elt| elt.short(flag));
+        let mix = self.items.iter().position(|elt| elt.is_short(flag));
 
         let ix = match mix {
             Some(ix) if ix + 2 > self.items.len() => {
@@ -146,7 +151,7 @@ impl Args {
     pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(String, Self)>, Error> {
         self.current = None;
 
-        let mix = self.items.iter().position(|elt| elt.long(flag));
+        let mix = self.items.iter().position(|elt| elt.is_long(flag));
         let ix = match mix {
             Some(ix) if ix + 2 > self.items.len() => {
                 return Err(Error::Stderr(format!("--{} requires an argument", flag)))
@@ -203,7 +208,7 @@ impl Args {
         self.items.is_empty()
     }
 
-    pub fn peek(&self) -> Option<&Arg> {
+    pub(crate) fn peek(&self) -> Option<&Arg> {
         match self.items.as_slice() {
             [item, ..] => Some(item),
             _ => None,

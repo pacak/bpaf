@@ -1,5 +1,4 @@
 1. keep program name around
 2. decorate version
-3. alias for short/long names/commands
+3. expose "print help"
 4. OsStr
-

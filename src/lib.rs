@@ -16,11 +16,17 @@ mod tests;
 
 pub use info::{Meta, ParserInfo};
 
-#[macro_export]
-macro_rules! curry {
-    (|$($pat:ident),*| $expr:expr) => ($(move |$pat| )* $expr);
-}
-
+/// Compose several parsers to produce a struct with results
+///
+/// ```ignore
+/// struct Res {
+///     p1: bool,
+///     p2: u32,
+/// }
+/// let p1: Parser<bool> = ...
+/// let p2: Parser<u32> = ...
+/// let p1p2: Parser<Res> = construct!(Res: p1, p2);
+/// ```
 #[macro_export]
 macro_rules! construct {
     ($struct:ident : $( $field:ident ),* $(,)?) => {
@@ -34,6 +40,13 @@ macro_rules! construct {
     }
 }
 
+/// Compose several parsers to produce a tuple of results
+///
+/// ```ignore
+/// let p1: Parser<bool> = ...
+/// let p2: Parser<u32> = ...
+/// let p1p2: Parser<(bool, u32)> = tuple!(p1, p2)
+/// ```
 #[macro_export]
 macro_rules! tuple {
     ($($x:ident),* $(,)?) => {
@@ -47,6 +60,15 @@ macro_rules! tuple {
     }
 }
 
+/// Compose several parsers and call a function if parsers succeed
+///
+/// ```ignore
+/// fn make_res(a: bool, b: u32) -> Res {...}
+///
+/// let p1: Parser<bool> = ...
+/// let p2: Parser<u32> = ...
+/// let p1p2: Parser<Res> = apply!(make_res: p1, p2);
+/// ```
 #[macro_export]
 macro_rules! apply {
     ($fn:ident : $( $field:ident ),* $(,)?) => {

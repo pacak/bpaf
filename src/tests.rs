@@ -3,10 +3,9 @@ use std::str::FromStr;
 
 #[test]
 fn simple_two_optional_flags() {
-    let mk = Parser::pure(curry!(|a, b| (a, b)));
     let a = short('a').long("AAAAA").switch().build();
     let b = short('b').switch().build();
-    let x = mk.ap(a).ap(b);
+    let x = tuple!(a, b);
     let info = Info::default().descr("this is a test");
     let decorated = info.for_parser(x);
 
@@ -40,11 +39,10 @@ Available options:
 
 #[test]
 fn either_of_three_required_flags() {
-    let mk = Parser::pure(|a| a);
     let a = short('a').req_switch().build();
     let b = short('b').req_switch().build();
     let c = short('c').req_switch().build();
-    let p = mk.ap(a.or_else(b).or_else(c));
+    let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
     let decorated = info.for_parser(p);
 
