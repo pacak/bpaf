@@ -2,6 +2,7 @@
 
 extern crate self as bpaf;
 use std::rc::Rc;
+use std::str::FromStr;
 
 pub mod params;
 pub use crate::params::*;
@@ -365,6 +366,16 @@ impl<T> Parser<T> {
             parse: self.parse,
             meta: Meta::decorate(self.meta, msg),
         }
+    }
+}
+
+impl Parser<String> {
+    pub fn from_str<T>(self) -> Parser<T>
+    where
+        T: FromStr,
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        self.parse(|s| T::from_str(&s))
     }
 }
 
