@@ -1,5 +1,10 @@
+use std::ffi::OsString;
+
 use super::*;
-use crate::info::{ItemKind, Meta};
+use crate::{
+    args::Word,
+    info::{ItemKind, Meta},
+};
 
 #[derive(Clone, Debug)]
 pub struct Named {
@@ -188,7 +193,7 @@ pub struct Argument {
 }
 
 impl Argument {
-    pub fn build(self) -> Parser<String> {
+    fn build_both(self) -> Parser<Word> {
         let item = Item {
             kind: ItemKind::Flag,
             short: self.short.first().copied(),
@@ -200,13 +205,13 @@ impl Argument {
         let meta2 = meta.clone();
         let parse = move |mut i: Args| {
             for &short in self.short.iter() {
-                if let Some(x) = i.take_short_arg(short)? {
-                    return Ok(x);
+                if let Some((w, c)) = i.take_short_arg(short)? {
+                    return Ok((w, c));
                 }
             }
             for long in self.long.iter() {
-                if let Some(x) = i.take_long_arg(long)? {
-                    return Ok(x);
+                if let Some((w, c)) = i.take_long_arg(long)? {
+                    return Ok((w, c));
                 }
             }
             Err(Error::Missing(vec![meta2.clone()]))
@@ -217,10 +222,20 @@ impl Argument {
             meta,
         }
     }
+
+    pub fn build(self) -> Parser<String> {
+        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO
+    }
+
+    pub fn build_os(self) -> Parser<OsString> {
+        self.build_both().map(|x| x.os)
+    }
+
     pub fn metavar(mut self, metavar: &'static str) -> Self {
         self.metavar = Some(metavar);
         self
     }
+
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,

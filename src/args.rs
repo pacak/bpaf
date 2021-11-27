@@ -1,9 +1,18 @@
+use std::ffi::OsString;
+use std::rc::Rc;
+
 use crate::Error;
+
+#[derive(Debug, Clone, Eq, PartialEq, Default)]
+pub struct Word {
+    pub utf8: Option<String>,
+    pub os: OsString,
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct Args {
     items: Vec<Arg>,
-    pub(crate) current: Option<String>,
+    pub(crate) current: Option<Word>,
 
     /// used to pick the parser that consumes the left most item
     pub(crate) head: usize,
@@ -16,7 +25,7 @@ pub(crate) enum Arg {
     /// long flag
     Long(String),
     /// separate word that can be command, positional or an argument to a flag
-    Word(String),
+    Word(Word),
 }
 
 impl std::fmt::Display for Arg {
@@ -24,7 +33,10 @@ impl std::fmt::Display for Arg {
         match self {
             Arg::Short(s) => write!(f, "-{}", s),
             Arg::Long(l) => write!(f, "--{}", l),
-            Arg::Word(w) => write!(f, "{}", w),
+            Arg::Word(w) => match &w.utf8 {
+                Some(s) => write!(f, "{}", s),
+                None => todo!(),
+            },
         }
     }
 }
@@ -33,14 +45,14 @@ impl Arg {
     fn is_short(&self, short: char) -> bool {
         match self {
             &Arg::Short(c) => c == short,
-            Arg::Long(_) | Arg::Word(_) => false,
+            Arg::Long(_) | Arg::Word(..) => false,
         }
     }
 
     fn is_long(&self, long: &str) -> bool {
         match self {
-            Arg::Long(l) => l == long,
-            Arg::Short(_) | Arg::Word(_) => false,
+            Arg::Long(l) => long == *l,
+            Arg::Short(_) | Arg::Word(..) => false,
         }
     }
 }
@@ -51,53 +63,73 @@ impl<const N: usize> From<&[&str; N]> for Args {
         Args::from(vec.as_slice())
     }
 }
+
+impl Args {
+    fn push(&mut self, os: OsString, pos_only: &mut bool) {
+        let mutf8 = os.clone().into_string().ok();
+
+        // if we are after "--" sign or there's no utf8 representation for
+        // an item - it can only be a positional argument
+        let utf8 = match (*pos_only, mutf8) {
+            (true, v) | (_, v @ None) => return self.items.push(Arg::Word(Word { utf8: v, os })),
+            (false, Some(x)) => x,
+        };
+
+        if utf8 == "--" {
+            *pos_only = true;
+        } else if utf8.starts_with("--") {
+            if utf8.contains('=') {
+                let (key, val) = utf8.split_once('=').unwrap();
+                self.items
+                    .push(Arg::Long(key.strip_prefix("--").unwrap().to_string()));
+                self.items.push(Arg::Word(Word {
+                    utf8: Some(val.to_string()),
+                    os,
+                }));
+            } else {
+                self.items
+                    .push(Arg::Long(utf8.strip_prefix("--").unwrap().to_string()))
+            }
+        } else if utf8.starts_with('-') {
+            if utf8.contains('=') {
+                let (key, val) = utf8.split_once('=').unwrap();
+                assert_eq!(
+                    key.len(),
+                    2,
+                    "short flag with argument must have only one key"
+                );
+                let key = key.strip_prefix('-').unwrap().chars().next().unwrap();
+                self.items.push(Arg::Short(key));
+                self.items.push(Arg::Word(Word {
+                    utf8: Some(val.to_string()),
+                    os,
+                }));
+            } else {
+                for f in utf8.strip_prefix('-').unwrap().chars() {
+                    assert!(
+                        f.is_alphanumeric(),
+                        "Non ascii flags are not supported {}",
+                        utf8
+                    );
+                    self.items.push(Arg::Short(f))
+                }
+            }
+        } else {
+            self.items.push(Arg::Word(Word {
+                utf8: Some(utf8),
+                os,
+            }))
+        }
+    }
+}
 impl From<&[String]> for Args {
     fn from(xs: &[String]) -> Self {
-        let mut res = Vec::new();
         let mut pos_only = false;
+        let mut args = Args::default();
         for x in xs {
-            if pos_only {
-                res.push(Arg::Word(x.to_string()))
-            } else if x == "--" {
-                pos_only = true;
-            } else if x.starts_with("--") {
-                if x.contains('=') {
-                    let (key, val) = x.split_once('=').unwrap();
-                    res.push(Arg::Long(key.strip_prefix("--").unwrap().to_string()));
-                    res.push(Arg::Word(val.to_string()));
-                } else {
-                    res.push(Arg::Long(x.strip_prefix("--").unwrap().to_string()))
-                }
-            } else if x.starts_with('-') {
-                if x.contains('=') {
-                    let (key, val) = x.split_once('=').unwrap();
-                    assert_eq!(
-                        key.len(),
-                        2,
-                        "short flag with argument must have only one key"
-                    );
-                    let key = key.strip_prefix('-').unwrap().chars().next().unwrap();
-                    res.push(Arg::Short(key));
-                    res.push(Arg::Word(val.to_string()));
-                } else {
-                    for f in x.strip_prefix('-').unwrap().chars() {
-                        assert!(
-                            f.is_alphanumeric(),
-                            "Non ascii flags are not supported {}",
-                            x
-                        );
-                        res.push(Arg::Short(f))
-                    }
-                }
-            } else {
-                res.push(Arg::Word(x.to_string()))
-            }
+            args.push(OsString::from(x), &mut pos_only)
         }
-        Args {
-            items: res,
-            current: None,
-            head: usize::MAX,
-        }
+        args
     }
 }
 
@@ -122,7 +154,7 @@ impl Args {
         Some(std::mem::take(self))
     }
 
-    pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(String, Self)>, Error> {
+    pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
         let mix = self.items.iter().position(|elt| elt.is_short(flag));
 
@@ -135,9 +167,6 @@ impl Args {
         };
         self.set_head(ix);
 
-        //        if ix + 1 > self.items.len() {
-        //            return None;
-        //        }
         let w = match &mut self.items[ix + 1] {
             Arg::Short(_) | Arg::Long(_) => return Ok(None),
             Arg::Word(w) => std::mem::take(w),
@@ -148,7 +177,7 @@ impl Args {
         Ok(Some((w, std::mem::take(self))))
     }
 
-    pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(String, Self)>, Error> {
+    pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
 
         let mix = self.items.iter().position(|elt| elt.is_long(flag));
@@ -177,15 +206,15 @@ impl Args {
             return None;
         }
         match &self.items[0] {
-            Arg::Word(w) if w == word => (),
-            Arg::Word(_) | Arg::Short(_) | Arg::Long(_) => return None,
+            Arg::Word(Word { utf8: Some(w), .. }) if w == word => (),
+            Arg::Word(..) | Arg::Short(_) | Arg::Long(_) => return None,
         };
         self.set_head(0);
         self.items.remove(0);
         Some(std::mem::take(self))
     }
 
-    pub fn take_positional(&mut self) -> Option<(String, Self)> {
+    pub fn take_positional(&mut self) -> Option<(Word, Self)> {
         self.current = None;
         if self.items.is_empty() {
             return None;
@@ -224,7 +253,7 @@ mod tests {
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
         let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
-        assert_eq!(s, "12");
+        assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
 
@@ -233,7 +262,7 @@ mod tests {
         let mut a = Args::from(&["--speed", "12"]);
         let mut a = a.take_long_flag("speed").unwrap();
         let (s, a) = a.take_positional().unwrap();
-        assert_eq!(s, "12");
+        assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
 
@@ -250,7 +279,7 @@ mod tests {
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
         let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
-        assert_eq!(s, "12");
+        assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
 
@@ -258,7 +287,7 @@ mod tests {
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
         let (s, a) = a.take_long_arg("speed").unwrap().unwrap();
-        assert_eq!(s, "-12");
+        assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
 
@@ -266,7 +295,7 @@ mod tests {
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
         let (s, a) = a.take_short_arg('s').unwrap().unwrap();
-        assert_eq!(s, "12");
+        assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
 
@@ -274,7 +303,7 @@ mod tests {
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
         let (s, a) = a.take_short_arg('s').unwrap().unwrap();
-        assert_eq!(s, "-12");
+        assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
 
@@ -282,7 +311,7 @@ mod tests {
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
         let (s, a) = a.take_short_arg('s').unwrap().unwrap();
-        assert_eq!(s, "12");
+        assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
 
@@ -307,7 +336,7 @@ mod tests {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         let mut a = a.take_word("cmd").unwrap();
         let (s, a) = a.take_short_arg('s').unwrap().unwrap();
-        assert_eq!(s, "v");
+        assert_eq!(s.utf8.unwrap(), "v");
         assert!(a.is_empty());
     }
 
@@ -316,7 +345,7 @@ mod tests {
         let mut a = Args::from(&["cmd", "pos"]);
         let mut a = a.take_word("cmd").unwrap();
         let (w, a) = a.take_positional().unwrap();
-        assert_eq!(w, "pos");
+        assert_eq!(w.utf8.unwrap(), "pos");
         assert!(a.is_empty());
     }
 
@@ -325,7 +354,7 @@ mod tests {
         let mut a = Args::from(&["-v", "--", "-x"]);
         let mut a = a.take_short_flag('v').unwrap();
         let (w, a) = a.take_positional().unwrap();
-        assert_eq!(w, "-x");
+        assert_eq!(w.utf8.unwrap(), "-x");
         assert!(a.is_empty());
     }
 
@@ -333,9 +362,9 @@ mod tests {
     fn positionals_after_double_dash2() {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
         let (w, mut a) = a.take_short_arg('v').unwrap().unwrap();
-        assert_eq!(w, "12");
+        assert_eq!(w.utf8.unwrap(), "12");
         let (w, a) = a.take_positional().unwrap();
-        assert_eq!(w, "-x");
+        assert_eq!(w.utf8.unwrap(), "-x");
         assert!(a.is_empty());
     }
 }

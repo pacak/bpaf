@@ -5,6 +5,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 pub mod params;
+use crate::args::Word;
 pub use crate::params::*;
 mod args;
 pub mod info;
@@ -85,8 +86,13 @@ macro_rules! apply {
 
 #[derive(Clone, Debug)]
 pub enum Error {
+    /// Terminate and print this to stdout
     Stdout(String),
+    /// Terminate and print this to stderr
     Stderr(String),
+    /// Expected one of those values
+    ///
+    /// Used internally to generate better error messages
     Missing(Vec<Meta>),
 }
 
@@ -305,8 +311,10 @@ impl<T> Parser<T> {
             match m(a) {
                 Ok(ok) => Ok((ok, i)),
                 Err(e) => Err(Error::Stderr(match i.current {
-                    Some(arg) => format!("Couldn't parse {:?}: {}", arg, e.to_string()),
-                    None => format!("Couldn't parse: {}", e.to_string()),
+                    Some(Word { utf8: Some(w), .. }) => {
+                        format!("Couldn't parse {:?}: {}", w, e.to_string())
+                    }
+                    _ => format!("Couldn't parse: {}", e.to_string()),
                 })),
             }
         };
