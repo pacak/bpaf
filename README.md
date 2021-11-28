@@ -1,6 +1,9 @@
 # bpaf
 
-Parse command line arguments by composing a parser from the components
+Parse command line arguments by composing a parser from the components optimized for
+flexibility and compilation time
+
+[Documentation is available on docs.rs](href=https://docs.rs/bpaf).
 
 # Design goals
 
@@ -55,11 +58,13 @@ fn main() {
 }
 ```
 
-
-
 # Design goals expanded
 
 ## Flexibility
+
+Library allows to express accepted options by combining primitive parsers using mostly regular
+Rust code. For example it is possible to take a parser that requires a single floating point
+number and create a parser that takes a pair of them with names and help generated.
 
 The main restriction library sets is that parsed values (but not the fact that parser succeeded
 or failed) can't be used to decide how to parse subsequent values. In other words parsers don't
@@ -74,7 +79,7 @@ program also requires `-f` attribute with the file name".
 (--stdout | (--file -f ARG))
 ```
 
-But this one isn't.
+But this one isn't:
 "Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it's `'file'`
 program also requires `-f` attribute with the file name".
 
@@ -84,7 +89,7 @@ program also requires `-f` attribute with the file name".
 ```
 
 A better approach would be to have two separate parsers that both transform into a single
-`enum Output { StdOut, File(File) }` datatype combined with [`or_else`].
+`enum Output { StdOut, File(File) }` datatype combined with [`or_else`][Parser::or_else].
 
 Library can handle alternatives and perform parsing and validation:
 
@@ -109,7 +114,7 @@ fn speed() -> Parser<f64> {
 }
 ```
 
-## Composable and reusable
+## Reusability
 
 `speed` defined in a previous example is a regular Rust function that can be exported and
 reused in many places. It can also be composed with other parsers to produce more parsers.
@@ -140,15 +145,16 @@ Available commands:
 ## Fast compilation time
 
 Library aims provides a small number of components that can be composed
-in a multiple ways on user side.
+in a multiple ways on user side. Runtime performance is not an end goal since it's usually fast
+enough to take a tiny fraction of whole program runtime while compiling
 
 
 # Compared with clap
 
 Clap:
-- stringly typed value: `"v"` in declaration must match `"v"` in usage
-- magical single purpose function: `occurrences_of`
-- compile time panic if number of occurances is too much
+- Uses stringly typed values: `"v"` in declaration must match `"v"` in usage
+- Uses specialized functions: `occurrences_of`
+- No generic way of handle unexpected values diring parsing
 
 
 ```ignore
@@ -173,9 +179,9 @@ Clap:
 ```
 
 bpaf:
-- value is parsed into a typed variable, usize in this case but could be an `enum`
-- combination of two generic parsers: [`many`] and [`parse`]
-- invalid values are rejected during parse time with [`guard`]
+- Value is parsed into a typed variable, usize in this case but could be an `enum`
+- Combination of two generic parsers: [`many`][Parser::many] and [`parse`][Parser::parse]
+- Invalid values are rejected during parse time with [`guard`][Parser::guard]
 ```ignore
     // definition
 
@@ -198,45 +204,38 @@ bpaf:
 
 | `Clap` |      `bpaf` |  explanation  |
 |----------|-------------|------|
-| `*_os` | [`argument_os`] | Plus any parsing you want on top of that |
-| `alias` | [`short`], [`long`] | First name becomes visible, remaining are hidden aliases |
-| `aliases` | [`short`], [`long`]  | You pay a single push per alias |
-| `allow_hyphen_values` | N/A | values like `--pattern=--bar` are accepted as is |
+| `long`, `short` | [`long`], [`short`] ||
+| `alias`, `aliases` | [`short`], [`long`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
+| `*_os` | [`argument_os`][Argument::build_os] | With any parsing or validation on top of that |
+| `allow_hyphen_values` | N/A | Hypens in parameters are accepted either with `--pattern=--bar` or as a positional argument after double dashes `-- --odd-file-name` |
 | `case_insensitive` | [`parse`][Parser::parse] | You can use any parsing logic. |
 | `conflicts_with` | [`or_else`][Parser::or_else] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
 | `conflicts_with_all`| [`or_else`][Parser::or_else] | can be chained: `foo.or_else(bar).or_else(baz)` |
 | `default_value_if[s]`| N/A | Values produced by parsers can't depend on values produced by other parsers. Some functions are achievable with [`or_else`][Parser::or_else] |
-| `default_value`| [`fallback_value`] ||
-| `display_order` | N/A | Order is fixed by construction order, you can put more important items first. |
-| `empty_values` | [`guard`] | Same as any validation |
-| `env[_os]` | [`fallback_with`] | |
-| `fallback_value` | [`fallback`] | But it's not limited to strings: `foo.fallback(Megapotato)` |
-| `from_usage` | N/A | In the best case scenario you'll get some stringly typed values. Just no. |
-| `from_yaml` | N/A | You can share parsers between multple programs by exporting them. Yaml requires external dependencies and gives stringly typed values. Also no. |
+| `default_value`| [`fallback`][Parser::fallback], [`fallback_with`][Parser::fallback_with] ||
+| `display_order` | N/A | Order is fixed by construction order, you can put more important items first. Logically related commands can be combined into [`subcommands`][params::command]. |
+| `env[_os]` | N/A | While using environment variables is not supported directly - it is possible to read configuration values from anywhere using [`fallback_with`][Parser::fallback_with]. It can be env variable, file, windows registry, etc. |
+| `fallback_value` | [`fallback`][Parser::fallback] | But it's not limited to strings: `foo.fallback(Megapotato)` |
+| `from_usage` | N/A | It's hard to produce anything but strings from that. |
+| `from_yaml` | N/A | You can share parsers between multple programs by exporting them. Yaml requires external dependencies and gives stringly typed values. |
 | `global` | N/A | Not really needed. Parsing in subcommands can't depend on any other flags but parsed values will be returned in a context that will contain global values. |
-| `group[s]` | [`or_else`], [`command`] | Instead of making a stringly typed group - you can make a real one. |
-| `help`| [`help`] ||
+| `group[s]` | N/A | Stringly typed groups are not supported. Several parsers can be composed as alternatives with [`or_else`][Parser::or_else] or factored out into a subcommand with [`command`][params::command]. |
+| `help`| [`help`][Named::help] | `help` is present on several object types. |
 | `hidden_*` | N/A | TODO? |
 | `index` | N/A | Arguments are not exposed to the user directly, `index` won't be of any use. |
 | `last` | N/A | What's the use case? |
-| `long` | [`long`] ||
-| `required` | [`req_flag`], [`req_switch`], [`argument`] | arguments with no fallback values and not optional ones are required by default. |
-| `require_equals` | N/A | What's the use case? |
-| `require*` | [`or_else`] | One and only one in chained `or_else` sequence must succeed. |
-| `takes_value` | [`argument`], [`argument_os`] | |
-| `number_of_values` | [`many`] + [`guard`] | This will require user to specify `-f` multiple times but that's how most of the applications out there do it. |
-| `(max,min)_values` | [`many`] + [`guard`]| Same. |
-| `possible_value[s]` | [`parse`], [`guard`] | You can use any parsing logic.|
-| `require_delimiter` | [`parse`], [`many`]||
-| `short` | [`short`] ||
-| `use_delimiter` | [`parse`], [`many`] ||
-| `validator[_os]`| [`parse`], [`guard`]| You can use any parsing logic. It's not limited to strings. |
-| `value_delimiter` |[`parse`], [`many`]||
-| `value_name[s]`| N/A | You need to specify it when creating an [`argument`][Named::argument] or a positional (TODO) option |
+| `required` | [`req_flag`][Named::req_flag], [`req_switch`][Named::req_switch], [`argument`][Named::argument] | Arguments with no fallback values and not changed to [`optional`][Parser::optional] are required. |
+| `require_equals` | N/A | `=` is always accepted but never required. Not sure about the usecase. |
+| `require*` | [`or_else`][Parser::or_else] | One and only one in chained `or_else` sequence must succeed. |
+| `takes_value` | [`argument`][Argument::build], [`argument_os`][Argument::build_os] | |
+| `number_of_values`, `(max,min)_values` | N/A | Consuming multiple separate values with a single flag is not supported but it is possible to implement similar behavior using either custom [`parse`][Parser::parse] or by allowing user to specify an option [`many`][Parser::many] times and using [`guard`][Parser::guard] or [`parse`][Parser::parse] to specify exact limits. |
+| `validator[_os]`, `possible_value[s]`, `empty_values` | [`parse`][Parser::parse], [`guard`][Parser::guard] | You can implement any parsing logic not limited to strings. |
+| `*_delimiter` | N/A |  Clumped values are not supported directly with [`parse`][Parser::parse]. The alternative is to accept a parameter multiple times [`many`][Parser::many] |
+| `value_name[s]`| N/A | You must specify metavar name when creating an [`argument`][Named::argument] or a positional (TODO) option |
 | `visible_alias[es]` | [`or_else`][Parser::or_else] ||
-| `with_name` | N/A ||
+| `with_name` | N/A | `bpaf` doesn't use stringly typed values, any parser can have any unique type attached to it using [`parse`][Parser::parse] or [`map`][Parser::map] |
 
-# Compared with pico-args
+## Compared with pico-args
 
 - generates help message
 - handles alternatives and subcommands
