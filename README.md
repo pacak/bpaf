@@ -204,11 +204,10 @@ bpaf:
 | `alias` | [`short`], [`long`] | First name becomes visible, remaining are hidden aliases |
 | `aliases` | [`short`], [`long`]  | You pay a single push per alias |
 | `allow_hyphen_values` | N/A | values like `--pattern=--bar` are accepted as is |
-| `case_insensitive` | N/A | You can use a custom parsing with [`parse`] |
-| `case_insensitive` | [`parse`] | You can use any parsing logic. |
-| `conflicts_with` | [`or_else`] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
-| `conflicts_with_all`| [`or_else`] | can be chained: `foo.or_else(bar).or_else(baz)` |
-| `default_value_if[s]`| N/A | Values produced by parsers can't depend on values produced by other parsers. Some functions are achievable with [`or_else`] |
+| `case_insensitive` | [`parse`][Parser::parse] | You can use any parsing logic. |
+| `conflicts_with` | [`or_else`][Parser::or_else] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
+| `conflicts_with_all`| [`or_else`][Parser::or_else] | can be chained: `foo.or_else(bar).or_else(baz)` |
+| `default_value_if[s]`| N/A | Values produced by parsers can't depend on values produced by other parsers. Some functions are achievable with [`or_else`][Parser::or_else] |
 | `default_value`| [`fallback_value`] ||
 | `display_order` | N/A | Order is fixed by construction order, you can put more important items first. |
 | `empty_values` | [`guard`] | Same as any validation |
@@ -236,7 +235,7 @@ bpaf:
 | `validator[_os]`| [`parse`], [`guard`]| You can use any parsing logic. It's not limited to strings. |
 | `value_delimiter` |[`parse`], [`many`]||
 | `value_name[s]`| [`metavar`] ||
-| `visible_alias[es]` | [`or_else`] ||
+| `visible_alias[es]` | [`or_else`][Parser::or_else] ||
 | `with_name` | N/A ||
 
 # Compared with pico-args

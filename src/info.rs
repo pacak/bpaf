@@ -306,8 +306,20 @@ macro_rules! field {
 
 #[derive(Clone)]
 pub struct ParserInfo<T> {
-    pub(crate) parse: Rc<DynParse<T>>,
+    pub parse: Rc<DynParse<T>>,
+    pub parser_meta: Meta,
+    pub help_meta: Meta,
+    pub info: Info,
 }
+
+impl<T> ParserInfo<T> {
+    pub fn render_help(&self) -> Result<String, std::fmt::Error> {
+        self.info
+            .clone()
+            .render_help(self.parser_meta.clone(), self.help_meta.clone())
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct Info {
     pub author: Option<&'static str>,
@@ -327,7 +339,33 @@ impl Info {
     field!(usage, &'static str);
 }
 
+#[derive(Clone)]
+pub enum ExtraParams {
+    Help,
+    Version,
+}
+
 impl Info {
+    pub fn help_parser(&self) -> Parser<ExtraParams> {
+        let help = short('h')
+            .long("help")
+            .help("Prints help information")
+            .req_flag(ExtraParams::Help)
+            .build();
+
+        let ver = short('v')
+            .long("version")
+            .help("Prints version information")
+            .req_flag(ExtraParams::Version)
+            .build();
+
+        if self.version.is_some() {
+            help.or_else(ver)
+        } else {
+            help
+        }
+    }
+
     pub fn render_help(
         self,
         parser_meta: Meta,
@@ -429,52 +467,35 @@ impl Info {
     where
         T: 'static + Clone,
     {
-        #[derive(Clone)]
-        enum I {
-            Help,
-            Version,
-        }
-        let p = move |i: Args| {
-            let help = short('h')
-                .long("help")
-                .help("Prints help information")
-                .req_flag(I::Help)
-                .build();
-            let ver = short('v')
-                .long("version")
-                .help("Prints version information")
-                .req_flag(I::Version)
-                .build();
-            let help_version = if self.version.is_some() {
-                help.or_else(ver)
-            } else {
-                help
-            };
-
-            let check_unexpected = |(a, b): (T, Args)| match b.peek() {
-                None => Ok((a, b)),
-                Some(item) => Err(Error::Stderr(format!(
-                    "{} is not expected in this context",
-                    item
-                ))),
-            };
-
-            let err = match (parser.parse)(i.clone()).and_then(check_unexpected) {
+        let parser_meta = parser.meta.clone();
+        let help_meta = self.help_parser().meta;
+        let Parser {
+            parse: p_parse,
+            meta: p_meta,
+        } = parser;
+        let info = self.clone();
+        let p = move |args: Args| {
+            let err = match p_parse(args.clone()).and_then(check_unexpected) {
                 Ok(r) => return Ok(r),
+
+                // Stderr means
                 Err(Error::Stderr(e)) => Error::Stderr(e),
+
+                // Stdout usually means a happy path such as calling --help or --version on one of
+                // the nested commands
                 Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
                 Err(err) => err,
             };
 
-            match (help_version.clone().parse)(i) {
-                Ok((I::Help, _)) => {
+            match (self.help_parser().parse)(args) {
+                Ok((ExtraParams::Help, _)) => {
                     let msg = self
                         .clone()
-                        .render_help(parser.meta.clone(), help_version.meta)
+                        .render_help(p_meta.clone(), self.help_parser().meta)
                         .unwrap();
                     return Err(Error::Stdout(msg));
                 }
-                Ok((I::Version, _)) => {
+                Ok((ExtraParams::Version, _)) => {
                     if let Some(v) = self.version {
                         return Err(Error::Stdout(format!("Version: {}", v)));
                     } else {
@@ -485,6 +506,21 @@ impl Info {
             }
             Err(err)
         };
-        ParserInfo { parse: Rc::new(p) }
+        ParserInfo {
+            parse: Rc::new(p),
+            info,
+            parser_meta,
+            help_meta,
+        }
+    }
+}
+
+fn check_unexpected<T>((t, args): (T, Args)) -> Result<(T, Args), Error> {
+    match args.peek() {
+        None => Ok((t, args)),
+        Some(item) => Err(Error::Stderr(format!(
+            "{} is not expected in this context",
+            item
+        ))),
     }
 }
