@@ -55,7 +55,7 @@ impl Named {
             absent: Some(false),
             short: self.short,
             long: self.long,
-            help: self.help.map(|h| h.into()),
+            help: self.help,
         }
     }
     pub fn req_switch(self) -> Flag<bool> {
@@ -64,7 +64,7 @@ impl Named {
             absent: None,
             short: self.short,
             long: self.long,
-            help: self.help.map(|h| h.into()),
+            help: self.help,
         }
     }
 
@@ -75,7 +75,7 @@ impl Named {
             absent: Some(absent),
             short: self.short,
             long: self.long,
-            help: self.help.map(|h| h.into()),
+            help: self.help,
         }
     }
 
@@ -86,7 +86,7 @@ impl Named {
             absent: None,
             short: self.short,
             long: self.long,
-            help: self.help.map(|h| h.into()),
+            help: self.help,
         }
     }
 
@@ -199,7 +199,7 @@ impl Argument {
             short: self.short.first().copied(),
             long: self.long.first().copied(),
             metavar: self.metavar,
-            help: self.help.map(|h| h.into()),
+            help: self.help,
         };
         let meta = item.required(true);
         let meta2 = meta.clone();

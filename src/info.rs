@@ -1,6 +1,7 @@
+#![allow(clippy::write_with_newline)]
 use std::rc::Rc;
 
-use crate::{args::Args, params::short, Error, Parser};
+use crate::{args::Args, params::short, DynParse, Error, Parser};
 
 #[derive(Copy, Clone, Debug)]
 pub enum ItemKind {
@@ -29,8 +30,8 @@ impl std::fmt::Display for Item {
                 (Some(s), _, Some(v)) => write!(f, "-{} {}", s, v),
             },
 
-            ItemKind::Command => return write!(f, "COMMAND"),
-            ItemKind::Decor => return Ok(()),
+            ItemKind::Command => write!(f, "COMMAND"),
+            ItemKind::Decor => Ok(()),
         }
     }
 }
@@ -301,7 +302,7 @@ macro_rules! field {
 
 #[derive(Clone)]
 pub struct ParserInfo<T> {
-    pub(crate) parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
+    pub(crate) parse: Rc<DynParse<T>>,
 }
 #[derive(Debug, Clone, Default)]
 pub struct Info {
@@ -448,7 +449,7 @@ impl Info {
                 None => {
                     // strip unnecessary spaces inserted by previous writes
                     res.truncate(res.trim_end_matches(' ').len());
-                    write!(res, "\n")?;
+                    writeln!(res)?;
                 }
             }
         }

@@ -12,7 +12,6 @@ struct Foo {
 #[derive(Debug, Clone)]
 enum Cmd {
     Accelerate(bool),
-    Break(bool),
 }
 
 fn speed() -> Parser<f64> {

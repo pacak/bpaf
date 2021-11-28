@@ -139,9 +139,11 @@ impl Error {
     }
 }
 
+pub type DynParse<T> = dyn Fn(Args) -> Result<(T, Args), Error>;
+
 #[derive(Clone)]
 pub struct Parser<T> {
-    pub parse: Rc<dyn Fn(Args) -> Result<(T, Args), Error>>,
+    pub parse: Rc<DynParse<T>>,
     pub meta: Meta,
 }
 
@@ -283,14 +285,14 @@ impl<T> Parser<T> {
     }
 
     // apply pure transformation
-    pub fn map<F, B>(self, m: F) -> Parser<B>
+    pub fn map<F, B>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> B + 'static,
         T: 'static,
     {
-        let parse = move |i: Args| {
-            let (a, b) = (self.parse)(i)?;
-            Ok((m(a), b))
+        let parse = move |args: Args| {
+            let (t, args) = (self.parse)(args)?;
+            Ok((map(t), args))
         };
         Parser {
             parse: Rc::new(parse),
@@ -299,18 +301,18 @@ impl<T> Parser<T> {
     }
 
     // apply failing transformation
-    pub fn parse<F, B, E>(self, m: F) -> Parser<B>
+    pub fn parse<F, B, E>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> Result<B, E> + 'static,
         T: 'static,
         E: ToString,
     {
-        let parse = move |i: Args| {
-            let (a, i) = (self.parse)(i)?;
+        let parse = move |args: Args| {
+            let (t, args) = (self.parse)(args)?;
 
-            match m(a) {
-                Ok(ok) => Ok((ok, i)),
-                Err(e) => Err(Error::Stderr(match i.current {
+            match map(t) {
+                Ok(ok) => Ok((ok, args)),
+                Err(e) => Err(Error::Stderr(match args.current {
                     Some(Word { utf8: Some(w), .. }) => {
                         format!("Couldn't parse {:?}: {}", w, e.to_string())
                     }
