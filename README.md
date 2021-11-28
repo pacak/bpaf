@@ -30,8 +30,7 @@ fn speed() -> Parser<f64> {
     // Define how to parse speed given in KPH
     let speed_in_kph
         = short('k').long("speed_kph")   // give it a name
-          .argument()                    // it's an argument
-          .metavar("SPEED")              // with metavar
+          .argument("SPEED")             // it's an argument with metavar
           .help("speed in KPH").build()  // and help message
           .from_str::<f64>()             // that is parsed from string as f64
           .map(|s| s / 0.62);            // and converted to mph
@@ -39,8 +38,7 @@ fn speed() -> Parser<f64> {
     // Same for MPH
     let speed_in_mph
         = short('m').long("speed_mph")
-          .argument()
-          .metavar("SPEED")
+          .argument("SPEED")
           .help("speed in KPH").build()
           .from_str();
 
@@ -97,11 +95,11 @@ use bpaf::*;
 fn speed() -> Parser<f64> {
 
     // define a simple string argument
-    let kph = short('k').argument().metavar("SPEED").help("speed in KPH").build()
+    let kph = short('k').argument("SPEED").help("speed in KPH").build()
             .from_str::<f64>()                             // parse it from string to f64
             .guard(|&s| s > 0.0, "Speed must be positive"); // and add some restrictions
 
-    let mph = short('m').argument().metavar("SPEED").help("speed in MPH").build()
+    let mph = short('m').argument("SPEED").help("speed in MPH").build()
             .from_str::<f64>()
             .map(|s|s * 1.6)  // can also apply transformations
             .guard(|&s| s > 0.0, "Speed must be positive");
@@ -234,7 +232,7 @@ bpaf:
 | `use_delimiter` | [`parse`], [`many`] ||
 | `validator[_os]`| [`parse`], [`guard`]| You can use any parsing logic. It's not limited to strings. |
 | `value_delimiter` |[`parse`], [`many`]||
-| `value_name[s]`| [`metavar`] ||
+| `value_name[s]`| N/A | You need to specify it when creating an [`argument`][Named::argument] or a positional (TODO) option |
 | `visible_alias[es]` | [`or_else`][Parser::or_else] ||
 | `with_name` | N/A ||
 

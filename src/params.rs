@@ -90,12 +90,12 @@ impl Named {
         }
     }
 
-    pub fn argument(self) -> Argument {
+    pub fn argument(self, metavar: &'static str) -> Argument {
         Argument {
             short: self.short,
             long: self.long,
             help: self.help,
-            metavar: Some("ARG"),
+            metavar,
         }
     }
 }
@@ -189,7 +189,7 @@ pub struct Argument {
     short: Vec<char>,
     long: Vec<&'static str>,
     help: Option<String>,
-    metavar: Option<&'static str>,
+    metavar: &'static str,
 }
 
 impl Argument {
@@ -198,7 +198,7 @@ impl Argument {
             kind: ItemKind::Flag,
             short: self.short.first().copied(),
             long: self.long.first().copied(),
-            metavar: self.metavar,
+            metavar: Some(self.metavar),
             help: self.help,
         };
         let meta = item.required(true);
@@ -229,11 +229,6 @@ impl Argument {
 
     pub fn build_os(self) -> Parser<OsString> {
         self.build_both().map(|x| x.os)
-    }
-
-    pub fn metavar(mut self, metavar: &'static str) -> Self {
-        self.metavar = Some(metavar);
-        self
     }
 
     pub fn help<M>(mut self, help: M) -> Self

@@ -24,7 +24,7 @@ fn main() {
     // an argument, parsed and with default value
     let speed: Parser<f64> = short('s')
         .long("speed")
-        .argument()
+        .argument("SPEED")
         .help("Set speed")
         .build()
         .parse(|s| f64::from_str(&s))
@@ -33,21 +33,21 @@ fn main() {
     let output: Parser<PathBuf> = short('o')
         .long("output")
         .help("output file")
-        .argument()
+        .argument("SPEED")
         .build()
         .parse(|s| PathBuf::from_str(&s));
 
     // no magical name transmogrifications.
     let nb_cars: Parser<u32> = short('n')
         .long("nb-cars")
-        .argument()
+        .argument("N")
         .build()
         .parse(|s| u32::from_str(&s));
 
     // a parser that consumes one argument
     let file_to_proces: Parser<PathBuf> = short('f')
         .long("file")
-        .argument()
+        .argument("FILE")
         .help("File to process")
         .build()
         .parse(|s| PathBuf::from_str(&s));

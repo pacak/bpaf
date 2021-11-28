@@ -112,7 +112,7 @@ Available options:
 #[test]
 fn default_arguments() {
     let a = short('a')
-        .argument()
+        .argument("ARG")
         .build()
         .parse(|s| i32::from_str(&s))
         .fallback(42);
@@ -145,7 +145,10 @@ Available options:
 
 #[test]
 fn parse_errors() {
-    let a = short('a').argument().build().parse(|s| i32::from_str(&s));
+    let a = short('a')
+        .argument("ARG")
+        .build()
+        .parse(|s| i32::from_str(&s));
     let decorated = Info::default().for_parser(a);
 
     let err = run_inner(Args::from(&["-a", "123x"]), decorated.clone())
@@ -169,12 +172,30 @@ fn parse_errors() {
 
 #[test]
 fn long_usage_string() {
-    let a = short('a').long("a-very-long-flag-with").argument().build();
-    let b = short('b').long("b-very-long-flag-with").argument().build();
-    let c = short('c').long("c-very-long-flag-with").argument().build();
-    let d = short('d').long("d-very-long-flag-with").argument().build();
-    let e = short('e').long("e-very-long-flag-with").argument().build();
-    let f = short('f').long("f-very-long-flag-with").argument().build();
+    let a = short('a')
+        .long("a-very-long-flag-with")
+        .argument("ARG")
+        .build();
+    let b = short('b')
+        .long("b-very-long-flag-with")
+        .argument("ARG")
+        .build();
+    let c = short('c')
+        .long("c-very-long-flag-with")
+        .argument("ARG")
+        .build();
+    let d = short('d')
+        .long("d-very-long-flag-with")
+        .argument("ARG")
+        .build();
+    let e = short('e')
+        .long("e-very-long-flag-with")
+        .argument("ARG")
+        .build();
+    let f = short('f')
+        .long("f-very-long-flag-with")
+        .argument("ARG")
+        .build();
 
     let p = tuple!(a, b, c, d, e, f);
     let decorated = Info::default().for_parser(p);

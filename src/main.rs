@@ -18,15 +18,13 @@ fn speed() -> Parser<f64> {
     let m = short('m')
         .help("speed in MPH")
         .long("mph")
-        .argument()
-        .metavar("SPEED")
+        .argument("SPEED")
         .build()
         .parse(|s| f64::from_str(&s));
     let k = short('k')
         .long("kph")
         .help("speed in KPH")
-        .argument()
-        .metavar("SPEED")
+        .argument("SPEED")
         .build()
         .parse(|s| f64::from_str(&s).map(|s| s / 0.62));
     m.or_else(k)

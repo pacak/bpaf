@@ -16,7 +16,7 @@ fn main() {
     let bar = short('b')
         .long("bar")
         .help("some bar command")
-        .argument()
+        .argument("BAR")
         .build()
         .optional();
 

@@ -24,7 +24,7 @@ impl FromStr for Baz {
 fn main() {
     let arg: Parser<Baz> = long("baz")
         .short('b')
-        .argument()
+        .argument("CMD")
         .help("choose between foo, bar or foobar")
         .build()
         .parse(|s| Baz::from_str(&s));

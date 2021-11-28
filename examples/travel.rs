@@ -17,26 +17,35 @@ fn main() {
 
     // parsers for speeds. Both speeds are converted to the same units
     let mph = long("mph")
-        .argument()
+        .argument("SPEED")
         .build()
         .parse(|s| f64::from_str(&s))
         .map(|x| x * 1.6);
-    let kph = long("kph").argument().build().parse(|s| f64::from_str(&s));
+    let kph = long("kph")
+        .argument("SPEED")
+        .build()
+        .parse(|s| f64::from_str(&s));
 
     // speed is either kph or mph, conversion to mph is handled by the parser
     let speed = mph.or_else(kph);
 
     // parsers for distances, both are converted to the same units
-    let km = long("km").argument().build().parse(|s| f64::from_str(&s));
+    let km = long("km")
+        .argument("SPEED")
+        .build()
+        .parse(|s| f64::from_str(&s));
     let mi = long("mi")
-        .argument()
+        .argument("SPEED")
         .build()
         .parse(|s| f64::from_str(&s))
         .map(|x| x * 1.6);
     let dist = mi.or_else(km);
 
     // time, presumably in seconds
-    let time = long("time").argument().build().parse(|s| f64::from_str(&s));
+    let time = long("time")
+        .argument("TIME")
+        .build()
+        .parse(|s| f64::from_str(&s));
 
     // parsed time is trivially converted to time segment
     let segment_time = time.map(Segment::Time);
