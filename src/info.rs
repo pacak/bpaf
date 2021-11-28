@@ -1,3 +1,5 @@
+//! Help message generation and rendering
+
 #![allow(clippy::write_with_newline)]
 use std::rc::Rc;
 
@@ -23,7 +25,9 @@ impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             ItemKind::Flag => match (self.short, self.long, self.metavar) {
-                (None, None, _) => unreachable!(),
+                (None, None, _) => {
+                    unreachable!("Item should have either short or long variant by construction")
+                }
                 (None, Some(l), None) => write!(f, "--{}", l),
                 (Some(s), _, None) => write!(f, "-{}", s),
                 (None, Some(l), Some(v)) => write!(f, "--{} {}", l, v),
@@ -322,45 +326,6 @@ impl Info {
     field!(footer, &'static str);
     field!(usage, &'static str);
 }
-
-/*
-Missing: (-s|--source URI)
-
-Usage: feed-dump [COMMAND | [-F FILTER] [-m|--machine-rdbl] | (-B|--benchmark) |
-                   (-D|--dump-delays) | (-r|--raw-feed)] [-R|--reorder-feed]
-                 [-c|--preserve-duplicates] (-s|--source URI)
-                 [(-K|--skip-to-time TIME) | (-S|--skip-to-start)]
-  Performs several types of manipulations on raw market data feed
-*/
-
-/*
-
- tt7% ./release/bin/feed-dump --help
-Usage: feed-dump [COMMAND | [-F FILTER] [-m|--machine-rdbl] | (-B|--benchmark) |
-                   (-D|--dump-delays) | (-r|--raw-feed)] [-R|--reorder-feed]
-                 [-c|--preserve-duplicates] (-s|--source URI)
-                 [(-K|--skip-to-time TIME) | (-S|--skip-to-start)]
-  Performs several types of manipulations on raw market data feed
-
-Available options:
-  -F FILTER                dump only packets containing specific instrument,
-                           e.g. -F 'opt kse-kospi200 2020-04w2 23000 put'
-  -m,--machine-rdbl        Dump data in a format that's better suited for
-                           further parsing
-  -B,--benchmark           see benchmark command
-  -D,--dump-delays         see delays command
-  -h,--help                Show this help text
-  --version                Show version and exit ignoring any other options
-
-...................
-
-Available commands:
-  dump                     Decode and dump market data
-                           Usual format: TIMESTAMP PACKET_INDICATOR DATA
-                           where TIMESTAMP - UTC time when packet was received by the server
-                           PACKET_INDICATOR - ^ and | show if current piece of data belongs
-
- */
 
 impl Info {
     pub fn render_help(
