@@ -390,10 +390,16 @@ impl Parser<String> {
 }
 
 pub fn run<T>(parser: ParserInfo<T>) -> T {
-    let mut args: Vec<String> = std::env::args().collect();
-    let prog_name = args.remove(0);
-    let a = Args::from(args.as_slice());
-    match run_inner(a, parser) {
+    let mut args = Args::default();
+    let mut pos_only = false;
+    for arg in std::env::args_os() {
+        args.push(arg, &mut pos_only);
+    }
+
+    //    let mut args: Vec<std::ffi::OsString> = std::env::args_os().collect();
+    //    let prog_name = args.remove(0);
+    //    let a = Args::from(args.as_slice());
+    match run_inner(args, parser) {
         Ok(t) => t,
         Err(Error::Stdout(msg)) => {
             print!("{}", msg);

@@ -1,23 +1,26 @@
-use std::ffi::OsString;
-use std::rc::Rc;
-
 use crate::Error;
+use std::ffi::OsString;
 
+/// OsString with it's utf8 representation if available
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Word {
     pub utf8: Option<String>,
     pub os: OsString,
 }
 
+/// All currently present command line parameters
 #[derive(Clone, Debug, Default)]
 pub struct Args {
     items: Vec<Arg>,
+
+    /// Used to render an error message for [`parse`][crate::Parser::parse]
     pub(crate) current: Option<Word>,
 
     /// used to pick the parser that consumes the left most item
     pub(crate) head: usize,
 }
 
+/// Preprocessed command line argument
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
     /// short flag
@@ -65,7 +68,7 @@ impl<const N: usize> From<&[&str; N]> for Args {
 }
 
 impl Args {
-    fn push(&mut self, os: OsString, pos_only: &mut bool) {
+    pub fn push(&mut self, os: OsString, pos_only: &mut bool) {
         let mutf8 = os.clone().into_string().ok();
 
         // if we are after "--" sign or there's no utf8 representation for
@@ -138,6 +141,7 @@ impl Args {
         self.head = self.head.min(h)
     }
 
+    /// Get a short flag: `-f`
     pub fn take_short_flag(&mut self, flag: char) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.is_short(flag))?;
@@ -146,6 +150,7 @@ impl Args {
         Some(std::mem::take(self))
     }
 
+    /// Get a long flag: `--flag`
     pub fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.is_long(flag))?;
@@ -154,6 +159,7 @@ impl Args {
         Some(std::mem::take(self))
     }
 
+    /// Get a short flag with argument: `-f val`
     pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
         let mix = self.items.iter().position(|elt| elt.is_short(flag));
@@ -177,6 +183,7 @@ impl Args {
         Ok(Some((w, std::mem::take(self))))
     }
 
+    /// Get a long flag with argument: `--flag val`
     pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
 
@@ -200,6 +207,10 @@ impl Args {
         Ok(Some((w, std::mem::take(self))))
     }
 
+    /// Parse a specific word from the front of the argument list
+    ///
+    /// - argument must be valid utf8
+    /// - argument must be at the beginning of the list
     pub fn take_word(&mut self, word: &str) -> Option<Self> {
         self.current = None;
         if self.items.is_empty() {
@@ -214,6 +225,10 @@ impl Args {
         Some(std::mem::take(self))
     }
 
+    /// Parse any word from the front of the argument list
+    ///
+    /// - argument must be valid utf8
+    /// - argument must be at the beginning of the list
     pub fn take_positional(&mut self) -> Option<(Word, Self)> {
         self.current = None;
         if self.items.is_empty() {
@@ -237,6 +252,7 @@ impl Args {
         self.items.is_empty()
     }
 
+    /// used to generate error message about unexpected arguments
     pub(crate) fn peek(&self) -> Option<&Arg> {
         match self.items.as_slice() {
             [item, ..] => Some(item),
