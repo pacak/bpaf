@@ -1,22 +1,25 @@
+#![warn(missing_docs)]
+#![warn(rustdoc::missing_doc_code_examples)]
 #![doc = include_str!("../README.md")]
 
-extern crate self as bpaf;
 use std::rc::Rc;
 use std::str::FromStr;
 
 pub mod params;
-use crate::args::Word;
-pub use crate::params::*;
+
 mod args;
 pub mod info;
-pub use crate::args::Args;
-use crate::info::Item;
-pub use info::Info;
+
+use crate::{args::Word, info::Error, info::Item};
 
 #[cfg(test)]
 mod tests;
-
-pub use info::{Meta, ParserInfo};
+#[doc(inline)]
+pub use crate::args::Args;
+#[doc(inline)]
+pub use crate::info::{Info, Meta, ParserInfo};
+#[doc(inline)]
+pub use crate::params::*;
 
 /// Compose several parsers to produce a struct with results
 ///
@@ -80,61 +83,6 @@ macro_rules! apply {
                 Ok(($fn($($field),*), rest))
             }),
             meta: Meta::And(vec![ $($field.meta),*])
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum Error {
-    /// Terminate and print this to stdout
-    Stdout(String),
-    /// Terminate and print this to stderr
-    Stderr(String),
-    /// Expected one of those values
-    ///
-    /// Used internally to generate better error messages
-    Missing(Vec<Meta>),
-}
-
-impl Error {
-    #[cfg(test)]
-    pub fn unwrap_stderr(self) -> String {
-        match self {
-            Error::Stderr(err) => err,
-            Error::Stdout(_) | Error::Missing(_) => {
-                panic!("not an stderr: {:?}", self)
-            }
-        }
-    }
-
-    #[cfg(test)]
-    pub fn unwrap_stdout(self) -> String {
-        match self {
-            Error::Stdout(err) => err,
-            Error::Stderr(_) | Error::Missing(_) => {
-                panic!("not an stdout: {:?}", self)
-            }
-        }
-    }
-
-    pub fn combine_with(self, other: Self) -> Self {
-        match (self, other) {
-            // finalized error takes priority
-            (a @ Error::Stderr(_), _) => a,
-            (_, b @ Error::Stderr(_)) => b,
-
-            // missing elements are combined
-            (Error::Missing(mut a), Error::Missing(mut b)) => {
-                a.append(&mut b);
-                Error::Missing(a)
-            }
-
-            // missing takes priority
-            (a @ Error::Missing(_), _) => a,
-            (_, b @ Error::Missing(_)) => b,
-
-            // first error wins,
-            (a, _) => a,
         }
     }
 }

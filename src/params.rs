@@ -1,3 +1,34 @@
+/// Primitives to define parsers
+///
+/// # Terminology
+///
+/// ## Flag
+///
+/// A simple no-argument command line option that takes no extra parameters, when decoded produces
+/// a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`Named::flag`] and
+/// [`Named::req_flag`].
+///
+/// ## Switch
+///
+/// A special case of a flag that gets decoded into a `bool`, see [`Named::switch`] and
+/// [`Named::req_switch`]
+///
+/// ## Option
+///
+/// A command line option with a name that also takes a value. Can have a short (`-f value`) or a
+/// long (`--flag value`) name, see [`Named::argument`].
+///
+/// ## Argument
+///
+/// A positional argument with no additonal name, for example in `vim main.rs` a command `main.rs`
+/// is a positional argument. See [`positional`].
+///
+/// ## Command
+///
+/// A command is used to define a starting point for an independent subparser, for example in
+/// `cargo check --workspace` `check` defines a subparser that acceprts `--workspace` switch. See
+/// [`command`]
+///
 use std::ffi::OsString;
 
 use super::*;
@@ -224,7 +255,58 @@ impl Argument {
     }
 
     pub fn build(self) -> Parser<String> {
-        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO
+        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
+    }
+
+    pub fn build_os(self) -> Parser<OsString> {
+        self.build_both().map(|x| x.os)
+    }
+
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
+        self
+    }
+}
+
+pub struct Positional {
+    help: Option<String>,
+    metavar: &'static str,
+}
+
+pub fn positional(metavar: &'static str) -> Positional {
+    Positional {
+        metavar,
+        help: None,
+    }
+}
+
+impl Positional {
+    fn build_both(self) -> Parser<Word> {
+        let item = Item {
+            short: None,
+            long: None,
+            metavar: Some(self.metavar),
+            help: self.help,
+            kind: ItemKind::Positional,
+        };
+        let meta = item.required(true);
+        let meta2 = meta.clone();
+
+        let parse = move |mut args: Args| match args.take_positional() {
+            Some((word, args)) => return Ok((word, args)),
+            None => Err(Error::Missing(vec![meta2.clone()])),
+        };
+        Parser {
+            parse: Rc::new(parse),
+            meta,
+        }
+    }
+
+    pub fn build(self) -> Parser<String> {
+        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
 
     pub fn build_os(self) -> Parser<OsString> {

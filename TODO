@@ -1,3 +1,5 @@
-1. keep program name around
-2. decorate version
-5. Positional arguments
+1. Positional arguments
+2. keep program name around
+3. decorate version
+4. explain terminology - flag, option, positional
+5. change macros to be construct!( Foo { a, b }), apply!(f(a, b))

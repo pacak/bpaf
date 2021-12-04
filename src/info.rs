@@ -3,13 +3,70 @@
 #![allow(clippy::write_with_newline)]
 use std::rc::Rc;
 
-use crate::{args::Args, params::short, DynParse, Error, Parser};
+use crate::{args::Args, params::short, DynParse, Parser};
+
+/// Internal parse error, used
+#[derive(Clone, Debug)]
+pub enum Error {
+    /// Terminate and print this to stdout
+    Stdout(String),
+    /// Terminate and print this to stderr
+    Stderr(String),
+    /// Expected one of those values
+    ///
+    /// Used internally to generate better error messages
+    Missing(Vec<Meta>),
+}
+
+impl Error {
+    #[cfg(test)]
+    pub fn unwrap_stderr(self) -> String {
+        match self {
+            Error::Stderr(err) => err,
+            Error::Stdout(_) | Error::Missing(_) => {
+                panic!("not an stderr: {:?}", self)
+            }
+        }
+    }
+
+    #[cfg(test)]
+    pub fn unwrap_stdout(self) -> String {
+        match self {
+            Error::Stdout(err) => err,
+            Error::Stderr(_) | Error::Missing(_) => {
+                panic!("not an stdout: {:?}", self)
+            }
+        }
+    }
+
+    pub fn combine_with(self, other: Self) -> Self {
+        match (self, other) {
+            // finalized error takes priority
+            (a @ Error::Stderr(_), _) => a,
+            (_, b @ Error::Stderr(_)) => b,
+
+            // missing elements are combined
+            (Error::Missing(mut a), Error::Missing(mut b)) => {
+                a.append(&mut b);
+                Error::Missing(a)
+            }
+
+            // missing takes priority
+            (a @ Error::Missing(_), _) => a,
+            (_, b @ Error::Missing(_)) => b,
+
+            // first error wins,
+            (a, _) => a,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub enum ItemKind {
     Flag,
     Command,
     Decor,
+    Positional,
 }
 
 #[derive(Clone, Debug)]
@@ -35,6 +92,10 @@ impl std::fmt::Display for Item {
             },
 
             ItemKind::Command => write!(f, "COMMAND"),
+            ItemKind::Positional => match self.metavar {
+                Some(m) => write!(f, "<{}>", m),
+                None => write!(f, "<FILE>"),
+            },
             ItemKind::Decor => Ok(()),
         }
     }
@@ -77,15 +138,15 @@ impl Item {
 
     pub fn is_command(&self) -> bool {
         match self.kind {
-            ItemKind::Flag => false,
-            ItemKind::Command | ItemKind::Decor => true,
+            ItemKind::Command => true,
+            ItemKind::Flag | ItemKind::Decor | ItemKind::Positional => false,
         }
     }
 
     pub fn is_flag(&self) -> bool {
         match self.kind {
-            ItemKind::Command => false,
             ItemKind::Flag | ItemKind::Decor => true,
+            ItemKind::Command | ItemKind::Positional => false,
         }
     }
 }

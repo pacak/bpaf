@@ -23,8 +23,11 @@ Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 bpaf = "0.1"
 ```
 
-Define fields used in parser, attach meta information and execute to get the results out.
-As far as the rest of the application is concerned - there's only one parameter.
+Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser,
+combine them using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`], create
+parser [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and execute with
+[`run`] to get the results out. As far as the rest of the application is concerned
+- there's only one parameter.
 
 ```no_run
 use bpaf::*;
@@ -207,7 +210,7 @@ bpaf:
 | `Clap` |      `bpaf` |  explanation  |
 |----------|-------------|------|
 | `long`, `short` | [`long`], [`short`] ||
-| `alias`, `aliases` | [`short`], [`long`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
+| `alias`, `aliases` | [`long`], [`short`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
 | `*_os` | [`argument_os`][Argument::build_os] | With any parsing or validation on top of that |
 | `allow_hyphen_values` | N/A | Hypens in parameters are accepted either with `--pattern=--bar` or as a positional argument after double dashes `-- --odd-file-name` |
 | `case_insensitive` | [`parse`][Parser::parse] | You can use any parsing logic. |

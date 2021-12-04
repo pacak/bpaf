@@ -346,3 +346,19 @@ Available options:
         true
     );
 }
+
+#[test]
+fn positional_argument() {
+    let p = positional("FILE").help("File to process").build();
+    let parser = Info::default().for_parser(p);
+
+    let help = run_inner(Args::from(&["--help"]), parser.clone())
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: <FILE>
+Available options:
+    -h, --help   Prints help information
+";
+    assert_eq!(expected_help, help);
+}
