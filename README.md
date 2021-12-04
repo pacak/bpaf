@@ -142,11 +142,13 @@ Available commands:
 ```
 
 
-## Fast compilation time
+## Fast compilation time, slower runtime performance
 
-Library aims provides a small number of components that can be composed
-in a multiple ways on user side. Runtime performance is not an end goal since it's usually fast
-enough to take a tiny fraction of whole program runtime while compiling
+Library aims provides a small number of components that can be composed in a multiple ways on
+user side. Runtime performance is not an end goal since it's usually fast enough to take a tiny
+fraction of whole program runtime while compiling so library uses dynamic dispatch to generate
+less code and might perform additional clones if this allows to unify the code better. But
+any noticable performance issues should be fixed.
 
 
 # Compared with clap
