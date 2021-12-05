@@ -95,26 +95,12 @@ impl Named {
 impl Named {
     /// A simple boolean flag
     pub fn switch(self) -> Parser<bool> {
-        Flag {
-            present: true,
-            absent: Some(false),
-            short: self.short,
-            long: self.long,
-            help: self.help,
-        }
-        .build()
+        build_flag_parser(true, Some(false), self.short, self.long, self.help)
     }
 
     /// A required flag
     pub fn req_switch(self) -> Parser<bool> {
-        Flag {
-            present: true,
-            absent: None,
-            short: self.short,
-            long: self.long,
-            help: self.help,
-        }
-        .build()
+        build_flag_parser(true, None, self.short, self.long, self.help)
     }
 
     /// present/absent value flag
@@ -122,14 +108,7 @@ impl Named {
     where
         T: Clone + 'static,
     {
-        Flag {
-            present,
-            absent: Some(absent),
-            short: self.short,
-            long: self.long,
-            help: self.help,
-        }
-        .build()
+        build_flag_parser(present, Some(absent), self.short, self.long, self.help)
     }
 
     /// required flag
@@ -137,14 +116,7 @@ impl Named {
     where
         T: Clone + 'static,
     {
-        Flag {
-            present,
-            absent: None,
-            short: self.short,
-            long: self.long,
-            help: self.help,
-        }
-        .build()
+        build_flag_parser(present, None, self.short, self.long, self.help)
     }
 
     /// Positional argument
@@ -181,67 +153,48 @@ where
     }
 }
 
-struct Flag<T> {
+fn build_flag_parser<T>(
     present: T,
     absent: Option<T>,
     short: Vec<char>,
     long: Vec<&'static str>,
     help: Option<String>,
-}
+) -> Parser<T>
+where
+    T: Clone + 'static,
+{
+    let item = Item {
+        short: short.first().copied(),
+        long: long.first().copied(),
+        metavar: None,
+        help,
+        kind: ItemKind::Flag,
+    };
+    let required = absent.is_none();
+    let meta = item.required(required);
 
-impl<T> Flag<T> {
-    /// Finish parameter definition
-    pub fn build(self) -> Parser<T>
-    where
-        T: Clone + 'static,
-    {
-        let item = Item {
-            short: self.short.first().copied(),
-            long: self.long.first().copied(),
-            metavar: None,
-            help: self.help,
-            kind: ItemKind::Flag,
-        };
-        let required = self.absent.is_none();
-        let meta = item.required(required);
+    let missing = if required {
+        Error::Missing(vec![meta.clone()])
+    } else {
+        Error::Stdout(String::new())
+    };
 
-        let missing = if required {
-            Error::Missing(vec![meta.clone()])
-        } else {
-            Error::Stdout(String::new())
-        };
-
-        let parse = move |mut i: Args| {
-            for &short in self.short.iter() {
-                if let Some(i) = i.take_short_flag(short) {
-                    return Ok((self.present.clone(), i));
-                }
+    let parse = move |mut i: Args| {
+        for &short in short.iter() {
+            if let Some(i) = i.take_short_flag(short) {
+                return Ok((present.clone(), i));
             }
-            for long in self.long.iter() {
-                if let Some(i) = i.take_long_flag(long) {
-                    return Ok((self.present.clone(), i));
-                }
-            }
-            Ok((
-                self.absent.as_ref().ok_or_else(|| missing.clone())?.clone(),
-                i,
-            ))
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta,
         }
-    }
-}
-
-impl<T> Flag<T> {
-    /// Add a help message
-    pub fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<String>,
-    {
-        self.help = Some(help.into());
-        self
+        for long in long.iter() {
+            if let Some(i) = i.take_long_flag(long) {
+                return Ok((present.clone(), i));
+            }
+        }
+        Ok((absent.as_ref().ok_or_else(|| missing.clone())?.clone(), i))
+    };
+    Parser {
+        parse: Rc::new(parse),
+        meta,
     }
 }
 
@@ -292,15 +245,6 @@ impl Argument {
     /// Convert parameter into a parser that produces an [`OsString`]
     pub fn build_os(self) -> Parser<OsString> {
         self.build_both().map(|x| x.os)
-    }
-
-    /// Named argument that also takes a value
-    pub fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<String>,
-    {
-        self.help = Some(help.into());
-        self
     }
 }
 

@@ -36,8 +36,8 @@ fn speed() -> Parser<f64> {
     // Define how to parse speed given in KPH
     let speed_in_kph
         = short('k').long("speed_kph")   // give it a name
-          .argument("SPEED")             // it's an argument with metavar
           .help("speed in KPH")          // and help message
+          .argument("SPEED")             // it's an argument with metavar
           .build()                       // parameter definition
           .from_str::<f64>()             // that is parsed from string as f64
           .map(|s| s / 0.62);            // and converted to mph
@@ -45,8 +45,9 @@ fn speed() -> Parser<f64> {
     // Same for MPH
     let speed_in_mph
         = short('m').long("speed_mph")
+          .help("speed in KPH")
           .argument("SPEED")
-          .help("speed in KPH").build()
+          .build()
           .from_str();
 
     // Resulting parser accepts either of those but not both at once
@@ -104,11 +105,11 @@ use bpaf::*;
 fn speed() -> Parser<f64> {
 
     // define a simple string argument
-    let kph = short('k').argument("SPEED").help("speed in KPH").build()
+    let kph = short('k').help("speed in KPH").argument("SPEED").build()
             .from_str::<f64>()                             // parse it from string to f64
             .guard(|&s| s > 0.0, "Speed must be positive"); // and add some restrictions
 
-    let mph = short('m').argument("SPEED").help("speed in MPH").build()
+    let mph = short('m').help("speed in MPH").argument("SPEED").build()
             .from_str::<f64>()
             .map(|s|s * 1.6)  // can also apply transformations
             .guard(|&s| s > 0.0, "Speed must be positive");
@@ -191,8 +192,9 @@ bpaf:
 ```ignore
     // definition
 
-    short('v').req_flag()
+    short('v')
         .help("Sets the level of verbosity")
+        .req_flag()
         .many().parse(|xs|xs.len())
         .guard(|x| x < 3)
 

@@ -14,8 +14,8 @@ fn main() {
     let help = format!("Pick format to use: {}", Format::VARIANTS.join(", ")); // VariantNames
     let arg: Parser<Format> = long("format")
         .short('f')
-        .argument("FORMAT")
         .help(help)
+        .argument("FORMAT")
         .build()
         .parse(|s| Format::from_str(&s))
         .fallback(Format::Txt);

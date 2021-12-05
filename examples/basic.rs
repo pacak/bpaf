@@ -22,8 +22,8 @@ fn main() {
     // an argument, parsed and with default value
     let speed: Parser<f64> = short('s')
         .long("speed")
-        .argument("SPEED")
         .help("Set speed")
+        .argument("SPEED")
         .build()
         .parse(|s| f64::from_str(&s))
         .fallback(42.0);
@@ -45,8 +45,8 @@ fn main() {
     // a parser that consumes one argument
     let file_to_proces: Parser<PathBuf> = short('f')
         .long("file")
-        .argument("FILE")
         .help("File to process")
+        .argument("FILE")
         .build()
         .parse(|s| PathBuf::from_str(&s));
     let files_to_process: Parser<Vec<PathBuf>> = file_to_proces.many();
