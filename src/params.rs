@@ -168,7 +168,23 @@ impl Named {
         build_flag_parser(true, Some(false), self.short, self.long, self.help)
     }
 
-    /// present/absent value flag
+    /// Flag with custom present/absent values
+    ///
+    /// Parser produces `present` if flag is present in a command line or `absent` otherwise
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Clone)]
+    /// enum Flag {
+    ///     Absent,
+    ///     Present,
+    /// }
+    /// let switch: Parser<Flag> =
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .flag(Flag::Present, Flag::Absent);
+    /// # drop(switch);
+    /// ```
     pub fn flag<T>(self, present: T, absent: T) -> Parser<T>
     where
         T: Clone + 'static,
@@ -176,7 +192,27 @@ impl Named {
         build_flag_parser(present, Some(absent), self.short, self.long, self.help)
     }
 
-    /// required flag
+    /// Required flag with custom value
+    ///
+    /// Parser produces a value if present and fails otherwise.
+    /// Designed to be used with combination of other parser.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let on = long("on").req_flag(true);
+    /// let off = long("off").req_flag(false);
+    /// // Requires user to specify either `--on` or `--off`
+    /// let state: Parser<bool> = on.or_else(off);
+    /// # drop(state);
+    /// ```
+    ///
+    /// ```rust
+    /// use bpaf::*;
+    /// // counts how many times flag `-v` is given on a command line
+    /// let verbosity: Parser<usize> = short('v').req_flag(()).many().map(|v| v.len());
+    /// # drop(verbosity);
+    /// ```
+    ///
     pub fn req_flag<T>(self, present: T) -> Parser<T>
     where
         T: Clone + 'static,
