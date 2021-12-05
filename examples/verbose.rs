@@ -16,7 +16,7 @@ fn main() {
 
     // Let's staty by creating a simple parser that handles a single -v / --verbose
     // and fails otherwise;
-    let verbose: Parser<bool> = short('v').long("verbose").req_switch().build();
+    let verbose: Parser<bool> = short('v').long("verbose").req_switch();
 
     // .many() tries to appy parser as many times as possible and collects the results.
     // We can't use non failing parse with .many() since it will loop forever.
@@ -35,10 +35,10 @@ fn main() {
     // fallback value is to disable trimming. Trim enum is set accordingly
 
     // this flag succeeds iff --no-trim is given and produces Trim::Off
-    let trim_off: Parser<Trim> = long("no-trim").req_flag(Trim::Off).build();
+    let trim_off: Parser<Trim> = long("no-trim").req_flag(Trim::Off);
 
     // this flag handles two remaining cases: --trim is given (Trim::On) an fallback (Trim::Off)
-    let trim_on: Parser<Trim> = long("trim").flag(Trim::On, Trim::Off).build();
+    let trim_on: Parser<Trim> = long("trim").flag(Trim::On, Trim::Off);
 
     // combination of previous two.
     // if trim_off succeeds - trim_on never runs, otherwise trim_on tries to handle the remaining

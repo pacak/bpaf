@@ -7,7 +7,6 @@ use bpaf::*;
 fn main() {
     let flag = short('f')
         .req_switch()
-        .build()
         .many()
         .guard(|x| x.len() >= 2, "at least two arguments are required");
 

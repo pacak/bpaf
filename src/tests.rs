@@ -3,8 +3,8 @@ use std::str::FromStr;
 
 #[test]
 fn simple_two_optional_flags() {
-    let a = short('a').long("AAAAA").switch().build();
-    let b = short('b').switch().build();
+    let a = short('a').long("AAAAA").switch();
+    let b = short('b').switch();
     let x = tuple!(a, b);
     let info = Info::default().descr("this is a test");
     let decorated = info.for_parser(x);
@@ -39,9 +39,9 @@ Available options:
 
 #[test]
 fn either_of_three_required_flags() {
-    let a = short('a').req_switch().build();
-    let b = short('b').req_switch().build();
-    let c = short('c').req_switch().build();
+    let a = short('a').req_switch();
+    let b = short('b').req_switch();
+    let c = short('c').req_switch();
     let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
     let decorated = info.for_parser(p);
@@ -76,9 +76,9 @@ Available options:
 
 #[test]
 fn either_of_two_required_flags_and_one_optional() {
-    let a = short('a').req_switch().build();
-    let b = short('b').req_switch().build();
-    let c = short('c').switch().build();
+    let a = short('a').req_switch();
+    let b = short('b').req_switch();
+    let c = short('c').switch();
     let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
     let decorated = info.for_parser(p);
@@ -221,9 +221,9 @@ Available options:
 
 #[test]
 fn group_help() {
-    let a = short('a').help("flag A, related to B").switch().build();
-    let b = short('b').help("flag B, related to A").switch().build();
-    let c = short('c').help("flag C, unrelated").switch().build();
+    let a = short('a').help("flag A, related to B").switch();
+    let b = short('b').help("flag B, related to A").switch();
+    let c = short('c').help("flag C, unrelated").switch();
     let ab = tuple!(a, b).help("Explanation applicable for both A and B");
     let parser = Info::default().for_parser(tuple!(ab, c));
 
@@ -246,9 +246,9 @@ Available options:
 
 #[test]
 fn from_several_alternatives_pick_more_meaningful() {
-    let a = short('a').req_switch().build();
-    let b = short('b').req_switch().build();
-    let c = short('c').req_switch().build();
+    let a = short('a').req_switch();
+    let b = short('b').req_switch();
+    let c = short('c').req_switch();
     let p = a.or_else(b).or_else(c);
     let parser = Info::default().for_parser(p);
 
@@ -283,7 +283,7 @@ fn subcommands() {
     let global_info = Info::default().descr("This is global info");
     let local_info = Info::default().descr("This is local info");
 
-    let bar = short('b').switch().build();
+    let bar = short('b').switch();
 
     let bar_cmd = command("bar", "do bar", local_info.for_parser(bar));
 
@@ -320,7 +320,7 @@ Available options:
 
 #[test]
 fn multiple_aliases() {
-    let a = short('a').short('b').short('c').req_switch().build();
+    let a = short('a').short('b').short('c').req_switch();
     let parser = Info::default().for_parser(a);
 
     let help = run_inner(Args::from(&["--help"]), parser.clone())

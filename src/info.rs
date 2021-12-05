@@ -411,14 +411,12 @@ impl Info {
         let help = short('h')
             .long("help")
             .help("Prints help information")
-            .req_flag(ExtraParams::Help)
-            .build();
+            .req_flag(ExtraParams::Help);
 
         let ver = short('v')
             .long("version")
             .help("Prints version information")
-            .req_flag(ExtraParams::Version)
-            .build();
+            .req_flag(ExtraParams::Version);
 
         if self.version.is_some() {
             help.or_else(ver)

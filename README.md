@@ -24,10 +24,10 @@ bpaf = "0.1"
 ```
 
 Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser,
-combine them using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`], create
-parser [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and execute with
-[`run`] to get the results out. As far as the rest of the application is concerned
-- there's only one parameter.
+combine them using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`],
+create parser [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and
+execute with [`run`] to get the results out. As far as the rest of the application is concerned
+ there's only one parameter. See [params] for starting points explanations.
 
 ```no_run
 use bpaf::*;
@@ -37,7 +37,8 @@ fn speed() -> Parser<f64> {
     let speed_in_kph
         = short('k').long("speed_kph")   // give it a name
           .argument("SPEED")             // it's an argument with metavar
-          .help("speed in KPH").build()  // and help message
+          .help("speed in KPH")          // and help message
+          .build()                       // parameter definition
           .from_str::<f64>()             // that is parsed from string as f64
           .map(|s| s / 0.62);            // and converted to mph
 

@@ -36,8 +36,7 @@ pub fn main() {
     let fast = short('f')
         .long("fast")
         .switch()
-        .help("Use faster acceleration")
-        .build();
+        .help("Use faster acceleration");
     let acc_parser = Parser::pure(Cmd::Accelerate).ap(fast);
     let cmd = command(
         "accel",
@@ -48,12 +47,10 @@ pub fn main() {
     let a = short('a')
         .long("AAAAA")
         .switch()
-        .help("maps to a boolean, is optional")
-        .build();
+        .help("maps to a boolean, is optional");
     let b = long("bbbb")
         .req_switch()
-        .help("also maps to a boolean but mandatory")
-        .build();
+        .help("also maps to a boolean but mandatory");
     let c = speed();
 
     let parser = construct!(Foo: a, b, c, cmd);

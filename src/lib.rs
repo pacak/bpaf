@@ -87,6 +87,7 @@ macro_rules! apply {
     }
 }
 
+/// A bit more user friendly alias for parsing function
 pub type DynParse<T> = dyn Fn(Args) -> Result<(T, Args), Error>;
 
 #[derive(Clone)]

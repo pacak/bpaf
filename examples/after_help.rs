@@ -4,7 +4,7 @@
 use bpaf::*;
 
 fn main() {
-    let dragon = short('d').switch().help("Release the dragon").build();
+    let dragon = short('d').switch().help("Release the dragon");
     let info = Info::default()
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
