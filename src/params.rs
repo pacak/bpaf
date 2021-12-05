@@ -10,8 +10,7 @@
 //!
 //! ## Switch
 //!
-//! A special case of a flag that gets decoded into a `bool`, see [`Named::switch`] and
-//! [`Named::req_switch`]
+//! A special case of a flag that gets decoded into a `bool`, see [`Named::switch`].
 //!
 //! ## Argument
 //!
@@ -167,23 +166,6 @@ impl Named {
     /// ```
     pub fn switch(self) -> Parser<bool> {
         build_flag_parser(true, Some(false), self.short, self.long, self.help)
-    }
-
-    /// Required flag
-    ///
-    /// Parser produces `true` if flag is present in a command line or fails to parse otherwise.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let switch: Parser<bool> =
-    ///     short('f')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .switch();
-    /// # drop(switch);
-    /// ```
-    pub fn req_switch(self) -> Parser<bool> {
-        build_flag_parser(true, None, self.short, self.long, self.help)
     }
 
     /// present/absent value flag

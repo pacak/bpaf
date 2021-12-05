@@ -232,7 +232,7 @@ bpaf:
 | `hidden_*` | N/A | TODO? |
 | `index` | N/A | Arguments are not exposed to the user directly, `index` won't be of any use. |
 | `last` | N/A | What's the use case? |
-| `required` | [`req_flag`][Named::req_flag], [`req_switch`][Named::req_switch], [`argument`][Named::argument] | Arguments with no fallback values and not changed to [`optional`][Parser::optional] are required. |
+| `required` | [`req_flag`][Named::req_flag], [`argument`][Named::argument] | Arguments with no fallback values and not changed to [`optional`][Parser::optional] are required. |
 | `require_equals` | N/A | `=` is always accepted but never required. Not sure about the usecase. |
 | `require*` | [`or_else`][Parser::or_else] | One and only one in chained `or_else` sequence must succeed. |
 | `takes_value` | [`argument`][Argument::build], [`argument_os`][Argument::build_os] | |

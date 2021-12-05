@@ -16,11 +16,11 @@ fn main() {
 
     // Let's staty by creating a simple parser that handles a single -v / --verbose
     // and fails otherwise;
-    let verbose: Parser<bool> = short('v').long("verbose").req_switch();
+    let verbose: Parser<()> = short('v').long("verbose").req_flag(());
 
     // .many() tries to appy parser as many times as possible and collects the results.
     // We can't use non failing parse with .many() since it will loop forever.
-    let verbose: Parser<Vec<bool>> = verbose.many();
+    let verbose: Parser<Vec<()>> = verbose.many();
 
     // Then count how many times parser succeeded
     let verbose: Parser<usize> = verbose.map(|v| v.len());

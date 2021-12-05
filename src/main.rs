@@ -4,7 +4,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone)]
 struct Foo {
     a: bool,
-    b: bool,
+    b: (),
     c: f64,
     cmd: Cmd,
 }
@@ -48,9 +48,7 @@ pub fn main() {
         .long("AAAAA")
         .switch()
         .help("maps to a boolean, is optional");
-    let b = long("bbbb")
-        .req_switch()
-        .help("also maps to a boolean but mandatory");
+    let b = long("bbbb").req_flag(()).help("maps to a () and mandatory");
     let c = speed();
 
     let parser = construct!(Foo: a, b, c, cmd);

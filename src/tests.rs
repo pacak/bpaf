@@ -39,9 +39,9 @@ Available options:
 
 #[test]
 fn either_of_three_required_flags() {
-    let a = short('a').req_switch();
-    let b = short('b').req_switch();
-    let c = short('c').req_switch();
+    let a = short('a').req_flag(());
+    let b = short('b').req_flag(());
+    let c = short('c').req_flag(());
     let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
     let decorated = info.for_parser(p);
@@ -76,8 +76,8 @@ Available options:
 
 #[test]
 fn either_of_two_required_flags_and_one_optional() {
-    let a = short('a').req_switch();
-    let b = short('b').req_switch();
+    let a = short('a').req_flag(true);
+    let b = short('b').req_flag(false);
     let c = short('c').switch();
     let p = a.or_else(b).or_else(c);
     let info = Info::default().version("1.0");
@@ -246,9 +246,9 @@ Available options:
 
 #[test]
 fn from_several_alternatives_pick_more_meaningful() {
-    let a = short('a').req_switch();
-    let b = short('b').req_switch();
-    let c = short('c').req_switch();
+    let a = short('a').req_flag(());
+    let b = short('b').req_flag(());
+    let c = short('c').req_flag(());
     let p = a.or_else(b).or_else(c);
     let parser = Info::default().for_parser(p);
 
@@ -320,7 +320,7 @@ Available options:
 
 #[test]
 fn multiple_aliases() {
-    let a = short('a').short('b').short('c').req_switch();
+    let a = short('a').short('b').short('c').req_flag(());
     let parser = Info::default().for_parser(a);
 
     let help = run_inner(Args::from(&["--help"]), parser.clone())
@@ -333,18 +333,9 @@ Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
-    assert_eq!(
-        run_inner(Args::from(&["-a"]), parser.clone()).unwrap(),
-        true
-    );
-    assert_eq!(
-        run_inner(Args::from(&["-b"]), parser.clone()).unwrap(),
-        true
-    );
-    assert_eq!(
-        run_inner(Args::from(&["-c"]), parser.clone()).unwrap(),
-        true
-    );
+    assert_eq!(run_inner(Args::from(&["-a"]), parser.clone()).unwrap(), ());
+    assert_eq!(run_inner(Args::from(&["-b"]), parser.clone()).unwrap(), ());
+    assert_eq!(run_inner(Args::from(&["-c"]), parser.clone()).unwrap(), ());
 }
 
 #[test]

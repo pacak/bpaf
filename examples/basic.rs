@@ -14,7 +14,7 @@ fn main() {
     // number of occurrences of the v/verbose flag capped at 3
     let verbose: Parser<usize> = short('v')
         .long("verbose")
-        .req_switch()
+        .req_flag(())
         .many()
         .map(|xs| xs.len())
         .guard(|&x| x <= 3, "It doesn't get any more verbose than this");
