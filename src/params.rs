@@ -45,11 +45,19 @@ pub struct Named {
     help: Option<String>,
 }
 
-/// Create a flag/switch/argument with a short name
+/// A flag/switch/argument that has a short name
+///
+/// You can specify it multiple times, items past the first one will become
+/// a hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let switch = short('f').long("flag").help("a flag").switch();
+/// let switch: Parser<bool> =
+///     short('f')
+///         .short('F')
+///         .long("flag")
+///         .help("a flag that does a thing")
+///         .switch();
 /// # drop(switch);
 /// ```
 pub fn short(short: char) -> Named {
@@ -60,7 +68,21 @@ pub fn short(short: char) -> Named {
     }
 }
 
-/// Create a flag/switch/argument with a long name
+/// A flag/switch/argument that has a long name
+///
+/// You can specify it multiple times, items past the first one will become
+/// a hidden aliases.
+///
+/// ```rust
+/// # use bpaf::*;
+/// let switch: Parser<bool> =
+///     short('f')
+///         .long("flag")
+///         .long("Flag")
+///         .help("a flag that does a thing")
+///         .switch();
+/// # drop(switch);
+/// ```
 pub fn long(long: &'static str) -> Named {
     Named {
         short: Vec::new(),
@@ -70,19 +92,57 @@ pub fn long(long: &'static str) -> Named {
 }
 
 impl Named {
-    /// Add a short name
+    /// Add a short name to a flag/switch/argument
+    ///
+    /// You can specify it multiple times, items past the first one will become
+    /// a hidden aliases.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let switch: Parser<bool> =
+    ///     short('f')
+    ///         .short('F')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .switch();
+    /// # drop(switch);
+    /// ```
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
         self
     }
 
-    /// Add a long name
+    /// Add a long name to a flag/switch/argument
+    ///
+    /// You can specify it multiple times, items past the first one will become
+    /// a hidden aliases.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let switch: Parser<bool> =
+    ///     short('f')
+    ///         .long("flag")
+    ///         .long("Flag")
+    ///         .help("a flag that does a thing")
+    ///         .switch();
+    /// # drop(switch);
+    /// ```
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
         self
     }
 
-    /// Add a help message
+    /// Add a help message to a flag/switch/argument
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let switch: Parser<bool> =
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .switch();
+    /// # drop(switch);
+    /// ```
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -93,12 +153,35 @@ impl Named {
 }
 
 impl Named {
-    /// A simple boolean flag
+    /// Simple boolean flag
+    ///
+    /// Parser produces `true` if flag is present in a command line or `false` otherwise
+    /// ```rust
+    /// # use bpaf::*;
+    /// let switch: Parser<bool> =
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .switch();
+    /// # drop(switch);
+    /// ```
     pub fn switch(self) -> Parser<bool> {
         build_flag_parser(true, Some(false), self.short, self.long, self.help)
     }
 
-    /// A required flag
+    /// Required flag
+    ///
+    /// Parser produces `true` if flag is present in a command line or fails to parse otherwise.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let switch: Parser<bool> =
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .switch();
+    /// # drop(switch);
+    /// ```
     pub fn req_switch(self) -> Parser<bool> {
         build_flag_parser(true, None, self.short, self.long, self.help)
     }
