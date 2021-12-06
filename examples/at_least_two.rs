@@ -10,6 +10,6 @@ fn main() {
         .many()
         .guard(|x| x.len() >= 2, "at least two arguments are required");
 
-    let opt = run(Info::default().for_parser(flag));
+    let opt = Info::default().for_parser(flag).run();
     println!("{:?}", opt);
 }

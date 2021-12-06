@@ -10,6 +10,6 @@ fn main() {
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here");
 
-    let opt = run(info.for_parser(dragon));
+    let opt = info.for_parser(dragon).run();
     println!("{:?}", opt);
 }

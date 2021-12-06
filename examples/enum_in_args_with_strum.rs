@@ -16,10 +16,9 @@ fn main() {
         .short('f')
         .help(help)
         .argument("FORMAT")
-        .build()
         .parse(|s| Format::from_str(&s))
         .fallback(Format::Txt);
 
-    let opt = run(Info::default().for_parser(arg));
+    let opt = Info::default().for_parser(arg).run();
     println!("{:#?}", opt);
 }

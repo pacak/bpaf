@@ -24,7 +24,6 @@ fn main() {
         .long("speed")
         .help("Set speed")
         .argument("SPEED")
-        .build()
         .parse(|s| f64::from_str(&s))
         .fallback(42.0);
 
@@ -32,14 +31,12 @@ fn main() {
         .long("output")
         .help("output file")
         .argument("SPEED")
-        .build()
         .parse(|s| PathBuf::from_str(&s));
 
     // no magical name transmogrifications.
     let nb_cars: Parser<u32> = short('n')
         .long("nb-cars")
         .argument("N")
-        .build()
         .parse(|s| u32::from_str(&s));
 
     // a parser that consumes one argument
@@ -47,7 +44,6 @@ fn main() {
         .long("file")
         .help("File to process")
         .argument("FILE")
-        .build()
         .parse(|s| PathBuf::from_str(&s));
     let files_to_process: Parser<Vec<PathBuf>> = file_to_proces.many();
 
@@ -70,6 +66,6 @@ fn main() {
         nb_cars,
         files_to_process
     );
-    let opt = run(Info::default().for_parser(parser));
+    let opt = Info::default().for_parser(parser).run();
     println!("{:#?}", opt);
 }

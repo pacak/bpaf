@@ -49,6 +49,6 @@ fn main() {
 
     let parser = tuple!(verbose, trim);
 
-    let opt = run(Info::default().for_parser(parser));
+    let opt = Info::default().for_parser(parser).run();
     println!("{:#?}", opt);
 }

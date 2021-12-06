@@ -10,18 +10,24 @@ fn simple_two_optional_flags() {
     let decorated = info.for_parser(x);
 
     // no version information given - no version field generated
-    let err = run_inner(Args::from(&["-a", "-v"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "-v"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("-v is not expected in this context", err);
 
     // flag can be given only once
-    let err = run_inner(Args::from(&["-a", "-a"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("-a is not expected in this context", err);
 
-    let help = run_inner(Args::from(&["-h"]), decorated.clone())
+    let help = decorated
+        .clone()
+        .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
 
@@ -47,13 +53,17 @@ fn either_of_three_required_flags() {
     let decorated = info.for_parser(p);
 
     // version is specified - version help is present
-    let ver = run_inner(Args::from(&["-v"]), decorated.clone())
+    let ver = decorated
+        .clone()
+        .run_inner(Args::from(&["-v"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("Version: 1.0", ver);
 
     // help is always generated
-    let help = run_inner(Args::from(&["-h"]), decorated.clone())
+    let help = decorated
+        .clone()
+        .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -68,7 +78,9 @@ Available options:
     assert_eq!(expected_help, help);
 
     // must specify one of the required flags
-    let err = run_inner(Args::from(&[]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&[]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("Expected one of -a, -b, -c", err);
@@ -84,13 +96,17 @@ fn either_of_two_required_flags_and_one_optional() {
     let decorated = info.for_parser(p);
 
     // version is specified - version help is present
-    let ver = run_inner(Args::from(&["-v"]), decorated.clone())
+    let ver = decorated
+        .clone()
+        .run_inner(Args::from(&["-v"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("Version: 1.0", ver);
 
     // help is always generated
-    let help = run_inner(Args::from(&["-h"]), decorated.clone())
+    let help = decorated
+        .clone()
+        .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -105,7 +121,7 @@ Available options:
     assert_eq!(expected_help, help);
 
     // fallback to default
-    let res = run_inner(Args::from(&[]), decorated.clone()).unwrap();
+    let res = decorated.clone().run_inner(Args::from(&[])).unwrap();
     assert_eq!(res, false);
 }
 
@@ -113,13 +129,14 @@ Available options:
 fn default_arguments() {
     let a = short('a')
         .argument("ARG")
-        .build()
         .parse(|s| i32::from_str(&s))
         .fallback(42);
     let info = Info::default();
     let decorated = info.for_parser(a);
 
-    let help = run_inner(Args::from(&["-h"]), decorated.clone())
+    let help = decorated
+        .clone()
+        .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -130,13 +147,16 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let err = run_inner(Args::from(&["-a", "x12"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "x12"]))
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Couldn't parse \"x12\": invalid digit found in string";
     assert_eq!(expected_err, err);
 
-    let err = run_inner(Args::from(&["-a"]), decorated)
+    let err = decorated
+        .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "-a requires an argument";
@@ -145,25 +165,28 @@ Available options:
 
 #[test]
 fn parse_errors() {
-    let a = short('a')
-        .argument("ARG")
-        .build()
-        .parse(|s| i32::from_str(&s));
+    let a = short('a').argument("ARG").parse(|s| i32::from_str(&s));
     let decorated = Info::default().for_parser(a);
 
-    let err = run_inner(Args::from(&["-a", "123x"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Couldn't parse \"123x\": invalid digit found in string";
     assert_eq!(expected_err, err);
 
-    let err = run_inner(Args::from(&["-b", "123x"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Expected -a ARG";
     assert_eq!(expected_err, err);
 
-    let err = run_inner(Args::from(&["-a", "123", "-b"]), decorated.clone())
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "123", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "-b is not expected in this context";
@@ -172,35 +195,18 @@ fn parse_errors() {
 
 #[test]
 fn long_usage_string() {
-    let a = short('a')
-        .long("a-very-long-flag-with")
-        .argument("ARG")
-        .build();
-    let b = short('b')
-        .long("b-very-long-flag-with")
-        .argument("ARG")
-        .build();
-    let c = short('c')
-        .long("c-very-long-flag-with")
-        .argument("ARG")
-        .build();
-    let d = short('d')
-        .long("d-very-long-flag-with")
-        .argument("ARG")
-        .build();
-    let e = short('e')
-        .long("e-very-long-flag-with")
-        .argument("ARG")
-        .build();
-    let f = short('f')
-        .long("f-very-long-flag-with")
-        .argument("ARG")
-        .build();
+    let a = short('a').long("a-very-long-flag-with").argument("ARG");
+    let b = short('b').long("b-very-long-flag-with").argument("ARG");
+    let c = short('c').long("c-very-long-flag-with").argument("ARG");
+    let d = short('d').long("d-very-long-flag-with").argument("ARG");
+    let e = short('e').long("e-very-long-flag-with").argument("ARG");
+    let f = short('f').long("f-very-long-flag-with").argument("ARG");
 
     let p = tuple!(a, b, c, d, e, f);
     let decorated = Info::default().for_parser(p);
 
-    let help = run_inner(Args::from(&["--help"]), decorated)
+    let help = decorated
+        .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
 
@@ -227,7 +233,8 @@ fn group_help() {
     let ab = tuple!(a, b).help("Explanation applicable for both A and B");
     let parser = Info::default().for_parser(tuple!(ab, c));
 
-    let help = run_inner(Args::from(&["--help"]), parser)
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -252,27 +259,37 @@ fn from_several_alternatives_pick_more_meaningful() {
     let p = a.or_else(b).or_else(c);
     let parser = Info::default().for_parser(p);
 
-    let err1 = run_inner(Args::from(&["-a", "-b"]), parser.clone())
+    let err1 = parser
+        .clone()
+        .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err1, "-b is not expected in this context");
 
-    let err2 = run_inner(Args::from(&["-b", "-a"]), parser.clone())
+    let err2 = parser
+        .clone()
+        .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err2, "-a is not expected in this context");
 
-    let err3 = run_inner(Args::from(&["-c", "-a"]), parser.clone())
+    let err3 = parser
+        .clone()
+        .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err3, "-a is not expected in this context");
 
-    let err4 = run_inner(Args::from(&["-a", "-c"]), parser.clone())
+    let err4 = parser
+        .clone()
+        .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err4, "-c is not expected in this context");
 
-    let err5 = run_inner(Args::from(&["-c", "-b", "-a"]), parser.clone())
+    let err5 = parser
+        .clone()
+        .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err5, "-b is not expected in this context");
@@ -289,7 +306,9 @@ fn subcommands() {
 
     let parser = global_info.for_parser(bar_cmd);
 
-    let help = run_inner(Args::from(&["--help"]), parser.clone())
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -304,7 +323,9 @@ Available commands:
 ";
     assert_eq!(expected_help, help);
 
-    let help = run_inner(Args::from(&["bar", "--help"]), parser.clone())
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["bar", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -323,7 +344,9 @@ fn multiple_aliases() {
     let a = short('a').short('b').short('c').req_flag(());
     let parser = Info::default().for_parser(a);
 
-    let help = run_inner(Args::from(&["--help"]), parser.clone())
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -333,17 +356,19 @@ Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
-    assert_eq!(run_inner(Args::from(&["-a"]), parser.clone()).unwrap(), ());
-    assert_eq!(run_inner(Args::from(&["-b"]), parser.clone()).unwrap(), ());
-    assert_eq!(run_inner(Args::from(&["-c"]), parser.clone()).unwrap(), ());
+    assert_eq!(parser.clone().run_inner(Args::from(&["-a"])).unwrap(), ());
+    assert_eq!(parser.clone().run_inner(Args::from(&["-b"])).unwrap(), ());
+    assert_eq!(parser.clone().run_inner(Args::from(&["-c"])).unwrap(), ());
 }
 
 #[test]
 fn positional_argument() {
-    let p = positional("FILE").help("File to process").build();
+    let p = positional("FILE").help("File to process");
     let parser = Info::default().for_parser(p);
 
-    let help = run_inner(Args::from(&["--help"]), parser.clone())
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\

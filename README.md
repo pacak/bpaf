@@ -24,10 +24,11 @@ bpaf = "0.1"
 ```
 
 Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser,
-combine them using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`],
-create parser [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and
-execute with [`run`] to get the results out. As far as the rest of the application is concerned
- there's only one parameter. See [params] for starting points explanations.
+use some of the member functions from [`Parser`] to apply further processing, combine parsers
+using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`], create parser
+[`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and execute with
+[`run`] to get the results out. As far as the rest of the application is concerned there's only
+one parameter. See [params] for starting points explanations.
 
 ```no_run
 use bpaf::*;
@@ -38,7 +39,6 @@ fn speed() -> Parser<f64> {
         = short('k').long("speed_kph")   // give it a name
           .help("speed in KPH")          // and help message
           .argument("SPEED")             // it's an argument with metavar
-          .build()                       // parameter definition
           .from_str::<f64>()             // that is parsed from string as f64
           .map(|s| s / 0.62);            // and converted to mph
 
@@ -47,7 +47,6 @@ fn speed() -> Parser<f64> {
         = short('m').long("speed_mph")
           .help("speed in KPH")
           .argument("SPEED")
-          .build()
           .from_str();
 
     // Resulting parser accepts either of those but not both at once
@@ -58,7 +57,7 @@ fn main() {
     let info = Info::default().descr("Accept speed in KPH or MPH, print it as MPH");
     let parser = speed();
     let decorated = info.for_parser(parser);
-    let res = run(decorated);
+    let res = decorated.run();
     println!("Speed in MPH: {}", res);
 }
 ```
@@ -105,11 +104,11 @@ use bpaf::*;
 fn speed() -> Parser<f64> {
 
     // define a simple string argument
-    let kph = short('k').help("speed in KPH").argument("SPEED").build()
+    let kph = short('k').help("speed in KPH").argument("SPEED")
             .from_str::<f64>()                             // parse it from string to f64
             .guard(|&s| s > 0.0, "Speed must be positive"); // and add some restrictions
 
-    let mph = short('m').help("speed in MPH").argument("SPEED").build()
+    let mph = short('m').help("speed in MPH").argument("SPEED")
             .from_str::<f64>()
             .map(|s|s * 1.6)  // can also apply transformations
             .guard(|&s| s > 0.0, "Speed must be positive");
@@ -214,7 +213,7 @@ bpaf:
 |----------|-------------|------|
 | `long`, `short` | [`long`], [`short`] ||
 | `alias`, `aliases` | [`long`], [`short`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
-| `*_os` | [`argument_os`][Argument::build_os] | With any parsing or validation on top of that |
+| `*_os` | [`arguments_os`][Named::argument_os], [`positional_os`] | With any parsing or validation on top of that |
 | `allow_hyphen_values` | N/A | Hypens in parameters are accepted either with `--pattern=--bar` or as a positional argument after double dashes `-- --odd-file-name` |
 | `case_insensitive` | [`parse`][Parser::parse] | You can use any parsing logic. |
 | `conflicts_with` | [`or_else`][Parser::or_else] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
@@ -235,7 +234,7 @@ bpaf:
 | `required` | [`req_flag`][Named::req_flag], [`argument`][Named::argument] | Arguments with no fallback values and not changed to [`optional`][Parser::optional] are required. |
 | `require_equals` | N/A | `=` is always accepted but never required. Not sure about the usecase. |
 | `require*` | [`or_else`][Parser::or_else] | One and only one in chained `or_else` sequence must succeed. |
-| `takes_value` | [`argument`][Argument::build], [`argument_os`][Argument::build_os] | |
+| `takes_value` | [`argument`][Named::argument], [`argument_os`][Named::argument_os] | |
 | `number_of_values`, `(max,min)_values` | N/A | Consuming multiple separate values with a single flag is not supported but it is possible to implement similar behavior using either custom [`parse`][Parser::parse] or by allowing user to specify an option [`many`][Parser::many] times and using [`guard`][Parser::guard] or [`parse`][Parser::parse] to specify exact limits. |
 | `validator[_os]`, `possible_value[s]`, `empty_values` | [`parse`][Parser::parse], [`guard`][Parser::guard] | You can implement any parsing logic not limited to strings. |
 | `*_delimiter` | N/A |  Clumped values are not supported directly with [`parse`][Parser::parse]. The alternative is to accept a parameter multiple times [`many`][Parser::many] |

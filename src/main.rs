@@ -19,13 +19,11 @@ fn speed() -> Parser<f64> {
         .help("speed in MPH")
         .long("mph")
         .argument("SPEED")
-        .build()
         .parse(|s| f64::from_str(&s));
     let k = short('k')
         .long("kph")
         .help("speed in KPH")
         .argument("SPEED")
-        .build()
         .parse(|s| f64::from_str(&s).map(|s| s / 0.62));
     m.or_else(k)
 }
@@ -56,6 +54,6 @@ pub fn main() {
     //  let x = mk.ap(a).ap(b).ap(speed()).ap(acc);
     let y = info.for_parser(parser);
 
-    let xx = run(y);
+    let xx = y.run();
     println!("{:?}", xx);
 }

@@ -87,25 +87,23 @@ macro_rules! apply {
     }
 }
 
+#[doc(hidden)]
 /// A bit more user friendly alias for parsing function
 pub type DynParse<T> = dyn Fn(Args) -> Result<(T, Args), Error>;
 
+/// Simple or composed argument parser
 #[derive(Clone)]
 pub struct Parser<T> {
+    #[doc(hidden)]
+    /// Parsing function
     pub parse: Rc<DynParse<T>>,
+    #[doc(hidden)]
+    /// Included information about the parser
     pub meta: Meta,
 }
 
 impl<T> Parser<T> {
-    pub fn pair<A, B>(a: Parser<A>, b: Parser<B>) -> Parser<(A, B)>
-    where
-        A: 'static + Clone,
-        B: 'static + Clone,
-    {
-        tuple!(a, b)
-    }
-
-    // succeed without consuming anything
+    /// succeed without consuming anything
     pub fn pure(val: T) -> Parser<T>
     where
         T: 'static + Clone,
@@ -117,7 +115,8 @@ impl<T> Parser<T> {
         }
     }
 
-    // <*>
+    #[doc(hidden)]
+    /// <*>
     pub fn ap<A, B>(self, other: Parser<A>) -> Parser<B>
     where
         T: Fn(A) -> B + 'static,
@@ -134,7 +133,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // <|>
+    /// If first parser fails - try the second one
     pub fn or_else(self, other: Parser<T>) -> Parser<T>
     where
         T: 'static,
@@ -166,15 +165,19 @@ impl<T> Parser<T> {
         }
     }
 
-    // always fails
-    pub fn empty() -> Parser<T> {
+    /// Fail with a fixed error message
+    pub fn fail<M>(msg: M) -> Parser<T>
+    where
+        String: From<M>,
+        M: Clone + 'static,
+    {
         Parser {
             meta: Meta::Empty,
-            parse: Rc::new(|_| Err(Error::Stderr(String::from("empty")))),
+            parse: Rc::new(move |_| Err(Error::Stderr(String::from(msg.clone())))),
         }
     }
 
-    // zero or more
+    /// zero or more
     pub fn many(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -200,7 +203,7 @@ impl<T> Parser<T> {
         }
     }
 
-    //
+    /// Validate or fail with a message
     pub fn guard<F>(self, m: F, message: &'static str) -> Parser<T>
     where
         F: Fn(&T) -> bool + 'static,
@@ -217,7 +220,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // one or more
+    /// one or more
     pub fn some(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -225,7 +228,7 @@ impl<T> Parser<T> {
         self.many().guard(|x| !x.is_empty(), "must not be empty")
     }
 
-    // zero or one
+    /// zero or one
     pub fn optional(self) -> Parser<Option<T>>
     where
         T: 'static + Clone,
@@ -233,7 +236,7 @@ impl<T> Parser<T> {
         self.map(Some).or_else(Parser::pure(None))
     }
 
-    // apply pure transformation
+    /// apply pure transformation
     pub fn map<F, B>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> B + 'static,
@@ -338,50 +341,61 @@ impl Parser<String> {
     }
 }
 
-pub fn run<T>(parser: ParserInfo<T>) -> T {
-    let mut args = Args::default();
-    let mut pos_only = false;
-    for arg in std::env::args_os() {
-        args.push(arg, &mut pos_only);
-    }
-
-    //    let mut args: Vec<std::ffi::OsString> = std::env::args_os().collect();
-    //    let prog_name = args.remove(0);
-    //    let a = Args::from(args.as_slice());
-    match run_inner(args, parser) {
-        Ok(t) => t,
-        Err(Error::Stdout(msg)) => {
-            print!("{}", msg);
-            std::process::exit(0);
+impl<T> ParserInfo<T> {
+    /// Execute the [ParserInfo], extract a parsed value or print some diagnostic and exit
+    ///
+    /// ```no_run
+    /// use bpaf::*;
+    ///
+    /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
+    /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
+    ///
+    /// let opt = info.for_parser(verbose).run();
+    /// // At this point `opt` contains number of times `-v` was specified on a command line
+    /// # drop(opt)
+    /// ```
+    pub fn run(self) -> T {
+        let mut args = Args::default();
+        let mut pos_only = false;
+        for arg in std::env::args_os() {
+            args.push(arg, &mut pos_only);
         }
-        Err(Error::Stderr(msg)) => {
-            eprint!("{}", msg);
-            std::process::exit(1);
-        }
-        Err(err) => unreachable!("failed: {:?}", err),
-    }
-}
 
-fn run_inner<T>(args: Args, parser: ParserInfo<T>) -> Result<T, Error> {
-    match (parser.parse)(args) {
-        Ok((t, rest)) if rest.is_empty() => Ok(t),
-        Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),
-        Err(Error::Missing(metas)) => {
-            if metas.len() == 1 {
-                Err(Error::Stderr(format!("Expected {}", metas[0])))
-            } else {
-                use std::fmt::Write;
-                let mut res = String::new();
-                write!(res, "Expected one of ").unwrap();
-                for (ix, x) in metas.iter().enumerate() {
-                    write!(res, "{}", x).unwrap();
-                    if metas.len() > ix + 1 {
-                        write!(res, ", ").unwrap();
-                    }
-                }
-                Err(Error::Stderr(res))
+        match self.run_inner(args) {
+            Ok(t) => t,
+            Err(Error::Stdout(msg)) => {
+                print!("{}", msg);
+                std::process::exit(0);
             }
+            Err(Error::Stderr(msg)) => {
+                eprint!("{}", msg);
+                std::process::exit(1);
+            }
+            Err(err) => unreachable!("failed: {:?}", err),
         }
-        Err(err) => Err(err),
+    }
+
+    fn run_inner(self, args: Args) -> Result<T, Error> {
+        match (self.parse)(args) {
+            Ok((t, rest)) if rest.is_empty() => Ok(t),
+            Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),
+            Err(Error::Missing(metas)) => {
+                if metas.len() == 1 {
+                    Err(Error::Stderr(format!("Expected {}", metas[0])))
+                } else {
+                    use std::fmt::Write;
+                    let mut res = String::new();
+                    write!(res, "Expected one of ").unwrap();
+                    for (ix, x) in metas.iter().enumerate() {
+                        write!(res, "{}", x).unwrap();
+                        if metas.len() > ix + 1 {
+                            write!(res, ", ").unwrap();
+                        }
+                    }
+                    Err(Error::Stderr(res))
+                }
+            }
+            Err(err) => Err(err),
+        }
     }
 }

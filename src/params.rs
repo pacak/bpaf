@@ -220,15 +220,26 @@ impl Named {
         build_flag_parser(present, None, self.short, self.long, self.help)
     }
 
-    /// Positional argument
-    pub fn argument(self, metavar: &'static str) -> Argument {
-        Argument {
-            short: self.short,
-            long: self.long,
-            help: self.help,
-            metavar,
-        }
+    /// utf encoded named argument
+    pub fn argument(self, metavar: &'static str) -> Parser<String> {
+        build_argument(self.short, self.long, self.help, metavar)
+            .parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
+
+    /// os encoded named argument
+    pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
+        build_argument(self.short, self.long, self.help, metavar).map(|x| x.os)
+    }
+}
+
+/// utf encoded positional argument
+pub fn positional(metavar: &'static str) -> Parser<String> {
+    build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
+}
+
+/// os encoded positional argument
+pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
+    build_positional(metavar).map(|x| x.os)
 }
 
 /// Command
@@ -299,108 +310,58 @@ where
     }
 }
 
-/// Named argument that also takes a value
-pub struct Argument {
+fn build_argument(
     short: Vec<char>,
     long: Vec<&'static str>,
     help: Option<String>,
     metavar: &'static str,
-}
-
-impl Argument {
-    fn build_both(self) -> Parser<Word> {
-        let item = Item {
-            kind: ItemKind::Flag,
-            short: self.short.first().copied(),
-            long: self.long.first().copied(),
-            metavar: Some(self.metavar),
-            help: self.help,
-        };
-        let meta = item.required(true);
-        let meta2 = meta.clone();
-        let parse = move |mut i: Args| {
-            for &short in self.short.iter() {
-                if let Some((w, c)) = i.take_short_arg(short)? {
-                    return Ok((w, c));
-                }
+) -> Parser<Word> {
+    let item = Item {
+        kind: ItemKind::Flag,
+        short: short.first().copied(),
+        long: long.first().copied(),
+        metavar: Some(metavar),
+        help,
+    };
+    let meta = item.required(true);
+    let meta2 = meta.clone();
+    let parse = move |mut i: Args| {
+        for &short in short.iter() {
+            if let Some((w, c)) = i.take_short_arg(short)? {
+                return Ok((w, c));
             }
-            for long in self.long.iter() {
-                if let Some((w, c)) = i.take_long_arg(long)? {
-                    return Ok((w, c));
-                }
-            }
-            Err(Error::Missing(vec![meta2.clone()]))
-        };
-
-        Parser {
-            parse: Rc::new(parse),
-            meta,
         }
-    }
+        for long in long.iter() {
+            if let Some((w, c)) = i.take_long_arg(long)? {
+                return Ok((w, c));
+            }
+        }
+        Err(Error::Missing(vec![meta2.clone()]))
+    };
 
-    /// Convert parameter into a parser that produces a [`String`]
-    pub fn build(self) -> Parser<String> {
-        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
-    }
-
-    /// Convert parameter into a parser that produces an [`OsString`]
-    pub fn build_os(self) -> Parser<OsString> {
-        self.build_both().map(|x| x.os)
+    Parser {
+        parse: Rc::new(parse),
+        meta,
     }
 }
 
-/// Unnamed positional argument
-pub struct Positional {
-    help: Option<String>,
-    metavar: &'static str,
-}
-
-/// Unnamed positional argument
-pub fn positional(metavar: &'static str) -> Positional {
-    Positional {
-        metavar,
+fn build_positional(metavar: &'static str) -> Parser<Word> {
+    let item = Item {
+        short: None,
+        long: None,
+        metavar: Some(metavar),
         help: None,
-    }
-}
+        kind: ItemKind::Positional,
+    };
+    let meta = item.required(true);
+    let meta2 = meta.clone();
 
-impl Positional {
-    fn build_both(self) -> Parser<Word> {
-        let item = Item {
-            short: None,
-            long: None,
-            metavar: Some(self.metavar),
-            help: self.help,
-            kind: ItemKind::Positional,
-        };
-        let meta = item.required(true);
-        let meta2 = meta.clone();
-
-        let parse = move |mut args: Args| match args.take_positional() {
-            Some((word, args)) => return Ok((word, args)),
-            None => Err(Error::Missing(vec![meta2.clone()])),
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta,
-        }
-    }
-
-    /// Convert parameter into a parser that produces a [`String`]
-    pub fn build(self) -> Parser<String> {
-        self.build_both().parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
-    }
-
-    /// Convert parameter into a parser that produces a [`OsString`]
-    pub fn build_os(self) -> Parser<OsString> {
-        self.build_both().map(|x| x.os)
-    }
-
-    /// Named argument that also takes a value
-    pub fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<String>,
-    {
-        self.help = Some(help.into());
-        self
+    let parse = move |mut args: Args| match args.take_positional() {
+        Some((word, args)) => return Ok((word, args)),
+        None => Err(Error::Missing(vec![meta2.clone()])),
+    };
+    Parser {
+        parse: Rc::new(parse),
+        meta,
     }
 }
