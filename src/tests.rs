@@ -302,7 +302,7 @@ fn subcommands() {
 
     let bar = short('b').switch();
 
-    let bar_cmd = command("bar", "do bar", local_info.for_parser(bar));
+    let bar_cmd = command("bar", Some("do bar"), local_info.for_parser(bar));
 
     let parser = global_info.for_parser(bar_cmd);
 

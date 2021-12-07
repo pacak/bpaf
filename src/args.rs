@@ -8,6 +8,7 @@ pub struct Word {
     pub os: OsString,
 }
 
+#[doc(hidden)]
 /// All currently present command line parameters
 #[derive(Clone, Debug, Default)]
 pub struct Args {
@@ -68,7 +69,7 @@ impl<const N: usize> From<&[&str; N]> for Args {
 }
 
 impl Args {
-    pub fn push(&mut self, os: OsString, pos_only: &mut bool) {
+    pub(crate) fn push(&mut self, os: OsString, pos_only: &mut bool) {
         let mutf8 = os.clone().into_string().ok();
 
         // if we are after "--" sign or there's no utf8 representation for
@@ -244,11 +245,11 @@ impl Args {
         Some((w, std::mem::take(self)))
     }
 
-    pub fn len(&self) -> usize {
+    pub(crate) fn len(&self) -> usize {
         self.items.len()
     }
 
-    pub fn is_empty(&self) -> bool {
+    pub(crate) fn is_empty(&self) -> bool {
         self.items.is_empty()
     }
 

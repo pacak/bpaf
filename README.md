@@ -27,8 +27,8 @@ Start with [`short`], [`long`], [`command`] or [`positional`] to define fields u
 use some of the member functions from [`Parser`] to apply further processing, combine parsers
 using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`], create parser
 [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and execute with
-[`run`] to get the results out. As far as the rest of the application is concerned there's only
-one parameter. See [params] for starting points explanations.
+[`run`][ParserInfo::run] to get the results out. As far as the rest of the application is
+concerned there's only one parameter. See [params] for starting points explanations.
 
 ```no_run
 use bpaf::*;
@@ -211,13 +211,11 @@ bpaf:
 
 | `Clap` |      `bpaf` |  explanation  |
 |----------|-------------|------|
-| `long`, `short` | [`long`], [`short`] ||
-| `alias`, `aliases` | [`long`], [`short`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
+| `long`, `short`, `alias`, `aliases` | [`long`], [`short`] | You can specify names multiple times, first specified name (separately for `long` and `short`) becomes visible, remaining are hidden aliases |
 | `*_os` | [`arguments_os`][Named::argument_os], [`positional_os`] | With any parsing or validation on top of that |
 | `allow_hyphen_values` | N/A | Hypens in parameters are accepted either with `--pattern=--bar` or as a positional argument after double dashes `-- --odd-file-name` |
 | `case_insensitive` | [`parse`][Parser::parse] | You can use any parsing logic. |
-| `conflicts_with` | [`or_else`][Parser::or_else] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar` |
-| `conflicts_with_all`| [`or_else`][Parser::or_else] | can be chained: `foo.or_else(bar).or_else(baz)` |
+| `conflicts_with[_all]` | [`or_else`][Parser::or_else] | `foo.or_else(bar)` either `foo` or `bar` will be accepted but not both, unless something else accepts `bar`, can be chained: `foo.or_else(bar).or_else(baz)` |
 | `default_value_if[s]`| N/A | Values produced by parsers can't depend on values produced by other parsers. Some functions are achievable with [`or_else`][Parser::or_else] |
 | `default_value`| [`fallback`][Parser::fallback], [`fallback_with`][Parser::fallback_with] ||
 | `display_order` | N/A | Order is fixed by construction order, you can put more important items first. Logically related commands can be combined into [`subcommands`][params::command]. |
@@ -227,7 +225,7 @@ bpaf:
 | `from_yaml` | N/A | You can share parsers between multple programs by exporting them. Yaml requires external dependencies and gives stringly typed values. |
 | `global` | N/A | Not really needed. Parsing in subcommands can't depend on any other flags but parsed values will be returned in a context that will contain global values. |
 | `group[s]` | N/A | Stringly typed groups are not supported. Several parsers can be composed as alternatives with [`or_else`][Parser::or_else] or factored out into a subcommand with [`command`][params::command]. |
-| `help`| [`help`][Named::help] | `help` is present on several object types. |
+| `help`| [`help`][Named::help], [`help`][Parser::help] | `help` is present on several object types. |
 | `hidden_*` | N/A | TODO? |
 | `index` | N/A | Arguments are not exposed to the user directly, `index` won't be of any use. |
 | `last` | N/A | What's the use case? |

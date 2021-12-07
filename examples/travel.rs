@@ -40,7 +40,7 @@ fn main() {
     let segment_time = time.map(Segment::Time);
 
     // parsed speed/distance is packed into SpeedDistance segment
-    let segment_speed = construct!(SpeedDistance: speed, dist);
+    let segment_speed = construct!(SpeedDistance { speed, dist });
 
     // segment can be either of two defined
     let segment = segment_speed.or_else(segment_time);

@@ -8,25 +8,48 @@
 //! a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`Named::flag`] and
 //! [`Named::req_flag`].
 //!
+//! For example `--help` and `-q` are long and short flags accepted by `cargo`
+//! ```txt
+//! % cargo --help -q
+//! ```
+//!
 //! ## Switch
 //!
 //! A special case of a flag that gets decoded into a `bool`, see [`Named::switch`].
+//!
+//! Flags `--help` and `-q` accepted by `cargo` can also be thought of as switches.
+//! ```txt
+//! % cargo --help -q
+//! ```
 //!
 //! ## Argument
 //!
 //! A command line option with a name that also takes a value. Can have a short (`-f value`) or a
 //! long (`--flag value`) name, see [`Named::argument`].
 //!
+//! For example `rustc` takes a long argument `--explain` with a value containing error code:
+//! ```txt
+//! % rustc --explain E0571
+//! ```
+//!
 //! ## Positional
 //!
 //! A positional command with no additonal name, for example in `vim main.rs` `main.rs`
 //! is a positional argument. See [`positional`].
 //!
+//! For example `rustc` takes input as positional argument:
+//! ```txt
+//! % rustc hello.rs
+//! ```
+//!
 //! ## Command
 //!
-//! A command is used to define a starting point for an independent subparser, for example in
-//! `cargo check --workspace` `check` defines a subparser that acceprts `--workspace` switch. See
-//! [`command`]
+//! A command is used to define a starting point for an independent subparser.  See [`command`].
+//!
+//! For example `cargo` contains a command `check` that accepts `--workspace` switch.
+//! ```txt
+//! % cargo check --workspace
+//! ```
 //!
 use std::ffi::OsString;
 
@@ -195,19 +218,25 @@ impl Named {
     /// Required flag with custom value
     ///
     /// Parser produces a value if present and fails otherwise.
-    /// Designed to be used with combination of other parser.
+    /// Designed to be used with combination of other parser(s).
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let on = long("on").req_flag(true);
-    /// let off = long("off").req_flag(false);
+    /// #[derive(Clone)]
+    /// enum Decision {
+    ///     On,
+    ///     Off,
+    ///     Undecided
+    /// }
+    /// let on = long("on").req_flag(Decision::On);
+    /// let off = long("off").req_flag(Decision::Off);
     /// // Requires user to specify either `--on` or `--off`
-    /// let state: Parser<bool> = on.or_else(off);
+    /// let state: Parser<Decision> = on.or_else(off).fallback(Decision::Undecided);
     /// # drop(state);
     /// ```
     ///
     /// ```rust
-    /// use bpaf::*;
+    /// # use bpaf::*;
     /// // counts how many times flag `-v` is given on a command line
     /// let verbosity: Parser<usize> = short('v').req_flag(()).many().map(|v| v.len());
     /// # drop(verbosity);
@@ -220,43 +249,109 @@ impl Named {
         build_flag_parser(present, None, self.short, self.long, self.help)
     }
 
-    /// utf encoded named argument
+    /// Named argument that can be encoded as String
+    ///
+    /// Argument must be present (but can be made into [`Option`] using
+    /// [`optional`][Parser::optional]) and it must contain only valid unicode characters.
+    /// For OS specific encoding see [`argument_os`][Named::argument_os].
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let arg = short('n').long("name").argument("NAME");
+    /// # drop(arg)
+    /// ```
     pub fn argument(self, metavar: &'static str) -> Parser<String> {
         build_argument(self.short, self.long, self.help, metavar)
             .parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
 
-    /// os encoded named argument
+    /// Named argument in OS specific encoding
+    ///
+    /// Argument must be present but can be made into [`Option`] using
+    /// [`optional`][Parser::optional]. If you prefer to panic on non utf8 encoding see
+    /// [`argument`][Named::argument].
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let arg = short('n').long("name").argument_os("NAME");
+    /// # drop(arg)
+    /// ```
     pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
         build_argument(self.short, self.long, self.help, metavar).map(|x| x.os)
     }
 }
 
-/// utf encoded positional argument
+/// Positional argument that can be encoded as String
+///
+/// ```rust
+/// # use bpaf::*;
+/// let arg: Parser<String> = positional("INPUT");
+/// # drop(arg)
+/// ```
 pub fn positional(metavar: &'static str) -> Parser<String> {
     build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
 }
 
-/// os encoded positional argument
+/// Positional argument in OS specific encoding
+///
+/// ```rust
+/// # use bpaf::*;
+/// # use std::ffi::OsString;
+/// let arg: Parser<OsString> = positional_os("INPUT");
+/// # drop(arg)
+/// ```
 pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
     build_positional(metavar).map(|x| x.os)
 }
 
-/// Command
-pub fn command<T, M>(name: &'static str, help: M, p: ParserInfo<T>) -> Parser<T>
+/// Subcommand parser
+///
+/// ```rust
+/// # use bpaf::*;
+/// // Define a parser to use in a subcommand in a usual way.
+/// // This parser accepts a single --workspace switch
+/// let ws = long("workspace").help("Check all packages in the workspace").switch();
+/// let decorated: ParserInfo<bool> = Info::default()
+///     .descr("Check a package for errors")
+///     .for_parser(ws);
+///
+/// // Convert subparser into a parser.
+/// // Note description "Check a package for errors" is specified twice. When used as
+/// // Version from `descr` will be used when user calls `% prog check --help`,
+/// // Version used with `command` will be used when user uses `% prog --help` along
+/// // with descriptions for other commands if they are present.
+/// let check: Parser<bool> = command("check", Some("Check a local package for errors"), decorated);
+///
+/// // when ther's several commands it can be a good idea to wrap each into a enum either before
+/// // or after converting it into subparser:
+/// #[derive(Clone)]
+/// enum Command {
+///     Check(bool)
+/// }
+/// let check: Parser<Command> = check.map(Command::Check);
+///
+/// // at this point command line will accept following commands:
+/// // `% prog --help`            - display a global help and exit
+/// // `% prog check --help`      - display help specific to check subcommand and exit
+/// // `% prog check`             - produce `Command::Check(false)`
+/// // `% prog check --workspace` - produce `Command::Check(true)`
+/// let opt = Info::default().for_parser(check);
+/// drop(opt)
+/// ```
+pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: ParserInfo<T>) -> Parser<T>
 where
     T: 'static,
     M: Into<String>,
 {
     let parse = move |mut i: Args| match i.take_word(name) {
-        Some(i) => (p.parse)(i),
+        Some(i) => (subparser.parse)(i),
         None => Err(Error::Stderr(format!("expected {}", name))),
     };
     let meta = Meta::from(Item {
         short: None,
         long: Some(name),
         metavar: None,
-        help: Some(help.into()),
+        help: help.map(|h| h.into()),
         kind: ItemKind::Command,
     });
     Parser {

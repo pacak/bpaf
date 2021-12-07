@@ -39,6 +39,7 @@ impl Error {
         }
     }
 
+    #[doc(hidden)]
     pub fn combine_with(self, other: Self) -> Self {
         match (self, other) {
             // finalized error takes priority
@@ -61,6 +62,7 @@ impl Error {
     }
 }
 
+#[doc(hidden)]
 #[derive(Copy, Clone, Debug)]
 pub enum ItemKind {
     Flag,
@@ -69,6 +71,7 @@ pub enum ItemKind {
     Positional,
 }
 
+#[doc(hidden)]
 #[derive(Clone, Debug)]
 pub struct Item {
     pub short: Option<char>,
@@ -102,6 +105,7 @@ impl std::fmt::Display for Item {
 }
 
 impl Item {
+    #[doc(hidden)]
     pub fn required(self, required: bool) -> Meta {
         if required {
             Meta::Required(Box::new(Meta::Item(self)))
@@ -110,6 +114,7 @@ impl Item {
         }
     }
 
+    #[doc(hidden)]
     pub fn name_len(&self) -> usize {
         let mut res = 0;
         res += match self.long {
@@ -123,6 +128,7 @@ impl Item {
         res
     }
 
+    #[doc(hidden)]
     pub fn decoration<M>(help: Option<M>) -> Self
     where
         M: Into<String>,
@@ -136,6 +142,7 @@ impl Item {
         }
     }
 
+    #[doc(hidden)]
     pub fn is_command(&self) -> bool {
         match self.kind {
             ItemKind::Command => true,
@@ -143,6 +150,7 @@ impl Item {
         }
     }
 
+    #[doc(hidden)]
     pub fn is_flag(&self) -> bool {
         match self.kind {
             ItemKind::Flag | ItemKind::Decor => true,
@@ -151,6 +159,7 @@ impl Item {
     }
 }
 
+#[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
     /// always fails
@@ -167,6 +176,7 @@ pub enum Meta {
     Id,
 }
 
+#[doc(hidden)]
 impl Meta {
     pub fn is_required(&self) -> bool {
         match self {
@@ -356,24 +366,17 @@ impl From<Item> for Meta {
     }
 }
 
-macro_rules! field {
-    ($field:ident, $ty:ty) => {
-        pub fn $field(mut self, $field: $ty) -> Self {
-            self.$field = Some($field);
-            self
-        }
-    };
-}
-
+/// Parser with atteched meta information
 #[derive(Clone)]
 pub struct ParserInfo<T> {
-    pub parse: Rc<DynParse<T>>,
-    pub parser_meta: Meta,
-    pub help_meta: Meta,
-    pub info: Info,
+    pub(crate) parse: Rc<DynParse<T>>,
+    pub(crate) parser_meta: Meta,
+    pub(crate) help_meta: Meta,
+    pub(crate) info: Info,
 }
 
 impl<T> ParserInfo<T> {
+    /// Return current help message for outer parser as a string
     pub fn render_help(&self) -> Result<String, std::fmt::Error> {
         self.info
             .clone()
@@ -381,25 +384,78 @@ impl<T> ParserInfo<T> {
     }
 }
 
+/// Information about the parser
+///
+/// ```rust
+/// # use bpaf::*;
+/// let info = Info::default()
+///                .version("3.1415")
+///                .descr("Does mothing")
+///                .footer("Beware of the Leopard");
+/// # drop(info);
+/// ```
 #[derive(Debug, Clone, Default)]
 pub struct Info {
-    pub author: Option<&'static str>,
+    /// version field, see [`version`][Info::version]
     pub version: Option<&'static str>,
+    /// Custom description field, see [`descr`][Info::descr]
     pub descr: Option<&'static str>,
+    /// Custom header field, see [`header`][Info::header]
     pub header: Option<&'static str>,
+    /// Custom footer field, see [`footer`][Info::footer]
     pub footer: Option<&'static str>,
+    /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<&'static str>,
 }
 
 impl Info {
-    field!(author, &'static str);
-    field!(version, &'static str);
-    field!(descr, &'static str);
-    field!(header, &'static str);
-    field!(footer, &'static str);
-    field!(usage, &'static str);
+    /// Set custom version field.
+    ///
+    /// By default bpaf won't include any version info
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let info = Info::default().version("3.1415");
+    /// # drop(info);
+    /// ```
+    pub fn version(mut self, version: &'static str) -> Self {
+        self.version = Some(version);
+        self
+    }
+
+    /// ```rust
+    /// # use bpaf::*;
+    /// let info = Info::default().descr("this does something");
+    /// # drop(info);
+    /// ```
+    ///
+    /// <div class="example-wrap">
+    /// <pre>
+    /// asdf
+    /// <span style="color:red">asdf</span>
+    /// </pre>
+    /// </div>
+    pub fn descr(mut self, descr: &'static str) -> Self {
+        self.descr = Some(descr);
+        self
+    }
+    pub fn header(mut self, header: &'static str) -> Self {
+        self.header = Some(header);
+        self
+    }
+
+    pub fn footer(mut self, footer: &'static str) -> Self {
+        self.footer = Some(footer);
+        self
+    }
+
+    pub fn usage(mut self, usage: &'static str) -> Self {
+        self.usage = Some(usage);
+        self
+    }
 }
 
+#[doc(hidden)]
 #[derive(Clone)]
 pub enum ExtraParams {
     Help,
@@ -407,7 +463,7 @@ pub enum ExtraParams {
 }
 
 impl Info {
-    pub fn help_parser(&self) -> Parser<ExtraParams> {
+    fn help_parser(&self) -> Parser<ExtraParams> {
         let help = short('h')
             .long("help")
             .help("Prints help information")
@@ -425,11 +481,7 @@ impl Info {
         }
     }
 
-    pub fn render_help(
-        self,
-        parser_meta: Meta,
-        help_meta: Meta,
-    ) -> Result<String, std::fmt::Error> {
+    fn render_help(self, parser_meta: Meta, help_meta: Meta) -> Result<String, std::fmt::Error> {
         use std::fmt::Write;
         let mut res = String::new();
 
@@ -522,6 +574,7 @@ impl Info {
         Ok(res)
     }
 
+    /// Attach additional information to the parser
     pub fn for_parser<T>(self, parser: Parser<T>) -> ParserInfo<T>
     where
         T: 'static + Clone,

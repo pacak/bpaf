@@ -8,6 +8,8 @@ use std::str::FromStr;
 pub mod params;
 
 mod args;
+
+#[doc(hidden)]
 pub mod info;
 
 use crate::{args::Word, info::Error, info::Item};
@@ -23,18 +25,23 @@ pub use crate::params::*;
 
 /// Compose several parsers to produce a struct with results
 ///
-/// ```ignore
+/// Each parser must be present in a local scope and
+/// have the same name as struct field.
+///
+/// ```rust
+/// # use bpaf::*;
 /// struct Res {
-///     p1: bool,
-///     p2: u32,
+///     a: bool,
+///     b: u32,
 /// }
-/// let p1: Parser<bool> = ...
-/// let p2: Parser<u32> = ...
-/// let p1p2: Parser<Res> = construct!(Res: p1, p2);
+/// let a: Parser<bool> = short('a').switch();
+/// let b: Parser<u32> = short('b').argument("B").from_str();
+/// let res: Parser<Res> = construct!(Res { a, b });
+/// # drop(res);
 /// ```
 #[macro_export]
 macro_rules! construct {
-    ($struct:ident : $( $field:ident ),* $(,)?) => {
+    ($struct:ident { $( $field:ident ),* $(,)? }) => {
         Parser {
             parse: ::std::rc::Rc::new(move |rest| {
                 $(let ($field, rest) = ($field.parse)(rest)?;)*
@@ -47,10 +54,15 @@ macro_rules! construct {
 
 /// Compose several parsers to produce a tuple of results
 ///
-/// ```ignore
-/// let p1: Parser<bool> = ...
-/// let p2: Parser<u32> = ...
-/// let p1p2: Parser<(bool, u32)> = tuple!(p1, p2)
+/// Each parser must be present in a local scope and
+/// have the same name as struct field.
+///
+/// ```rust
+/// # use bpaf::*;
+/// let a: Parser<bool> = short('a').switch();
+/// let b: Parser<u32> = short('b').argument("B").from_str();
+/// let ab: Parser<(bool, u32)> = tuple!(a, b);
+/// # drop(ab);
 /// ```
 #[macro_export]
 macro_rules! tuple {
@@ -67,16 +79,27 @@ macro_rules! tuple {
 
 /// Compose several parsers and call a function if parsers succeed
 ///
-/// ```ignore
-/// fn make_res(a: bool, b: u32) -> Res {...}
+/// Each parser must be present in a local scope and
+/// have the same name as struct field.
 ///
-/// let p1: Parser<bool> = ...
-/// let p2: Parser<u32> = ...
-/// let p1p2: Parser<Res> = apply!(make_res: p1, p2);
+/// ```rust
+/// # use bpaf::*;
+/// struct Res {
+///     a: bool,
+///     b: u32,
+/// }
+/// fn make_res(a: bool, b: u32) -> Res {
+///     Res { a, b }
+/// }
+///
+/// let a: Parser<bool> = short('a').switch();
+/// let b: Parser<u32> = short('b').argument("B").from_str();
+/// let ab: Parser<Res> = apply!(make_res(a, b));
+/// # drop(ab);
 /// ```
 #[macro_export]
 macro_rules! apply {
-    ($fn:ident : $( $field:ident ),* $(,)?) => {
+    ($fn:ident ($( $field:ident ),* $(,)?)) => {
         Parser {
             parse: ::std::rc::Rc::new(move |rest| {
                 $(let ($field, rest) = ($field.parse)(rest)?;)*
@@ -252,7 +275,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // apply failing transformation
+    /// apply failing transformation
     pub fn parse<F, B, E>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> Result<B, E> + 'static,
@@ -278,7 +301,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // use this default
+    /// use this default
     pub fn fallback(self, val: T) -> Parser<T>
     where
         T: Clone + 'static,
@@ -294,7 +317,7 @@ impl<T> Parser<T> {
         }
     }
 
-    // use this default
+    /// use this default
     pub fn fallback_with<F, E>(self, val: F) -> Parser<T>
     where
         F: Fn() -> Result<T, E> + Clone + 'static,
@@ -315,7 +338,8 @@ impl<T> Parser<T> {
         }
     }
 
-    // fallback to default
+    /// Parse `T` or fallback to `T::default()`
+    ///
     pub fn default(self) -> Parser<T>
     where
         T: Default + 'static + Clone,
@@ -323,6 +347,8 @@ impl<T> Parser<T> {
         self.fallback(T::default())
     }
 
+    /// Attach help message to a complex parser
+    ///
     pub fn help(self, msg: &'static str) -> Parser<T> {
         Parser {
             parse: self.parse,
@@ -332,6 +358,15 @@ impl<T> Parser<T> {
 }
 
 impl Parser<String> {
+    /// Parse stored [`String`] using [`FromStr`] instance
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let speed = short('s').argument("SPEED").from_str::<f64>();
+    /// // at this point program would accept things like "-s 3.1415"
+    /// // but reject "-s pi"
+    /// # drop(speed)
+    /// ```
     pub fn from_str<T>(self) -> Parser<T>
     where
         T: FromStr,
@@ -345,7 +380,7 @@ impl<T> ParserInfo<T> {
     /// Execute the [ParserInfo], extract a parsed value or print some diagnostic and exit
     ///
     /// ```no_run
-    /// use bpaf::*;
+    /// # use bpaf::*;
     ///
     /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
     /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
@@ -357,7 +392,7 @@ impl<T> ParserInfo<T> {
     pub fn run(self) -> T {
         let mut args = Args::default();
         let mut pos_only = false;
-        for arg in std::env::args_os() {
+        for arg in std::env::args_os().skip(1) {
             args.push(arg, &mut pos_only);
         }
 
