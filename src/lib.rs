@@ -126,7 +126,18 @@ pub struct Parser<T> {
 }
 
 impl<T> Parser<T> {
-    /// succeed without consuming anything
+    /// Wrap a value into a `Parser`
+    ///
+    /// Parser will produce `T` without consuming anything from the command line, can be useful
+    /// with [`construct!`]/[`apply!`][`tuple!`].
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let a = long("flag-a").switch();
+    /// let b = Parser::pure(42u32);
+    /// let t: Parser<(bool, u32)> = tuple!(a, b);
+    /// # drop(t)
+    /// ```
     pub fn pure(val: T) -> Parser<T>
     where
         T: 'static + Clone,
@@ -157,6 +168,25 @@ impl<T> Parser<T> {
     }
 
     /// If first parser fails - try the second one
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let a = short('a').switch();
+    /// let b = short('b').switch();
+    ///
+    /// // Parser will accept either `-a` or `-b` on a command line but not both at once.
+    /// let a_or_b: Parser<bool> = a.or_else(b);
+    /// # drop(a_or_b);
+    /// ```
+    ///
+    /// # Performance
+    ///
+    /// If first parser succeeds - second one will be called anyway to produce a
+    /// better error message for combinations of mutually exclusive parsers:
+    ///
+    /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
+    /// and both are present error message should point at the second flag
+    ///
     pub fn or_else(self, other: Parser<T>) -> Parser<T>
     where
         T: 'static,
@@ -189,6 +219,15 @@ impl<T> Parser<T> {
     }
 
     /// Fail with a fixed error message
+    /// ```rust
+    /// # use bpaf::*;
+    /// let a = short('a').switch();
+    /// let no_a = Parser::fail("Custom error message for missing -a");
+    ///
+    /// // Parser will produce a custom error message if `-a` is not specified
+    /// let a_: Parser<bool> = a.or_else(no_a);
+    /// # drop(a_);
+    /// ```
     pub fn fail<M>(msg: M) -> Parser<T>
     where
         String: From<M>,
@@ -200,7 +239,16 @@ impl<T> Parser<T> {
         }
     }
 
-    /// zero or more
+    /// Consume zero or more items from a command line
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // parser will accept multiple `-n` arguments:
+    /// // `-n 1, -n 2, -n 3`
+    /// // and return all of them as a vector which can be empty if no `-n` specified
+    /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().many();
+    /// # drop(n);
+    /// ```
     pub fn many(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -227,6 +275,14 @@ impl<T> Parser<T> {
     }
 
     /// Validate or fail with a message
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>();
+    /// // Parser will reject values greater than 10
+    /// let n = n.guard(|v| *v <= 10, "Values greater than 10 are only available in the DLC pack!");
+    /// # drop(n);
+    /// ```
     pub fn guard<F>(self, m: F, message: &'static str) -> Parser<T>
     where
         F: Fn(&T) -> bool + 'static,
@@ -243,7 +299,16 @@ impl<T> Parser<T> {
         }
     }
 
-    /// one or more
+    /// Consume one or more items from a command line
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // parser will accept multiple `-n` arguments:
+    /// // `-n 1, -n 2, -n 3`
+    /// // and return all of them as a vector. At least one `-n` argument is required.
+    /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().some();
+    /// # drop(n);
+    /// ```
     pub fn some(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -251,15 +316,31 @@ impl<T> Parser<T> {
         self.many().guard(|x| !x.is_empty(), "must not be empty")
     }
 
-    /// zero or one
+    /// Turn a required parser into optional
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n: Parser<u32> = short('n').argument("NUM").from_str();
+    /// // if `-n` is not specified - parser will return `None`
+    /// let n: Parser<Option<u32>> = n.optional();
+    /// # drop(n);
+    /// ```
     pub fn optional(self) -> Parser<Option<T>>
     where
         T: 'static + Clone,
     {
-        self.map(Some).or_else(Parser::pure(None))
+        self.map(Some).fallback(None)
     }
 
-    /// apply pure transformation
+    /// Apply a pure transformation to a contained value
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n: Parser<u32> = short('n').argument("NUM").from_str();
+    /// // produced value is now twice as large
+    /// let n = n.map(|v| v * 2);
+    /// # drop(n);
+    /// ```
     pub fn map<F, B>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> B + 'static,
@@ -275,7 +356,17 @@ impl<T> Parser<T> {
         }
     }
 
-    /// apply failing transformation
+    /// Apply a failing transformation
+    ///
+    /// See also [`from_str`][Parser::from_str]
+    /// ```rust
+    /// # use bpaf::*;
+    /// let s: Parser<String> = short('n').argument("NUM");
+    /// // Try to parse String into u32 or fail during the parsing
+    /// use std::str::FromStr;
+    /// let n = s.map(|s| u32::from_str(&s));
+    /// # drop(n);
+    /// ```
     pub fn parse<F, B, E>(self, map: F) -> Parser<B>
     where
         F: Fn(T) -> Result<B, E> + 'static,
@@ -301,7 +392,14 @@ impl<T> Parser<T> {
         }
     }
 
-    /// use this default
+    /// Use this value as default if value is not present on a command line
+    ///
+    /// Would still fail if value is present but failure comes from some transformation
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>().fallback(42);
+    /// # drop(n)
+    /// ```
     pub fn fallback(self, val: T) -> Parser<T>
     where
         T: Clone + 'static,
@@ -317,7 +415,15 @@ impl<T> Parser<T> {
         }
     }
 
-    /// use this default
+    /// Use value produced by this function as default if value is not present
+    ///
+    /// Would still fail if value is present but failure comes from some transformation
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>();
+    /// let n = n.fallback_with(|| Result::<u32, String>::Ok(42));
+    /// # drop(n)
+    /// ```
     pub fn fallback_with<F, E>(self, val: F) -> Parser<T>
     where
         F: Fn() -> Result<T, E> + Clone + 'static,
@@ -340,6 +446,11 @@ impl<T> Parser<T> {
 
     /// Parse `T` or fallback to `T::default()`
     ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>().default();
+    /// # drop(n)
+    /// ```
     pub fn default(self) -> Parser<T>
     where
         T: Default + 'static + Clone,

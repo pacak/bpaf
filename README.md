@@ -186,7 +186,7 @@ Clap:
 
 bpaf:
 - Value is parsed into a typed variable, usize in this case but could be an `enum`
-- Combination of two generic parsers: [`many`][Parser::many] and [`parse`][Parser::parse]
+- Combination of two generic parsers: [`many`][Parser::many] and [`map`][Parser::map]
 - Invalid values are rejected during parse time with [`guard`][Parser::guard]
 ```ignore
     // definition
@@ -194,7 +194,7 @@ bpaf:
     short('v')
         .help("Sets the level of verbosity")
         .req_flag()
-        .many().parse(|xs|xs.len())
+        .many().map(|xs|xs.len())
         .guard(|x| x < 3)
 
     // usage
