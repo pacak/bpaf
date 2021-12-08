@@ -368,14 +368,14 @@ impl From<Item> for Meta {
 
 /// Parser with atteched meta information
 #[derive(Clone)]
-pub struct ParserInfo<T> {
+pub struct OptionParser<T> {
     pub(crate) parse: Rc<DynParse<T>>,
     pub(crate) parser_meta: Meta,
     pub(crate) help_meta: Meta,
     pub(crate) info: Info,
 }
 
-impl<T> ParserInfo<T> {
+impl<T> OptionParser<T> {
     /// Return current help message for outer parser as a string
     pub fn render_help(&self) -> Result<String, std::fmt::Error> {
         self.info
@@ -575,7 +575,7 @@ impl Info {
     }
 
     /// Attach additional information to the parser
-    pub fn for_parser<T>(self, parser: Parser<T>) -> ParserInfo<T>
+    pub fn for_parser<T>(self, parser: Parser<T>) -> OptionParser<T>
     where
         T: 'static + Clone,
     {
@@ -618,7 +618,7 @@ impl Info {
             }
             Err(err)
         };
-        ParserInfo {
+        OptionParser {
             parse: Rc::new(p),
             info,
             parser_meta,

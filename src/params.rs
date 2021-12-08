@@ -311,7 +311,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// // Define a parser to use in a subcommand in a usual way.
 /// // This parser accepts a single --workspace switch
 /// let ws = long("workspace").help("Check all packages in the workspace").switch();
-/// let decorated: ParserInfo<bool> = Info::default()
+/// let decorated: OptionParser<bool> = Info::default()
 ///     .descr("Check a package for errors")
 ///     .for_parser(ws);
 ///
@@ -338,7 +338,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// let opt = Info::default().for_parser(check);
 /// drop(opt)
 /// ```
-pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: ParserInfo<T>) -> Parser<T>
+pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: OptionParser<T>) -> Parser<T>
 where
     T: 'static,
     M: Into<String>,

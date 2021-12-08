@@ -27,7 +27,7 @@ Start with [`short`], [`long`], [`command`] or [`positional`] to define fields u
 use some of the member functions from [`Parser`] to apply further processing, combine parsers
 using [`or_else`][Parser::or_else], [`construct!`], [`apply!`] or [`tuple!`], create parser
 [`Info`], attach it to the parser with [`for_parser`][Info::for_parser] and execute with
-[`run`][ParserInfo::run] to get the results out. As far as the rest of the application is
+[`run`][OptionParser::run] to get the results out. As far as the rest of the application is
 concerned there's only one parameter. See [params] for starting points explanations.
 
 ```no_run

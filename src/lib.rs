@@ -19,7 +19,7 @@ mod tests;
 #[doc(inline)]
 pub use crate::args::Args;
 #[doc(inline)]
-pub use crate::info::{Info, Meta, ParserInfo};
+pub use crate::info::{Info, Meta, OptionParser};
 #[doc(inline)]
 pub use crate::params::*;
 
@@ -460,6 +460,14 @@ impl<T> Parser<T> {
 
     /// Attach help message to a complex parser
     ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let width = short('w').argument("PX").from_str::<u32>();
+    /// let height = short('h').argument("PX").from_str::<u32>();
+    /// let rect = tuple!(width, height).help("take a rectangle");
+    /// # drop(rect);
+    /// ```
+    /// See `examples/rectangle.rs` for a complete example
     pub fn help(self, msg: &'static str) -> Parser<T> {
         Parser {
             parse: self.parse,
@@ -487,8 +495,8 @@ impl Parser<String> {
     }
 }
 
-impl<T> ParserInfo<T> {
-    /// Execute the [ParserInfo], extract a parsed value or print some diagnostic and exit
+impl<T> OptionParser<T> {
+    /// Execute the [OptionParser], extract a parsed value or print some diagnostic and exit
     ///
     /// ```no_run
     /// # use bpaf::*;
@@ -510,11 +518,11 @@ impl<T> ParserInfo<T> {
         match self.run_inner(args) {
             Ok(t) => t,
             Err(Error::Stdout(msg)) => {
-                print!("{}", msg);
+                println!("{}", msg);
                 std::process::exit(0);
             }
             Err(Error::Stderr(msg)) => {
-                eprint!("{}", msg);
+                eprintln!("{}", msg);
                 std::process::exit(1);
             }
             Err(err) => unreachable!("failed: {:?}", err),
