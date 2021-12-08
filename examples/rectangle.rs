@@ -34,6 +34,11 @@ fn main() {
         .switch();
 
     let parser = construct!(Out { verbose, rect });
-    let opt = Info::default().for_parser(parser).run();
+    let opt = Info::default()
+        .descr("This program calculates rectangle's area")
+        .header("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
+        .footer("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
+        .for_parser(parser)
+        .run();
     println!("{:#?}", opt);
 }

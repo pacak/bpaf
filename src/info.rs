@@ -409,9 +409,9 @@ pub struct Info {
 }
 
 impl Info {
-    /// Set custom version field.
+    /// Set a version field.
     ///
-    /// By default bpaf won't include any version info
+    /// By default bpaf won't include any version info and won't accept `--version` switch
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -423,32 +423,50 @@ impl Info {
         self
     }
 
+    /// Set a program description
+    ///
     /// ```rust
     /// # use bpaf::*;
-    /// let info = Info::default().descr("this does something");
+    /// let info = Info::default().descr("This program calculates rectangle's area");
     /// # drop(info);
     /// ```
-    ///
-    /// <div class="example-wrap">
-    /// <pre>
-    /// asdf
-    /// <span style="color:red">asdf</span>
-    /// </pre>
-    /// </div>
+    /// See complete example in `examples/rectangle.rs`
     pub fn descr(mut self, descr: &'static str) -> Self {
         self.descr = Some(descr);
         self
     }
+
+    /// Set a custom header before all the options
+    /// ```rust
+    /// # use bpaf::*;
+    /// let info = Info::default().header("header");
+    /// # drop(info);
+    /// ```
+    /// See complete example in `examples/rectangle.rs`
     pub fn header(mut self, header: &'static str) -> Self {
         self.header = Some(header);
         self
     }
 
+    /// Set a custom header after all the options
+    /// ```rust
+    /// # use bpaf::*;
+    /// let info = Info::default().header("footer");
+    /// # drop(info);
+    /// ```
+    /// See complete example in `examples/rectangle.rs`
     pub fn footer(mut self, footer: &'static str) -> Self {
         self.footer = Some(footer);
         self
     }
 
+    /// Replace generated usage string with a custom one
+    /// ```rust
+    /// # use bpaf::*;
+    /// let info = Info::default().usage("example [-v] -w <PX> -h <PX>");
+    /// # drop(info);
+    /// ```
+    /// See complete example in `examples/rectangle.rs`
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.usage = Some(usage);
         self
