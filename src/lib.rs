@@ -500,7 +500,6 @@ impl<T> OptionParser<T> {
     ///
     /// ```no_run
     /// # use bpaf::*;
-    ///
     /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
     /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
     ///

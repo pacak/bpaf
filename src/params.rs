@@ -336,7 +336,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// // `% prog check`             - produce `Command::Check(false)`
 /// // `% prog check --workspace` - produce `Command::Check(true)`
 /// let opt = Info::default().for_parser(check);
-/// drop(opt)
+/// # drop(opt)
 /// ```
 pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: OptionParser<T>) -> Parser<T>
 where
