@@ -42,7 +42,11 @@ impl Error {
     #[doc(hidden)]
     pub fn combine_with(self, other: Self) -> Self {
         match (self, other) {
-            // finalized error takes priority
+            // help output takes priority
+            (a @ Error::Stdout(_), _) => a,
+            (_, b @ Error::Stdout(_)) => b,
+
+            // parsing failure takes priority
             (a @ Error::Stderr(_), _) => a,
             (_, b @ Error::Stderr(_)) => b,
 
@@ -51,19 +55,12 @@ impl Error {
                 a.append(&mut b);
                 Error::Missing(a)
             }
-
-            // missing takes priority
-            (a @ Error::Missing(_), _) => a,
-            (_, b @ Error::Missing(_)) => b,
-
-            // first error wins,
-            (a, _) => a,
         }
     }
 }
 
 #[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ItemKind {
     Flag,
     Command,
@@ -185,7 +182,12 @@ impl Meta {
             Meta::Or(xs) => xs.iter().all(|x| x.is_required()),
             Meta::Required(_) => true,
             Meta::Optional(_) => false,
-            Meta::Item(_) => unreachable!(),
+            Meta::Item(i) => match i.kind {
+                ItemKind::Flag => unreachable!(),
+                ItemKind::Command => true,
+                ItemKind::Decor => false,
+                ItemKind::Positional => unreachable!(),
+            },
             Meta::Many(_) => false,
             Meta::Id => false,
             Meta::Decorated(x, _) => x.is_required(),
@@ -317,6 +319,28 @@ impl Meta {
     }
 }
 
+fn dedup(prev: &mut Option<Item>, cur: &Meta) -> bool {
+    let item = if let Meta::Item(item) = cur {
+        item
+    } else {
+        return true;
+    };
+    match prev {
+        Some(p) => {
+            if p.kind == ItemKind::Command && item.kind == ItemKind::Command {
+                false
+            } else {
+                *prev = Some(item.clone());
+                true
+            }
+        }
+        None => {
+            *prev = Some(item.clone());
+            true
+        }
+    }
+}
+
 impl std::fmt::Display for Meta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -331,11 +355,16 @@ impl std::fmt::Display for Meta {
                 Ok(())
             }
             Meta::Or(xs) => {
+                let mut prev = None;
+                let xs = xs
+                    .iter()
+                    .filter(|i| dedup(&mut prev, i))
+                    .collect::<Vec<_>>();
                 let required = self.is_required();
-                if required {
-                    write!(f, "(")?;
-                } else {
+                if !required {
                     write!(f, "[")?;
+                } else if xs.len() > 1 {
+                    write!(f, "(")?;
                 }
                 for (ix, x) in xs.iter().enumerate() {
                     write!(f, "{}", x)?;
@@ -343,11 +372,12 @@ impl std::fmt::Display for Meta {
                         write!(f, " | ")?;
                     }
                 }
-                if required {
-                    write!(f, ")")
-                } else {
-                    write!(f, "]")
+                if !required {
+                    write!(f, "]")?
+                } else if xs.len() > 1 {
+                    write!(f, ")")?
                 }
+                Ok(())
             }
             Meta::Required(m) if m.is_simple() => write!(f, "{}", m),
             Meta::Required(m) => write!(f, "({})", m),
@@ -474,7 +504,7 @@ impl Info {
 }
 
 #[doc(hidden)]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum ExtraParams {
     Help,
     Version,
@@ -595,7 +625,7 @@ impl Info {
     /// Attach additional information to the parser
     pub fn for_parser<T>(self, parser: Parser<T>) -> OptionParser<T>
     where
-        T: 'static + Clone,
+        T: 'static + Clone + std::fmt::Debug,
     {
         let parser_meta = parser.meta.clone();
         let help_meta = self.help_parser().meta;

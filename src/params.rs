@@ -55,7 +55,7 @@ use std::ffi::OsString;
 
 use super::*;
 use crate::{
-    args::Word,
+    args::{Arg, Word},
     info::{ItemKind, Meta},
 };
 
@@ -292,6 +292,31 @@ pub fn positional(metavar: &'static str) -> Parser<String> {
     build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
 }
 
+/// Positional argument that can be encoded as String and will be taken only if check passes
+///
+/// ```rust
+/// # use bpaf::*;
+/// let is_short = |s| s.len() < 10;
+/// // skip this positional argument unless it's less than 10 bytes long
+/// let arg: Parser<String> = positional_if("INPUT", is_short);
+/// # drop(arg)
+/// ```
+pub fn positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<String>>
+where
+    F: Fn(&str) -> bool + 'static,
+{
+    let check = move |w: &Word| match &w.utf8 {
+        Some(s) => check(s),
+        None => false,
+    };
+
+    build_positional_if(metavar, check).parse(|x| match x {
+        Some(Word { utf8: Some(w), .. }) => Ok(Some(w)),
+        Some(_) => Err("not utf8"),
+        None => Ok(None),
+    })
+}
+
 /// Positional argument in OS specific encoding
 ///
 /// ```rust
@@ -452,8 +477,40 @@ fn build_positional(metavar: &'static str) -> Parser<Word> {
     let meta2 = meta.clone();
 
     let parse = move |mut args: Args| match args.take_positional() {
-        Some((word, args)) => return Ok((word, args)),
+        Some((word, args)) => Ok((word, args)),
         None => Err(Error::Missing(vec![meta2.clone()])),
+    };
+    Parser {
+        parse: Rc::new(parse),
+        meta,
+    }
+}
+
+fn build_positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<Word>>
+where
+    F: Fn(&Word) -> bool + 'static,
+{
+    let item = Item {
+        short: None,
+        long: None,
+        metavar: Some(metavar),
+        help: None,
+        kind: ItemKind::Positional,
+    };
+    let meta = item.required(false);
+    let meta2 = meta.clone();
+    let parse = move |mut args: Args| match args.peek() {
+        Some(Arg::Word(w)) => {
+            if check(w) {
+                let (w, args) = args.take_positional().unwrap();
+                Ok((Some(w), args))
+            } else {
+                Ok((None, args))
+            }
+        }
+
+        Some(_) => Err(Error::Missing(vec![meta2.clone()])),
+        None => Ok((None, args)),
     };
     Parser {
         parse: Rc::new(parse),

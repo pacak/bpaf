@@ -49,7 +49,16 @@ macro_rules! construct {
             }),
             meta: Meta::And(vec![ $($field.meta),*])
         }
-    }
+    };
+    ($enum:ident :: $constr:ident { $( $field:ident ),* $(,)? }) => {
+        Parser {
+            parse: ::std::rc::Rc::new(move |rest| {
+                $(let ($field, rest) = ($field.parse)(rest)?;)*
+                Ok(($enum :: $constr{$($field),*}, rest))
+            }),
+            meta: Meta::And(vec![ $($field.meta),*])
+        }
+    };
 }
 
 /// Compose several parsers to produce a tuple of results

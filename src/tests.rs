@@ -26,7 +26,6 @@ fn simple_two_optional_flags() {
     assert_eq!("-a is not expected in this context", err);
 
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -79,7 +78,6 @@ Available options:
 
     // must specify one of the required flags
     let err = decorated
-        .clone()
         .run_inner(Args::from(&[]))
         .unwrap_err()
         .unwrap_stderr();
@@ -121,7 +119,7 @@ Available options:
     assert_eq!(expected_help, help);
 
     // fallback to default
-    let res = decorated.clone().run_inner(Args::from(&[])).unwrap();
+    let res = decorated.run_inner(Args::from(&[])).unwrap();
     assert_eq!(res, false);
 }
 
@@ -185,7 +183,6 @@ fn parse_errors() {
     assert_eq!(expected_err, err);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "123", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -288,7 +285,6 @@ fn from_several_alternatives_pick_more_meaningful() {
     assert_eq!(err4, "-c is not expected in this context");
 
     let err5 = parser
-        .clone()
         .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -324,7 +320,6 @@ Available commands:
     assert_eq!(expected_help, help);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["bar", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -356,9 +351,9 @@ Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
-    assert_eq!(parser.clone().run_inner(Args::from(&["-a"])).unwrap(), ());
-    assert_eq!(parser.clone().run_inner(Args::from(&["-b"])).unwrap(), ());
-    assert_eq!(parser.clone().run_inner(Args::from(&["-c"])).unwrap(), ());
+    parser.clone().run_inner(Args::from(&["-a"])).unwrap();
+    parser.clone().run_inner(Args::from(&["-b"])).unwrap();
+    parser.run_inner(Args::from(&["-c"])).unwrap();
 }
 
 #[test]
@@ -367,7 +362,6 @@ fn positional_argument() {
     let parser = Info::default().for_parser(p);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -377,4 +371,125 @@ Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
+}
+
+mod git {
+    use super::*;
+
+    #[derive(Debug, Clone)]
+    #[allow(dead_code)]
+    enum Opt {
+        Fetch {
+            dry_run: bool,
+            all: bool,
+            repository: String,
+        },
+        Add {
+            interactive: bool,
+            all: bool,
+            files: Vec<String>,
+        },
+    }
+
+    fn setup() -> info::OptionParser<Opt> {
+        let dry_run = long("dry_run").switch();
+        let all = long("all").switch();
+        let repository = positional("SRC").fallback("origin".to_string());
+        let fetch = construct!(Opt::Fetch {
+            dry_run,
+            all,
+            repository
+        });
+        let fetch_info = Info::default().descr("fetches branches from remote repository");
+        let fetch_cmd = command(
+            "fetch",
+            Some("fetch branches from remote repository"),
+            fetch_info.for_parser(fetch),
+        );
+
+        let interactive = short('i').switch();
+        let all = long("all").switch();
+        let files = positional("FILE").many();
+        let add = construct!(Opt::Add {
+            interactive,
+            all,
+            files
+        });
+        let add_info = Info::default().descr("add files to the staging area");
+        let add_cmd = command(
+            "add",
+            Some("add files to the staging area"),
+            add_info.for_parser(add),
+        );
+
+        Info::default()
+            .descr("The stupid content tracker")
+            .for_parser(fetch_cmd.or_else(add_cmd))
+    }
+
+    #[test]
+    fn root_help() {
+        let parser = setup();
+        let expected_help = "\
+Usage: COMMAND
+The stupid content tracker
+
+Available options:
+    -h, --help   Prints help information
+
+Available commands:
+    fetch  fetch branches from remote repository
+    add    add files to the staging area
+";
+
+        assert_eq!(
+            expected_help,
+            parser
+                .run_inner(Args::from(&["--help"]))
+                .unwrap_err()
+                .unwrap_stdout()
+        );
+    }
+
+    #[test]
+    fn fetch_help() {
+        let parser = setup();
+        let expected_help = "\
+Usage: [--dry_run] [--all] [<SRC>]
+fetches branches from remote repository
+
+Available options:
+        --dry_run
+        --all
+    -h, --help      Prints help information
+";
+        assert_eq!(
+            expected_help,
+            parser
+                .run_inner(Args::from(&["fetch", "--help"]))
+                .unwrap_err()
+                .unwrap_stdout()
+        );
+    }
+
+    #[test]
+    fn add_help() {
+        let parser = setup();
+        let expected_help = "\
+Usage: [-i] [--all] <FILE>...
+add files to the staging area
+
+Available options:
+    -i
+        --all
+    -h, --help   Prints help information
+";
+        assert_eq!(
+            expected_help,
+            parser
+                .run_inner(Args::from(&["add", "--help"]))
+                .unwrap_err()
+                .unwrap_stdout()
+        );
+    }
 }
