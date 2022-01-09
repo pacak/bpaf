@@ -31,8 +31,9 @@ fn simple_two_optional_flags() {
         .unwrap_stdout();
 
     let expected_help = "\
-Usage: [-a] [-b]
 this is a test
+
+Usage: [-a] [-b]
 
 Available options:
     -a, --AAAAA
@@ -67,6 +68,7 @@ fn either_of_three_required_flags() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: (-a | -b | -c)
+
 Available options:
     -a
     -b
@@ -109,6 +111,7 @@ fn either_of_two_required_flags_and_one_optional() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: [-a | -b | [-c]]
+
 Available options:
     -a
     -b
@@ -120,7 +123,7 @@ Available options:
 
     // fallback to default
     let res = decorated.run_inner(Args::from(&[])).unwrap();
-    assert_eq!(res, false);
+    assert!(!res);
 }
 
 #[test]
@@ -139,6 +142,7 @@ fn default_arguments() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: [-a ARG]
+
 Available options:
     -a  <ARG>
     -h, --help   Prints help information
@@ -209,6 +213,7 @@ fn long_usage_string() {
 
     let expected_help = "\
 Usage: -a ARG -b ARG -c ARG -d ARG -e ARG -f ARG
+
 Available options:
     -a, --a-very-long-flag-with <ARG>
     -b, --b-very-long-flag-with <ARG>
@@ -236,6 +241,7 @@ fn group_help() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: [-a] [-b] [-c]
+
 Available options:
                  Explanation applicable for both A and B
     -a           flag A, related to B
@@ -308,8 +314,9 @@ fn subcommands() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: COMMAND
 This is global info
+
+Usage: COMMAND
 
 Available options:
     -h, --help   Prints help information
@@ -324,8 +331,9 @@ Available commands:
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: [-b]
 This is local info
+
+Usage: [-b]
 
 Available options:
     -b
@@ -346,6 +354,7 @@ fn multiple_aliases() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: -a
+
 Available options:
     -a
     -h, --help   Prints help information
@@ -367,6 +376,7 @@ fn positional_argument() {
         .unwrap_stdout();
     let expected_help = "\
 Usage: <FILE>
+
 Available options:
     -h, --help   Prints help information
 ";
@@ -431,8 +441,9 @@ mod git {
     fn root_help() {
         let parser = setup();
         let expected_help = "\
-Usage: COMMAND
 The stupid content tracker
+
+Usage: COMMAND
 
 Available options:
     -h, --help   Prints help information
@@ -455,8 +466,9 @@ Available commands:
     fn fetch_help() {
         let parser = setup();
         let expected_help = "\
-Usage: [--dry_run] [--all] [<SRC>]
 fetches branches from remote repository
+
+Usage: [--dry_run] [--all] [<SRC>]
 
 Available options:
         --dry_run
@@ -476,8 +488,9 @@ Available options:
     fn add_help() {
         let parser = setup();
         let expected_help = "\
-Usage: [-i] [--all] <FILE>...
 add files to the staging area
+
+Usage: [-i] [--all] <FILE>...
 
 Available options:
     -i

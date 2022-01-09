@@ -532,13 +532,12 @@ impl Info {
     fn render_help(self, parser_meta: Meta, help_meta: Meta) -> Result<String, std::fmt::Error> {
         use std::fmt::Write;
         let mut res = String::new();
-
-        match self.usage {
-            Some(u) => write!(res, "{}\n", u)?,
-            None => write!(res, "Usage: {}", parser_meta)?,
-        }
         if let Some(t) = self.descr {
-            write!(res, "\n{}\n", t)?;
+            write!(res, "{}\n\n", t)?;
+        }
+        match self.usage {
+            Some(u) => write!(res, "{}\n\n", u)?,
+            None => write!(res, "Usage: {}\n", parser_meta)?,
         }
         if let Some(t) = self.header {
             write!(res, "\n{}\n", t)?;
