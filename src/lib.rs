@@ -541,22 +541,10 @@ impl<T> OptionParser<T> {
         match (self.parse)(args) {
             Ok((t, rest)) if rest.is_empty() => Ok(t),
             Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),
-            Err(Error::Missing(metas)) => {
-                if metas.len() == 1 {
-                    Err(Error::Stderr(format!("Expected {}", metas[0])))
-                } else {
-                    use std::fmt::Write;
-                    let mut res = String::new();
-                    write!(res, "Expected one of ").unwrap();
-                    for (ix, x) in metas.iter().enumerate() {
-                        write!(res, "{}", x).unwrap();
-                        if metas.len() > ix + 1 {
-                            write!(res, ", ").unwrap();
-                        }
-                    }
-                    Err(Error::Stderr(res))
-                }
-            }
+            Err(Error::Missing(metas)) => Err(Error::Stderr(format!(
+                "Expected {}, pass --help for usage information",
+                Meta::Or(metas)
+            ))),
             Err(err) => Err(err),
         }
     }

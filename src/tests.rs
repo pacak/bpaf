@@ -83,7 +83,10 @@ Available options:
         .run_inner(Args::from(&[]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("Expected one of -a, -b, -c", err);
+    assert_eq!(
+        "Expected (-a | -b | -c), pass --help for usage information",
+        err
+    );
 }
 
 #[test]
@@ -183,7 +186,7 @@ fn parse_errors() {
         .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Expected -a ARG";
+    let expected_err = "Expected -a ARG, pass --help for usage information";
     assert_eq!(expected_err, err);
 
     let err = decorated
@@ -441,7 +444,7 @@ mod git {
     fn no_command() {
         let parser = setup();
 
-        let expected_err = "Expected one of COMMAND, COMMAND";
+        let expected_err = "Expected COMMAND, pass --help for usage information";
         assert_eq!(
             expected_err,
             parser
