@@ -438,6 +438,20 @@ mod git {
     }
 
     #[test]
+    fn no_command() {
+        let parser = setup();
+
+        let expected_err = "Expected one of COMMAND, COMMAND";
+        assert_eq!(
+            expected_err,
+            parser
+                .run_inner(Args::from(&[]))
+                .unwrap_err()
+                .unwrap_stderr()
+        );
+    }
+
+    #[test]
     fn root_help() {
         let parser = setup();
         let expected_help = "\

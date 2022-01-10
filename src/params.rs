@@ -368,10 +368,6 @@ where
     T: 'static,
     M: Into<String>,
 {
-    let parse = move |mut i: Args| match i.take_word(name) {
-        Some(i) => (subparser.parse)(i),
-        None => Err(Error::Stderr(format!("expected {}", name))),
-    };
     let meta = Meta::from(Item {
         short: None,
         long: Some(name),
@@ -379,6 +375,11 @@ where
         help: help.map(|h| h.into()),
         kind: ItemKind::Command,
     });
+    let meta2 = meta.clone();
+    let parse = move |mut i: Args| match i.take_word(name) {
+        Some(i) => (subparser.parse)(i),
+        None => Err(Error::Missing(vec![meta2.clone()])),
+    };
     Parser {
         parse: Rc::new(parse),
         meta,

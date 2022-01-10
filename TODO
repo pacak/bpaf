@@ -1,3 +1,4 @@
 1. keep program name around
 2. decorate version
 3. allow functions to be used in macros: construct!(Res { a(), b(), c });
+4. "expected .... with multiple commands"
