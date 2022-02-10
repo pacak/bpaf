@@ -47,7 +47,7 @@ macro_rules! construct {
                 $(let ($field, rest) = ($field.parse)(rest)?;)*
                 Ok(($struct {$($field),*}, rest))
             }),
-            meta: Meta::And(vec![ $($field.meta),*])
+            meta: $crate::Meta::And(vec![ $($field.meta),*])
         }
     };
     ($enum:ident :: $constr:ident { $( $field:ident ),* $(,)? }) => {
@@ -56,7 +56,7 @@ macro_rules! construct {
                 $(let ($field, rest) = ($field.parse)(rest)?;)*
                 Ok(($enum :: $constr{$($field),*}, rest))
             }),
-            meta: Meta::And(vec![ $($field.meta),*])
+            meta: $crate::Meta::And(vec![ $($field.meta),*])
         }
     };
 }
@@ -81,7 +81,7 @@ macro_rules! tuple {
                 $(let ($x, rest) = ($x.parse)(rest)?;)*
                 Ok((($($x),*), rest))
             }),
-            meta: Meta::And(vec![ $($x.meta),*])
+            meta: $crate::Meta::And(vec![ $($x.meta),*])
         }
     }
 }
@@ -114,7 +114,7 @@ macro_rules! apply {
                 $(let ($field, rest) = ($field.parse)(rest)?;)*
                 Ok(($fn($($field),*), rest))
             }),
-            meta: Meta::And(vec![ $($field.meta),*])
+            meta: $crate::Meta::And(vec![ $($field.meta),*])
         }
     }
 }

@@ -1,11 +1,13 @@
 use bpaf::*;
 
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 struct Out {
     rect: Rect,
     verbose: bool,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 struct Rect {
     width: usize,

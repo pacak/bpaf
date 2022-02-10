@@ -4,6 +4,17 @@ use bpaf::*;
 use std::path::PathBuf;
 use std::str::FromStr;
 
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct Out {
+    debug: bool,
+    verbose: usize,
+    speed: f64,
+    output: PathBuf,
+    nb_cars: u32,
+    files_to_process: Vec<PathBuf>,
+}
+
 fn main() {
     // A flag, true if used in the command line. Can be required, this one is optional
     let debug: Parser<bool> = short('d')
@@ -14,6 +25,7 @@ fn main() {
     // number of occurrences of the v/verbose flag capped at 3
     let verbose: Parser<usize> = short('v')
         .long("verbose")
+        .help("Increase the verbosity\nYou can specify it up to 3 times\neither as -v -v -v or as -vvv")
         .req_flag(())
         .many()
         .map(|xs| xs.len())
@@ -46,16 +58,6 @@ fn main() {
         .argument("FILE")
         .parse(|s| PathBuf::from_str(&s));
     let files_to_process: Parser<Vec<PathBuf>> = file_to_proces.many();
-
-    #[derive(Debug, Clone)]
-    struct Out {
-        debug: bool,
-        verbose: usize,
-        speed: f64,
-        output: PathBuf,
-        nb_cars: u32,
-        files_to_process: Vec<PathBuf>,
-    }
 
     // packing things in a struct assumes parser for each field is in scope.
     let parser = construct!(Out {

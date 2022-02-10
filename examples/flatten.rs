@@ -2,6 +2,7 @@
 
 use bpaf::*;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct Cmdline {
     /// switch verbosity on
@@ -9,6 +10,7 @@ struct Cmdline {
     daemon_opts: DaemonOpts,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 struct DaemonOpts {
     /// daemon user

@@ -76,7 +76,7 @@ have the monadic strength, only the applicative one.
 
 
 To give an example, this description is allowed:
-"Program takes one of `--stdout` or `--file` flag to specify the output, when it's `--flag`
+"Program takes one of `--stdout` or `--file` flag to specify the output, when it's `--file`
 program also requires `-f` attribute with the file name".
 
 ```txt
@@ -94,6 +94,17 @@ program also requires `-f` attribute with the file name".
 
 A better approach would be to have two separate parsers that both transform into a single
 `enum Output { StdOut, File(File) }` datatype combined with [`or_else`][Parser::or_else].
+
+
+```rust
+use bpaf::*;
+#[derive(Clone)]
+enum Output { StdOut, File(String) };
+let stdout = long("stdout").req_flag(Output::StdOut);
+let file = long("file").argument("FILE").map(Output::File);
+let output: Parser<Output> = stdout.or_else(file);
+```
+
 
 Library can handle alternatives and perform parsing and validation:
 

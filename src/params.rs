@@ -296,9 +296,9 @@ pub fn positional(metavar: &'static str) -> Parser<String> {
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let is_short = |s| s.len() < 10;
+/// let is_short = |s: &str| s.len() < 10;
 /// // skip this positional argument unless it's less than 10 bytes long
-/// let arg: Parser<String> = positional_if("INPUT", is_short);
+/// let arg: Parser<Option<String>> = positional_if("INPUT", is_short);
 /// # drop(arg)
 /// ```
 pub fn positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<String>>
@@ -349,7 +349,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 ///
 /// // when ther's several commands it can be a good idea to wrap each into a enum either before
 /// // or after converting it into subparser:
-/// #[derive(Clone)]
+/// #[derive(Clone, Debug)]
 /// enum Command {
 ///     Check(bool)
 /// }

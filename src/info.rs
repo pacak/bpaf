@@ -578,7 +578,13 @@ impl Info {
             }
             match &i.help {
                 Some(h) => {
-                    write!(res, "{}\n", h)?;
+                    for (ix, line) in h.split('\n').enumerate() {
+                        if ix == 0 {
+                            write!(res, "{}\n", line)?;
+                        } else {
+                            write!(res, "{:ident$}{}\n", "", line, ident = max_name_width + 10)?;
+                        }
+                    }
                 }
                 None => {
                     // strip unnecessary spaces inserted by previous writes

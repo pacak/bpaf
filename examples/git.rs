@@ -3,6 +3,7 @@
 
 use bpaf::*;
 
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 enum Opt {
     Fetch {

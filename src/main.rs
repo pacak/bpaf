@@ -2,6 +2,7 @@ use bpaf::*;
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct Foo {
     a: bool,
     b: (),
