@@ -76,7 +76,7 @@ macro_rules! construct {
 #[macro_export]
 macro_rules! tuple {
     ($($x:ident),* $(,)?) => {
-        Parser {
+        $crate::Parser {
             parse: ::std::rc::Rc::new(move |rest| {
                 $(let ($x, rest) = ($x.parse)(rest)?;)*
                 Ok((($($x),*), rest))
