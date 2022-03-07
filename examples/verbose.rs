@@ -29,8 +29,6 @@ fn main() {
     // By this time when this parser succeeds - it will contain verbosity in 0..3 range, inclusive.
     let verbose = verbose.guard(|&x| x <= 3, "it doesn't get any more verbose than 3");
 
-    ////////////////////////////////////////////////////////////////////////////////
-
     // program takes --trimor --no-trimflag, but not both at once. If none is given -
     // fallback value is to disable trimming. Trim enum is set accordingly
 
@@ -47,7 +45,7 @@ fn main() {
     // remains unused - parser fails
     let trim = trim_off.or_else(trim_on);
 
-    let parser = tuple!(verbose, trim);
+    let parser = construct!(verbose, trim);
 
     let opt = Info::default().for_parser(parser).run();
     println!("{:#?}", opt);

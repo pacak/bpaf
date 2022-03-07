@@ -21,11 +21,13 @@ fn speed() -> Parser<f64> {
         .help("speed in MPH")
         .argument("SPEED")
         .parse(|s| f64::from_str(&s));
+
     let k = short('k')
         .help("speed in KPH")
         .long("kph")
         .argument("SPEED")
         .parse(|s| f64::from_str(&s).map(|s| s / 0.62));
+
     m.or_else(k)
 }
 
@@ -36,7 +38,9 @@ pub fn main() {
         .long("fast")
         .help("Use faster acceleration")
         .switch();
-    let acc_parser = Parser::pure(Cmd::Accelerate).ap(fast);
+
+    let acc_parser = construct!(Cmd::Accelerate(fast));
+
     let cmd = command(
         "accel",
         Some("command for acceleration"),
@@ -47,14 +51,13 @@ pub fn main() {
         .long("AAAAA")
         .help("maps to a boolean, is optional")
         .switch();
+
     let b = long("bbbb").req_flag(()).help("maps to a () and mandatory");
+
     let c = speed();
 
     let parser = construct!(Foo { a, b, c, cmd });
-    //    let mk = Parser::pure(curry!(|a, b, c, cmd| Foo { a, b, c, cmd }));
-    //  let x = mk.ap(a).ap(b).ap(speed()).ap(acc);
-    let y = info.for_parser(parser);
+    let opts = info.for_parser(parser);
 
-    let xx = y.run();
-    println!("{:?}", xx);
+    println!("{:?}", opts.run());
 }

@@ -23,7 +23,9 @@ pub use crate::info::{Info, Meta, OptionParser};
 #[doc(inline)]
 pub use crate::params::*;
 
-/// Compose several parsers to produce a struct with results
+/// Compose several parsers to produce a single result
+///
+/// Every parser must succeed in order to produce a result
 ///
 /// Each parser must be present in a local scope and
 /// have the same name as struct field.
@@ -59,22 +61,24 @@ macro_rules! construct {
             meta: $crate::Meta::And(vec![ $($field.meta),*])
         }
     };
-}
-
-/// Compose several parsers to produce a tuple of results
-///
-/// Each parser must be present in a local scope and
-/// have the same name as struct field.
-///
-/// ```rust
-/// # use bpaf::*;
-/// let a: Parser<bool> = short('a').switch();
-/// let b: Parser<u32> = short('b').argument("B").from_str();
-/// let ab: Parser<(bool, u32)> = tuple!(a, b);
-/// # drop(ab);
-/// ```
-#[macro_export]
-macro_rules! tuple {
+    ($struct:ident ( $( $field:ident ),* $(,)? )) => {
+        Parser {
+            parse: ::std::rc::Rc::new(move |rest| {
+                $(let ($field, rest) = ($field.parse)(rest)?;)*
+                Ok(($struct ($($field),*), rest))
+            }),
+            meta: $crate::Meta::And(vec![ $($field.meta),*])
+        }
+    };
+    ($enum:ident :: $constr:ident ( $( $field:ident ),* $(,)? )) => {
+        Parser {
+            parse: ::std::rc::Rc::new(move |rest| {
+                $(let ($field, rest) = ($field.parse)(rest)?;)*
+                Ok(($enum :: $constr($($field),*), rest))
+            }),
+            meta: $crate::Meta::And(vec![ $($field.meta),*])
+        }
+    };
     ($($x:ident),* $(,)?) => {
         $crate::Parser {
             parse: ::std::rc::Rc::new(move |rest| {
@@ -83,40 +87,7 @@ macro_rules! tuple {
             }),
             meta: $crate::Meta::And(vec![ $($x.meta),*])
         }
-    }
-}
-
-/// Compose several parsers and call a function if parsers succeed
-///
-/// Each parser must be present in a local scope and
-/// have the same name as struct field.
-///
-/// ```rust
-/// # use bpaf::*;
-/// struct Res {
-///     a: bool,
-///     b: u32,
-/// }
-/// fn make_res(a: bool, b: u32) -> Res {
-///     Res { a, b }
-/// }
-///
-/// let a: Parser<bool> = short('a').switch();
-/// let b: Parser<u32> = short('b').argument("B").from_str();
-/// let ab: Parser<Res> = apply!(make_res(a, b));
-/// # drop(ab);
-/// ```
-#[macro_export]
-macro_rules! apply {
-    ($fn:ident ($( $field:ident ),* $(,)?)) => {
-        Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($field, rest) = ($field.parse)(rest)?;)*
-                Ok(($fn($($field),*), rest))
-            }),
-            meta: $crate::Meta::And(vec![ $($field.meta),*])
-        }
-    }
+    };
 }
 
 #[doc(hidden)]
@@ -138,15 +109,16 @@ impl<T> Parser<T> {
     /// Wrap a value into a `Parser`
     ///
     /// Parser will produce `T` without consuming anything from the command line, can be useful
-    /// with [`construct!`]/[`apply!`][`tuple!`].
+    /// with [`construct!`].
     ///
     /// ```rust
     /// # use bpaf::*;
     /// let a = long("flag-a").switch();
     /// let b = Parser::pure(42u32);
-    /// let t: Parser<(bool, u32)> = tuple!(a, b);
+    /// let t: Parser<(bool, u32)> = construct!(a, b);
     /// # drop(t)
     /// ```
+    #[must_use]
     pub fn pure(val: T) -> Parser<T>
     where
         T: 'static + Clone,
@@ -160,6 +132,7 @@ impl<T> Parser<T> {
 
     #[doc(hidden)]
     /// <*>
+    #[must_use]
     pub fn ap<A, B>(self, other: Parser<A>) -> Parser<B>
     where
         T: Fn(A) -> B + 'static,
@@ -196,6 +169,7 @@ impl<T> Parser<T> {
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
     ///
+    #[must_use]
     pub fn or_else(self, other: Parser<T>) -> Parser<T>
     where
         T: 'static,
@@ -214,8 +188,7 @@ impl<T> Parser<T> {
                         Ok((r2, a2))
                     }
                 }
-                (Ok(ok), Err(_)) => Ok(ok),
-                (Err(_), Ok(ok)) => Ok(ok),
+                (Ok(ok), Err(_)) | (Err(_), Ok(ok)) => Ok(ok),
                 (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
             }?;
             Ok((res, new_args))
@@ -237,6 +210,7 @@ impl<T> Parser<T> {
     /// let a_: Parser<bool> = a.or_else(no_a);
     /// # drop(a_);
     /// ```
+    #[must_use]
     pub fn fail<M>(msg: M) -> Parser<T>
     where
         String: From<M>,
@@ -258,6 +232,11 @@ impl<T> Parser<T> {
     /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().many();
     /// # drop(n);
     /// ```
+    ///
+    /// # Panics
+    /// Panics if parser succeeds without consuming any input: any parser modified with
+    /// `many` must consume something,
+    #[must_use]
     pub fn many(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -267,8 +246,9 @@ impl<T> Parser<T> {
             let mut size = i.len();
             while let Ok((elt, new_i)) = (self.parse)(i.clone()) {
                 let new_size = new_i.len();
+                #[allow(clippy::panic)]
                 if new_size < size {
-                    size = new_size
+                    size = new_size;
                 } else {
                     panic!("many can't be used with non failing parser")
                 }
@@ -292,6 +272,7 @@ impl<T> Parser<T> {
     /// let n = n.guard(|v| *v <= 10, "Values greater than 10 are only available in the DLC pack!");
     /// # drop(n);
     /// ```
+    #[must_use]
     pub fn guard<F>(self, m: F, message: &'static str) -> Parser<T>
     where
         F: Fn(&T) -> bool + 'static,
@@ -299,7 +280,7 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| match (self.parse)(i) {
             Ok((ok, i)) if m(&ok) => Ok((ok, i)),
-            Ok(_) => Err(Error::Stderr(message.to_string())), // TODO - see what exactly we tried to parse
+            Ok(_) => Err(Error::Stderr(message.to_owned())), // TODO - see what exactly we tried to parse
             Err(err) => Err(err),
         };
         Parser {
@@ -318,6 +299,7 @@ impl<T> Parser<T> {
     /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().some();
     /// # drop(n);
     /// ```
+    #[must_use]
     pub fn some(self) -> Parser<Vec<T>>
     where
         T: 'static,
@@ -387,12 +369,13 @@ impl<T> Parser<T> {
 
             match map(t) {
                 Ok(ok) => Ok((ok, args)),
-                Err(e) => Err(Error::Stderr(match args.current {
-                    Some(Word { utf8: Some(w), .. }) => {
+                Err(e) => Err(Error::Stderr(
+                    if let Some(Word { utf8: Some(w), .. }) = args.current {
                         format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    }
-                    _ => format!("Couldn't parse: {}", e.to_string()),
-                })),
+                    } else {
+                        format!("Couldn't parse: {}", e.to_string())
+                    },
+                )),
             }
         };
         Parser {
@@ -433,6 +416,7 @@ impl<T> Parser<T> {
     /// let n = n.fallback_with(|| Result::<u32, String>::Ok(42));
     /// # drop(n)
     /// ```
+    #[must_use]
     pub fn fallback_with<F, E>(self, val: F) -> Parser<T>
     where
         F: Fn() -> Result<T, E> + Clone + 'static,
@@ -460,6 +444,7 @@ impl<T> Parser<T> {
     /// let n = short('n').argument("NUM").from_str::<u32>().default();
     /// # drop(n)
     /// ```
+    #[must_use]
     pub fn default(self) -> Parser<T>
     where
         T: Default + 'static + Clone,
@@ -473,12 +458,13 @@ impl<T> Parser<T> {
     /// # use bpaf::*;
     /// let width = short('w').argument("PX").from_str::<u32>();
     /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = tuple!(width, height).help("take a rectangle");
+    /// let rect = construct!(width, height).help("take a rectangle");
     /// # drop(rect);
     /// ```
     /// See `examples/rectangle.rs` for a complete example
+    #[must_use]
     pub fn help(self, msg: &'static str) -> Parser<T> {
-        Parser {
+        Self {
             parse: self.parse,
             meta: Meta::decorate(self.meta, msg),
         }
@@ -495,6 +481,7 @@ impl Parser<String> {
     /// // but reject "-s pi"
     /// # drop(speed)
     /// ```
+    #[must_use]
     pub fn from_str<T>(self) -> Parser<T>
     where
         T: FromStr,
@@ -505,7 +492,7 @@ impl Parser<String> {
 }
 
 impl<T> OptionParser<T> {
-    /// Execute the [OptionParser], extract a parsed value or print some diagnostic and exit
+    /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
     /// ```no_run
     /// # use bpaf::*;
@@ -513,9 +500,10 @@ impl<T> OptionParser<T> {
     /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
     ///
     /// let opt = info.for_parser(verbose).run();
-    /// // At this point `opt` contains number of times `-v` was specified on a command line
+    /// // At this point `opt` contains number of repetitions of `-v` on a command line
     /// # drop(opt)
     /// ```
+    #[must_use]
     pub fn run(self) -> T {
         let mut args = Args::default();
         let mut pos_only = false;
@@ -533,6 +521,7 @@ impl<T> OptionParser<T> {
                 eprintln!("{}", msg);
                 std::process::exit(1);
             }
+            #[allow(clippy::unreachable)]
             Err(err) => unreachable!("failed: {:?}", err),
         }
     }

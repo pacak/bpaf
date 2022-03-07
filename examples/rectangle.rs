@@ -19,13 +19,13 @@ fn main() {
         .long("width")
         .help("Width of the rectangle")
         .argument("PX")
-        .from_str::<usize>();
+        .from_str();
 
     let height = short('h')
         .long("height")
         .help("Height of the rectangle")
         .argument("PX")
-        .from_str::<usize>();
+        .from_str();
 
     let rect = construct!(Rect { width, height })
         .help("Rectangle is defined by width and height in meters");

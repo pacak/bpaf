@@ -1,5 +1,4 @@
 use bpaf::*;
-use std::str::FromStr;
 use strum::{EnumString, EnumVariantNames, VariantNames};
 
 #[derive(EnumString, EnumVariantNames, Debug, Clone)]
@@ -16,7 +15,7 @@ fn main() {
         .short('f')
         .help(help)
         .argument("FORMAT")
-        .parse(|s| Format::from_str(&s))
+        .from_str()
         .fallback(Format::Txt);
 
     let opt = Info::default().for_parser(arg).run();

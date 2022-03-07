@@ -5,7 +5,7 @@ use std::str::FromStr;
 fn simple_two_optional_flags() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch();
-    let x = tuple!(a, b);
+    let x = construct!(a, b);
     let info = Info::default().descr("this is a test");
     let decorated = info.for_parser(x);
 
@@ -206,7 +206,7 @@ fn long_usage_string() {
     let e = short('e').long("e-very-long-flag-with").argument("ARG");
     let f = short('f').long("f-very-long-flag-with").argument("ARG");
 
-    let p = tuple!(a, b, c, d, e, f);
+    let p = construct!(a, b, c, d, e, f);
     let decorated = Info::default().for_parser(p);
 
     let help = decorated
@@ -235,8 +235,8 @@ fn group_help() {
     let a = short('a').help("flag A, related to B").switch();
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
-    let ab = tuple!(a, b).help("Explanation applicable for both A and B");
-    let parser = Info::default().for_parser(tuple!(ab, c));
+    let ab = construct!(a, b).help("Explanation applicable for both A and B");
+    let parser = Info::default().for_parser(construct!(ab, c));
 
     let help = parser
         .run_inner(Args::from(&["--help"]))

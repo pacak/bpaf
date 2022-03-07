@@ -40,7 +40,9 @@ impl Error {
     }
 
     #[doc(hidden)]
+    #[must_use]
     pub fn combine_with(self, other: Self) -> Self {
+        #[allow(clippy::match_same_arms)]
         match (self, other) {
             // help output takes priority
             (a @ Error::Stdout(_), _) => a,
@@ -82,9 +84,7 @@ impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.kind {
             ItemKind::Flag => match (self.short, self.long, self.metavar) {
-                (None, None, _) => {
-                    unreachable!("Item should have either short or long variant by construction")
-                }
+                (None, None, _) => Err(std::fmt::Error), // Impossible
                 (None, Some(l), None) => write!(f, "--{}", l),
                 (Some(s), _, None) => write!(f, "-{}", s),
                 (None, Some(l), Some(v)) => write!(f, "--{} {}", l, v),
@@ -103,6 +103,7 @@ impl std::fmt::Display for Item {
 
 impl Item {
     #[doc(hidden)]
+    #[must_use]
     pub fn required(self, required: bool) -> Meta {
         if required {
             Meta::Required(Box::new(Meta::Item(self)))
@@ -112,7 +113,8 @@ impl Item {
     }
 
     #[doc(hidden)]
-    pub fn name_len(&self) -> usize {
+    #[must_use]
+    pub const fn name_len(&self) -> usize {
         let mut res = 0;
         res += match self.long {
             Some(s) => s.len() + 3,
@@ -126,6 +128,7 @@ impl Item {
     }
 
     #[doc(hidden)]
+    #[must_use]
     pub fn decoration<M>(help: Option<M>) -> Self
     where
         M: Into<String>,
@@ -134,13 +137,14 @@ impl Item {
             short: None,
             long: None,
             metavar: None,
-            help: help.map(|h| h.into()),
+            help: help.map(Into::into),
             kind: ItemKind::Decor,
         }
     }
 
     #[doc(hidden)]
-    pub fn is_command(&self) -> bool {
+    #[must_use]
+    pub const fn is_command(&self) -> bool {
         match self.kind {
             ItemKind::Command => true,
             ItemKind::Flag | ItemKind::Decor | ItemKind::Positional => false,
@@ -148,7 +152,8 @@ impl Item {
     }
 
     #[doc(hidden)]
-    pub fn is_flag(&self) -> bool {
+    #[must_use]
+    pub const fn is_flag(&self) -> bool {
         match self.kind {
             ItemKind::Flag | ItemKind::Decor => true,
             ItemKind::Command | ItemKind::Positional => false,
@@ -175,30 +180,26 @@ pub enum Meta {
 
 #[doc(hidden)]
 impl Meta {
+    #[must_use]
     pub fn is_required(&self) -> bool {
         match self {
-            Meta::Empty => false,
-            Meta::And(xs) => xs.iter().any(|x| x.is_required()),
-            Meta::Or(xs) => xs.iter().all(|x| x.is_required()),
+            Meta::And(xs) => xs.iter().any(Meta::is_required),
+            Meta::Or(xs) => xs.iter().all(Meta::is_required),
             Meta::Required(_) => true,
-            Meta::Optional(_) => false,
+            Meta::Empty | Meta::Optional(_) | Meta::Many(_) | Meta::Id => false,
             Meta::Item(i) => match i.kind {
-                ItemKind::Flag => unreachable!(),
                 ItemKind::Command => true,
                 ItemKind::Decor => false,
-                ItemKind::Positional => unreachable!(),
+                ItemKind::Flag | ItemKind::Positional => unreachable!(),
             },
-            Meta::Many(_) => false,
-            Meta::Id => false,
             Meta::Decorated(x, _) => x.is_required(),
         }
     }
+
+    #[must_use]
     pub fn or(self, other: Meta) -> Self {
         match (self, other) {
-            (Meta::Id, b) => b,
-            (Meta::Empty, b) => b,
-            (a, Meta::Empty) => a,
-            (a, Meta::Id) => a,
+            (Meta::Id | Meta::Empty, v) | (v, Meta::Empty | Meta::Id) => v,
             (Meta::Or(mut a), Meta::Or(mut b)) => {
                 a.append(&mut b);
                 Meta::Or(a)
@@ -214,6 +215,8 @@ impl Meta {
             (a, b) => Meta::Or(vec![a, b]),
         }
     }
+
+    #[must_use]
     pub fn and(self, other: Meta) -> Self {
         match (self, other) {
             (Meta::Id, a) => a,
@@ -233,29 +236,41 @@ impl Meta {
             (a, b) => Meta::And(vec![a, b]),
         }
     }
+
+    #[must_use]
     pub fn optional(self) -> Self {
         match self {
             Meta::Required(m) => Meta::Optional(m),
-            m @ Meta::Optional(_) => m,
-            m => Meta::Optional(Box::new(m)),
+            m @ (Meta::Optional(_)
+            | Meta::Empty
+            | Meta::And(_)
+            | Meta::Or(_)
+            | Meta::Item(_)
+            | Meta::Many(_)
+            | Meta::Decorated(..)
+            | Meta::Id) => Meta::Optional(Box::new(m)),
         }
     }
+
+    #[must_use]
     pub fn required(self) -> Self {
         Meta::Required(Box::new(self))
     }
+
+    #[must_use]
     pub fn many(self) -> Self {
         Meta::Many(Box::new(self))
     }
 
     pub fn commands(&self) -> Vec<Item> {
         let mut res = Vec::new();
-        self.collect_items(&mut res, |i| i.is_command());
+        self.collect_items(&mut res, Item::is_command);
         res
     }
 
     pub fn flags(&self) -> Vec<Item> {
         let mut res = Vec::new();
-        self.collect_items(&mut res, |i| i.is_flag());
+        self.collect_items(&mut res, Item::is_flag);
         res
     }
 
@@ -271,26 +286,18 @@ impl Meta {
         F: Fn(&Item) -> bool + Copy,
     {
         match self {
-            Meta::Empty => {}
-            Meta::And(xs) => {
+            Meta::Empty | Meta::Id => {}
+            Meta::And(xs) | Meta::Or(xs) => {
                 for x in xs {
                     x.collect_items(res, pred);
                 }
             }
-            Meta::Or(xs) => {
-                for x in xs {
-                    x.collect_items(res, pred);
-                }
-            }
-            Meta::Required(a) => a.collect_items(res, pred),
-            Meta::Many(a) => a.collect_items(res, pred),
-            Meta::Optional(a) => a.collect_items(res, pred),
+            Meta::Required(a) | Meta::Many(a) | Meta::Optional(a) => a.collect_items(res, pred),
             Meta::Item(i) => {
                 if pred(i) {
-                    res.push(i.clone())
+                    res.push(i.clone());
                 }
             }
-            Meta::Id => {}
             Meta::Decorated(x, msg) => {
                 res.push(Item::decoration(Some(msg)));
                 let prev_len = res.len();
@@ -306,15 +313,11 @@ impl Meta {
 
     fn is_simple(&self) -> bool {
         match self {
-            Meta::Empty => true,
-            Meta::And(_) => false,
-            Meta::Or(_) => false,
-            Meta::Required(m) => m.is_simple(),
-            Meta::Optional(m) => m.is_simple(),
-            Meta::Item(_) => true,
-            Meta::Many(m) => m.is_simple(),
-            Meta::Decorated(m, _) => m.is_simple(),
-            Meta::Id => true,
+            Meta::Empty | Meta::Id | Meta::Item(_) => true,
+            Meta::And(_) | Meta::Or(_) => false,
+            Meta::Required(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
+                m.is_simple()
+            }
         }
     }
 }
@@ -365,6 +368,8 @@ impl std::fmt::Display for Meta {
                     write!(f, "[")?;
                 } else if xs.len() > 1 {
                     write!(f, "(")?;
+                } else {
+                    // no arguments left, nothing to print here
                 }
                 for (ix, x) in xs.iter().enumerate() {
                     write!(f, "{}", x)?;
@@ -373,9 +378,11 @@ impl std::fmt::Display for Meta {
                     }
                 }
                 if !required {
-                    write!(f, "]")?
+                    write!(f, "]")?;
                 } else if xs.len() > 1 {
-                    write!(f, ")")?
+                    write!(f, ")")?;
+                } else {
+                    // no arguments left, nothing to print here
                 }
                 Ok(())
             }
@@ -448,7 +455,8 @@ impl Info {
     /// let info = Info::default().version("3.1415");
     /// # drop(info);
     /// ```
-    pub fn version(mut self, version: &'static str) -> Self {
+    #[must_use]
+    pub const fn version(mut self, version: &'static str) -> Self {
         self.version = Some(version);
         self
     }
@@ -461,7 +469,8 @@ impl Info {
     /// # drop(info);
     /// ```
     /// See complete example in `examples/rectangle.rs`
-    pub fn descr(mut self, descr: &'static str) -> Self {
+    #[must_use]
+    pub const fn descr(mut self, descr: &'static str) -> Self {
         self.descr = Some(descr);
         self
     }
@@ -473,7 +482,8 @@ impl Info {
     /// # drop(info);
     /// ```
     /// See complete example in `examples/rectangle.rs`
-    pub fn header(mut self, header: &'static str) -> Self {
+    #[must_use]
+    pub const fn header(mut self, header: &'static str) -> Self {
         self.header = Some(header);
         self
     }
@@ -485,7 +495,8 @@ impl Info {
     /// # drop(info);
     /// ```
     /// See complete example in `examples/rectangle.rs`
-    pub fn footer(mut self, footer: &'static str) -> Self {
+    #[must_use]
+    pub const fn footer(mut self, footer: &'static str) -> Self {
         self.footer = Some(footer);
         self
     }
@@ -497,35 +508,26 @@ impl Info {
     /// # drop(info);
     /// ```
     /// See complete example in `examples/rectangle.rs`
-    pub fn usage(mut self, usage: &'static str) -> Self {
+    #[must_use]
+    pub const fn usage(mut self, usage: &'static str) -> Self {
         self.usage = Some(usage);
         self
     }
-}
 
-#[doc(hidden)]
-#[derive(Clone, Debug)]
-pub enum ExtraParams {
-    Help,
-    Version,
-}
-
-impl Info {
     fn help_parser(&self) -> Parser<ExtraParams> {
         let help = short('h')
             .long("help")
             .help("Prints help information")
             .req_flag(ExtraParams::Help);
 
-        let ver = short('v')
-            .long("version")
-            .help("Prints version information")
-            .req_flag(ExtraParams::Version);
-
-        if self.version.is_some() {
-            help.or_else(ver)
-        } else {
-            help
+        match self.version {
+            Some(v) => help.or_else(
+                short('v')
+                    .long("version")
+                    .help("Prints version information")
+                    .req_flag(ExtraParams::Version(v)),
+            ),
+            None => help,
         }
     }
 
@@ -545,7 +547,7 @@ impl Info {
         let meta = Meta::and(parser_meta, help_meta);
         let flags = &meta.flags();
 
-        let max_name_width = flags.iter().map(|i| i.name_len()).max().unwrap_or(0);
+        let max_name_width = flags.iter().map(Item::name_len).max().unwrap_or(0);
         if !flags.is_empty() {
             write!(res, "\nAvailable options:\n")?;
         }
@@ -555,9 +557,9 @@ impl Info {
                 None => write!(res, "      ")?,
             }
             if i.short.is_some() && i.long.is_some() {
-                write!(res, ", ")?
+                write!(res, ", ")?;
             } else {
-                write!(res, "  ")?
+                write!(res, "  ")?;
             }
             match (i.long, i.metavar) {
                 (None, None) => write!(res, "{:ident$}", "", ident = max_name_width + 2)?,
@@ -600,7 +602,7 @@ impl Info {
         }
         let max_command_width = commands
             .iter()
-            .map(|i| i.long.map(|l| l.len()).unwrap_or(0))
+            .map(|i| i.long.map_or(0, str::len))
             .max()
             .unwrap_or(0);
         for c in commands {
@@ -628,6 +630,7 @@ impl Info {
     }
 
     /// Attach additional information to the parser
+    #[must_use]
     pub fn for_parser<T>(self, parser: Parser<T>) -> OptionParser<T>
     where
         T: 'static + Clone + std::fmt::Debug,
@@ -657,15 +660,11 @@ impl Info {
                     let msg = self
                         .clone()
                         .render_help(p_meta.clone(), self.help_parser().meta)
-                        .unwrap();
+                        .expect("Couldn't render help");
                     return Err(Error::Stdout(msg));
                 }
-                Ok((ExtraParams::Version, _)) => {
-                    if let Some(v) = self.version {
-                        return Err(Error::Stdout(format!("Version: {}", v)));
-                    } else {
-                        unreachable!()
-                    }
+                Ok((ExtraParams::Version(v), _)) => {
+                    return Err(Error::Stdout(format!("Version: {v}")));
                 }
                 Err(_) => {}
             }
@@ -678,6 +677,13 @@ impl Info {
             help_meta,
         }
     }
+}
+
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub enum ExtraParams {
+    Help,
+    Version(&'static str),
 }
 
 fn check_unexpected<T>((t, args): (T, Args)) -> Result<(T, Args), Error> {

@@ -26,7 +26,7 @@ fn main() {
         .short('b')
         .help("choose between foo, bar or foobar")
         .argument("CMD")
-        .parse(|s| Baz::from_str(&s));
+        .from_str();
 
     let opt = Info::default().for_parser(arg).run();
     println!("{:#?}", opt);

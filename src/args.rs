@@ -1,7 +1,7 @@
 use crate::Error;
 use std::ffi::OsString;
 
-/// OsString with it's utf8 representation if available
+/// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
 pub struct Word {
     pub utf8: Option<String>,
@@ -23,7 +23,7 @@ pub struct Args {
 
 /// Preprocessed command line argument
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) enum Arg {
+pub enum Arg {
     /// short flag
     Short(char),
     /// long flag
@@ -39,14 +39,14 @@ impl std::fmt::Display for Arg {
             Arg::Long(l) => write!(f, "--{}", l),
             Arg::Word(w) => match &w.utf8 {
                 Some(s) => write!(f, "{}", s),
-                None => todo!(),
+                None => Err(std::fmt::Error),
             },
         }
     }
 }
 
 impl Arg {
-    fn is_short(&self, short: char) -> bool {
+    const fn is_short(&self, short: char) -> bool {
         match self {
             &Arg::Short(c) => c == short,
             Arg::Long(_) | Arg::Word(..) => false,
@@ -63,83 +63,78 @@ impl Arg {
 
 impl<const N: usize> From<&[&str; N]> for Args {
     fn from(xs: &[&str; N]) -> Self {
-        let vec = xs.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+        let vec = xs.iter().copied().collect::<Vec<_>>();
         Args::from(vec.as_slice())
     }
 }
 
-impl Args {
-    pub(crate) fn push(&mut self, os: OsString, pos_only: &mut bool) {
-        let mutf8 = os.clone().into_string().ok();
-
-        // if we are after "--" sign or there's no utf8 representation for
-        // an item - it can only be a positional argument
-        let utf8 = match (*pos_only, mutf8) {
-            (true, v) | (_, v @ None) => return self.items.push(Arg::Word(Word { utf8: v, os })),
-            (false, Some(x)) => x,
-        };
-
-        if utf8 == "--" {
-            *pos_only = true;
-        } else if utf8.starts_with("--") {
-            if utf8.contains('=') {
-                let (key, val) = utf8.split_once('=').unwrap();
-                self.items
-                    .push(Arg::Long(key.strip_prefix("--").unwrap().to_string()));
-                self.items.push(Arg::Word(Word {
-                    utf8: Some(val.to_string()),
-                    os,
-                }));
-            } else {
-                self.items
-                    .push(Arg::Long(utf8.strip_prefix("--").unwrap().to_string()))
-            }
-        } else if utf8.starts_with('-') {
-            if utf8.contains('=') {
-                let (key, val) = utf8.split_once('=').unwrap();
-                assert_eq!(
-                    key.len(),
-                    2,
-                    "short flag with argument must have only one key"
-                );
-                let key = key.strip_prefix('-').unwrap().chars().next().unwrap();
-                self.items.push(Arg::Short(key));
-                self.items.push(Arg::Word(Word {
-                    utf8: Some(val.to_string()),
-                    os,
-                }));
-            } else {
-                for f in utf8.strip_prefix('-').unwrap().chars() {
-                    assert!(
-                        f.is_alphanumeric(),
-                        "Non ascii flags are not supported {}",
-                        utf8
-                    );
-                    self.items.push(Arg::Short(f))
-                }
-            }
-        } else {
-            self.items.push(Arg::Word(Word {
-                utf8: Some(utf8),
-                os,
-            }))
-        }
-    }
-}
-impl From<&[String]> for Args {
-    fn from(xs: &[String]) -> Self {
+impl From<&[&str]> for Args {
+    fn from(xs: &[&str]) -> Self {
         let mut pos_only = false;
         let mut args = Args::default();
         for x in xs {
-            args.push(OsString::from(x), &mut pos_only)
+            args.push(OsString::from(x), &mut pos_only);
         }
         args
     }
 }
 
 impl Args {
+    pub(crate) fn push(&mut self, os: OsString, pos_only: &mut bool) {
+        let maybe_utf8 = os.clone().into_string().ok();
+
+        // if we are after "--" sign or there's no utf8 representation for
+        // an item - it can only be a positional argument
+        let utf8 = match (*pos_only, maybe_utf8) {
+            (true, v) | (_, v @ None) => return self.items.push(Arg::Word(Word { utf8: v, os })),
+            (false, Some(x)) => x,
+        };
+
+        if utf8 == "--" {
+            *pos_only = true;
+        } else if let Some(body) = utf8.strip_prefix("--") {
+            if let Some((key, val)) = body.split_once('=') {
+                self.items.push(Arg::Long(key.to_owned()));
+                self.items.push(Arg::Word(Word {
+                    utf8: Some(val.to_owned()),
+                    os,
+                }));
+            } else {
+                self.items.push(Arg::Long(body.to_owned()));
+            }
+        } else if let Some(body) = utf8.strip_prefix('-') {
+            if let Some((key, val)) = body.split_once('=') {
+                assert_eq!(
+                    key.len(),
+                    1,
+                    "short flag with argument must have only one key"
+                );
+                let key = key.chars().next().expect("key should be one character");
+                self.items.push(Arg::Short(key));
+                self.items.push(Arg::Word(Word {
+                    utf8: Some(val.to_owned()),
+                    os,
+                }));
+            } else {
+                for f in body.chars() {
+                    assert!(
+                        f.is_alphanumeric(),
+                        "Non ascii flags are not supported {}",
+                        body
+                    );
+                    self.items.push(Arg::Short(f));
+                }
+            }
+        } else {
+            self.items.push(Arg::Word(Word {
+                utf8: Some(utf8),
+                os,
+            }));
+        }
+    }
+
     fn set_head(&mut self, h: usize) {
-        self.head = self.head.min(h)
+        self.head = self.head.min(h);
     }
 
     /// Get a short flag: `-f`
@@ -161,6 +156,9 @@ impl Args {
     }
 
     /// Get a short flag with argument: `-f val`
+    ///
+    /// # Errors
+    /// Requires an argument present on a command line
     pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
         let mix = self.items.iter().position(|elt| elt.is_short(flag));
@@ -185,6 +183,9 @@ impl Args {
     }
 
     /// Get a long flag with argument: `--flag val`
+    ///
+    /// # Errors
+    /// Requires an argument present on a command line
     pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
 

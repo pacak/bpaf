@@ -6,7 +6,7 @@
 //!
 //! A simple no-argument command line option that takes no extra parameters, when decoded produces
 //! a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`Named::flag`] and
-//! [`Named::req_flag`].
+//! [`Named::req_flag`]. `bpaf` parses flag into a fixed value known at a compile time.
 //!
 //! For example `--help` and `-q` are long and short flags accepted by `cargo`
 //! ```txt
@@ -17,7 +17,8 @@
 //!
 //! A special case of a flag that gets decoded into a `bool`, see [`Named::switch`].
 //!
-//! Flags `--help` and `-q` accepted by `cargo` can also be thought of as switches.
+//! It's possible to represent flags `--help` and `-q` as booleans, `true` for present and `false`
+//! for absent.
 //! ```txt
 //! % cargo --help -q
 //! ```
@@ -44,7 +45,7 @@
 //!
 //! ## Command
 //!
-//! A command is used to define a starting point for an independent subparser.  See [`command`].
+//! A command defines a starting point for an independent subparser. See [`command`].
 //!
 //! For example `cargo` contains a command `check` that accepts `--workspace` switch.
 //! ```txt
@@ -53,7 +54,7 @@
 //!
 use std::ffi::OsString;
 
-use super::*;
+use super::{Args, Error, Item, OptionParser, Parser, Rc};
 use crate::{
     args::{Arg, Word},
     info::{ItemKind, Meta},
@@ -69,8 +70,8 @@ pub struct Named {
 
 /// A flag/switch/argument that has a short name
 ///
-/// You can specify it multiple times, items past the first one will become
-/// a hidden aliases.
+/// You can specify it multiple times, items past the first one represent
+/// hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -82,6 +83,7 @@ pub struct Named {
 ///         .switch();
 /// # drop(switch);
 /// ```
+#[must_use]
 pub fn short(short: char) -> Named {
     Named {
         short: vec![short],
@@ -92,8 +94,8 @@ pub fn short(short: char) -> Named {
 
 /// A flag/switch/argument that has a long name
 ///
-/// You can specify it multiple times, items past the first one will become
-/// a hidden aliases.
+/// You can specify it multiple times, items past the first represent
+/// hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -105,6 +107,7 @@ pub fn short(short: char) -> Named {
 ///         .switch();
 /// # drop(switch);
 /// ```
+#[must_use]
 pub fn long(long: &'static str) -> Named {
     Named {
         short: Vec::new(),
@@ -116,8 +119,8 @@ pub fn long(long: &'static str) -> Named {
 impl Named {
     /// Add a short name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, items past the first one will become
-    /// a hidden aliases.
+    /// You can specify it multiple times, items past the first one represent
+    /// hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -129,6 +132,7 @@ impl Named {
     ///         .switch();
     /// # drop(switch);
     /// ```
+    #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
         self
@@ -149,6 +153,7 @@ impl Named {
     ///         .switch();
     /// # drop(switch);
     /// ```
+    #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
         self
@@ -165,6 +170,7 @@ impl Named {
     ///         .switch();
     /// # drop(switch);
     /// ```
+    #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -172,9 +178,7 @@ impl Named {
         self.help = Some(help.into());
         self
     }
-}
 
-impl Named {
     /// Simple boolean flag
     ///
     /// Parser produces `true` if flag is present in a command line or `false` otherwise
@@ -187,6 +191,7 @@ impl Named {
     ///         .switch();
     /// # drop(switch);
     /// ```
+    #[must_use]
     pub fn switch(self) -> Parser<bool> {
         build_flag_parser(true, Some(false), self.short, self.long, self.help)
     }
@@ -208,6 +213,7 @@ impl Named {
     ///         .flag(Flag::Present, Flag::Absent);
     /// # drop(switch);
     /// ```
+    #[must_use]
     pub fn flag<T>(self, present: T, absent: T) -> Parser<T>
     where
         T: Clone + 'static,
@@ -242,6 +248,7 @@ impl Named {
     /// # drop(verbosity);
     /// ```
     ///
+    #[must_use]
     pub fn req_flag<T>(self, present: T) -> Parser<T>
     where
         T: Clone + 'static,
@@ -260,6 +267,7 @@ impl Named {
     /// let arg = short('n').long("name").argument("NAME");
     /// # drop(arg)
     /// ```
+    #[must_use]
     pub fn argument(self, metavar: &'static str) -> Parser<String> {
         build_argument(self.short, self.long, self.help, metavar)
             .parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
@@ -276,6 +284,7 @@ impl Named {
     /// let arg = short('n').long("name").argument_os("NAME");
     /// # drop(arg)
     /// ```
+    #[must_use]
     pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
         build_argument(self.short, self.long, self.help, metavar).map(|x| x.os)
     }
@@ -288,6 +297,7 @@ impl Named {
 /// let arg: Parser<String> = positional("INPUT");
 /// # drop(arg)
 /// ```
+#[must_use]
 pub fn positional(metavar: &'static str) -> Parser<String> {
     build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
 }
@@ -325,6 +335,7 @@ where
 /// let arg: Parser<OsString> = positional_os("INPUT");
 /// # drop(arg)
 /// ```
+#[must_use]
 pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
     build_positional(metavar).map(|x| x.os)
 }
@@ -341,10 +352,10 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 ///     .for_parser(ws);
 ///
 /// // Convert subparser into a parser.
-/// // Note description "Check a package for errors" is specified twice. When used as
-/// // Version from `descr` will be used when user calls `% prog check --help`,
-/// // Version used with `command` will be used when user uses `% prog --help` along
-/// // with descriptions for other commands if they are present.
+/// // Note description "Check a package for errors" is specified twice:
+/// // - Parser uses version from `descr` when user calls `% prog check --help`,
+/// // - Parser uses version from `command` user calls `% prog --help` along
+/// //   with descriptions for other commands if present.
 /// let check: Parser<bool> = command("check", Some("Check a local package for errors"), decorated);
 ///
 /// // when ther's several commands it can be a good idea to wrap each into a enum either before
@@ -355,7 +366,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// }
 /// let check: Parser<Command> = check.map(Command::Check);
 ///
-/// // at this point command line will accept following commands:
+/// // at this point command line accepts following commands:
 /// // `% prog --help`            - display a global help and exit
 /// // `% prog check --help`      - display help specific to check subcommand and exit
 /// // `% prog check`             - produce `Command::Check(false)`
@@ -363,6 +374,7 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// let opt = Info::default().for_parser(check);
 /// # drop(opt)
 /// ```
+#[must_use]
 pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: OptionParser<T>) -> Parser<T>
 where
     T: 'static,
@@ -372,7 +384,7 @@ where
         short: None,
         long: Some(name),
         metavar: None,
-        help: help.map(|h| h.into()),
+        help: help.map(Into::into),
         kind: ItemKind::Command,
     });
     let meta2 = meta.clone();
@@ -389,16 +401,16 @@ where
 fn build_flag_parser<T>(
     present: T,
     absent: Option<T>,
-    short: Vec<char>,
-    long: Vec<&'static str>,
+    shorts: Vec<char>,
+    longs: Vec<&'static str>,
     help: Option<String>,
 ) -> Parser<T>
 where
     T: Clone + 'static,
 {
     let item = Item {
-        short: short.first().copied(),
-        long: long.first().copied(),
+        short: shorts.first().copied(),
+        long: longs.first().copied(),
         metavar: None,
         help,
         kind: ItemKind::Flag,
@@ -413,14 +425,14 @@ where
     };
 
     let parse = move |mut i: Args| {
-        for &short in short.iter() {
-            if let Some(i) = i.take_short_flag(short) {
-                return Ok((present.clone(), i));
+        for &short_arg in &shorts {
+            if let Some(rest) = i.take_short_flag(short_arg) {
+                return Ok((present.clone(), rest));
             }
         }
-        for long in long.iter() {
-            if let Some(i) = i.take_long_flag(long) {
-                return Ok((present.clone(), i));
+        for long_arg in &longs {
+            if let Some(rest) = i.take_long_flag(long_arg) {
+                return Ok((present.clone(), rest));
             }
         }
         Ok((absent.as_ref().ok_or_else(|| missing.clone())?.clone(), i))
@@ -432,28 +444,28 @@ where
 }
 
 fn build_argument(
-    short: Vec<char>,
-    long: Vec<&'static str>,
+    shorts: Vec<char>,
+    longs: Vec<&'static str>,
     help: Option<String>,
     metavar: &'static str,
 ) -> Parser<Word> {
     let item = Item {
         kind: ItemKind::Flag,
-        short: short.first().copied(),
-        long: long.first().copied(),
+        short: shorts.first().copied(),
+        long: longs.first().copied(),
         metavar: Some(metavar),
         help,
     };
     let meta = item.required(true);
     let meta2 = meta.clone();
     let parse = move |mut i: Args| {
-        for &short in short.iter() {
-            if let Some((w, c)) = i.take_short_arg(short)? {
+        for &short_arg in &shorts {
+            if let Some((w, c)) = i.take_short_arg(short_arg)? {
                 return Ok((w, c));
             }
         }
-        for long in long.iter() {
-            if let Some((w, c)) = i.take_long_arg(long)? {
+        for long_arg in &longs {
+            if let Some((w, c)) = i.take_long_arg(long_arg)? {
                 return Ok((w, c));
             }
         }
@@ -501,10 +513,12 @@ where
     let meta = item.required(false);
     let meta2 = meta.clone();
     let parse = move |mut args: Args| match args.peek() {
-        Some(Arg::Word(w)) => {
-            if check(w) {
-                let (w, args) = args.take_positional().unwrap();
-                Ok((Some(w), args))
+        Some(Arg::Word(w_ref)) => {
+            if check(w_ref) {
+                let (w_owned, args) = args
+                    .take_positional()
+                    .expect("We just confirmed it's there");
+                Ok((Some(w_owned), args))
             } else {
                 Ok((None, args))
             }
