@@ -1,9 +1,14 @@
 [package]
 name = "bpaf"
-version = "0.1.1"
+version = "0.2.0"
 edition = "2021"
+categories = ["command-line-interface"]
+description = "A simple proc macro free Command Line Argument Parser"
+keywords = ["args", "arguments", "cli", "parser", "parse"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/pacak/bpaf"
 
 [dependencies]
 
 [dev-dependencies]
-strum = { version = "0.21", features = ["derive"] }
+strum = { version = "0.24", features = ["derive"] }
