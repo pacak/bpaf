@@ -5,6 +5,8 @@ edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple proc macro free Command Line Argument Parser"
 keywords = ["args", "arguments", "cli", "parser", "parse"]
+authors = [ "Michael Baykov <manpacket@gmail.com>" ]
+readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
 

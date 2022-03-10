@@ -3,8 +3,6 @@
 Parse command line arguments by composing a parser from the components optimized for
 flexibility and compilation time
 
-[Documentation is available on docs.rs](href=https://docs.rs/bpaf).
-
 # Usage
 
 Add `bpaf` under `[dependencies]` in your `Cargo.toml`
