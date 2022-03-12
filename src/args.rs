@@ -1,5 +1,5 @@
 use crate::Error;
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
@@ -70,6 +70,17 @@ impl<const N: usize> From<&[&str; N]> for Args {
 
 impl From<&[&str]> for Args {
     fn from(xs: &[&str]) -> Self {
+        let mut pos_only = false;
+        let mut args = Args::default();
+        for x in xs {
+            args.push(OsString::from(x), &mut pos_only);
+        }
+        args
+    }
+}
+
+impl From<&[&OsStr]> for Args {
+    fn from(xs: &[&OsStr]) -> Self {
         let mut pos_only = false;
         let mut args = Args::default();
         for x in xs {

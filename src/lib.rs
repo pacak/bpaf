@@ -526,7 +526,7 @@ impl<T> OptionParser<T> {
         }
     }
 
-    fn run_inner(self, args: Args) -> Result<T, Error> {
+    pub fn run_inner(self, args: Args) -> Result<T, Error> {
         match (self.parse)(args) {
             Ok((t, rest)) if rest.is_empty() => Ok(t),
             Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),

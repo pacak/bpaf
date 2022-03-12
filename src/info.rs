@@ -19,7 +19,6 @@ pub enum Error {
 }
 
 impl Error {
-    #[cfg(test)]
     pub fn unwrap_stderr(self) -> String {
         match self {
             Error::Stderr(err) => err,
@@ -29,7 +28,6 @@ impl Error {
         }
     }
 
-    #[cfg(test)]
     pub fn unwrap_stdout(self) -> String {
         match self {
             Error::Stdout(err) => err,
