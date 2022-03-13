@@ -8,7 +8,6 @@ pub struct Word {
     pub os: OsString,
 }
 
-#[doc(hidden)]
 /// All currently present command line parameters
 #[derive(Clone, Debug, Default)]
 pub struct Args {
@@ -149,7 +148,7 @@ impl Args {
     }
 
     /// Get a short flag: `-f`
-    pub fn take_short_flag(&mut self, flag: char) -> Option<Self> {
+    pub(crate) fn take_short_flag(&mut self, flag: char) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.is_short(flag))?;
         self.set_head(ix);
@@ -158,7 +157,7 @@ impl Args {
     }
 
     /// Get a long flag: `--flag`
-    pub fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
+    pub(crate) fn take_long_flag(&mut self, flag: &str) -> Option<Self> {
         self.current = None;
         let ix = self.items.iter().position(|elt| elt.is_long(flag))?;
         self.set_head(ix);
@@ -170,7 +169,7 @@ impl Args {
     ///
     /// # Errors
     /// Requires an argument present on a command line
-    pub fn take_short_arg(&mut self, flag: char) -> Result<Option<(Word, Self)>, Error> {
+    pub(crate) fn take_short_arg(&mut self, flag: char) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
         let mix = self.items.iter().position(|elt| elt.is_short(flag));
 
@@ -197,7 +196,7 @@ impl Args {
     ///
     /// # Errors
     /// Requires an argument present on a command line
-    pub fn take_long_arg(&mut self, flag: &str) -> Result<Option<(Word, Self)>, Error> {
+    pub(crate) fn take_long_arg(&mut self, flag: &str) -> Result<Option<(Word, Self)>, Error> {
         self.current = None;
 
         let mix = self.items.iter().position(|elt| elt.is_long(flag));
@@ -224,7 +223,7 @@ impl Args {
     ///
     /// - argument must be valid utf8
     /// - argument must be at the beginning of the list
-    pub fn take_word(&mut self, word: &str) -> Option<Self> {
+    pub(crate) fn take_word(&mut self, word: &str) -> Option<Self> {
         self.current = None;
         if self.items.is_empty() {
             return None;
@@ -242,7 +241,7 @@ impl Args {
     ///
     /// - argument must be valid utf8
     /// - argument must be at the beginning of the list
-    pub fn take_positional(&mut self) -> Option<(Word, Self)> {
+    pub(crate) fn take_positional(&mut self) -> Option<(Word, Self)> {
         self.current = None;
         if self.items.is_empty() {
             return None;
