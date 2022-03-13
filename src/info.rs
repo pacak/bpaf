@@ -424,7 +424,7 @@ impl<T> OptionParser<T> {
 /// ```rust
 /// # use bpaf::*;
 /// let info = Info::default()
-///                .version("3.1415")
+///                .version(env!("CARGO_PKG_VERSION"))
 ///                .descr("Does mothing")
 ///                .footer("Beware of the Leopard");
 /// # drop(info);
@@ -450,7 +450,7 @@ impl Info {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let info = Info::default().version("3.1415");
+    /// let info = Info::default().version(env!("CARGO_PKG_VERSION"));
     /// # drop(info);
     /// ```
     #[must_use]
