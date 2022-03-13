@@ -491,6 +491,54 @@ impl Parser<String> {
     }
 }
 
+/// Unsuccessful command line parsing outcome
+///
+/// Useful for unit testing for user parsers, intented to
+/// be consumed with [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
+#[derive(Clone, Debug)]
+pub enum ParseFailure {
+    /// Terminate and print this to stdout
+    Stdout(String),
+    /// Terminate and print this to stderr
+    Stderr(String),
+}
+
+impl ParseFailure {
+    /// Returns the contained `stderr` values
+    ///
+    /// Intended to be used with unit tests
+    ///
+    /// # Panics
+    ///
+    /// Will panic if failure contains `stdout`
+    #[allow(clippy::must_use_candidate)]
+    pub fn unwrap_stderr(self) -> String {
+        match self {
+            Self::Stderr(err) => err,
+            Self::Stdout(_) => {
+                panic!("not an stderr: {:?}", self)
+            }
+        }
+    }
+
+    /// Returns the contained `stdout` values
+    ///
+    /// Intended to be used with unit tests
+    ///
+    /// # Panics
+    ///
+    /// Will panic if failure contains `stderr`
+    #[allow(clippy::must_use_candidate)]
+    pub fn unwrap_stdout(self) -> String {
+        match self {
+            Self::Stdout(err) => err,
+            Self::Stderr(_) => {
+                panic!("not an stdout: {:?}", self)
+            }
+        }
+    }
+}
+
 impl<T> OptionParser<T> {
     /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
@@ -513,28 +561,58 @@ impl<T> OptionParser<T> {
 
         match self.run_inner(args) {
             Ok(t) => t,
-            Err(Error::Stdout(msg)) => {
+            Err(ParseFailure::Stdout(msg)) => {
                 println!("{}", msg);
                 std::process::exit(0);
             }
-            Err(Error::Stderr(msg)) => {
+            Err(ParseFailure::Stderr(msg)) => {
                 eprintln!("{}", msg);
                 std::process::exit(1);
             }
-            #[allow(clippy::unreachable)]
-            Err(err) => unreachable!("failed: {:?}", err),
         }
     }
 
-    pub fn run_inner(self, args: Args) -> Result<T, Error> {
+    /// Execute the [`OptionParser`] and produce a value that can be used in unit tests
+    ///
+    /// ```
+    /// #[test]
+    /// fn positional_argument() {
+    ///     let p = positional("FILE").help("File to process");
+    ///     let parser = Info::default().for_parser(p);
+    ///
+    ///     let help = parser
+    ///         .run_inner(Args::from(&["--help"]))
+    ///         .unwrap_err()
+    ///         .unwrap_stdout();
+    ///     let expected_help = "\
+    /// Usage: <FILE>
+    ///
+    /// Available options:
+    ///     -h, --help   Prints help information
+    /// ";
+    ///     assert_eq!(expected_help, help);
+    /// }
+    /// ```
+    ///
+    /// See also [`Args`] and it's `From` impls to produce input and
+    /// [`ParseFailure::unwrap_stderr`] / [`ParseFailure::unwrap_stdout`] for processing results.
+    ///
+    /// # Errors
+    ///
+    /// If parser can't produce desired outcome `run_iter` will return [`ParseFailure`]
+    /// which represents runtime behavior: one branch to print something to stdout and exit with
+    /// success and the other branch to print something to stderr and exit with failure.
+    ///
+    pub fn run_inner(self, args: Args) -> Result<T, ParseFailure> {
         match (self.parse)(args) {
             Ok((t, rest)) if rest.is_empty() => Ok(t),
-            Ok((_, rest)) => Err(Error::Stderr(format!("unexpected {:?}", rest))),
-            Err(Error::Missing(metas)) => Err(Error::Stderr(format!(
+            Ok((_, rest)) => Err(ParseFailure::Stderr(format!("unexpected {:?}", rest))),
+            Err(Error::Missing(metas)) => Err(ParseFailure::Stderr(format!(
                 "Expected {}, pass --help for usage information",
                 Meta::Or(metas)
             ))),
-            Err(err) => Err(err),
+            Err(Error::Stdout(stdout)) => Err(ParseFailure::Stdout(stdout)),
+            Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
         }
     }
 }

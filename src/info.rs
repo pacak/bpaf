@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use crate::{args::Args, params::short, DynParse, Parser};
 
-/// Internal parse error, used
+/// Unsuccessful command line parsing outcome, internal representation
 #[derive(Clone, Debug)]
 pub enum Error {
     /// Terminate and print this to stdout
@@ -19,24 +19,6 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn unwrap_stderr(self) -> String {
-        match self {
-            Error::Stderr(err) => err,
-            Error::Stdout(_) | Error::Missing(_) => {
-                panic!("not an stderr: {:?}", self)
-            }
-        }
-    }
-
-    pub fn unwrap_stdout(self) -> String {
-        match self {
-            Error::Stdout(err) => err,
-            Error::Stderr(_) | Error::Missing(_) => {
-                panic!("not an stdout: {:?}", self)
-            }
-        }
-    }
-
     #[doc(hidden)]
     #[must_use]
     pub fn combine_with(self, other: Self) -> Self {
