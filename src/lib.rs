@@ -41,6 +41,29 @@ pub use crate::params::*;
 /// let res: Parser<Res> = construct!(Res { a, b });
 /// # drop(res);
 /// ```
+///
+/// `construct!` supports following representations:
+///
+/// - structs with unnamed fields:
+/// ```rust ignore
+/// construct!(Res(a, b))
+/// ```
+/// - structs with named fields:
+/// ```ignore
+/// construct!(Res {a, b})
+/// ```
+/// - enums with unnamed fields:
+/// ```ignore
+/// construct!(Ty::Res(a, b))
+/// ```
+/// - enums with named fields:
+/// ```ignore
+/// construct!(Ty::Res {a, b})
+/// ```
+/// - tuples:
+/// ```ignore
+/// construct!(a, b)
+/// ```
 #[macro_export]
 macro_rules! construct {
     ($struct:ident { $( $field:ident ),* $(,)? }) => {
