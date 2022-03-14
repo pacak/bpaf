@@ -622,10 +622,22 @@ impl<T> OptionParser<T> {
     ///
     /// # Errors
     ///
-    /// If parser can't produce desired outcome `run_iter` will return [`ParseFailure`]
+    /// If parser can't produce desired outcome `run_inner` will return [`ParseFailure`]
     /// which represents runtime behavior: one branch to print something to stdout and exit with
     /// success and the other branch to print something to stderr and exit with failure.
     ///
+    /// Parser is not really capturing anything. If parser detects `--help` or `--version` it will
+    /// always produce something that can be consumed with [`ParseFailure::unwrap_stdout`].
+    /// Otherwise it will produce [`ParseFailure::unwrap_stderr`]  generated either by the parser
+    /// itself in case someone required field is missing or by user's [`Parser::guard`] or
+    /// [`Parser::parse`] functions.
+    ///
+    /// API for those is constructed to only produce a [`String`]. If you try to print something inside
+    /// [`Parser::map`] or [`Parser::parse`] - it will not be captured. Depending on a test case
+    /// you'll know what to use: `unwrap_stdout` if you want to test generated help or `unwrap_stderr`
+    /// if you are testing `parse` / `guard` / missing parameters.
+    ///
+    /// Exact string reperentations may change between versions including minor releases.
     pub fn run_inner(self, args: Args) -> Result<T, ParseFailure> {
         match (self.parse)(args) {
             Ok((t, rest)) if rest.is_empty() => Ok(t),
