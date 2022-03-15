@@ -8,7 +8,6 @@ use std::str::FromStr;
 pub mod params;
 
 mod args;
-
 #[doc(hidden)]
 pub mod info;
 
@@ -576,13 +575,13 @@ impl<T> OptionParser<T> {
     /// ```
     #[must_use]
     pub fn run(self) -> T {
-        let mut args = Args::default();
         let mut pos_only = false;
+        let mut vec = Vec::new();
         for arg in std::env::args_os().skip(1) {
-            args.push(arg, &mut pos_only);
+            args::push_vec(&mut vec, arg, &mut pos_only);
         }
 
-        match self.run_inner(args) {
+        match self.run_inner(Args::from(vec)) {
             Ok(t) => t,
             Err(ParseFailure::Stdout(msg)) => {
                 println!("{}", msg);

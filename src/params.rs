@@ -388,14 +388,22 @@ where
         kind: ItemKind::Command,
     });
     let meta2 = meta.clone();
-    let parse = move |mut i: Args| match i.take_word(name) {
-        Some(i) => (subparser.parse)(i),
-        None => Err(Error::Missing(vec![meta2.clone()])),
+    let parse = move |mut args: Args| {
+        if args.take_cmd(name) {
+            (subparser.parse)(args)
+        } else {
+            Err(Error::Missing(vec![meta2.clone()]))
+        }
     };
+
     Parser {
         parse: Rc::new(parse),
         meta,
     }
+}
+
+fn short_or_long_flag(arg: &Arg, shorts: &[char], longs: &[&str]) -> bool {
+    shorts.iter().any(|&c| arg.is_short(c)) || longs.iter().any(|s| arg.is_long(s))
 }
 
 fn build_flag_parser<T>(
@@ -424,18 +432,15 @@ where
         Error::Stdout(String::new())
     };
 
-    let parse = move |mut i: Args| {
-        for &short_arg in &shorts {
-            if let Some(rest) = i.take_short_flag(short_arg) {
-                return Ok((present.clone(), rest));
-            }
+    let parse = move |mut args: Args| {
+        if args.take_flag(|arg| short_or_long_flag(arg, &shorts, &longs)) {
+            Ok((present.clone(), args))
+        } else {
+            Ok((
+                absent.as_ref().ok_or_else(|| missing.clone())?.clone(),
+                args,
+            ))
         }
-        for long_arg in &longs {
-            if let Some(rest) = i.take_long_flag(long_arg) {
-                return Ok((present.clone(), rest));
-            }
-        }
-        Ok((absent.as_ref().ok_or_else(|| missing.clone())?.clone(), i))
     };
     Parser {
         parse: Rc::new(parse),
@@ -458,18 +463,12 @@ fn build_argument(
     };
     let meta = item.required(true);
     let meta2 = meta.clone();
-    let parse = move |mut i: Args| {
-        for &short_arg in &shorts {
-            if let Some((w, c)) = i.take_short_arg(short_arg)? {
-                return Ok((w, c));
-            }
+    let parse = move |mut args: Args| {
+        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &shorts, &longs))? {
+            Ok((w, args))
+        } else {
+            Err(Error::Missing(vec![meta2.clone()]))
         }
-        for long_arg in &longs {
-            if let Some((w, c)) = i.take_long_arg(long_arg)? {
-                return Ok((w, c));
-            }
-        }
-        Err(Error::Missing(vec![meta2.clone()]))
     };
 
     Parser {
@@ -489,8 +488,8 @@ fn build_positional(metavar: &'static str) -> Parser<Word> {
     let meta = item.required(true);
     let meta2 = meta.clone();
 
-    let parse = move |mut args: Args| match args.take_positional() {
-        Some((word, args)) => Ok((word, args)),
+    let parse = move |mut args: Args| match args.take_positional_word()? {
+        Some(word) => Ok((word, args)),
         None => Err(Error::Missing(vec![meta2.clone()])),
     };
     Parser {
@@ -515,8 +514,8 @@ where
     let parse = move |mut args: Args| match args.peek() {
         Some(Arg::Word(w_ref)) => {
             if check(w_ref) {
-                let (w_owned, args) = args
-                    .take_positional()
+                let w_owned = args
+                    .take_positional_word()?
                     .expect("We just confirmed it's there");
                 Ok((Some(w_owned), args))
             } else {

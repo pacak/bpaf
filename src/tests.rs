@@ -207,9 +207,10 @@ fn long_usage_string() {
     let f = short('f').long("f-very-long-flag-with").argument("ARG");
 
     let p = construct!(a, b, c, d, e, f);
-    let decorated = Info::default().for_parser(p);
+    let parser = Info::default().for_parser(p);
 
-    let help = decorated
+    let help = parser
+        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -228,6 +229,16 @@ Available options:
 ";
 
     assert_eq!(expected_help, help);
+    assert_eq!(
+        "-a requires an argument, got flag -b",
+        parser
+            .clone()
+            .run_inner(Args::from(&["-a", "-b"]))
+            .unwrap_err()
+            .unwrap_stderr()
+    );
+
+    drop(parser);
 }
 
 #[test]
@@ -522,4 +533,74 @@ Available options:
                 .unwrap_stdout()
         );
     }
+}
+
+#[test]
+fn arg_bench() {
+    use std::path::PathBuf;
+
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct AppArgs {
+        number: u32,
+        opt_number: Option<u32>,
+        width: u32,
+        input: Vec<PathBuf>,
+    }
+
+    let number = long("number")
+        .help("Sets a number")
+        .argument("number")
+        .from_str();
+
+    let opt_number = long("opt-number")
+        .help("Sets an optional number")
+        .argument("opt-number")
+        .from_str()
+        .optional();
+
+    let width = long("width")
+        .help("Sets width")
+        .argument("width")
+        .from_str()
+        .guard(|n: &u32| *n > 0, "Width must be positive")
+        .fallback(10);
+
+    let input = positional_os("INPUT").map(PathBuf::from).many();
+
+    let parser = construct!(AppArgs {
+        number,
+        opt_number,
+        width,
+        input
+    });
+
+    let parser = Info::default().for_parser(parser);
+
+    assert_eq!(
+        AppArgs {
+            number: 42,
+            opt_number: None,
+            width: 10,
+            input: vec![PathBuf::from("foo"), PathBuf::from("foo2")],
+        },
+        parser
+            .clone()
+            .run_inner(Args::from(&["--number", "42", "foo", "foo2"]))
+            .unwrap()
+    );
+
+    assert_eq!(
+        AppArgs {
+            number: 42,
+            opt_number: None,
+            width: 10,
+            input: Vec::new()
+        },
+        parser
+            .clone()
+            .run_inner(Args::from(&["--number", "42"]))
+            .unwrap()
+    );
+
+    drop(parser);
 }
