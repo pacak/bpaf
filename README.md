@@ -9,7 +9,7 @@ Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 
 ```toml
 [dependencies]
-bpaf = "0.2"
+bpaf = "0.3"
 ```
 
 Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser, use
