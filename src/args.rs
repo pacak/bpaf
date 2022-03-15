@@ -174,7 +174,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
             vec.push(Arg::Long(key.to_owned()));
             vec.push(Arg::Word(Word {
                 utf8: Some(val.to_owned()),
-                os,
+                os: OsString::from(val),
             }));
         } else {
             vec.push(Arg::Long(body.to_owned()));
@@ -190,7 +190,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
             vec.push(Arg::Short(key));
             vec.push(Arg::Word(Word {
                 utf8: Some(val.to_owned()),
-                os,
+                os: OsString::from(val),
             }));
         } else {
             for f in body.chars() {
