@@ -28,7 +28,7 @@ fn main() {
         .from_str();
 
     let rect = construct!(Rect { width, height })
-        .help("Rectangle is defined by width and height in meters");
+        .group_help("Rectangle is defined by width and height in meters");
 
     let verbose = short('v')
         .long("verbose")

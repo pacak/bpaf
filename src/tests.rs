@@ -246,7 +246,7 @@ fn group_help() {
     let a = short('a').help("flag A, related to B").switch();
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
-    let ab = construct!(a, b).help("Explanation applicable for both A and B");
+    let ab = construct!(a, b).group_help("Explanation applicable for both A and B");
     let parser = Info::default().for_parser(construct!(ab, c));
 
     let help = parser
@@ -381,7 +381,7 @@ Available options:
 
 #[test]
 fn positional_argument() {
-    let p = positional("FILE").help("File to process");
+    let p = positional("FILE").group_help("File to process");
     let parser = Info::default().for_parser(p);
 
     let help = parser

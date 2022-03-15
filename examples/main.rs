@@ -52,7 +52,9 @@ pub fn main() {
         .help("maps to a boolean, is optional")
         .switch();
 
-    let b = long("bbbb").req_flag(()).help("maps to a () and mandatory");
+    let b = long("bbbb")
+        .req_flag(())
+        .group_help("maps to a () and mandatory");
 
     let c = speed();
 

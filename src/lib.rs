@@ -480,12 +480,12 @@ impl<T> Parser<T> {
     /// # use bpaf::*;
     /// let width = short('w').argument("PX").from_str::<u32>();
     /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = construct!(width, height).help("take a rectangle");
+    /// let rect = construct!(width, height).group_help("take a rectangle");
     /// # drop(rect);
     /// ```
     /// See `examples/rectangle.rs` for a complete example
     #[must_use]
-    pub fn help(self, msg: &'static str) -> Parser<T> {
+    pub fn group_help(self, msg: &'static str) -> Parser<T> {
         Self {
             parse: self.parse,
             meta: Meta::decorate(self.meta, msg),
