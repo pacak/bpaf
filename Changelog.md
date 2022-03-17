@@ -1,5 +1,8 @@
 # Change Log
 
+## [0.3.1] - 2022-03-17
+- parsers produced by functions inside construct!() macro
+
 ## [0.3.0] - 2022-03-15
 - optimizations
 - renamed Parser::help to Parser::group_help to reduce confusion
