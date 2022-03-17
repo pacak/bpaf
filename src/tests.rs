@@ -91,6 +91,47 @@ Available options:
 }
 
 #[test]
+fn simple_two_optional_flags_with_one_hidden() {
+    let a = short('a').long("AAAAA").switch();
+    let b = short('b').switch().hide();
+    let x = construct!(a, b);
+    let info = Info::default().descr("this is a test");
+    let decorated = info.for_parser(x);
+
+    // no version information given - no version field generated
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "-v"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!("-v is not expected in this context", err);
+
+    // flag can be given only once
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!("-a is not expected in this context", err);
+
+    let help = decorated
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+this is a test
+
+Usage: [-a]
+
+Available options:
+    -a, --AAAAA
+    -h, --help    Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
 fn either_of_three_required_flags() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());

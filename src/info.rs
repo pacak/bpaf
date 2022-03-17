@@ -519,7 +519,12 @@ impl Info {
         }
         match self.usage {
             Some(u) => write!(res, "{}\n\n", u)?,
-            None => write!(res, "Usage: {}\n", parser_meta)?,
+            None => {
+                write!(res, "Usage: {}", parser_meta)?;
+                // strip unnecessary spaces inserted by previous writes
+                res.truncate(res.trim_end_matches(' ').len());
+                write!(res, "\n")?;
+            }
         }
         if let Some(t) = self.header {
             write!(res, "\n{}\n", t)?;

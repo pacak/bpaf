@@ -69,7 +69,7 @@ bpaf:
 | `global` | N/A | Not really needed. Parsing in subcommands can't depend on any other flags but parsed values will be returned in a context that will contain global values. |
 | `group[s]` | N/A | Stringly typed groups are not supported. Several parsers can be composed as alternatives with [`or_else`][Parser::or_else] or factored out into a subcommand with [`command`][params::command]. |
 | `help`| [`help`][Named::help], [`help`][Parser::help] | `help` is present on several object types. |
-| `hidden_*` | N/A | TODO? |
+| `hidden_*` | [`hide`][Parser::hide] | Any parser can be hidden at any point |
 | `index` | N/A | Arguments are not exposed to the user directly, `index` won't be of any use. |
 | `last` | N/A | What's the use case? |
 | `required` | [`req_flag`][Named::req_flag], [`argument`][Named::argument] | Arguments with no fallback values and not changed to [`optional`][Parser::optional] are required. |

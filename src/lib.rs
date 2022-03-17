@@ -494,6 +494,30 @@ impl<T> Parser<T> {
             meta: Meta::decorate(self.meta, msg),
         }
     }
+
+    /// Ignore this parser during any sort of help generation
+    ///
+    /// Best used for optional parsers or parsers with a defined fallback
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // bpaf will accept `-w` but won't show it during help generation
+    /// let width = short('w').argument("PX").from_str::<u32>().fallback(10).hide();
+    /// let height = short('h').argument("PX").from_str::<u32>();
+    /// let rect = construct!(width, height);
+    /// # drop(rect);
+    /// ```
+    pub fn hide(self) -> Parser<T>
+    where
+        T: 'static,
+    {
+        Parser {
+            parse: Rc::new(move |args: Args| {
+                (self.parse)(args).map_err(|_| Error::Missing(Vec::new()))
+            }),
+            meta: Meta::Id,
+        }
+    }
 }
 
 impl Parser<String> {
