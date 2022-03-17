@@ -2,7 +2,6 @@
 
 use bpaf::*;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -52,7 +51,7 @@ fn speed() -> Parser<f64> {
         .long("speed")
         .help("Set speed")
         .argument("SPEED")
-        .parse(|s| f64::from_str(&s))
+        .from_str()
         .fallback(42.0)
 }
 
@@ -60,23 +59,20 @@ fn output() -> Parser<PathBuf> {
     short('o')
         .long("output")
         .help("output file")
-        .argument("SPEED")
-        .parse(|s| PathBuf::from_str(&s))
+        .argument_os("OUTPUT")
+        .map(PathBuf::from)
 }
 
 // no magical name transmogrifications.
 fn nb_cars() -> Parser<u32> {
-    short('n')
-        .long("nb-cars")
-        .argument("N")
-        .parse(|s| u32::from_str(&s))
+    short('n').long("nb-cars").argument("N").from_str()
 }
 
 fn files_to_process() -> Parser<Vec<PathBuf>> {
     short('f')
         .long("file")
         .help("File to process")
-        .argument("FILE")
-        .parse(|s| PathBuf::from_str(&s))
+        .argument_os("FILE")
+        .map(PathBuf::from)
         .many()
 }
