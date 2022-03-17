@@ -27,7 +27,11 @@ pub use crate::params::*;
 /// Every parser must succeed in order to produce a result
 ///
 /// Each parser must be present in a local scope and
-/// have the same name as struct field.
+/// have the same name as struct field. Alternatively
+/// a parser can be present as a function producing a parser
+/// bpaf will call this function and use it's result. Later
+/// option might be useful when single parser is used in
+/// several `construct!` macros
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -35,9 +39,13 @@ pub use crate::params::*;
 ///     a: bool,
 ///     b: u32,
 /// }
+///
+/// // parser defined as a local variable
 /// let a: Parser<bool> = short('a').switch();
-/// let b: Parser<u32> = short('b').argument("B").from_str();
-/// let res: Parser<Res> = construct!(Res { a, b });
+///
+/// // parser defined as a function
+/// fn b() -> Parser<u32> { short('b').argument("B").from_str() }
+/// let res: Parser<Res> = construct!(Res { a, b() });
 /// # drop(res);
 /// ```
 ///
@@ -65,51 +73,46 @@ pub use crate::params::*;
 /// ```
 #[macro_export]
 macro_rules! construct {
-    ($struct:ident { $( $field:ident ),* $(,)? }) => {
-        Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($field, rest) = ($field.parse)(rest)?;)*
-                Ok(($struct {$($field),*}, rest))
-            }),
-            meta: $crate::Meta::And(vec![ $($field.meta),*])
-        }
-    };
-    ($enum:ident :: $constr:ident { $( $field:ident ),* $(,)? }) => {
-        Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($field, rest) = ($field.parse)(rest)?;)*
-                Ok(($enum :: $constr{$($field),*}, rest))
-            }),
-            meta: $crate::Meta::And(vec![ $($field.meta),*])
-        }
-    };
-    ($struct:ident ( $( $field:ident ),* $(,)? )) => {
-        Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($field, rest) = ($field.parse)(rest)?;)*
-                Ok(($struct ($($field),*), rest))
-            }),
-            meta: $crate::Meta::And(vec![ $($field.meta),*])
-        }
-    };
-    ($enum:ident :: $constr:ident ( $( $field:ident ),* $(,)? )) => {
-        Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($field, rest) = ($field.parse)(rest)?;)*
-                Ok(($enum :: $constr($($field),*), rest))
-            }),
-            meta: $crate::Meta::And(vec![ $($field.meta),*])
-        }
-    };
-    ($($x:ident),* $(,)?) => {
+    // construct!(Cons { a, b, c })
+    ($con:ident { $($tokens:tt)* }) => {{ construct!(@prepare [named [$con]] [] $($tokens)*) }};
+    // construct!(Cons ( a, b, c ))
+    ($con:ident ( $($tokens:tt)* )) => {{ construct!(@prepare [pos [$con]] [] $($tokens)*) }};
+    // construct!(Enum::Cons { a, b, c })
+    ($ns:ident :: $con:ident { $($tokens:tt)* }) => {{ construct!(@prepare [named [$ns $con]] [] $($tokens)*) }};
+    // construct!(Enum::Cons ( a, b, c ))
+    ($ns:ident :: $con:ident ( $($tokens:tt)* )) => {{ construct!(@prepare [pos [$ns $con]] [] $($tokens)*) }};
+    // construct!( a, b, c )
+    ($first:ident $($tokens:tt)*) => {{ construct!(@prepare [pos] [] $first $($tokens)*) }};
+
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident (), $($rest:tt)*) => {{
+        let $field = $field();
+        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    }};
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident () $($rest:tt)*) => {{
+        let $field = $field();
+        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    }};
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident, $($rest:tt)*) => {{
+        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    }};
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
+        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    }};
+    (@prepare $ty:tt [$($fields:tt)*]) => {{
         $crate::Parser {
-            parse: ::std::rc::Rc::new(move |rest| {
-                $(let ($x, rest) = ($x.parse)(rest)?;)*
-                Ok((($($x),*), rest))
+            parse: ::std::rc::Rc::new(move |args| {
+                $(let ($fields , args) = ($fields . parse)(args)?;)*
+                Ok((construct!(@make $ty [$($fields)*]), args))
             }),
-            meta: $crate::Meta::And(vec![ $($x.meta),*])
+            meta: $crate::Meta::And(vec![ $($fields.meta),* ])
         }
-    };
+    }};
+
+    (@make [named [$con:ident]] [$($fields:ident)*]) => { $con { $($fields),* } };
+    (@make [pos [$con:ident]] [$($fields:ident)*]) => { $con ( $($fields),* ) };
+    (@make [named [$ns:ident $con:ident]] [$($fields:ident)*]) => { $ns :: $con { $($fields),* } };
+    (@make [pos [$ns:ident $con:ident]] [$($fields:ident)*]) => { $ns :: $con ( $($fields),* ) };
+    (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
 }
 
 #[doc(hidden)]

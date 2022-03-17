@@ -2,6 +2,53 @@ use crate::*;
 use std::str::FromStr;
 
 #[test]
+fn construct_with_fn() {
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    struct Opts {
+        a: bool,
+        b: bool,
+        c: bool,
+    }
+
+    fn a() -> Parser<bool> {
+        short('a').switch()
+    }
+
+    let b = short('b').switch();
+
+    fn c() -> Parser<bool> {
+        short('c').switch()
+    }
+
+    let parser = Info::default().for_parser(construct!(Opts { a(), b, c() }));
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: [-a] [-b] [-c]
+
+Available options:
+    -a
+    -b
+    -c
+    -h, --help   Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    assert_eq!(
+        Opts {
+            a: false,
+            b: true,
+            c: true
+        },
+        parser.run_inner(Args::from(&["-b", "-c"])).unwrap()
+    );
+}
+
+#[test]
 fn simple_two_optional_flags() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch();
