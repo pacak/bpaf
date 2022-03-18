@@ -507,6 +507,8 @@ impl<T> Parser<T> {
     /// let rect = construct!(width, height);
     /// # drop(rect);
     /// ```
+    ///
+    /// See also `examples/cargo-cmd.rs`
     pub fn hide(self) -> Parser<T>
     where
         T: 'static,
@@ -676,4 +678,24 @@ impl<T> OptionParser<T> {
             Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
         }
     }
+}
+
+/// Strip a command name if present at the front when used as a cargo command
+///
+/// This helper should be used on a top level parser
+///
+/// ```rust
+/// # use bpaf::*;
+/// let width = short('w').argument("PX").from_str::<u32>();
+/// let height = short('h').argument("PX").from_str::<u32>();
+/// let parser: Parser<(u32, u32)> = cargo_helper("cmd", construct!(width, height));
+/// # drop(parser);
+/// ```
+#[must_use]
+pub fn cargo_helper<T>(cmd: &'static str, parser: Parser<T>) -> Parser<T>
+where
+    T: 'static,
+{
+    let skip = positional_if("", move |s| cmd == s).optional().hide();
+    construct!(skip, parser).map(|x| x.1)
 }

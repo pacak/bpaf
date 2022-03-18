@@ -692,3 +692,48 @@ fn arg_bench() {
 
     drop(parser);
 }
+
+#[test]
+fn simple_cargo_helper() {
+    let a = short('a').long("AAAAA").switch();
+    let b = short('b').switch();
+    let parser = construct!(a, b);
+    let info = Info::default().descr("this is a test");
+    let decorated = info.for_parser(cargo_helper("simple", parser));
+
+    // cargo run variant
+    let ok = decorated.clone().run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!((true, false), ok);
+
+    // cargo simple variant
+    let ok = decorated
+        .clone()
+        .run_inner(Args::from(&["simple", "-b"]))
+        .unwrap();
+    assert_eq!((false, true), ok);
+
+    // flag can be given only once
+    let err = decorated
+        .clone()
+        .run_inner(Args::from(&["-a", "-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!("-a is not expected in this context", err);
+
+    let help = decorated
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+this is a test
+
+Usage: [-a] [-b]
+
+Available options:
+    -a, --AAAAA
+    -b
+    -h, --help    Prints help information
+";
+    assert_eq!(expected_help, help);
+}

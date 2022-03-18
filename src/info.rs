@@ -261,6 +261,17 @@ impl Meta {
         Meta::Decorated(Box::new(self), msg.into())
     }
 
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Meta::Empty | Meta::Id => true,
+            Meta::And(xs) | Meta::Or(xs) => xs.iter().all(|x| x.is_empty()),
+            Meta::Required(x) | Meta::Optional(x) => x.is_empty(),
+            Meta::Item(_) => false,
+            Meta::Many(x) => x.is_empty(),
+            Meta::Decorated(meta, _) => meta.is_empty(),
+        }
+    }
+
     fn collect_items<F>(&self, res: &mut Vec<Item>, pred: F)
     where
         F: Fn(&Item) -> bool + Copy,
@@ -331,7 +342,7 @@ impl std::fmt::Display for Meta {
             Meta::And(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     write!(f, "{}", x)?;
-                    if ix + 1 < xs.len() {
+                    if ix + 1 < xs.len() && !x.is_empty() {
                         write!(f, " ")?;
                     }
                 }

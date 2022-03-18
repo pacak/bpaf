@@ -156,3 +156,18 @@ user side. Runtime performance is not an end goal since it's usually fast enough
 fraction of whole program runtime while compiling so library uses dynamic dispatch to generate
 less code and might perform additional clones if this allows to unify the code better. But
 any noticable performance issues should be fixed.
+
+
+## Implementing cargo commands
+
+When implementing a cargo subcommand parser needs to be able to consume the first argument which
+is always the same as the executable name minus `cargo-` prefix. For example executable named `cargo-super`
+will be receiving `"super"` as it's first argument. There's two ways to do thins:
+
+- wrap eveything into a [`command`] with this name. Pros: minimal chances of it misfiring, cons:
+  when using from a repository directly with `cargo run` users will have to specify the command
+  name as well
+
+- use [`cargo_helper`]. Pros: supports both `cargo super ...` and `cargo run ...` variants, cons:
+  if first parameter accepted happens to be a file named `"super"` `cargo_helper` might silently
+  consume it when used in `cargo run ...` scenario.
