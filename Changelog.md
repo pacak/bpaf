@@ -1,5 +1,8 @@
 # Change Log
 
+## [0.3.2] - 2022-03-18
+- cargo_helper, hide + cosmetic bugfixes
+
 ## [0.3.1] - 2022-03-17
 - parsers produced by functions inside construct!() macro
 
