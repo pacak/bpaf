@@ -178,6 +178,52 @@ Available options:
 }
 
 #[test]
+fn either_of_three_required_flags2() {
+    let a = short('a').req_flag(());
+    let b = short('b').req_flag(());
+    let c = short('c').req_flag(());
+    let p = construct!([a, b, c]);
+    let info = Info::default().version("1.0");
+    let decorated = info.for_parser(p);
+
+    // version is specified - version help is present
+    let ver = decorated
+        .clone()
+        .run_inner(Args::from(&["-v"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!("Version: 1.0", ver);
+
+    // help is always generated
+    let help = decorated
+        .clone()
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: (-a | -b | -c)
+
+Available options:
+    -a
+    -b
+    -c
+    -h, --help      Prints help information
+    -v, --version   Prints version information
+";
+    assert_eq!(expected_help, help);
+
+    // must specify one of the required flags
+    let err = decorated
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        "Expected (-a | -b | -c), pass --help for usage information",
+        err
+    );
+}
+
+#[test]
 fn either_of_two_required_flags_and_one_optional() {
     let a = short('a').req_flag(true);
     let b = short('b').req_flag(false);

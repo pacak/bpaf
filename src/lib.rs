@@ -24,7 +24,9 @@ pub use crate::params::*;
 
 /// Compose several parsers to produce a single result
 ///
-/// Every parser must succeed in order to produce a result
+/// Every parser must succeed in order to produce a result for
+/// sequential composition and only one parser needs to succeed
+/// for a parallel one (`construct!([a, b, c])`)
 ///
 /// Each parser must be present in a local scope and
 /// have the same name as struct field. Alternatively
@@ -71,6 +73,10 @@ pub use crate::params::*;
 /// ```ignore
 /// construct!(a, b)
 /// ```
+/// - parallel composition, a equivalent of `a.or_else(b).or_else(c)`
+/// ```ignore
+/// construct!([a, b, c])
+/// ```
 #[macro_export]
 macro_rules! construct {
     // construct!(Cons { a, b, c })
@@ -83,6 +89,8 @@ macro_rules! construct {
     ($ns:ident :: $con:ident ( $($tokens:tt)* )) => {{ construct!(@prepare [pos [$ns $con]] [] $($tokens)*) }};
     // construct!( a, b, c )
     ($first:ident $($tokens:tt)*) => {{ construct!(@prepare [pos] [] $first $($tokens)*) }};
+    // construct![a, b, c]
+    ([$first:ident $($tokens:tt)*]) => {{ construct!(@prepare [alt] [] $first $($tokens)*) }};
 
     (@prepare $ty:tt [$($fields:tt)*] $field:ident (), $($rest:tt)*) => {{
         let $field = $field();
@@ -98,6 +106,7 @@ macro_rules! construct {
     (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
         construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
+    (@prepare [alt] [$first:ident $($fields:ident)*]) => { $first $(.or_else($fields))*  };
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         $crate::Parser {
             parse: ::std::rc::Rc::new(move |args| {
