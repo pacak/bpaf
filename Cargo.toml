@@ -11,6 +11,15 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
 
 [dependencies]
+bpaf_derive = { path = "./bpaf_derive", version = "0.1", optional = true }
 
 [dev-dependencies]
 strum = { version = "0.24", features = ["derive"] }
+bpaf = { path = ".", version = "0.3", features = ["derive"] }
+
+
+[features]
+derive = ["bpaf_derive"]
+
+[workspace]
+members = [".", "./bpaf_derive"]

@@ -1,0 +1,15 @@
+[package]
+name = "bpaf_derive"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "bpaf_derive"
+proc-macro = true
+
+[dependencies]
+syn = { version = "1.0.73", features = ["full", "extra-traits"] }
+proc-macro2 = "1.0.27"
+quote = "1.0.9"

@@ -22,6 +22,9 @@ pub use crate::info::{Info, Meta, OptionParser};
 #[doc(inline)]
 pub use crate::params::*;
 
+#[cfg(feature = "bpaf_derive")]
+pub use bpaf_derive::Bpaf;
+
 /// Compose several parsers to produce a single result
 ///
 /// Every parser must succeed in order to produce a result for
