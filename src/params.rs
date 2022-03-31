@@ -464,6 +464,7 @@ fn build_argument(
     let meta = item.required(true);
     let meta2 = meta.clone();
     let parse = move |mut args: Args| {
+        #[allow(clippy::option_if_let_else)]
         if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &shorts, &longs))? {
             Ok((w, args))
         } else {

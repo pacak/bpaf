@@ -518,11 +518,12 @@ impl<T> Parser<T> {
     /// ```
     ///
     /// See also `examples/cargo-cmd.rs`
+    #[must_use]
     pub fn hide(self) -> Parser<T>
     where
         T: 'static,
     {
-        Parser {
+        Self {
             parse: Rc::new(move |args: Args| {
                 (self.parse)(args).map_err(|_| Error::Missing(Vec::new()))
             }),

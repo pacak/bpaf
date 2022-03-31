@@ -261,14 +261,15 @@ impl Meta {
         Meta::Decorated(Box::new(self), msg.into())
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         match self {
             Meta::Empty | Meta::Id => true,
-            Meta::And(xs) | Meta::Or(xs) => xs.iter().all(|x| x.is_empty()),
-            Meta::Required(x) | Meta::Optional(x) => x.is_empty(),
+            Meta::And(xs) | Meta::Or(xs) => xs.iter().all(Meta::is_empty),
+            Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
+                x.is_empty()
+            }
             Meta::Item(_) => false,
-            Meta::Many(x) => x.is_empty(),
-            Meta::Decorated(meta, _) => meta.is_empty(),
         }
     }
 
@@ -528,14 +529,13 @@ impl Info {
         if let Some(t) = self.descr {
             write!(res, "{}\n\n", t)?;
         }
-        match self.usage {
-            Some(u) => write!(res, "{}\n\n", u)?,
-            None => {
-                write!(res, "Usage: {}", parser_meta)?;
-                // strip unnecessary spaces inserted by previous writes
-                res.truncate(res.trim_end_matches(' ').len());
-                write!(res, "\n")?;
-            }
+        if let Some(u) = self.usage {
+            write!(res, "{}\n\n", u)?;
+        } else {
+            write!(res, "Usage: {}", parser_meta)?;
+            // strip unnecessary spaces inserted by previous writes
+            res.truncate(res.trim_end_matches(' ').len());
+            write!(res, "\n")?;
         }
         if let Some(t) = self.header {
             write!(res, "\n{}\n", t)?;
