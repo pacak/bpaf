@@ -206,6 +206,16 @@ impl<T> Parser<T> {
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
     ///
+    /// [`construct!`] can be used to perform a similar task and might generate better code if
+    /// combines more than two parsers. Those two invocations are equivalent:
+    ///
+    /// ```ignore
+    /// let abc = a.or_else(b).or_else(c);
+    /// ```
+    /// ```ignore
+    /// let abc = construct!([a, b, c]);
+    /// ```
+    ///
     #[must_use]
     pub fn or_else(self, other: Parser<T>) -> Parser<T>
     where
