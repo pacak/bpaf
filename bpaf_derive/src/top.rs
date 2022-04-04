@@ -37,6 +37,7 @@ enum ParserKind {
 #[derive(Debug)]
 enum BParser {
     Command(LitStr, Box<OParser>),
+    CargoHelper(LitStr, Box<BParser>),
     Constructor(ConstrName, Fields),
     Singleton(ReqFlag),
     Fold(Vec<BParser>),
@@ -102,13 +103,13 @@ impl Parse for Fields {
 #[derive(Clone, Debug)]
 enum OuterKind {
     Construct,
-    Options,
+    Options(Option<LitStr>),
     Command(Option<LitStr>),
 }
 
 #[derive(Clone, Debug)]
 enum OuterAttr {
-    Options,
+    Options(Option<LitStr>),
     Construct,
     Generate(Ident),
     Command(Option<LitStr>),
@@ -127,7 +128,14 @@ impl Parse for OuterAttr {
             Ok(Self::Construct)
         } else if input.peek(kw::options) {
             let _: kw::options = input.parse()?;
-            Ok(Self::Options)
+            if input.peek(token::Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+                let lit = content.parse::<LitStr>()?;
+                Ok(Self::Options(Some(lit)))
+            } else {
+                Ok(Self::Options(None))
+            }
         } else if input.peek(kw::command) {
             let _: kw::command = input.parse()?;
             if input.peek(token::Paren) {
@@ -193,7 +201,7 @@ impl Parse for Top {
             let mut outer_kind = None;
             for attr in outer {
                 match attr {
-                    OuterAttr::Options => outer_kind = Some(OuterKind::Options),
+                    OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
                     OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
                     OuterAttr::Generate(n) => name = Some(n.clone()),
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
@@ -217,8 +225,12 @@ impl Parse for Top {
                 OuterKind::Construct => {
                     kind = ParserKind::BParser(inner);
                 }
-                OuterKind::Options => {
+                OuterKind::Options(n) => {
                     let decor = Decor::new(&help);
+                    let inner = match n {
+                        Some(name) => BParser::CargoHelper(name, Box::new(inner)),
+                        None => inner,
+                    };
                     let oparser = OParser {
                         decor,
                         inner: Box::new(inner),
@@ -244,7 +256,7 @@ impl Parse for Top {
             let mut outer_kind = None;
             for attr in outer {
                 match attr {
-                    OuterAttr::Options => outer_kind = Some(OuterKind::Options),
+                    OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
                     OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
                     OuterAttr::Generate(n) => name = Some(n.clone()),
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
@@ -306,8 +318,12 @@ impl Parse for Top {
                 OuterKind::Construct => {
                     kind = ParserKind::BParser(inner);
                 }
-                OuterKind::Options => {
+                OuterKind::Options(n) => {
                     let decor = Decor::new(&help);
+                    let inner = match n {
+                        Some(name) => BParser::CargoHelper(name, Box::new(inner)),
+                        None => inner,
+                    };
                     let oparser = OParser {
                         decor,
                         inner: Box::new(inner),
@@ -395,6 +411,10 @@ impl ToTokens for BParser {
                 })
                 .to_tokens(tokens)
             }
+            BParser::CargoHelper(name, inner) => quote!({
+                ::bpaf::cargo_helper(#name, #inner)
+            })
+            .to_tokens(tokens),
             BParser::Constructor(con, bra) => {
                 let parse_decls = bra.parser_decls();
                 quote!({
@@ -502,6 +522,33 @@ mod test {
     use super::Top;
     use quote::{quote, ToTokens};
     use syn::parse_quote;
+
+    #[test]
+    fn cargo_command_helper() {
+        let top: Top = parse_quote! {
+            #[bpaf(options("asm"))]
+            struct Opts {
+                verbose: bool
+            }
+        };
+
+        let expected = quote! {
+            fn opts() -> ::bpaf::OptionParser<Opts> {
+                {
+                    let inner_op = {
+                        ::bpaf::cargo_helper("asm", {
+                            let verbose = ::bpaf::long("verbose").switch();
+                            #[allow(unused_imports)]
+                            use bpaf::construct;
+                            construct!(Opts { verbose })
+                        })
+                    };
+                    ::bpaf::Info::default().for_parser(inner_op)
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
 
     #[test]
     fn top_struct_construct() {
