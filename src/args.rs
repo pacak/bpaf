@@ -158,12 +158,15 @@ impl Arg {
 }
 
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    let maybe_utf8 = os.clone().into_string().ok();
-
     // if we are after "--" sign or there's no utf8 representation for
     // an item - it can only be a positional argument
-    let utf8 = match (*pos_only, maybe_utf8) {
-        (true, v) | (_, v @ None) => return vec.push(Arg::Word(Word { utf8: v, os })),
+    let utf8 = match (*pos_only, os.to_str()) {
+        (true, v) | (_, v @ None) => {
+            return vec.push(Arg::Word(Word {
+                utf8: v.map(String::from),
+                os,
+            }))
+        }
         (false, Some(x)) => x,
     };
 
@@ -194,17 +197,12 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
             }));
         } else {
             for f in body.chars() {
-                assert!(
-                    f.is_alphanumeric(),
-                    "Non ascii flags are not supported {}",
-                    body
-                );
                 vec.push(Arg::Short(f));
             }
         }
     } else {
         vec.push(Arg::Word(Word {
-            utf8: Some(utf8),
+            utf8: Some(utf8.to_string()),
             os,
         }));
     }
