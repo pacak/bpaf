@@ -81,6 +81,7 @@ impl ToTokens for Decor {
 enum Fields {
     Named(Punctuated<FieldParser, Token![,]>),
     Unnamed(Punctuated<FieldParser, Token![,]>),
+    NoFields,
 }
 impl Parse for Fields {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -113,6 +114,29 @@ enum OuterAttr {
     Construct,
     Generate(Ident),
     Command(Option<LitStr>),
+}
+
+#[derive(Clone, Debug)]
+struct CommandAttr {
+    name: Option<LitStr>,
+}
+
+impl Parse for CommandAttr {
+    fn parse(input: parse::ParseStream) -> Result<Self> {
+        if input.peek(kw::command) {
+            let _: kw::command = input.parse()?;
+            if input.peek(token::Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+                let lit = content.parse::<LitStr>()?;
+                Ok(Self { name: Some(lit) })
+            } else {
+                Ok(Self { name: None })
+            }
+        } else {
+            Err(input.error("Unexpected attribute"))
+        }
+    }
 }
 
 impl Parse for OuterAttr {
@@ -212,7 +236,7 @@ impl Parse for Top {
             outer_ty = input.parse::<Ident>()?;
             let bra = input.parse::<Fields>()?;
 
-            if bra.is_unnamed() {
+            if bra.struct_definition_followed_by_semi() {
                 input.parse::<Token![;]>()?;
             }
 
@@ -283,8 +307,25 @@ impl Parse for Top {
                 };
 
                 if !(enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace)) {
-                    let (help, inner) = split_help_and::<OptNameAttr>(&attrs)?;
-                    branches.push(BParser::Singleton(ReqFlag::new(constr, inner, help)));
+                    if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
+                        .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
+                    {
+                        let cmd_name = inner.name.clone().unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string());
+                            LitStr::new(&n, inner_ty.span())
+                        });
+
+                        let decor = Decor::new(&help);
+                        let fields = Fields::NoFields;
+                        let oparser = OParser {
+                            inner: Box::new(BParser::Constructor(constr, fields)),
+                            decor,
+                        };
+                        branches.push(BParser::Command(cmd_name, Box::new(oparser)))
+                    } else {
+                        let (help, inner) = split_help_and::<OptNameAttr>(&attrs)?;
+                        branches.push(BParser::Singleton(ReqFlag::new(constr, inner, help)));
+                    }
                 } else {
                     let (help, inner) = split_help_and::<InnerAttr>(&attrs)?;
 
@@ -415,6 +456,9 @@ impl ToTokens for BParser {
                 ::bpaf::cargo_helper(#name, #inner)
             })
             .to_tokens(tokens),
+            BParser::Constructor(con, Fields::NoFields) => {
+                quote!(::bpaf::Parser::pure(#con)).to_tokens(tokens)
+            }
             BParser::Constructor(con, bra) => {
                 let parse_decls = bra.parser_decls();
                 quote!({
@@ -461,6 +505,7 @@ impl ToTokens for Fields {
                 let names = fields.iter().enumerate().map(|(ix, f)| f.var_name(ix));
                 quote!(( #(#names),*)).to_tokens(tokens)
             }
+            Fields::NoFields => {}
         }
     }
 }
@@ -494,13 +539,15 @@ impl Fields {
                     quote!(let #name = #field;)
                 })
                 .collect::<Vec<_>>(),
+            Fields::NoFields => Vec::new(),
         }
     }
 
-    fn is_unnamed(&self) -> bool {
+    fn struct_definition_followed_by_semi(&self) -> bool {
         match self {
             Fields::Named(_) => false,
             Fields::Unnamed(_) => true,
+            Fields::NoFields => false,
         }
     }
 }
@@ -786,7 +833,10 @@ mod test {
                 BarFoo,
                 Baz(#[bpaf(long("bazz"))] String),
                 Strange { strange: String },
-
+                #[bpaf(command("alpha"))]
+                Alpha,
+                #[bpaf(command)]
+                Omega,
             }
         };
 
@@ -808,9 +858,23 @@ mod test {
                         use bpaf::construct;
                         construct!(Opt::Strange { strange })
                     };
+                    let alt5 = {
+                        let inner_cmd = {
+                            let inner_op = ::bpaf::Parser::pure(Opt::Alpha);
+                            ::bpaf::Info::default().for_parser(inner_op)
+                        };
+                        ::bpaf::command("alpha", None::<String>, inner_cmd)
+                    };
+                    let alt6 = {
+                        let inner_cmd = {
+                            let inner_op = ::bpaf::Parser::pure(Opt::Omega);
+                            ::bpaf::Info::default().for_parser(inner_op)
+                        };
+                        ::bpaf::command("omega", None::<String>, inner_cmd)
+                    };
                     #[allow(unused_imports)]
                     use bpaf::construct;
-                    construct!([alt0, alt1, alt2, alt3, alt4])
+                    construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
                 }
             }
         };

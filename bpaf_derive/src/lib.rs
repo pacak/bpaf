@@ -169,8 +169,9 @@ use top::*;
 ///
 /// ## Annotations for fieldless enum constructors: `ANN4`
 ///
-/// enum constructors without fields are transformed into required flags forcing user to specify
-/// one of the options for parser to succeed. Only naming field annotations are accepted here.
+/// enum constructors without fields are transformed into either required flags or commands forcing
+/// user to specify one of the options for parser to succeed. Only naming field annotations or command
+/// annotations are accepted here.
 ///
 /// ```ignore
 /// #[derive(bpaf)]
