@@ -499,7 +499,8 @@ impl FieldAttrs<StrictNameAttr> {
     fn implicit_consumer(&mut self, ty: Type) -> Option<&'static str> {
         let arg = LitStr::new("ARG", ty.span());
         let shape = split_type(&ty);
-        let can_derive_postpr = self.postpr.iter().all(|i| i.can_derive());
+        let can_derive_postpr =
+            self.external.is_none() && self.postpr.iter().all(|i| i.can_derive());
 
         let os_str = shape.is_os_str();
         let inner_ty = match shape {
@@ -891,6 +892,18 @@ mod tests {
         };
         let output = quote! {
             verbose().fallback(42)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_external() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(external(verbose))]
+            verbose: Option<String>
+        };
+        let output = quote! {
+            verbose()
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
