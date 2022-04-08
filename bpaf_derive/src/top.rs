@@ -403,7 +403,7 @@ impl ToTokens for BParser {
             BParser::Command(cmd_name, oparser) => {
                 let help = match &oparser.decor.descr {
                     Some(msg) => quote!(Some(#msg)),
-                    None => quote!(None),
+                    None => quote!(None::<String>),
                 };
                 quote!({
                     let inner_cmd = #oparser;
