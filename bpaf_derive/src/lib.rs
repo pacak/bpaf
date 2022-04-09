@@ -259,6 +259,7 @@ use top::*;
 /// - `some` - takes no parameters
 /// - `option` - takes no parameters
 /// - `fallback` - takes an arbitrary expression
+/// - `fallback_with` - takes an arbitrary expression
 
 #[proc_macro_derive(Bpaf, attributes(bpaf))]
 pub fn derive_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

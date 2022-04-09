@@ -17,6 +17,7 @@ custom_keyword!(external);
 
 custom_keyword!(from_str);
 custom_keyword!(fallback);
+custom_keyword!(fallback_with);
 custom_keyword!(guard);
 custom_keyword!(many);
 custom_keyword!(some);

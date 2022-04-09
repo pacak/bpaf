@@ -111,6 +111,7 @@ enum PostprAttr {
     Optional,
     Parse(Ident),
     Fallback(Box<Expr>),
+    FallbackWith(Box<Expr>),
     Tokens(TokenStream),
 }
 
@@ -123,7 +124,7 @@ impl PostprAttr {
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
             | PostprAttr::Parse(_) => false,
-            PostprAttr::Guard(_, _) | PostprAttr::Fallback(_) => true,
+            PostprAttr::Guard(_, _) | PostprAttr::Fallback(_) | PostprAttr::FallbackWith(_) => true,
         }
     }
 }
@@ -293,6 +294,11 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let expr = content.parse::<Expr>()?;
             Ok(Self::Fallback(Box::new(expr)))
+        } else if input.peek(kw::fallback_with) {
+            input.parse::<kw::fallback_with>()?;
+            let _ = parenthesized!(content in input);
+            let expr = content.parse::<Expr>()?;
+            Ok(Self::FallbackWith(Box::new(expr)))
         } else if input.peek(kw::parse) {
             input.parse::<kw::parse>()?;
             let _ = parenthesized!(content in input);
@@ -611,6 +617,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::Optional => quote!(optional()),
             PostprAttr::Parse(f) => quote!(parse(#f)),
             PostprAttr::Fallback(v) => quote!(fallback(#v)),
+            PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
         }
         .to_tokens(tokens)
@@ -719,6 +726,18 @@ mod tests {
         };
         let output = quote! {
             ::bpaf::long("number").argument("ARG").from_str::<f64>().fallback(3.1415)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn derive_fallback_with() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(fallback_with(external))]
+            number: f64
+        };
+        let output = quote! {
+            ::bpaf::long("number").argument("ARG").from_str::<f64>().fallback_with(external)
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
