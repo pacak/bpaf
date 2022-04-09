@@ -129,10 +129,25 @@ use top::*;
 /// Similar to field parser declarations using combinator Rust API field annotation
 /// consists of roughly 3 parts that can be optional:
 ///
-/// ((<naming> <consumer>) | <external>)  <postprocessing>
+/// ((<naming> <consumer>) | <external>) <postprocessing>
 ///
 /// Bpaf tries to fill in missing parts when it can. API used tries to mimic usual Rust API, order
 /// is important and user needs to ensure that generated code typechecks.
+///
+/// ## External processing
+/// It is possible to delegate extraction and some of the processig to some external function.
+/// For named field if external name is not specified - field name is used.
+/// ```ignore
+/// #[bpaf(external(verbose))]
+/// verbose: usize
+/// #[bpaf(external, fallback(42))]
+/// distance: usize,
+/// ````
+/// generates
+/// ```ignore
+/// let verbose = verbose();
+/// let distance = distance().fallback(42);
+/// ```
 ///
 /// ## Naming
 /// By default bpaf_derive tries to do a somewhat smart thing about the name:

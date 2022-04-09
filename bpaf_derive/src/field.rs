@@ -61,7 +61,7 @@ impl ToTokens for ReqFlag {
 
 #[derive(Debug, Clone)]
 pub struct FieldAttrs<T> {
-    external: Option<Ident>,
+    external: Option<ExtAttr>,
     name: Option<Ident>,
     naming: Vec<T>,
     consumer: Option<ConsumerAttr>,
@@ -153,7 +153,7 @@ impl<T: Parse> Parse for FieldAttrs<T> {
         let mut postpr = Vec::new();
         let mut external = None;
         if let Ok(ext) = input.parse::<ExtAttr>() {
-            external = Some(ext.ident);
+            external = Some(ext);
             comma(input)?;
         } else {
             while let Ok(nam) = input.parse() {
@@ -185,19 +185,24 @@ impl<T: Parse> Parse for FieldAttrs<T> {
     }
 }
 
+#[derive(Debug, Clone)]
 struct ExtAttr {
-    ident: Ident,
+    ident: Option<Ident>,
 }
 
 impl Parse for ExtAttr {
     fn parse(input: ParseStream) -> Result<Self> {
         if input.peek(kw::external) {
             input.parse::<kw::external>()?;
-            let content;
-            let _ = parenthesized!(content in input);
-            Ok(ExtAttr {
-                ident: content.parse::<Ident>()?,
-            })
+            if input.peek(token::Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+                Ok(Self {
+                    ident: Some(content.parse::<Ident>()?),
+                })
+            } else {
+                Ok(Self { ident: None })
+            }
         } else {
             Err(input.error("Not a name attribute"))
         }
@@ -415,6 +420,13 @@ impl FieldParser {
                 "This consumer needs a name, you can specify it with long(\"name\") or short('n')",
             ));
         }
+        if let Some(ext) = &parser.external {
+            if ext.ident.is_none() {
+                return Err(
+                    i.error("Name shortcut for external attribute is only valid for named field")
+                );
+            }
+        }
 
         parser.help = LineIter::from(&help[..]).next();
         Ok(parser)
@@ -573,7 +585,8 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut first = true;
         if let Some(ext) = &self.external {
-            quote!(#ext()).to_tokens(tokens)
+            let name = ext.ident.as_ref().or(self.name.as_ref()).unwrap();
+            quote!(#name()).to_tokens(tokens)
         } else {
             if first {
                 quote!(::bpaf::).to_tokens(tokens);
@@ -920,6 +933,30 @@ mod tests {
         let input: NamedField = parse_quote! {
             #[bpaf(external(verbose))]
             verbose: Option<String>
+        };
+        let output = quote! {
+            verbose()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_external_shortcut() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(external)]
+            verbose: Option<String>
+        };
+        let output = quote! {
+            verbose()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_external_unnamed() {
+        let input: UnnamedField = parse_quote! {
+            #[bpaf(external(verbose))]
+            Option<String>
         };
         let output = quote! {
             verbose()
