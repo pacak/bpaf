@@ -211,6 +211,7 @@ pub fn split_help_and<T: Parse>(attrs: &[Attribute]) -> Result<(Vec<String>, Vec
 }
 
 impl Parse for Top {
+    #[allow(clippy::too_many_lines)]
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let vis = input.parse::<Visibility>()?;
@@ -261,13 +262,13 @@ impl Parse for Top {
                     };
                     kind = ParserKind::OParser(oparser);
                 }
-                OuterKind::Command(mname) => {
+                OuterKind::Command(maybe_command_name) => {
                     let decor = Decor::new(&help);
                     let oparser = OParser {
                         decor,
                         inner: Box::new(inner),
                     };
-                    let cmd_name = mname.unwrap_or_else(|| {
+                    let cmd_name = maybe_command_name.unwrap_or_else(|| {
                         let n = to_snake_case(&outer_ty.to_string());
                         LitStr::new(&n, outer_ty.span())
                     });
@@ -306,35 +307,15 @@ impl Parse for Top {
                     constr: inner_ty.clone(),
                 };
 
-                if !(enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace)) {
-                    if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
-                        .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
-                    {
-                        let cmd_name = inner.name.clone().unwrap_or_else(|| {
-                            let n = to_snake_case(&inner_ty.to_string());
-                            LitStr::new(&n, inner_ty.span())
-                        });
-
-                        let decor = Decor::new(&help);
-                        let fields = Fields::NoFields;
-                        let oparser = OParser {
-                            inner: Box::new(BParser::Constructor(constr, fields)),
-                            decor,
-                        };
-                        branches.push(BParser::Command(cmd_name, Box::new(oparser)))
-                    } else {
-                        let (help, inner) = split_help_and::<OptNameAttr>(&attrs)?;
-                        branches.push(BParser::Singleton(ReqFlag::new(constr, inner, help)));
-                    }
-                } else {
+                if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
                     let (help, inner) = split_help_and::<InnerAttr>(&attrs)?;
 
                     let bra = enum_contents.parse::<Fields>()?;
 
                     match &inner[..] {
                         [] => branches.push(BParser::Constructor(constr, bra)),
-                        [InnerAttr(mname)] => {
-                            let cmd_name = mname.clone().unwrap_or_else(|| {
+                        [InnerAttr(maybe_command_name)] => {
+                            let cmd_name = maybe_command_name.clone().unwrap_or_else(|| {
                                 let n = to_snake_case(&inner_ty.to_string());
                                 LitStr::new(&n, inner_ty.span())
                             });
@@ -347,6 +328,24 @@ impl Parse for Top {
                         }
                         _ => todo!("error here, todo"),
                     }
+                } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
+                    .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
+                {
+                    let cmd_name = inner.name.clone().unwrap_or_else(|| {
+                        let n = to_snake_case(&inner_ty.to_string());
+                        LitStr::new(&n, inner_ty.span())
+                    });
+
+                    let decor = Decor::new(&help);
+                    let fields = Fields::NoFields;
+                    let oparser = OParser {
+                        inner: Box::new(BParser::Constructor(constr, fields)),
+                        decor,
+                    };
+                    branches.push(BParser::Command(cmd_name, Box::new(oparser)));
+                } else {
+                    let (help, inner) = split_help_and::<OptNameAttr>(&attrs)?;
+                    branches.push(BParser::Singleton(ReqFlag::new(constr, inner, &help)));
                 }
 
                 if !enum_contents.is_empty() {
@@ -371,8 +370,8 @@ impl Parse for Top {
                     };
                     kind = ParserKind::OParser(oparser);
                 }
-                OuterKind::Command(cname) => {
-                    let cmd_name = cname.unwrap_or_else(|| {
+                OuterKind::Command(maybe_command_name) => {
+                    let cmd_name = maybe_command_name.unwrap_or_else(|| {
                         let n = to_snake_case(&outer_ty.to_string());
                         LitStr::new(&n, outer_ty.span())
                     });
@@ -434,7 +433,7 @@ impl ToTokens for OParser {
             let inner_op = #inner;
             #decor.for_parser(inner_op)
         })
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -450,14 +449,14 @@ impl ToTokens for BParser {
                     let inner_cmd = #oparser;
                     ::bpaf::command(#cmd_name, #help, inner_cmd)
                 })
-                .to_tokens(tokens)
+                .to_tokens(tokens);
             }
             BParser::CargoHelper(name, inner) => quote!({
                 ::bpaf::cargo_helper(#name, #inner)
             })
             .to_tokens(tokens),
             BParser::Constructor(con, Fields::NoFields) => {
-                quote!(::bpaf::Parser::pure(#con)).to_tokens(tokens)
+                quote!(::bpaf::Parser::pure(#con)).to_tokens(tokens);
             }
             BParser::Constructor(con, bra) => {
                 let parse_decls = bra.parser_decls();
@@ -467,11 +466,11 @@ impl ToTokens for BParser {
                     use bpaf::construct;
                     construct!(#con #bra)
                 })
-                .to_tokens(tokens)
+                .to_tokens(tokens);
             }
             BParser::Fold(xs) => {
                 if xs.len() == 1 {
-                    xs[0].to_tokens(tokens)
+                    xs[0].to_tokens(tokens);
                 } else {
                     let mk = |i| Ident::new(&format!("alt{i}"), Span::call_site());
                     let names = xs.iter().enumerate().map(|(ix, _)| mk(ix));
@@ -485,7 +484,7 @@ impl ToTokens for BParser {
                         use bpaf::construct;
                         construct!([#(#names),*])
                     })
-                    .to_tokens(tokens)
+                    .to_tokens(tokens);
                 }
             }
             BParser::Singleton(field) => field.to_tokens(tokens),
@@ -499,11 +498,11 @@ impl ToTokens for Fields {
             Fields::Named(fields) => {
                 //                let names = fields.iter().map(|f| f.name());
                 let names = fields.iter().enumerate().map(|(ix, f)| f.var_name(ix));
-                quote!({ #(#names),*}).to_tokens(tokens)
+                quote!({ #(#names),*}).to_tokens(tokens);
             }
             Fields::Unnamed(fields) => {
                 let names = fields.iter().enumerate().map(|(ix, f)| f.var_name(ix));
-                quote!(( #(#names),*)).to_tokens(tokens)
+                quote!(( #(#names),*)).to_tokens(tokens);
             }
             Fields::NoFields => {}
         }
@@ -543,11 +542,10 @@ impl Fields {
         }
     }
 
-    fn struct_definition_followed_by_semi(&self) -> bool {
+    const fn struct_definition_followed_by_semi(&self) -> bool {
         match self {
-            Fields::Named(_) => false,
+            Fields::Named(_) | Fields::NoFields => false,
             Fields::Unnamed(_) => true,
-            Fields::NoFields => false,
         }
     }
 }

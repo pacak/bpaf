@@ -48,9 +48,9 @@ pub fn to_custom_case(input: &str, sep: char) -> String {
             if !res.is_empty() {
                 res.push(sep);
             }
-            res.push(c.to_ascii_lowercase())
+            res.push(c.to_ascii_lowercase());
         } else {
-            res.push(c)
+            res.push(c);
         }
     }
     res
@@ -104,9 +104,8 @@ impl Iterator for LineIter<'_> {
                         if self.prev_empty {
                             self.prev_empty = false;
                             return Some(self.take());
-                        } else {
-                            self.prev_empty = true;
                         }
+                        self.prev_empty = true;
                     } else {
                         self.current.push_str(line);
                         self.current.push('\n');
@@ -115,9 +114,8 @@ impl Iterator for LineIter<'_> {
                 None => {
                     if self.current.is_empty() {
                         return None;
-                    } else {
-                        return Some(self.take());
                     }
+                    return Some(self.take());
                 }
             }
         }

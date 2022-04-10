@@ -25,9 +25,9 @@ pub struct ReqFlag {
 }
 
 impl ReqFlag {
-    pub fn new(value: ConstrName, names: Vec<OptNameAttr>, help: Vec<String>) -> Self {
+    pub fn new(value: ConstrName, names: Vec<OptNameAttr>, help: &[String]) -> Self {
         let naming = restrict_names(&value.constr, names);
-        let help = LineIter::from(&help[..]).next();
+        let help = LineIter::from(help).next();
         Self {
             value,
             naming,
@@ -55,11 +55,12 @@ impl ToTokens for ReqFlag {
             }
         }
         let value = &self.value;
-        quote!(.req_flag(#value)).to_tokens(tokens)
+        quote!(.req_flag(#value)).to_tokens(tokens);
     }
 }
 
 #[derive(Debug, Clone)]
+#[allow(clippy::module_name_repetitions)]
 pub struct FieldAttrs<T> {
     external: Option<ExtAttr>,
     name: Option<Ident>,
@@ -74,9 +75,9 @@ impl<T> Default for FieldAttrs<T> {
         Self {
             external: None,
             name: None,
-            naming: Default::default(),
-            consumer: Default::default(),
-            postpr: Default::default(),
+            naming: Vec::new(),
+            consumer: None,
+            postpr: Vec::new(),
             help: None,
         }
     }
@@ -116,7 +117,7 @@ enum PostprAttr {
 }
 
 impl PostprAttr {
-    fn can_derive(&self) -> bool {
+    const fn can_derive(&self) -> bool {
         match self {
             PostprAttr::FromStr(_)
             | PostprAttr::Many(_)
@@ -335,6 +336,7 @@ impl Parse for PostprAttr {
     }
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub type FieldParser = FieldAttrs<StrictNameAttr>;
 
 pub struct Doc(pub String);
@@ -415,7 +417,7 @@ impl FieldParser {
             _ => return Err(i.error("At most one bpaf annotation is expected")),
         };
 
-        if let Some(err) = parser.implicit_consumer(ty) {
+        if let Some(err) = parser.implicit_consumer(&ty) {
             return Err(i.error(err));
         }
 
@@ -455,7 +457,7 @@ impl FieldParser {
         if strip_name {
             parser.naming.clear();
         }
-        if let Some(err) = parser.implicit_consumer(ty) {
+        if let Some(err) = parser.implicit_consumer(&ty) {
             return Err(i.error(err));
         }
 
@@ -493,13 +495,13 @@ fn restrict_names(base_name: &Ident, attrs: Vec<OptNameAttr>) -> Vec<StrictNameA
     if attrs.is_empty() {
         if name_str.chars().nth(1).is_some() {
             let l = LitStr::new(&name_str, base_name.span());
-            res.push(StrictNameAttr::Long(l))
+            res.push(StrictNameAttr::Long(l));
         } else {
             let c = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
-            res.push(StrictNameAttr::Short(c))
+            res.push(StrictNameAttr::Short(c));
         }
     } else {
-        for name_attr in attrs.into_iter() {
+        for name_attr in attrs {
             res.push(match name_attr {
                 OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
                 OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
@@ -511,18 +513,18 @@ fn restrict_names(base_name: &Ident, attrs: Vec<OptNameAttr>) -> Vec<StrictNameA
                     let l = LitStr::new(&name_str, base_name.span());
                     StrictNameAttr::Long(l)
                 }
-            })
+            });
         }
     }
     res
 }
 
 impl FieldAttrs<StrictNameAttr> {
-    fn implicit_consumer(&mut self, ty: Type) -> Option<&'static str> {
+    fn implicit_consumer(&mut self, ty: &Type) -> Option<&'static str> {
         let arg = LitStr::new("ARG", ty.span());
-        let shape = split_type(&ty);
+        let shape = split_type(ty);
         let can_derive_postpr =
-            self.external.is_none() && self.postpr.iter().all(|i| i.can_derive());
+            self.external.is_none() && self.postpr.iter().all(PostprAttr::can_derive);
 
         let os_str = shape.is_os_str();
         let inner_ty = match shape {
@@ -590,7 +592,7 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
         let mut first = true;
         if let Some(ext) = &self.external {
             let name = ext.ident.as_ref().or(self.name.as_ref()).unwrap();
-            quote!(#name()).to_tokens(tokens)
+            quote!(#name()).to_tokens(tokens);
         } else {
             if first {
                 quote!(::bpaf::).to_tokens(tokens);
@@ -637,7 +639,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -647,7 +649,7 @@ impl ToTokens for StrictNameAttr {
             StrictNameAttr::Short(s) => quote!(short(#s)),
             StrictNameAttr::Long(l) => quote!(long(#l)),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -660,7 +662,7 @@ impl ToTokens for ConsumerAttr {
             ConsumerAttr::PosOs(arg) => quote!(positional_os(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
