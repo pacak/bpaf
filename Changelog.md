@@ -1,6 +1,6 @@
 # Change Log
 
-## [0.4.0] - unreleased
+## [0.4.1] - 2022-04-10
 - derive macro
 - some takes an error message
 - support for or_else construct!([alt1, alt2, alt3])
