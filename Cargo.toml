@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.3.2"
+version = "0.4.0"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -15,7 +15,7 @@ bpaf_derive = { path = "./bpaf_derive", version = "0.1", optional = true }
 
 [dev-dependencies]
 strum = { version = "0.24", features = ["derive"] }
-bpaf = { path = ".", version = "0.3", features = ["derive"] }
+bpaf = { path = ".", version = "0.4", features = ["derive"] }
 
 
 [features]
