@@ -106,7 +106,7 @@ enum ConsumerAttr {
 enum PostprAttr {
     FromStr(Box<Type>),
     Guard(Ident, LitStr),
-    Many(bool),
+    Many(Option<LitStr>),
     Map(Ident),
     Optional,
     Parse(Ident),
@@ -321,10 +321,11 @@ impl Parse for PostprAttr {
             Ok(Self::FromStr(Box::new(ty)))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
-            Ok(Self::Many(false))
+            Ok(Self::Many(None))
         } else if input.peek(kw::some) {
             input.parse::<kw::some>()?;
-            Ok(Self::Many(true))
+            let _ = parenthesized!(content in input);
+            Ok(Self::Many(Some(content.parse::<LitStr>()?)))
         } else if input.peek(kw::optional) {
             input.parse::<kw::optional>()?;
             Ok(Self::Optional)
@@ -542,7 +543,7 @@ impl FieldAttrs<StrictNameAttr> {
             }
             Shape::Multiple(ty) => {
                 if can_derive_postpr {
-                    self.postpr.insert(0, PostprAttr::Many(false));
+                    self.postpr.insert(0, PostprAttr::Many(None));
                 }
                 ty
             }
@@ -627,8 +628,8 @@ impl ToTokens for PostprAttr {
         match self {
             PostprAttr::FromStr(ty) => quote!(from_str::<#ty>()),
             PostprAttr::Guard(f, m) => quote!(guard(#f, #m)),
-            PostprAttr::Many(false) => quote!(many()),
-            PostprAttr::Many(true) => quote!(some()),
+            PostprAttr::Many(None) => quote!(many()),
+            PostprAttr::Many(Some(m)) => quote!(some(#m)),
             PostprAttr::Map(f) => quote!(map(#f)),
             PostprAttr::Optional => quote!(optional()),
             PostprAttr::Parse(f) => quote!(parse(#f)),
@@ -1044,6 +1045,21 @@ mod tests {
                 .argument("N")
                 .from_str::<u64>()
                 .optional()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn some_arguments() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(argument("N"), from_str(u32), some("need params"))]
+            config: Vec<u32>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .argument("N")
+                .from_str::<u32>()
+                .some("need params")
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }

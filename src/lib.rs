@@ -338,20 +338,24 @@ impl<T> Parser<T> {
 
     /// Consume one or more items from a command line
     ///
+    /// Takes a string literal that will be used as an
+    /// error message if there's not enough parameters specified
+    ///
     /// ```rust
     /// # use bpaf::*;
     /// // parser will accept multiple `-n` arguments:
     /// // `-n 1, -n 2, -n 3`
     /// // and return all of them as a vector. At least one `-n` argument is required.
-    /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().some();
+    /// let n: Parser<Vec<u32>> = short('n').argument("NUM")
+    ///     .from_str::<u32>().some("You need to specify at least one number");
     /// # drop(n);
     /// ```
     #[must_use]
-    pub fn some(self) -> Parser<Vec<T>>
+    pub fn some(self, msg: &'static str) -> Parser<Vec<T>>
     where
         T: 'static,
     {
-        self.many().guard(|x| !x.is_empty(), "must not be empty")
+        self.many().guard(|x| !x.is_empty(), msg)
     }
 
     /// Turn a required parser into optional

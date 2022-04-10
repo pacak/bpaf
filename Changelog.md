@@ -1,5 +1,10 @@
 # Change Log
 
+## [0.4.0] - unreleased
+- derive macro
+- some takes an error message
+- support for or_else construct!([alt1, alt2, alt3])
+
 ## [0.3.2] - 2022-03-18
 - cargo_helper, hide + cosmetic bugfixes
 

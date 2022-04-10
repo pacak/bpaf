@@ -270,7 +270,7 @@ components behave similar to their Rust API counterparts
 - `parse` - takes a function name
 - `parse_str` - takes a type
 - `many` - takes no parameters
-- `some` - takes no parameters
+- `some` - takes a string literal
 - `option` - takes no parameters
 - `fallback` - takes an arbitrary expression
 - `fallback_with` - takes an arbitrary expression

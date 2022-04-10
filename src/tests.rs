@@ -783,3 +783,16 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn helpful_error_message() {
+    let a = positional("FOO").some("You need to specify at least one FOO");
+    let parser = Info::default().for_parser(a);
+
+    let err = parser
+        .clone()
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!("You need to specify at least one FOO", err);
+}
