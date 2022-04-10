@@ -15,7 +15,7 @@ bpaf_derive = { path = "./bpaf_derive", version = "0.1", optional = true }
 
 [dev-dependencies]
 strum = { version = "0.24", features = ["derive"] }
-bpaf = { path = ".", version = "0.4", features = ["derive"] }
+bpaf = { path = ".",  features = ["derive"] }
 
 
 [features]
