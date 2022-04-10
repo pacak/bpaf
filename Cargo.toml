@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.4.1"
+version = "0.4.2"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -19,7 +19,6 @@ bpaf = { path = ".",  features = ["derive"] }
 
 
 [package.metadata.docs.rs]
-# Features to pass to Cargo (default: [])
 features = ["bpaf_derive"]
 
 

@@ -464,7 +464,7 @@ fn subcommands() {
     let expected_help = "\
 This is global info
 
-Usage: COMMAND
+Usage: COMMAND ...
 
 Available options:
     -h, --help   Prints help information
@@ -589,7 +589,7 @@ mod git {
     fn no_command() {
         let parser = setup();
 
-        let expected_err = "Expected COMMAND, pass --help for usage information";
+        let expected_err = "Expected COMMAND ..., pass --help for usage information";
         assert_eq!(
             expected_err,
             parser
@@ -605,7 +605,7 @@ mod git {
         let expected_help = "\
 The stupid content tracker
 
-Usage: COMMAND
+Usage: COMMAND ...
 
 Available options:
     -h, --help   Prints help information

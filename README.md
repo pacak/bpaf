@@ -171,3 +171,8 @@ will be receiving `"super"` as its first argument. There's two ways to do thins:
 - use [`cargo_helper`]. Pros: supports both `cargo super ...` and `cargo run ...` variants, cons:
   if first parameter accepted happens to be a file named `"super"` `cargo_helper` might silently
   consume it when used in `cargo run ...` scenario.
+
+
+## Derive macros
+
+Derive macros are reexported with `derive` feature, disabled by default

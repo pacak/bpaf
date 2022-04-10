@@ -71,7 +71,7 @@ impl std::fmt::Display for Item {
                 (Some(s), _, Some(v)) => write!(f, "-{} {}", s, v),
             },
 
-            ItemKind::Command => write!(f, "COMMAND"),
+            ItemKind::Command => write!(f, "COMMAND ..."),
             ItemKind::Positional => match self.metavar {
                 Some(m) => write!(f, "<{}>", m),
                 None => write!(f, "<FILE>"),
