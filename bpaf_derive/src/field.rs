@@ -394,7 +394,10 @@ impl Shape {
             Shape::Bool => return false,
             Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => t,
         };
-        ty == &parse_quote!(PathBuf) || ty == &parse_quote!(OsString)
+        ty == &parse_quote!(PathBuf)
+            || ty == &parse_quote!(OsString)
+            || ty == &parse_quote!(std::path::PathBuf)
+            || ty == &parse_quote!(std::ffi::OsString)
     }
 }
 
@@ -564,7 +567,7 @@ impl FieldAttrs<StrictNameAttr> {
                 let attr = PostprAttr::Tokens(quote!(map(#inner_ty::from)));
                 self.postpr.insert(0, attr);
             } else if inner_ty != parse_quote!(String) {
-                let attr = PostprAttr::FromStr(Box::new(ty));
+                let attr = PostprAttr::FromStr(Box::new(inner_ty));
                 self.postpr.insert(0, attr);
             }
         }
@@ -872,10 +875,10 @@ mod tests {
     #[test]
     fn check_many_files_implicit() {
         let input: NamedField = parse_quote! {
-            files: Vec<PathBuf>
+            files: Vec<std::path::PathBuf>
         };
         let output = quote! {
-            ::bpaf::long("files").argument_os("ARG").map(PathBuf::from).many()
+            ::bpaf::long("files").argument_os("ARG").map(std::path::PathBuf::from).many()
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
@@ -994,6 +997,53 @@ mod tests {
         };
         let output = quote! {
             ::bpaf::positional("ARG")
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_named_pathed() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(long, short)]
+            pub config: Option<aws::Location>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .short('c')
+                .argument("ARG")
+                .from_str::<aws::Location>()
+                .optional()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_unnamed_pathed() {
+        let input: UnnamedField = parse_quote! {
+            #[bpaf(long("config"), short('c'))]
+            Option<aws::Location>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .short('c')
+                .argument("ARG")
+                .from_str::<aws::Location>()
+                .optional()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_argument_with_name() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(argument("N"))]
+            config: Option<u64>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .argument("N")
+                .from_str::<u64>()
+                .optional()
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
