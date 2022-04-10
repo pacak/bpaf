@@ -254,6 +254,7 @@ impl Meta {
         res
     }
 
+    #[must_use]
     pub fn decorate<M>(self, msg: M) -> Self
     where
         M: Into<String>,

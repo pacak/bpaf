@@ -439,6 +439,7 @@ impl<T> Parser<T> {
     /// let n = short('n').argument("NUM").from_str::<u32>().fallback(42);
     /// # drop(n)
     /// ```
+    #[must_use]
     pub fn fallback(self, val: T) -> Parser<T>
     where
         T: Clone + 'static,

@@ -14,7 +14,7 @@ bpaf = "0.3"
 
 Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser, use
 some of the member functions from [`Parser`] to apply further processing, combine parsers using
-[`or_else`][Parser::or_else] or [`construct!`], create a parser [`Info`], attach it to the parser
+[`construct!`] or [`or_else`][Parser::or_else], create a parser [`Info`], attach it to the parser
 with [`for_parser`][Info::for_parser] and execute with [`run`][OptionParser::run] to get the
 results out. As far as the rest of the application is concerned there's only one parameter. See
 [params] for starting points explanations.

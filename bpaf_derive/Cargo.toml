@@ -2,8 +2,13 @@
 name = "bpaf_derive"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+categories = ["command-line-interface"]
+description = "Derive macros for bpaf Command Line Argument Parser"
+keywords = ["args", "arguments", "cli", "parser", "parse"]
+authors = [ "Michael Baykov <manpacket@gmail.com>" ]
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/pacak/bpaf"
 
 [lib]
 name = "bpaf_derive"
