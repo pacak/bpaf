@@ -54,7 +54,7 @@ fn opts() -> Parser<MyOtherStruct> { /* ... */ }
 By default bpaf would generate a regular parser with `construct!` operation for `struct`
 and will combine branches from `enum` with `Parser::or_else`.
 
-`options` will will decorate the parser with `Info` to produce
+`options` will decorate the parser with `Info` to produce
 `OptionParser`. For implementing `cargo` commands it is possible to pass `options` an extra
 parameters, generated code would include `cargo_helper`.
 
@@ -121,7 +121,7 @@ fn foo() -> OptionParser<Foo> {
 ## `enum` constructor annotations: `ANN2`
 
 By default `bpaf` would generate regular construct parser, it is possible to override this
-behavior with `command` attrubute that behaves similar to `ANN1`.
+behavior with `command` attribute that behaves similar to `ANN1`.
 
 ## Field annotation: `ANN3`
 
@@ -134,7 +134,7 @@ Bpaf tries to fill in missing parts when it can. Derive API used tries to mimic 
 is important and user needs to ensure that generated code typechecks.
 
 ### External processing
-It is possible to delegate extraction and some of the processig to some external function.
+It is possible to delegate extraction and some of the processing to some external function.
 For named field if external name is not specified - field name is used.
 ```ignore
 #[bpaf(external(verbose))]
@@ -188,7 +188,7 @@ user to specify one of the options for parser to succeed. Only naming field anno
 annotations are accepted here.
 
 ```ignore
-#[derive(bpaf)]
+#[derive(Bpaf)]
 enum Potato {
     YesPlease,
     No
@@ -263,7 +263,7 @@ struct Foo {
 
 ## Postprocessing
 Operations from a list in first in first out order. anything other than `guard` and `fallback`
-requres explicit consumer, otherwise the only requirement is to typecheck. Most postprocessing
+requires explicit consumer, otherwise the only requirement is to typecheck. Most postprocessing
 components behave similar to their Rust API counterparts
 - `guard` - takes a function name and a string literal
 - `map` - takes a function name
