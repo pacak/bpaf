@@ -1,6 +1,10 @@
 # Change Log
 
-## [0.4.2] - 2022-04-10
+
+## bpaf_derive [0.1.1] - 2022-04-13
+- support for version and version(expr) annotations on a top level
+
+## bpaf [0.4.2] - 2022-04-10
 - derive macro
 - some takes an error message
 - support for or_else construct!([alt1, alt2, alt3])
