@@ -1,8 +1,9 @@
 # Change Log
 
 
-## bpaf_derive [0.1.1] - 2022-04-13
+## bpaf_derive [0.1.2] - 2022-04-13
 - support for version and version(expr) annotations on a top level
+- improve help generation from doc comments
 
 ## bpaf [0.4.2] - 2022-04-10
 - derive macro
