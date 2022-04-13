@@ -61,13 +61,19 @@ impl ToTokens for Decor {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         quote!(::bpaf::Info::default()).to_tokens(tokens);
         if let Some(descr) = &self.descr {
-            quote!(.descr(#descr)).to_tokens(tokens);
+            if !descr.is_empty() {
+                quote!(.descr(#descr)).to_tokens(tokens);
+            }
         }
         if let Some(header) = &self.header {
-            quote!(.header(#header)).to_tokens(tokens);
+            if !header.is_empty() {
+                quote!(.header(#header)).to_tokens(tokens);
+            }
         }
         if let Some(footer) = &self.footer {
-            quote!(.footer(#footer)).to_tokens(tokens);
+            if !footer.is_empty() {
+                quote!(.footer(#footer)).to_tokens(tokens);
+            }
         }
         if let Some(ver) = &self.version {
             quote!(.version(#ver)).to_tokens(tokens);
@@ -893,6 +899,37 @@ mod test {
                     #[allow(unused_imports)]
                     use bpaf::construct;
                     construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn help_generation() {
+        let top: Top = parse_quote! {
+            /// descr
+            ///   a
+            ///
+            ///
+            ///
+            ///
+            /// footer
+            ///  a
+            #[bpaf(options)]
+            struct Opt(PathBuf);
+        };
+
+        let expected = quote! {
+            fn opt() -> ::bpaf::OptionParser<Opt> {
+                {
+                    let inner_op = {
+                        let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                        #[allow(unused_imports)]
+                        use bpaf::construct;
+                        construct!(Opt(f0))
+                    };
+                    ::bpaf::Info::default().descr("descr\n  a").footer("footer\n a").for_parser(inner_op)
                 }
             }
         };

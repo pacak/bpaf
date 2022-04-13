@@ -343,8 +343,11 @@ pub struct Doc(pub String);
 impl Parse for Doc {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         input.parse::<Token![=]>()?;
-        let s = input.parse::<LitStr>()?.value();
-        Ok(Doc(s.trim_start().to_string()))
+        let mut s = input.parse::<LitStr>()?.value();
+        if let Some(rest) = s.strip_prefix(' ') {
+            s = rest.to_string();
+        }
+        Ok(Doc(s))
     }
 }
 
