@@ -19,7 +19,7 @@ with [`for_parser`][Info::for_parser] and execute with [`run`][OptionParser::run
 results out. As far as the rest of the application is concerned there's only one parameter. See
 [params] for starting points explanations.
 
-```rust
+```no_run
 use bpaf::*;
 
 #[derive(Clone, Debug)]
