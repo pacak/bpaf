@@ -54,7 +54,7 @@ struct Decor {
     descr: Option<String>,
     header: Option<String>,
     footer: Option<String>,
-    version: Option<Expr>,
+    version: Option<Box<Expr>>,
 }
 
 impl ToTokens for Decor {
@@ -114,6 +114,7 @@ enum OuterAttr {
     Construct,
     Generate(Ident),
     Command(Option<LitStr>),
+    Version(Option<Box<Expr>>),
 }
 
 #[derive(Clone, Debug)]
@@ -170,6 +171,16 @@ impl Parse for OuterAttr {
             } else {
                 Ok(Self::Command(None))
             }
+        } else if input.peek(kw::version) {
+            let _: kw::version = input.parse()?;
+            if input.peek(token::Paren) {
+                let content;
+                let _ = parenthesized!(content in input);
+                let expr = content.parse::<Expr>()?;
+                Ok(Self::Version(Some(Box::new(expr))))
+            } else {
+                Ok(Self::Version(None))
+            }
         } else {
             Err(input.error("Unexpected attribute"))
         }
@@ -218,6 +229,7 @@ impl Parse for Top {
 
         let outer_ty;
         let mut name = None;
+        let mut version = None;
 
         let kind;
 
@@ -230,6 +242,10 @@ impl Parse for Top {
                     OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
                     OuterAttr::Generate(n) => name = Some(n.clone()),
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
+                    OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
+                    OuterAttr::Version(None) => {
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                    }
                 }
             }
 
@@ -251,7 +267,7 @@ impl Parse for Top {
                     kind = ParserKind::BParser(inner);
                 }
                 OuterKind::Options(n) => {
-                    let decor = Decor::new(&help);
+                    let decor = Decor::new(&help, version.take());
                     let inner = match n {
                         Some(name) => BParser::CargoHelper(name, Box::new(inner)),
                         None => inner,
@@ -263,7 +279,7 @@ impl Parse for Top {
                     kind = ParserKind::OParser(oparser);
                 }
                 OuterKind::Command(maybe_command_name) => {
-                    let decor = Decor::new(&help);
+                    let decor = Decor::new(&help, version.take());
                     let oparser = OParser {
                         decor,
                         inner: Box::new(inner),
@@ -284,6 +300,10 @@ impl Parse for Top {
                     OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
                     OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
                     OuterAttr::Generate(n) => name = Some(n.clone()),
+                    OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
+                    OuterAttr::Version(None) => {
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                    }
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
                 }
             }
@@ -319,7 +339,7 @@ impl Parse for Top {
                                 let n = to_snake_case(&inner_ty.to_string());
                                 LitStr::new(&n, inner_ty.span())
                             });
-                            let decor = Decor::new(&help);
+                            let decor = Decor::new(&help, version.take());
                             let oparser = OParser {
                                 inner: Box::new(BParser::Constructor(constr, bra)),
                                 decor,
@@ -336,7 +356,7 @@ impl Parse for Top {
                         LitStr::new(&n, inner_ty.span())
                     });
 
-                    let decor = Decor::new(&help);
+                    let decor = Decor::new(&help, version.take());
                     let fields = Fields::NoFields;
                     let oparser = OParser {
                         inner: Box::new(BParser::Constructor(constr, fields)),
@@ -359,7 +379,7 @@ impl Parse for Top {
                     kind = ParserKind::BParser(inner);
                 }
                 OuterKind::Options(n) => {
-                    let decor = Decor::new(&help);
+                    let decor = Decor::new(&help, version.take());
                     let inner = match n {
                         Some(name) => BParser::CargoHelper(name, Box::new(inner)),
                         None => inner,
@@ -375,7 +395,7 @@ impl Parse for Top {
                         let n = to_snake_case(&outer_ty.to_string());
                         LitStr::new(&n, outer_ty.span())
                     });
-                    let decor = Decor::new(&help);
+                    let decor = Decor::new(&help, version.take());
                     let oparser = OParser {
                         inner: Box::new(inner),
                         decor,
@@ -551,13 +571,13 @@ impl Fields {
 }
 
 impl Decor {
-    fn new(help: &[String]) -> Self {
+    fn new(help: &[String], version: Option<Box<Expr>>) -> Self {
         let mut iter = LineIter::from(help);
         Decor {
             descr: iter.next(),
             header: iter.next(),
             footer: iter.next(),
-            version: None,
+            version,
         }
     }
 }
@@ -796,7 +816,7 @@ mod test {
     #[test]
     fn unnamed_enum() {
         let top: Top = parse_quote! {
-            #[bpaf(options)]
+            #[bpaf(options, version)]
             enum Opt1 {
                 Con1(PathBuf, usize)
             }
@@ -812,7 +832,7 @@ mod test {
                         use bpaf::construct;
                         construct!(Opt1::Con1(f0, f1))
                     };
-                    ::bpaf::Info::default().for_parser(inner_op)
+                    ::bpaf::Info::default().version(env!("CARGO_PKG_VERSION")).for_parser(inner_op)
                 }
             }
         };

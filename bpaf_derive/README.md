@@ -118,6 +118,38 @@ fn foo() -> OptionParser<Foo> {
 }
 ```
 
+## version
+
+For annotations that generate `OptionParser` you can also use `version` annotation which adds
+information about current version. Annotation takes an optional parameter - exact expression to
+use
+
+```ignore
+#[derive(Bpaf)]
+#[bpaf(options, version))]
+struct Options { field: usize }
+```
+
+generates
+
+```ignore
+fn options() -> OptionParser<Options> { Info::default().version(env!("CARGO_PKG_VERSION")).for_parser(/* */) }
+```
+
+
+```ignore
+#[derive(Bpaf)]
+#[bpaf(options, version("3.1415"))]
+struct Options { field: usize }
+```
+
+generates
+
+```ignore
+fn options() -> OptionParser<Options> { Info::default().version("3.1415").for_parser(/* */) }
+```
+
+
 ## `enum` constructor annotations: `ANN2`
 
 By default `bpaf` would generate regular construct parser, it is possible to override this

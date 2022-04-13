@@ -2,7 +2,7 @@ use bpaf::{short, Bpaf, Parser};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
+#[bpaf(options, version)]
 #[allow(dead_code)]
 struct Opts {
     /// Activate debug mode

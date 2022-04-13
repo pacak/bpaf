@@ -1,6 +1,7 @@
 use syn::custom_keyword;
 
 custom_keyword!(construct);
+custom_keyword!(version);
 custom_keyword!(generate);
 custom_keyword!(options);
 custom_keyword!(command);
