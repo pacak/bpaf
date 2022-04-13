@@ -102,7 +102,7 @@ let output: Parser<Output> = stdout.or_else(file);
 
 Library can handle alternatives and perform parsing and validation:
 
-```no_run
+```rust
 use bpaf::*;
 
 /// As far as the end user is concerned `speed` is a single argument that is always valid
