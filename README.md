@@ -142,7 +142,7 @@ Available options:
     -m, mph <SPEED>  speed in MPH
     -k, kph <SPEED>  speed in KPH
     -h, help         Prints help information
-    -v, version      Prints version information
+    -V, version      Prints version information
 
 Available commands:
     accel  command for acceleration
