@@ -515,7 +515,7 @@ impl Info {
 
         match self.version {
             Some(v) => help.or_else(
-                short('v')
+                short('V')
                     .long("version")
                     .help("Prints version information")
                     .req_flag(ExtraParams::Version(v)),
