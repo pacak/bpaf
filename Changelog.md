@@ -1,5 +1,7 @@
 # Change Log
 
+## bpaf [0.4.3]
+- version now uses -V instead of -v
 
 ## bpaf_derive [0.1.2] - 2022-04-13
 - support for version and version(expr) annotations on a top level
