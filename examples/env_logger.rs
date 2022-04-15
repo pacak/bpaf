@@ -11,8 +11,20 @@ pub enum LevelFilter {
     Trace,
 }
 
-fn main() {
-    let verbose = short('v')
+#[derive(Bpaf)]
+#[bpaf(options)]
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+struct Options {
+    #[bpaf(external)]
+    verbose: LevelFilter,
+    /// number of potatoes
+    #[bpaf(fallback(3))]
+    potato: usize,
+}
+
+fn verbose() -> Parser<LevelFilter> {
+    short('v')
         .help("Verbosity level, use multiple times for more verbosity")
         .req_flag(())
         .many()
@@ -21,10 +33,9 @@ fn main() {
             *[Off, Error, Warn, Info, Debug, Trace]
                 .get(v.len())
                 .unwrap_or(&Trace)
-        });
+        })
+}
 
-    // at this point once executed `verbose` will contain LevelFilter
-    let opts = Info::default().for_parser(verbose);
-
-    println!("{:?}", opts.run());
+fn main() {
+    println!("{:#?}", options().run());
 }
