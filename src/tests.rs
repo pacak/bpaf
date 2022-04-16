@@ -59,10 +59,10 @@ fn simple_two_optional_flags() {
     // no version information given - no version field generated
     let err = decorated
         .clone()
-        .run_inner(Args::from(&["-a", "-v"]))
+        .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("-v is not expected in this context", err);
+    assert_eq!("-V is not expected in this context", err);
 
     // flag can be given only once
     let err = decorated
@@ -101,10 +101,10 @@ fn simple_two_optional_flags_with_one_hidden() {
     // no version information given - no version field generated
     let err = decorated
         .clone()
-        .run_inner(Args::from(&["-a", "-v"]))
+        .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("-v is not expected in this context", err);
+    assert_eq!("-V is not expected in this context", err);
 
     // flag can be given only once
     let err = decorated
@@ -143,7 +143,7 @@ fn either_of_three_required_flags() {
     // version is specified - version help is present
     let ver = decorated
         .clone()
-        .run_inner(Args::from(&["-v"]))
+        .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("Version: 1.0", ver);
@@ -162,7 +162,7 @@ Available options:
     -b
     -c
     -h, --help      Prints help information
-    -v, --version   Prints version information
+    -V, --version   Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -189,7 +189,7 @@ fn either_of_three_required_flags2() {
     // version is specified - version help is present
     let ver = decorated
         .clone()
-        .run_inner(Args::from(&["-v"]))
+        .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("Version: 1.0", ver);
@@ -208,7 +208,7 @@ Available options:
     -b
     -c
     -h, --help      Prints help information
-    -v, --version   Prints version information
+    -V, --version   Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -235,7 +235,7 @@ fn either_of_two_required_flags_and_one_optional() {
     // version is specified - version help is present
     let ver = decorated
         .clone()
-        .run_inner(Args::from(&["-v"]))
+        .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("Version: 1.0", ver);
@@ -254,7 +254,7 @@ Available options:
     -b
     -c
     -h, --help      Prints help information
-    -v, --version   Prints version information
+    -V, --version   Prints version information
 ";
     assert_eq!(expected_help, help);
 
