@@ -827,3 +827,24 @@ fn help_with_default_parse() {
     let expected_help = "Add a new TODO item\n\nUsage: <ARG>\n\nAvailable options:\n    -h, --help   Prints help information\n";
     assert_eq!(help, expected_help);
 }*/
+
+#[test]
+fn optional_req_select() {
+    let a = short('a').req_flag(());
+    let b = short('b').req_flag(());
+    let ab = a.or_else(b).optional();
+    let parser = Info::default().for_parser(ab);
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help ="Usage: [(-a | -b)]\n\nAvailable options:\n    -a\n    -b\n    -h, --help   Prints help information\n";
+    assert_eq!(help, expected_help);
+}
+
+#[test]
+fn dash_is_positional() {
+    let a = positional("FILE");
+    let parser = Info::default().for_parser(a);
+    assert_eq!("-", parser.run_inner(Args::from(&["-"])).unwrap());
+}

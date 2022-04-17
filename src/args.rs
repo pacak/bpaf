@@ -172,6 +172,11 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
 
     if utf8 == "--" {
         *pos_only = true;
+    } else if utf8 == "-" {
+        vec.push(Arg::Word(Word {
+            utf8: Some(utf8.to_string()),
+            os,
+        }));
     } else if let Some(body) = utf8.strip_prefix("--") {
         if let Some((key, val)) = body.split_once('=') {
             vec.push(Arg::Long(key.to_owned()));
