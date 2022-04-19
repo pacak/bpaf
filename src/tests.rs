@@ -790,9 +790,30 @@ fn helpful_error_message() {
     let parser = Info::default().for_parser(a);
 
     let err = parser
-        .clone()
         .run_inner(Args::from(&[]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("You need to specify at least one FOO", err);
+}
+
+#[test]
+fn help_with_default_parse() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options)]
+    enum Action {
+        /// Add a new TODO item
+        #[bpaf(command)]
+        Add(String),
+
+        #[bpaf(default)]
+        NoAction,
+    }
+
+    let help = action()
+        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "Add a new TODO item\n\nUsage: <ARG>\n\nAvailable options:\n    -h, --help   Prints help information\n";
+    assert_eq!(help, expected_help);
 }

@@ -228,6 +228,8 @@ impl<T> Parser<T> {
             // So if program accepts only one of 3 flags: -a, -b and -c and all 3 are present
             // take the first one and reject the remaining ones.
             let (res, new_args) = match ((self.parse)(i.clone()), (other.parse)(i)) {
+                // side channel (--help) reporting takes priority
+                (e @ Err(Error::Stdout(_)), _) | (_, e @ Err(Error::Stdout(_))) => e,
                 (Ok((r1, a1)), Ok((r2, a2))) => {
                     if a1.head < a2.head {
                         Ok((r1, a1))
