@@ -345,7 +345,7 @@ impl Parse for Top {
                                 let n = to_snake_case(&inner_ty.to_string());
                                 LitStr::new(&n, inner_ty.span())
                             });
-                            let decor = Decor::new(&help, version.take());
+                            let decor = Decor::new(&help, None);
                             let oparser = OParser {
                                 inner: Box::new(BParser::Constructor(constr, bra)),
                                 decor,
@@ -362,7 +362,7 @@ impl Parse for Top {
                         LitStr::new(&n, inner_ty.span())
                     });
 
-                    let decor = Decor::new(&help, version.take());
+                    let decor = Decor::new(&help, None);
                     let fields = Fields::NoFields;
                     let oparser = OParser {
                         inner: Box::new(BParser::Constructor(constr, fields)),
@@ -930,6 +930,79 @@ mod test {
                         construct!(Opt(f0))
                     };
                     ::bpaf::Info::default().descr("descr\n  a").footer("footer\n a").for_parser(inner_op)
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn version_with_commands() {
+        let top: Top = parse_quote! {
+            #[bpaf(options, version)]
+            enum Action {
+                Alpha,
+                Beta,
+            }
+        };
+        let expected = quote! {
+            fn action() -> ::bpaf::OptionParser<Action> {
+                {
+                    let inner_op = {
+                        let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
+                        let alt1 = ::bpaf::long("beta").req_flag(Action::Beta);
+                        #[allow(unused_imports)]
+                        use bpaf::construct;
+                        construct!([alt0, alt1])
+                    };
+                    ::bpaf::Info::default()
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .for_parser(inner_op)
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn version_with_commands_with_cargo_helper() {
+        let top: Top = parse_quote! {
+            #[bpaf(options("subcargo"), version)]
+            enum Action {
+                #[bpaf(command)]
+                Alpha,
+                #[bpaf(command)]
+                Beta,
+            }
+        };
+
+        let expected = quote! {
+            fn action() -> ::bpaf::OptionParser<Action> {
+                {
+                    let inner_op = {
+                        ::bpaf::cargo_helper("subcargo", {
+                            let alt0 = {
+                                let inner_cmd = {
+                                    let inner_op = ::bpaf::Parser::pure(Action::Alpha);
+                                    ::bpaf::Info::default().for_parser(inner_op)
+                                };
+                                ::bpaf::command("alpha", None::<String>, inner_cmd)
+                            };
+                            let alt1 = {
+                                let inner_cmd = {
+                                    let inner_op = ::bpaf::Parser::pure(Action::Beta);
+                                    ::bpaf::Info::default().for_parser(inner_op)
+                                };
+                                ::bpaf::command("beta", None::<String>, inner_cmd)
+                            };
+                            #[allow(unused_imports)]
+                            use bpaf::construct;
+                            construct!([alt0, alt1])
+                        })
+                    };
+                    ::bpaf::Info::default()
+                        .version(env!("CARGO_PKG_VERSION"))
+                        .for_parser(inner_op)
                 }
             }
         };
