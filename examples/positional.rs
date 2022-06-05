@@ -19,5 +19,5 @@ fn main() {
 
     let opts = Info::default().for_parser(parser).run();
 
-    println!("{opts:#?}");
+    println!("{:#?}", opts);
 }

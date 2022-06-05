@@ -661,7 +661,7 @@ impl Info {
                     return Err(Error::Stdout(msg));
                 }
                 Ok((ExtraParams::Version(v), _)) => {
-                    return Err(Error::Stdout(format!("Version: {v}")));
+                    return Err(Error::Stdout(format!("Version: {}", v)));
                 }
                 Err(_) => {}
             }

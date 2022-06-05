@@ -29,5 +29,5 @@ fn opts() -> Opts {
 
 fn main() {
     let opts = opts();
-    println!("Options: {opts:?}");
+    println!("Options: {:?}", opts);
 }

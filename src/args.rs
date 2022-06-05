@@ -242,10 +242,10 @@ impl Args {
             Some((ix, Arg::Word(w))) => (ix, w),
             Some((_ix, flag)) => {
                 return Err(Error::Stderr(format!(
-                    "{arg} requires an argument, got flag {flag}"
+                    "{} requires an argument, got flag {}", arg, flag
                 )))
             }
-            _ => return Err(Error::Stderr(format!("{arg} requires an argument"))),
+            _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };
         let val = val.clone();
         self.current = Some(val.clone());
@@ -266,7 +266,7 @@ impl Args {
                 self.remove(ix);
                 Ok(Some(w))
             }
-            Some((_, arg)) => Err(Error::Stderr(format!("Expected an argument, got {arg}"))),
+            Some((_, arg)) => Err(Error::Stderr(format!("Expected an argument, got {}", arg))),
             None => Ok(None),
         }
     }
