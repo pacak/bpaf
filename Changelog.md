@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.4.4] - 2022-06-04
+- lower minimum supported rustc version to 1.56
+
 ## bpaf_derive [0.1.3] - 2022-04-25
 - deriving for version should be working now
 
