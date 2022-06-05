@@ -135,7 +135,7 @@ impl FieldParser {
         let name = &self.name;
         match name {
             Some(name) => name.clone(),
-            None => Ident::new(&format!("f{ix}"), Span::call_site()),
+            None => Ident::new(&format!("f{}", ix), Span::call_site()),
         }
     }
 }
@@ -171,7 +171,7 @@ impl<T: Parse> Parse for FieldAttrs<T> {
             comma(input)?;
         }
         if !input.is_empty() {
-            return Err(input.error(format!("Can't parse remaining attributes: {input}")));
+            return Err(input.error(format!("Can't parse remaining attributes: {}", input)));
         }
 
         Ok(FieldAttrs {

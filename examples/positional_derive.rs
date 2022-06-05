@@ -14,5 +14,5 @@ struct Options {
 
 fn main() {
     let opts = options().run();
-    println!("{opts:#?}");
+    println!("{:#?}", opts);
 }

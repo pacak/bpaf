@@ -138,7 +138,7 @@ impl std::fmt::Display for Focus {
             Focus::Test(t) => write!(f, "--test {}", t),
             Focus::Bench(b) => write!(f, "--bench {}", b),
             Focus::Example(e) => write!(f, "--example {}", e),
-            Focus::Bin(b) => write!(f, "--bin {b}"),
+            Focus::Bin(b) => write!(f, "--bin {}", b),
         }
     }
 }

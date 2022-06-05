@@ -11,5 +11,5 @@ This will transform everything after '--' into non flags, '--age' will handle '-
 and positional handlers will be able to handle the rest.
     --age -- -1";
     let num = Info::default().descr(msg).for_parser(age).run();
-    println!("age: {num}");
+    println!("age: {}", num);
 }

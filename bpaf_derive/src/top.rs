@@ -498,7 +498,7 @@ impl ToTokens for BParser {
                 if xs.len() == 1 {
                     xs[0].to_tokens(tokens);
                 } else {
-                    let mk = |i| Ident::new(&format!("alt{i}"), Span::call_site());
+                    let mk = |i| Ident::new(&format!("alt{}", i), Span::call_site());
                     let names = xs.iter().enumerate().map(|(ix, _)| mk(ix));
                     let parse_decls = xs.iter().enumerate().map(|(ix, parser)| {
                         let name = mk(ix);
