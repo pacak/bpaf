@@ -242,7 +242,8 @@ impl Args {
             Some((ix, Arg::Word(w))) => (ix, w),
             Some((_ix, flag)) => {
                 return Err(Error::Stderr(format!(
-                    "{} requires an argument, got flag {}", arg, flag
+                    "{} requires an argument, got flag {}",
+                    arg, flag
                 )))
             }
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
