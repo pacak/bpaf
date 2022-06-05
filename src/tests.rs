@@ -796,6 +796,7 @@ fn helpful_error_message() {
     assert_eq!("You need to specify at least one FOO", err);
 }
 
+/*
 #[test]
 fn help_with_default_parse() {
     #[derive(Debug, Clone, Bpaf)]
@@ -816,4 +817,4 @@ fn help_with_default_parse() {
 
     let expected_help = "Add a new TODO item\n\nUsage: <ARG>\n\nAvailable options:\n    -h, --help   Prints help information\n";
     assert_eq!(help, expected_help);
-}
+}*/
