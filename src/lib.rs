@@ -83,40 +83,40 @@ pub use bpaf_derive::Bpaf;
 #[macro_export]
 macro_rules! construct {
     // construct!(Cons { a, b, c })
-    ($con:ident { $($tokens:tt)* }) => {{ construct!(@prepare [named [$con]] [] $($tokens)*) }};
+    ($con:ident { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$con]] [] $($tokens)*) }};
     // construct!(Cons ( a, b, c ))
-    ($con:ident ( $($tokens:tt)* )) => {{ construct!(@prepare [pos [$con]] [] $($tokens)*) }};
+    ($con:ident ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$con]] [] $($tokens)*) }};
     // construct!(Enum::Cons { a, b, c })
-    ($ns:ident :: $con:ident { $($tokens:tt)* }) => {{ construct!(@prepare [named [$ns $con]] [] $($tokens)*) }};
+    ($ns:ident :: $con:ident { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $con]] [] $($tokens)*) }};
     // construct!(Enum::Cons ( a, b, c ))
-    ($ns:ident :: $con:ident ( $($tokens:tt)* )) => {{ construct!(@prepare [pos [$ns $con]] [] $($tokens)*) }};
+    ($ns:ident :: $con:ident ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $con]] [] $($tokens)*) }};
     // construct!( a, b, c )
-    ($first:ident $($tokens:tt)*) => {{ construct!(@prepare [pos] [] $first $($tokens)*) }};
+    ($first:ident $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
     // construct![a, b, c]
-    ([$first:ident $($tokens:tt)*]) => {{ construct!(@prepare [alt] [] $first $($tokens)*) }};
+    ([$first:ident $($tokens:tt)*]) => {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
 
     (@prepare $ty:tt [$($fields:tt)*] $field:ident (), $($rest:tt)*) => {{
         let $field = $field();
-        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
     (@prepare $ty:tt [$($fields:tt)*] $field:ident () $($rest:tt)*) => {{
         let $field = $field();
-        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
     (@prepare $ty:tt [$($fields:tt)*] $field:ident, $($rest:tt)*) => {{
-        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
     (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
-        construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
     (@prepare [alt] [$first:ident $($fields:ident)*]) => { $first $(.or_else($fields))*  };
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         $crate::Parser {
             parse: ::std::rc::Rc::new(move |args| {
                 $(let ($fields , args) = ($fields . parse)(args)?;)*
-                Ok((construct!(@make $ty [$($fields)*]), args))
+                ::std::result::Result::Ok(($crate::construct!(@make $ty [$($fields)*]), args))
             }),
-            meta: $crate::Meta::And(vec![ $($fields.meta),* ])
+            meta: $crate::Meta::And(::std::vec![ $($fields.meta),* ])
         }
     }};
 
