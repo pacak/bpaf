@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.4.5] - 2022-06-26
+- use $crate:: inside construct to allow using it without importing
+
 ## bpaf [0.4.4] - 2022-06-04
 - lower minimum supported rustc version to 1.56
 
