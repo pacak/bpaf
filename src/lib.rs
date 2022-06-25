@@ -80,7 +80,7 @@ pub use bpaf_derive::Bpaf;
 /// ```ignore
 /// construct!([a, b, c])
 /// ```
-#[macro_export]
+#[macro_export(local_inner_macros)]
 macro_rules! construct {
     // construct!(Cons { a, b, c })
     ($con:ident { $($tokens:tt)* }) => {{ construct!(@prepare [named [$con]] [] $($tokens)*) }};
@@ -114,9 +114,9 @@ macro_rules! construct {
         $crate::Parser {
             parse: ::std::rc::Rc::new(move |args| {
                 $(let ($fields , args) = ($fields . parse)(args)?;)*
-                Ok((construct!(@make $ty [$($fields)*]), args))
+                ::std::result::Result::Ok((construct!(@make $ty [$($fields)*]), args))
             }),
-            meta: $crate::Meta::And(vec![ $($fields.meta),* ])
+            meta: $crate::Meta::And(::std::vec![ $($fields.meta),* ])
         }
     }};
 
