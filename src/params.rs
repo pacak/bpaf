@@ -65,6 +65,7 @@ use crate::{
 pub struct Named {
     short: Vec<char>,
     long: Vec<&'static str>,
+    env: Vec<&'static str>,
     help: Option<String>,
 }
 
@@ -87,6 +88,7 @@ pub struct Named {
 pub fn short(short: char) -> Named {
     Named {
         short: vec![short],
+        env: Vec::new(),
         long: Vec::new(),
         help: None,
     }
@@ -112,7 +114,17 @@ pub fn long(long: &'static str) -> Named {
     Named {
         short: Vec::new(),
         long: vec![long],
+        env: Vec::new(),
         help: None,
+    }
+}
+
+pub fn env(variable: &'static str) -> Named {
+    Named {
+        short: Vec::new(),
+        long: Vec::new(),
+        help: None,
+        env: vec![variable],
     }
 }
 
@@ -156,6 +168,11 @@ impl Named {
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
+        self
+    }
+
+    pub fn env(mut self, variable: &'static str) -> Self {
+        self.env.push(variable);
         self
     }
 
@@ -382,6 +399,7 @@ where
     let meta = Meta::from(Item {
         short: None,
         long: Some(name),
+        env: None,
         metavar: None,
         help: help.map(Into::into),
         kind: ItemKind::Command,
@@ -413,6 +431,7 @@ where
         short: named.short.first().copied(),
         long: named.long.first().copied(),
         metavar: None,
+        env: named.env.first().copied(),
         help: named.help,
         kind: ItemKind::Flag,
     };
@@ -427,6 +446,8 @@ where
 
     let parse = move |mut args: Args| {
         if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long)) {
+            Ok((present.clone(), args))
+        } else if let Some(_) = named.env.iter().flat_map(std::env::var_os).next() {
             Ok((present.clone(), args))
         } else {
             Ok((
@@ -446,6 +467,7 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
         kind: ItemKind::Flag,
         short: named.short.first().copied(),
         long: named.long.first().copied(),
+        env: named.env.first().copied(),
         metavar: Some(metavar),
         help: named.help,
     };
@@ -455,6 +477,8 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
         #[allow(clippy::option_if_let_else)]
         if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &named.short, &named.long))? {
             Ok((w, args))
+        } else if let Some(val) = named.env.iter().flat_map(std::env::var_os).next() {
+            Ok((Word::from(val), args))
         } else {
             Err(Error::Missing(vec![meta2.clone()]))
         }
@@ -470,6 +494,7 @@ fn build_positional(metavar: &'static str) -> Parser<Word> {
     let item = Item {
         short: None,
         long: None,
+        env: None,
         metavar: Some(metavar),
         help: None,
         kind: ItemKind::Positional,
@@ -494,6 +519,7 @@ where
     let item = Item {
         short: None,
         long: None,
+        env: None,
         metavar: Some(metavar),
         help: None,
         kind: ItemKind::Positional,
