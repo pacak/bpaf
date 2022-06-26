@@ -193,7 +193,7 @@ impl Named {
     /// ```
     #[must_use]
     pub fn switch(self) -> Parser<bool> {
-        build_flag_parser(true, Some(false), self.short, self.long, self.help)
+        build_flag_parser(true, Some(false), self)
     }
 
     /// Flag with custom present/absent values
@@ -218,7 +218,7 @@ impl Named {
     where
         T: Clone + 'static,
     {
-        build_flag_parser(present, Some(absent), self.short, self.long, self.help)
+        build_flag_parser(present, Some(absent), self)
     }
 
     /// Required flag with custom value
@@ -253,7 +253,7 @@ impl Named {
     where
         T: Clone + 'static,
     {
-        build_flag_parser(present, None, self.short, self.long, self.help)
+        build_flag_parser(present, None, self)
     }
 
     /// Named argument that can be encoded as String
@@ -269,8 +269,7 @@ impl Named {
     /// ```
     #[must_use]
     pub fn argument(self, metavar: &'static str) -> Parser<String> {
-        build_argument(self.short, self.long, self.help, metavar)
-            .parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
+        build_argument(self, metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
 
     /// Named argument in OS specific encoding
@@ -286,7 +285,7 @@ impl Named {
     /// ```
     #[must_use]
     pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
-        build_argument(self.short, self.long, self.help, metavar).map(|x| x.os)
+        build_argument(self, metavar).map(|x| x.os)
     }
 }
 
@@ -406,21 +405,15 @@ fn short_or_long_flag(arg: &Arg, shorts: &[char], longs: &[&str]) -> bool {
     shorts.iter().any(|&c| arg.is_short(c)) || longs.iter().any(|s| arg.is_long(s))
 }
 
-fn build_flag_parser<T>(
-    present: T,
-    absent: Option<T>,
-    shorts: Vec<char>,
-    longs: Vec<&'static str>,
-    help: Option<String>,
-) -> Parser<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Parser<T>
 where
     T: Clone + 'static,
 {
     let item = Item {
-        short: shorts.first().copied(),
-        long: longs.first().copied(),
+        short: named.short.first().copied(),
+        long: named.long.first().copied(),
         metavar: None,
-        help,
+        help: named.help,
         kind: ItemKind::Flag,
     };
     let required = absent.is_none();
@@ -433,7 +426,7 @@ where
     };
 
     let parse = move |mut args: Args| {
-        if args.take_flag(|arg| short_or_long_flag(arg, &shorts, &longs)) {
+        if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long)) {
             Ok((present.clone(), args))
         } else {
             Ok((
@@ -448,24 +441,19 @@ where
     }
 }
 
-fn build_argument(
-    shorts: Vec<char>,
-    longs: Vec<&'static str>,
-    help: Option<String>,
-    metavar: &'static str,
-) -> Parser<Word> {
+fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
     let item = Item {
         kind: ItemKind::Flag,
-        short: shorts.first().copied(),
-        long: longs.first().copied(),
+        short: named.short.first().copied(),
+        long: named.long.first().copied(),
         metavar: Some(metavar),
-        help,
+        help: named.help,
     };
     let meta = item.required(true);
     let meta2 = meta.clone();
     let parse = move |mut args: Args| {
         #[allow(clippy::option_if_let_else)]
-        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &shorts, &longs))? {
+        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &named.short, &named.long))? {
             Ok((w, args))
         } else {
             Err(Error::Missing(vec![meta2.clone()]))
