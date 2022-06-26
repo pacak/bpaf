@@ -139,6 +139,15 @@ impl Item {
             ItemKind::Command | ItemKind::Positional => false,
         }
     }
+
+    #[doc(hidden)]
+    #[must_use]
+    pub const fn is_positional(&self) -> bool {
+        match self.kind {
+            ItemKind::Positional => true,
+            ItemKind::Command | ItemKind::Flag | ItemKind::Decor => false,
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -251,6 +260,12 @@ impl Meta {
     pub fn flags(&self) -> Vec<Item> {
         let mut res = Vec::new();
         self.collect_items(&mut res, Item::is_flag);
+        res
+    }
+
+    pub fn positionals(&self) -> Vec<Item> {
+        let mut res = Vec::new();
+        self.collect_items(&mut res, Item::is_positional);
         res
     }
 
@@ -542,12 +557,44 @@ impl Info {
             write!(res, "\n{}\n", t)?;
         }
         let meta = Meta::and(parser_meta, help_meta);
-        let flags = &meta.flags();
+        //        Info::render_help_pos(&mut res, &meta.positionals())?;
+        Info::render_help_options(&mut res, &meta.flags())?;
+        Info::render_help_commands(&mut res, &meta.commands())?;
 
-        let max_name_width = flags.iter().map(Item::name_len).max().unwrap_or(0);
-        if !flags.is_empty() {
-            write!(res, "\nAvailable options:\n")?;
+        if let Some(t) = self.footer {
+            write!(res, "\n{}\n", t)?;
         }
+        Ok(res)
+    }
+
+    /*
+    fn render_help_pos(res: &mut String, pos: &[Item]) -> std::fmt::Result {
+        use std::fmt::Write;
+        if pos.is_empty() {
+            return Ok(());
+        }
+        write!(res, "\nAvailable positional arguments:\n")?;
+        /*
+        let max_meta_width = pos
+            .iter()
+            .map(|i| i.metavar.map_or(0, |v| v.len()))
+            .max()
+            .unwrap_or(0);
+        for i in pos {
+            let metavar = i.metavar.unwrap_or("ARG");
+        }*/
+        todo!("{:?}", pos);
+        Ok(())
+    }*/
+
+    fn render_help_options(res: &mut String, flags: &[Item]) -> std::fmt::Result {
+        use std::fmt::Write;
+
+        if flags.is_empty() {
+            return Ok(());
+        }
+        write!(res, "\nAvailable options:\n")?;
+        let max_name_width = flags.iter().map(Item::name_len).max().unwrap_or(0);
         for i in flags {
             match i.short {
                 Some(c) => write!(res, "    -{}", c)?,
@@ -592,11 +639,15 @@ impl Info {
                 }
             }
         }
+        Ok(())
+    }
 
-        let commands = &meta.commands();
-        if !commands.is_empty() {
-            write!(res, "\nAvailable commands:\n")?;
+    fn render_help_commands(res: &mut String, commands: &[Item]) -> std::fmt::Result {
+        use std::fmt::Write;
+        if commands.is_empty() {
+            return Ok(());
         }
+        write!(res, "\nAvailable commands:\n")?;
         let max_command_width = commands
             .iter()
             .map(|i| i.long.map_or(0, str::len))
@@ -619,11 +670,7 @@ impl Info {
                 }
             }
         }
-
-        if let Some(t) = self.footer {
-            write!(res, "\n{}\n", t)?;
-        }
-        Ok(res)
+        Ok(())
     }
 
     /// Attach additional information to the parser
