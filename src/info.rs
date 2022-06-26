@@ -597,7 +597,7 @@ impl Info {
                 let val = match std::env::var(e) {
                     Ok(val) => format!(" = {:?}", val),
                     Err(std::env::VarError::NotPresent) => ": N/A".to_string(),
-                    Err(std::env::VarError::NotUnicode(_)) => ": Not utf8".to_string(),
+                    Err(std::env::VarError::NotUnicode(_)) => ": current value is utf8".to_string(),
                 };
                 write!(
                     res,
@@ -620,11 +620,12 @@ impl Info {
             .max()
             .unwrap_or(0);
         for c in commands {
-            if let Some(l) = c.long {
-                write!(res, "    {:indent$}", l, indent = max_command_width)?;
-            } else {
-                write!(res, "    {:indent$}", "", indent = max_command_width)?;
-            }
+            write!(
+                res,
+                "    {:indent$}",
+                c.long.unwrap_or(""),
+                indent = max_command_width
+            )?;
             match &c.help {
                 Some(help) => {
                     write!(res, "  {}\n", help)?;
