@@ -82,16 +82,15 @@ pub use bpaf_derive::Bpaf;
 /// ```
 #[macro_export]
 macro_rules! construct {
-    // construct!(Cons { a, b, c })
-    ($con:ident { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$con]] [] $($tokens)*) }};
-    // construct!(Cons ( a, b, c ))
-    ($con:ident ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$con]] [] $($tokens)*) }};
     // construct!(Enum::Cons { a, b, c })
-    ($ns:ident :: $con:ident { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $con]] [] $($tokens)*) }};
+    ($ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
     // construct!(Enum::Cons ( a, b, c ))
-    ($ns:ident :: $con:ident ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $con]] [] $($tokens)*) }};
+    ($ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
+
     // construct!( a, b, c )
-    ($first:ident $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
+    ($first:ident , $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first , $($tokens)*) }};
+    ($first:ident (), $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first (), $($tokens)*) }};
+
     // construct![a, b, c]
     ([$first:ident $($tokens:tt)*]) => {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
 
@@ -120,10 +119,8 @@ macro_rules! construct {
         }
     }};
 
-    (@make [named [$con:ident]] [$($fields:ident)*]) => { $con { $($fields),* } };
-    (@make [pos [$con:ident]] [$($fields:ident)*]) => { $con ( $($fields),* ) };
-    (@make [named [$ns:ident $con:ident]] [$($fields:ident)*]) => { $ns :: $con { $($fields),* } };
-    (@make [pos [$ns:ident $con:ident]] [$($fields:ident)*]) => { $ns :: $con ( $($fields),* ) };
+    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
+    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields),* ) };
     (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
 }
 

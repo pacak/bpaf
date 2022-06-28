@@ -785,6 +785,15 @@ Available options:
 }
 
 #[test]
+fn long_path_in_construct() {
+    let a = short('a').switch();
+    let _ = construct!(std::option::Option::Some(a));
+
+    let b = short('b').switch();
+    let _ = construct!(std::option::Option::Some(b));
+}
+
+#[test]
 fn helpful_error_message() {
     let a = positional("FOO").some("You need to specify at least one FOO");
     let parser = Info::default().for_parser(a);
