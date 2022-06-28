@@ -84,8 +84,10 @@ pub use bpaf_derive::Bpaf;
 macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
     ($ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
+    (:: $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [:: $ns $(:: $con)*]] [] $($tokens)*) }};
     // construct!(Enum::Cons ( a, b, c ))
     ($ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
+    (:: $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [:: $ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!( a, b, c )
     ($first:ident , $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first , $($tokens)*) }};

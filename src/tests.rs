@@ -790,7 +790,7 @@ fn long_path_in_construct() {
     let _ = construct!(std::option::Option::Some(a));
 
     let b = short('b').switch();
-    let _ = construct!(std::option::Option::Some(b));
+    let _ = construct!(::std::option::Option::Some(b));
 }
 
 #[test]
