@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.4.6] - 2022-06-28
+- support arbitrary long paths in construct! macro
+
 ## bpaf [0.4.5] - 2022-06-26
 - use $crate:: inside construct to allow using it without importing
 
