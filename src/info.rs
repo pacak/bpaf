@@ -654,11 +654,12 @@ impl Info {
             .max()
             .unwrap_or(0);
         for c in commands {
-            if let Some(l) = c.long {
-                write!(res, "    {:indent$}", l, indent = max_command_width)?;
-            } else {
-                write!(res, "    {:indent$}", "", indent = max_command_width)?;
-            }
+            write!(
+                res,
+                "    {:indent$}",
+                c.long.unwrap_or(""),
+                indent = max_command_width
+            )?;
             match &c.help {
                 Some(help) => {
                     write!(res, "  {}\n", help)?;
