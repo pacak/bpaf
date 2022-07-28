@@ -141,7 +141,7 @@ impl Named {
     /// Add a long name to a flag/switch/argument
     ///
     /// You can specify it multiple times, items past the first one will become
-    /// a hidden aliases.
+    /// hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
