@@ -65,6 +65,7 @@ use crate::{
 pub struct Named {
     short: Vec<char>,
     long: Vec<&'static str>,
+    env: Vec<&'static str>,
     help: Option<String>,
 }
 
@@ -87,6 +88,7 @@ pub struct Named {
 pub fn short(short: char) -> Named {
     Named {
         short: vec![short],
+        env: Vec::new(),
         long: Vec::new(),
         help: None,
     }
@@ -112,7 +114,34 @@ pub fn long(long: &'static str) -> Named {
     Named {
         short: Vec::new(),
         long: vec![long],
+        env: Vec::new(),
         help: None,
+    }
+}
+
+/// Environment variable fallback
+///
+/// If named value is not present - try to fallback to this environment variable.
+/// You can specify it multiple times, items past the first one will become hidden aliases.
+///
+/// You must specify either short or long key if you start the chain from `env`.
+///
+/// ```rust
+/// # use bpaf::*;
+/// let key = short('k')
+///            .long("key")
+///            .env("API_KEY")
+///            .help("Use this API key to access the API")
+///            .argument("KEY");
+/// # drop(key)
+/// ```
+#[must_use]
+pub fn env(variable: &'static str) -> Named {
+    Named {
+        short: Vec::new(),
+        long: Vec::new(),
+        help: None,
+        env: vec![variable],
     }
 }
 
@@ -156,6 +185,26 @@ impl Named {
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
+        self
+    }
+
+    /// Environment variable fallback
+    ///
+    /// If named value is not present - try to fallback to this environment variable.
+    /// You can specify it multiple times, items past the first one will become hidden aliases.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let key = short('k')
+    ///            .long("key")
+    ///            .env("API_KEY")
+    ///            .help("Use this API key to access the API")
+    ///            .argument("KEY");
+    /// # drop(key)
+    /// ```
+    #[must_use]
+    pub fn env(mut self, variable: &'static str) -> Self {
+        self.env.push(variable);
         self
     }
 
@@ -382,6 +431,7 @@ where
     let meta = Meta::from(Item {
         short: None,
         long: Some(name),
+        env: None,
         metavar: None,
         help: help.map(Into::into),
         kind: ItemKind::Command,
@@ -409,10 +459,18 @@ fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Parser<T
 where
     T: Clone + 'static,
 {
+    if !named.env.is_empty() {
+        // mostly cosmetic reasons
+        assert!(
+            !(named.short.is_empty() && named.long.is_empty()),
+            "env fallback can only be used if name is present"
+        );
+    }
     let item = Item {
         short: named.short.first().copied(),
         long: named.long.first().copied(),
         metavar: None,
+        env: named.env.first().copied(),
         help: named.help,
         kind: ItemKind::Flag,
     };
@@ -426,7 +484,9 @@ where
     };
 
     let parse = move |mut args: Args| {
-        if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long)) {
+        if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long))
+            || named.env.iter().find_map(std::env::var_os).is_some()
+        {
             Ok((present.clone(), args))
         } else {
             Ok((
@@ -442,10 +502,18 @@ where
 }
 
 fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
+    if !named.env.is_empty() {
+        // mostly cosmetic reasons
+        assert!(
+            !(named.short.is_empty() && named.long.is_empty()),
+            "env fallback can only be used if name is present"
+        );
+    }
     let item = Item {
         kind: ItemKind::Flag,
         short: named.short.first().copied(),
         long: named.long.first().copied(),
+        env: named.env.first().copied(),
         metavar: Some(metavar),
         help: named.help,
     };
@@ -455,6 +523,8 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
         #[allow(clippy::option_if_let_else)]
         if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &named.short, &named.long))? {
             Ok((w, args))
+        } else if let Some(val) = named.env.iter().find_map(std::env::var_os) {
+            Ok((Word::from(val), args))
         } else {
             Err(Error::Missing(vec![meta2.clone()]))
         }
@@ -470,6 +540,7 @@ fn build_positional(metavar: &'static str) -> Parser<Word> {
     let item = Item {
         short: None,
         long: None,
+        env: None,
         metavar: Some(metavar),
         help: None,
         kind: ItemKind::Positional,
@@ -494,6 +565,7 @@ where
     let item = Item {
         short: None,
         long: None,
+        env: None,
         metavar: Some(metavar),
         help: None,
         kind: ItemKind::Positional,

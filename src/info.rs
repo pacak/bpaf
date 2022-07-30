@@ -56,6 +56,7 @@ pub struct Item {
     pub short: Option<char>,
     pub long: Option<&'static str>,
     pub metavar: Option<&'static str>,
+    pub env: Option<&'static str>,
     pub help: Option<String>,
     pub kind: ItemKind,
 }
@@ -117,6 +118,7 @@ impl Item {
             short: None,
             long: None,
             metavar: None,
+            env: None,
             help: help.map(Into::into),
             kind: ItemKind::Decor,
         }
@@ -637,6 +639,23 @@ impl Info {
                     res.truncate(res.trim_end_matches(' ').len());
                     write!(res, "\n")?;
                 }
+            }
+            if let Some(e) = i.env {
+                let val = match std::env::var(e) {
+                    Ok(val) => format!(" = {:?}", val),
+                    Err(std::env::VarError::NotPresent) => ": N/A".to_string(),
+                    Err(std::env::VarError::NotUnicode(_)) => {
+                        ": current value is not utf8".to_string()
+                    }
+                };
+                write!(
+                    res,
+                    "{:ident$}[env:{}{}]\n",
+                    "",
+                    e,
+                    val,
+                    ident = max_name_width + 10
+                )?;
             }
         }
         Ok(())

@@ -8,6 +8,15 @@ pub struct Word {
     pub os: OsString,
 }
 
+impl From<OsString> for Word {
+    fn from(os: OsString) -> Self {
+        Self {
+            utf8: os.to_str().map(str::to_owned),
+            os,
+        }
+    }
+}
+
 /// Hides [`Args`] internal implementation
 mod inner {
     use std::{

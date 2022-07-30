@@ -805,6 +805,56 @@ fn helpful_error_message() {
     assert_eq!("You need to specify at least one FOO", err);
 }
 
+#[test]
+fn env_variable() {
+    let name = "BPAF_SECRET_API_KEY";
+    let key = long("key")
+        .env(name)
+        .help("use this secret key")
+        .argument("KEY");
+    let parser = Info::default().for_parser(key);
+
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: --key KEY
+
+Available options:
+        --key <KEY>  use this secret key
+                     [env:BPAF_SECRET_API_KEY: N/A]
+    -h, --help       Prints help information
+";
+    assert_eq!(expected_help, help);
+    std::env::set_var(name, "top s3cr3t");
+
+    let help = parser
+        .clone()
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: --key KEY
+
+Available options:
+        --key <KEY>  use this secret key
+                     [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
+    -h, --help       Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    let res = parser
+        .clone()
+        .run_inner(Args::from(&["--key", "secret"]))
+        .unwrap();
+    assert_eq!(res, "secret");
+
+    let res = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(res, "top s3cr3t");
+}
+
 /*
 #[test]
 fn help_with_default_parse() {
