@@ -451,7 +451,7 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| match (self.parse)(i.clone()) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_)) => e,
+            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(_) => Ok((val.clone(), i)),
         };
         Parser {
@@ -478,7 +478,7 @@ impl<T> Parser<T> {
     {
         let parse = move |i: Args| match (self.parse)(i.clone()) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_)) => e,
+            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(_) => match val() {
                 Ok(ok) => Ok((ok, i)),
                 Err(e) => Err(Error::Stderr(e.to_string())),

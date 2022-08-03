@@ -898,3 +898,64 @@ fn dash_is_positional() {
     let parser = Info::default().for_parser(a);
     assert_eq!("-", parser.run_inner(Args::from(&["-"])).unwrap());
 }
+
+#[test]
+fn default_plays_nicely_with_command() {
+    #[derive(Debug, Clone)]
+    enum Foo {
+        Foo,
+        Bar,
+    }
+    impl Default for Foo {
+        fn default() -> Self {
+            Foo::Bar
+        }
+    }
+
+    let cmd = command(
+        "foo",
+        Some("foo"),
+        Info::default()
+            .descr("inner")
+            .for_parser(Parser::pure(Foo::Foo)),
+    )
+    .default();
+
+    let parser = Info::default().descr("outer").for_parser(cmd);
+
+    let actual_help = parser
+        .clone()
+        .run_inner(Args::from(&["foo", "--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+inner
+
+Usage:
+
+Available options:
+    -h, --help   Prints help information
+";
+
+    assert_eq!(expected_help, actual_help);
+
+    let actual_help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+outer
+
+Usage: [COMMAND ...]
+
+Available options:
+    -h, --help   Prints help information
+
+Available commands:
+    foo  foo
+";
+
+    assert_eq!(expected_help, actual_help);
+}
