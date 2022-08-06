@@ -31,6 +31,23 @@ enum Foo {
 
 ## `struct`/`enum` annotations: `ANN1`
 
+### private
+By default bpaf gives the same visibility for generated functions as for the data type itself,
+`private` makes it module private:
+
+```ignore
+#[derive(Bpaf)]
+#[bpaf(private)]
+pub struct Options {
+  field: usize
+}
+```
+generates
+```ignore
+fn options() -> Parser<Options> { /* ... */ }
+```
+
+
 ### generate
 By default bpaf would generate a function with a name derived from type name, `generate` allows to change this:
 ```ignore

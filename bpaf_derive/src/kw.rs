@@ -5,6 +5,7 @@ custom_keyword!(version);
 custom_keyword!(generate);
 custom_keyword!(options);
 custom_keyword!(command);
+custom_keyword!(private);
 
 custom_keyword!(short);
 custom_keyword!(long);

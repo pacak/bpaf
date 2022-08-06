@@ -118,6 +118,7 @@ enum OuterKind {
 enum OuterAttr {
     Options(Option<LitStr>),
     Construct,
+    Private,
     Generate(Ident),
     Command(Option<LitStr>),
     Version(Option<Box<Expr>>),
@@ -149,7 +150,10 @@ impl Parse for CommandAttr {
 impl Parse for OuterAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let content;
-        if input.peek(kw::generate) {
+        if input.peek(kw::private) {
+            let _: kw::private = input.parse()?;
+            Ok(Self::Private)
+        } else if input.peek(kw::generate) {
             let _: kw::generate = input.parse()?;
             let _ = parenthesized!(content in input);
             let name = content.parse()?;
@@ -231,7 +235,7 @@ impl Parse for Top {
     #[allow(clippy::too_many_lines)]
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
-        let vis = input.parse::<Visibility>()?;
+        let mut vis = input.parse::<Visibility>()?;
 
         let outer_ty;
         let mut name = None;
@@ -251,6 +255,9 @@ impl Parse for Top {
                     OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
                     OuterAttr::Version(None) => {
                         version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                    }
+                    OuterAttr::Private => {
+                        vis = Visibility::Inherited;
                     }
                 }
             }
@@ -311,6 +318,9 @@ impl Parse for Top {
                         version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
                     }
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
+                    OuterAttr::Private => {
+                        vis = Visibility::Inherited;
+                    }
                 }
             }
 
@@ -1006,6 +1016,27 @@ mod test {
             fn options() -> ::bpaf::Parser<Options> {
                 {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    ::bpaf::construct!(Options { path })
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn private_visibility() {
+        let top: Top = parse_quote! {
+            #[bpaf(private)]
+            pub struct Options {
+                path: PathBuf,
+            }
+
+        };
+
+        let expected = quote! {
+            fn options() -> ::bpaf::Parser<Options> {
+                {
+                    let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
                 }
             }
