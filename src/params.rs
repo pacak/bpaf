@@ -54,17 +54,18 @@
 //!
 use std::ffi::OsString;
 
-use super::{Args, Error, Item, OptionParser, Parser, Rc};
+use super::{Args, Error, OptionParser, Parser, Rc};
 use crate::{
     args::{Arg, Word},
-    info::{ItemKind, Meta},
+    item::ShortLong,
+    Item, Meta,
 };
 
 /// A named thing used to create Flag, Switch or Argument.
 #[derive(Clone, Debug)]
 pub struct Named {
-    short: Vec<char>,
-    long: Vec<&'static str>,
+    pub(crate) short: Vec<char>,
+    pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
     help: Option<String>,
 }
@@ -428,14 +429,12 @@ where
     T: 'static,
     M: Into<String>,
 {
-    let meta = Meta::from(Item {
-        short: None,
-        long: Some(name),
-        env: None,
-        metavar: None,
+    let item = Item::Command {
+        name,
         help: help.map(Into::into),
-        kind: ItemKind::Command,
-    });
+    };
+
+    let meta = Meta::Item(item);
     let meta2 = meta.clone();
     let parse = move |mut args: Args| {
         if args.take_cmd(name) {
@@ -466,18 +465,14 @@ where
             "env fallback can only be used if name is present"
         );
     }
-    let item = Item {
-        short: named.short.first().copied(),
-        long: named.long.first().copied(),
-        metavar: None,
-        env: named.env.first().copied(),
-        help: named.help,
-        kind: ItemKind::Flag,
-    };
-    let required = absent.is_none();
-    let meta = item.required(required);
 
-    let missing = if required {
+    let item = Item::Flag {
+        name: ShortLong::from(&named),
+        help: named.help.clone(),
+    };
+    let meta = item.required(absent.is_none());
+
+    let missing = if absent.is_none() {
         Error::Missing(vec![meta.clone()])
     } else {
         Error::Stdout(String::new())
@@ -509,13 +504,11 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
             "env fallback can only be used if name is present"
         );
     }
-    let item = Item {
-        kind: ItemKind::Flag,
-        short: named.short.first().copied(),
-        long: named.long.first().copied(),
-        env: named.env.first().copied(),
-        metavar: Some(metavar),
+    let item = Item::Argument {
+        name: ShortLong::from(&named),
+        metavar,
         help: named.help,
+        env: named.env.first().copied(),
     };
     let meta = item.required(true);
     let meta2 = meta.clone();
@@ -537,15 +530,9 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
 }
 
 fn build_positional(metavar: &'static str) -> Parser<Word> {
-    let item = Item {
-        short: None,
-        long: None,
-        env: None,
-        metavar: Some(metavar),
-        help: None,
-        kind: ItemKind::Positional,
-    };
+    let item = Item::Positional { metavar };
     let meta = item.required(true);
+
     let meta2 = meta.clone();
 
     let parse = move |mut args: Args| match args.take_positional_word()? {
@@ -562,14 +549,7 @@ fn build_positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<Word
 where
     F: Fn(&Word) -> bool + 'static,
 {
-    let item = Item {
-        short: None,
-        long: None,
-        env: None,
-        metavar: Some(metavar),
-        help: None,
-        kind: ItemKind::Positional,
-    };
+    let item = Item::Positional { metavar };
     let meta = item.required(false);
     let meta2 = meta.clone();
     let parse = move |mut args: Args| match args.peek() {

@@ -34,7 +34,7 @@ Available options:
     -a
     -b
     -c
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 
@@ -85,7 +85,7 @@ Usage: [-a] [-b]
 Available options:
     -a, --AAAAA
     -b
-    -h, --help    Prints help information
+    -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -126,7 +126,7 @@ Usage: [-a]
 
 Available options:
     -a, --AAAAA
-    -h, --help    Prints help information
+    -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -161,8 +161,8 @@ Available options:
     -a
     -b
     -c
-    -h, --help      Prints help information
-    -V, --version   Prints version information
+    -h, --help     Prints help information
+    -V, --version  Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -207,8 +207,8 @@ Available options:
     -a
     -b
     -c
-    -h, --help      Prints help information
-    -V, --version   Prints version information
+    -h, --help     Prints help information
+    -V, --version  Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -247,14 +247,14 @@ fn either_of_two_required_flags_and_one_optional() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: [-a | -b | [-c]]
+Usage: (-a | -b | [-c])
 
 Available options:
     -a
     -b
     -c
-    -h, --help      Prints help information
-    -V, --version   Prints version information
+    -h, --help     Prints help information
+    -V, --version  Prints version information
 ";
     assert_eq!(expected_help, help);
 
@@ -281,8 +281,8 @@ fn default_arguments() {
 Usage: [-a ARG]
 
 Available options:
-    -a  <ARG>
-    -h, --help   Prints help information
+    -a <ARG>
+    -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 
@@ -411,12 +411,12 @@ fn group_help() {
 Usage: [-a] [-b] [-c]
 
 Available options:
-                 Explanation applicable for both A and B
-    -a           flag A, related to B
-    -b           flag B, related to A
+                Explanation applicable for both A and B
+    -a          flag A, related to B
+    -b          flag B, related to A
 
-    -c           flag C, unrelated
-    -h, --help   Prints help information
+    -c          flag C, unrelated
+    -h, --help  Prints help information
 ";
 
     assert_eq!(expected_help, help);
@@ -487,7 +487,7 @@ This is global info
 Usage: COMMAND ...
 
 Available options:
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 
 Available commands:
     bar  do bar
@@ -505,7 +505,7 @@ Usage: [-b]
 
 Available options:
     -b
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -525,7 +525,7 @@ Usage: -a
 
 Available options:
     -a
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
     parser.clone().run_inner(Args::from(&["-a"])).unwrap();
@@ -546,7 +546,7 @@ fn positional_argument() {
 Usage: <FILE>
 
 Available options:
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -628,7 +628,7 @@ The stupid content tracker
 Usage: COMMAND ...
 
 Available options:
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 
 Available commands:
     fetch  fetch branches from remote repository
@@ -655,7 +655,7 @@ Usage: [--dry_run] [--all] [<SRC>]
 Available options:
         --dry_run
         --all
-    -h, --help      Prints help information
+    -h, --help     Prints help information
 ";
         assert_eq!(
             expected_help,
@@ -677,7 +677,7 @@ Usage: [-i] [--all] <FILE>...
 Available options:
     -i
         --all
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
         assert_eq!(
             expected_help,
@@ -799,7 +799,7 @@ Usage: [-a] [-b]
 Available options:
     -a, --AAAAA
     -b
-    -h, --help    Prints help information
+    -h, --help   Prints help information
 ";
     assert_eq!(expected_help, help);
 }
@@ -843,8 +843,8 @@ fn env_variable() {
 Usage: --key KEY
 
 Available options:
-        --key <KEY>  use this secret key
-                     [env:BPAF_SECRET_API_KEY: N/A]
+        --key <KEY>  [env:BPAF_SECRET_API_KEY: N/A]
+                     use this secret key
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -859,8 +859,8 @@ Available options:
 Usage: --key KEY
 
 Available options:
-        --key <KEY>  use this secret key
-                     [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
+        --key <KEY>  [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
+                     use this secret key
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -908,7 +908,14 @@ fn optional_req_select() {
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
-    let expected_help ="Usage: [(-a | -b)]\n\nAvailable options:\n    -a\n    -b\n    -h, --help   Prints help information\n";
+    let expected_help = "\
+Usage: [-a | -b]
+
+Available options:
+    -a
+    -b
+    -h, --help  Prints help information
+";
     assert_eq!(expected_help, help);
 }
 
@@ -952,10 +959,9 @@ fn default_plays_nicely_with_command() {
     let expected_help = "\
 inner
 
-Usage:
 
 Available options:
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 ";
 
     assert_eq!(expected_help, help);
@@ -971,7 +977,7 @@ outer
 Usage: [COMMAND ...]
 
 Available options:
-    -h, --help   Prints help information
+    -h, --help  Prints help information
 
 Available commands:
     foo  foo

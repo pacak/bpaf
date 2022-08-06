@@ -10,18 +10,22 @@ pub mod params;
 mod args;
 #[doc(hidden)]
 pub mod info;
+#[doc(hidden)]
+pub mod item;
+#[doc(hidden)]
+pub mod meta;
 
-use crate::{args::Word, info::Error, info::Item};
+use crate::{args::Word, info::Error, item::Item};
 
 #[cfg(test)]
 mod tests;
 #[doc(inline)]
 pub use crate::args::Args;
-#[doc(inline)]
-pub use crate::info::{Info, Meta, OptionParser};
+pub use crate::info::{Info, OptionParser};
+pub use crate::meta::Meta;
 #[doc(inline)]
 pub use crate::params::*;
-
+#[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
 
@@ -162,7 +166,7 @@ impl<T> Parser<T> {
         let parse = move |i| Ok((val.clone(), i));
         Parser {
             parse: Rc::new(parse),
-            meta: Meta::Id,
+            meta: Meta::Skip,
         }
     }
 
@@ -181,7 +185,7 @@ impl<T> Parser<T> {
         };
         Parser {
             parse: Rc::new(parse),
-            meta: self.meta.clone().and(other.meta.clone()),
+            meta: Meta::And(vec![self.meta, other.meta]),
         }
     }
 
@@ -265,7 +269,7 @@ impl<T> Parser<T> {
         M: Clone + 'static,
     {
         Parser {
-            meta: Meta::Empty,
+            meta: Meta::Skip,
             parse: Rc::new(move |_| Err(Error::Stderr(String::from(msg.clone())))),
         }
     }
@@ -546,7 +550,7 @@ impl<T> Parser<T> {
             parse: Rc::new(move |args: Args| {
                 (self.parse)(args).map_err(|_| Error::Missing(Vec::new()))
             }),
-            meta: Meta::Id,
+            meta: Meta::Skip,
         }
     }
 }
