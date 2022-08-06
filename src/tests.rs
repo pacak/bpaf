@@ -875,28 +875,105 @@ Available options:
     assert_eq!(res, "top s3cr3t");
 }
 
-/*
 #[test]
 fn help_with_default_parse() {
     #[derive(Debug, Clone, Bpaf)]
-    #[bpaf(options)]
     enum Action {
         /// Add a new TODO item
         #[bpaf(command)]
         Add(String),
 
-        #[bpaf(default)]
+        /// Does nothing
+        #[bpaf(command)]
         NoAction,
     }
 
-    let help = action()
+    let parser =
+        ::bpaf::Info::default().for_parser(action().or_else(bpaf::Parser::pure(Action::NoAction)));
+
+    let help = parser
+        .clone()
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected_help = "Add a new TODO item\n\nUsage: <ARG>\n\nAvailable options:\n    -h, --help   Prints help information\n";
+    let expected_help = "\
+Add a new TODO item
+
+Usage: <ARG>
+
+Available options:
+    -h, --help  Prints help information
+";
     assert_eq!(expected_help, help);
-}*/
+
+    let help = parser
+        .run_inner(bpaf::Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    add        Add a new TODO item
+    no_action  Does nothing
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn command_and_fallback() {
+    #[derive(Debug, Clone, Bpaf)]
+    enum Action {
+        /// Add a new TODO item
+        #[bpaf(command)]
+        Add(String),
+
+        /// Does nothing
+        #[bpaf(command)]
+        NoAction,
+    }
+
+    let parser = action().fallback(Action::NoAction);
+
+    let parser = ::bpaf::Info::default().for_parser(parser);
+    let help = parser
+        .clone()
+        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Add a new TODO item
+
+Usage: <ARG>
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    let help = parser
+        .run_inner(bpaf::Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: [COMMAND ...]
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    add        Add a new TODO item
+    no_action  Does nothing
+";
+    assert_eq!(expected_help, help);
+}
 
 #[test]
 fn optional_req_select() {
