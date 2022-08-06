@@ -332,6 +332,26 @@ fn parse_errors() {
 }
 
 #[test]
+fn custom_usage() {
+    let a = short('a').long("long").argument("ARG");
+    let parser = Info::default()
+        .usage("Usage: -a <ARG> or --long <ARG>")
+        .for_parser(a);
+    let actual_help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: -a <ARG> or --long <ARG>
+
+Available options:
+    -a, --long <ARG>
+    -h, --help        Prints help information
+";
+    assert_eq!(actual_help, expected_help);
+}
+
+#[test]
 fn long_usage_string() {
     let a = short('a').long("a-very-long-flag-with").argument("ARG");
     let b = short('b').long("b-very-long-flag-with").argument("ARG");

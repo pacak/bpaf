@@ -548,7 +548,7 @@ impl Info {
             write!(res, "{}\n\n", t)?;
         }
         if let Some(u) = self.usage {
-            write!(res, "{}\n\n", u)?;
+            write!(res, "{}\n", u)?;
         } else {
             write!(res, "Usage: {}", parser_meta)?;
             // strip unnecessary spaces inserted by previous writes
