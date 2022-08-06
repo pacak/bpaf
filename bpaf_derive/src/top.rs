@@ -488,9 +488,7 @@ impl ToTokens for BParser {
                 let parse_decls = bra.parser_decls();
                 quote!({
                     #(#parse_decls)*
-                    #[allow(unused_imports)]
-                    use bpaf::construct;
-                    construct!(#con #bra)
+                    ::bpaf::construct!(#con #bra)
                 })
                 .to_tokens(tokens);
             }
@@ -506,9 +504,7 @@ impl ToTokens for BParser {
                     });
                     quote!({
                         #(#parse_decls)*
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!([#(#names),*])
+                        ::bpaf::construct!([#(#names),*])
                     })
                     .to_tokens(tokens);
                 }
@@ -609,9 +605,7 @@ mod test {
                     let inner_op = {
                         ::bpaf::cargo_helper("asm", {
                             let verbose = ::bpaf::long("verbose").switch();
-                            #[allow(unused_imports)]
-                            use bpaf::construct;
-                            construct!(Opts { verbose })
+                            ::bpaf::construct!(Opts { verbose })
                         })
                     };
                     ::bpaf::Info::default().for_parser(inner_op)
@@ -631,9 +625,7 @@ mod test {
         let expected = quote! {
             fn opt() -> ::bpaf::Parser<Opt> {{
                 let verbose = ::bpaf::long("verbose").switch();
-                #[allow(unused_imports)]
-                use bpaf::construct;
-                construct!(Opt { verbose })
+                ::bpaf::construct!(Opt { verbose })
             }}
         };
 
@@ -651,9 +643,7 @@ mod test {
             fn opt() -> ::bpaf::Parser<Opt> {
                 {
                     let verbose_name = ::bpaf::long("verbose-name").switch();
-                    #[allow(unused_imports)]
-                    use bpaf::construct;
-                    construct!(Opt::Foo { verbose_name })
+                    ::bpaf::construct!(Opt::Foo { verbose_name })
                 }
             }
         };
@@ -673,9 +663,7 @@ mod test {
             fn opt() -> ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt {}) };
+                        ::bpaf::construct!(Opt {}) };
                     ::bpaf::Info::default().descr("those are options").for_parser(inner_op)
                 }
             }
@@ -696,9 +684,7 @@ mod test {
             fn opt() -> ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt {}) };
+                        ::bpaf::construct!(Opt {}) };
                     ::bpaf::Info::default()
                         .descr("those are options")
                         .for_parser(inner_op)
@@ -722,9 +708,7 @@ mod test {
                 {
                     let inner_cmd = {
                         let inner_op = {
-                            #[allow(unused_imports)]
-                            use bpaf::construct;
-                            construct!(Opt {})
+                            ::bpaf::construct!(Opt {})
                         };
                         ::bpaf::Info::default()
                             .descr("those are options")
@@ -761,9 +745,7 @@ mod test {
                                 let inner_cmd = {
                                     let inner_op = {
                                         let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
-                                        #[allow(unused_imports)]
-                                        use bpaf::construct;
-                                        construct!(Opt::Foo { field })
+                                        ::bpaf::construct!(Opt::Foo { field })
                                     };
                                     ::bpaf::Info::default().descr("foo doc").for_parser(inner_op)
                                 };
@@ -773,17 +755,13 @@ mod test {
                                 let inner_cmd = {
                                     let inner_op = {
                                         let field = ::bpaf::long("field").switch();
-                                        #[allow(unused_imports)]
-                                        use bpaf::construct;
-                                        construct!(Opt::Bar { field })
+                                        ::bpaf::construct!(Opt::Bar { field })
                                     };
                                     ::bpaf::Info::default().descr("bar doc").for_parser(inner_op)
                                 };
                                 ::bpaf::command("bar", Some("bar doc"), inner_cmd)
                             };
-                            #[allow(unused_imports)]
-                            use bpaf::construct;
-                            construct!([alt0, alt1])
+                            ::bpaf::construct!([alt0, alt1])
                         };
                         ::bpaf::Info::default()
                             .descr("those are options")
@@ -808,9 +786,7 @@ mod test {
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt(f0))
+                        ::bpaf::construct!(Opt(f0))
                     };
                     ::bpaf::Info::default().for_parser(inner_op)
                 }
@@ -834,9 +810,7 @@ mod test {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
                         let f1 = ::bpaf::positional("ARG").from_str::<usize>();
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt1::Con1(f0, f1))
+                        ::bpaf::construct!(Opt1::Con1(f0, f1))
                     };
                     ::bpaf::Info::default().version(env!("CARGO_PKG_VERSION")).for_parser(inner_op)
                 }
@@ -872,15 +846,11 @@ mod test {
                     let alt2 = ::bpaf::long("bar-foo").req_flag(Opt::BarFoo);
                     let alt3 = {
                         let f0 = ::bpaf::long("bazz").argument("ARG");
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt::Baz(f0))
+                        ::bpaf::construct!(Opt::Baz(f0))
                     };
                     let alt4 = {
                         let strange = ::bpaf::long("strange").argument("ARG");
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt::Strange { strange })
+                        ::bpaf::construct!(Opt::Strange { strange })
                     };
                     let alt5 = {
                         let inner_cmd = {
@@ -896,9 +866,7 @@ mod test {
                         };
                         ::bpaf::command("omega", None::<String>, inner_cmd)
                     };
-                    #[allow(unused_imports)]
-                    use bpaf::construct;
-                    construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
+                    ::bpaf::construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
                 }
             }
         };
@@ -925,9 +893,7 @@ mod test {
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!(Opt(f0))
+                        ::bpaf::construct!(Opt(f0))
                     };
                     ::bpaf::Info::default().descr("descr\n  a").footer("footer\n a").for_parser(inner_op)
                 }
@@ -951,9 +917,7 @@ mod test {
                     let inner_op = {
                         let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
                         let alt1 = ::bpaf::long("beta").req_flag(Action::Beta);
-                        #[allow(unused_imports)]
-                        use bpaf::construct;
-                        construct!([alt0, alt1])
+                        ::bpaf::construct!([alt0, alt1])
                     };
                     ::bpaf::Info::default()
                         .version(env!("CARGO_PKG_VERSION"))
@@ -995,9 +959,7 @@ mod test {
                                 };
                                 ::bpaf::command("beta", None::<String>, inner_cmd)
                             };
-                            #[allow(unused_imports)]
-                            use bpaf::construct;
-                            construct!([alt0, alt1])
+                            ::bpaf::construct!([alt0, alt1])
                         })
                     };
                     ::bpaf::Info::default()
