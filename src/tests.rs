@@ -337,7 +337,7 @@ fn custom_usage() {
     let parser = Info::default()
         .usage("Usage: -a <ARG> or --long <ARG>")
         .for_parser(a);
-    let actual_help = parser
+    let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -348,7 +348,7 @@ Available options:
     -a, --long <ARG>
     -h, --help        Prints help information
 ";
-    assert_eq!(actual_help, expected_help);
+    assert_eq!(expected_help, help);
 }
 
 #[test]
@@ -895,7 +895,7 @@ fn help_with_default_parse() {
         .unwrap_stdout();
 
     let expected_help = "Add a new TODO item\n\nUsage: <ARG>\n\nAvailable options:\n    -h, --help   Prints help information\n";
-    assert_eq!(help, expected_help);
+    assert_eq!(expected_help, help);
 }*/
 
 #[test]
@@ -909,7 +909,7 @@ fn optional_req_select() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help ="Usage: [(-a | -b)]\n\nAvailable options:\n    -a\n    -b\n    -h, --help   Prints help information\n";
-    assert_eq!(help, expected_help);
+    assert_eq!(expected_help, help);
 }
 
 #[test]
@@ -943,7 +943,7 @@ fn default_plays_nicely_with_command() {
 
     let parser = Info::default().descr("outer").for_parser(cmd);
 
-    let actual_help = parser
+    let help = parser
         .clone()
         .run_inner(Args::from(&["foo", "--help"]))
         .unwrap_err()
@@ -958,9 +958,9 @@ Available options:
     -h, --help   Prints help information
 ";
 
-    assert_eq!(expected_help, actual_help);
+    assert_eq!(expected_help, help);
 
-    let actual_help = parser
+    let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -977,5 +977,5 @@ Available commands:
     foo  foo
 ";
 
-    assert_eq!(expected_help, actual_help);
+    assert_eq!(expected_help, help);
 }
