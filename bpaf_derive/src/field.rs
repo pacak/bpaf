@@ -110,6 +110,7 @@ enum PostprAttr {
     Many(Option<LitStr>),
     Map(Ident),
     Optional,
+    Env(LitStr),
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
@@ -122,6 +123,7 @@ impl PostprAttr {
             PostprAttr::FromStr(_)
             | PostprAttr::Many(_)
             | PostprAttr::Map(_)
+            | PostprAttr::Env(_)
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
             | PostprAttr::Parse(_) => false,
@@ -322,6 +324,11 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
+        } else if input.peek(kw::env) {
+            input.parse::<kw::env>()?;
+            let _ = parenthesized!(content in input);
+            let name = content.parse::<LitStr>()?;
+            Ok(Self::Env(name))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
             Ok(Self::Many(None))
@@ -638,6 +645,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::Many(None) => quote!(many()),
             PostprAttr::Many(Some(m)) => quote!(some(#m)),
             PostprAttr::Map(f) => quote!(map(#f)),
+            PostprAttr::Env(n) => quote!(env(#n)),
             PostprAttr::Optional => quote!(optional()),
             PostprAttr::Parse(f) => quote!(parse(#f)),
             PostprAttr::Fallback(v) => quote!(fallback(#v)),
@@ -1065,6 +1073,22 @@ mod tests {
         let output = quote! {
             ::bpaf::long("config")
                 .argument("N")
+                .from_str::<u32>()
+                .some("need params")
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn env_argument() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(argument("N"), env("N"), from_str(u32), some("need params"))]
+            config: Vec<u32>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .argument("N")
+                .env("N")
                 .from_str::<u32>()
                 .some("need params")
         };

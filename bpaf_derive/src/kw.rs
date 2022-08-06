@@ -11,6 +11,7 @@ custom_keyword!(short);
 custom_keyword!(long);
 
 custom_keyword!(argument);
+custom_keyword!(env);
 custom_keyword!(positional);
 custom_keyword!(argument_os);
 custom_keyword!(positional_os);
