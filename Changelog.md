@@ -1,5 +1,14 @@
 # Change Log
 
+## bpaf [0.4.10] - 2022-08-03
+- bugfix for custom usage formatting
+
+## bpaf [0.4.9] - 2022-08-03
+- bugfix for help rendering with fallback
+
+## bpaf [0.4.8] - 2022-08-02
+- support for env
+
 ## bpaf [0.4.7] - 2022-06-28
 - support arbitrary long paths in construct! macro
 
