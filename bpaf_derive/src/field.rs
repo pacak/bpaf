@@ -333,7 +333,7 @@ impl Parse for PostprAttr {
             input.parse::<kw::optional>()?;
             Ok(Self::Optional)
         } else {
-            Err(input.error("Not a attribute"))
+            Err(input.error("Not an attribute"))
         }
     }
 }
