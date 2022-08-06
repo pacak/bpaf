@@ -256,28 +256,29 @@ impl Parse for StrictNameAttr {
 
 impl Parse for ConsumerAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
+        let parse_arg = |input: &parse::ParseBuffer| {
+            let content;
+            if input.peek(syn::token::Paren) {
+                let _ = parenthesized!(content in input);
+                content.parse::<LitStr>()
+            } else {
+                Ok(LitStr::new("ARG", Span::call_site()))
+            }
+        };
         if input.peek(kw::argument) {
             input.parse::<kw::argument>()?;
-            let content;
-            let _ = parenthesized!(content in input);
-            Ok(Self::Arg(content.parse::<LitStr>()?))
+            Ok(Self::Arg(parse_arg(input)?))
         } else if input.peek(kw::argument_os) {
             input.parse::<kw::argument_os>()?;
-            let content;
-            let _ = parenthesized!(content in input);
-            Ok(Self::ArgOs(content.parse::<LitStr>()?))
+            Ok(Self::ArgOs(parse_arg(input)?))
         } else if input.peek(kw::positional) {
             input.parse::<kw::positional>()?;
-            let content;
-            let _ = parenthesized!(content in input);
-            Ok(Self::Pos(content.parse::<LitStr>()?))
+            Ok(Self::Pos(parse_arg(input)?))
         } else if input.peek(kw::positional_os) {
             input.parse::<kw::positional_os>()?;
-            let content;
-            let _ = parenthesized!(content in input);
-            Ok(Self::PosOs(content.parse::<LitStr>()?))
+            Ok(Self::PosOs(parse_arg(input)?))
         } else if input.peek(kw::switch) {
-            input.parse::<kw::positional_os>()?;
+            input.parse::<kw::switch>()?;
             Ok(Self::Switch)
         } else {
             Err(input.error("Not a consumer attribute"))
@@ -1065,6 +1066,30 @@ mod tests {
                 .argument("N")
                 .from_str::<u32>()
                 .some("need params")
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn explicit_switch_argument() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(switch)]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").switch()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn implicit_switch_argument() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(switch)]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").switch()
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }

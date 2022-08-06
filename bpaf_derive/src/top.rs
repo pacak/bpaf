@@ -970,4 +970,46 @@ mod test {
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
     }
+
+    #[test]
+    fn named_to_positional_with_metavar() {
+        let top: Top = parse_quote! {
+            struct Options {
+                #[bpaf(positional_os("PATH"))]
+                path: PathBuf,
+            }
+
+        };
+
+        let expected = quote! {
+            fn options() -> ::bpaf::Parser<Options> {
+                {
+                    let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
+                    ::bpaf::construct!(Options { path })
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn named_to_positional_without_metavar() {
+        let top: Top = parse_quote! {
+            struct Options {
+                #[bpaf(positional_os)]
+                path: PathBuf,
+            }
+
+        };
+
+        let expected = quote! {
+            fn options() -> ::bpaf::Parser<Options> {
+                {
+                    let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    ::bpaf::construct!(Options { path })
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
 }
