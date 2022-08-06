@@ -153,25 +153,26 @@ impl<T: Parse> Parse for FieldAttrs<T> {
         let mut consumer = None;
         let mut postpr = Vec::new();
         let mut external = None;
-        if let Ok(ext) = input.parse::<ExtAttr>() {
-            external = Some(ext);
+        if input.peek(kw::external) {
+            external = Some(input.parse::<ExtAttr>()?);
             comma(input)?;
         } else {
-            while let Ok(nam) = input.parse() {
-                naming.push(nam);
+            // we are parsing arguments twice here, syn docs explicitly asks us not to
+            // This is fine since field attributes should be only a few tokens at most
+            while input.fork().parse::<T>().is_ok() {
+                naming.push(input.parse::<T>()?);
                 comma(input)?;
             }
-            if let Ok(cons) = input.parse() {
-                consumer = Some(cons);
+            if input.fork().parse::<ConsumerAttr>().is_ok() {
+                consumer = Some(input.parse()?);
                 comma(input)?;
             }
         }
-        while let Ok(p) = input.parse() {
-            postpr.push(p);
-            comma(input)?;
-        }
-        if !input.is_empty() {
-            return Err(input.error(format!("Can't parse remaining attributes: {}", input)));
+        while !input.is_empty() {
+            postpr.push(input.parse::<PostprAttr>()?);
+            if !input.is_empty() {
+                comma(input)?;
+            }
         }
 
         Ok(FieldAttrs {
