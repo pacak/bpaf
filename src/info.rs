@@ -196,11 +196,16 @@ impl Info {
             let mut reg_args = args.clone();
             let err = match parser.run(&mut reg_args) {
                 Ok(r) => {
-                    check_unexpected(&reg_args)?;
-                    return Ok(r);
+                    if let Err(err) = check_unexpected(&reg_args) {
+                        err
+                    } else {
+                        *args = reg_args;
+                        return Ok(r);
+                    }
                 }
 
-                // Stderr means
+                // Stderr means nested parser couldn't parse something, store it,
+                // report it if parsing --help and --version also fails
                 Err(Error::Stderr(e)) => Error::Stderr(e),
 
                 // Stdout usually means a happy path such as calling --help or --version on one of
