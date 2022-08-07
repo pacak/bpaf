@@ -77,12 +77,12 @@ pub struct Named {
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let switch: Parser<bool> =
+/// let switch =
 ///     short('f')
 ///         .short('F')
 ///         .long("flag")
 ///         .help("a flag that does a thing")
-///         .switch();
+///         .switch(); // impl Parser<bool>
 /// # drop(switch);
 /// ```
 #[must_use]
@@ -102,12 +102,12 @@ pub fn short(short: char) -> Named {
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let switch: Parser<bool> =
+/// let switch =
 ///     short('f')
 ///         .long("flag")
 ///         .long("Flag")
 ///         .help("a flag that does a thing")
-///         .switch();
+///         .switch(); // impl Parser<bool> =
 /// # drop(switch);
 /// ```
 #[must_use]
@@ -133,7 +133,7 @@ pub fn long(long: &'static str) -> Named {
 ///            .long("key")
 ///            .env("API_KEY")
 ///            .help("Use this API key to access the API")
-///            .argument("KEY");
+///            .argument("KEY"); // impl Parser<String>
 /// # drop(key)
 /// ```
 #[must_use]
@@ -154,12 +154,12 @@ impl Named {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// let switch =
     ///     short('f')
     ///         .short('F')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
+    ///         .switch(); // impl Parser<bool>
     /// # drop(switch);
     /// ```
     #[must_use]
@@ -175,12 +175,12 @@ impl Named {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// let switch =
     ///     short('f')
     ///         .long("flag")
     ///         .long("Flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
+    ///         .switch(); // impl Parser<bool>
     /// # drop(switch);
     /// ```
     #[must_use]
@@ -200,7 +200,7 @@ impl Named {
     ///            .long("key")
     ///            .env("API_KEY")
     ///            .help("Use this API key to access the API")
-    ///            .argument("KEY");
+    ///            .argument("KEY"); // impl Parser<String>
     /// # drop(key)
     /// ```
     #[must_use]
@@ -213,11 +213,11 @@ impl Named {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// let switch =
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
+    ///         .switch(); // impl Parser<bool>
     /// # drop(switch);
     /// ```
     #[must_use]
@@ -234,11 +234,11 @@ impl Named {
     /// Parser produces `true` if flag is present in a command line or `false` otherwise
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// let switch =
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
+    ///         .switch(); // impl Parser<bool>
     /// # drop(switch);
     /// ```
     #[must_use]
@@ -256,11 +256,11 @@ impl Named {
     ///     Absent,
     ///     Present,
     /// }
-    /// let switch: Parser<Flag> =
+    /// let switch =
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .flag(Flag::Present, Flag::Absent);
+    ///         .flag(Flag::Present, Flag::Absent); // impl Parser<Flag>
     /// # drop(switch);
     /// ```
     #[must_use]
@@ -287,14 +287,14 @@ impl Named {
     /// let on = long("on").req_flag(Decision::On);
     /// let off = long("off").req_flag(Decision::Off);
     /// // Requires user to specify either `--on` or `--off`
-    /// let state: Parser<Decision> = on.or_else(off).fallback(Decision::Undecided);
+    /// let state = on.or_else(off).fallback(Decision::Undecided); // impl Parser<Decision>
     /// # drop(state);
     /// ```
     ///
     /// ```rust
     /// # use bpaf::*;
     /// // counts how many times flag `-v` is given on a command line
-    /// let verbosity: Parser<usize> = short('v').req_flag(()).many().map(|v| v.len());
+    /// let verbosity = short('v').req_flag(()).many().map(|v| v.len()); // impl Parser<usize>
     /// # drop(verbosity);
     /// ```
     ///
@@ -343,7 +343,7 @@ impl Named {
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let arg: Parser<String> = positional("INPUT");
+/// let arg = positional("INPUT"); // impl Parser<String>
 /// # drop(arg)
 /// ```
 #[must_use]
@@ -357,7 +357,7 @@ pub fn positional(metavar: &'static str) -> impl Parser<String> {
 /// # use bpaf::*;
 /// let is_short = |s: &str| s.len() < 10;
 /// // skip this positional argument unless it's less than 10 bytes long
-/// let arg: Parser<Option<String>> = positional_if("INPUT", is_short);
+/// let arg  = positional_if("INPUT", is_short); // impl Parser<Option<String>>
 /// # drop(arg)
 /// ```
 pub fn positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<String>>
@@ -381,7 +381,7 @@ where
 /// ```rust
 /// # use bpaf::*;
 /// # use std::ffi::OsString;
-/// let arg: Parser<OsString> = positional_os("INPUT");
+/// let arg = positional_os("INPUT"); // impl Parser<OsString>
 /// # drop(arg)
 /// ```
 #[must_use]
@@ -396,16 +396,16 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 /// // Define a parser to use in a subcommand in a usual way.
 /// // This parser accepts a single --workspace switch
 /// let ws = long("workspace").help("Check all packages in the workspace").switch();
-/// let decorated: OptionParser<bool> = Info::default()
+/// let decorated = Info::default()
 ///     .descr("Check a package for errors")
-///     .for_parser(ws);
+///     .for_parser(ws); // impl OptionParser<bool>
 ///
 /// // Convert subparser into a parser.
 /// // Note description "Check a package for errors" is specified twice:
 /// // - Parser uses version from `descr` when user calls `% prog check --help`,
 /// // - Parser uses version from `command` user calls `% prog --help` along
 /// //   with descriptions for other commands if present.
-/// let check: Parser<bool> = command("check", Some("Check a local package for errors"), decorated);
+/// let check = command("check", Some("Check a local package for errors"), decorated); // impl Parser<bool>
 ///
 /// // when ther's several commands it can be a good idea to wrap each into a enum either before
 /// // or after converting it into subparser:
@@ -413,7 +413,7 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 /// enum Command {
 ///     Check(bool)
 /// }
-/// let check: Parser<Command> = check.map(Command::Check);
+/// let check = check.map(Command::Check); // impl Parser<Command>
 ///
 /// // at this point command line accepts following commands:
 /// // `% prog --help`            - display a global help and exit

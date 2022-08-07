@@ -97,7 +97,7 @@ enum Output { StdOut, File(String) };
 
 let stdout = long("stdout").req_flag(Output::StdOut);
 let file = long("file").argument("FILE").map(Output::File);
-let output: Parser<Output> = stdout.or_else(file);
+let output = stdout.or_else(file); // impl Parser<Output>
 ```
 
 Library can handle alternatives and perform parsing and validation:
@@ -106,7 +106,7 @@ Library can handle alternatives and perform parsing and validation:
 use bpaf::*;
 
 /// As far as the end user is concerned `speed` is a single argument that is always valid
-fn speed() -> Parser<f64> {
+fn speed() -> impl Parser<f64> {
 
     // define a simple string argument
     let kph = short('k').help("speed in KPH").argument("SPEED")
