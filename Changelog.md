@@ -1,5 +1,15 @@
 # Change Log
 
+## bpaf [0.4.11] - 2022-08-07
+- meta and item refactors, changed the formatting a bit
+
+## bpaf_derive [0.1.4] - 2022-08-07
+- docs type: option -> optional
+- metavar name for positional, positional_os, argument, argument_os is now optional
+- bpaf_derive is now more strict about derive attribute parsing
+- derived items can be made module private
+- env is now supported
+
 ## bpaf [0.4.10] - 2022-08-03
 - bugfix for custom usage formatting
 
