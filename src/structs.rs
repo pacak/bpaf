@@ -20,7 +20,7 @@ where
     fn run(&self, args: &mut Args) -> Result<T, Error> {
         match self.inner.run(args) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_)) => e,
+            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(_) => match (self.fallback)() {
                 Ok(ok) => Ok(ok),
                 Err(e) => Err(Error::Stderr(e.to_string())),
@@ -48,7 +48,7 @@ where
     fn run(&self, args: &mut Args) -> Result<T, Error> {
         match self.inner.run(args) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_)) => e,
+            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(_) => Ok(T::default()),
         }
     }
@@ -232,7 +232,7 @@ where
     fn run(&self, args: &mut Args) -> Result<T, Error> {
         match self.inner.run(args) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_)) => e,
+            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(_) => Ok(self.value.clone()),
         }
     }

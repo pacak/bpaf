@@ -1013,7 +1013,7 @@ Available options:
     let expected_help = "\
 outer
 
-Usage: [COMMAND ...]
+Usage: COMMAND ...
 
 Available options:
     -h, --help  Prints help information
