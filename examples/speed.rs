@@ -15,12 +15,12 @@ enum Cmd {
     Accelerate(bool),
 }
 
-fn speed() -> Parser<f64> {
+fn speed() -> impl Parser<f64> {
     let m = short('m')
         .long("mph")
         .help("speed in MPH")
         .argument("SPEED")
-        .parse(|s| f64::from_str(&s));
+        .from_str::<f64>();
 
     let k = short('k')
         .help("speed in KPH")
@@ -28,7 +28,7 @@ fn speed() -> Parser<f64> {
         .argument("SPEED")
         .parse(|s| f64::from_str(&s).map(|s| s / 0.62));
 
-    m.or_else(k)
+    construct!([m, k])
 }
 
 pub fn main() {

@@ -22,7 +22,7 @@ fn main() {
     let kph = long("kph").argument("SPEED").from_str();
 
     // speed is either kph or mph, conversion to mph is handled by the parser
-    let speed = mph.or_else(kph);
+    let speed = construct!([mph, kph]);
 
     // parsers for distances, both are converted to the same units
     let km = long("km").argument("SPEED").from_str();
@@ -30,7 +30,7 @@ fn main() {
         .argument("SPEED")
         .from_str()
         .map(|x: f64| x * 1.6);
-    let dist = mi.or_else(km);
+    let dist = construct!([mi, km]);
 
     // time, presumably in seconds
     let time = long("time").argument("TIME").from_str();
@@ -42,7 +42,7 @@ fn main() {
     let segment_speed = construct!(Segment::SpeedDistance { speed, dist });
 
     // segment can be either of two defined
-    let segment = segment_speed.or_else(segment_time);
+    let segment = construct!([segment_speed, segment_time]);
 
     // and we have several of them.
     let parser = segment

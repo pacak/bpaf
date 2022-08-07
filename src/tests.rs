@@ -1,3 +1,5 @@
+//use crate::OptionParser;
+//use crate::Parser;
 use crate::*;
 use std::str::FromStr;
 
@@ -10,19 +12,18 @@ fn construct_with_fn() {
         c: bool,
     }
 
-    fn a() -> Parser<bool> {
+    fn a() -> impl Parser<bool> {
         short('a').switch()
     }
 
     let b = short('b').switch();
 
-    fn c() -> Parser<bool> {
+    fn c() -> impl Parser<bool> {
         short('c').switch()
     }
 
     let parser = Info::default().for_parser(construct!(Opts { a(), b, c() }));
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -58,7 +59,6 @@ fn simple_two_optional_flags() {
 
     // no version information given - no version field generated
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -66,7 +66,6 @@ fn simple_two_optional_flags() {
 
     // flag can be given only once
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -100,7 +99,6 @@ fn simple_two_optional_flags_with_one_hidden() {
 
     // no version information given - no version field generated
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -108,7 +106,6 @@ fn simple_two_optional_flags_with_one_hidden() {
 
     // flag can be given only once
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -142,7 +139,6 @@ fn either_of_three_required_flags() {
 
     // version is specified - version help is present
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -150,7 +146,6 @@ fn either_of_three_required_flags() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -188,7 +183,6 @@ fn either_of_three_required_flags2() {
 
     // version is specified - version help is present
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -196,7 +190,6 @@ fn either_of_three_required_flags2() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -234,7 +227,6 @@ fn either_of_two_required_flags_and_one_optional() {
 
     // version is specified - version help is present
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -242,7 +234,6 @@ fn either_of_two_required_flags_and_one_optional() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -273,7 +264,6 @@ fn default_arguments() {
     let decorated = info.for_parser(a);
 
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -287,7 +277,6 @@ Available options:
     assert_eq!(expected_help, help);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "x12"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -308,7 +297,6 @@ fn parse_errors() {
     let decorated = Info::default().for_parser(a);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -316,7 +304,6 @@ fn parse_errors() {
     assert_eq!(expected_err, err);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -364,7 +351,6 @@ fn long_usage_string() {
     let parser = Info::default().for_parser(p);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -386,7 +372,6 @@ Available options:
     assert_eq!(
         "-a requires an argument, got flag -b",
         parser
-            .clone()
             .run_inner(Args::from(&["-a", "-b"]))
             .unwrap_err()
             .unwrap_stderr()
@@ -431,28 +416,24 @@ fn from_several_alternatives_pick_more_meaningful() {
     let parser = Info::default().for_parser(p);
 
     let err1 = parser
-        .clone()
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err1, "-b is not expected in this context");
 
     let err2 = parser
-        .clone()
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err2, "-a is not expected in this context");
 
     let err3 = parser
-        .clone()
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err3, "-a is not expected in this context");
 
     let err4 = parser
-        .clone()
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -477,7 +458,6 @@ fn subcommands() {
     let parser = global_info.for_parser(bar_cmd);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -516,7 +496,6 @@ fn multiple_aliases() {
     let parser = Info::default().for_parser(a);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -528,8 +507,8 @@ Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
-    parser.clone().run_inner(Args::from(&["-a"])).unwrap();
-    parser.clone().run_inner(Args::from(&["-b"])).unwrap();
+    parser.run_inner(Args::from(&["-a"])).unwrap();
+    parser.run_inner(Args::from(&["-b"])).unwrap();
     parser.run_inner(Args::from(&["-c"])).unwrap();
 }
 
@@ -569,7 +548,7 @@ mod git {
         },
     }
 
-    fn setup() -> info::OptionParser<Opt> {
+    fn setup() -> impl info::OptionParser<Opt> {
         let dry_run = long("dry_run").switch();
         let all = long("all").switch();
         let repository = positional("SRC").fallback("origin".to_string());
@@ -738,7 +717,6 @@ fn arg_bench() {
             input: vec![PathBuf::from("foo"), PathBuf::from("foo2")],
         },
         parser
-            .clone()
             .run_inner(Args::from(&["--number", "42", "foo", "foo2"]))
             .unwrap()
     );
@@ -750,10 +728,7 @@ fn arg_bench() {
             width: 10,
             input: Vec::new()
         },
-        parser
-            .clone()
-            .run_inner(Args::from(&["--number", "42"]))
-            .unwrap()
+        parser.run_inner(Args::from(&["--number", "42"])).unwrap()
     );
 
     drop(parser);
@@ -768,19 +743,15 @@ fn simple_cargo_helper() {
     let decorated = info.for_parser(cargo_helper("simple", parser));
 
     // cargo run variant
-    let ok = decorated.clone().run_inner(Args::from(&["-a"])).unwrap();
+    let ok = decorated.run_inner(Args::from(&["-a"])).unwrap();
     assert_eq!((true, false), ok);
 
     // cargo simple variant
-    let ok = decorated
-        .clone()
-        .run_inner(Args::from(&["simple", "-b"]))
-        .unwrap();
+    let ok = decorated.run_inner(Args::from(&["simple", "-b"])).unwrap();
     assert_eq!((false, true), ok);
 
     // flag can be given only once
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -835,7 +806,6 @@ fn env_variable() {
     let parser = Info::default().for_parser(key);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -851,7 +821,6 @@ Available options:
     std::env::set_var(name, "top s3cr3t");
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -865,10 +834,7 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let res = parser
-        .clone()
-        .run_inner(Args::from(&["--key", "secret"]))
-        .unwrap();
+    let res = parser.run_inner(Args::from(&["--key", "secret"])).unwrap();
     assert_eq!(res, "secret");
 
     let res = parser.run_inner(Args::from(&[])).unwrap();
@@ -877,6 +843,7 @@ Available options:
 
 #[test]
 fn help_with_default_parse() {
+    use bpaf::{OptionParser, Parser};
     #[derive(Debug, Clone, Bpaf)]
     enum Action {
         /// Add a new TODO item
@@ -888,11 +855,9 @@ fn help_with_default_parse() {
         NoAction,
     }
 
-    let parser =
-        ::bpaf::Info::default().for_parser(action().or_else(bpaf::Parser::pure(Action::NoAction)));
+    let parser = bpaf::Info::default().for_parser(action().or_else(bpaf::pure(Action::NoAction)));
 
     let help = parser
-        .clone()
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -938,11 +903,11 @@ fn command_and_fallback() {
         NoAction,
     }
 
+    use bpaf::{OptionParser, Parser};
     let parser = action().fallback(Action::NoAction);
 
     let parser = ::bpaf::Info::default().for_parser(parser);
     let help = parser
-        .clone()
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -1019,16 +984,13 @@ fn default_plays_nicely_with_command() {
     let cmd = command(
         "foo",
         Some("foo"),
-        Info::default()
-            .descr("inner")
-            .for_parser(Parser::pure(Foo::Foo)),
+        Info::default().descr("inner").for_parser(pure(Foo::Foo)),
     )
-    .default();
+    .or_default();
 
     let parser = Info::default().descr("outer").for_parser(cmd);
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["foo", "--help"]))
         .unwrap_err()
         .unwrap_stdout();

@@ -54,7 +54,7 @@
 //!
 use std::ffi::OsString;
 
-use super::{Args, Error, OptionParser, Parser, Rc};
+use super::{Args, Error, OptionParser, Parser};
 use crate::{
     args::{Arg, Word},
     item::ShortLong,
@@ -242,7 +242,7 @@ impl Named {
     /// # drop(switch);
     /// ```
     #[must_use]
-    pub fn switch(self) -> Parser<bool> {
+    pub fn switch(self) -> impl Parser<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
@@ -264,7 +264,7 @@ impl Named {
     /// # drop(switch);
     /// ```
     #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> Parser<T>
+    pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
     where
         T: Clone + 'static,
     {
@@ -299,7 +299,7 @@ impl Named {
     /// ```
     ///
     #[must_use]
-    pub fn req_flag<T>(self, present: T) -> Parser<T>
+    pub fn req_flag<T>(self, present: T) -> impl Parser<T>
     where
         T: Clone + 'static,
     {
@@ -318,7 +318,7 @@ impl Named {
     /// # drop(arg)
     /// ```
     #[must_use]
-    pub fn argument(self, metavar: &'static str) -> Parser<String> {
+    pub fn argument(self, metavar: &'static str) -> impl Parser<String> {
         build_argument(self, metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
 
@@ -334,7 +334,7 @@ impl Named {
     /// # drop(arg)
     /// ```
     #[must_use]
-    pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
+    pub fn argument_os(self, metavar: &'static str) -> impl Parser<OsString> {
         build_argument(self, metavar).map(|x| x.os)
     }
 }
@@ -347,7 +347,7 @@ impl Named {
 /// # drop(arg)
 /// ```
 #[must_use]
-pub fn positional(metavar: &'static str) -> Parser<String> {
+pub fn positional(metavar: &'static str) -> impl Parser<String> {
     build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
 }
 
@@ -360,7 +360,7 @@ pub fn positional(metavar: &'static str) -> Parser<String> {
 /// let arg: Parser<Option<String>> = positional_if("INPUT", is_short);
 /// # drop(arg)
 /// ```
-pub fn positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<String>>
+pub fn positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<String>>
 where
     F: Fn(&str) -> bool + 'static,
 {
@@ -385,7 +385,7 @@ where
 /// # drop(arg)
 /// ```
 #[must_use]
-pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
+pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
     build_positional(metavar).map(|x| x.os)
 }
 
@@ -424,29 +424,44 @@ pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
 /// # drop(opt)
 /// ```
 #[must_use]
-pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: OptionParser<T>) -> Parser<T>
+pub fn command<P, T, M>(name: &'static str, help: Option<M>, subparser: P) -> impl Parser<T>
 where
+    P: OptionParser<T>,
     T: 'static,
     M: Into<String>,
 {
-    let item = Item::Command {
+    let meta = Meta::Item(Item::Command {
         name,
         help: help.map(Into::into),
-    };
-
-    let meta = Meta::Item(item);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| {
-        if args.take_cmd(name) {
-            (subparser.parse)(args)
-        } else {
-            Err(Error::Missing(vec![meta2.clone()]))
-        }
-    };
-
-    Parser {
-        parse: Rc::new(parse),
+    });
+    Command {
+        name,
         meta,
+        subparser,
+    }
+}
+
+#[derive(Clone)]
+struct Command<P> {
+    name: &'static str,
+    meta: Meta,
+    subparser: P,
+}
+
+impl<P, T> Parser<T> for Command<P>
+where
+    P: OptionParser<T>,
+{
+    fn run(&self, args: &mut Args) -> Result<T, Error> {
+        if args.take_cmd(self.name) {
+            self.subparser.run_subparser(args)
+        } else {
+            Err(Error::Missing(vec![self.meta.clone()]))
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta.clone()
     }
 }
 
@@ -454,49 +469,57 @@ fn short_or_long_flag(arg: &Arg, shorts: &[char], longs: &[&str]) -> bool {
     shorts.iter().any(|&c| arg.is_short(c)) || longs.iter().any(|s| arg.is_long(s))
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Parser<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Parser<T>
 where
     T: Clone + 'static,
 {
-    if !named.env.is_empty() {
-        // mostly cosmetic reasons
-        assert!(
-            !(named.short.is_empty() && named.long.is_empty()),
-            "env fallback can only be used if name is present"
-        );
-    }
-
     let item = Item::Flag {
         name: ShortLong::from(&named),
         help: named.help.clone(),
     };
+
     let meta = item.required(absent.is_none());
 
-    let missing = if absent.is_none() {
-        Error::Missing(vec![meta.clone()])
-    } else {
-        Error::Stdout(String::new())
-    };
-
-    let parse = move |mut args: Args| {
-        if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long))
-            || named.env.iter().find_map(std::env::var_os).is_some()
-        {
-            Ok((present.clone(), args))
-        } else {
-            Ok((
-                absent.as_ref().ok_or_else(|| missing.clone())?.clone(),
-                args,
-            ))
-        }
-    };
-    Parser {
-        parse: Rc::new(parse),
+    BuildFlagParser {
+        present,
+        absent,
+        shorts: named.short,
+        longs: named.long,
+        envs: named.env,
         meta,
     }
 }
 
-fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
+#[derive(Clone)]
+struct BuildFlagParser<T> {
+    present: T,
+    absent: Option<T>,
+    shorts: Vec<char>,
+    longs: Vec<&'static str>,
+    envs: Vec<&'static str>,
+    meta: Meta,
+}
+
+impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
+    fn run(&self, args: &mut Args) -> Result<T, Error> {
+        if args.take_flag(|arg| short_or_long_flag(arg, &self.shorts, &self.longs))
+            || self.envs.iter().find_map(std::env::var_os).is_some()
+        {
+            Ok(self.present.clone())
+        } else {
+            match &self.absent {
+                Some(ok) => Ok(ok.clone()),
+                None => Err(Error::Missing(vec![self.meta.clone()])),
+            }
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta.clone()
+    }
+}
+
+fn build_argument(named: Named, metavar: &'static str) -> impl Parser<Word> {
     if !named.env.is_empty() {
         // mostly cosmetic reasons
         assert!(
@@ -507,68 +530,103 @@ fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
     let item = Item::Argument {
         name: ShortLong::from(&named),
         metavar,
-        help: named.help,
         env: named.env.first().copied(),
+        help: named.help,
     };
-    let meta = item.required(true);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| {
-        #[allow(clippy::option_if_let_else)]
-        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &named.short, &named.long))? {
-            Ok((w, args))
-        } else if let Some(val) = named.env.iter().find_map(std::env::var_os) {
-            Ok((Word::from(val), args))
-        } else {
-            Err(Error::Missing(vec![meta2.clone()]))
-        }
-    };
-
-    Parser {
-        parse: Rc::new(parse),
-        meta,
+    BuildArgument {
+        shorts: named.short,
+        longs: named.long,
+        envs: named.env,
+        meta: item.required(true),
     }
 }
 
-fn build_positional(metavar: &'static str) -> Parser<Word> {
+#[derive(Clone)]
+struct BuildArgument {
+    shorts: Vec<char>,
+    longs: Vec<&'static str>,
+    envs: Vec<&'static str>,
+    meta: Meta,
+}
+
+impl Parser<Word> for BuildArgument {
+    fn run(&self, args: &mut Args) -> Result<Word, Error> {
+        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &self.shorts, &self.longs))? {
+            Ok(w)
+        } else if let Some(val) = self.envs.iter().find_map(std::env::var_os) {
+            Ok(Word::from(val))
+        } else {
+            Err(Error::Missing(vec![self.meta.clone()]))
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta.clone()
+    }
+}
+
+fn build_positional(metavar: &'static str) -> impl Parser<Word> {
     let item = Item::Positional { metavar };
     let meta = item.required(true);
+    BuildPositional { meta }
+}
 
-    let meta2 = meta.clone();
+#[derive(Clone)]
+struct BuildPositional {
+    meta: Meta,
+}
 
-    let parse = move |mut args: Args| match args.take_positional_word()? {
-        Some(word) => Ok((word, args)),
-        None => Err(Error::Missing(vec![meta2.clone()])),
-    };
-    Parser {
-        parse: Rc::new(parse),
-        meta,
+impl Parser<Word> for BuildPositional {
+    fn run(&self, args: &mut Args) -> Result<Word, Error> {
+        match args.take_positional_word()? {
+            Some(word) => Ok(word),
+            None => Err(Error::Missing(vec![self.meta.clone()])),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta.clone()
     }
 }
 
-fn build_positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<Word>>
+#[derive(Clone)]
+struct BuildPositionalIf<F> {
+    meta: Meta,
+    check: F,
+}
+
+impl<F> Parser<Option<Word>> for BuildPositionalIf<F>
+where
+    F: Fn(&Word) -> bool + 'static,
+{
+    fn run(&self, args: &mut Args) -> Result<Option<Word>, Error> {
+        match args.peek() {
+            Some(Arg::Word(w_ref)) => {
+                if (self.check)(w_ref) {
+                    let w_owned = args
+                        .take_positional_word()?
+                        .expect("We just confirmed it's there");
+                    Ok(Some(w_owned))
+                } else {
+                    Ok(None)
+                }
+            }
+
+            //            Some(_) => Err(Error::Missing(vec![self.meta.clone()])),
+            _ => Ok(None),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta.clone()
+    }
+}
+
+fn build_positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<Word>>
 where
     F: Fn(&Word) -> bool + 'static,
 {
     let item = Item::Positional { metavar };
     let meta = item.required(false);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| match args.peek() {
-        Some(Arg::Word(w_ref)) => {
-            if check(w_ref) {
-                let w_owned = args
-                    .take_positional_word()?
-                    .expect("We just confirmed it's there");
-                Ok((Some(w_owned), args))
-            } else {
-                Ok((None, args))
-            }
-        }
-
-        Some(_) => Err(Error::Missing(vec![meta2.clone()])),
-        None => Ok((None, args)),
-    };
-    Parser {
-        parse: Rc::new(parse),
-        meta,
-    }
+    BuildPositionalIf { meta, check }
 }

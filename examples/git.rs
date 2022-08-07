@@ -51,7 +51,7 @@ fn main() {
 
     let opt = Info::default()
         .descr("The stupid content tracker")
-        .for_parser(fetch_cmd.or_else(add_cmd))
+        .for_parser(construct!([fetch_cmd, add_cmd]))
         .run();
 
     println!("{:?}", opt);

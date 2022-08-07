@@ -1,4 +1,4 @@
-use bpaf::{construct, long, short, Bpaf, Parser};
+use bpaf::{construct, long, short, Bpaf, OptionParser, Parser};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Bpaf)]
@@ -36,7 +36,7 @@ pub struct Options {
     pub nth: usize,
 }
 
-fn verbose() -> Parser<usize> {
+fn verbose() -> impl Parser<usize> {
     short('v')
         .long("verbose")
         .help("more verbose output, can be specified multiple times")
@@ -45,7 +45,7 @@ fn verbose() -> Parser<usize> {
         .map(|v| v.len())
 }
 
-fn parse_manifest_path() -> Parser<PathBuf> {
+fn parse_manifest_path() -> impl Parser<PathBuf> {
     long("manifest-path")
         .help("Path to Cargo.toml")
         .argument_os("PATH")
@@ -91,7 +91,7 @@ impl ToString for Syntax {
     }
 }
 
-fn color_detection() -> Parser<bool> {
+fn color_detection() -> impl Parser<bool> {
     let yes = long("color")
         .help("Enable color highlighting")
         .req_flag(true);

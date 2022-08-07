@@ -445,7 +445,7 @@ impl ToTokens for Top {
             ParserKind::OParser(_) => quote!(OptionParser),
         };
         quote!(
-            #vis fn #name() -> ::bpaf::#outer_kind<#outer_ty> {
+            #vis fn #name() -> impl ::bpaf::#outer_kind<#outer_ty> {
                 #kind
             }
         )
@@ -492,7 +492,7 @@ impl ToTokens for BParser {
             })
             .to_tokens(tokens),
             BParser::Constructor(con, Fields::NoFields) => {
-                quote!(::bpaf::Parser::pure(#con)).to_tokens(tokens);
+                quote!(::bpaf::pure(#con)).to_tokens(tokens);
             }
             BParser::Constructor(con, bra) => {
                 let parse_decls = bra.parser_decls();
@@ -864,14 +864,14 @@ mod test {
                     };
                     let alt5 = {
                         let inner_cmd = {
-                            let inner_op = ::bpaf::Parser::pure(Opt::Alpha);
+                            let inner_op = ::bpaf::pure(Opt::Alpha);
                             ::bpaf::Info::default().for_parser(inner_op)
                         };
                         ::bpaf::command("alpha", None::<String>, inner_cmd)
                     };
                     let alt6 = {
                         let inner_cmd = {
-                            let inner_op = ::bpaf::Parser::pure(Opt::Omega);
+                            let inner_op = ::bpaf::pure(Opt::Omega);
                             ::bpaf::Info::default().for_parser(inner_op)
                         };
                         ::bpaf::command("omega", None::<String>, inner_cmd)
@@ -957,14 +957,14 @@ mod test {
                         ::bpaf::cargo_helper("subcargo", {
                             let alt0 = {
                                 let inner_cmd = {
-                                    let inner_op = ::bpaf::Parser::pure(Action::Alpha);
+                                    let inner_op = ::bpaf::pure(Action::Alpha);
                                     ::bpaf::Info::default().for_parser(inner_op)
                                 };
                                 ::bpaf::command("alpha", None::<String>, inner_cmd)
                             };
                             let alt1 = {
                                 let inner_cmd = {
-                                    let inner_op = ::bpaf::Parser::pure(Action::Beta);
+                                    let inner_op = ::bpaf::pure(Action::Beta);
                                     ::bpaf::Info::default().for_parser(inner_op)
                                 };
                                 ::bpaf::command("beta", None::<String>, inner_cmd)

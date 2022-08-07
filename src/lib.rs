@@ -2,8 +2,7 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![doc = include_str!("../README.md")]
 
-use std::rc::Rc;
-use std::str::FromStr;
+use std::marker::PhantomData;
 
 pub mod params;
 
@@ -15,7 +14,10 @@ pub mod item;
 #[doc(hidden)]
 pub mod meta;
 
-use crate::{args::Word, info::Error, item::Item};
+pub mod structs;
+use crate::{info::Error, item::Item};
+pub use structs::ParseConstruct;
+use structs::*;
 
 #[cfg(test)]
 mod tests;
@@ -50,11 +52,15 @@ pub use bpaf_derive::Bpaf;
 /// }
 ///
 /// // parser defined as a local variable
-/// let a: Parser<bool> = short('a').switch();
+/// let a = short('a').switch();
 ///
 /// // parser defined as a function
-/// fn b() -> Parser<u32> { short('b').argument("B").from_str() }
-/// let res: Parser<Res> = construct!(Res { a, b() });
+/// fn b() -> impl Parser<u32> {
+///     short('b').argument("B").from_str()
+/// }
+///
+/// // resulting parser returns Res and requires both a and b to succeed
+/// let res = construct!(Res { a, b() });
 /// # drop(res);
 /// ```
 ///
@@ -114,15 +120,20 @@ macro_rules! construct {
     (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
         $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
-    (@prepare [alt] [$first:ident $($fields:ident)*]) => { $first $(.or_else($fields))*  };
+
+    (@prepare [alt] [$first:ident $($fields:ident)*]) => {{
+        use $crate::Parser; $first $(.or_else($fields))*
+    }};
+
     (@prepare $ty:tt [$($fields:tt)*]) => {{
-        $crate::Parser {
-            parse: ::std::rc::Rc::new(move |args| {
-                $(let ($fields , args) = ($fields . parse)(args)?;)*
-                ::std::result::Result::Ok(($crate::construct!(@make $ty [$($fields)*]), args))
-            }),
-            meta: $crate::Meta::And(::std::vec![ $($fields.meta),* ])
-        }
+        use $crate::Parser;
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let inner = move |args: &mut $crate::Args| {
+            $(let $fields = $fields.run(args)?;)*
+            ::std::result::Result::Ok::<_, $crate::info::Error>
+                ($crate::construct!(@make $ty [$($fields)*]))
+        };
+        $crate::ParseConstruct { inner, meta }
     }};
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
@@ -130,21 +141,298 @@ macro_rules! construct {
     (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
 }
 
-#[doc(hidden)]
-/// A bit more user friendly alias for parsing function
-pub type DynParse<T> = dyn Fn(Args) -> Result<(T, Args), Error>;
-
 /// Simple or composed argument parser
-#[derive(Clone)]
-pub struct Parser<T> {
-    #[doc(hidden)]
+pub trait Parser<T> {
     /// Parsing function
-    pub parse: Rc<DynParse<T>>,
-    #[doc(hidden)]
+    fn run(&self, args: &mut Args) -> Result<T, Error>;
+
     /// Included information about the parser
-    pub meta: Meta,
+    fn meta(&self) -> Meta;
+
+    /// Consume zero or more items from a command line
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // parser will accept multiple `-n` arguments:
+    /// // `-n 1, -n 2, -n 3`
+    /// // and return all of them as a vector which can be empty if no `-n` specified
+    /// let n // n: impl Parser<Vec<u32>>
+    ///     = short('n').argument("NUM").from_str::<u32>().many();
+    /// # drop(n);
+    /// ```
+    ///
+    /// # Panics
+    /// Panics if parser succeeds without consuming any input: any parser modified with
+    /// `many` must consume something,
+    fn many(self) -> ParseMany<Self>
+    where
+        Self: Sized,
+    {
+        ParseMany { inner: self }
+    }
+
+    /// Parse stored [`String`] using [`FromStr`] instance
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let speed = short('s').argument("SPEED").from_str::<f64>();
+    /// // at this point program would accept things like "-s 3.1415"
+    /// // but reject "-s pi"
+    /// # drop(speed)
+    /// ```
+    #[must_use]
+    #[allow(clippy::wrong_self_convention)]
+    fn from_str<R>(self) -> ParseFromStr<Self, R>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseFromStr {
+            inner: self,
+            ty: PhantomData,
+        }
+    }
+
+    /// Turn a required parser into optional
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // n: impl Parser<u32>
+    /// let n = short('n').argument("NUM").from_str::<u32>();
+    /// // if `-n` is not specified - parser will return `None`
+    /// // n: impl Parser<Option<u32>>
+    /// let n = n.optional();
+    /// # drop(n);
+    /// ```
+    #[must_use]
+    fn optional(self) -> ParseOptional<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseOptional { inner: self }
+    }
+
+    /// Validate or fail with a message
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>();
+    /// // Parser will reject values greater than 10
+    /// let n = n.guard(|v| *v <= 10, "Values greater than 10 are only available in the DLC pack!");
+    /// // n: impl Parser<u32>
+    /// # drop(n);
+    /// ```
+    #[must_use]
+    fn guard<F>(self, check: F, message: &'static str) -> ParseGuard<Self, F>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(&T) -> bool,
+    {
+        ParseGuard {
+            inner: self,
+            check,
+            message,
+        }
+    }
+
+    /// Use this value as default if value is not present on a command line
+    ///
+    /// Would still fail if value is present but failure comes from some transformation
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>().fallback(42);
+    /// # drop(n)
+    /// ```
+    #[must_use]
+    fn fallback(self, value: T) -> ParseFallback<Self, T>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseFallback { inner: self, value }
+    }
+
+    /// Use value produced by this function as default if value is not present
+    ///
+    /// Would still fail if value is present but failure comes from some transformation
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>();
+    /// let n = n.fallback_with(|| Result::<u32, String>::Ok(42));
+    /// # drop(n)
+    /// ```
+    #[must_use]
+    fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn() -> Result<T, E>,
+        E: ToString,
+    {
+        ParseFallbackWith {
+            inner: self,
+            inner_res: PhantomData,
+            fallback,
+            err: PhantomData,
+        }
+    }
+
+    /// Parse `T` or fallback to `T::default()`
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>().or_default();
+    /// # drop(n)
+    /// ```
+    #[must_use]
+    fn or_default(self) -> ParseDefault<T, Self>
+    where
+        Self: Sized + Parser<T>,
+        T: Default + 'static + Clone,
+    {
+        ParseDefault {
+            inner: self,
+            inner_res: PhantomData,
+        }
+    }
+
+    /// Apply a failing transformation
+    ///
+    /// See also [`from_str`][Parser::from_str]
+    /// ```rust
+    /// # use bpaf::*;
+    /// let s = short('n').argument("NUM");
+    /// // Try to parse String into u32 or fail during the parsing
+    /// use std::str::FromStr;
+    /// let n = s.map(|s| u32::from_str(&s));
+    /// // n: impl Parser<u32>
+    /// # drop(n);
+    /// ```
+    fn parse<F, E, R>(self, f: F) -> ParseWith<T, Self, F, E, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> Result<R, E>,
+        E: ToString,
+    {
+        ParseWith {
+            inner: self,
+            inner_res: PhantomData,
+            parse_fn: f,
+            res: PhantomData,
+            err: PhantomData,
+        }
+    }
+
+    fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
+    where
+        Self: Sized + Parser<T>,
+        P: Sized + Parser<T>,
+    {
+        ParseOrElse {
+            this: self,
+            that: alt,
+        }
+    }
+
+    /// Apply a pure transformation to a contained value
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let n = short('n').argument("NUM").from_str::<u32>(); // impl Parser<u32>
+    /// // produced value is now twice as large
+    /// let n = n.map(|v| v * 2);
+    /// # drop(n);
+    /// ```
+    fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> R + 'static,
+    {
+        ParseMap {
+            inner: self,
+            inner_res: PhantomData,
+            map_fn: map,
+            res: PhantomData,
+        }
+    }
+
+    fn hide(self) -> ParseHide<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseHide { inner: self }
+    }
+
+    /// Consume one or more items from a command line
+    ///
+    /// Takes a string literal that will be used as an
+    /// error message if there's not enough parameters specified
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // parser will accept multiple `-n` arguments:
+    /// // `-n 1, -n 2, -n 3`
+    /// // and return all of them as a vector. At least one `-n` argument is required.
+    /// // n: impl Parser<Vec<u32>>
+    /// let n = short('n').argument("NUM")
+    ///     .from_str::<u32>().some("You need to specify at least one number");
+    /// # drop(n);
+    /// ```
+    #[must_use]
+    fn some(self, message: &'static str) -> ParseSome<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseSome {
+            inner: self,
+            message,
+        }
+    }
+
+    fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseGroupHelp {
+            inner: self,
+            message,
+        }
+    }
 }
 
+/// Wrap a value into a `Parser`
+///
+/// Parser will produce `T` without consuming anything from the command line, can be useful
+/// with [`construct!`].
+///
+/// ```rust
+/// # use bpaf::*;
+/// let a = long("flag-a").switch();
+/// let b = pure(42u32);
+/// let t = construct!(a, b); // impl Parser<(bool, u32)>
+/// # drop(t)
+/// ```
+#[must_use]
+pub fn pure<T>(val: T) -> ParsePure<T> {
+    ParsePure(val)
+}
+
+/// Fail with a fixed error message
+/// ```rust
+/// # use bpaf::*;
+/// let a = short('a').switch();
+/// let no_a = fail("Custom error message for missing -a");
+///
+/// // Parser will produce a custom error message if `-a` is not specified
+/// let a_ = construct!([a, no_a]); // impl Parser<bool>
+/// # drop(a_);
+/// ```
+#[must_use]
+pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
+    ParseFail {
+        field1: msg,
+        field2: PhantomData,
+    }
+}
+
+/*
 impl<T> Parser<T> {
     /// Wrap a value into a `Parser`
     ///
@@ -554,7 +842,9 @@ impl<T> Parser<T> {
         }
     }
 }
+*/
 
+/*
 impl Parser<String> {
     /// Parse stored [`String`] using [`FromStr`] instance
     ///
@@ -573,7 +863,7 @@ impl Parser<String> {
     {
         self.parse(|s| T::from_str(&s))
     }
-}
+}*/
 
 /// Unsuccessful command line parsing outcome
 ///
@@ -623,6 +913,7 @@ impl ParseFailure {
     }
 }
 
+/*
 impl<T> OptionParser<T> {
     /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
@@ -712,7 +1003,7 @@ impl<T> OptionParser<T> {
         }
     }
 }
-
+*/
 /// Strip a command name if present at the front when used as a cargo command
 ///
 /// This helper should be used on a top level parser
@@ -721,14 +1012,27 @@ impl<T> OptionParser<T> {
 /// # use bpaf::*;
 /// let width = short('w').argument("PX").from_str::<u32>();
 /// let height = short('h').argument("PX").from_str::<u32>();
-/// let parser: Parser<(u32, u32)> = cargo_helper("cmd", construct!(width, height));
+/// let parser = cargo_helper("cmd", construct!(width, height)); // impl Parser<(u32, u32)>
 /// # drop(parser);
 /// ```
 #[must_use]
-pub fn cargo_helper<T>(cmd: &'static str, parser: Parser<T>) -> Parser<T>
+pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
 where
     T: 'static,
+    P: Parser<T>,
 {
-    let skip = positional_if("", move |s| cmd == s).optional().hide();
+    let skip = positional_if("", move |s| cmd == s).hide();
     construct!(skip, parser).map(|x| x.1)
 }
+
+/*
+fn foo() -> impl {
+    use crate::Parser;
+    let meta = crate::Meta::And((<[_]>::into_vec(box [(skip.meta()), (parser.meta())])));
+    let inner = move |args: &mut crate::Args| {
+        let skip = skip.run(args)?;
+        let parser = parser.run(args)?;
+        ::std::result::Result::Ok::<_, crate::info::Error>((args, ((skip, parser))))
+    };
+    crate::ParseConstruct { inner, meta }
+}*/

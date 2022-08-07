@@ -33,7 +33,7 @@ fn main() {
         .argument("TOKEN")
         .optional();
 
-    let simple_parser = Parser::pure(PreCommand::Simple);
+    let simple_parser = pure(PreCommand::Simple);
     let simple = command(
         "simple",
         Some("This is a simple command"),

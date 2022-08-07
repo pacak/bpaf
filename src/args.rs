@@ -108,6 +108,10 @@ mod inner {
         pub(crate) const fn len(&self) -> usize {
             self.remaining
         }
+
+        pub(crate) fn current_word(&self) -> Option<Word> {
+            self.current.clone()
+        }
     }
 
     impl<'a> Iterator for ArgsIter<'a> {

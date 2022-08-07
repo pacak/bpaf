@@ -23,7 +23,7 @@ struct Options {
     potato: usize,
 }
 
-fn verbose() -> Parser<LevelFilter> {
+fn verbose() -> impl Parser<LevelFilter> {
     short('v')
         .help("Verbosity level, use multiple times for more verbosity")
         .req_flag(())

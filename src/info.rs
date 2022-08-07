@@ -1,9 +1,14 @@
 //! Help message generation and rendering
 
 #![allow(clippy::write_with_newline)]
-use std::rc::Rc;
+use std::marker::PhantomData;
 
-use crate::{args::Args, params::short, DynParse, Item, Meta, Parser};
+use crate::{
+    args::{self, Args},
+    item::Item,
+    params::short,
+    Meta, ParseConstruct, ParseFailure, Parser,
+};
 
 /// Unsuccessful command line parsing outcome, internal representation
 #[derive(Clone, Debug)]
@@ -38,24 +43,6 @@ impl Error {
                 Error::Missing(a)
             }
         }
-    }
-}
-
-/// Parser with atteched meta information
-#[derive(Clone)]
-pub struct OptionParser<T> {
-    pub(crate) parse: Rc<DynParse<T>>,
-    pub(crate) parser_meta: Meta,
-    pub(crate) help_meta: Meta,
-    pub(crate) info: Info,
-}
-
-impl<T> OptionParser<T> {
-    /// Return current help message for outer parser as a string
-    pub fn render_help(&self) -> Result<String, std::fmt::Error> {
-        self.info
-            .clone()
-            .render_help(self.parser_meta.clone(), self.help_meta.clone())
     }
 }
 
@@ -152,20 +139,9 @@ impl Info {
         self
     }
 
-    fn help_parser(&self) -> Parser<ExtraParams> {
-        let help = short('h')
-            .long("help")
-            .help("Prints help information")
-            .req_flag(ExtraParams::Help);
-
-        match self.version {
-            Some(v) => help.or_else(
-                short('V')
-                    .long("version")
-                    .help("Prints version information")
-                    .req_flag(ExtraParams::Version(v)),
-            ),
-            None => help,
+    fn help_parser(&self) -> impl Parser<ExtraParams> {
+        ParseExtraParams {
+            version: self.version,
         }
     }
 
@@ -208,20 +184,21 @@ impl Info {
 
     /// Attach additional information to the parser
     #[must_use]
-    pub fn for_parser<T>(self, parser: Parser<T>) -> OptionParser<T>
+    pub fn for_parser<P, T>(self, parser: P) -> impl OptionParser<T>
     where
+        P: Parser<T>,
         T: 'static + Clone + std::fmt::Debug,
     {
-        let parser_meta = parser.meta.clone();
-        let help_meta = self.help_parser().meta;
-        let Parser {
-            parse: p_parse,
-            meta: p_meta,
-        } = parser;
+        let help_meta = self.help_parser().meta();
         let info = self.clone();
-        let p = move |args: Args| {
-            let err = match p_parse(args.clone()).and_then(check_unexpected) {
-                Ok(r) => return Ok(r),
+        let parser_meta = parser.meta();
+        let p = move |args: &mut Args| {
+            let mut reg_args = args.clone();
+            let err = match parser.run(&mut reg_args) {
+                Ok(r) => {
+                    check_unexpected(&reg_args)?;
+                    return Ok(r);
+                }
 
                 // Stderr means
                 Err(Error::Stderr(e)) => Error::Stderr(e),
@@ -232,25 +209,27 @@ impl Info {
                 Err(err) => err,
             };
 
-            match (self.help_parser().parse)(args) {
-                Ok((ExtraParams::Help, _)) => {
+            match self.help_parser().run(args) {
+                Ok(ExtraParams::Help) => {
                     let msg = self
-                        .clone()
-                        .render_help(p_meta.clone(), self.help_parser().meta)
+                        .render_help(parser.meta(), self.help_parser().meta())
                         .expect("Couldn't render help");
                     return Err(Error::Stdout(msg));
                 }
-                Ok((ExtraParams::Version(v), _)) => {
+                Ok(ExtraParams::Version(v)) => {
                     return Err(Error::Stdout(format!("Version: {}", v)));
                 }
                 Err(_) => {}
             }
             Err(err)
         };
-        OptionParser {
-            parse: Rc::new(p),
+        OptionParserStruct {
+            inner: ParseConstruct {
+                inner: p,
+                meta: parser_meta,
+            },
+            inner_type: PhantomData,
             info,
-            parser_meta,
             help_meta,
         }
     }
@@ -263,12 +242,183 @@ pub enum ExtraParams {
     Version(&'static str),
 }
 
-fn check_unexpected<T>((t, args): (T, Args)) -> Result<(T, Args), Error> {
+fn check_unexpected(args: &Args) -> Result<(), Error> {
     match args.peek() {
-        None => Ok((t, args)),
+        None => Ok(()),
         Some(item) => Err(Error::Stderr(format!(
             "{} is not expected in this context",
             item
         ))),
+    }
+}
+
+#[derive(Clone)]
+/// Parser with atteched meta information
+pub struct OptionParserStruct<T, P> {
+    pub(crate) inner: P,
+    pub(crate) inner_type: PhantomData<T>,
+    pub(crate) help_meta: Meta,
+    pub(crate) info: Info,
+}
+
+/// Argument parser with additional information attached, created with [`Info::for_parser`].
+pub trait OptionParser<T> {
+    /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
+    ///
+    /// ```no_run
+    /// # use bpaf::*;
+    /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
+    /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
+    ///
+    /// let opt = info.for_parser(verbose).run();
+    /// // At this point `opt` contains number of repetitions of `-v` on a command line
+    /// # drop(opt)
+    /// ```
+    #[must_use]
+    fn run(self) -> T
+    where
+        Self: Sized,
+    {
+        let mut pos_only = false;
+        let mut vec = Vec::new();
+        for arg in std::env::args_os().skip(1) {
+            args::push_vec(&mut vec, arg, &mut pos_only);
+        }
+
+        match self.run_inner(Args::from(vec)) {
+            Ok(t) => t,
+            Err(ParseFailure::Stdout(msg)) => {
+                println!("{}", msg);
+                std::process::exit(0);
+            }
+            Err(ParseFailure::Stderr(msg)) => {
+                eprintln!("{}", msg);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    /// Execute the [`OptionParser`] and produce a value that can be used in unit tests
+    ///
+    /// ```
+    /// #[test]
+    /// fn positional_argument() {
+    ///     let p = positional("FILE").help("File to process");
+    ///     let parser = Info::default().for_parser(p);
+    ///
+    ///     let help = parser
+    ///         .run_inner(Args::from(&["--help"]))
+    ///         .unwrap_err()
+    ///         .unwrap_stdout();
+    ///     let expected_help = "\
+    /// Usage: <FILE>
+    ///
+    /// Available options:
+    ///     -h, --help   Prints help information
+    /// ";
+    ///     assert_eq!(expected_help, help);
+    /// }
+    /// ```
+    ///
+    /// See also [`Args`] and it's `From` impls to produce input and
+    /// [`ParseFailure::unwrap_stderr`] / [`ParseFailure::unwrap_stdout`] for processing results.
+    ///
+    /// # Errors
+    ///
+    /// If parser can't produce desired outcome `run_inner` will return [`ParseFailure`]
+    /// which represents runtime behavior: one branch to print something to stdout and exit with
+    /// success and the other branch to print something to stderr and exit with failure.
+    ///
+    /// Parser is not really capturing anything. If parser detects `--help` or `--version` it will
+    /// always produce something that can be consumed with [`ParseFailure::unwrap_stdout`].
+    /// Otherwise it will produce [`ParseFailure::unwrap_stderr`]  generated either by the parser
+    /// itself in case someone required field is missing or by user's [`Parser::guard`] or
+    /// [`Parser::parse`] functions.
+    ///
+    /// API for those is constructed to only produce a [`String`]. If you try to print something inside
+    /// [`Parser::map`] or [`Parser::parse`] - it will not be captured. Depending on a test case
+    /// you'll know what to use: `unwrap_stdout` if you want to test generated help or `unwrap_stderr`
+    /// if you are testing `parse` / `guard` / missing parameters.
+    ///
+    /// Exact string reperentations may change between versions including minor releases.
+    fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
+    where
+        Self: Sized,
+    {
+        match self.run_subparser(&mut args) {
+            Ok(t) if args.is_empty() => Ok(t),
+            Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
+            Err(Error::Missing(metas)) => Err(ParseFailure::Stderr(format!(
+                "Expected {}, pass --help for usage information",
+                Meta::Or(metas)
+            ))),
+            Err(Error::Stdout(stdout)) => Err(ParseFailure::Stdout(stdout)),
+            Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
+        }
+    }
+
+    fn run_subparser(&self, args: &mut Args) -> Result<T, Error>;
+}
+
+impl<T, P> OptionParser<T> for OptionParserStruct<T, P>
+where
+    P: Parser<T>,
+{
+    fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.run(args)
+    }
+}
+
+struct ParseExtraParams {
+    version: Option<&'static str>,
+}
+
+impl Parser<ExtraParams> for ParseExtraParams {
+    fn run(&self, args: &mut Args) -> Result<ExtraParams, Error> {
+        if let Ok(ok) = ParseExtraParams::help().run(args) {
+            return Ok(ok);
+        }
+        let not_ok = Error::Stderr(String::from("Not a version or help flag"));
+        let ver = self.version.ok_or_else(|| not_ok.clone())?;
+
+        if let Ok(ok) = Self::ver(ver).run(args) {
+            return Ok(ok);
+        }
+        Err(not_ok)
+    }
+
+    fn meta(&self) -> Meta {
+        match self.version {
+            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(ver).meta()]),
+            None => Self::help().meta(),
+        }
+    }
+}
+
+impl ParseExtraParams {
+    #[inline(never)]
+    fn help() -> impl Parser<ExtraParams> {
+        short('h')
+            .long("help")
+            .help("Prints help information")
+            .req_flag(ExtraParams::Help)
+    }
+    #[inline(never)]
+    fn ver(version: &'static str) -> impl Parser<ExtraParams> {
+        short('V')
+            .long("version")
+            .help("Prints version information")
+            .req_flag(ExtraParams::Version(version))
+    }
+}
+
+impl<T, P> OptionParserStruct<T, P> {
+    /// Return current help message for outer parser as a string
+    pub fn render_help(&self) -> Result<String, std::fmt::Error>
+    where
+        P: Parser<T>,
+    {
+        self.info
+            .render_help(self.inner.meta(), self.help_meta.clone())
     }
 }

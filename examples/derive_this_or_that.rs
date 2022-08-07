@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-use bpaf::Bpaf;
+use bpaf::{Bpaf, OptionParser};
 
 // By default bpaf tries to parse booleans as flags, do something smart
 // about Strings and file names and handles Option/Vec.

@@ -12,14 +12,14 @@ fn opts() -> Opts {
         .long("speed") // give it a name
         .help("speed in KPH") // and help message
         .argument("SPEED") // it's an argument with metavar
-        .from_str() // that is parsed from string as f64
-        .map(|s: f64| s / 0.62); // and converted to mph
+        .from_str::<f64>() // that is parsed from string as f64
+        .map(|s| s / 0.62); // and converted to mph
 
     let distance = short('d')
         .long("distance")
         .help("distance in miles")
         .argument("DISTANCE")
-        .from_str();
+        .from_str::<f64>();
 
     let parser = construct!(Opts { speed, distance });
 

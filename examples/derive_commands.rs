@@ -14,11 +14,11 @@ pub enum Action {
     },
 }
 
-fn feature_if() -> Parser<Option<String>> {
+fn feature_if() -> impl Parser<Option<String>> {
     positional_if("FEATURE", |v| !is_version(v))
 }
 
-fn version_if() -> Parser<Option<String>> {
+fn version_if() -> impl Parser<Option<String>> {
     positional_if("VERSION", is_version)
 }
 

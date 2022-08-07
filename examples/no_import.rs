@@ -15,15 +15,18 @@ fn main() {
         .switch();
 
     // an argument, parsed and with default value
-    let speed = bpaf::short('s')
-        .long("speed")
-        .help("Set speed")
-        .argument("SPEED")
-        .from_str::<f64>()
-        .fallback(42.0);
+    let speed = bpaf::Parser::fallback(
+        bpaf::Parser::from_str::<f64>(
+            bpaf::short('s')
+                .long("speed")
+                .help("Set speed")
+                .argument("SPEED"),
+        ),
+        42.0,
+    );
 
     // packing things in a struct assumes parser for each field is in scope.
     let parser = bpaf::construct!(Out { debug, speed });
-    let opt = bpaf::Info::default().for_parser(parser).run();
+    let opt = bpaf::OptionParser::run(bpaf::Info::default().for_parser(parser));
     println!("{:#?}", opt);
 }
