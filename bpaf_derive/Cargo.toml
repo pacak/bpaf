@@ -1,6 +1,6 @@
 [package]
 name = "bpaf_derive"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "Derive macros for bpaf Command Line Argument Parser"
