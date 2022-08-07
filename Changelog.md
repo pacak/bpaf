@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.4.12] - 2022-08-08
+- bpaf now depends on a specific version of bpaf_derive
+
 ## bpaf [0.4.11] - 2022-08-07
 - meta and item refactors, changed the formatting a bit
 
