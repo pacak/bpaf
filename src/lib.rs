@@ -320,6 +320,36 @@ pub trait Parser<T> {
         }
     }
 
+    /// If first parser fails - try the second one
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let a = short('a').switch();
+    /// let b = short('b').switch();
+    ///
+    /// // Parser will accept either `-a` or `-b` on a command line but not both at once.
+    /// let a_or_b = a.or_else(b); // impl Parser<bool>
+    /// # drop(a_or_b);
+    /// ```
+    ///
+    /// # Performance
+    ///
+    /// If first parser succeeds - second one will be called anyway to produce a
+    /// better error message for combinations of mutually exclusive parsers:
+    ///
+    /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
+    /// and both are present error message should point at the second flag
+    ///
+    /// [`construct!`] can be used to perform a similar task and might generate better code if
+    /// combines more than two parsers. Those two invocations are equivalent:
+    ///
+    /// ```ignore
+    /// let abc = a.or_else(b).or_else(c);
+    /// ```
+    /// ```ignore
+    /// let abc = construct!([a, b, c]);
+    /// ```
+    ///
     fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
     where
         Self: Sized + Parser<T>,
@@ -353,6 +383,20 @@ pub trait Parser<T> {
         }
     }
 
+    /// Ignore this parser during any sort of help generation
+    ///
+    /// Best used for optional parsers or parsers with a defined fallback
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// // bpaf will accept `-w` but won't show it during help generation
+    /// let width = short('w').argument("PX").from_str::<u32>().fallback(10).hide();
+    /// let height = short('h').argument("PX").from_str::<u32>();
+    /// let rect = construct!(width, height);
+    /// # drop(rect);
+    /// ```
+    ///
+    /// See also `examples/cargo-cmd.rs`
     fn hide(self) -> ParseHide<Self>
     where
         Self: Sized + Parser<T>,
@@ -386,6 +430,16 @@ pub trait Parser<T> {
         }
     }
 
+    /// Attach help message to a complex parser
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let width = short('w').argument("PX").from_str::<u32>();
+    /// let height = short('h').argument("PX").from_str::<u32>();
+    /// let rect = construct!(width, height).group_help("take a rectangle");
+    /// # drop(rect);
+    /// ```
+    /// See `examples/rectangle.rs` for a complete example
     fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,

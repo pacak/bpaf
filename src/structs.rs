@@ -1,3 +1,4 @@
+//! FIXME
 use std::{marker::PhantomData, str::FromStr};
 
 use crate::{args::Word, info::Error, Args, Meta, Parser};
@@ -388,7 +389,9 @@ where
 /// Create parser from a function, [`construct!`] uses it internally
 #[derive(Clone)]
 pub struct ParseConstruct<P> {
+    /// TODO
     pub inner: P,
+    /// TODO
     pub meta: Meta,
 }
 
