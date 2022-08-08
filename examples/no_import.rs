@@ -1,4 +1,4 @@
-//! You don't need to import bpaf in order to use it
+//! You don't need to import bpaf in order to use it, it will look ugly though
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]

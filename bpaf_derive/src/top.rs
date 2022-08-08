@@ -446,6 +446,8 @@ impl ToTokens for Top {
         };
         quote!(
             #vis fn #name() -> impl ::bpaf::#outer_kind<#outer_ty> {
+                 #[allow(unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 #kind
             }
         )
