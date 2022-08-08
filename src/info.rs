@@ -267,6 +267,14 @@ pub struct OptionParserStruct<T, P> {
 }
 
 /// Argument parser with additional information attached, created with [`Info::for_parser`].
+///
+// There's only one struct that implements this trait: OptionParserStruct and the only
+// reason for keeping it a as a trait is having type signatures more user friendly:
+// with trait:
+// fn foo() -> impl OptionParser<Foo>
+// with struct:
+// fn foo() -> OptionParser<Foo, impl Parser<Foo>>
+// With https://github.com/rust-lang/rust/issues/63063 it should be able to remove this
 pub trait OptionParser<T> {
     /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
