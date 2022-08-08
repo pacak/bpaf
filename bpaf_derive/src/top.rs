@@ -610,7 +610,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opts() -> ::bpaf::OptionParser<Opts> {
+            fn opts() -> impl ::bpaf::OptionParser<Opts> {
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("asm", {
@@ -633,7 +633,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::Parser<Opt> {{
+            fn opt() -> impl ::bpaf::Parser<Opt> {{
                 let verbose = ::bpaf::long("verbose").switch();
                 ::bpaf::construct!(Opt { verbose })
             }}
@@ -650,7 +650,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::Parser<Opt> {
+            fn opt() -> impl ::bpaf::Parser<Opt> {
                 {
                     let verbose_name = ::bpaf::long("verbose-name").switch();
                     ::bpaf::construct!(Opt::Foo { verbose_name })
@@ -670,7 +670,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::OptionParser<Opt> {
+            fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -691,7 +691,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::OptionParser<Opt> {
+            fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -714,7 +714,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::Parser<Opt> {
+            fn opt() -> impl ::bpaf::Parser<Opt> {
                 {
                     let inner_cmd = {
                         let inner_op = {
@@ -747,7 +747,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::Parser<Opt> {
+            fn opt() -> impl ::bpaf::Parser<Opt> {
                 {
                     let inner_cmd = {
                         let inner_op = {
@@ -792,7 +792,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::OptionParser<Opt> {
+            fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -815,7 +815,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt1() -> ::bpaf::OptionParser<Opt1> {
+            fn opt1() -> impl ::bpaf::OptionParser<Opt1> {
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -849,7 +849,7 @@ mod test {
         };
 
         let expected = quote! {
-            pub fn opt() -> ::bpaf::Parser<Opt> {
+            pub fn opt() -> impl ::bpaf::Parser<Opt> {
                 {
                     let alt0 = ::bpaf::long("Foo").req_flag(Opt::Foo);
                     let alt1 = ::bpaf::short('p').req_flag(Opt::Pff);
@@ -899,7 +899,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> ::bpaf::OptionParser<Opt> {
+            fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -922,7 +922,7 @@ mod test {
             }
         };
         let expected = quote! {
-            fn action() -> ::bpaf::OptionParser<Action> {
+            fn action() -> impl ::bpaf::OptionParser<Action> {
                 {
                     let inner_op = {
                         let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
@@ -951,7 +951,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn action() -> ::bpaf::OptionParser<Action> {
+            fn action() -> impl ::bpaf::OptionParser<Action> {
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("subcargo", {
@@ -992,7 +992,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn options() -> ::bpaf::Parser<Options> {
+            fn options() -> impl ::bpaf::Parser<Options> {
                 {
                     let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1013,7 +1013,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn options() -> ::bpaf::Parser<Options> {
+            fn options() -> impl ::bpaf::Parser<Options> {
                 {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1034,7 +1034,7 @@ mod test {
         };
 
         let expected = quote! {
-            fn options() -> ::bpaf::Parser<Options> {
+            fn options() -> impl ::bpaf::Parser<Options> {
                 {
                     let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
