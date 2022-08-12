@@ -87,11 +87,22 @@ impl<T> Default for FieldAttrs<T> {
 pub enum OptNameAttr {
     Short(Option<LitChar>),
     Long(Option<LitStr>),
+    Env(Box<Expr>),
 }
 #[derive(Debug, Clone)]
 pub enum StrictNameAttr {
     Short(LitChar),
     Long(LitStr),
+    Env(Box<Expr>),
+}
+
+impl StrictNameAttr {
+    fn is_name(&self) -> bool {
+        match self {
+            StrictNameAttr::Short(_) | StrictNameAttr::Long(_) => true,
+            StrictNameAttr::Env(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -110,7 +121,6 @@ enum PostprAttr {
     Many(Option<LitStr>),
     Map(Ident),
     Optional,
-    Env(LitStr),
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
@@ -123,7 +133,6 @@ impl PostprAttr {
             PostprAttr::FromStr(_)
             | PostprAttr::Many(_)
             | PostprAttr::Map(_)
-            | PostprAttr::Env(_)
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
             | PostprAttr::Parse(_) => false,
@@ -233,6 +242,11 @@ impl Parse for OptNameAttr {
             } else {
                 Ok(Self::Short(None))
             }
+        } else if input.peek(kw::env) {
+            let _ = input.parse::<kw::env>()?;
+            let content;
+            let _ = parenthesized!(content in input);
+            Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
             Err(input.error("Not a name attribute"))
         }
@@ -324,11 +338,6 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
-        } else if input.peek(kw::env) {
-            input.parse::<kw::env>()?;
-            let _ = parenthesized!(content in input);
-            let name = content.parse::<LitStr>()?;
-            Ok(Self::Env(name))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
             Ok(Self::Many(None))
@@ -504,28 +513,30 @@ fn restrict_names(base_name: &Ident, attrs: Vec<OptNameAttr>) -> Vec<StrictNameA
                 .collect::<String>()
         }
     };
-    if attrs.is_empty() {
+
+    for name_attr in attrs {
+        res.push(match name_attr {
+            OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
+            OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
+            OptNameAttr::Short(None) => {
+                let s = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
+                StrictNameAttr::Short(s)
+            }
+            OptNameAttr::Long(None) => {
+                let l = LitStr::new(&name_str, base_name.span());
+                StrictNameAttr::Long(l)
+            }
+            OptNameAttr::Env(e) => StrictNameAttr::Env(e),
+        });
+    }
+
+    if !res.iter().any(StrictNameAttr::is_name) {
         if name_str.chars().nth(1).is_some() {
             let l = LitStr::new(&name_str, base_name.span());
             res.push(StrictNameAttr::Long(l));
         } else {
             let c = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
             res.push(StrictNameAttr::Short(c));
-        }
-    } else {
-        for name_attr in attrs {
-            res.push(match name_attr {
-                OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
-                OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
-                OptNameAttr::Short(None) => {
-                    let s = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
-                    StrictNameAttr::Short(s)
-                }
-                OptNameAttr::Long(None) => {
-                    let l = LitStr::new(&name_str, base_name.span());
-                    StrictNameAttr::Long(l)
-                }
-            });
         }
     }
     res
@@ -645,7 +656,6 @@ impl ToTokens for PostprAttr {
             PostprAttr::Many(None) => quote!(many()),
             PostprAttr::Many(Some(m)) => quote!(some(#m)),
             PostprAttr::Map(f) => quote!(map(#f)),
-            PostprAttr::Env(n) => quote!(env(#n)),
             PostprAttr::Optional => quote!(optional()),
             PostprAttr::Parse(f) => quote!(parse(#f)),
             PostprAttr::Fallback(v) => quote!(fallback(#v)),
@@ -661,6 +671,7 @@ impl ToTokens for StrictNameAttr {
         match self {
             StrictNameAttr::Short(s) => quote!(short(#s)),
             StrictNameAttr::Long(l) => quote!(long(#l)),
+            StrictNameAttr::Env(e) => quote!(env(#e)),
         }
         .to_tokens(tokens);
     }
@@ -1082,13 +1093,13 @@ mod tests {
     #[test]
     fn env_argument() {
         let input: NamedField = parse_quote! {
-            #[bpaf(argument("N"), env("N"), from_str(u32), some("need params"))]
+            #[bpaf(env(sim::DB), argument("N"), from_str(u32), some("need params"))]
             config: Vec<u32>
         };
         let output = quote! {
-            ::bpaf::long("config")
+            ::bpaf::env(sim::DB)
+                .long("config")
                 .argument("N")
-                .env("N")
                 .from_str::<u32>()
                 .some("need params")
         };
