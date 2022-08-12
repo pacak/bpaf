@@ -613,6 +613,8 @@ mod test {
 
         let expected = quote! {
             fn opts() -> impl ::bpaf::OptionParser<Opts> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("asm", {
@@ -635,10 +637,14 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> impl ::bpaf::Parser<Opt> {{
-                let verbose = ::bpaf::long("verbose").switch();
-                ::bpaf::construct!(Opt { verbose })
-            }}
+            fn opt() -> impl ::bpaf::Parser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
+                {
+                    let verbose = ::bpaf::long("verbose").switch();
+                    ::bpaf::construct!(Opt { verbose })
+                }
+            }
         };
 
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -653,6 +659,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let verbose_name = ::bpaf::long("verbose-name").switch();
                     ::bpaf::construct!(Opt::Foo { verbose_name })
@@ -673,6 +681,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -694,6 +704,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -717,6 +729,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_cmd = {
                         let inner_op = {
@@ -750,6 +764,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_cmd = {
                         let inner_op = {
@@ -795,6 +811,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -818,6 +836,8 @@ mod test {
 
         let expected = quote! {
             fn opt1() -> impl ::bpaf::OptionParser<Opt1> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -852,6 +872,8 @@ mod test {
 
         let expected = quote! {
             pub fn opt() -> impl ::bpaf::Parser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let alt0 = ::bpaf::long("Foo").req_flag(Opt::Foo);
                     let alt1 = ::bpaf::short('p').req_flag(Opt::Pff);
@@ -902,6 +924,8 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -925,6 +949,8 @@ mod test {
         };
         let expected = quote! {
             fn action() -> impl ::bpaf::OptionParser<Action> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
@@ -954,6 +980,8 @@ mod test {
 
         let expected = quote! {
             fn action() -> impl ::bpaf::OptionParser<Action> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("subcargo", {
@@ -995,6 +1023,8 @@ mod test {
 
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1016,6 +1046,8 @@ mod test {
 
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1037,6 +1069,8 @@ mod test {
 
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
+                #[allow (unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
                 {
                     let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
