@@ -105,10 +105,6 @@ mod inner {
             self.remaining == 0
         }
 
-        pub(crate) const fn len(&self) -> usize {
-            self.remaining
-        }
-
         pub(crate) fn current_word(&self) -> Option<Word> {
             self.current.clone()
         }

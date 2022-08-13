@@ -424,7 +424,7 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 /// # drop(opt)
 /// ```
 #[must_use]
-pub fn command<P, T, M>(name: &'static str, help: Option<M>, subparser: P) -> impl Parser<T>
+pub fn command<P, T, M>(name: &'static str, help: Option<M>, subparser: P) -> Command<P>
 where
     P: OptionParser<T>,
     T: 'static,
@@ -442,7 +442,7 @@ where
 }
 
 #[derive(Clone)]
-struct Command<P> {
+pub struct Command<P> {
     name: &'static str,
     meta: Meta,
     subparser: P,

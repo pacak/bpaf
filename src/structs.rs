@@ -337,7 +337,8 @@ where
     }
 }
 
-/// Parser that returns a given value without consuming anything, created with [`pure`].
+/// Parser that returns a given value without consuming anything, created with
+/// [`pure`](crate::pure).
 pub struct ParsePure<T>(pub(crate) T);
 impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
     fn run(&self, _args: &mut Args) -> Result<T, Error> {

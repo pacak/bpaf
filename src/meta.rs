@@ -23,14 +23,6 @@ impl std::fmt::Display for Meta {
 }
 
 impl Meta {
-    pub(crate) fn optional(self) -> Self {
-        Self::Optional(Box::new(self))
-    }
-
-    pub(crate) fn many(self) -> Self {
-        Self::Many(Box::new(self))
-    }
-
     pub(crate) fn commands(&self) -> Vec<Item> {
         let mut res = Vec::new();
         self.collect_items(&mut res, Item::is_command);
