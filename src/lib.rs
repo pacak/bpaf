@@ -481,9 +481,8 @@ pub mod structs;
 use crate::{info::Error, item::Item};
 pub use structs::ParseConstruct;
 use structs::{
-    ParseDefault, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
+    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
 };
 
 #[cfg(test)]
@@ -1151,27 +1150,6 @@ pub trait Parser<T> {
             inner_res: PhantomData,
             fallback,
             err: PhantomData,
-        }
-    }
-    // }}}
-
-    // {{{ or_default
-    /// Parse `T` or fallback to `T::default()`
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>().or_default();
-    /// # drop(n)
-    /// ```
-    #[must_use]
-    fn or_default(self) -> ParseDefault<T, Self>
-    where
-        Self: Sized + Parser<T>,
-        T: Default + 'static + Clone,
-    {
-        ParseDefault {
-            inner: self,
-            inner_res: PhantomData,
         }
     }
     // }}}

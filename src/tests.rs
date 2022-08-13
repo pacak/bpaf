@@ -986,7 +986,7 @@ fn default_plays_nicely_with_command() {
         Some("foo"),
         Info::default().descr("inner").for_parser(pure(Foo::Foo)),
     )
-    .or_default();
+    .fallback(Default::default());
 
     let parser = Info::default().descr("outer").for_parser(cmd);
 
@@ -1013,7 +1013,7 @@ Available options:
     let expected_help = "\
 outer
 
-Usage: COMMAND ...
+Usage: [COMMAND ...]
 
 Available options:
     -h, --help  Prints help information

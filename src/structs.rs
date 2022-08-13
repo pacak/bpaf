@@ -34,31 +34,6 @@ where
     }
 }
 
-/// Parser that substitutes missing value with a default value for T but not parser
-/// failure, created with [`Parser::or_default`].
-pub struct ParseDefault<T, P> {
-    pub(crate) inner: P,
-    pub(crate) inner_res: PhantomData<T>,
-}
-
-impl<T, P> Parser<T> for ParseDefault<T, P>
-where
-    P: Parser<T>,
-    T: Default,
-{
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        match self.inner.run(args) {
-            Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(_) => Ok(T::default()),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.inner.meta()
-    }
-}
-
 /// Fail with a fixed error message
 /// ```rust
 /// # use bpaf::*;
