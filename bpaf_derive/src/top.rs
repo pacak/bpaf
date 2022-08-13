@@ -751,13 +751,12 @@ mod test {
     fn enum_command() {
         let input: Top = parse_quote! {
             /// those are options
-            #[bpaf(command)]
             enum Opt {
                 #[bpaf(command("foo"))]
                 /// foo doc
                 Foo { field: usize },
                 /// bar doc
-                #[bpaf(command("bar"))]
+                #[bpaf(command)]
                 Bar { field: bool }
             }
         };
@@ -767,35 +766,27 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{Parser, OptionParser};
                 {
-                    let inner_cmd = {
-                        let inner_op = {
-                            let alt0 = {
-                                let inner_cmd = {
-                                    let inner_op = {
-                                        let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
-                                        ::bpaf::construct!(Opt::Foo { field })
-                                    };
-                                    ::bpaf::Info::default().descr("foo doc").for_parser(inner_op)
-                                };
-                                ::bpaf::command("foo", Some("foo doc"), inner_cmd)
+                    let alt0 = {
+                        let inner_cmd = {
+                            let inner_op = {
+                                let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
+                                ::bpaf::construct!(Opt::Foo { field })
                             };
-                            let alt1 = {
-                                let inner_cmd = {
-                                    let inner_op = {
-                                        let field = ::bpaf::long("field").switch();
-                                        ::bpaf::construct!(Opt::Bar { field })
-                                    };
-                                    ::bpaf::Info::default().descr("bar doc").for_parser(inner_op)
-                                };
-                                ::bpaf::command("bar", Some("bar doc"), inner_cmd)
-                            };
-                            ::bpaf::construct!([alt0, alt1])
+                            ::bpaf::Info::default().descr("foo doc").for_parser(inner_op)
                         };
-                        ::bpaf::Info::default()
-                            .descr("those are options")
-                            .for_parser(inner_op)
+                        ::bpaf::command("foo", Some("foo doc"), inner_cmd)
                     };
-                    ::bpaf::command("opt", Some("those are options"), inner_cmd)
+                    let alt1 = {
+                        let inner_cmd = {
+                            let inner_op = {
+                                let field = ::bpaf::long("field").switch();
+                                ::bpaf::construct!(Opt::Bar { field })
+                            };
+                            ::bpaf::Info::default().descr("bar doc").for_parser(inner_op)
+                        };
+                        ::bpaf::command("bar", Some("bar doc"), inner_cmd)
+                    };
+                    ::bpaf::construct!([alt0, alt1])
                 }
             }
         };
