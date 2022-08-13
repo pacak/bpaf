@@ -1078,9 +1078,10 @@ pub trait Parser<T> {
     /// $ app -n pi
     /// // fails with "Couldn't parse "pi": invalid numeric literal"
     /// ```
+    ///
     /// # See also
-    /// [`fallback_with`] would allow to try to fallback to a value that comes from a failing
-    /// computation such as reading a file
+    /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
+    /// comes from a failing computation such as reading a file.
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
@@ -1138,6 +1139,10 @@ pub trait Parser<T> {
     /// $ app
     /// // "pacak"
     /// ```
+    ///
+    /// # See also
+    /// [`fallback`](Parser::fallback) implements similar logic expect that failures
+    /// are not expected.
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
     where
@@ -1157,34 +1162,76 @@ pub trait Parser<T> {
     // {{{ or_else
     /// If first parser fails - try the second one
     ///
+    /// For parser to succeed eiter of the components needs to succeed. If both succeed - bpaf
+    /// would use output from one that consumed the left most value. The second flag on the command
+    /// line will remain unconsumed by `or_else` and needs to be consumed by something else,
+    /// otherwise this will result in an error.
+    ///
+    /// # Combinatoric usage:
+    /// There's two ways to write this combinator with identical results:
     /// ```rust
     /// # use bpaf::*;
-    /// let a = short('a').switch();
-    /// let b = short('b').switch();
+    /// fn a() -> impl Parser<u32> {
+    ///     short('a').argument("NUM").from_str::<u32>()
+    /// }
     ///
-    /// // Parser will accept either `-a` or `-b` on a command line but not both at once.
-    /// let a_or_b = a.or_else(b); // impl Parser<bool>
-    /// # drop(a_or_b);
+    /// fn b() -> impl Parser<u32> {
+    ///     short('b').argument("NUM").from_str::<u32>()
+    /// }
+    ///
+    /// fn a_or_b_comb() -> impl Parser<u32> {
+    ///     construct!([a(), b()])
+    /// }
+    ///
+    /// fn a_or_b_comb2() -> impl Parser<u32> {
+    ///     a().or_else(b())
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -a 12 -b 3
+    /// // 12
+    /// $ app -b 3 -a 12
+    /// // 3
+    /// $ app -b 13
+    /// // 13
+    /// $ app
+    /// // fails asking for either -a NUM or -b NUM
+    /// ```
+    ///
+    /// # Derive usage:
+    ///
+    /// enums are translated into alternative combinations, different shapes of variants
+    /// produce different results
+    ///
+    ///
+    /// ```bpaf
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// enum Flag {
+    ///     A { a: u32 }
+    ///     B { b: u32 }
+    /// }
+    /// ```
+    ///
+    /// ```console
+    /// $ app -a 12 -b 3
+    /// // Flag::A { a: 12 }
+    /// $ app -b 3 -a 12
+    /// // Flag::B { b: 3 }
+    /// $ app -b 3
+    /// // Flag::B { b: 3 }
+    /// $ app
+    /// // fails asking for either -a NUM or -b NUM
     /// ```
     ///
     /// # Performance
     ///
     /// If first parser succeeds - second one will be called anyway to produce a
     /// better error message for combinations of mutually exclusive parsers:
-    ///
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
-    ///
-    /// [`construct!`] can be used to perform a similar task and might generate better code if
-    /// combines more than two parsers. Those two invocations are equivalent:
-    ///
-    /// ```ignore
-    /// let abc = a.or_else(b).or_else(c);
-    /// ```
-    /// ```ignore
-    /// let abc = construct!([a, b, c]);
-    /// ```
-    ///
     fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
     where
         Self: Sized + Parser<T>,
