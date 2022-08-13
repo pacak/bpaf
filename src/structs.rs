@@ -22,7 +22,7 @@ where
         match self.inner.run(args) {
             Ok(ok) => Ok(ok),
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(_) => match (self.fallback)() {
+            Err(Error::Missing(_)) => match (self.fallback)() {
                 Ok(ok) => Ok(ok),
                 Err(e) => Err(Error::Stderr(e.to_string())),
             },
@@ -234,7 +234,7 @@ where
         match self.inner.run(args) {
             Ok(ok) => Ok(ok),
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(_) => Ok(self.value.clone()),
+            Err(Error::Missing(_)) => Ok(self.value.clone()),
         }
     }
 
@@ -279,7 +279,13 @@ where
     P: Parser<T>,
 {
     fn run(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        Ok(self.inner.run(args).ok())
+        let orig_args = args.clone();
+        if let Ok(val) = self.inner.run(args) {
+            Ok(Some(val))
+        } else {
+            *args = orig_args;
+            Ok(None)
+        }
     }
 
     fn meta(&self) -> Meta {

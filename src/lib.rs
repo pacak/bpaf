@@ -99,6 +99,15 @@
 //!
 //! 3. Try to run it, output should be similar to derive edition
 
+//! # Getting started
+//!
+//! Documentation is shared for combinatoric and derive APIs, recommended reading order:
+//! 1. [`construct!`] - what combinations are and how you should read the examples
+//! 2. [`Named`], [`positional`] and [`command`] - on consuming data
+//! 3. [`Parser`] - on transforming the data
+//! 4. [`OptionParser`] - on running the result
+//! 5. *Using the library in derive style* section below
+
 //! # Design goals: flexibility, reusability
 //!
 //! Library allows to express command line arguments by combining primitive parsers using mostly
@@ -609,7 +618,7 @@ pub trait Parser<T> {
     ///
     /// Mostly internal implementation details, you can try using it to test your parsers
     // it is possible to move this function from the trait to the structs but having it
-    // in the trait ensures the composition
+    // in the trait ensures the composition always works: structs will have to implement it
     #[doc(hidden)]
     fn run(&self, args: &mut Args) -> Result<T, Error>;
 
@@ -617,21 +626,23 @@ pub trait Parser<T> {
     ///
     /// Mostly internal implementation details, you can try using it to test your parsers
     // it is possible to move this function from the trait to the structs but having it
-    // in the trait ensures the composition
+    // in the trait ensures the composition always works: structs will have to implement it
     #[doc(hidden)]
     fn meta(&self) -> Meta;
 
+    // change shape
+    // {{{ many
     /// Consume zero or more items from a command line and collect them into [`Vec`]
     ///
     /// # Combinatoric usage:
     /// ```rust
     /// # use bpaf::*;
-    /// let numbers
-    ///     = short('n')
-    ///     .argument("NUM")
-    ///     .from_str::<u32>()
-    ///     .many();
-    /// # drop(numbers);
+    /// fn numbers() -> impl Parser<Vec<u32>> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .many()
+    /// }
     /// ```
     ///
     /// # Derive usage:
@@ -665,7 +676,9 @@ pub trait Parser<T> {
     ///
     /// # Panics
     /// Panics if parser succeeds without consuming any input: any parser modified with
-    /// `many` must consume something,
+    /// `many` must consume something: trying to parse `many` [`flag`](Named::flag) or
+    /// [`switch`](Named::switch) would cause this panic, instead you should use
+    /// [`req_flag`](Named::req_flag).
     ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
@@ -676,8 +689,242 @@ pub trait Parser<T> {
     {
         ParseMany { inner: self }
     }
+    // }}}
 
+    // {{{ some
+    /// Consume one or more items from a command line
+    ///
+    /// Takes a string that will be used as an
+    /// error message if there's no specified parameters
+    ///
+    /// # Combinatoric usage:
+    /// ```rust
+    /// # use bpaf::*;
+    /// let numbers
+    ///     = short('n')
+    ///     .argument("NUM")
+    ///     .from_str::<u32>()
+    ///     .some("Need at least one number");
+    /// # drop(numbers);
+    /// ```
+    ///
+    /// # Derive usage
+    /// Since using `some` resets the postprocessing chain - you also need to specify
+    /// [`from_str`](Parser::from_str) or similar, depending on your type
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), from_str(u32), some("Need at least one number"))]
+    ///     numbers: Vec<u32>
+    /// }
+    /// ```
+    ///
+    ///
+    /// # Example
+    /// ```console
+    /// $ app
+    /// // fails with "Need at least one number"
+    /// $ app -n 1 -n 2 -n 3
+    /// // [1, 2, 3]
+    /// ```
+    ///
+    /// # Panics
+    /// Panics if parser succeeds without consuming any input: any parser modified with
+    /// `some` must consume something: trying to parse `many` [`flag`](Named::flag) or
+    /// [`switch`](Named::switch) would cause this panic, instead you should use
+    /// [`req_flag`](Named::req_flag).
+    ///
+    /// # See also
+    /// [`many`](Parser::many) also collects results to a vector and will succeed with
+    /// no matching values
+    #[must_use]
+    fn some(self, message: &'static str) -> ParseSome<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseSome {
+            inner: self,
+            message,
+        }
+    }
+    // }}}
+
+    // {{{ optional
+    /// Turn a required parser into optional
+    ///
+    /// Any failure inside the parser will be turned into `None`. Failures in parser usually come
+    /// from missing a command line argument, but it is possible to introduce them with
+    /// [`parse`](Parser::parse) or [`guard`](Parser::guard) methods.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn number() -> impl Parser<Option<u32>> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .optional()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// By default bpaf would automatically use optional for fields of type `Option<T>`,
+    /// for as long as it's not prevented from doing so by present postprocessing options
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"))]
+    ///    number: Option<u32>
+    /// }
+    /// ```
+    ///
+    /// But it is also possible to specify it explicitly, in which case you need to specify
+    /// a full postprocessing chain which starts from [`from_str`](Parser::from_str) in this
+    /// example.
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"), from_str(u32), optional)]
+    ///    number: Option<u32>
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app
+    /// // None
+    /// $ app -n 42
+    /// // Some(42)
+    /// ```
+    #[must_use]
+    fn optional(self) -> ParseOptional<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseOptional { inner: self }
+    }
+    // }}}
+
+    // parse
+    // {{{ parse
+    /// Apply a failing transformation to a contained value
+    ///
+    /// This is a most general way of transforming parsers and remaining ones can be expressed in
+    /// terms of it: [`map`](Parser::map), [`from_str`](Parser::from_str) and
+    /// [`guard`](Parser::guard).
+    ///
+    /// Examples given here are a bit artificail, to parse a value from string you should use
+    /// [`from_str`](Parser::from_str).
+    ///
+    /// # Combinatoric usage:
+    /// ```rust
+    /// # use bpaf::*;
+    /// # use std::str::FromStr;
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .parse(|s| u32::from_str(&s))
+    /// }
+    /// ```
+    /// # Derive usage:
+    /// `parse` takes a single parameter: function name to call. Function type should match
+    /// parameter `F` used by `parse` in combinatoric API.
+    /// ```rust
+    /// # use bpaf::*;
+    /// # use std::str::FromStr;
+    /// # use std::num::ParseIntError;
+    /// fn read_number(s: String) -> Result<u32, ParseIntError> {
+    ///     u32::from_str(&s)
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), parse(read_number))]
+    ///     number: u32
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 12
+    /// // 12
+    /// # app -n pi
+    /// // fails with "Couldn't parse "pi": invalid numeric literal"
+    /// ```
+    ///
+    fn parse<F, E, R>(self, f: F) -> ParseWith<T, Self, F, E, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> Result<R, E>,
+        E: ToString,
+    {
+        ParseWith {
+            inner: self,
+            inner_res: PhantomData,
+            parse_fn: f,
+            res: PhantomData,
+            err: PhantomData,
+        }
+    }
+    // }}}
+
+    // {{{ map
+    /// Apply a pure transformation to a contained value
+    ///
+    /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .map(|v| v * 2)
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn double(i: u32) -> u32 {
+    ///     i * 2
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), from_str(u32), map(double))]
+    ///     number: u32,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 21
+    /// // 42
+    /// ```
+    fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> R + 'static,
+    {
+        ParseMap {
+            inner: self,
+            inner_res: PhantomData,
+            map_fn: map,
+            res: PhantomData,
+        }
+    }
+    // }}}
+
+    // {{{ from_str
     /// Parse stored [`String`] using [`FromStr`](std::str::FromStr) instance
+    ///
+    /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -690,7 +937,6 @@ pub trait Parser<T> {
     /// ```
     ///
     /// # Derive usage
-    ///
     /// By default bpaf_derive would use from_str for any time it is not
     /// familiar with so you don't need to specify anything
     /// ```rust
@@ -734,59 +980,9 @@ pub trait Parser<T> {
             ty: PhantomData,
         }
     }
+    // }}}
 
-    /// Turn a required parser into optional
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// let number = short('n')
-    ///     .argument("NUM")
-    ///     .from_str::<u32>()
-    ///     .optional();
-    /// # drop(number);
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// By default bpaf would automatically use optional for fields of type `Option<T>`,
-    /// for as long as it's not prevented from doing so by present postprocessing options
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///    #[bpaf(short, argument("NUM"))]
-    ///    number: Option<u32>
-    /// }
-    /// ```
-    ///
-    /// But it is also possible to specify it explicitly, in which case you need to specify
-    /// a full postprocessing chain which starts from [`from_str`](Parser::from_str) in this
-    /// example.
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///    #[bpaf(short, argument("NUM"), from_str(u32), optional)]
-    ///    number: Option<u32>
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app
-    /// // None
-    /// $ app -n 42
-    /// // Some(42)
-    /// ```
-    #[must_use]
-    fn optional(self) -> ParseOptional<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseOptional { inner: self }
-    }
-
+    // {{{ guard
     /// Validate or fail with a message
     ///
     /// Parser will reject values that fail to satisfy the constraints
@@ -795,11 +991,12 @@ pub trait Parser<T> {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let number = short('n')
-    ///     .argument("NUM")
-    ///     .from_str::<u32>()
-    ///     .guard(|n| *n <= 10, "Values greater than 10 are only available in the DLC pack!");
-    /// # drop(number);
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .guard(|n| *n <= 10, "Values greater than 10 are only available in the DLC pack!")
+    /// }
     /// ```
     ///
     /// # Derive usage
@@ -841,15 +1038,50 @@ pub trait Parser<T> {
             message,
         }
     }
+    // }}}
 
+    // combine
+    // {{{ fallback
     /// Use this value as default if value is not present on a command line
     ///
-    /// Would still fail if value is present but failure comes from some transformation
+    /// Parser would still fail if value is present but failure comes from some transformation
+    ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>().fallback(42);
-    /// # drop(n)
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .fallback(42)
+    /// }
     /// ```
+    ///
+    /// # Derive usage
+    /// Expression in parens should have the right type, this example uses `u32` literal,
+    /// but it can also be your own type if that is what you are parsing, it can also be a function
+    /// call.
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"), from_str(u32), fallback(42))]
+    ///    number: u32
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 100
+    /// // 10
+    /// $ app
+    /// // 42
+    /// $ app -n pi
+    /// // fails with "Couldn't parse "pi": invalid numeric literal"
+    /// ```
+    /// # See also
+    /// [`fallback_with`] would allow to try to fallback to a value that comes from a failing
+    /// computation such as reading a file
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
@@ -857,15 +1089,55 @@ pub trait Parser<T> {
     {
         ParseFallback { inner: self, value }
     }
+    // }}}
 
+    // {{{ fallback_with
     /// Use value produced by this function as default if value is not present
     ///
-    /// Would still fail if value is present but failure comes from some transformation
+    /// Would still fail if value is present but failure comes from some earlier transformation
+    ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>();
-    /// let n = n.fallback_with(|| Result::<u32, String>::Ok(42));
-    /// # drop(n)
+    /// fn username() -> impl Parser<String> {
+    ///     long("user")
+    ///         .argument("USER")
+    ///         .fallback_with::<_, Box<dyn std::error::Error>>(||{
+    ///             let output = std::process::Command::new("whoami")
+    ///                 .stdout(std::process::Stdio::piped())
+    ///                 .spawn()?
+    ///                 .wait_with_output()?
+    ///                 .stdout;
+    ///             Ok(std::str::from_utf8(&output)?.to_owned())
+    ///         })
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn get_current_user() -> Result<String, Box<dyn std::error::Error>> {
+    ///     let output = std::process::Command::new("whoami")
+    ///         .stdout(std::process::Stdio::piped())
+    ///         .spawn()?
+    ///         .wait_with_output()?
+    ///         .stdout;
+    ///     Ok(std::str::from_utf8(&output)?.to_owned())
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(long, argument("USER"), fallback_with(get_current_user))]
+    ///     user: String,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --user bobert
+    /// // "bobert"
+    /// $ app
+    /// // "pacak"
     /// ```
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
@@ -881,7 +1153,9 @@ pub trait Parser<T> {
             err: PhantomData,
         }
     }
+    // }}}
 
+    // {{{ or_default
     /// Parse `T` or fallback to `T::default()`
     ///
     /// ```rust
@@ -900,34 +1174,9 @@ pub trait Parser<T> {
             inner_res: PhantomData,
         }
     }
+    // }}}
 
-    /// Apply a failing transformation
-    ///
-    /// See also [`from_str`][Parser::from_str]
-    /// ```rust
-    /// # use bpaf::*;
-    /// let s = short('n').argument("NUM");
-    /// // Try to parse String into u32 or fail during the parsing
-    /// use std::str::FromStr;
-    /// let n = s.map(|s| u32::from_str(&s));
-    /// // n: impl Parser<u32>
-    /// # drop(n);
-    /// ```
-    fn parse<F, E, R>(self, f: F) -> ParseWith<T, Self, F, E, R>
-    where
-        Self: Sized + Parser<T>,
-        F: Fn(T) -> Result<R, E>,
-        E: ToString,
-    {
-        ParseWith {
-            inner: self,
-            inner_res: PhantomData,
-            parse_fn: f,
-            res: PhantomData,
-            err: PhantomData,
-        }
-    }
-
+    // {{{ or_else
     /// If first parser fails - try the second one
     ///
     /// ```rust
@@ -968,29 +1217,10 @@ pub trait Parser<T> {
             that: alt,
         }
     }
+    // }}}
 
-    /// Apply a pure transformation to a contained value
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>(); // impl Parser<u32>
-    /// // produced value is now twice as large
-    /// let n = n.map(|v| v * 2);
-    /// # drop(n);
-    /// ```
-    fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
-    where
-        Self: Sized + Parser<T>,
-        F: Fn(T) -> R + 'static,
-    {
-        ParseMap {
-            inner: self,
-            inner_res: PhantomData,
-            map_fn: map,
-            res: PhantomData,
-        }
-    }
-
+    // misc
+    // {{{ hide
     /// Ignore this parser during any sort of help generation
     ///
     /// Best used for optional parsers or parsers with a defined fallback
@@ -1011,63 +1241,9 @@ pub trait Parser<T> {
     {
         ParseHide { inner: self }
     }
+    // }}}
 
-    /// Consume one or more items from a command line
-    ///
-    /// Takes a string literal that will be used as an
-    /// error message if there's no specified parameters
-    ///
-    /// # Combinatoric usage:
-    /// ```rust
-    /// # use bpaf::*;
-    /// let numbers
-    ///     = short('n')
-    ///     .argument("NUM")
-    ///     .from_str::<u32>()
-    ///     .some("Need at least one number");
-    /// # drop(numbers);
-    /// ```
-    ///
-    /// # Derive usage
-    /// Since using `some` resets the postprocessing chain - you also need to specify
-    /// [`from_str`](Parser::from_str)
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), from_str(u32), some("Need at least one number"))]
-    ///     numbers: Vec<u32>
-    /// }
-    /// ```
-    ///
-    ///
-    /// # Example
-    /// ```console
-    /// $ app
-    /// // fails with "Need at least one number"
-    /// $ app -n 1 -n 2 -n 3
-    /// // [1, 2, 3]
-    /// ```
-    ///
-    /// # Panics
-    /// Panics if parser succeeds without consuming any input: any parser modified with
-    /// `many` must consume something,
-    ///
-    /// # See also
-    /// [`many`](Parser::many) also collects results to a vector and will succeed with
-    /// no matching values
-
-    #[must_use]
-    fn some(self, message: &'static str) -> ParseSome<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseSome {
-            inner: self,
-            message,
-        }
-    }
-
+    // {{{ group_help
     /// Attach help message to a complex parser
     ///
     /// ```rust
@@ -1087,6 +1263,7 @@ pub trait Parser<T> {
             message,
         }
     }
+    // }}}
 }
 
 /// Wrap a value into a `Parser`
