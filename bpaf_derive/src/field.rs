@@ -124,6 +124,8 @@ enum PostprAttr {
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
+    // used for deriving stuff to express map to convert
+    // from OsString to PathBuf... I wonder.
     Tokens(TokenStream),
     Hide,
     GroupHelp(Box<Expr>),
