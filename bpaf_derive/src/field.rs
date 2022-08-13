@@ -125,6 +125,8 @@ enum PostprAttr {
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
     Tokens(TokenStream),
+    Hide,
+    GroupHelp(Box<Expr>),
 }
 
 impl PostprAttr {
@@ -136,7 +138,11 @@ impl PostprAttr {
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
             | PostprAttr::Parse(_) => false,
-            PostprAttr::Guard(_, _) | PostprAttr::Fallback(_) | PostprAttr::FallbackWith(_) => true,
+            PostprAttr::Guard(_, _)
+            | PostprAttr::Fallback(_)
+            | PostprAttr::FallbackWith(_)
+            | PostprAttr::Hide
+            | PostprAttr::GroupHelp(_) => true,
         }
     }
 }
@@ -348,6 +354,14 @@ impl Parse for PostprAttr {
         } else if input.peek(kw::optional) {
             input.parse::<kw::optional>()?;
             Ok(Self::Optional)
+        } else if input.peek(kw::hide) {
+            input.parse::<kw::hide>()?;
+            Ok(Self::Hide)
+        } else if input.peek(kw::group_help) {
+            input.parse::<kw::group_help>()?;
+            let _ = parenthesized!(content in input);
+            let expr = content.parse::<Expr>()?;
+            Ok(Self::GroupHelp(Box::new(expr)))
         } else {
             Err(input.error("Not an attribute"))
         }
@@ -661,6 +675,8 @@ impl ToTokens for PostprAttr {
             PostprAttr::Fallback(v) => quote!(fallback(#v)),
             PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
+            PostprAttr::Hide => quote!(hide()),
+            PostprAttr::GroupHelp(m) => quote!(group_help(#m)),
         }
         .to_tokens(tokens);
     }
@@ -1138,6 +1154,18 @@ mod tests {
         };
         let output = quote! {
             ::bpaf::long("item").switch()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn hide_and_group_help() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(hide, group_help("potato"))]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").switch().hide().group_help("potato")
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
