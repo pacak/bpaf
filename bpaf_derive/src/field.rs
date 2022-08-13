@@ -117,7 +117,7 @@ enum ConsumerAttr {
 #[derive(Debug, Clone)]
 enum PostprAttr {
     FromStr(Box<Type>),
-    Guard(Ident, LitStr),
+    Guard(Ident, Box<Expr>),
     Many(Option<LitStr>),
     Map(Ident),
     Optional,
@@ -311,8 +311,8 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let guard_fn = content.parse::<Ident>()?;
             let _ = content.parse::<Token![,]>()?;
-            let msg = content.parse::<LitStr>()?;
-            Ok(Self::Guard(guard_fn, msg))
+            let msg = content.parse::<Expr>()?;
+            Ok(Self::Guard(guard_fn, Box::new(msg)))
         } else if input.peek(kw::fallback) {
             input.parse::<kw::fallback>()?;
             let _ = parenthesized!(content in input);
@@ -831,6 +831,18 @@ mod tests {
         };
         let output = quote! {
             ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, "msg")
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn derive_field_guard_const() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(guard(positive, MSG))]
+            number: usize
+        };
+        let output = quote! {
+            ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, MSG)
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
