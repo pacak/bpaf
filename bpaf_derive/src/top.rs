@@ -7,7 +7,7 @@ use syn::{
     Visibility,
 };
 
-use crate::field::{ConstrName, Doc, FieldParser, OptNameAttr, ReqFlag};
+use crate::field::{ConstrName, Doc, EnumSingleton, FieldParser, OptNameAttr, ReqFlag};
 use crate::kw;
 use crate::utils::{snake_case_ident, to_snake_case, LineIter};
 
@@ -380,7 +380,7 @@ impl Parse for Top {
                     };
                     branches.push(BParser::Command(cmd_name, Box::new(oparser)));
                 } else {
-                    let (help, inner) = split_help_and::<OptNameAttr>(&attrs)?;
+                    let (help, inner) = split_help_and::<EnumSingleton<OptNameAttr>>(&attrs)?;
                     branches.push(BParser::Singleton(ReqFlag::new(constr, inner, &help)));
                 }
 
@@ -1065,6 +1065,32 @@ mod test {
                 {
                     let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn hidden_default_enum_singleton() {
+        let top: Top = parse_quote! {
+            enum Decision {
+                Yes,
+                #[bpaf(default, hide)]
+                No,
+            }
+        };
+
+        let expected = quote! {
+            fn decision() -> impl ::bpaf::Parser<Decision> {
+                #[allow(unused_imports)]
+                use ::bpaf::{Parser, OptionParser};
+                {
+                    let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
+                    let alt1 = ::bpaf::long("no")
+                        .flag(Decision::No, Decision::No)
+                        .hide();
+                    ::bpaf::construct!([alt0, alt1])
                 }
             }
         };

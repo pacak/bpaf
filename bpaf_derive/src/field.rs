@@ -22,16 +22,30 @@ pub struct ReqFlag {
     value: ConstrName,
     naming: Vec<StrictNameAttr>,
     help: Option<String>,
+    is_hidden: bool,
+    is_default: bool,
 }
 
 impl ReqFlag {
-    pub fn new(value: ConstrName, names: Vec<OptNameAttr>, help: &[String]) -> Self {
+    pub fn new(value: ConstrName, attrs: Vec<EnumSingleton<OptNameAttr>>, help: &[String]) -> Self {
+        let mut is_hidden = false;
+        let mut is_default = false;
+        let mut names = Vec::new();
+        for attr in attrs {
+            match attr {
+                EnumSingleton::Name(n) => names.push(n),
+                EnumSingleton::IsDefault => is_default = true,
+                EnumSingleton::Hidden => is_hidden = true,
+            }
+        }
         let naming = restrict_names(&value.constr, names);
         let help = LineIter::from(help).next();
         Self {
             value,
             naming,
             help,
+            is_hidden,
+            is_default,
         }
     }
 }
@@ -55,7 +69,15 @@ impl ToTokens for ReqFlag {
             }
         }
         let value = &self.value;
-        quote!(.req_flag(#value)).to_tokens(tokens);
+
+        if self.is_default {
+            quote!(.flag(#value, #value)).to_tokens(tokens);
+        } else {
+            quote!(.req_flag(#value)).to_tokens(tokens);
+        }
+        if self.is_hidden {
+            quote!(.hide()).to_tokens(tokens);
+        }
     }
 }
 
@@ -79,6 +101,27 @@ impl<T> Default for FieldAttrs<T> {
             consumer: None,
             postpr: Vec::new(),
             help: None,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EnumSingleton<T> {
+    Name(T),
+    IsDefault,
+    Hidden,
+}
+
+impl<T: Parse> Parse for EnumSingleton<T> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(kw::hide) {
+            input.parse::<kw::hide>()?;
+            Ok(Self::Hidden)
+        } else if input.peek(kw::default) {
+            input.parse::<kw::default>()?;
+            Ok(Self::IsDefault)
+        } else {
+            Ok(Self::Name(input.parse()?))
         }
     }
 }
