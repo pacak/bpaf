@@ -657,12 +657,48 @@ where
 
 /// Positional argument in OS specific encoding
 ///
+/// For named flags and arguments ordering generally does not matter: most programs would
+/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
+/// `cat hello world` and `cat world hello` would display contents of the same two files but in
+/// different order.
+///
+/// # Important restriction
+/// When parsing positional arguments from command lines you should have parsers for all your
+/// named values and command before parsers for positional items. In derive API fields parsed as
+/// positional should be at the end of your `struct`/`enum`. If positional field is nested inside
+/// some other field - they should go at the end as well. Failing to do can result in behavior
+/// confusing for end user.
+///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// # use std::ffi::OsString;
-/// let arg = positional_os("INPUT"); // impl Parser<OsString>
-/// # drop(arg)
+/// fn input() -> impl Parser<std::ffi::OsString> {
+///     positional_os("INPUT")
+/// }
 /// ```
+
+/// # Derive usage
+///
+/// Fields in tuple-like structures are parsed as positional items, bpaf would automatically
+/// substitute `positional_os` annotation for `OsString` and `PathBuf`.
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options(std::ffi::OsString);
+/// ```
+/// Additionally annotations `positional` and `positional_os` can be used with optional metavar
+/// name
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     #[bpaf(positional_os("INPUT"))]
+///     input: std::path::PathBuf,
+/// }
+/// ```
+///
+/// See also [`positional_os`] - a simiar function
 #[must_use]
 pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
     build_positional(metavar).map(|x| x.os)
