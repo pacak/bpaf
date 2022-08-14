@@ -180,14 +180,23 @@
 //! This set of restrictions allows to extract information about the structure of the computations
 //! to generate help and overall results in less confusing enduser experience
 
+//! # Design non goals: performance
+//!
+//! Library aims to optimize for flexibility, reusability and compilation time over runtime
+//! performance which means it might perform some additional clones, allocations and other less
+//! optimal things. In practice unless you are parsing tens of thousands of different parameters
+//! and your application exits within microseconds - this won't affect you. That said - I will to
+//! look into any actual performance related problems with real world applications.
+
 //! # Derive and combinatoric API
 //!
 //! Library supports both derive and combinatoric APIs whith combinatoric API being primary, it is
-//! possible to mix and match both APIs at once. Combinatoric API provides 100% of the
-//! functionality, derive API provides access to about 95% of it. In most cases using just one
-//! would suffice. Whenever possible APIs share the same keywords and structure. Documentation for
-//! combinatoric API also explains how to perform the same action in derive style so you should
-//! read it.
+//! possible to mix and match both APIs at once. Both APIs provide access to mostly the same
+//! functionality, some things are more convenient to do with derive (usually less typing), some -
+//! with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases
+//! using just one would suffice. Whenever possible APIs share the same keywords and structure.
+//! Documentation for combinatoric API also explains how to perform the same action in derive style
+//! so you should read it.
 
 //! # Using the library in combinatoric style
 //!
@@ -503,63 +512,113 @@ pub use bpaf_derive::Bpaf;
 
 /// Compose several parsers to produce a single result
 ///
-/// Every parser must succeed in order to produce a result for
-/// sequential composition and only one parser needs to succeed
-/// for a parallel one (`construct!([a, b, c])`)
+/// # Combinatoric usage, types of composition
+/// `construct!` can compose parsers sequentially or in parallel.
 ///
-/// Each parser must be present in a local scope and
-/// have the same name as struct field. Alternatively
-/// a parser can be present as a function producing a parser
-/// bpaf will call this function and use it's result. Later
-/// option might be useful when single parser is used in
-/// several `construct!` macros
+/// Sequential composition runs each parser and if all of them succeeds you get a parser object of
+/// a new type back. This new type could be struct or enum with named or unnamed fields or a tuple.
+/// Placeholder names for values inside `construct!` macro must correspond to both struct/enum
+/// names and parser names present in scope. In examples below `a` corresponds to a function and
+/// `b` corresponds to a variable name.
 ///
 /// ```rust
 /// # use bpaf::*;
+/// struct Res (u32, u32);
+/// enum Ul { T { a: u32, b: u32 } }
+///
+/// // parameters can be shared across multiple construct invocations
+/// // if defined as functions
+/// fn a() -> impl Parser<u32> {
+///     short('a').argument("N").from_str::<u32>()
+/// }
+///
+/// // you can construct structs or enums with unnamed fields
+/// fn res() -> impl Parser<Res> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(Res ( a(), b ))
+/// }
+///
+/// // you can construct structs or enums with named fields
+/// fn ult() -> impl Parser<Ul> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(Ul::T { a(), b })
+/// }
+///
+/// // you can also construct simple tuples
+/// fn tuple() -> impl Parser<(u32, u32)> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(a(), b)
+/// }
+/// ```
+///
+/// Parallel composition picks one of several available parsers and returns a parser object of the
+/// same type. Similar to sequential composition you can use parsers from variables or functions:
+///
+/// ```rust
+/// # use bpaf::*;
+/// fn b() -> impl Parser<u32> {
+///     short('b').argument("NUM").from_str::<u32>()
+/// }
+///
+/// fn a_or_b() -> impl Parser<u32> {
+///     let a = short('a').argument("NUM").from_str::<u32>();
+///     // equivalent way of writing this would be `a.or_else(b())`
+///     construct!([a, b()])
+/// }
+/// ```
+///
+/// # Derive API considerations
+///
+/// `bpaf_derive` would combine fields of struct or enum constructors sequentially and enum
+/// variants in parallel. For enums with variants containing more than one field it is better to
+/// represent them as commands: [`command`].
+/// ```rust
+/// # use bpaf::*;
+/// // to satisfy this parser user needs to pass both -a and -b
+/// #[derive(Debug, Clone, Bpaf)]
 /// struct Res {
-///     a: bool,
+///     a: u32,
 ///     b: u32,
 /// }
 ///
-/// // parser defined as a local variable
-/// let a = short('a').switch();
-///
-/// // parser defined as a function
-/// fn b() -> impl Parser<u32> {
-///     short('b').argument("B").from_str()
+/// // to satisfy this parser user needs to pass one (and only one) of -a, -b, -c or -d
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Okay {
+///     A { a: u32 },
+///     B { b: u32 },
+///     C { c: u32 },
+///     D { d: u32 },
 /// }
 ///
-/// // resulting parser returns Res and requires both a and b to succeed
-/// let res = construct!(Res { a, b() });
-/// # drop(res);
+/// // here user needs to pass either both -a AND -b or both -c and -d
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Ult {
+///     AB { a: u32, b: u32 },
+///     CD { c: u32, d: u32 }
+/// }
 /// ```
 ///
-/// `construct!` supports following representations:
+/// # Examples considerations
 ///
-/// - structs with unnamed fields:
-/// ```rust ignore
-/// construct!(Res(a, b))
+/// Most of the examples given in the documentation are more verbose than necessary preferring
+/// explicit naming and consumers. If you are trying to parse something that implements
+/// [`FromStr`](std::str::FromStr), only interested in a long name and don't mind metavar being
+/// `ARG` you don't need to add any extra annotations at all:
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct PerfectlyValid {
+///     /// number used by the program
+///     number: u32,
+/// }
 /// ```
-/// - structs with named fields:
-/// ```ignore
-/// construct!(Res {a, b})
-/// ```
-/// - enums with unnamed fields:
-/// ```ignore
-/// construct!(Ty::Res(a, b))
-/// ```
-/// - enums with named fields:
-/// ```ignore
-/// construct!(Ty::Res {a, b})
-/// ```
-/// - tuples:
-/// ```ignore
-/// construct!(a, b)
-/// ```
-/// - parallel composition, a equivalent of `a.or_else(b).or_else(c)`
-/// ```ignore
-/// construct!([a, b, c])
-/// ```
+///
+/// For combinatoric examples [`help`](Named::help) is usually omitted - you shouldn't do that.
+///
+/// In addition to examples in the documentation there's a bunch more in the github repository:
+/// <https://github.com/pacak/bpaf/tree/master/examples>
+
 #[macro_export]
 macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
@@ -612,6 +671,91 @@ macro_rules! construct {
 }
 
 /// Simple or composed argument parser
+///
+/// # Overview
+///
+/// It is best to think of an object implementing [`Parser`] trait as a container with a value
+/// inside that can be composed with other `Parser` containers using [`construct!`] and the only
+/// way to extract this value is by attaching it to the [`Info`] and running it with
+/// [`run`](OptionParser::run). At which point you will either get your value out or bpaf would
+/// generate a message describing a problem (missing argument, validation failure, user requested
+/// CLI help, etc) and the program would exit.
+///
+/// Values inside can be of any type for as long as they implement `Debug`, can be cloned and
+/// there's no lifetimes other than static.
+///
+/// When consuming the values you usually start with `Parser<String>` or `Parser<OsString>` which
+/// you then transform into something that your program would actually use. It is better to perform
+/// as much parsing and validation inside the `Parser` as possible so the program itself gets
+/// strictly typed and correct value while user gets immediate feedback on what's wrong with the
+/// arguments they pass.
+///
+/// For example suppose your program needs user to specify a dimensions of a rectangle, with sides
+/// being 1..20 units long and the total area must not exceed 200 units square. A parser that
+/// consumes it might look like this:
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Copy, Clone)]
+/// struct Rectangle {
+///     width: u32,
+///     height: u32,
+/// }
+///
+/// fn rectangle() -> impl Parser<Rectangle> {
+///     let invalid_size = "Sides of a rectangle must be 1..20 units long";
+///     let invalid_area = "Area of a rectangle must not exceed 200 units square";
+///     let width = long("width")
+///         .help("Width of the rectangle")
+///         .argument("PX")
+///         .from_str::<u32>()
+///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
+///     let height = long("height")
+///         .help("Height of the rectangle")
+///         .argument("PX")
+///         .from_str::<u32>()
+///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
+///     construct!(Rectangle { width, height })
+///         .guard(|&r| r.width * r.height <= 400, invalid_area)
+/// }
+/// ```
+///
+///
+/// # Derive specific considerations
+///
+/// Every method defined on this trait belongs to the `postprocessing` section of the field
+/// annotation. bpaf_derive would try to figure out what chain to use for as long as there's no
+/// options changing the type: you can use [`fallback`](Parser::fallback_with),
+/// [`fallback_with`](Parser::fallback_with), [`guard`](Parser::guard), [`hide`](Parser::hide`) and
+/// [`group_help`](Parser::group_help) but not the rest of them.
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     // no annotation at all - implicit `argument` and `from_str` are inserted
+///     number_1: u32,
+///
+///     // fallback is not changing the type so implicit items are still added
+///     #[bpaf(fallback(42))]
+///     number_2: u32,
+///
+///     // implicit `argument`, `optional` and `from_str` are inserted
+///     number_3: Option<u32>,
+///
+///     // fails to compile: you need to specify a consumer, `argument` or `argument_os`
+///     // #[bpaf(optional)]
+///     // number_4: Option<u32>
+///
+///     // fails to compile: you also need to specify how to go from String to u32
+///     // #[bpaf(argument("N"), optional)]
+///     // number_5: Option<u32>,
+///
+///     // explicit consumer and a full postprocessing chain
+///     #[bpaf(argument("N"), from_str(u32), optional)]
+///     number_6: Option<u32>,
+/// }
+/// ```
 pub trait Parser<T> {
     /// Evaluate inner function
     ///
@@ -1248,18 +1392,60 @@ pub trait Parser<T> {
     // {{{ hide
     /// Ignore this parser during any sort of help generation
     ///
-    /// Best used for optional parsers or parsers with a defined fallback
+    /// Best used for optional parsers or parsers with a defined fallback, usually for implementing
+    /// backward compatibility or hidden aliases
+    ///
+    /// # Combinatoric usage
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// // bpaf will accept `-w` but won't show it during help generation
-    /// let width = short('w').argument("PX").from_str::<u32>().fallback(10).hide();
-    /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = construct!(width, height);
-    /// # drop(rect);
+    /// /// bpaf would accept both `-W` and `-H` flags, but the help message
+    /// /// would contain only `-H`
+    /// fn rectangle() -> impl Parser<(u32, u32)> {
+    ///     let width = short('W')
+    ///         .argument("PX")
+    ///         .from_str::<u32>()
+    ///         .fallback(10)
+    ///         .hide();
+    ///     let height = short('H')
+    ///         .argument("PX")
+    ///         .from_str::<u32>()
+    ///         .fallback(10)
+    ///         .hide();
+    ///     construct!(width, height)
+    /// }
+    /// ```
+    /// # Example
+    /// ```console
+    /// $ app -W 12 -H 15
+    /// // (12, 15)
+    /// $ app -H 333
+    /// // (10, 333)
+    /// $ app --help
+    /// // contains -H but not -W
     /// ```
     ///
-    /// See also `examples/cargo-cmd.rs`
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Rectangle {
+    ///     #[bpaf(short('W'), argument("PX"), from_str(u32), fallback(10), hide)]
+    ///     width: u32,
+    ///     #[bpaf(short('H'), argument("PX"), from_str(u32))]
+    ///     height: u32,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -W 12 -H 15
+    /// // Rectangle { width: 12, height: 15 }
+    /// $ app -H 333
+    /// // Rectangle { width: 10, height: 333 }
+    /// $ app --help
+    /// // contains -H but not -W
+    /// ```
     fn hide(self) -> ParseHide<Self>
     where
         Self: Sized + Parser<T>,
@@ -1271,14 +1457,49 @@ pub trait Parser<T> {
     // {{{ group_help
     /// Attach help message to a complex parser
     ///
+    /// All the fields contained in the inner parser will be surrounded
+    /// by the group help message on the top and an empty line at the bottom
+    ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// let width = short('w').argument("PX").from_str::<u32>();
-    /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = construct!(width, height).group_help("take a rectangle");
-    /// # drop(rect);
+    /// fn rectangle() -> impl Parser<(u32, u32)> {
+    ///     let width = short('w')
+    ///         .argument("PX")
+    ///         .from_str::<u32>();
+    ///     let height = short('h')
+    ///         .argument("PX")
+    ///         .from_str::<u32>();
+    ///     construct!(width, height)
+    ///         .group_help("Takes a rectangle")
+    /// }
     /// ```
-    /// See `examples/rectangle.rs` for a complete example
+    /// # Example
+    /// ```console
+    /// $ app --help
+    /// ...
+    ///             Takes a rectangle
+    ///    -w <PX>  Width of the rectangle
+    ///    -h <PX>  Height of the rectangle
+    ///
+    /// ...
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Rectangle {
+    ///     width: u32,
+    ///     height: u32,
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(external, group_help("Takes a rectangle"))]
+    ///     rectangle: Rectangle
+    /// }
+    /// ```
     fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
