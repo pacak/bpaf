@@ -421,6 +421,9 @@
 //!    in the postprocessing section it will disable this logic and you will need to spell out
 //!    the whole transformation chain.
 //!
+//!    - field-less enum variants obey slightly different set of rules, see
+//!    [`req_flag`](Named::req_flag) for more details.
+//!
 //!
 //! 6. Add documentation for help messages.
 //!    Help messages are generated from doc comments, bpaf skips single empty lines and stops
@@ -600,6 +603,9 @@ pub use bpaf_derive::Bpaf;
 ///
 /// # Examples considerations
 ///
+/// Most of the examples declare parser as a top level function, this is done only to be able to
+/// specify the type signature, you can still use them as variables,  see `a` and `b` in examples above.
+///
 /// Most of the examples given in the documentation are more verbose than necessary preferring
 /// explicit naming and consumers. If you are trying to parse something that implements
 /// [`FromStr`](std::str::FromStr), only interested in a long name and don't mind metavar being
@@ -609,6 +615,19 @@ pub use bpaf_derive::Bpaf;
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct PerfectlyValid {
+///     /// number used by the program
+///     number: u32,
+/// }
+/// ```
+///
+/// Toplevel types also require `options` annotation to generate [`OptionParser`] - it is usually
+/// omitted:
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// struct Config {
 ///     /// number used by the program
 ///     number: u32,
 /// }

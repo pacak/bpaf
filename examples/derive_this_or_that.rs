@@ -9,9 +9,14 @@ use bpaf::{Bpaf, OptionParser};
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
-struct Opts {
-    #[bpaf(external(flags))]
-    flag: Flags,
+enum Opts {
+    /// enabled
+    On,
+    /// disabled
+    Off,
+    /// undecined
+    #[bpaf(long("undecided"), hide, default)]
+    Undecided,
 }
 
 #[derive(Debug, Clone, Bpaf)]
