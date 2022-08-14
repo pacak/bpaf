@@ -652,16 +652,7 @@ pub fn positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<S
 where
     F: Fn(&str) -> bool + 'static,
 {
-    let check = move |w: &Word| match &w.utf8 {
-        Some(s) => check(s),
-        None => false,
-    };
-
-    build_positional_if(metavar, check).parse(|x| match x {
-        Some(Word { utf8: Some(w), .. }) => Ok(Some(w)),
-        Some(_) => Err("not utf8"),
-        None => Ok(None),
-    })
+    positional(metavar).guard(move |s| check(s), "").optional()
 }
 
 /// Positional argument in OS specific encoding
@@ -875,46 +866,4 @@ impl Parser<Word> for BuildPositional {
     fn meta(&self) -> Meta {
         self.meta.clone()
     }
-}
-
-#[derive(Clone)]
-struct BuildPositionalIf<F> {
-    meta: Meta,
-    check: F,
-}
-
-impl<F> Parser<Option<Word>> for BuildPositionalIf<F>
-where
-    F: Fn(&Word) -> bool + 'static,
-{
-    fn run(&self, args: &mut Args) -> Result<Option<Word>, Error> {
-        match args.peek() {
-            Some(Arg::Word(w_ref)) => {
-                if (self.check)(w_ref) {
-                    let w_owned = args
-                        .take_positional_word()?
-                        .expect("We just confirmed it's there");
-                    Ok(Some(w_owned))
-                } else {
-                    Ok(None)
-                }
-            }
-
-            //            Some(_) => Err(Error::Missing(vec![self.meta.clone()])),
-            _ => Ok(None),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.meta.clone()
-    }
-}
-
-fn build_positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<Word>>
-where
-    F: Fn(&Word) -> bool + 'static,
-{
-    let item = Item::Positional { metavar };
-    let meta = item.required(false);
-    BuildPositionalIf { meta, check }
 }
