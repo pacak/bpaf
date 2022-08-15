@@ -23,7 +23,9 @@ fn main() {
         .descr("This command will try to do foo given a bar argument")
         .for_parser(construct!(Foo { bar }));
 
-    let command = command("foo", Some("command for doing foo"), bar_cmd).map(Command::Foo);
+    let command = command("foo", bar_cmd)
+        .help("command for doing foo")
+        .map(Command::Foo);
 
     let opt = Info::default().for_parser(command).run();
     println!("{:#?}", opt);

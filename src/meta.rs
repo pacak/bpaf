@@ -167,7 +167,11 @@ fn collect_usage_meta(meta: &Meta, required: bool, had_commands: &mut bool) -> O
         Meta::Item(i) => match i {
             Item::Decor { help: _ } => return None,
             Item::Positional { metavar } => UsageMeta::Pos(metavar),
-            Item::Command { name: _, help: _ } => {
+            Item::Command {
+                name: _,
+                help: _,
+                short: _,
+            } => {
                 if *had_commands {
                     return None;
                 }

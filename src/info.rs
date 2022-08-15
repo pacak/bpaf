@@ -371,6 +371,12 @@ pub trait OptionParser<T> {
     }
 
     fn run_subparser(&self, args: &mut Args) -> Result<T, Error>;
+
+    /// Get first line of description if Available
+    ///
+    /// Used internally to avoid duplicating description for [`command`].
+    #[doc(hidden)]
+    fn short_descr(&self) -> Option<&'static str>;
 }
 
 impl<T, P> OptionParser<T> for OptionParserStruct<T, P>
@@ -379,6 +385,10 @@ where
 {
     fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         self.inner.run(args)
+    }
+
+    fn short_descr(&self) -> Option<&'static str> {
+        self.info.descr.and_then(|descr| descr.lines().next())
     }
 }
 

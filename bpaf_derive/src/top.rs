@@ -479,14 +479,17 @@ impl ToTokens for BParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             BParser::Command(cmd_name, oparser) => {
-                let help = match &oparser.decor.descr {
-                    Some(msg) => quote!(Some(#msg)),
-                    None => quote!(None::<String>),
-                };
-                quote!({
-                    let inner_cmd = #oparser;
-                    ::bpaf::command(#cmd_name, #help, inner_cmd)
-                })
+                if let Some(msg) = &oparser.decor.descr {
+                    quote!( {
+                        let inner_cmd = #oparser;
+                        ::bpaf::command(#cmd_name, inner_cmd).help(#msg)
+                    })
+                } else {
+                    quote!({
+                        let inner_cmd = #oparser;
+                        ::bpaf::command(#cmd_name, inner_cmd)
+                    })
+                }
                 .to_tokens(tokens);
             }
             BParser::CargoHelper(name, inner) => quote!({
@@ -740,7 +743,7 @@ mod test {
                             .descr("those are options")
                             .for_parser(inner_op)
                     };
-                    ::bpaf::command("opt", Some("those are options"), inner_cmd)
+                    ::bpaf::command("opt", inner_cmd).help("those are options")
                 }
             }
         };
@@ -774,7 +777,7 @@ mod test {
                             };
                             ::bpaf::Info::default().descr("foo doc").for_parser(inner_op)
                         };
-                        ::bpaf::command("foo", Some("foo doc"), inner_cmd)
+                        ::bpaf::command("foo",  inner_cmd).help("foo doc")
                     };
                     let alt1 = {
                         let inner_cmd = {
@@ -784,7 +787,7 @@ mod test {
                             };
                             ::bpaf::Info::default().descr("bar doc").for_parser(inner_op)
                         };
-                        ::bpaf::command("bar", Some("bar doc"), inner_cmd)
+                        ::bpaf::command("bar", inner_cmd).help("bar doc")
                     };
                     ::bpaf::construct!([alt0, alt1])
                 }
@@ -882,14 +885,14 @@ mod test {
                             let inner_op = ::bpaf::pure(Opt::Alpha);
                             ::bpaf::Info::default().for_parser(inner_op)
                         };
-                        ::bpaf::command("alpha", None::<String>, inner_cmd)
+                        ::bpaf::command("alpha", inner_cmd)
                     };
                     let alt6 = {
                         let inner_cmd = {
                             let inner_op = ::bpaf::pure(Opt::Omega);
                             ::bpaf::Info::default().for_parser(inner_op)
                         };
-                        ::bpaf::command("omega", None::<String>, inner_cmd)
+                        ::bpaf::command("omega", inner_cmd)
                     };
                     ::bpaf::construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
                 }
@@ -981,14 +984,14 @@ mod test {
                                     let inner_op = ::bpaf::pure(Action::Alpha);
                                     ::bpaf::Info::default().for_parser(inner_op)
                                 };
-                                ::bpaf::command("alpha", None::<String>, inner_cmd)
+                                ::bpaf::command("alpha", inner_cmd)
                             };
                             let alt1 = {
                                 let inner_cmd = {
                                     let inner_op = ::bpaf::pure(Action::Beta);
                                     ::bpaf::Info::default().for_parser(inner_op)
                                 };
-                                ::bpaf::command("beta", None::<String>, inner_cmd)
+                                ::bpaf::command("beta", inner_cmd)
                             };
                             ::bpaf::construct!([alt0, alt1])
                         })

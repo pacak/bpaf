@@ -20,6 +20,7 @@ pub enum Item {
     },
     Command {
         name: &'static str,
+        short: Option<char>,
         help: Option<String>,
     },
     Flag {
@@ -145,7 +146,14 @@ impl std::fmt::Display for Item {
                     }
                 }
                 Item::Positional { metavar } => write!(f, "    <{}>", metavar)?,
-                Item::Command { name, help: _ } => write!(f, "    {}", name)?,
+                Item::Command {
+                    name,
+                    help: _,
+                    short,
+                } => match short {
+                    Some(s) => write!(f, "    {}, {}", name, s)?,
+                    None => write!(f, "    {}", name)?,
+                },
             }
 
             if let Some((width, help)) = f.width().zip(self.help()) {

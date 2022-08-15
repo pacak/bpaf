@@ -43,9 +43,9 @@ pub fn main() {
 
     let cmd = command(
         "accel",
-        Some("command for acceleration"),
         info.clone().descr("accelerating").for_parser(acc_parser),
-    );
+    )
+    .help("command for acceleration");
 
     let a = short('a')
         .long("AAAAA")

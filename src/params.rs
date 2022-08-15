@@ -747,7 +747,7 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 ///     // - Parser uses version from `descr` when user calls `% prog check --help`,
 ///     // - Parser uses version from `command` user calls `% prog --help` along
 ///     //   with descriptions for other commands if present.
-///     command("check", Some("Check a local package for errors"), check_workspace())
+///     command("check", check_workspace())
 /// }
 /// ```
 ///
@@ -777,28 +777,44 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 /// ```
 ///
 #[must_use]
-pub fn command<P, T, M>(name: &'static str, help: Option<M>, subparser: P) -> Command<P>
+pub fn command<P, T>(name: &'static str, subparser: P) -> Command<P>
 where
     P: OptionParser<T>,
     T: 'static,
-    M: Into<String>,
 {
-    let meta = Meta::Item(Item::Command {
-        name,
-        help: help.map(Into::into),
-    });
     Command {
-        name,
-        meta,
+        longs: vec![name],
+        shorts: Vec::new(),
+        help: subparser.short_descr().map(Into::into),
         subparser,
     }
 }
 
 #[derive(Clone)]
 pub struct Command<P> {
-    name: &'static str,
-    meta: Meta,
+    longs: Vec<&'static str>,
+    shorts: Vec<char>,
+    help: Option<String>,
     subparser: P,
+}
+
+impl<P> Command<P> {
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
+        self
+    }
+
+    pub fn short(mut self, short: char) -> Self {
+        self.shorts.push(short);
+        self
+    }
+    pub fn long(mut self, long: &'static str) -> Self {
+        self.longs.push(long);
+        self
+    }
 }
 
 impl<P, T> Parser<T> for Command<P>
@@ -806,15 +822,27 @@ where
     P: OptionParser<T>,
 {
     fn run(&self, args: &mut Args) -> Result<T, Error> {
-        if args.take_cmd(self.name) {
+        let mut tmp = String::new();
+        if self.longs.iter().any(|long| args.take_cmd(long))
+            || self.shorts.iter().any(|s| {
+                tmp.clear();
+                tmp.push(*s);
+                args.take_cmd(&tmp)
+            })
+        {
             self.subparser.run_subparser(args)
         } else {
-            Err(Error::Missing(vec![self.meta.clone()]))
+            Err(Error::Missing(vec![self.meta()]))
         }
     }
 
     fn meta(&self) -> Meta {
-        self.meta.clone()
+        let item = Item::Command {
+            name: self.longs[0],
+            short: self.shorts.first().copied(),
+            help: self.help.clone(),
+        };
+        Meta::Item(item)
     }
 }
 

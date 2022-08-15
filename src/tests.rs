@@ -453,7 +453,7 @@ fn subcommands() {
 
     let bar = short('b').switch();
 
-    let bar_cmd = command("bar", Some("do bar"), local_info.for_parser(bar));
+    let bar_cmd = command("bar", local_info.for_parser(bar));
 
     let parser = global_info.for_parser(bar_cmd);
 
@@ -470,7 +470,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    bar  do bar
+    bar  This is local info
 ";
     assert_eq!(expected_help, help);
 
@@ -558,11 +558,7 @@ mod git {
             repository
         });
         let fetch_info = Info::default().descr("fetches branches from remote repository");
-        let fetch_cmd = command(
-            "fetch",
-            Some("fetch branches from remote repository"),
-            fetch_info.for_parser(fetch),
-        );
+        let fetch_cmd = command("fetch", fetch_info.for_parser(fetch));
 
         let interactive = short('i').switch();
         let all = long("all").switch();
@@ -573,11 +569,7 @@ mod git {
             files
         });
         let add_info = Info::default().descr("add files to the staging area");
-        let add_cmd = command(
-            "add",
-            Some("add files to the staging area"),
-            add_info.for_parser(add),
-        );
+        let add_cmd = command("add", add_info.for_parser(add));
 
         Info::default()
             .descr("The stupid content tracker")
@@ -610,7 +602,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    fetch  fetch branches from remote repository
+    fetch  fetches branches from remote repository
     add    add files to the staging area
 ";
 
@@ -983,9 +975,9 @@ fn default_plays_nicely_with_command() {
 
     let cmd = command(
         "foo",
-        Some("foo"),
         Info::default().descr("inner").for_parser(pure(Foo::Foo)),
     )
+    .help("foo")
     .fallback(Default::default());
 
     let parser = Info::default().descr("outer").for_parser(cmd);
@@ -1023,4 +1015,52 @@ Available commands:
 ";
 
     assert_eq!(expected_help, help);
+}
+
+#[test]
+fn command_with_aliases() {
+    let inner = Info::default().descr("inner descr").for_parser(pure(()));
+    let cmd = command("foo", inner).long("bar").short('f').short('b');
+    let parser = Info::default().descr("outer").for_parser(cmd);
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+outer
+
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    foo, f  inner descr
+";
+    assert_eq!(expected_help, help);
+
+    let help = parser
+        .run_inner(Args::from(&["f", "--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+inner descr
+
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    // hidden and visible aliases are working
+    parser.run_inner(Args::from(&["foo"])).unwrap();
+    parser.run_inner(Args::from(&["f"])).unwrap();
+    parser.run_inner(Args::from(&["bar"])).unwrap();
+    parser.run_inner(Args::from(&["b"])).unwrap();
+
+    // and "k" is not a thing
+    parser.run_inner(Args::from(&["k"])).unwrap_err();
 }

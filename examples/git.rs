@@ -28,11 +28,8 @@ fn main() {
         repository
     });
     let fetch_info = Info::default().descr("fetches branches from remote repository");
-    let fetch_cmd = command(
-        "fetch",
-        Some("fetch branches from remote repository"),
-        fetch_info.for_parser(fetch),
-    );
+    let fetch_cmd = command("fetch", fetch_info.for_parser(fetch))
+        .help("fetch branches from remote repository");
 
     let interactive = short('i').switch();
     let all = long("all").switch();
@@ -43,11 +40,7 @@ fn main() {
         files
     });
     let add_info = Info::default().descr("add files to the staging area");
-    let add_cmd = command(
-        "add",
-        Some("add files to the staging area"),
-        add_info.for_parser(add),
-    );
+    let add_cmd = command("add", add_info.for_parser(add)).help("add files to the staging area");
 
     let opt = Info::default()
         .descr("The stupid content tracker")
