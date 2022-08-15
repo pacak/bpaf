@@ -11,13 +11,14 @@ enum Format {
 
 fn main() {
     let help = format!("Pick format to use: {}", Format::VARIANTS.join(", ")); // VariantNames
-    let arg = long("format")
+    let opt = long("format")
         .short('f')
         .help(help)
         .argument("FORMAT")
         .from_str::<Format>()
-        .fallback(Format::Txt);
+        .fallback(Format::Txt)
+        .to_options()
+        .run();
 
-    let opt = Info::default().for_parser(arg).run();
     println!("{:#?}", opt);
 }

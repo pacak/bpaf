@@ -47,6 +47,6 @@ fn main() {
 
     let parser = construct!(verbose, trim);
 
-    let opt = Info::default().for_parser(parser).run();
+    let opt = parser.to_options().run();
     println!("{:#?}", opt);
 }

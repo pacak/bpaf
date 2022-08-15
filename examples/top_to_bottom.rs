@@ -24,7 +24,7 @@ fn main() {
         nb_cars(),
         files_to_process()
     });
-    let opt = Info::default().for_parser(parser).run();
+    let opt = parser.to_options().run();
     println!("{:#?}", opt);
 }
 // A flag, true if used in the command line. Can be required, this one is optional

@@ -21,10 +21,10 @@ fn opts() -> Opts {
         .argument("DISTANCE")
         .from_str::<f64>();
 
-    let parser = construct!(Opts { speed, distance });
-
-    let info = Info::default().descr("Accept speed and distance, print them.");
-    info.for_parser(parser).run()
+    (construct!(Opts { speed, distance }))
+        .to_options()
+        .descr("Accept speed and distance, print them.")
+        .run()
 }
 
 fn main() {

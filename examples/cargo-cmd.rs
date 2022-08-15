@@ -22,10 +22,7 @@ fn main() {
     let cmd = positional_if("", |s| s == "cmd").hide();
     let combined_parser = construct!(cmd, parser).map(|x| x.1);
 
-    let opts = Info::default()
-        .descr("Usual help message here")
-        .for_parser(combined_parser)
-        .run();
+    let opts = combined_parser.to_options().run();
 
     println!("{:?}", opts);
 }

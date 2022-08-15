@@ -48,16 +48,9 @@ impl Error {
 
 /// Information about the parser
 ///
-/// ```rust
-/// # use bpaf::*;
-/// let info = Info::default()
-///                .version(env!("CARGO_PKG_VERSION"))
-///                .descr("Does mothing")
-///                .footer("Beware of the Leopard");
-/// # drop(info);
-/// ```
+/// No longer public, users are only interacting with it via [`OptionParser`]
 #[derive(Debug, Clone, Default)]
-pub struct Info {
+pub(crate) struct Info {
     /// version field, see [`version`][Info::version]
     pub version: Option<&'static str>,
     /// Custom description field, see [`descr`][Info::descr]
@@ -71,80 +64,80 @@ pub struct Info {
 }
 
 impl Info {
-    /// Set a version field.
-    ///
-    /// By default bpaf won't include any version info and won't accept `--version` switch
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let info = Info::default().version(env!("CARGO_PKG_VERSION"));
-    /// # drop(info);
-    /// ```
-    #[must_use]
-    pub const fn version(mut self, version: &'static str) -> Self {
-        self.version = Some(version);
-        self
-    }
+    /*
+        /// Set a version field.
+        ///
+        /// By default bpaf won't include any version info and won't accept `--version` switch
+        ///
+        /// ```rust
+        /// # use bpaf::*;
+        /// let info = Info::default().version(env!("CARGO_PKG_VERSION"));
+        /// # drop(info);
+        /// ```
+        #[must_use]
+        pub const fn version(mut self, version: &'static str) -> Self {
+            self.version = Some(version);
+            self
+        }
 
-    /// Set a program description
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let info = Info::default().descr("This program calculates rectangle's area");
-    /// # drop(info);
-    /// ```
-    /// See complete example in `examples/rectangle.rs`
-    #[must_use]
-    pub const fn descr(mut self, descr: &'static str) -> Self {
-        self.descr = Some(descr);
-        self
-    }
+        /// Set a program description
+        ///
+        /// ```rust
+        /// # use bpaf::*;
+        /// let info = Info::default().descr("This program calculates rectangle's area");
+        /// # drop(info);
+        /// ```
+        /// See complete example in `examples/rectangle.rs`
+        #[must_use]
+        pub const fn descr(mut self, descr: &'static str) -> Self {
+            self.descr = Some(descr);
+            self
+        }
 
-    /// Set a custom header before all the options
-    /// ```rust
-    /// # use bpaf::*;
-    /// let info = Info::default().header("header");
-    /// # drop(info);
-    /// ```
-    /// See complete example in `examples/rectangle.rs`
-    #[must_use]
-    pub const fn header(mut self, header: &'static str) -> Self {
-        self.header = Some(header);
-        self
-    }
+        /// Set a custom header before all the options
+        /// ```rust
+        /// # use bpaf::*;
+        /// let info = Info::default().header("header");
+        /// # drop(info);
+        /// ```
+        /// See complete example in `examples/rectangle.rs`
+        #[must_use]
+        pub const fn header(mut self, header: &'static str) -> Self {
+            self.header = Some(header);
+            self
+        }
 
-    /// Set a custom header after all the options
-    /// ```rust
-    /// # use bpaf::*;
-    /// let info = Info::default().header("footer");
-    /// # drop(info);
-    /// ```
-    /// See complete example in `examples/rectangle.rs`
-    #[must_use]
-    pub const fn footer(mut self, footer: &'static str) -> Self {
-        self.footer = Some(footer);
-        self
-    }
+        /// Set a custom header after all the options
+        /// ```rust
+        /// # use bpaf::*;
+        /// let info = Info::default().header("footer");
+        /// # drop(info);
+        /// ```
+        /// See complete example in `examples/rectangle.rs`
+        #[must_use]
+        pub const fn footer(mut self, footer: &'static str) -> Self {
+            self.footer = Some(footer);
+            self
+        }
 
-    /// Replace generated usage string with a custom one
-    /// ```rust
-    /// # use bpaf::*;
-    /// let info = Info::default().usage("example [-v] -w <PX> -h <PX>");
-    /// # drop(info);
-    /// ```
-    /// See complete example in `examples/rectangle.rs`
-    #[must_use]
-    pub const fn usage(mut self, usage: &'static str) -> Self {
-        self.usage = Some(usage);
-        self
-    }
-
+        /// Replace generated usage string with a custom one
+        /// ```rust
+        /// # use bpaf::*;
+        /// let info = Info::default().usage("example [-v] -w <PX> -h <PX>");
+        /// # drop(info);
+        /// ```
+        /// See complete example in `examples/rectangle.rs`
+        #[must_use]
+        pub const fn usage(mut self, usage: &'static str) -> Self {
+            self.usage = Some(usage);
+            self
+        }
+    */
     fn help_parser(&self) -> impl Parser<ExtraParams> {
         ParseExtraParams {
             version: self.version,
         }
     }
-
     fn render_help(&self, parser_meta: Meta, help_meta: Meta) -> Result<String, std::fmt::Error> {
         use std::fmt::Write;
 
@@ -182,64 +175,64 @@ impl Info {
         Ok(res)
     }
 
-    /// Attach additional information to the parser
-    #[must_use]
-    pub fn for_parser<P, T>(self, parser: P) -> impl OptionParser<T>
-    where
-        P: Parser<T>,
-        T: 'static + Clone + std::fmt::Debug,
-    {
-        let help_meta = self.help_parser().meta();
-        let info = self.clone();
-        let parser_meta = parser.meta();
-        let p = move |args: &mut Args| {
-            let mut reg_args = args.clone();
-            let err = match parser.run(&mut reg_args) {
-                Ok(r) => {
-                    if let Err(err) = check_unexpected(&reg_args) {
-                        err
-                    } else {
-                        *args = reg_args;
-                        return Ok(r);
+    /*
+        /*
+        /// Attach additional information to the parser
+        #[must_use]
+        pub fn for_parser<P, T>(self, parser: P) -> impl OptionParser<T>
+        where
+            P: Parser<T>,
+            T: 'static + Clone + std::fmt::Debug,
+        {
+            let info = self.clone();
+            let parser_meta = parser.meta();
+            let p = move |args: &mut Args| {
+                let mut reg_args = args.clone();
+                let err = match parser.run(&mut reg_args) {
+                    Ok(r) => {
+                        if let Err(err) = check_unexpected(&reg_args) {
+                            err
+                        } else {
+                            *args = reg_args;
+                            return Ok(r);
+                        }
                     }
+
+                    // Stderr means nested parser couldn't parse something, store it,
+                    // report it if parsing --help and --version also fails
+                    Err(Error::Stderr(e)) => Error::Stderr(e),
+
+                    // Stdout usually means a happy path such as calling --help or --version on one of
+                    // the nested commands
+                    Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
+                    Err(err) => err,
+                };
+
+                match self.help_parser().run(args) {
+                    Ok(ExtraParams::Help) => {
+                        let msg = self
+                            .render_help(parser.meta(), self.help_parser().meta())
+                            .expect("Couldn't render help");
+                        return Err(Error::Stdout(msg));
+                    }
+                    Ok(ExtraParams::Version(v)) => {
+                        return Err(Error::Stdout(format!("Version: {}", v)));
+                    }
+                    Err(_) => {}
                 }
-
-                // Stderr means nested parser couldn't parse something, store it,
-                // report it if parsing --help and --version also fails
-                Err(Error::Stderr(e)) => Error::Stderr(e),
-
-                // Stdout usually means a happy path such as calling --help or --version on one of
-                // the nested commands
-                Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
-                Err(err) => err,
+                Err(err)
             };
-
-            match self.help_parser().run(args) {
-                Ok(ExtraParams::Help) => {
-                    let msg = self
-                        .render_help(parser.meta(), self.help_parser().meta())
-                        .expect("Couldn't render help");
-                    return Err(Error::Stdout(msg));
-                }
-                Ok(ExtraParams::Version(v)) => {
-                    return Err(Error::Stdout(format!("Version: {}", v)));
-                }
-                Err(_) => {}
+            OptionParserStruct {
+                inner: ParseConstruct {
+                    inner: p,
+                    meta: parser_meta,
+                },
+                inner_type: PhantomData,
+                info,
             }
-            Err(err)
-        };
-        OptionParserStruct {
-            inner: ParseConstruct {
-                inner: p,
-                meta: parser_meta,
-            },
-            inner_type: PhantomData,
-            info,
-            help_meta,
-        }
-    }
+        }*/
+    */
 }
-
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum ExtraParams {
@@ -262,7 +255,6 @@ fn check_unexpected(args: &Args) -> Result<(), Error> {
 pub struct OptionParserStruct<T, P> {
     pub(crate) inner: P,
     pub(crate) inner_type: PhantomData<T>,
-    pub(crate) help_meta: Meta,
     pub(crate) info: Info,
 }
 
@@ -278,14 +270,19 @@ pub struct OptionParserStruct<T, P> {
 pub trait OptionParser<T> {
     /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
-    /// ```no_run
+    /// ```
     /// # use bpaf::*;
-    /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
-    /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
+    /// /// Parses number of repetitions of `-v` on a command line
+    /// fn verbosity() -> impl OptionParser<usize> {
+    ///     let parser = short('v')
+    ///         .req_flag(())
+    ///         .many()
+    ///         .map(|xs|xs.len());
     ///
-    /// let opt = info.for_parser(verbose).run();
-    /// // At this point `opt` contains number of repetitions of `-v` on a command line
-    /// # drop(opt)
+    ///     parser
+    ///         .to_options()
+    ///         .descr("Takes verbosity flag and does nothing else")
+    /// }
     /// ```
     #[must_use]
     fn run(self) -> T
@@ -377,6 +374,12 @@ pub trait OptionParser<T> {
     /// Used internally to avoid duplicating description for [`command`].
     #[doc(hidden)]
     fn short_descr(&self) -> Option<&'static str>;
+
+    fn version(self, version: &'static str) -> Self;
+    fn descr(self, descr: &'static str) -> Self;
+    fn header(self, header: &'static str) -> Self;
+    fn footer(self, footer: &'static str) -> Self;
+    fn usage(self, usage: &'static str) -> Self;
 }
 
 impl<T, P> OptionParser<T> for OptionParserStruct<T, P>
@@ -384,11 +387,72 @@ where
     P: Parser<T>,
 {
     fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.run(args)
+        let mut reg_args = args.clone();
+
+        let err = match self.inner.run(&mut reg_args) {
+            Ok(r) => {
+                if let Err(err) = check_unexpected(&reg_args) {
+                    err
+                } else {
+                    *args = reg_args;
+                    return Ok(r);
+                }
+            }
+
+            // Stderr means nested parser couldn't parse something, store it,
+            // report it if parsing --help and --version also fails
+            Err(Error::Stderr(e)) => Error::Stderr(e),
+
+            // Stdout usually means a happy path such as calling --help or --version on one of
+            // the nested commands
+            Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
+            Err(err) => err,
+        };
+
+        match self.info.help_parser().run(args) {
+            Ok(ExtraParams::Help) => {
+                let msg = self
+                    .info
+                    .render_help(self.inner.meta(), self.info.help_parser().meta())
+                    .expect("Couldn't render help");
+                return Err(Error::Stdout(msg));
+            }
+            Ok(ExtraParams::Version(v)) => {
+                return Err(Error::Stdout(format!("Version: {}", v)));
+            }
+            Err(_) => {}
+        }
+        Err(err)
+
+        //self.inner.run(args)
     }
 
     fn short_descr(&self) -> Option<&'static str> {
         self.info.descr.and_then(|descr| descr.lines().next())
+    }
+
+    fn version(mut self, version: &'static str) -> Self {
+        self.info.version = Some(version);
+        self
+    }
+
+    fn descr(mut self, descr: &'static str) -> Self {
+        self.info.descr = Some(descr);
+        self
+    }
+
+    fn header(mut self, header: &'static str) -> Self {
+        self.info.header = Some(header);
+        self
+    }
+
+    fn footer(mut self, footer: &'static str) -> Self {
+        self.info.footer = Some(footer);
+        self
+    }
+    fn usage(mut self, usage: &'static str) -> Self {
+        self.info.usage = Some(usage);
+        self
     }
 }
 
@@ -432,16 +496,5 @@ impl ParseExtraParams {
             .long("version")
             .help("Prints version information")
             .req_flag(ExtraParams::Version(version))
-    }
-}
-
-impl<T, P> OptionParserStruct<T, P> {
-    /// Return current help message for outer parser as a string
-    pub fn render_help(&self) -> Result<String, std::fmt::Error>
-    where
-        P: Parser<T>,
-    {
-        self.info
-            .render_help(self.inner.meta(), self.help_meta.clone())
     }
 }

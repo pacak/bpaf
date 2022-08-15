@@ -22,7 +22,7 @@ fn construct_with_fn() {
         short('c').switch()
     }
 
-    let parser = Info::default().for_parser(construct!(Opts { a(), b, c() }));
+    let parser = construct!(Opts { a(), b, c() }).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -54,8 +54,7 @@ fn simple_two_optional_flags() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch();
     let x = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(x);
+    let decorated = x.to_options().descr("this is a test");
 
     // no version information given - no version field generated
     let err = decorated
@@ -93,9 +92,7 @@ Available options:
 fn simple_two_optional_flags_with_one_hidden() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch().hide();
-    let x = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(x);
+    let decorated = construct!(a, b).to_options().descr("this is a test");
 
     // no version information given - no version field generated
     let err = decorated
@@ -134,8 +131,7 @@ fn either_of_three_required_flags() {
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
     let p = a.or_else(b).or_else(c);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
     // version is specified - version help is present
     let ver = decorated
@@ -178,8 +174,7 @@ fn either_of_three_required_flags2() {
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
     let p = construct!([a, b, c]);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
     // version is specified - version help is present
     let ver = decorated
@@ -222,8 +217,7 @@ fn either_of_two_required_flags_and_one_optional() {
     let b = short('b').req_flag(false);
     let c = short('c').switch();
     let p = a.or_else(b).or_else(c);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
     // version is specified - version help is present
     let ver = decorated
@@ -260,8 +254,7 @@ fn default_arguments() {
         .argument("ARG")
         .parse(|s| i32::from_str(&s))
         .fallback(42);
-    let info = Info::default();
-    let decorated = info.for_parser(a);
+    let decorated = a.to_options();
 
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -293,8 +286,10 @@ Available options:
 
 #[test]
 fn parse_errors() {
-    let a = short('a').argument("ARG").parse(|s| i32::from_str(&s));
-    let decorated = Info::default().for_parser(a);
+    let decorated = short('a')
+        .argument("ARG")
+        .parse(|s| i32::from_str(&s))
+        .to_options();
 
     let err = decorated
         .run_inner(Args::from(&["-a", "123x"]))
@@ -321,9 +316,7 @@ fn parse_errors() {
 #[test]
 fn custom_usage() {
     let a = short('a').long("long").argument("ARG");
-    let parser = Info::default()
-        .usage("Usage: -a <ARG> or --long <ARG>")
-        .for_parser(a);
+    let parser = a.to_options().usage("Usage: -a <ARG> or --long <ARG>");
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -347,8 +340,7 @@ fn long_usage_string() {
     let e = short('e').long("e-very-long-flag-with").argument("ARG");
     let f = short('f').long("f-very-long-flag-with").argument("ARG");
 
-    let p = construct!(a, b, c, d, e, f);
-    let parser = Info::default().for_parser(p);
+    let parser = construct!(a, b, c, d, e, f).to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -386,7 +378,7 @@ fn group_help() {
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
     let ab = construct!(a, b).group_help("Explanation applicable for both A and B");
-    let parser = Info::default().for_parser(construct!(ab, c));
+    let parser = construct!(ab, c).to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -412,8 +404,7 @@ fn from_several_alternatives_pick_more_meaningful() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
-    let p = a.or_else(b).or_else(c);
-    let parser = Info::default().for_parser(p);
+    let parser = construct!([a, b, c]).to_options();
 
     let err1 = parser
         .run_inner(Args::from(&["-a", "-b"]))
@@ -448,14 +439,11 @@ fn from_several_alternatives_pick_more_meaningful() {
 
 #[test]
 fn subcommands() {
-    let global_info = Info::default().descr("This is global info");
-    let local_info = Info::default().descr("This is local info");
-
     let bar = short('b').switch();
 
-    let bar_cmd = command("bar", local_info.for_parser(bar));
+    let bar_cmd = command("bar", bar.to_options().descr("This is local info"));
 
-    let parser = global_info.for_parser(bar_cmd);
+    let parser = bar_cmd.to_options().descr("This is global info");
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -493,7 +481,7 @@ Available options:
 #[test]
 fn multiple_aliases() {
     let a = short('a').short('b').short('c').req_flag(());
-    let parser = Info::default().for_parser(a);
+    let parser = a.to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -515,7 +503,7 @@ Available options:
 #[test]
 fn positional_argument() {
     let p = positional("FILE").group_help("File to process");
-    let parser = Info::default().for_parser(p);
+    let parser = p.to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -557,8 +545,10 @@ mod git {
             all,
             repository
         });
-        let fetch_info = Info::default().descr("fetches branches from remote repository");
-        let fetch_cmd = command("fetch", fetch_info.for_parser(fetch));
+        let fetch_inner = fetch
+            .to_options()
+            .descr("fetches branches from remote repository");
+        let fetch_cmd = command("fetch", fetch_inner);
 
         let interactive = short('i').switch();
         let all = long("all").switch();
@@ -568,12 +558,12 @@ mod git {
             all,
             files
         });
-        let add_info = Info::default().descr("add files to the staging area");
-        let add_cmd = command("add", add_info.for_parser(add));
+        let add_inner = add.to_options().descr("add files to the staging area");
+        let add_cmd = command("add", add_inner);
 
-        Info::default()
+        construct!([fetch_cmd, add_cmd])
+            .to_options()
             .descr("The stupid content tracker")
-            .for_parser(fetch_cmd.or_else(add_cmd))
     }
 
     #[test]
@@ -697,9 +687,8 @@ fn arg_bench() {
         opt_number,
         width,
         input
-    });
-
-    let parser = Info::default().for_parser(parser);
+    })
+    .to_options();
 
     assert_eq!(
         AppArgs {
@@ -731,8 +720,9 @@ fn simple_cargo_helper() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch();
     let parser = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(cargo_helper("simple", parser));
+    let decorated = cargo_helper("simple", parser)
+        .to_options()
+        .descr("this is a test");
 
     // cargo run variant
     let ok = decorated.run_inner(Args::from(&["-a"])).unwrap();
@@ -778,8 +768,9 @@ fn long_path_in_construct() {
 
 #[test]
 fn helpful_error_message() {
-    let a = positional("FOO").some("You need to specify at least one FOO");
-    let parser = Info::default().for_parser(a);
+    let parser = positional("FOO")
+        .some("You need to specify at least one FOO")
+        .to_options();
 
     let err = parser
         .run_inner(Args::from(&[]))
@@ -791,11 +782,11 @@ fn helpful_error_message() {
 #[test]
 fn env_variable() {
     let name = "BPAF_SECRET_API_KEY";
-    let key = long("key")
+    let parser = long("key")
         .env(name)
         .help("use this secret key")
-        .argument("KEY");
-    let parser = Info::default().for_parser(key);
+        .argument("KEY")
+        .to_options();
 
     let help = parser
         .run_inner(Args::from(&["-h"]))
@@ -847,7 +838,7 @@ fn help_with_default_parse() {
         NoAction,
     }
 
-    let parser = bpaf::Info::default().for_parser(action().or_else(bpaf::pure(Action::NoAction)));
+    let parser = action().or_else(bpaf::pure(Action::NoAction)).to_options();
 
     let help = parser
         .run_inner(bpaf::Args::from(&["add", "--help"]))
@@ -896,9 +887,8 @@ fn command_and_fallback() {
     }
 
     use bpaf::{OptionParser, Parser};
-    let parser = action().fallback(Action::NoAction);
+    let parser = action().fallback(Action::NoAction).to_options();
 
-    let parser = ::bpaf::Info::default().for_parser(parser);
     let help = parser
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
@@ -937,7 +927,7 @@ fn optional_req_select() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
     let ab = a.or_else(b).optional();
-    let parser = Info::default().for_parser(ab);
+    let parser = ab.to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -956,7 +946,7 @@ Available options:
 #[test]
 fn dash_is_positional() {
     let a = positional("FILE");
-    let parser = Info::default().for_parser(a);
+    let parser = a.to_options();
     assert_eq!("-", parser.run_inner(Args::from(&["-"])).unwrap());
 }
 
@@ -973,14 +963,11 @@ fn default_plays_nicely_with_command() {
         }
     }
 
-    let cmd = command(
-        "foo",
-        Info::default().descr("inner").for_parser(pure(Foo::Foo)),
-    )
-    .help("foo")
-    .fallback(Default::default());
+    let cmd = command("foo", pure(Foo::Foo).to_options().descr("inner"))
+        .help("foo")
+        .fallback(Default::default());
 
-    let parser = Info::default().descr("outer").for_parser(cmd);
+    let parser = cmd.to_options().descr("outer");
 
     let help = parser
         .run_inner(Args::from(&["foo", "--help"]))
@@ -1019,9 +1006,9 @@ Available commands:
 
 #[test]
 fn command_with_aliases() {
-    let inner = Info::default().descr("inner descr").for_parser(pure(()));
+    let inner = pure(()).to_options().descr("inner descr");
     let cmd = command("foo", inner).long("bar").short('f').short('b');
-    let parser = Info::default().descr("outer").for_parser(cmd);
+    let parser = cmd.to_options().descr("outer");
 
     let help = parser
         .run_inner(Args::from(&["--help"]))

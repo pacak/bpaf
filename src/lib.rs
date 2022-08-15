@@ -66,7 +66,7 @@
 //!
 //! 2. Declare parsers for components, combine them and run
 //! ```no_run
-//! use bpaf::{construct, long, Info, OptionParser, Parser};
+//! use bpaf::{construct, long, OptionParser, Parser};
 //! #[derive(Clone, Debug)]
 //! struct SpeedAndDistance {
 //!     /// Dpeed in KPH
@@ -88,9 +88,9 @@
 //!
 //!     let parser = construct!(SpeedAndDistance { speed, distance });
 //!     let speed_and_distance
-//!         = Info::default()
-//!         .descr("Accept speed and distance, print them")
-//!         .for_parser(parser);
+//!         = parser
+//!         .to_options()
+//!         .descr("Accept speed and distance, print them");
 //!
 //!     let opts = speed_and_distance.run();
 //!     println!("Options: {:?}", opts);
@@ -491,6 +491,7 @@ pub mod meta;
 
 pub mod structs;
 use crate::{info::Error, item::Item};
+use info::OptionParserStruct;
 pub use structs::ParseConstruct;
 use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
@@ -501,7 +502,7 @@ use structs::{
 mod tests;
 #[doc(inline)]
 pub use crate::args::Args;
-pub use crate::info::{Info, OptionParser};
+pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
@@ -1532,6 +1533,17 @@ pub trait Parser<T> {
         }
     }
     // }}}
+
+    fn to_options(self) -> OptionParserStruct<T, Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        OptionParserStruct {
+            info: info::Info::default(),
+            inner_type: PhantomData,
+            inner: self,
+        }
+    }
 }
 
 /// Wrap a value into a `Parser`

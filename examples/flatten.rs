@@ -25,10 +25,11 @@ fn main() {
     let user = short('u').help("daemon user").argument("USER");
     let group = short('g').help("daemon group").argument("GROUP");
     let daemon_opts = construct!(DaemonOpts { user, group });
-    let cmdline = construct!(Cmdline {
+    let opt = construct!(Cmdline {
         verbose,
         daemon_opts
-    });
-    let opt = Info::default().for_parser(cmdline).run();
+    })
+    .to_options()
+    .run();
     println!("{:?}", opt);
 }

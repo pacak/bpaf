@@ -59,7 +59,6 @@ struct Decor {
 
 impl ToTokens for Decor {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        quote!(::bpaf::Info::default()).to_tokens(tokens);
         if let Some(descr) = &self.descr {
             if !descr.is_empty() {
                 quote!(.descr(#descr)).to_tokens(tokens);
@@ -490,11 +489,7 @@ impl ToTokens for ParserKind {
 impl ToTokens for OParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let OParser { inner, decor } = self;
-        quote!({
-            let inner_op = #inner;
-            #decor.for_parser(inner_op)
-        })
-        .to_tokens(tokens);
+        quote!(#inner.to_options()#decor).to_tokens(tokens);
     }
 }
 
@@ -647,17 +642,15 @@ mod test {
 
         let expected = quote! {
             fn opts() -> impl ::bpaf::OptionParser<Opts> {
-                #[allow (unused_imports)]
+                #[allow(unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        ::bpaf::cargo_helper("asm", {
-                            let verbose = ::bpaf::long("verbose").switch();
-                            ::bpaf::construct!(Opts { verbose })
-                        })
-                    };
-                    ::bpaf::Info::default().for_parser(inner_op)
+                    ::bpaf::cargo_helper("asm", {
+                        let verbose = ::bpaf::long("verbose").switch();
+                        ::bpaf::construct!(Opts { verbose })
+                    })
                 }
+                .to_options()
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -717,11 +710,11 @@ mod test {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
-                {
-                    let inner_op = {
-                        ::bpaf::construct!(Opt {}) };
-                    ::bpaf::Info::default().descr("those are options").for_parser(inner_op)
-                }
+                    {
+                        ::bpaf::construct!(Opt {})
+                    }
+                    .to_options()
+                    .descr("those are options")
             }
         };
 
@@ -741,12 +734,10 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        ::bpaf::construct!(Opt {}) };
-                    ::bpaf::Info::default()
-                        .descr("those are options")
-                        .for_parser(inner_op)
+                    ::bpaf::construct!(Opt {})
                 }
+                .to_options()
+                .descr("those are options")
             }
         };
 
@@ -766,14 +757,11 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_cmd = {
-                        let inner_op = {
-                            ::bpaf::construct!(Opt {})
-                        };
-                        ::bpaf::Info::default()
-                            .descr("those are options")
-                            .for_parser(inner_op)
-                    };
+                    let inner_cmd =
+                        { ::bpaf::construct!(Opt {}) }
+                        .to_options()
+                        .descr("those are options")
+                    ;
                     ::bpaf::command("opt", inner_cmd).help("those are options")
                 }
             }
@@ -797,27 +785,25 @@ mod test {
 
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
-                #[allow (unused_imports)]
+                #[allow(unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
                     let alt0 = {
                         let inner_cmd = {
-                            let inner_op = {
-                                let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
-                                ::bpaf::construct!(Opt::Foo { field })
-                            };
-                            ::bpaf::Info::default().descr("foo doc").for_parser(inner_op)
-                        };
-                        ::bpaf::command("foo",  inner_cmd).help("foo doc")
+                            let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
+                            ::bpaf::construct!(Opt::Foo { field })
+                        }
+                        .to_options()
+                        .descr("foo doc");
+                        ::bpaf::command("foo", inner_cmd).help("foo doc")
                     };
                     let alt1 = {
                         let inner_cmd = {
-                            let inner_op = {
-                                let field = ::bpaf::long("field").switch();
-                                ::bpaf::construct!(Opt::Bar { field })
-                            };
-                            ::bpaf::Info::default().descr("bar doc").for_parser(inner_op)
-                        };
+                            let field = ::bpaf::long("field").switch();
+                            ::bpaf::construct!(Opt::Bar { field })
+                        }
+                        .to_options()
+                        .descr("bar doc");
                         ::bpaf::command("bar", inner_cmd).help("bar doc")
                     };
                     ::bpaf::construct!([alt0, alt1])
@@ -839,12 +825,10 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                        ::bpaf::construct!(Opt(f0))
-                    };
-                    ::bpaf::Info::default().for_parser(inner_op)
+                    let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    ::bpaf::construct!(Opt(f0))
                 }
+                .to_options()
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -864,13 +848,12 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                        let f1 = ::bpaf::positional("ARG").from_str::<usize>();
-                        ::bpaf::construct!(Opt1::Con1(f0, f1))
-                    };
-                    ::bpaf::Info::default().version(env!("CARGO_PKG_VERSION")).for_parser(inner_op)
+                    let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    let f1 = ::bpaf::positional("ARG").from_str::<usize>();
+                    ::bpaf::construct!(Opt1::Con1(f0, f1))
                 }
+                .to_options()
+                .version(env!("CARGO_PKG_VERSION"))
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -912,17 +895,11 @@ mod test {
                         ::bpaf::construct!(Opt::Strange { strange })
                     };
                     let alt5 = {
-                        let inner_cmd = {
-                            let inner_op = ::bpaf::pure(Opt::Alpha);
-                            ::bpaf::Info::default().for_parser(inner_op)
-                        };
+                        let inner_cmd = ::bpaf::pure(Opt::Alpha).to_options();
                         ::bpaf::command("alpha", inner_cmd)
                     };
                     let alt6 = {
-                        let inner_cmd = {
-                            let inner_op = ::bpaf::pure(Opt::Omega);
-                            ::bpaf::Info::default().for_parser(inner_op)
-                        };
+                        let inner_cmd = ::bpaf::pure(Opt::Omega).to_options() ;
                         ::bpaf::command("omega", inner_cmd)
                     };
                     ::bpaf::construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
@@ -952,12 +929,12 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                        ::bpaf::construct!(Opt(f0))
-                    };
-                    ::bpaf::Info::default().descr("descr\n  a").footer("footer\n a").for_parser(inner_op)
+                    let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    ::bpaf::construct!(Opt(f0))
                 }
+                .to_options()
+                .descr("descr\n  a")
+                .footer("footer\n a")
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -977,15 +954,12 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
-                        let alt1 = ::bpaf::long("beta").req_flag(Action::Beta);
-                        ::bpaf::construct!([alt0, alt1])
-                    };
-                    ::bpaf::Info::default()
-                        .version(env!("CARGO_PKG_VERSION"))
-                        .for_parser(inner_op)
+                    let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
+                    let alt1 = ::bpaf::long("beta").req_flag(Action::Beta);
+                    ::bpaf::construct!([alt0, alt1])
                 }
+                .to_options()
+                .version(env!("CARGO_PKG_VERSION"))
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
@@ -1006,12 +980,10 @@ mod test {
                 use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_cmd = {
-                        let inner_op = {
-                            let i = ::bpaf::short('i').switch();
-                            ::bpaf::construct!(Command { i })
-                        };
-                        ::bpaf::Info::default().for_parser(inner_op)
-                    };
+                        let i = ::bpaf::short('i').switch();
+                        ::bpaf::construct!(Command { i })
+                    }
+                    .to_options();
                     ::bpaf::command("command", inner_cmd)
                         .short('c')
                         .long("long")
@@ -1035,32 +1007,23 @@ mod test {
 
         let expected = quote! {
             fn action() -> impl ::bpaf::OptionParser<Action> {
-                #[allow (unused_imports)]
+                #[allow(unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let inner_op = {
-                        ::bpaf::cargo_helper("subcargo", {
-                            let alt0 = {
-                                let inner_cmd = {
-                                    let inner_op = ::bpaf::pure(Action::Alpha);
-                                    ::bpaf::Info::default().for_parser(inner_op)
-                                };
-                                ::bpaf::command("alpha", inner_cmd)
-                            };
-                            let alt1 = {
-                                let inner_cmd = {
-                                    let inner_op = ::bpaf::pure(Action::Beta);
-                                    ::bpaf::Info::default().for_parser(inner_op)
-                                };
-                                ::bpaf::command("beta", inner_cmd)
-                            };
-                            ::bpaf::construct!([alt0, alt1])
-                        })
-                    };
-                    ::bpaf::Info::default()
-                        .version(env!("CARGO_PKG_VERSION"))
-                        .for_parser(inner_op)
+                    ::bpaf::cargo_helper("subcargo", {
+                        let alt0 = {
+                            let inner_cmd = ::bpaf::pure(Action::Alpha).to_options();
+                            ::bpaf::command("alpha", inner_cmd)
+                        };
+                        let alt1 = {
+                            let inner_cmd = ::bpaf::pure(Action::Beta).to_options();
+                            ::bpaf::command("beta", inner_cmd)
+                        };
+                        ::bpaf::construct!([alt0, alt1])
+                    })
                 }
+                .to_options()
+                .version(env!("CARGO_PKG_VERSION"))
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());

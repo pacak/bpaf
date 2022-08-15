@@ -35,12 +35,11 @@ fn main() {
         .help("Print computation steps")
         .switch();
 
-    let parser = construct!(Out { verbose, rect });
-    let opt = Info::default()
+    let opt = construct!(Out { verbose, rect })
+        .to_options()
         .descr("This program calculates rectangle's area")
         .header("vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv")
         .footer("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^")
-        .for_parser(parser)
         .run();
     println!("{:#?}", opt);
 }

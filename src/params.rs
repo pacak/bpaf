@@ -739,10 +739,11 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 ///     let workspace = long("workspace")
 ///         .help("Check all packages in the workspace")
 ///         .switch();
+///
 ///     // and attach some meta information to it in a usual way
-///     Info::default()
+///     construct!(Cmd::Check { workspace })
+///         .to_options()
 ///         .descr("Check a package for errors")
-///         .for_parser(construct!(Cmd::Check { workspace }))
 /// }
 ///
 /// // Convert subparser into a parser.
@@ -814,12 +815,11 @@ impl<P> Command<P> {
     /// ```rust
     /// # use bpaf::*;
     /// fn inner() -> impl OptionParser<bool> {
-    ///     let parser = short('i')
+    ///     short('i')
     ///         .help("Mysterious inner switch")
-    ///         .switch();
-    ///     Info::default()
+    ///         .switch()
+    ///         .to_options()
     ///         .descr("performs an operation")
-    ///         .for_parser(parser)
     /// }
     ///
     /// fn mysterious_parser() -> impl Parser<bool> {

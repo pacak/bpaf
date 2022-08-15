@@ -22,12 +22,13 @@ impl FromStr for Baz {
     }
 }
 fn main() {
-    let arg = long("baz")
+    let opt = long("baz")
         .short('b')
         .help("choose between foo, bar or foobar")
         .argument("CMD")
-        .from_str::<Baz>();
+        .from_str::<Baz>()
+        .to_options()
+        .run();
 
-    let opt = Info::default().for_parser(arg).run();
     println!("{:#?}", opt);
 }

@@ -32,8 +32,6 @@ fn speed() -> impl Parser<f64> {
 }
 
 pub fn main() {
-    let info = Info::default().descr("this is a test").version("12");
-
     let fast = short('f')
         .long("fast")
         .help("Use faster acceleration")
@@ -43,7 +41,10 @@ pub fn main() {
 
     let cmd = command(
         "accel",
-        info.clone().descr("accelerating").for_parser(acc_parser),
+        acc_parser
+            .to_options()
+            .descr("this is a test")
+            .version("12"),
     )
     .help("command for acceleration");
 
@@ -58,8 +59,7 @@ pub fn main() {
 
     let c = speed();
 
-    let parser = construct!(Foo { a, b, c, cmd });
-    let opts = info.for_parser(parser);
+    let opts = construct!(Foo { a, b, c, cmd }).to_options().run();
 
-    println!("{:?}", opts.run());
+    println!("{:?}", opts);
 }

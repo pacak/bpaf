@@ -56,14 +56,16 @@ fn main() {
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.
-    let parser = construct!(Out {
+    let opt = construct!(Out {
         debug,
         verbose,
         speed,
         output,
         nb_cars,
         files_to_process
-    });
-    let opt = Info::default().for_parser(parser).run();
+    })
+    .to_options()
+    .run();
+
     println!("{:#?}", opt);
 }
