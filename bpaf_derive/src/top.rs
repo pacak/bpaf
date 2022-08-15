@@ -3,8 +3,8 @@ use quote::{quote, ToTokens};
 use syn::parse::Parse;
 use syn::punctuated::Punctuated;
 use syn::{
-    braced, parenthesized, parse, parse2, token, Attribute, Expr, Ident, LitStr, Result, Token,
-    Visibility,
+    braced, parenthesized, parse, parse2, token, Attribute, Expr, Ident, LitChar, LitStr, Result,
+    Token, Visibility,
 };
 
 use crate::field::{ConstrName, Doc, EnumSingleton, FieldParser, OptNameAttr, ReqFlag};
@@ -36,7 +36,7 @@ enum ParserKind {
 
 #[derive(Debug)]
 enum BParser {
-    Command(LitStr, Box<OParser>),
+    Command(LitStr, CommandAttr, Box<OParser>),
     CargoHelper(LitStr, Box<BParser>),
     Constructor(ConstrName, Fields),
     Singleton(ReqFlag),
@@ -111,7 +111,7 @@ impl Parse for Fields {
 enum OuterKind {
     Construct,
     Options(Option<LitStr>),
-    Command(Option<LitStr>),
+    Command(CommandAttr),
 }
 
 #[derive(Clone, Debug)]
@@ -120,27 +120,55 @@ enum OuterAttr {
     Construct,
     Private,
     Generate(Ident),
-    Command(Option<LitStr>),
+    Command(CommandAttr),
     Version(Option<Box<Expr>>),
 }
 
 #[derive(Clone, Debug)]
 struct CommandAttr {
     name: Option<LitStr>,
+    shorts: Vec<LitChar>,
+    longs: Vec<LitStr>,
 }
 
 impl Parse for CommandAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         if input.peek(kw::command) {
-            let _: kw::command = input.parse()?;
+            input.parse::<kw::command>()?;
+            let name;
+
             if input.peek(token::Paren) {
                 let content;
                 let _ = parenthesized!(content in input);
                 let lit = content.parse::<LitStr>()?;
-                Ok(Self { name: Some(lit) })
+                name = Some(lit);
             } else {
-                Ok(Self { name: None })
+                name = None;
+            };
+            let mut shorts = Vec::new();
+            let mut longs = Vec::new();
+            loop {
+                if input.peek(token::Comma) && input.peek2(kw::short) {
+                    input.parse::<token::Comma>()?;
+                    input.parse::<kw::short>()?;
+                    let content;
+                    let _ = parenthesized!(content in input);
+                    shorts.push(content.parse::<LitChar>()?)
+                } else if input.peek(token::Comma) && input.peek2(kw::long) {
+                    input.parse::<token::Comma>()?;
+                    input.parse::<kw::long>()?;
+                    let content;
+                    let _ = parenthesized!(content in input);
+                    longs.push(content.parse::<LitStr>()?)
+                } else {
+                    break;
+                }
             }
+            Ok(Self {
+                name,
+                shorts,
+                longs,
+            })
         } else {
             Err(input.error("Unexpected attribute"))
         }
@@ -172,15 +200,7 @@ impl Parse for OuterAttr {
                 Ok(Self::Options(None))
             }
         } else if input.peek(kw::command) {
-            let _: kw::command = input.parse()?;
-            if input.peek(token::Paren) {
-                let content;
-                let _ = parenthesized!(content in input);
-                let lit = content.parse::<LitStr>()?;
-                Ok(Self::Command(Some(lit)))
-            } else {
-                Ok(Self::Command(None))
-            }
+            Ok(Self::Command(input.parse::<CommandAttr>()?))
         } else if input.peek(kw::version) {
             let _: kw::version = input.parse()?;
             if input.peek(token::Paren) {
@@ -291,17 +311,17 @@ impl Parse for Top {
                     };
                     kind = ParserKind::OParser(oparser);
                 }
-                OuterKind::Command(maybe_command_name) => {
+                OuterKind::Command(cmd_attr) => {
                     let decor = Decor::new(&help, version.take());
                     let oparser = OParser {
                         decor,
                         inner: Box::new(inner),
                     };
-                    let cmd_name = maybe_command_name.unwrap_or_else(|| {
+                    let cmd_name = cmd_attr.name.clone().unwrap_or_else(|| {
                         let n = to_snake_case(&outer_ty.to_string());
                         LitStr::new(&n, outer_ty.span())
                     });
-                    let cmd = BParser::Command(cmd_name, Box::new(oparser));
+                    let cmd = BParser::Command(cmd_name, cmd_attr, Box::new(oparser));
                     kind = ParserKind::BParser(cmd);
                 }
             }
@@ -344,25 +364,24 @@ impl Parse for Top {
                 };
 
                 if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
-                    let (help, inner) = split_help_and::<InnerAttr>(&attrs)?;
+                    let (help, mut inner) = split_help_and::<CommandAttr>(&attrs)?;
 
                     let bra = enum_contents.parse::<Fields>()?;
 
-                    match &inner[..] {
-                        [] => branches.push(BParser::Constructor(constr, bra)),
-                        [InnerAttr(maybe_command_name)] => {
-                            let cmd_name = maybe_command_name.clone().unwrap_or_else(|| {
-                                let n = to_snake_case(&inner_ty.to_string());
-                                LitStr::new(&n, inner_ty.span())
-                            });
-                            let decor = Decor::new(&help, None);
-                            let oparser = OParser {
-                                inner: Box::new(BParser::Constructor(constr, bra)),
-                                decor,
-                            };
-                            branches.push(BParser::Command(cmd_name, Box::new(oparser)));
-                        }
-                        _ => todo!("error here, todo"),
+                    assert!(inner.len() <= 1);
+                    if let Some(cmd_arg) = inner.pop() {
+                        let cmd_name = cmd_arg.name.clone().unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string());
+                            LitStr::new(&n, inner_ty.span())
+                        });
+                        let decor = Decor::new(&help, None);
+                        let oparser = OParser {
+                            inner: Box::new(BParser::Constructor(constr, bra)),
+                            decor,
+                        };
+                        branches.push(BParser::Command(cmd_name, cmd_arg, Box::new(oparser)));
+                    } else {
+                        branches.push(BParser::Constructor(constr, bra))
                     }
                 } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
                     .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
@@ -378,7 +397,7 @@ impl Parse for Top {
                         inner: Box::new(BParser::Constructor(constr, fields)),
                         decor,
                     };
-                    branches.push(BParser::Command(cmd_name, Box::new(oparser)));
+                    branches.push(BParser::Command(cmd_name, inner, Box::new(oparser)));
                 } else {
                     let (help, inner) = split_help_and::<EnumSingleton<OptNameAttr>>(&attrs)?;
                     branches.push(BParser::Singleton(ReqFlag::new(constr, inner, &help)));
@@ -406,8 +425,8 @@ impl Parse for Top {
                     };
                     kind = ParserKind::OParser(oparser);
                 }
-                OuterKind::Command(maybe_command_name) => {
-                    let cmd_name = maybe_command_name.unwrap_or_else(|| {
+                OuterKind::Command(cmd_attr) => {
+                    let cmd_name = cmd_attr.name.clone().unwrap_or_else(|| {
                         let n = to_snake_case(&outer_ty.to_string());
                         LitStr::new(&n, outer_ty.span())
                     });
@@ -416,7 +435,11 @@ impl Parse for Top {
                         inner: Box::new(inner),
                         decor,
                     };
-                    kind = ParserKind::BParser(BParser::Command(cmd_name, Box::new(oparser)));
+                    kind = ParserKind::BParser(BParser::Command(
+                        cmd_name,
+                        cmd_attr,
+                        Box::new(oparser),
+                    ));
                 }
             }
         } else {
@@ -447,7 +470,7 @@ impl ToTokens for Top {
         quote!(
             #vis fn #name() -> impl ::bpaf::#outer_kind<#outer_ty> {
                  #[allow(unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 #kind
             }
         )
@@ -478,16 +501,24 @@ impl ToTokens for OParser {
 impl ToTokens for BParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            BParser::Command(cmd_name, oparser) => {
+            BParser::Command(cmd_name, cmd_attr, oparser) => {
+                let mut names = quote!();
+                for short in cmd_attr.shorts.iter() {
+                    names = quote!(#names .short(#short));
+                }
+                for long in cmd_attr.longs.iter() {
+                    names = quote!(#names .long(#long));
+                }
+
                 if let Some(msg) = &oparser.decor.descr {
                     quote!( {
                         let inner_cmd = #oparser;
-                        ::bpaf::command(#cmd_name, inner_cmd).help(#msg)
+                        ::bpaf::command(#cmd_name, inner_cmd).help(#msg)#names
                     })
                 } else {
                     quote!({
                         let inner_cmd = #oparser;
-                        ::bpaf::command(#cmd_name, inner_cmd)
+                        ::bpaf::command(#cmd_name, inner_cmd)#names
                     })
                 }
                 .to_tokens(tokens);
@@ -617,7 +648,7 @@ mod test {
         let expected = quote! {
             fn opts() -> impl ::bpaf::OptionParser<Opts> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("asm", {
@@ -642,7 +673,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let verbose = ::bpaf::long("verbose").switch();
                     ::bpaf::construct!(Opt { verbose })
@@ -663,7 +694,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let verbose_name = ::bpaf::long("verbose-name").switch();
                     ::bpaf::construct!(Opt::Foo { verbose_name })
@@ -685,7 +716,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -708,7 +739,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         ::bpaf::construct!(Opt {}) };
@@ -733,7 +764,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_cmd = {
                         let inner_op = {
@@ -767,7 +798,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let alt0 = {
                         let inner_cmd = {
@@ -806,7 +837,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -831,7 +862,7 @@ mod test {
         let expected = quote! {
             fn opt1() -> impl ::bpaf::OptionParser<Opt1> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -867,7 +898,7 @@ mod test {
         let expected = quote! {
             pub fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let alt0 = ::bpaf::long("Foo").req_flag(Opt::Foo);
                     let alt1 = ::bpaf::short('p').req_flag(Opt::Pff);
@@ -919,7 +950,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
@@ -944,7 +975,7 @@ mod test {
         let expected = quote! {
             fn action() -> impl ::bpaf::OptionParser<Action> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
@@ -954,6 +985,36 @@ mod test {
                     ::bpaf::Info::default()
                         .version(env!("CARGO_PKG_VERSION"))
                         .for_parser(inner_op)
+                }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn command_with_aliases() {
+        let top: Top = parse_quote! {
+            #[bpaf(command, short('c'), long("long"))]
+            struct Command {
+                i: bool,
+            }
+        };
+
+        let expected = quote! {
+            fn command() -> impl ::bpaf::Parser<Command> {
+                #[allow(unused_imports)]
+                use ::bpaf::{OptionParser, Parser};
+                {
+                    let inner_cmd = {
+                        let inner_op = {
+                            let i = ::bpaf::short('i').switch();
+                            ::bpaf::construct!(Command { i })
+                        };
+                        ::bpaf::Info::default().for_parser(inner_op)
+                    };
+                    ::bpaf::command("command", inner_cmd)
+                        .short('c')
+                        .long("long")
                 }
             }
         };
@@ -975,7 +1036,7 @@ mod test {
         let expected = quote! {
             fn action() -> impl ::bpaf::OptionParser<Action> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let inner_op = {
                         ::bpaf::cargo_helper("subcargo", {
@@ -1018,7 +1079,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1041,7 +1102,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1064,7 +1125,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1087,7 +1148,7 @@ mod test {
         let expected = quote! {
             fn decision() -> impl ::bpaf::Parser<Decision> {
                 #[allow(unused_imports)]
-                use ::bpaf::{Parser, OptionParser};
+                use ::bpaf::{OptionParser, Parser};
                 {
                     let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
                     let alt1 = ::bpaf::long("no")

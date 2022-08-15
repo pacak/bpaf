@@ -719,6 +719,10 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 ///
 /// # Combinatoric use
 ///
+/// struct [`Command`] you get by calling this method is a builder that allows to add additional
+/// aliases with [`short`](Command::short), [`long`](Command::long) (only first short and first
+/// long names are visible to `--help`) and override [`help`](Command::help). Without help override
+/// bpaf would use first line from the description
 /// ```rust
 /// # use bpaf::*;
 /// #[derive(Debug, Clone)]
@@ -799,6 +803,53 @@ pub struct Command<P> {
 }
 
 impl<P> Command<P> {
+    /// Add a brief description to a command
+    ///
+    /// This description will be listed along with the command name
+    /// in help output so it shouldn't exceed one or two lines. If `help` is not specified
+    /// bpaf will use [`descr`](Info::Descr) from the inner parser.
+    ///
+    /// # Combinatoric usage
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn inner() -> impl OptionParser<bool> {
+    ///     let parser = short('i')
+    ///         .help("Mysterious inner switch")
+    ///         .switch();
+    ///     Info::default()
+    ///         .descr("performs an operation")
+    ///         .for_parser(parser)
+    /// }
+    ///
+    /// fn mysterious_parser() -> impl Parser<bool> {
+    ///     command("mystery", inner())
+    ///         .help("This command performs a mystery operation")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// bpaf uses doc comments for inner parser, no specific options are available.
+    /// See [`Info`] for more details
+    /// ```rust
+    /// # use bpaf::*;
+    /// /// This command performs a mystery operation
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(command)]
+    /// struct Mystery {
+    ///     #[bpaf(short)]
+    ///     /// Mysterious inner switch
+    ///     inner: bool,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --help
+    ///     ...
+    /// Available commands:
+    ///     mystery  This command performs a mystery operation
+    /// ```
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -807,10 +858,18 @@ impl<P> Command<P> {
         self
     }
 
+    /// Add a custom short alias for a command
+    ///
+    /// Behavior is similar to [`short`](Named::short), only first short name is visible.
     pub fn short(mut self, short: char) -> Self {
         self.shorts.push(short);
         self
     }
+
+    /// Add a custom hidden long alias for a command
+    ///
+    /// Behavior is similar to [`long`](Named::long), but since you had to specify the first long
+    /// name when making the command - this one will be hidden.
     pub fn long(mut self, long: &'static str) -> Self {
         self.longs.push(long);
         self
