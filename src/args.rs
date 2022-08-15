@@ -287,7 +287,7 @@ impl Args {
     }
 
     /// take a static string argument from the first present argument
-    pub(crate) fn take_cmd(&mut self, word: &'static str) -> bool {
+    pub(crate) fn take_cmd(&mut self, word: &str) -> bool {
         if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
             if w.utf8.as_ref().map_or(false, |ww| ww == word) {
                 self.remove(ix);
