@@ -271,6 +271,13 @@ pub fn long(long: &'static str) -> Named {
 ///
 /// If named value is not present - try to fallback to this environment variable.
 /// You can specify it multiple times, items past the first one will become hidden aliases.
+/// For [`flag`](Named::flag) and [`switch`](Named::switch) environment variable being present
+/// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
+/// variables:
+///
+/// ```console
+/// $ NO_COLOR=1 app ...
+/// ```
 ///
 /// # Combinatoric usage
 /// You must specify either short or long key if you start the chain from `env`.
@@ -706,38 +713,69 @@ pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
 
 /// Subcommand parser
 ///
+/// Subcommands allow to use a totally independent parser inside a current one. Inner parser
+/// can have its own help message, description, version and so on. You can have them arbitrarily
+/// nested too.
+///
+/// # Combinatoric use
+///
 /// ```rust
 /// # use bpaf::*;
-/// // Define a parser to use in a subcommand in a usual way.
-/// // This parser accepts a single --workspace switch
-/// let ws = long("workspace").help("Check all packages in the workspace").switch();
-/// let decorated = Info::default()
-///     .descr("Check a package for errors")
-///     .for_parser(ws); // impl OptionParser<bool>
+/// #[derive(Debug, Clone)]
+/// enum Cmd {
+///     Check {
+///         workspace: bool,
+///     }
+/// };
+///
+/// // First of all you need an inner parser, let's make one
+/// fn check_workspace() -> impl OptionParser<Cmd> {
+///     // Define a parser to use in a subcommand in a usual way.
+///     // This parser accepts a single --workspace switch
+///     let workspace = long("workspace")
+///         .help("Check all packages in the workspace")
+///         .switch();
+///     // and attach some meta information to it in a usual way
+///     Info::default()
+///         .descr("Check a package for errors")
+///         .for_parser(construct!(Cmd::Check { workspace }))
+/// }
 ///
 /// // Convert subparser into a parser.
-/// // Note description "Check a package for errors" is specified twice:
-/// // - Parser uses version from `descr` when user calls `% prog check --help`,
-/// // - Parser uses version from `command` user calls `% prog --help` along
-/// //   with descriptions for other commands if present.
-/// let check = command("check", Some("Check a local package for errors"), decorated); // impl Parser<bool>
-///
-/// // when ther's several commands it can be a good idea to wrap each into a enum either before
-/// // or after converting it into subparser:
-/// #[derive(Clone, Debug)]
-/// enum Command {
-///     Check(bool)
+/// fn check_workspace_command() -> impl Parser<Cmd> {
+///     // Note description "Check a package for errors" is specified twice:
+///     // - Parser uses version from `descr` when user calls `% prog check --help`,
+///     // - Parser uses version from `command` user calls `% prog --help` along
+///     //   with descriptions for other commands if present.
+///     command("check", Some("Check a local package for errors"), check_workspace())
 /// }
-/// let check = check.map(Command::Check); // impl Parser<Command>
-///
-/// // at this point command line accepts following commands:
-/// // `% prog --help`            - display a global help and exit
-/// // `% prog check --help`      - display help specific to check subcommand and exit
-/// // `% prog check`             - produce `Command::Check(false)`
-/// // `% prog check --workspace` - produce `Command::Check(true)`
-/// let opt = Info::default().for_parser(check);
-/// # drop(opt)
 /// ```
+///
+/// # Derive usage
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Clone, Debug, Bpaf)]
+/// enum Cmd {
+///     #[bpaf(command)]
+///     Check {
+///         /// Check all the packages in the workspace
+///         workspace: bool
+///     }
+/// }
+/// ```
+///
+/// # Example
+/// ```console
+/// $ app --help
+/// // displays global help, not listed in this example
+/// $ app check --help
+/// // displays help for check: "Check a package ..."
+/// $ app check
+/// // Cmd::Check(CheckWorkspace(false))
+/// $ app check --workspace
+/// // Cmd::Check(CheckWorkspace(true))
+/// ```
+///
 #[must_use]
 pub fn command<P, T, M>(name: &'static str, help: Option<M>, subparser: P) -> Command<P>
 where

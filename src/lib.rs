@@ -626,7 +626,7 @@ pub use bpaf_derive::Bpaf;
 /// ```rust
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
-/// #[bpaf(options)]
+/// #[bpaf(options)] // <- important bit
 /// struct Config {
 ///     /// number used by the program
 ///     number: u32,
@@ -634,6 +634,9 @@ pub use bpaf_derive::Bpaf;
 /// ```
 ///
 /// For combinatoric examples [`help`](Named::help) is usually omitted - you shouldn't do that.
+///
+/// For combinatoric examples usually implemented type is [`Parser`], to be able to run it you need to
+/// add metainformation to get [`OptionParser`].
 ///
 /// In addition to examples in the documentation there's a bunch more in the github repository:
 /// <https://github.com/pacak/bpaf/tree/master/examples>
