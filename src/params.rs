@@ -905,8 +905,8 @@ where
     }
 }
 
-fn short_or_long_flag(arg: &Arg, shorts: &[char], longs: &[&str]) -> bool {
-    shorts.iter().any(|&c| arg.is_short(c)) || longs.iter().any(|s| arg.is_long(s))
+fn short_or_long_flag(arg: &Arg, named: &Named) -> bool {
+    named.short.iter().any(|&c| arg.is_short(c)) || named.long.iter().any(|s| arg.is_long(s))
 }
 
 fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Parser<T>
@@ -929,7 +929,7 @@ struct BuildFlagParser<T> {
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn run(&self, args: &mut Args) -> Result<T, Error> {
-        if args.take_flag(|arg| short_or_long_flag(arg, &self.named.short, &self.named.long))
+        if args.take_flag(|arg| short_or_long_flag(arg, &self.named))
             || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             Ok(self.present.clone())
@@ -959,41 +959,36 @@ fn build_argument(named: Named, metavar: &'static str) -> impl Parser<Word> {
             "env fallback can only be used if name is present"
         );
     }
-    let item = Item::Argument {
-        name: ShortLong::from(&named),
-        metavar,
-        env: named.env.first().copied(),
-        help: named.help,
-    };
-    BuildArgument {
-        shorts: named.short,
-        longs: named.long,
-        envs: named.env,
-        meta: item.required(true),
-    }
+    BuildArgument { named, metavar }
 }
 
 #[derive(Clone)]
 struct BuildArgument {
-    shorts: Vec<char>,
-    longs: Vec<&'static str>,
-    envs: Vec<&'static str>,
-    meta: Meta,
+    named: Named,
+    metavar: &'static str,
 }
 
 impl Parser<Word> for BuildArgument {
     fn run(&self, args: &mut Args) -> Result<Word, Error> {
-        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &self.shorts, &self.longs))? {
+        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &self.named))? {
             Ok(w)
-        } else if let Some(val) = self.envs.iter().find_map(std::env::var_os) {
+        } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             Ok(Word::from(val))
         } else {
-            Err(Error::Missing(vec![self.meta.clone()]))
+            Err(Error::Missing(vec![self.meta()]))
         }
     }
 
     fn meta(&self) -> Meta {
-        self.meta.clone()
+        {
+            let this = Item::Argument {
+                name: ShortLong::from(&self.named),
+                metavar: self.metavar,
+                env: self.named.env.first().copied(),
+                help: self.named.help.clone(),
+            };
+            Meta::Item(this)
+        }
     }
 }
 
