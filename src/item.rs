@@ -76,7 +76,7 @@ impl From<&Named> for ShortLong {
 }
 
 impl ShortLong {
-    const fn full_width(&self) -> usize {
+    fn full_width(&self) -> usize {
         match self {
             ShortLong::Short(_) => 2,
             ShortLong::Long(l) | ShortLong::ShortLong(_, l) => 6 + l.len(),
@@ -200,7 +200,7 @@ impl Item {
     #[must_use]
     /// Full width for the name, including implicit short flag, space and comma
     /// betwen short and log parameters and metavar variable if present
-    pub(crate) const fn full_width(&self) -> usize {
+    pub(crate) fn full_width(&self) -> usize {
         match self {
             Item::Decor { .. } => 0,
             Item::Flag { name, .. } => name.full_width(),

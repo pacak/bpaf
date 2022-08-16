@@ -89,7 +89,7 @@ mod inner {
 
     impl<'a> Args {
         /// creates iterator over remaining elements
-        pub(crate) const fn items_iter(&'a self) -> ArgsIter<'a> {
+        pub(crate) fn items_iter(&'a self) -> ArgsIter<'a> {
             ArgsIter { args: self, cur: 0 }
         }
 
@@ -101,7 +101,7 @@ mod inner {
             self.removed[index] = true;
         }
 
-        pub(crate) const fn is_empty(&self) -> bool {
+        pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
 
@@ -155,7 +155,7 @@ impl std::fmt::Display for Arg {
 }
 
 impl Arg {
-    pub(crate) const fn is_short(&self, short: char) -> bool {
+    pub(crate) fn is_short(&self, short: char) -> bool {
         match self {
             &Arg::Short(c) => c == short,
             Arg::Long(_) | Arg::Word(..) => false,
