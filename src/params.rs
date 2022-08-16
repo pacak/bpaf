@@ -808,7 +808,7 @@ impl<P> Command<P> {
     ///
     /// This description will be listed along with the command name
     /// in help output so it shouldn't exceed one or two lines. If `help` is not specified
-    /// bpaf will use [`descr`](Info::Descr) from the inner parser.
+    /// bpaf will use [`descr`](OptionParser::descr) from the inner parser.
     ///
     /// # Combinatoric usage
     ///
@@ -830,7 +830,7 @@ impl<P> Command<P> {
     ///
     /// # Derive usage
     /// bpaf uses doc comments for inner parser, no specific options are available.
-    /// See [`Info`] for more details
+    /// See [`descr`](OptionParser::descr) for more details
     /// ```rust
     /// # use bpaf::*;
     /// /// This command performs a mystery operation
