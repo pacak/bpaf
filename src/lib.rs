@@ -753,7 +753,7 @@ macro_rules! construct {
 /// # Derive specific considerations
 ///
 /// Every method defined on this trait belongs to the `postprocessing` section of the field
-/// annotation. bpaf_derive would try to figure out what chain to use for as long as there's no
+/// annotation. `bpaf_derive` would try to figure out what chain to use for as long as there's no
 /// options changing the type: you can use [`fallback`](Parser::fallback_with),
 /// [`fallback_with`](Parser::fallback_with), [`guard`](Parser::guard), [`hide`](Parser::hide`) and
 /// [`group_help`](Parser::group_help) but not the rest of them.
@@ -1109,7 +1109,7 @@ pub trait Parser<T> {
     /// ```
     ///
     /// # Derive usage
-    /// By default bpaf_derive would use from_str for any time it is not
+    /// By default `bpaf_derive` would use [`from_str`](Parser::from_str) for any time it is not
     /// familiar with so you don't need to specify anything
     /// ```rust
     /// # use bpaf::*;

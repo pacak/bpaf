@@ -8,7 +8,6 @@ mod top;
 mod utils;
 use top::Top;
 
-#[doc = include_str!("../README.md")]
 #[proc_macro_derive(Bpaf, attributes(bpaf))]
 pub fn derive_macro(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     parse_macro_input!(input as Top).to_token_stream().into()

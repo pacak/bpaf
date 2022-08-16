@@ -103,7 +103,7 @@ use crate::{
 ///
 /// - [`command`] - a fixed utf8 string literal that starts a separate subparser that only
 /// gets executed when command name is present. For example `cargo build` invokes
-/// command `"build" and after build `cargo` starts accepting values it won't accept otherwise
+/// command `"build"` and after `"build"` `cargo` starts accepting values it won't accept otherwise
 ///
 /// ```console
 /// $ cargo build --out-dir my_target
@@ -795,6 +795,11 @@ where
     }
 }
 
+/// Builder structure for the `command`
+///
+/// Created with [`command`], implements parser for the inner structure, using
+/// [`help`](Command::help) allows to attach a custom description for this command. Otherwise
+/// description form the inner parser will be used.
 #[derive(Clone)]
 pub struct Command<P> {
     longs: Vec<&'static str>,
