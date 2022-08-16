@@ -39,14 +39,8 @@ pub fn main() {
 
     let acc_parser = construct!(Cmd::Accelerate(fast));
 
-    let cmd = command(
-        "accel",
-        acc_parser
-            .to_options()
-            .descr("this is a test")
-            .version("12"),
-    )
-    .help("command for acceleration");
+    let cmd = command("accel", acc_parser.to_options().descr("this is a test"))
+        .help("command for acceleration");
 
     let a = short('a')
         .long("AAAAA")
@@ -59,7 +53,10 @@ pub fn main() {
 
     let c = speed();
 
-    let opts = construct!(Foo { a, b, c, cmd }).to_options().run();
+    let opts = construct!(Foo { a, b, c, cmd })
+        .to_options()
+        .version("12")
+        .run();
 
     println!("{:?}", opts);
 }
