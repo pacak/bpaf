@@ -35,6 +35,12 @@ impl Meta {
         res
     }
 
+    pub(crate) fn poss(&self) -> Vec<Item> {
+        let mut res = Vec::new();
+        self.collect_items(&mut res, Item::is_positional);
+        res
+    }
+
     fn alts(self, to: &mut Vec<Meta>) {
         match self {
             Meta::Or(mut xs) => to.append(&mut xs),

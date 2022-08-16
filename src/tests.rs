@@ -1051,3 +1051,26 @@ Available options:
     // and "k" is not a thing
     parser.run_inner(Args::from(&["k"])).unwrap_err();
 }
+
+#[test]
+fn positional_with_help() {
+    let user = positional("USER").help("github user");
+    let api = positional("API_KEY").help("api key to use");
+    let parser = construct!(user, api).to_options();
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: <USER> <API_KEY>
+
+Available positional items:
+    <USER>     github user
+    <API_KEY>  api key to use
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}

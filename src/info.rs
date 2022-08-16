@@ -7,7 +7,7 @@ use crate::{
     args::{self, Args},
     item::Item,
     params::short,
-    Meta, ParseConstruct, ParseFailure, Parser,
+    Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -24,9 +24,8 @@ pub enum Error {
 }
 
 impl Error {
-    #[doc(hidden)]
     #[must_use]
-    pub fn combine_with(self, other: Self) -> Self {
+    pub(crate) fn combine_with(self, other: Self) -> Self {
         #[allow(clippy::match_same_arms)]
         match (self, other) {
             // help output takes priority
@@ -155,6 +154,15 @@ impl Info {
         }
         let meta = Meta::And(vec![parser_meta, help_meta]);
 
+        let poss = &meta.poss();
+        if !poss.is_empty() {
+            let max_width = poss.iter().map(Item::full_width).max().unwrap_or(0);
+            write!(res, "\nAvailable positional items:\n")?;
+            for i in poss {
+                write!(res, "{:#padding$}\n", i, padding = max_width)?;
+            }
+        }
+
         let flags = &meta.flags();
         if !flags.is_empty() {
             let max_width = flags.iter().map(Item::full_width).max().unwrap_or(0);
@@ -174,68 +182,10 @@ impl Info {
         }
         Ok(res)
     }
-
-    /*
-        /*
-        /// Attach additional information to the parser
-        #[must_use]
-        pub fn for_parser<P, T>(self, parser: P) -> impl OptionParser<T>
-        where
-            P: Parser<T>,
-            T: 'static + Clone + std::fmt::Debug,
-        {
-            let info = self.clone();
-            let parser_meta = parser.meta();
-            let p = move |args: &mut Args| {
-                let mut reg_args = args.clone();
-                let err = match parser.run(&mut reg_args) {
-                    Ok(r) => {
-                        if let Err(err) = check_unexpected(&reg_args) {
-                            err
-                        } else {
-                            *args = reg_args;
-                            return Ok(r);
-                        }
-                    }
-
-                    // Stderr means nested parser couldn't parse something, store it,
-                    // report it if parsing --help and --version also fails
-                    Err(Error::Stderr(e)) => Error::Stderr(e),
-
-                    // Stdout usually means a happy path such as calling --help or --version on one of
-                    // the nested commands
-                    Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
-                    Err(err) => err,
-                };
-
-                match self.help_parser().run(args) {
-                    Ok(ExtraParams::Help) => {
-                        let msg = self
-                            .render_help(parser.meta(), self.help_parser().meta())
-                            .expect("Couldn't render help");
-                        return Err(Error::Stdout(msg));
-                    }
-                    Ok(ExtraParams::Version(v)) => {
-                        return Err(Error::Stdout(format!("Version: {}", v)));
-                    }
-                    Err(_) => {}
-                }
-                Err(err)
-            };
-            OptionParserStruct {
-                inner: ParseConstruct {
-                    inner: p,
-                    meta: parser_meta,
-                },
-                inner_type: PhantomData,
-                info,
-            }
-        }*/
-    */
 }
-#[doc(hidden)]
+
 #[derive(Clone, Debug)]
-pub enum ExtraParams {
+enum ExtraParams {
     Help,
     Version(&'static str),
 }

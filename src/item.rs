@@ -1,6 +1,5 @@
 use crate::{Meta, Named};
 
-#[doc(hidden)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 enum ItemKind {
     Flag,
@@ -51,8 +50,8 @@ impl Item {
             Item::Decor { help }
             | Item::Command { help, .. }
             | Item::Flag { help, .. }
-            | Item::Argument { help, .. } => help.as_ref(),
-            Item::Positional { .. } => None,
+            | Item::Argument { help, .. }
+            | Item::Positional { help, .. } => help.as_ref(),
         }
     }
 }
@@ -234,6 +233,14 @@ impl Item {
         match self.kind() {
             ItemKind::Flag | ItemKind::Decor => true,
             ItemKind::Command | ItemKind::Positional => false,
+        }
+    }
+
+    #[must_use]
+    pub(crate) fn is_positional(&self) -> bool {
+        match self.kind() {
+            ItemKind::Positional => self.help().is_some(),
+            ItemKind::Flag | ItemKind::Decor | ItemKind::Command => false,
         }
     }
 }
