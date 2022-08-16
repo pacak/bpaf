@@ -35,7 +35,7 @@ mod inner {
         remaining: usize,
 
         /// Used to render an error message for [`parse`][crate::Parser::parse]
-        pub(crate) current: Option<Word>,
+        pub(crate) current: Option<usize>,
 
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
@@ -105,8 +105,12 @@ mod inner {
             self.remaining == 0
         }
 
-        pub(crate) fn current_word(&self) -> Option<Word> {
-            self.current.clone()
+        pub(crate) fn current_word(&self) -> Option<&Word> {
+            let ix = self.current?;
+            match &self.items[ix] {
+                Arg::Short(_) | Arg::Long(_) => None,
+                Arg::Word(w) => Some(w),
+            }
         }
     }
 
@@ -263,7 +267,7 @@ impl Args {
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };
         let val = val.clone();
-        self.current = Some(val.clone());
+        self.current = Some(val_ix);
         self.remove(key_ix);
         self.remove(val_ix);
         Ok(Some(val))
@@ -277,7 +281,7 @@ impl Args {
         match self.items_iter().next() {
             Some((ix, Arg::Word(w))) => {
                 let w = w.clone();
-                self.current = Some(w.clone());
+                self.current = Some(ix);
                 self.remove(ix);
                 Ok(Some(w))
             }

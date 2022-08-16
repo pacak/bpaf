@@ -285,7 +285,7 @@ where
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
             Err(e) => Err(Error::Stderr(
-                if let Some(Word { utf8: Some(w), .. }) = &args.current_word() {
+                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
                     format!("Couldn't parse {:?}: {}", w, e.to_string())
                 } else {
                     format!("Couldn't parse: {}", e.to_string())
