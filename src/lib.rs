@@ -485,9 +485,9 @@ mod args;
 #[doc(hidden)]
 pub mod info;
 #[doc(hidden)]
-pub mod item;
+mod item;
 #[doc(hidden)]
-pub mod meta;
+mod meta;
 
 pub mod structs;
 use crate::{info::Error, item::Item};
