@@ -1006,29 +1006,45 @@ impl Parser<Word> for BuildArgument {
 }
 
 fn build_positional<T>(metavar: &'static str) -> Positional<T> {
-    let item = Item::Positional { metavar };
-    let meta = item.required(true);
     Positional {
-        meta,
+        metavar,
+        help: None,
         result_type: PhantomData,
     }
 }
 
 #[derive(Clone)]
 pub struct Positional<T> {
-    meta: Meta,
+    metavar: &'static str,
+    help: Option<String>,
     result_type: PhantomData<T>,
+}
+
+impl<T> Positional<T> {
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
+        self
+    }
+    fn meta(&self) -> Meta {
+        Meta::Item(Item::Positional {
+            metavar: self.metavar,
+            help: self.help.clone(),
+        })
+    }
 }
 
 impl Parser<OsString> for Positional<OsString> {
     fn run(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_positional_word()? {
             Some(word) => Ok(word.os),
-            None => Err(Error::Missing(vec![self.meta.clone()])),
+            None => Err(Error::Missing(vec![self.meta()])),
         }
     }
     fn meta(&self) -> Meta {
-        self.meta.clone()
+        self.meta()
     }
 }
 
@@ -1039,11 +1055,11 @@ impl Parser<String> for Positional<String> {
                 Some(ok) => Ok(ok),
                 None => Err(Error::Stderr("not utf8".to_owned())),
             },
-            None => Err(Error::Missing(vec![self.meta.clone()])),
+            None => Err(Error::Missing(vec![self.meta()])),
         }
     }
 
     fn meta(&self) -> Meta {
-        self.meta.clone()
+        self.meta()
     }
 }

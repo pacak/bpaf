@@ -17,6 +17,7 @@ pub enum Item {
     },
     Positional {
         metavar: &'static str,
+        help: Option<String>,
     },
     Command {
         name: &'static str,
@@ -145,7 +146,7 @@ impl std::fmt::Display for Item {
                         write!(f, "    ")?;
                     }
                 }
-                Item::Positional { metavar } => write!(f, "    <{}>", metavar)?,
+                Item::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar)?,
                 Item::Command {
                     name,
                     help: _,
@@ -172,7 +173,7 @@ impl std::fmt::Display for Item {
         } else {
             match self {
                 Item::Decor { .. } => {}
-                Item::Positional { metavar } => write!(f, "<{}>", metavar)?,
+                Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar)?,
                 Item::Command { .. } => write!(f, "COMMAND ...")?,
                 Item::Flag { name, help: _ } => write!(f, "{}", name)?,
                 Item::Argument {
@@ -205,7 +206,7 @@ impl Item {
             Item::Decor { .. } => 0,
             Item::Flag { name, .. } => name.full_width(),
             Item::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
-            Item::Positional { metavar } => metavar.len() + 2,
+            Item::Positional { metavar, .. } => metavar.len() + 2,
             Item::Command { name, .. } => name.len(),
         }
     }
