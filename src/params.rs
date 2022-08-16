@@ -52,7 +52,7 @@
 //! % cargo check --workspace
 //! ```
 //!
-use std::ffi::OsString;
+use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{
@@ -642,8 +642,8 @@ impl Named {
 ///
 /// See also [`positional_os`] - a simiar function
 #[must_use]
-pub fn positional(metavar: &'static str) -> impl Parser<String> {
-    build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
+pub fn positional(metavar: &'static str) -> Positional<String> {
+    build_positional(metavar)
 }
 
 /// Positional argument that can be encoded as String and will be taken only if check passes
@@ -707,8 +707,8 @@ where
 ///
 /// See also [`positional_os`] - a simiar function
 #[must_use]
-pub fn positional_os(metavar: &'static str) -> impl Parser<OsString> {
-    build_positional(metavar).map(|x| x.os)
+pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
+    build_positional(metavar)
 }
 
 /// Subcommand parser
@@ -1005,21 +1005,40 @@ impl Parser<Word> for BuildArgument {
     }
 }
 
-fn build_positional(metavar: &'static str) -> impl Parser<Word> {
+fn build_positional<T>(metavar: &'static str) -> Positional<T> {
     let item = Item::Positional { metavar };
     let meta = item.required(true);
-    BuildPositional { meta }
+    Positional {
+        meta,
+        result_type: PhantomData,
+    }
 }
 
 #[derive(Clone)]
-struct BuildPositional {
+pub struct Positional<T> {
     meta: Meta,
+    result_type: PhantomData<T>,
 }
 
-impl Parser<Word> for BuildPositional {
-    fn run(&self, args: &mut Args) -> Result<Word, Error> {
+impl Parser<OsString> for Positional<OsString> {
+    fn run(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_positional_word()? {
-            Some(word) => Ok(word),
+            Some(word) => Ok(word.os),
+            None => Err(Error::Missing(vec![self.meta.clone()])),
+        }
+    }
+    fn meta(&self) -> Meta {
+        self.meta.clone()
+    }
+}
+
+impl Parser<String> for Positional<String> {
+    fn run(&self, args: &mut Args) -> Result<String, Error> {
+        match args.take_positional_word()? {
+            Some(word) => match word.utf8 {
+                Some(ok) => Ok(ok),
+                None => Err(Error::Stderr("not utf8".to_owned())),
+            },
             None => Err(Error::Missing(vec![self.meta.clone()])),
         }
     }
