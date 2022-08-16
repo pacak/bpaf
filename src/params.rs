@@ -913,20 +913,10 @@ fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Par
 where
     T: Clone + 'static,
 {
-    let item = Item::Flag {
-        name: ShortLong::from(&named),
-        help: named.help.clone(),
-    };
-
-    let meta = item.required(absent.is_none());
-
     BuildFlagParser {
         present,
         absent,
-        shorts: named.short,
-        longs: named.long,
-        envs: named.env,
-        meta,
+        named,
     }
 }
 
@@ -934,28 +924,30 @@ where
 struct BuildFlagParser<T> {
     present: T,
     absent: Option<T>,
-    shorts: Vec<char>,
-    longs: Vec<&'static str>,
-    envs: Vec<&'static str>,
-    meta: Meta,
+    named: Named,
 }
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn run(&self, args: &mut Args) -> Result<T, Error> {
-        if args.take_flag(|arg| short_or_long_flag(arg, &self.shorts, &self.longs))
-            || self.envs.iter().find_map(std::env::var_os).is_some()
+        if args.take_flag(|arg| short_or_long_flag(arg, &self.named.short, &self.named.long))
+            || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             Ok(self.present.clone())
         } else {
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
-                None => Err(Error::Missing(vec![self.meta.clone()])),
+                None => Err(Error::Missing(vec![self.meta()])),
             }
         }
     }
 
     fn meta(&self) -> Meta {
-        self.meta.clone()
+        let item = Item::Flag {
+            name: ShortLong::from(&self.named),
+            help: self.named.help.clone(),
+        };
+
+        item.required(self.absent.is_none())
     }
 }
 
