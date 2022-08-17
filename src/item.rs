@@ -106,9 +106,10 @@ impl std::fmt::Display for ShortLong {
 /// supports padding of the help by some max width
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // alternate version is used to render the option list
         if f.alternate() {
             match self {
-                Item::Flag { name, help: _ } => write!(f, "    {:#}", name)?,
+                Item::Flag { name, help: _ } => write!(f, "    {:#}", name),
                 Item::Argument {
                     name,
                     metavar,
@@ -126,61 +127,67 @@ impl std::fmt::Display for Item {
                                 ": current value is not utf8".to_string()
                             }
                         };
+                        let next_pad = 4 + self.full_width();
                         write!(
                             f,
-                            "{:pad$}  [env:{}{}]\n{:width$}    ",
+                            "{:pad$}  [env:{}{}]\n{:width$}",
                             "",
                             env,
                             val,
                             "",
                             pad = pad,
-                            width = width
+                            width = next_pad,
                         )?;
-
-                        //
                     }
+                    Ok(())
                 }
                 Item::Decor { help } => {
                     if help.is_some() {
-                        write!(f, "    ")?;
+                        write!(f, "    ")?
                     }
+                    Ok(())
                 }
-                Item::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar)?,
+                Item::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
                 Item::Command {
                     name,
                     help: _,
                     short,
                 } => match short {
-                    Some(s) => write!(f, "    {}, {}", name, s)?,
-                    None => write!(f, "    {}", name)?,
+                    Some(s) => write!(f, "    {}, {}", name, s),
+                    None => write!(f, "    {}", name),
                 },
-            }
+            }?;
 
-            if let Some((width, help)) = f.width().zip(self.help()) {
+            // width must be specified on the top level
+            let width = f.width().unwrap();
+            if let Some(help) = self.help() {
                 let pad = width - self.full_width();
                 for (ix, line) in help.split('\n').enumerate() {
-                    if ix == 0 {
-                        write!(f, "{:pad$}  {}", "", line, pad = pad)?;
-                    } else {
-                        write!(f, "\n{:pad$}  {}", "", line, pad = width + 4)?;
-                    }
+                    {
+                        if ix == 0 {
+                            write!(f, "{:pad$}  {}", "", line, pad = pad)
+                        } else {
+                            write!(f, "\n{:pad$}      {}", "", line, pad = width)
+                        }
+                    }?
                 }
             }
+            Ok(())
         } else {
+            // this version is used to render usage and missing fields parts
             match self {
-                Item::Decor { .. } => {}
-                Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar)?,
-                Item::Command { .. } => write!(f, "COMMAND ...")?,
-                Item::Flag { name, help: _ } => write!(f, "{}", name)?,
+                Item::Decor { .. } => Ok(()),
+                Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),
+                Item::Command { .. } => write!(f, "COMMAND ..."),
+                Item::Flag { name, help: _ } => write!(f, "{}", name),
                 Item::Argument {
                     name,
                     metavar,
                     help: _,
                     env: _,
-                } => write!(f, "{} {}", name, metavar)?,
+                } => write!(f, "{} {}", name, metavar),
             }
         }
-        Ok(())
     }
 }
 
@@ -203,7 +210,7 @@ impl Item {
             Item::Flag { name, .. } => name.full_width(),
             Item::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
             Item::Positional { metavar, .. } => metavar.len() + 2,
-            Item::Command { name, .. } => name.len(),
+            Item::Command { name, short, .. } => name.len() + short.map_or(0, |_| 3),
         }
     }
 

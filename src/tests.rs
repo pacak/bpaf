@@ -785,7 +785,7 @@ fn env_variable() {
     let name = "BPAF_SECRET_API_KEY";
     let parser = long("key")
         .env(name)
-        .help("use this secret key")
+        .help("use this secret key\ntwo lines")
         .argument("KEY")
         .to_options();
 
@@ -799,6 +799,7 @@ Usage: --key KEY
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY: N/A]
                      use this secret key
+                     two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -814,6 +815,7 @@ Usage: --key KEY
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
                      use this secret key
+                     two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -1080,28 +1082,86 @@ Available options:
 }
 
 #[test]
-fn help_for_everything() {
-    let a = short('a').help("help for\na").switch();
-    let b = short('b').help("help for\nb").argument("B");
+fn help_for_positional() {
     let c = positional("C").help("help for\nc");
+    let d = positional("DDD").help("help for\nddd");
+    let parser = construct!(c, d).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: <C> <DDD>
+
+Available positional items:
+    <C>    help for
+           c
+    <DDD>  help for
+           ddd
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_options() {
+    let a = short('a').help("help for\na").switch();
+    let b = short('c').env("BbBbB").help("help for\nb").argument("B");
+    let c = long("bbbbb")
+        .env("ccccCCccc")
+        .help("help for\nccc")
+        .argument("CCC");
     let parser = construct!(a, b, c).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
-    let expected_help = "\
-Usage: [-a] -b B <C>
 
-Available positional items:
-    <C>  help for
-         c
+    let expected_help = "\
+Usage: [-a] -c B --bbbbb CCC
 
 Available options:
-    -a          help for
-                a
-    -b <B>      help for
-                b
+    -a                 help for
+                       a
+    -c <B>             [env:BbBbB: N/A]
+                       help for
+                       b
+        --bbbbb <CCC>  [env:ccccCCccc: N/A]
+                       help for
+                       ccc
+    -h, --help         Prints help information
+";
+
+    println!("{}", help);
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_commands() {
+    let d = command("thing_d", pure(()).to_options()).help("help for d\ntwo lines");
+    let e = command("thing_e", pure(()).to_options())
+        .short('e')
+        .help("help for e\ntwo lines");
+    let parser = construct!(d, e).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: COMMAND ...
+
+Available options:
     -h, --help  Prints help information
+
+Available commands:
+    thing_d     help for d
+                two lines
+    thing_e, e  help for e
+                two lines
 ";
     assert_eq!(expected_help, help);
 }
