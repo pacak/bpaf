@@ -162,12 +162,9 @@ impl std::fmt::Display for Item {
                     if ix == 0 {
                         write!(f, "{:pad$}  {}", "", line, pad = pad)?;
                     } else {
-                        write!(f, "\n{:pad$}  {}", "", line, pad = width)?;
+                        write!(f, "\n{:pad$}  {}", "", line, pad = width + 4)?;
                     }
                 }
-            } else if let Some(help) = self.help().and_then(|h| h.lines().next()) {
-                f.write_str("  -- ")?;
-                f.write_str(help)?;
             }
         } else {
             match self {

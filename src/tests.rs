@@ -663,7 +663,7 @@ fn arg_bench() {
     }
 
     let number = long("number")
-        .help("Sets a number")
+        .help("Sets a number\nin two lines")
         .argument("number")
         .from_str();
 
@@ -717,7 +717,7 @@ fn arg_bench() {
 
 #[test]
 fn simple_cargo_helper() {
-    let a = short('a').long("AAAAA").switch();
+    let a = short('a').long("AAAAA").help("two lines\nof help").switch();
     let b = short('b').switch();
     let parser = construct!(a, b);
     let decorated = cargo_helper("simple", parser)
@@ -750,7 +750,8 @@ this is a test
 Usage: [-a] [-b]
 
 Available options:
-    -a, --AAAAA
+    -a, --AAAAA  two lines
+                 of help
     -b
     -h, --help   Prints help information
 ";
@@ -882,6 +883,7 @@ fn command_and_fallback() {
         Add(String),
 
         /// Does nothing
+        /// in two lines
         #[bpaf(command)]
         NoAction,
     }
@@ -918,6 +920,7 @@ Available options:
 Available commands:
     add        Add a new TODO item
     no_action  Does nothing
+               in two lines
 ";
     assert_eq!(expected_help, help);
 }
@@ -1054,7 +1057,7 @@ Available options:
 
 #[test]
 fn positional_with_help() {
-    let user = positional("USER").help("github user");
+    let user = positional("USER").help("github user\nin two lines");
     let api = positional("API_KEY").help("api key to use");
     let parser = construct!(user, api).to_options();
 
@@ -1067,9 +1070,37 @@ Usage: <USER> <API_KEY>
 
 Available positional items:
     <USER>     github user
+               in two lines
     <API_KEY>  api key to use
 
 Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_everything() {
+    let a = short('a').help("help for\na").switch();
+    let b = short('b').help("help for\nb").argument("B");
+    let c = positional("C").help("help for\nc");
+    let parser = construct!(a, b, c).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: [-a] -b B <C>
+
+Available positional items:
+    <C>  help for
+         c
+
+Available options:
+    -a          help for
+                a
+    -b <B>      help for
+                b
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
