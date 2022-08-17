@@ -34,9 +34,7 @@ pub fn main() {
         .from_str::<u64>()
         .fallback(DEFAULT_CONFIG.field2);
 
-    let parser = construct!(Config { field1, field2 });
-
-    let opts = Info::default().for_parser(parser).run();
+    let opts = construct!(Config { field1, field2 }).to_options().run();
 
     // At this point if you get opts - it should be taken from one of
     // - the command line argument
