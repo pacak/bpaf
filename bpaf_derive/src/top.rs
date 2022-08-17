@@ -817,7 +817,10 @@ mod test {
     fn unnamed_struct() {
         let top: Top = parse_quote! {
             #[bpaf(options)]
-            struct Opt(PathBuf);
+            struct Opt(
+                /// help
+                PathBuf
+            );
         };
 
         let expected = quote! {
@@ -825,7 +828,7 @@ mod test {
                 #[allow (unused_imports)]
                 use ::bpaf::{OptionParser, Parser};
                 {
-                    let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                    let f0 = ::bpaf::positional_os("ARG").help("help").map(PathBuf::from);
                     ::bpaf::construct!(Opt(f0))
                 }
                 .to_options()

@@ -688,7 +688,7 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
                 first = false;
             }
             if let Some(help) = &self.help {
-                // help only makes sense for named things
+                // For named things help goes right after the name
                 if !first {
                     quote!(.help(#help)).to_tokens(tokens);
                 }
@@ -698,6 +698,12 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
                     quote!(.).to_tokens(tokens);
                 }
                 cons.to_tokens(tokens);
+            }
+            if let Some(help) = &self.help {
+                // For positional things help goes right after the consumer
+                if first {
+                    quote!(.help(#help)).to_tokens(tokens);
+                }
             }
         }
         for postpr in &self.postpr {
