@@ -885,7 +885,7 @@ impl<P, T> Parser<T> for Command<P>
 where
     P: OptionParser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
             || self.shorts.iter().any(|s| {
@@ -933,7 +933,7 @@ struct BuildFlagParser<T> {
 }
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
         if args.take_flag(|arg| short_or_long_flag(arg, &self.named))
             || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
@@ -974,7 +974,7 @@ struct BuildArgument {
 }
 
 impl Parser<Word> for BuildArgument {
-    fn run(&self, args: &mut Args) -> Result<Word, Error> {
+    fn eval(&self, args: &mut Args) -> Result<Word, Error> {
         if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &self.named))? {
             Ok(w)
         } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
@@ -1029,7 +1029,7 @@ impl<T> Positional<T> {
 }
 
 impl Parser<OsString> for Positional<OsString> {
-    fn run(&self, args: &mut Args) -> Result<OsString, Error> {
+    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_positional_word()? {
             Some(word) => Ok(word.os),
             None => Err(Error::Missing(vec![self.meta()])),
@@ -1041,7 +1041,7 @@ impl Parser<OsString> for Positional<OsString> {
 }
 
 impl Parser<String> for Positional<String> {
-    fn run(&self, args: &mut Args) -> Result<String, Error> {
+    fn eval(&self, args: &mut Args) -> Result<String, Error> {
         match args.take_positional_word()? {
             Some(word) => match word.utf8 {
                 Some(ok) => Ok(ok),

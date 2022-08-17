@@ -18,8 +18,8 @@ where
     F: Fn() -> Result<T, E>,
     E: ToString,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        match self.inner.run(args) {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        match self.inner.eval(args) {
             Ok(ok) => Ok(ok),
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(Error::Missing(_)) => match (self.fallback)() {
@@ -62,8 +62,8 @@ impl<T, P> Parser<T> for ParseGroupHelp<P>
 where
     P: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.run(args)
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
     }
 
     fn meta(&self) -> Meta {
@@ -82,8 +82,8 @@ impl<T, P> Parser<Vec<T>> for ParseSome<P>
 where
     P: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        let items = std::iter::from_fn(|| self.inner.run(args).ok()).collect::<Vec<_>>();
+    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+        let items = std::iter::from_fn(|| self.inner.eval(args).ok()).collect::<Vec<_>>();
         if items.is_empty() {
             Err(Error::Stderr(self.message.to_string()))
         } else {
@@ -106,8 +106,8 @@ impl<T, P> Parser<T> for ParseHide<P>
 where
     P: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.run(args)
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
     }
 
     fn meta(&self) -> Meta {
@@ -127,10 +127,10 @@ where
     A: Parser<T>,
     B: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut args_a = args.clone();
         let mut args_b = args.clone();
-        match (self.this.run(&mut args_a), self.that.run(&mut args_b)) {
+        match (self.this.eval(&mut args_a), self.that.eval(&mut args_b)) {
             // side channel (--help) reporting takes priority
             (e @ Err(Error::Stdout(_)), _) | (_, e @ Err(Error::Stdout(_))) => e,
 
@@ -175,8 +175,8 @@ where
     F: Fn(T) -> Result<R, E>,
     E: ToString,
 {
-    fn run(&self, args: &mut Args) -> Result<R, Error> {
-        let t = self.inner.run(args)?;
+    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+        let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
             Err(e) => Err(Error::Stderr(
@@ -205,8 +205,8 @@ where
     P: Parser<T>,
     T: Clone,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        match self.inner.run(args) {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        match self.inner.eval(args) {
             Ok(ok) => Ok(ok),
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(Error::Missing(_)) => Ok(self.value.clone()),
@@ -230,8 +230,8 @@ where
     P: Parser<T>,
     F: Fn(&T) -> bool,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        let t = self.inner.run(args)?;
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let t = self.inner.eval(args)?;
         if (self.check)(&t) {
             Ok(t)
         } else {
@@ -253,9 +253,9 @@ impl<T, P> Parser<Option<T>> for ParseOptional<P>
 where
     P: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<Option<T>, Error> {
+    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
         let orig_args = args.clone();
-        if let Ok(val) = self.inner.run(args) {
+        if let Ok(val) = self.inner.eval(args) {
             Ok(Some(val))
         } else {
             *args = orig_args;
@@ -280,8 +280,8 @@ where
     T: FromStr<Err = E>,
     E: ToString,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
-        let s = self.inner.run(args)?;
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let s = self.inner.eval(args)?;
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
             Err(e) => Err(Error::Stderr(
@@ -309,8 +309,8 @@ impl<T, P> Parser<Vec<T>> for ParseMany<P>
 where
     P: Parser<T>,
 {
-    fn run(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        Ok(std::iter::from_fn(|| self.inner.run(args).ok()).collect())
+    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+        Ok(std::iter::from_fn(|| self.inner.eval(args).ok()).collect())
     }
 
     fn meta(&self) -> Meta {
@@ -322,7 +322,7 @@ where
 /// [`pure`](crate::pure).
 pub struct ParsePure<T>(pub(crate) T);
 impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
-    fn run(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         Ok(self.0.clone())
     }
 
@@ -337,7 +337,7 @@ pub struct ParseFail<T> {
     pub(crate) field2: PhantomData<T>,
 }
 impl<T> Parser<T> for ParseFail<T> {
-    fn run(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         Err(Error::Stderr(self.field1.to_owned()))
     }
 
@@ -358,8 +358,8 @@ where
     F: Fn(T) -> R,
     P: Parser<T> + Sized,
 {
-    fn run(&self, args: &mut Args) -> Result<R, Error> {
-        let t = self.inner.run(args)?;
+    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+        let t = self.inner.eval(args)?;
         Ok((self.map_fn)(t))
     }
 
@@ -381,7 +381,7 @@ impl<T, P> Parser<T> for ParseConstruct<P>
 where
     P: Fn(&mut Args) -> Result<T, Error>,
 {
-    fn run(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut args_copy = args.clone();
         let res = (self.inner)(&mut args_copy);
 

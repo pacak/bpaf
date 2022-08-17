@@ -587,7 +587,7 @@ where
     fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let mut reg_args = args.clone();
 
-        let err = match self.inner.run(&mut reg_args) {
+        let err = match self.inner.eval(&mut reg_args) {
             Ok(r) => {
                 if let Err(err) = check_unexpected(&reg_args) {
                     err
@@ -607,7 +607,7 @@ where
             Err(err) => err,
         };
 
-        match self.info.help_parser().run(args) {
+        match self.info.help_parser().eval(args) {
             Ok(ExtraParams::Help) => {
                 let msg = self
                     .info
@@ -659,14 +659,14 @@ struct ParseExtraParams {
 }
 
 impl Parser<ExtraParams> for ParseExtraParams {
-    fn run(&self, args: &mut Args) -> Result<ExtraParams, Error> {
-        if let Ok(ok) = ParseExtraParams::help().run(args) {
+    fn eval(&self, args: &mut Args) -> Result<ExtraParams, Error> {
+        if let Ok(ok) = ParseExtraParams::help().eval(args) {
             return Ok(ok);
         }
         let not_ok = Error::Stderr(String::from("Not a version or help flag"));
         let ver = self.version.ok_or_else(|| not_ok.clone())?;
 
-        if let Ok(ok) = Self::ver(ver).run(args) {
+        if let Ok(ok) = Self::ver(ver).eval(args) {
             return Ok(ok);
         }
         Err(not_ok)

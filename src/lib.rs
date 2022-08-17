@@ -691,7 +691,7 @@ macro_rules! construct {
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
-            $(let $fields = $fields.run(args)?;)*
+            $(let $fields = $fields.eval(args)?;)*
             ::std::result::Result::Ok::<_, $crate::info::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };
@@ -797,7 +797,7 @@ pub trait Parser<T> {
     // it's possible to move this function from the trait to the structs but having it
     // in the trait ensures the composition always works: structs will have to implement it
     #[doc(hidden)]
-    fn run(&self, args: &mut Args) -> Result<T, Error>;
+    fn eval(&self, args: &mut Args) -> Result<T, Error>;
 
     /// Included information about the parser
     ///
@@ -1545,6 +1545,8 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // consume
+    // {{{ to_options
     /// Transform `Parser` into [`OptionParser`] to attach metadata and run
     ///
     /// # Combinatoric usage
@@ -1604,19 +1606,22 @@ pub trait Parser<T> {
             inner: self,
         }
     }
+    // }}}
 }
 
 /// Wrap a value into a `Parser`
 ///
-/// Parser will produce `T` without consuming anything from the command line, can be useful
-/// with [`construct!`].
+/// This parser produces `T` without consuming anything from the command line, can be useful
+/// with [`construct!`]. As with any parsers `T` should be `Clone` and `Debug`.
 ///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// let a = long("flag-a").switch();
-/// let b = pure(42u32);
-/// let t = construct!(a, b); // impl Parser<(bool, u32)>
-/// # drop(t)
+/// fn pair() -> impl Parser<(bool, u32)> {
+///     let a = long("flag-a").switch();
+///     let b = pure(42u32);
+///     construct!(a, b)
+/// }
 /// ```
 #[must_use]
 pub fn pure<T>(val: T) -> ParsePure<T> {
@@ -1624,14 +1629,26 @@ pub fn pure<T>(val: T) -> ParsePure<T> {
 }
 
 /// Fail with a fixed error message
+///
+/// This parser produces `T` of any type but instead of producing it when asked - it fails
+/// with a custom error message. Can be useful for creating custom logic
+///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// let a = short('a').switch();
-/// let no_a = fail("Custom error message for missing -a");
+/// fn must_agree() -> impl Parser<()> {
+///     let a = long("accept").req_flag(());
+///     let no_a = fail("You must accept the license agreement with --agree before proceeding");
+///     construct!([a, no_a])
+/// }
+/// ```
 ///
-/// // Parser will produce a custom error message if `-a` isn't specified
-/// let a_ = construct!([a, no_a]); // impl Parser<bool>
-/// # drop(a_);
+/// # Example
+/// ```console
+/// $ app
+/// // exits with "You must accept the license agreement with --agree before proceeding"
+/// $ app --agree
+/// // succeeds
 /// ```
 #[must_use]
 pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
