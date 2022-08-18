@@ -76,26 +76,26 @@ use crate::{
 /// $ app -a -bc
 /// ```
 ///
-/// - [`switch`](Named::switch) - similar to `flag`, but instead of custom values `bool` is used,
-/// mostly serves as a convenient alias to `.flag(true, false)`
+/// - [`switch`](Named::switch) - similar to `flag`, but instead of custom values `bpaf` uses `bool`.
+/// `switch` mostly serves as a convenient alias to `.flag(true, false)`
 ///
 /// ```console
 /// $ app -a -bc
 /// ```
 ///
-/// - [`argument`](Named::argument) - a short or long `flag` followed by a string literal. String
-/// can be separated from the flag by a space or by `=` sign: `-f foo`, `--flag bar` or `-o=-` are
-/// all valid flags. Note, string literal must not start with `-` unless separated from the flag
-/// with `=` and should be valid utf8 only. To consume [`OsString`](std::ffi::OsString) encoded
-/// values you can use [`argument_os`](Named::argument_os).
+/// - [`argument`](Named::argument) - a short or long `flag` followed by either a space or `=` and
+/// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid flags. Note, string
+/// literal can't start with `-` unless separated from the flag with `=` and should be valid
+/// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you can use
+/// [`argument_os`](Named::argument_os).
 ///
 /// ```console
 /// $ app -o file.txt
 /// ```
 ///
-/// - [`positional`] - an arbitrary utf8 string literal passed on a command line, there's also
-/// [`positional_os`] variant that deals with `OsString` named. Usually represents input
-/// files such as `cat file.txt`, but can serve other purposes.
+/// - [`positional`] - an arbitrary utf8 string literal (that can't start with `-`) passed on a
+/// command line, there's also [`positional_os`] variant that deals with `OsString` named. Usually
+/// represents input files such as `cat file.txt`, but can serve other purposes.
 ///
 /// ```console
 /// $ cat file.txt
@@ -109,7 +109,7 @@ use crate::{
 /// $ cargo build --out-dir my_target
 /// // works since command "build" supports --out-dir argument
 /// $ cargo check --out-dir my_target
-/// // fails since --out-dir is not a valid argument for command "check"
+/// // fails since --out-dir isn't a valid argument for command "check"
 /// ```
 ///
 /// As most of the other parsers bpaf treats anything to the right of `--` symbol as positional
@@ -122,10 +122,10 @@ use crate::{
 /// # Combinatoric usage
 ///
 /// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (short and long)
-/// and multiple hidden short and long aliases if needed. It is also possible to consume items from
+/// and multiple hidden short and long aliases if needed. It's also possible to consume items from
 /// environment variables using [`env`](Named::env). You usually start with [`short`] or [`long`]
 /// function, then apply [`short`](Named::short) / [`long`](Named::long) / [`env`](Named::env) /
-/// [`help`](Named::help) repeatedly until desired set of names is achieved then transform it into
+/// [`help`](Named::help) repeatedly to build a desired set of names then transform it into
 /// a parser using `flag`, `switch` or `positional`.
 ///
 /// ```rust
@@ -142,24 +142,24 @@ use crate::{
 /// # Example
 /// ```console
 /// $ app --help
-///     ...
+///     <skip>
 ///     -i --item <ITEM>  [env:ITEM: N/A]
 ///                       A string used by this example
-///     ...
+///     <skip>
 /// ```
 ///
 /// # Derive usage
 ///
 /// Unlike combinatoric API where you forced to specify names for your subparsers derive API allows
 /// to omit some or all the details:
-/// 1. If no naming information is present at all - bpaf would use field name as a long name (or a
-///    short name if field name consists of a single character)
-/// 2. If `short` or `long` annotation is present without an argument - bpaf would use first character
-///    or a full name as long and short name respectively. It will not try to add implicit long or
+/// 1. If no naming information is present at all - `bpaf_derive` would use field name as a long name
+///    (or a short name if field name consists of a single character)
+/// 2. If `short` or `long` annotation is present without an argument - `bpaf_derive` would use first character
+///    or a full name as long and short name respectively. It won't try to add implicit long or
 ///    short name from the previous item.
-/// 3. If `short` or `long` annotation is present with an argument - those are values bpaf would
+/// 3. If `short` or `long` annotation is present with an argument - those are values `bpaf_derive` would
 ///    use instead of the original field name
-/// 4. If `env` annotation is present - it would be used to generate `.env(...)` method:
+/// 4. If `env(arg)` annotation is present - `bpaf_derive` would generate `.env(arg)` method:
 ///
 ///    ```rust
 ///    # use bpaf::*;
@@ -196,16 +196,16 @@ use crate::{
 /// # Example
 /// ```console
 /// $ app --help
-///    ...
-///         --flag-1          flag with no annotation
+///    <skip>
+///         --flag-1         flag with no annotation
 ///    -f                    explicit short suppresses long
 ///    -z                    explicit short with custom letter
 ///    -d, --deposit         explicit short and long
 ///        --database <ARG>  [env:top_secret_database: N/A]
 ///                          implicit long + env variable from DB constant
 ///        --user <ARG>      [env:USER = "pacak"]
-///                              implicit long + env variable "USER"
-///    ...
+///                          implicit long + env variable "USER"
+///    <skip>
 /// ```
 #[derive(Clone, Debug)]
 pub struct Named {
@@ -217,8 +217,7 @@ pub struct Named {
 
 /// A flag/switch/argument that has a short name
 ///
-/// You can specify it multiple times, items past the first one represent
-/// hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -243,8 +242,7 @@ pub fn short(short: char) -> Named {
 
 /// A flag/switch/argument that has a long name
 ///
-/// You can specify it multiple times, items past the first represent
-/// hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -269,14 +267,16 @@ pub fn long(long: &'static str) -> Named {
 
 /// Environment variable fallback
 ///
-/// If named value is not present - try to fallback to this environment variable.
-/// You can specify it multiple times, items past the first one will become hidden aliases.
+/// If named value isn't present - try to fallback to this environment variable.
+///
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
+///
 /// For [`flag`](Named::flag) and [`switch`](Named::switch) environment variable being present
 /// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
 /// variables:
 ///
 /// ```console
-/// $ NO_COLOR=1 app ...
+/// $ NO_COLOR=1 app --do-something
 /// ```
 ///
 /// # Combinatoric usage
@@ -333,8 +333,7 @@ pub fn env(variable: &'static str) -> Named {
 impl Named {
     /// Add a short name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, items past the first one represent
-    /// hidden aliases.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -355,8 +354,7 @@ impl Named {
 
     /// Add a long name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, items past the first one will become
-    /// hidden aliases.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -377,8 +375,8 @@ impl Named {
 
     /// Environment variable fallback
     ///
-    /// If named value is not present - try to fallback to this environment variable.
-    /// You can specify it multiple times, items past the first one will become hidden aliases.
+    /// If named value isn't present - try to fallback to this environment variable.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -411,9 +409,9 @@ impl Named {
     /// ```
     ///
     /// # Derive usage
-    /// Doc comments are converted into help messages according to following rules:
-    /// 1. Blank lines are dropped
-    /// 2. Parsing stops at a double blank line
+    /// `bpaf_derive` converts doc comments into option help by following those rules:
+    /// 1. It skips blank lines, if present.
+    /// 2. It stops parsing after a double blank line.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -424,7 +422,7 @@ impl Named {
     ///     /// So is this one
     ///     ///
     ///     ///
-    ///     /// But this one is not
+    ///     /// But this one isn't
     ///     key: String,
     /// }
     /// ```
@@ -485,7 +483,7 @@ impl Named {
     /// Required flag with custom value
     ///
     /// Parser produces a value if present and fails otherwise.
-    /// Designed to be used with combination of other parsers.
+    /// Not very useful by itself and works best in combination with other parsers.
     ///
     /// # Combinatoric usage
     ///
@@ -517,7 +515,7 @@ impl Named {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// // counts how many times flag `-v` is given on a command line
+    /// // counts number of flags `-v` on the command line
     /// fn verbosity() -> impl Parser<usize> {
     ///     short('v').req_flag(()).many().map(|v| v.len())
     /// }
@@ -526,7 +524,7 @@ impl Named {
     /// ```console
     /// $ app
     /// // 0
-    /// $ app -vvv
+    /// $ app -vv -v
     /// // 3
     /// ```
     ///
@@ -557,10 +555,9 @@ impl Named {
         build_flag_parser(present, None, self)
     }
 
-    /// Named argument that can be encoded as String
+    /// Named argument in utf8 (String) encoding
     ///
-    /// Argument must be present (but can be made into [`Option`] using
-    /// [`optional`][Parser::optional]) and it must contain only valid unicode characters.
+    /// Argument must contain only valid utf8 characters.
     /// For OS specific encoding see [`argument_os`][Named::argument_os].
     ///
     /// ```rust
@@ -579,9 +576,7 @@ impl Named {
 
     /// Named argument in OS specific encoding
     ///
-    /// Argument must be present but can be made into [`Option`] using
-    /// [`optional`][Parser::optional]. If you prefer to panic on non utf8 encoding see
-    /// [`argument`][Named::argument].
+    /// If you prefer to panic on non utf8 encoding see [`argument`][Named::argument].
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -598,9 +593,9 @@ impl Named {
     }
 }
 
-/// Positional argument that can be encoded as String
+/// Positional argument in utf8 (`String`) encoding
 ///
-/// For named flags and arguments ordering generally does not matter: most programs would
+/// For named flags and arguments ordering generally doesn't matter: most programs would
 /// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
 /// `cat hello world` and `cat world hello` would display contents of the same two files but in
 /// different order.
@@ -608,9 +603,9 @@ impl Named {
 /// # Important restriction
 /// When parsing positional arguments from command lines you should have parsers for all your
 /// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. If positional field is nested inside
-/// some other field - they should go at the end as well. Failing to do can result in behavior
-/// confusing for end user.
+/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
+/// fields nested inside other structures: such structures should go to the end as well.
+/// Failing to do can result in behavior confusing for the end user.
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -622,14 +617,13 @@ impl Named {
 ///
 /// # Derive usage
 ///
-/// Fields in tuple-like structures are parsed as positional items
+/// `bpaf_derive` converts fields in tuple-like structures into positional items
 /// ```rust
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options(String);
 /// ```
-/// Additionally annotations `positional` and `positional_os` can be used with optional metavar
-/// name
+/// `positional` and `positional_os` annotations also accept an optional metavar name
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -646,25 +640,9 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
     build_positional(metavar)
 }
 
-/// Positional argument that can be encoded as String and will be taken only if check passes
-///
-/// ```rust
-/// # use bpaf::*;
-/// let is_short = |s: &str| s.len() < 10;
-/// // skip this positional argument unless it's less than 10 bytes long
-/// let arg  = positional_if("INPUT", is_short); // impl Parser<Option<String>>
-/// # drop(arg)
-/// ```
-pub fn positional_if<F>(metavar: &'static str, check: F) -> impl Parser<Option<String>>
-where
-    F: Fn(&str) -> bool + 'static,
-{
-    positional(metavar).guard(move |s| check(s), "").optional()
-}
-
 /// Positional argument in OS specific encoding
 ///
-/// For named flags and arguments ordering generally does not matter: most programs would
+/// For named flags and arguments ordering generally doesn't matter: most programs would
 /// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
 /// `cat hello world` and `cat world hello` would display contents of the same two files but in
 /// different order.
@@ -672,9 +650,9 @@ where
 /// # Important restriction
 /// When parsing positional arguments from command lines you should have parsers for all your
 /// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. If positional field is nested inside
-/// some other field - they should go at the end as well. Failing to do can result in behavior
-/// confusing for end user.
+/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
+/// fields nested inside other structures: such structures should go to the end as well.
+/// Failing to do can result in behavior confusing for the end user.
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -686,15 +664,15 @@ where
 
 /// # Derive usage
 ///
-/// Fields in tuple-like structures are parsed as positional items, bpaf would automatically
-/// substitute `positional_os` annotation for `OsString` and `PathBuf`.
+/// `bpaf_derive` converts fields in tuple-like structures into positional items and automatically
+/// uses `positional_os` for `OsString` and `PathBuf`
+///
 /// ```rust
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options(std::ffi::OsString);
 /// ```
-/// Additionally annotations `positional` and `positional_os` can be used with optional metavar
-/// name
+/// `positional` and `positional_os` annotations also accept an optional metavar name
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -732,7 +710,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 ///     }
 /// };
 ///
-/// // First of all you need an inner parser, let's make one
+/// // First of all you need an inner parser
 /// fn check_workspace() -> impl OptionParser<Cmd> {
 ///     // Define a parser to use in a subcommand in a usual way.
 ///     // This parser accepts a single --workspace switch
@@ -743,16 +721,15 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 ///     // and attach some meta information to it in a usual way
 ///     construct!(Cmd::Check { workspace })
 ///         .to_options()
+///         // description to use for command's help
 ///         .descr("Check a package for errors")
 /// }
 ///
 /// // Convert subparser into a parser.
 /// fn check_workspace_command() -> impl Parser<Cmd> {
-///     // Note description "Check a package for errors" is specified twice:
-///     // - Parser uses version from `descr` when user calls `% prog check --help`,
-///     // - Parser uses version from `command` user calls `% prog --help` along
-///     //   with descriptions for other commands if present.
 ///     command("check", check_workspace())
+///         // help to use to list the command
+///         .help("Check a package command")
 /// }
 /// ```
 ///
@@ -762,6 +739,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// #[derive(Clone, Debug, Bpaf)]
 /// enum Cmd {
 ///     #[bpaf(command)]
+///     /// Check a package command
 ///     Check {
 ///         /// Check all the packages in the workspace
 ///         workspace: bool
@@ -774,7 +752,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// $ app --help
 /// // displays global help, not listed in this example
 /// $ app check --help
-/// // displays help for check: "Check a package ..."
+/// // displays help for check: "Check a package command"
 /// $ app check
 /// // Cmd::Check(CheckWorkspace(false))
 /// $ app check --workspace
@@ -797,9 +775,7 @@ where
 
 /// Builder structure for the `command`
 ///
-/// Created with [`command`], implements parser for the inner structure, using
-/// [`help`](Command::help) allows to attach a custom description for this command. Otherwise
-/// description form the inner parser will be used.
+/// Created with [`command`], implements parser for the inner structure, gives access to [`help`](Command::help).
 #[derive(Clone)]
 pub struct Command<P> {
     longs: Vec<&'static str>,
@@ -811,9 +787,9 @@ pub struct Command<P> {
 impl<P> Command<P> {
     /// Add a brief description to a command
     ///
-    /// This description will be listed along with the command name
-    /// in help output so it shouldn't exceed one or two lines. If `help` is not specified
-    /// bpaf will use [`descr`](OptionParser::descr) from the inner parser.
+    /// `bpaf` uses this description along with the command name
+    /// in help output so it shouldn't exceed one or two lines. If `help` isn't specified
+    /// bpaf falls back to [`descr`](OptionParser::descr) from the inner parser.
     ///
     /// # Combinatoric usage
     ///
@@ -851,7 +827,7 @@ impl<P> Command<P> {
     /// # Example
     /// ```console
     /// $ app --help
-    ///     ...
+    ///     <skip>
     /// Available commands:
     ///     mystery  This command performs a mystery operation
     /// ```
@@ -874,7 +850,7 @@ impl<P> Command<P> {
     /// Add a custom hidden long alias for a command
     ///
     /// Behavior is similar to [`long`](Named::long), but since you had to specify the first long
-    /// name when making the command - this one will be hidden.
+    /// name when making the command - this one becomes a hidden alias.
     pub fn long(mut self, long: &'static str) -> Self {
         self.longs.push(long);
         self

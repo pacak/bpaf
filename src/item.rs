@@ -101,12 +101,12 @@ impl std::fmt::Display for ShortLong {
     }
 }
 
-/// {} renders shorter version that can be used in a short usage string
-/// {:#} renders a full width version that can be used in --help body and complete, this version
+/// {} renders a version for short usage string
+/// {:#} renders a full width version for --help body and complete, this version
 /// supports padding of the help by some max width
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // alternate version is used to render the option list
+        // alternate version {:#} renders version for the option list
         if f.alternate() {
             match self {
                 Item::Flag { name, help: _ } => write!(f, "    {:#}", name),
@@ -118,7 +118,8 @@ impl std::fmt::Display for Item {
                 } => {
                     write!(f, "    {:#} <{}>", name, metavar)?;
 
-                    if let Some((width, env)) = f.width().zip(*env) {
+                    let width = f.width().unwrap();
+                    if let Some(env) = env {
                         let pad = width - self.full_width();
                         let val = match std::env::var(env) {
                             Ok(val) => format!(" = {:?}", val),
@@ -143,7 +144,7 @@ impl std::fmt::Display for Item {
                 }
                 Item::Decor { help } => {
                     if help.is_some() {
-                        write!(f, "    ")?
+                        write!(f, "    ")?;
                     }
                     Ok(())
                 }
@@ -158,7 +159,7 @@ impl std::fmt::Display for Item {
                 },
             }?;
 
-            // width must be specified on the top level
+            // alt view requires width, so unwrap should just work;
             let width = f.width().unwrap();
             if let Some(help) = self.help() {
                 let pad = width - self.full_width();
@@ -169,12 +170,12 @@ impl std::fmt::Display for Item {
                         } else {
                             write!(f, "\n{:pad$}      {}", "", line, pad = width)
                         }
-                    }?
+                    }?;
                 }
             }
             Ok(())
         } else {
-            // this version is used to render usage and missing fields parts
+            // {} renders short version for usage and missing fields
             match self {
                 Item::Decor { .. } => Ok(()),
                 Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),

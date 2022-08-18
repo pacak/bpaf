@@ -63,7 +63,7 @@ fn simple_two_optional_flags() {
         .unwrap_stderr();
     assert_eq!("-V is not expected in this context", err);
 
-    // flag can be given only once
+    // accept only one copy of -a
     let err = decorated
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
@@ -101,7 +101,7 @@ fn simple_two_optional_flags_with_one_hidden() {
         .unwrap_stderr();
     assert_eq!("-V is not expected in this context", err);
 
-    // flag can be given only once
+    // accepts only one copy of -a
     let err = decorated
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
@@ -133,7 +133,7 @@ fn either_of_three_required_flags() {
     let p = a.or_else(b).or_else(c);
     let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
+    // version help requires version meta
     let ver = decorated
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
@@ -176,7 +176,6 @@ fn either_of_three_required_flags2() {
     let p = construct!([a, b, c]);
     let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
     let ver = decorated
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
@@ -219,7 +218,6 @@ fn either_of_two_required_flags_and_one_optional() {
     let p = a.or_else(b).or_else(c);
     let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
     let ver = decorated
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
@@ -732,7 +730,6 @@ fn simple_cargo_helper() {
     let ok = decorated.run_inner(Args::from(&["simple", "-b"])).unwrap();
     assert_eq!((false, true), ok);
 
-    // flag can be given only once
     let err = decorated
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
@@ -1053,7 +1050,7 @@ Available options:
     parser.run_inner(Args::from(&["bar"])).unwrap();
     parser.run_inner(Args::from(&["b"])).unwrap();
 
-    // and "k" is not a thing
+    // and "k" isn't a thing
     parser.run_inner(Args::from(&["k"])).unwrap_err();
 }
 
@@ -1145,7 +1142,8 @@ fn help_for_commands() {
     let e = command("thing_e", pure(()).to_options())
         .short('e')
         .help("help for e\ntwo lines");
-    let parser = construct!(d, e).to_options();
+    let h = command("thing_h", pure(()).to_options());
+    let parser = construct!(d, e, h).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -1162,6 +1160,7 @@ Available commands:
                 two lines
     thing_e, e  help for e
                 two lines
+    thing_h
 ";
     assert_eq!(expected_help, help);
 }

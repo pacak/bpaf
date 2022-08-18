@@ -15,11 +15,15 @@ pub enum Action {
 }
 
 fn feature_if() -> impl Parser<Option<String>> {
-    positional_if("FEATURE", |v| !is_version(v))
+    positional("FEATURE")
+        .guard(move |s| !is_version(s), "")
+        .optional()
 }
 
 fn version_if() -> impl Parser<Option<String>> {
-    positional_if("VERSION", is_version)
+    positional("VERSION")
+        .guard(move |s| is_version(s), "")
+        .optional()
 }
 
 fn is_version(v: &str) -> bool {

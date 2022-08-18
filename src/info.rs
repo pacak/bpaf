@@ -36,7 +36,7 @@ impl Error {
             (a @ Error::Stderr(_), _) => a,
             (_, b @ Error::Stderr(_)) => b,
 
-            // missing elements are combined
+            // combine missing elements
             (Error::Missing(mut a), Error::Missing(mut b)) => {
                 a.append(&mut b);
                 Error::Missing(a)
@@ -267,7 +267,7 @@ pub trait OptionParser<T> {
         }
     }
 
-    /// Execute the [`OptionParser`] and produce a value that can be used in unit tests
+    /// Execute the [`OptionParser`] and produce a values for unit tests
     ///
     /// ```
     /// #[test]
@@ -294,20 +294,12 @@ pub trait OptionParser<T> {
     ///
     /// # Errors
     ///
-    /// If parser can't produce desired outcome `run_inner` will return [`ParseFailure`]
+    /// If parser can't produce desired result `run_inner` returns [`ParseFailure`]
     /// which represents runtime behavior: one branch to print something to stdout and exit with
     /// success and the other branch to print something to stderr and exit with failure.
     ///
-    /// Parser is not really capturing anything. If parser detects `--help` or `--version` it will
-    /// always produce something that can be consumed with [`ParseFailure::unwrap_stdout`].
-    /// Otherwise it will produce [`ParseFailure::unwrap_stderr`]  generated either by the parser
-    /// itself in case someone required field is missing or by user's [`Parser::guard`] or
-    /// [`Parser::parse`] functions.
-    ///
-    /// API for those is constructed to only produce a [`String`]. If you try to print something inside
-    /// [`Parser::map`] or [`Parser::parse`] - it will not be captured. Depending on a test case
-    /// you'll know what to use: `unwrap_stdout` if you want to test generated help or `unwrap_stderr`
-    /// if you are testing `parse` / `guard` / missing parameters.
+    /// `bpaf` generates contents of this `ParseFailure` using expected textual output from
+    /// [`parse`](Parser::parse), stdout/stderr isn't actually captured.
     ///
     /// Exact string reperentations may change between versions including minor releases.
     fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
@@ -355,8 +347,7 @@ pub trait OptionParser<T> {
     /// # Derive usage
     ///
     /// `version` annotation is available after `options` and `command` annotations, takes
-    /// an optional argument - version value to use. If used without optional argument - it will
-    /// use value from cargo.
+    /// an optional argument - version value to use, otherwise `bpaf_derive` would use value from cargo.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -377,8 +368,8 @@ pub trait OptionParser<T> {
 
     /// Set the description field
     ///
-    /// Description field should be 1-2 lines long briefly explaining program purpose. If present
-    /// description field will be printed right before the usage line.
+    /// Description field should be 1-2 lines long briefly explaining program purpose. If
+    /// description field is present `bpaf` would print it right before the usage line.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -395,9 +386,9 @@ pub trait OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// `bpaf` uses doc comments on the `struct` / `enum` to derive description, single empty lines
-    /// are ignored, double empty lines break it into blocks. First block is used as the
-    /// description, second block - header, third block - footer. Remaining blocks are ignored.
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -412,7 +403,7 @@ pub trait OptionParser<T> {
     /// /// This is a footer
     /// ///
     /// ///
-    /// /// This is ignored
+    /// /// This is just a comment
     /// struct Options {
     ///     #[bpaf(short)]
     ///     switch: bool
@@ -439,7 +430,7 @@ pub trait OptionParser<T> {
 
     /// Set the header field
     ///
-    /// Header is displayed between the usage line and expended list of all the available options
+    /// `bpaf` displays the header between the usage line and a list of the available options in `--help` output
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -456,9 +447,9 @@ pub trait OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// `bpaf` uses doc comments on the `struct` / `enum` to derive description, single empty lines
-    /// are ignored, double empty lines break it into blocks. First block is used as the
-    /// description, second block - header, third block - footer. Remaining blocks are ignored.
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -473,7 +464,7 @@ pub trait OptionParser<T> {
     /// /// This is a footer
     /// ///
     /// ///
-    /// /// This is ignored
+    /// /// This is just a comment
     /// struct Options {
     ///     #[bpaf(short)]
     ///     switch: bool
@@ -500,7 +491,7 @@ pub trait OptionParser<T> {
 
     /// Set the footer field
     ///
-    /// Footer will be displayed after the available options
+    /// `bpaf` displays the footer after list of the available options in `--help` output
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -517,9 +508,9 @@ pub trait OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// `bpaf` uses doc comments on the `struct` / `enum` to derive description, single empty lines
-    /// are ignored, double empty lines break it into blocks. First block is used as the
-    /// description, second block - header, third block - footer. Remaining blocks are ignored.
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -534,7 +525,7 @@ pub trait OptionParser<T> {
     /// /// This is a footer
     /// ///
     /// ///
-    /// /// This is ignored
+    /// /// This is just a comment
     /// struct Options {
     ///     #[bpaf(short)]
     ///     switch: bool
@@ -561,7 +552,7 @@ pub trait OptionParser<T> {
 
     /// Set custom usage field
     ///
-    /// Custom usage field will replace one derived by bpaf
+    /// Custom usage field to use instead of one derived by `bpaf`
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -576,7 +567,7 @@ pub trait OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// Not available at the moment, I'm not sure if it's useful
+    /// Not available at the moment
     fn usage(self, usage: &'static str) -> Self;
 }
 

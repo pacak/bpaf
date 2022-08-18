@@ -19,7 +19,7 @@ fn main() {
     let height = short('h').argument("HEIGHT").from_str().fallback(10);
     let parser = construct!(Opts { width, height });
 
-    let cmd = positional_if("", |s| s == "cmd").hide();
+    let cmd = positional("").guard(|s| s == "cmd", "").optional().hide();
     let combined_parser = construct!(cmd, parser).map(|x| x.1);
 
     let opts = combined_parser.to_options().run();

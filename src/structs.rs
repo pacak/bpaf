@@ -40,7 +40,7 @@ where
 /// let a = short('a').switch();
 /// let no_a = fail("Custom error message for missing -a");
 ///
-/// // Parser will produce a custom error message if `-a` is not specified
+/// // Parser produces a custom error message if `-a` isn't specified
 /// let a_ = construct!([a, no_a]); // impl Parser<bool>
 /// # drop(a_);
 /// ```

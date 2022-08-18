@@ -171,7 +171,7 @@ impl Arg {
 }
 
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    // if we are after "--" sign or there's no utf8 representation for
+    // if after "--" sign or there's no utf8 representation for
     // an item - it can only be a positional argument
     let utf8 = match (*pos_only, os.to_str()) {
         (true, v) | (_, v @ None) => {
@@ -229,7 +229,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
 impl Args {
     /// Get a short or long flag: `-f` / `--flag`
     ///
-    /// Returns false if value is not present
+    /// Returns false if value isn't present
     pub(crate) fn take_flag<P>(&mut self, predicate: P) -> bool
     where
         P: Fn(&Arg) -> bool,
@@ -245,7 +245,7 @@ impl Args {
 
     /// get a short or long arguments
     ///
-    /// Returns Ok(None) if flag is not present
+    /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg<P>(&mut self, predicate: P) -> Result<Option<Word>, Error>
     where

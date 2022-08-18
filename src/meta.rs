@@ -100,7 +100,7 @@ impl Meta {
 
     /// Represent [`Meta`] as [`UsageMeta`]
     ///
-    /// `None` indicates that command takes no parameters so usage line is not shown
+    /// `None` indicates no parameters - usage line isn't shown
     pub(crate) fn as_usage_meta(&self) -> Option<UsageMeta> {
         let mut had_commands = false;
         collect_usage_meta(self, true, &mut had_commands)
@@ -120,17 +120,16 @@ pub(crate) enum UsageMeta {
     Command,
 }
 
-/// Returns number of collected elements and if they are required
+/// Transforms `Meta` to [`UsageMeta`]
 ///
-/// parameter `required` defines the context value is used in: optional or required. Optional
-/// values in required context will be surrounded by []
+/// parameter `required` defines the value's context: optional or required.
+/// bpaf shows Optional values in required context in []
 ///
-/// parameter `had_commands` is used for command deduplication from or groups, should be initialized with false
+/// bpaf uses parameter `had_commands` for command deduplication, initialize it with false
 fn collect_usage_meta(meta: &Meta, required: bool, had_commands: &mut bool) -> Option<UsageMeta> {
     Some(match meta {
         Meta::And(xs) => {
-            // even if whole group is optional - all the items inside are required
-            // to construct it
+            // even if whole group is optional - it needs all the items inside to construct it
             let mut items = xs
                 .iter()
                 .filter_map(|x| collect_usage_meta(x, true, had_commands))
@@ -145,7 +144,7 @@ fn collect_usage_meta(meta: &Meta, required: bool, had_commands: &mut bool) -> O
         Meta::Or(xs) => {
             let mut had_commands = false;
             // if the whole group is optional - any item inside is in optional context:
-            // no need to show [] if they are present.
+            // no need to show [] if they're present.
             let mut items = xs
                 .iter()
                 .filter_map(|x| collect_usage_meta(x, required, &mut had_commands))

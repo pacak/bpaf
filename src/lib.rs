@@ -424,19 +424,31 @@
 //!      }
 //!      ```
 //!
-//!    - `postprocessing` - what it says, various methods from [`Parser`] trait, order matters,
-//!    most of them are taken literal, see documentation for the trait for more details. usually
-//!    bpaf can derive what to use here depending on a type: `Option<T>`, `Vec<T>` are supported as
-//!    is, everything else is assumed to be [`FromStr`](std::str::FromStr). If you put anything
-//!    in the postprocessing section it will disable this logic and you will need to spell out
-//!    the whole transformation chain.
+//!    - `postprocessing` - various methods from [`Parser`] trait, order matters, most of them are
+//!      taken literal, see documentation for the trait for more details. `bpaf_derive` automatically
+//!      uses [`many`](Parser::many) and [`optional`](Parser::optional) to handle `Vec<T>` and
+//!      `Option<T>` fields respectively and inserts [`from_str`](Parser::from_str) for any field
+//!      it doesn't know how to pricess.
+//!
+//!      Any operation that can change the type (such as [`parse`](Parser::parse) or [`map`](Parser::map))
+//!      for disables this logic for the field and also requires to specify the consumer:
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      struct Options {
+//!          // #[bpaf(argument("NUM"), many)] - fails due to type mismatch
+//!          // #[bpaf(from_str(u32), many)] - fails due to missing consumer
+//!          #[bpaf(argument("NUM"), from_str(u32), many)]
+//!          numbers: Vec<u32>
+//!      }
+//!      ```
 //!
 //!    - field-less enum variants obey slightly different set of rules, see
 //!    [`req_flag`](Named::req_flag) for more details.
 //!
 //!
 //! 6. Add documentation for help messages.
-//!    Help messages are generated from doc comments, bpaf skips single empty lines and stops
+//!    `bpaf_derive` generates help messages from doc comments, it skips single empty lines and stops
 //!    processing after double empty line:
 //!
 //!    ```rust
@@ -455,10 +467,9 @@
 
 //! # More examples
 //!
-//! A bunch more examples can be found here: <https://github.com/pacak/bpaf/tree/master/examples>
+//! You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
 //!
-//! They are usually documented and you can see how they work by cloning the repo and running
-//!
+//! They're usually documented and you can see how they work by cloning the repo and running
 //! ```shell
 //! $ cargo run --example example_name
 //! ```
@@ -470,20 +481,25 @@
 //!
 //! ```rust
 //! # use bpaf::*;
-//!
 //! #[derive(Debug, Clone, Bpaf)]
 //! #[bpaf(options)]
 //! pub struct Options {
 //!     pub user: String
 //! }
 //!
-//! let help = options()
-//!     .run_inner(Args::from(&["--help"]))
-//!     .unwrap_err()
-//!     .unwrap_stdout();
+//! #[test]
+//! fn test_my_options() {
+//!     let help = options()
+//!         .run_inner(Args::from(&["--help"]))
+//!         .unwrap_err()
+//!         .unwrap_stdout();
+//!     let expected_help = "\
+//! Usage --user <ARG>
+//! <skip>
+//! ";
 //!
-//! // assert_eq!(help, ...)
-//! # drop(help);
+//!     assert_eq!(help, expected_help);
+//! }
 //! ```
 
 use std::marker::PhantomData;
@@ -516,9 +532,7 @@ pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
-pub use crate::params::{
-    command, env, long, positional, positional_if, positional_os, short, Command, Named,
-};
+pub use crate::params::{command, env, long, positional, positional_os, short, Command, Named};
 
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
@@ -540,25 +554,25 @@ pub use bpaf_derive::Bpaf;
 /// struct Res (u32, u32);
 /// enum Ul { T { a: u32, b: u32 } }
 ///
-/// // parameters can be shared across multiple construct invocations
+/// // You can share parameters across multiple construct invocations
 /// // if defined as functions
 /// fn a() -> impl Parser<u32> {
 ///     short('a').argument("N").from_str::<u32>()
 /// }
 ///
-/// // you can construct structs or enums with unnamed fields
+/// // You can construct structs or enums with unnamed fields
 /// fn res() -> impl Parser<Res> {
 ///     let b = short('b').argument("n").from_str::<u32>();
 ///     construct!(Res ( a(), b ))
 /// }
 ///
-/// // you can construct structs or enums with named fields
+/// // You can construct structs or enums with named fields
 /// fn ult() -> impl Parser<Ul> {
 ///     let b = short('b').argument("n").from_str::<u32>();
 ///     construct!(Ul::T { a(), b })
 /// }
 ///
-/// // you can also construct simple tuples
+/// // You can also construct simple tuples
 /// fn tuple() -> impl Parser<(u32, u32)> {
 ///     let b = short('b').argument("n").from_str::<u32>();
 ///     construct!(a(), b)
@@ -597,7 +611,7 @@ pub use bpaf_derive::Bpaf;
 ///
 /// // to satisfy this parser user needs to pass one (and only one) of -a, -b, -c or -d
 /// #[derive(Debug, Clone, Bpaf)]
-/// enum Okay {
+/// enum Enumeraton {
 ///     A { a: u32 },
 ///     B { b: u32 },
 ///     C { c: u32 },
@@ -614,8 +628,8 @@ pub use bpaf_derive::Bpaf;
 ///
 /// # Examples considerations
 ///
-/// Most of the examples declare parser as a top level function, this is done only to be able to
-/// specify the type signature, you can still use them as variables,  see `a` and `b` in examples above.
+/// Most of the examples declare parser as a top level function to show the type signature,
+/// you can still use them as variables: see `a` and `b` in earlier examples.
 ///
 /// Most of the examples given in the documentation are more verbose than necessary preferring
 /// explicit naming and consumers. If you are trying to parse something that implements
@@ -707,15 +721,15 @@ macro_rules! construct {
 ///
 /// # Overview
 ///
-/// it's best to think of an object implementing [`Parser`] trait as a container with a value
-/// inside that can be composed with other `Parser` containers using [`construct!`] and the only
+/// It's best to think of an object implementing [`Parser`] trait as a container with a value
+/// inside that are composable with other `Parser` containers using [`construct!`] and the only
 /// way to extract this value is by transforming it to [`OptionParser`] with
 /// [`to_options`](Parser::to_options) and running it with [`run`](OptionParser::run). At which
-/// point you will either get your value out or bpaf would generate a message describing a problem
-/// (missing argument, validation failure, user requested CLI help, etc) and the program would
+/// point you either get your value out or bpaf would generate a message describing a problem
+/// (missing argument, validation failure, user requested help, etc) and the program would
 /// exit.
 ///
-/// Values inside can be of any type for as long as they implement `Debug`, can be cloned and
+/// Values inside can be of any type for as long as they implement `Debug`, `Clone` and
 /// there's no lifetimes other than static.
 ///
 /// When consuming the values you usually start with `Parser<String>` or `Parser<OsString>` which
@@ -767,14 +781,14 @@ macro_rules! construct {
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options {
-///     // no annotation at all - implicit `argument` and `from_str` are inserted
+///     // no annotation at all - `bpaf_derive` inserts implicit `argument` and `from_str`
 ///     number_1: u32,
 ///
-///     // fallback isn't changing the type so implicit items are still added
+///     // fallback isn't changing the type so `bpaf_derive` still handles it
 ///     #[bpaf(fallback(42))]
 ///     number_2: u32,
 ///
-///     // implicit `argument`, `optional` and `from_str` are inserted
+///     // `bpaf_derive` inserts implicit `argument`, `optional` and `from_str`
 ///     number_3: Option<u32>,
 ///
 ///     // fails to compile: you need to specify a consumer, `argument` or `argument_os`
@@ -795,7 +809,7 @@ pub trait Parser<T> {
     ///
     /// Mostly internal implementation details, you can try using it to test your parsers
     // it's possible to move this function from the trait to the structs but having it
-    // in the trait ensures the composition always works: structs will have to implement it
+    // in the trait ensures the composition always works
     #[doc(hidden)]
     fn eval(&self, args: &mut Args) -> Result<T, Error>;
 
@@ -803,7 +817,7 @@ pub trait Parser<T> {
     ///
     /// Mostly internal implementation details, you can try using it to test your parsers
     // it's possible to move this function from the trait to the structs but having it
-    // in the trait ensures the composition always works: structs will have to implement it
+    // in the trait ensures the composition always works
     #[doc(hidden)]
     fn meta(&self) -> Meta;
 
@@ -871,8 +885,7 @@ pub trait Parser<T> {
     // {{{ some
     /// Consume one or more items from a command line
     ///
-    /// Takes a string that will be used as an
-    /// error message if there's no specified parameters
+    /// Takes a string used as an error message if there's no specified parameters
     ///
     /// # Combinatoric usage:
     /// ```rust
@@ -913,7 +926,7 @@ pub trait Parser<T> {
     /// [`req_flag`](Named::req_flag).
     ///
     /// # See also
-    /// [`many`](Parser::many) also collects results to a vector and will succeed with
+    /// [`many`](Parser::many) also collects results to a vector but succeeds with
     /// no matching values
     #[must_use]
     fn some(self, message: &'static str) -> ParseSome<Self>
@@ -930,9 +943,9 @@ pub trait Parser<T> {
     // {{{ optional
     /// Turn a required parser into optional
     ///
-    /// Any failure inside the parser will be turned into `None`. Failures in parser usually come
-    /// from missing a command line argument, but it's possible to introduce them with
-    /// [`parse`](Parser::parse) or [`guard`](Parser::guard) methods.
+    /// `optional` converts any failure inside the parser is `None`. Failures in parser
+    /// usually come from missing a command line argument, but it's possible to introduce
+    /// them with [`parse`](Parser::parse) or [`guard`](Parser::guard) methods.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -990,7 +1003,7 @@ pub trait Parser<T> {
     // {{{ parse
     /// Apply a failing transformation to a contained value
     ///
-    /// This is a most general way of transforming parsers and remaining ones can be expressed in
+    /// This is a most general of transforming parsers and you can express remaining ones
     /// terms of it: [`map`](Parser::map), [`from_str`](Parser::from_str) and
     /// [`guard`](Parser::guard).
     ///
@@ -1068,8 +1081,8 @@ pub trait Parser<T> {
     /// # Derive usage
     /// ```rust
     /// # use bpaf::*;
-    /// fn double(i: u32) -> u32 {
-    ///     i * 2
+    /// fn double(num: u32) -> u32 {
+    ///     num * 2
     /// }
     ///
     /// #[derive(Debug, Clone, Bpaf)]
@@ -1162,7 +1175,7 @@ pub trait Parser<T> {
     // {{{ guard
     /// Validate or fail with a message
     ///
-    /// Parser will reject values that fail to satisfy the constraints
+    /// If value doesn't satisfy the constraint - parser fails with the specified error message.
     ///
     /// # Combinatoric usage
     ///
@@ -1236,7 +1249,7 @@ pub trait Parser<T> {
     ///
     /// # Derive usage
     /// Expression in parens should have the right type, this example uses `u32` literal,
-    /// but it can also be your own type if that is what you are parsing, it can also be a function
+    /// but it can also be your own type if that's what you are parsing, it can also be a function
     /// call.
     /// ```rust
     /// # use bpaf::*;
@@ -1320,7 +1333,7 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures
-    /// are not expected.
+    /// aren't expected.
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
     where
@@ -1342,8 +1355,7 @@ pub trait Parser<T> {
     ///
     /// For parser to succeed eiter of the components needs to succeed. If both succeed - bpaf
     /// would use output from one that consumed the left most value. The second flag on the command
-    /// line will remain unconsumed by `or_else` and needs to be consumed by something else,
-    /// otherwise this will result in an error.
+    /// line remains unconsumed by `or_else`.
     ///
     /// # Combinatoric usage:
     /// There's two ways to write this combinator with identical results:
@@ -1380,8 +1392,8 @@ pub trait Parser<T> {
     ///
     /// # Derive usage:
     ///
-    /// enums are translated into alternative combinations, different shapes of variants
-    /// produce different results
+    /// `bpaf_derive` translates enum into alternative combinations, different shapes of variants
+    /// produce different results.
     ///
     ///
     /// ```bpaf
@@ -1406,7 +1418,7 @@ pub trait Parser<T> {
     ///
     /// # Performance
     ///
-    /// If first parser succeeds - second one will be called anyway to produce a
+    /// `bpaf` tries to evaluate both branches regardless of the successes to produce a
     /// better error message for combinations of mutually exclusive parsers:
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
@@ -1491,8 +1503,8 @@ pub trait Parser<T> {
     // {{{ group_help
     /// Attach help message to a complex parser
     ///
-    /// All the fields contained in the inner parser will be surrounded
-    /// by the group help message on the top and an empty line at the bottom
+    /// `bpaf` inserts the group help message before the block with all the fields
+    /// from the inner parser and an empty line after the block.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -1511,12 +1523,12 @@ pub trait Parser<T> {
     /// # Example
     /// ```console
     /// $ app --help
-    /// ...
+    /// <skip>
     ///             Takes a rectangle
     ///    -w <PX>  Width of the rectangle
     ///    -h <PX>  Height of the rectangle
     ///
-    /// ...
+    /// <skip>
     /// ```
     ///
     /// # Derive usage
@@ -1573,8 +1585,8 @@ pub trait Parser<T> {
     /// [`Parser`].
     ///
     /// In addition to `options` annotation you can also specify either `version` or
-    /// `version(value)` annotation. Former will use version from `cargo`, later will use specified
-    /// value which should be an expression of type `&'static str`, see
+    /// `version(value)` annotation. Former uses version from `cargo`, later uses the
+    /// specified value which should be an expression of type `&'static str`, see
     /// [`version`](OptionParser::version).
     ///
     /// ```rust
@@ -1592,9 +1604,9 @@ pub trait Parser<T> {
     /// $ app --version
     /// // Version: 3.1415
     /// $ app --help
-    /// ...
+    /// <skip>
     /// This is a description
-    /// ...
+    /// <skip>
     /// ```
     fn to_options(self) -> OptionParserStruct<T, Self>
     where
@@ -1660,8 +1672,8 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
 
 /// Unsuccessful command line parsing outcome
 ///
-/// Useful for unit testing for user parsers, intented to
-/// be consumed with [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
+/// Useful for unit testing for user parsers, consume it with
+/// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
     /// Terminate and print this to stdout
@@ -1671,13 +1683,11 @@ pub enum ParseFailure {
 }
 
 impl ParseFailure {
-    /// Returns the contained `stderr` values
-    ///
-    /// Intended to be used with unit tests
+    /// Returns the contained `stderr` values - for unit tests
     ///
     /// # Panics
     ///
-    /// Will panic if failure contains `stdout`
+    /// Panics if failure contains `stdout`
     #[allow(clippy::must_use_candidate)]
     pub fn unwrap_stderr(self) -> String {
         match self {
@@ -1688,13 +1698,11 @@ impl ParseFailure {
         }
     }
 
-    /// Returns the contained `stdout` values
-    ///
-    /// Intended to be used with unit tests
+    /// Returns the contained `stdout` values - for unit tests
     ///
     /// # Panics
     ///
-    /// Will panic if failure contains `stderr`
+    /// Panics if failure contains `stderr`
     #[allow(clippy::must_use_candidate)]
     pub fn unwrap_stdout(self) -> String {
         match self {
@@ -1708,14 +1716,49 @@ impl ParseFailure {
 
 /// Strip a command name if present at the front when used as a cargo command
 ///
-/// This helper should be used on a top level parser
+/// When implementing a cargo subcommand parser needs to be able to skip the first argument which
+/// is always the same as the executable name without `cargo-` prefix. For example if executable name is
+/// `cargo-cmd` so first argument would be `cmd`. `cargo_helper` helps to support both invocations:
+/// with name present when used via cargo and without it when used locally.
 ///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// let width = short('w').argument("PX").from_str::<u32>();
-/// let height = short('h').argument("PX").from_str::<u32>();
-/// let parser = cargo_helper("cmd", construct!(width, height)); // impl Parser<(u32, u32)>
-/// # drop(parser);
+/// fn options() -> impl OptionParser<(u32, u32)> {
+///     let width = short('w').argument("PX").from_str::<u32>();
+///     let height = short('h').argument("PX").from_str::<u32>();
+///     let parser = construct!(width, height);
+///     cargo_helper("cmd", parser).to_options()
+/// }
+/// ```
+///
+/// # Derive usage
+///
+/// If you pass a cargo command name as a parameter to `options` annotation `bpaf_derive` would generate `cargo_helper`.
+/// ```no_run
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options("cmd"))]
+/// struct Options {
+///     #[bpaf(short, argument("PX"))]
+///     width: u32,
+///     #[bpaf(short, argument("PX"))]
+///     height: u32,
+/// }
+///
+/// fn main() {
+///    println!("{:?}", options().run());
+/// }
+///
+/// ```
+///
+/// # Example
+///
+/// ```console
+/// $ cargo cmd -w 3 -h 5
+/// (3, 5)
+/// $ cargo run --bin cargo-cmd -- -w 3 -h 5
+/// (3, 5)
 /// ```
 #[must_use]
 pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
@@ -1723,6 +1766,9 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let skip = positional_if("", move |s| cmd == s).hide();
+    let skip = positional("")
+        .guard(move |s| cmd == s, "")
+        .optional()
+        .hide();
     construct!(skip, parser).map(|x| x.1)
 }
