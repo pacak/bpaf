@@ -211,7 +211,7 @@ pub struct OptionParserStruct<T, P> {
     pub(crate) info: Info,
 }
 
-/// Parser with additional information attached
+/// Ready to run [`Parser`] with additional information attached
 ///
 /// Created with [`to_options`](Parser::to_options)
 // There's only one struct that implements this trait: OptionParserStruct and the only
@@ -254,7 +254,7 @@ pub trait OptionParser<T> {
             args::push_vec(&mut vec, arg, &mut pos_only);
         }
 
-        match self.run_inner(Args::from(vec)) {
+        match self.run_inner(Args::args_from(vec)) {
             Ok(t) => t,
             Err(ParseFailure::Stdout(msg)) => {
                 println!("{}", msg);

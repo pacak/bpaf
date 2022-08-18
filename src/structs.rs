@@ -1,10 +1,10 @@
-//! FIXME
+//!
 use std::{marker::PhantomData, str::FromStr};
 
 use crate::{args::Word, info::Error, Args, Meta, Parser};
 
 /// Parser that substitutes missing value with a function results but not parser
-/// failure, created with [`Parser::fallback_with`].
+/// failure, created with [`fallback_with`](Parser::fallback_with).
 pub struct ParseFallbackWith<T, P, F, E> {
     pub(crate) inner: P,
     pub(crate) inner_res: PhantomData<T>,
@@ -34,25 +34,7 @@ where
     }
 }
 
-/// Fail with a fixed error message
-/// ```rust
-/// # use bpaf::*;
-/// let a = short('a').switch();
-/// let no_a = fail("Custom error message for missing -a");
-///
-/// // Parser produces a custom error message if `-a` isn't specified
-/// let a_ = construct!([a, no_a]); // impl Parser<bool>
-/// # drop(a_);
-/// ```
-#[must_use]
-pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
-    ParseFail {
-        field1: msg,
-        field2: PhantomData,
-    }
-}
-
-/// Parser with attached message to several fields, created with [`Parser::group_help`].
+/// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
 pub struct ParseGroupHelp<P> {
     pub(crate) inner: P,
     pub(crate) message: &'static str,
@@ -160,7 +142,8 @@ where
     }
 }
 
-/// Parser that transforms parsed value with a failing function, created with [`Parser::parse`]
+/// Parser that transforms parsed value with a failing function, created with
+/// [`parse`](Parser::parse)
 pub struct ParseWith<T, P, F, R, E> {
     pub(crate) inner: P,
     pub(crate) inner_res: PhantomData<T>,
@@ -194,7 +177,8 @@ where
     }
 }
 
-/// Parser that substitutes missing value but not parse failure, created with [`Parser::fallback`].
+/// Parser that substitutes missing value but not parse failure, created with
+/// [`fallback`](Parser::fallback).
 pub struct ParseFallback<P, T> {
     pub(crate) inner: P,
     pub(crate) value: T,
@@ -218,7 +202,7 @@ where
     }
 }
 
-/// Parser fails with a message if check returns false, created with [`Parser::guard`].
+/// Parser fails with a message if check returns false, created with [`guard`](Parser::guard).
 pub struct ParseGuard<P, F> {
     pub(crate) inner: P,
     pub(crate) check: F,
@@ -244,7 +228,8 @@ where
     }
 }
 
-/// Parser that returns results of inner parser wrapped into [`Option`], created with [`Parser::optional`].
+/// Parser that returns results of inner parser wrapped into [`Option`], created with
+/// [`optional`](Parser::optional).
 pub struct ParseOptional<P> {
     pub(crate) inner: P,
 }
@@ -268,7 +253,7 @@ where
     }
 }
 
-/// Parser that uses [`FromStr`] instance of a type, created with [`Parser::from_str`].
+/// Parser that uses [`FromStr`] instance of a type, created with [`from_str`](Parser::from_str).
 pub struct ParseFromStr<P, R> {
     pub(crate) inner: P,
     pub(crate) ty: PhantomData<R>,
@@ -300,7 +285,7 @@ where
 }
 
 /// Parser that applies inner parser multiple times and collects results into [`Vec`], created with
-/// [`Parser::many`].
+/// [`many`](Parser::many).
 pub struct ParseMany<P> {
     pub(crate) inner: P,
 }
@@ -331,7 +316,7 @@ impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
     }
 }
 
-/// Parser that fails without consuming any input, created with [`fail`].
+/// Parser that fails without consuming any input, created with [`fail`](crate::fail).
 pub struct ParseFail<T> {
     pub(crate) field1: &'static str,
     pub(crate) field2: PhantomData<T>,
@@ -346,7 +331,7 @@ impl<T> Parser<T> for ParseFail<T> {
     }
 }
 
-/// Parser that transforms parsed value with a function, created with [`Parser::map`].
+/// Parser that transforms parsed value with a function, created with [`map`](Parser::map).
 pub struct ParseMap<T, P, F, R> {
     pub(crate) inner: P,
     pub(crate) inner_res: PhantomData<T>,

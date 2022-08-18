@@ -63,6 +63,8 @@ use crate::{
 
 /// A named thing used to create flag, switch or argument.
 ///
+/// Create it with [`short`] or [`long`].
+///
 /// # Ways to consume data
 /// bpaf supports several different ways user can specify values on a command line:
 ///
@@ -773,7 +775,7 @@ where
     }
 }
 
-/// Builder structure for the `command`
+/// Builder structure for the [`command`]
 ///
 /// Created with [`command`], implements parser for the inner structure, gives access to [`help`](Command::help).
 #[derive(Clone)]

@@ -25,7 +25,19 @@ mod inner {
     };
 
     use super::{push_vec, Arg, Word};
-    /// All currently present command line parameters
+    /// All currently present command line parameters, use it for unit tests
+    ///
+    /// The easiest way to create it is with `From` instance.
+    /// ```rust
+    /// # use bpaf::*;
+    /// let parser = short('f')
+    ///     .switch()
+    ///     .to_options();
+    /// let value = parser
+    ///     .run_inner(Args::from(&["-f"]))
+    ///     .unwrap();
+    /// assert!(value);
+    /// ```
     #[derive(Clone, Debug)]
     pub struct Args {
         /// list of remaining arguments, for cheap cloning
@@ -43,8 +55,7 @@ mod inner {
 
     impl<const N: usize> From<&[&str; N]> for Args {
         fn from(xs: &[&str; N]) -> Self {
-            let vec = xs.iter().copied().collect::<Vec<_>>();
-            Args::from(vec.as_slice())
+            Args::from(xs.as_slice())
         }
     }
 
@@ -55,7 +66,7 @@ mod inner {
             for x in xs {
                 push_vec(&mut vec, OsString::from(x), &mut pos_only);
             }
-            Args::from(vec)
+            Args::args_from(vec)
         }
     }
 
@@ -66,12 +77,12 @@ mod inner {
             for x in xs {
                 push_vec(&mut vec, OsString::from(x), &mut pos_only);
             }
-            Args::from(vec)
+            Args::args_from(vec)
         }
     }
 
-    impl From<Vec<Arg>> for Args {
-        fn from(vec: Vec<Arg>) -> Self {
+    impl Args {
+        pub(crate) fn args_from(vec: Vec<Arg>) -> Self {
             Args {
                 removed: vec![false; vec.len()],
                 remaining: vec.len(),

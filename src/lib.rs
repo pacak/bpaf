@@ -504,20 +504,19 @@
 
 use std::marker::PhantomData;
 
+mod args;
+mod info;
+mod item;
+mod meta;
 mod params;
 
-mod args;
-
+mod structs;
 #[doc(hidden)]
-pub mod info;
-#[doc(hidden)]
-mod item;
-#[doc(hidden)]
-mod meta;
-
-pub mod structs;
-use crate::{info::Error, item::Item};
+pub use crate::info::Error;
+use crate::item::Item;
 use info::OptionParserStruct;
+#[doc(hidden)]
+pub use structs::ParseConstruct;
 
 use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
@@ -706,10 +705,10 @@ macro_rules! construct {
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = $fields.eval(args)?;)*
-            ::std::result::Result::Ok::<_, $crate::info::Error>
+            ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };
-        $crate::structs::ParseConstruct { inner, meta }
+        $crate::ParseConstruct { inner, meta }
     }};
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
@@ -1670,7 +1669,7 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
     }
 }
 
-/// Unsuccessful command line parsing outcome
+/// Unsuccessful command line parsing outcome, use it for unit tests
 ///
 /// Useful for unit testing for user parsers, consume it with
 /// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
@@ -1714,7 +1713,7 @@ impl ParseFailure {
     }
 }
 
-/// Strip a command name if present at the front when used as a cargo command
+/// Strip a command name if present at the front when used as a `cargo` command
 ///
 /// When implementing a cargo subcommand parser needs to be able to skip the first argument which
 /// is always the same as the executable name without `cargo-` prefix. For example if executable name is
