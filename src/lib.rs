@@ -4,6 +4,21 @@
 
 //! Lightweight and flexible command line argument parser with derive and combinator style API
 
+//! # Derive and combinatoric API
+//!
+//! `bpaf` supports both combinatoric and derive APIs with the former being primary, but it's
+//! possible to mix and match both APIs at once. Both APIs provide access to mostly the same
+//! features, some things are more convenient to do with derive (usually less typing), some -
+//! with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases
+//! using just one would suffice. Whenever possible APIs share the same keywords and overall structure.
+//! Documentation for combinatoric API also explains how to perform the same action in derive
+//! style.
+
+//! # Tutorials
+//!
+//! - [Derive tutorial](crate::_derive_tutorial)
+//! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+
 //! # Quick start, derive edition
 //!
 //! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
@@ -103,25 +118,16 @@
 //!
 //! 3. Try to run it, output should be similar to derive edition
 
-//! # Getting started
-//!
-//! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
-//! 1. [`construct!`] - what combinations are and how you should read the examples
-//! 2. [`Named`], [`positional`] and [`command`] - on consuming data
-//! 3. [`Parser`] - on transforming the data
-//! 4. [`OptionParser`] - on running the result
-//! 5. *Using the library in derive style* section below
-
 //! # Design goals: flexibility, reusability
-//!
-//! Library allows to express command line arguments by combining primitive parsers using mostly
-//! regular Rust code plus one macro. For example it's possible to take a parser that requires a single
-//! floating point number and transform it to a parser that takes several of them or takes it
-//! optionally so different subcommands or binaries can share a lot of the code:
-//!
-//! ```no_run
-//! use bpaf::*;
-//!
+
+//! Library allows to consume command line arguments by building up parsers for individual
+//! arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
+//! For example it's possible to take a parser that requires a single floating point number and
+//! transform it to a parser that takes several of them or takes it optionally so different
+//! subcommands or binaries can share a lot of the code:
+
+//! ```rust
+//! # use bpaf::*;
 //! // a regular function that doesn't depend on anything, you can export it
 //! // and share across subcommands and binaries
 //! fn speed() -> impl Parser<f64> {
@@ -133,36 +139,40 @@
 //!
 //! // this parser accepts multiple `--speed` flags from a command line when used,
 //! // collecting them into a vector
-//! let multiple_args = speed().many(); // impl Parser<Vec<f64>>
+//! fn multiple_args() -> impl Parser<Vec<f64>> {
+//!     speed().many()
+//! }
 //!
 //! // this parser checks if `--speed` is present and uses value of 42 if it's not
-//! let with_fallback = speed().fallback(42.0); // impl Parser<Option<f64>>
+//! fn with_fallback() -> impl Parser<f64> {
+//!     speed().fallback(42.0)
+//! }
 //! ```
 //!
 //! At any point you can apply additional validation or fallback values in terms of current parsed
 //! state of each subparser and you can have several stages as well:
 //!
-//! ```no_run
-//! use bpaf::*;
-//!
+//! ```rust
+//! # use bpaf::*;
 //! #[derive(Clone, Debug)]
 //! struct Speed(f64);
+//! fn speed() -> impl Parser<Speed> {
+//!     long("speed")
+//!         .help("Speed in KPH")
+//!         .argument("SPEED")
+//!         // After this point the type is `impl Parser<String>`
+//!         .from_str::<f64>()
+//!         // `from_str` uses FromStr trait to transform contained value into `f64`
 //!
-//! long("speed")
-//!     .help("Speed in KPH")
-//!     .argument("SPEED")
-//!     // After this point the type is `impl Parser<String>`
-//!     .from_str::<f64>()
-//!     // `from_str` uses FromStr trait to transform contained value into `f64`
+//!         // You can perform additional validation with `parse` and `guard` functions
+//!         // in as many steps as required.
+//!         // Before and after next two applications the type is still `impl Parser<f64>`
+//!         .guard(|&speed| speed >= 0.0, "You need to buy a DLC to move backwards")
+//!         .guard(|&speed| speed <= 100.0, "You need to buy a DLC to break the speed limits")
 //!
-//!     // You can perform additional validation with `parse` and `guard` functions
-//!     // in as many steps as required.
-//!     // Before and after next two applications the type is still `impl Parser<f64>`
-//!     .guard(|&speed| speed >= 0.0, "You need to buy a DLC to move backwards")
-//!     .guard(|&speed| speed <= 100.0, "You need to buy a DLC to break the speed limits")
-//!
-//!     // You can transform contained values, next line gives `impl Parser<Speed>` as a result
-//!     .map(|speed| Speed(speed));
+//!         // You can transform contained values, next line gives `impl Parser<Speed>` as a result
+//!         .map(|speed| Speed(speed))
+//! }
 //! ```
 
 //! # Design goals: restrictions
@@ -192,284 +202,13 @@
 //! and your app exits within microseconds - this won't affect you. That said - any actual
 //! performance related problems with real world applications is a bug.
 
-//! # Derive and combinatoric API
-//!
-//! Library supports both derive and combinatoric APIs whith combinatoric API being primary, it's
-//! possible to mix and match both APIs at once. Both APIs provide access to mostly the same
-//! features, some things are more convenient to do with derive (usually less typing), some -
-//! with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases
-//! using just one would suffice. Whenever possible APIs share the same keywords and structure.
-//! Documentation for combinatoric API also explains how to perform the same action in derive style
-//! so you should read it.
-
-//! # Using the library in combinatoric style
-//!
-//! 1. Define primitive field parsers using builder pattern starting with [`short`], [`long`],
-//! [`command`] or [`positional`], add more information using [`help`](Named), [`env`](Named::env) and
-//! other member functions.
-//!
-//!    For some constructors you end up with parser objects right away,
-//!    some require finalization with [`argument`](Named::argument), [`flag`](Named::flag)
-//!    or [`switch`](Named::switch).
-//!
-//!    At the end of this step you'll get one or more parser
-//!    one or more objects implementing trait [`Parser`], such as `impl Parser<String>`.
-//!
-//! 2. If you need additional parsing and validation you can use trait [`Parser`]: [`map`](Parser::map),
-//!    [`parse`](Parser::parse), [`guard`](Parser::guard), [`from_str`](Parser::from_str).
-//!
-//!    You can change type or shape of contained or shape with [`many`](Parser::many),
-//!    [`some`](Parser::some), [`optional`](Parser::optional) and add a fallback values with
-//!    [`fallback`](Parser::fallback), [`fallback_with`](Parser::fallback_with).
-//!
-//! 3. You can compose resulting primitive parsers using [`construct`] macro into a concrete
-//!    datatype and still apply additional processing from step 2 after this.
-//!
-//! 4. Transform the toplevel parser created at the previous step into [`OptionParser`] with
-//!    [`to_options`](Parser::to_options) and attach additional metadata with
-//!    [`descr`](OptionParser::descr) and other methods available to `OptionParser`.
-//!
-//! 5. [`run`](OptionParser::run) the resulting option parser at the beginning of your program.
-//!    If option parser succeeds you'll get the results. If there are errors or user asked for help info
-//!    `bpaf` handles them and exits.
-
-//! # Using the library in derive style
-//!
-//! 1. To use derive style API you need to enable `"derive"` feature for bpaf, **by default it's not
-//!    enabled**.
-//!
-//! 2. Define primitive parsers if you want to use any. While it's possible to define most of them
-//!    in derive style - doing complex parsing or validation is often easier in combinatoric style
-//!
-//! 3. Define types used to derive parsers, structs correspond to *AND* combination and require for
-//!    all the fields to have a value, enums to *OR* combinations and require (and consume) all the
-//!    values for one branch only.
-//!
-//! 4. Add annotations to the top level of a struct if needed, there's several to choose from and
-//!    you can specify several of them. For this annotation ordering doesn't matter.
-//!
-//!    - Generated function name. Unlike usual derive macro bpaf generates a function with a name
-//!      derived from a struct name by transforming it from `CamelCase` to `snake_case`. `generate`
-//!      allows to override a name for the function
-//!
-//!    ```rust
-//!    use bpaf::*;
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(generate(make_config))] // function name is now make_config()
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
-//!
-//!    - Generated function visibility. By default bpaf uses the same visibility as the datatype,
-//!      `private` makes it module private:
-//!
-//!    ```rust
-//!    use bpaf::*;
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(private)] // config() is now private
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
-//!
-//!    - Generated function type. By default bpaf would generate a function that parses
-//!      all the fields present (`impl` [`Parser`]), it's possible instead to turn it into a
-//!      one or more [`command`] with or top level `impl` [`OptionParser`] with `options`.
-//!      Those annotations are mutually exclusive. `options` annotation takes an optional argument
-//!      to wrap options into [`cargo_helper`], `command` annotation takes an optional argument to
-//!      override a command name.
-//!
-//!    ```rust
-//!    use bpaf::*;
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    pub struct Flag { // impl Parser by default
-//!        pub flag: bool
-//!    }
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(command)]
-//!    pub struct Make { // generates a command "make"
-//!        pub level: u32,
-//!    }
-//!
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(options)] // config() is now private
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
-//!
-//!    - Specify version for generated command. By default bpaf would use version as defined by
-//!      `"CARGO_PKG_VERSION"` env variable during compilation, usually taken from `Cargo.toml`,
-//!      it's possible to override it with a custom expression. Only makes sense for `command`
-//!      and `options` annotations. For more information see [`version`](OptionParser::version).
-//!
-//!    ```rust
-//!    use bpaf::*;
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(options, version("3.1415"))] // --version is now 3.1415
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
-//!
-//! 5. Add annotations to individual fields. Structure for annotation for individual fields
-//!    is similar to how you would write the same code with combinatoric API with exception
-//!    of `external` and usually looks something like this:
-//!
-//!    `((<naming> <consumer>) | <external>) <postprocessing>`
-//!
-//!    - `naming` section corresponds to [`short`],  [`long`] and [`env`](env()). `short` takes an optional
-//!      character literal as a parameter, `long` takes an optional string.
-//!
-//!      + If parameter for `short`/`long` is parameter isn't present it's derived from the field
-//!      name: first character and a whole name respectively.
-//!
-//!      + If either of `short` or `long` is present - bpaf would not add the other one.
-//!
-//!      + If neither is present - bpaf would add a long one.
-//!
-//!      + `env` takes an arbitrary expression of type `&'static str` - could be a string literal or a constant.
-//!
-//!      ```rust
-//!      # use bpaf::*;
-//!      const DB: &str = "top_secret_database";
-//!
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      pub struct Config {
-//!         pub flag_1: bool,     // no annotation: --flag_1
-//!
-//!         #[bpaf(short)]
-//!         pub flag_2: bool,     // explicit short suppresses long: -f
-//!
-//!         #[bpaf(short('z'))]
-//!         pub flag_3: bool,     // explicit short with custom letter: -z
-//!
-//!         #[bpaf(short, long)]
-//!         pub deposit: bool,    // explicit short and long: -d --deposit
-//!
-//!         #[bpaf(env(DB))]
-//!         pub database: String, // --database + env variable from DB constant
-//!
-//!         #[bpaf(env("USER"))]  // --user + env variable "USER"
-//!         pub user: String,
-//!      }
-//!      ```
-//!
-//!    - `consumer` section corresponds to [`argument`](Named::argument), [`positional`],
-//!      [`flag`](Named::flag), [`switch`](Named::switch) and similar.
-//!
-//!      + With no consumer annotations tuple structs (`struct Config(String)`) are usually parsed
-//!      as positional items, but it's possible to override it by giving it a name:
-//!
-//!      ```rust
-//!      # use bpaf::*;
-//!      # use std::path::PathBuf;
-//!
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      struct Opt(PathBuf); // stays positional
-//!
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      struct Config(#[bpaf(long("input"))] PathBuf); // turns into a named argument
-//!      ```
-//!
-//!      + `bpaf_derive` handles fields of type `Option<Foo>` and `Vec<Foo>` with something
-//!      that can consume possibly one or many items with [`optional`](Parser::optional)
-//!      and [`many`](Parser::many) respectively, see `postprocessing` for more details.
-//!
-//!      + `bpaf_derive` handles `bool` fields with [`switch`](Named::switch),
-//!      [`OsString`](std::ffi::OsString) and [`PathBuf`](std::path::PathBuf) with
-//!      either [`positional_os`] or [`argument_os`](Named::argument_os).
-//!
-//!      + `bpaf_derive` consumes everything else as [`String`] with [`positional`] and
-//!      [`argument`](Named::argument) and transforms it into a concrete type using
-//!      [`FromStr`](std::str::FromStr) instance.
-//!      See documentation for corresponding consumers for more details.
-//!
-//!    - If `external` is present - it usually serves function of `naming` and `consumer`, allowing
-//!      more for `postprocessing` annotations after it. Takes an optional parameter - a function
-//!      name to call, if not present - `bpaf_derive` uses field name for this purpose.
-//!      Functions should return impl [`Parser`] and you can either declare them manually
-//!      or derive with `Bpaf` macro.
-//!
-//!      ```rust
-//!      use bpaf::*;
-//!
-//!      fn verbosity() -> impl Parser<usize> {
-//!          short('v')
-//!              .help("vebosity, can specify multiple times")
-//!              .req_flag(())
-//!              .many()
-//!              .map(|x| x.len())
-//!      }
-//!
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      pub struct Username {
-//!          pub user: String
-//!      }
-//!
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      pub struct Config {
-//!         #[bpaf(external)]
-//!         pub verbosity: usize,      // implicit name - "verbosity"
-//!
-//!         #[bpaf(external(username))]
-//!         pub custom_user: Username, // explicit name - "username"
-//!      }
-//!      ```
-//!
-//!    - `postprocessing` - various methods from [`Parser`] trait, order matters, most of them are
-//!      taken literal, see documentation for the trait for more details. `bpaf_derive` automatically
-//!      uses [`many`](Parser::many) and [`optional`](Parser::optional) to handle `Vec<T>` and
-//!      `Option<T>` fields respectively and inserts [`from_str`](Parser::from_str) for any field
-//!      it doesn't know how to pricess.
-//!
-//!      Any operation that can change the type (such as [`parse`](Parser::parse) or [`map`](Parser::map))
-//!      for disables this logic for the field and also requires to specify the consumer:
-//!      ```rust
-//!      # use bpaf::*;
-//!      #[derive(Debug, Clone, Bpaf)]
-//!      struct Options {
-//!          // #[bpaf(argument("NUM"), many)] - fails due to type mismatch
-//!          // #[bpaf(from_str(u32), many)] - fails due to missing consumer
-//!          #[bpaf(argument("NUM"), from_str(u32), many)]
-//!          numbers: Vec<u32>
-//!      }
-//!      ```
-//!
-//!    - field-less enum variants obey slightly different set of rules, see
-//!    [`req_flag`](Named::req_flag) for more details.
-//!
-//!
-//! 6. Add documentation for help messages.
-//!    `bpaf_derive` generates help messages from doc comments, it skips single empty lines and stops
-//!    processing after double empty line:
-//!
-//!    ```rust
-//!    use bpaf::*;
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    pub struct Username {
-//!        /// this is a part of a help message
-//!        ///
-//!        /// so is this
-//!        ///
-//!        ///
-//!        /// but this isn't
-//!        pub user: String
-//!    }
-//!    ```
-
 //! # More examples
 //!
 //! You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
 //!
-//! They're usually documented and you can see how they work by cloning the repo and running
+//!
+//! They're usually documented or at least contain an explanation to important bits and you can see
+//! how they work by cloning the repo and running
 //! ```shell
 //! $ cargo run --example example_name
 //! ```
@@ -502,19 +241,23 @@
 //! }
 //! ```
 
-use std::marker::PhantomData;
-
+pub mod _combinatoric_tutorial;
+pub mod _derive_tutorial;
 mod args;
 mod info;
 mod item;
 mod meta;
 mod params;
-
 mod structs;
+
+#[cfg(test)]
+mod tests;
+
 #[doc(hidden)]
 pub use crate::info::Error;
 use crate::item::Item;
 use info::OptionParserStruct;
+use std::marker::PhantomData;
 #[doc(hidden)]
 pub use structs::ParseConstruct;
 
@@ -523,8 +266,6 @@ use structs::{
     ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
 };
 
-#[cfg(test)]
-mod tests;
 #[doc(inline)]
 pub use crate::args::Args;
 pub use crate::info::OptionParser;
