@@ -1,3 +1,5 @@
+//! A simple combinatoric parser with extra metainformation attached, see --help
+
 use bpaf::*;
 
 #[allow(dead_code)]
@@ -19,13 +21,13 @@ fn main() {
         .long("width")
         .help("Width of the rectangle")
         .argument("PX")
-        .from_str();
+        .from_str::<usize>();
 
     let height = short('h')
         .long("height")
         .help("Height of the rectangle")
         .argument("PX")
-        .from_str();
+        .from_str::<usize>();
 
     let rect = construct!(Rect { width, height })
         .group_help("Rectangle is defined by width and height in meters");

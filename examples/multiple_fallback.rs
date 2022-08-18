@@ -1,3 +1,5 @@
+//! Multi level fallback example:
+//!
 //! Fallback to one of several values
 //! - the command line argument
 //! - the environmental variable

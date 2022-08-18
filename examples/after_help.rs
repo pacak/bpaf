@@ -8,9 +8,11 @@ fn main() {
         .help("Release the dragon")
         .switch()
         .to_options()
+        // help metadata
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
         .run();
+
     println!("{:?}", opt);
 }

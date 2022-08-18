@@ -1,5 +1,8 @@
 //! `git.rs` serves as a demonstration of how to use subcommands,
 //! as well as a demonstration of adding documentation to subcommands.
+//!
+//! Note, this "fetch" command uses fallback to inner description to get the help message, "add"
+//! uses explicit override with the same value.
 
 use bpaf::*;
 
@@ -30,7 +33,7 @@ fn main() {
     .to_options()
     .descr("fetches branches from remote repository");
 
-    let fetch_cmd = command("fetch", fetch).help("fetch branches from remote repository");
+    let fetch_cmd = command("fetch", fetch);
 
     let interactive = short('i').switch();
     let all = long("all").switch();

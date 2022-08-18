@@ -1,6 +1,6 @@
 //! How to require presence of at least N values,
 //!
-//! like `val1 val2 ... valN ... valM`.
+//! This program accepts "-f -f -f" or "-fffff" but not "-f"
 
 use bpaf::*;
 

@@ -1,4 +1,5 @@
-//! using enum flags
+//! parsing argument value into enum. You can use crate `strum`'s `EnumString` for this purposes as well
+//!
 use bpaf::*;
 use std::str::FromStr;
 

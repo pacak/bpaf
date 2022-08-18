@@ -1,3 +1,5 @@
+//! Parsing negative numbers from the command line. `bpaf` won't try to do anything special here,
+//! user will have to escape minus sign either with `=` or --
 use bpaf::*;
 
 fn main() {

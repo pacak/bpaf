@@ -1,3 +1,5 @@
+//! pretty basic derive example with external function
+
 use bpaf::{short, Bpaf, OptionParser, Parser};
 use std::path::PathBuf;
 

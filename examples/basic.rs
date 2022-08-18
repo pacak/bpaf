@@ -1,4 +1,4 @@
-//! A somewhat comprehensive example of a typical `bpaf` usage.
+//! A somewhat comprehensive example of a typical combinatoric `bpaf` usage.
 
 use bpaf::*;
 use std::path::PathBuf;
@@ -21,7 +21,8 @@ fn main() {
         .help("Activate debug mode")
         .switch();
 
-    // number of occurrences of the v/verbose flag capped at 3
+    // number of occurrences of the v/verbose flag capped at 3 with an error here but you can also
+    // use `max` inside `map`
     let verbose = short('v')
         .long("verbose")
         .help("Increase the verbosity\nYou can specify it up to 3 times\neither as -v -v -v or as -vvv")
@@ -44,7 +45,7 @@ fn main() {
         .argument_os("OUTPUT")
         .map(PathBuf::from);
 
-    // no magical name transmogrifications.
+    // no magical name transmogrifications in combinatoric API
     let nb_cars = short('n').long("nb-cars").argument("N").from_str();
 
     // a parser that consumes one argument

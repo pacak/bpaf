@@ -1,3 +1,5 @@
+//! Very basic derive example
+
 #![allow(dead_code)]
 
 use bpaf::*;

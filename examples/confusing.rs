@@ -33,17 +33,19 @@ fn main() {
         .argument("TOKEN")
         .optional();
 
+    // start with defining 3 commands: simple, complex1 and complex2
     let simple_parser = pure(PreCommand::Simple).to_options();
     let simple = command("simple", simple_parser);
 
     let complex1_parser = positional("ARG").from_str::<i32>();
-    let complex2_parser = positional("ARG").from_str::<i16>();
     let complex1 = command(
         "complex1",
         construct!(PreCommand::Complex1(complex1_parser))
             .to_options()
             .descr("This is complex command 1"),
     );
+
+    let complex2_parser = positional("ARG").from_str::<i16>();
     let complex2 = command(
         "complex1",
         construct!(PreCommand::Complex2(complex2_parser))
@@ -51,7 +53,11 @@ fn main() {
             .descr("This is complex command 2"),
     );
 
+    // compose then to accept any of those
     let preparser = construct!([simple, complex1, complex2]);
+
+    // make a parser that accepts optional token and one of incomplete commands
+    // then create complete command or fail
     let parser = construct!(token, preparser).parse(|(token, cmd)| match cmd {
         PreCommand::Simple => Ok(Command::Simple),
         PreCommand::Complex1(a) => match token {

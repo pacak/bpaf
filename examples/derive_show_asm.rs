@@ -1,3 +1,6 @@
+//! Parsing snippet from cargo-show-asm
+//! Derive + typed fallback + external both with and without name
+
 use bpaf::{construct, long, short, Bpaf, OptionParser, Parser};
 use std::path::PathBuf;
 
@@ -13,7 +16,7 @@ pub struct Options {
     /// Package to use if ambigous
     #[bpaf(long, short, argument("SPEC"))]
     pub package: Option<String>,
-    #[bpaf(external(focus), optional)]
+    #[bpaf(external, optional)]
     pub focus: Option<Focus>,
     /// Produce a build plan instead of actually building
     pub dry: bool,
@@ -23,20 +26,20 @@ pub struct Options {
     pub locked: bool,
     /// Run without accessing the network
     pub offline: bool,
-    #[bpaf(external(format))]
+    #[bpaf(external)]
     pub format: Format,
     /// more verbose output, can be specified multiple times
-    #[bpaf(external(verbose))]
+    #[bpaf(external)]
     pub verbosity: usize,
     #[bpaf(external, fallback(Syntax::Intel))]
     pub syntax: Syntax,
-    #[bpaf(positional("FUNCTION"), optional)]
+    #[bpaf(positional("FUNCTION"))]
     pub function: Option<String>,
-    #[bpaf(positional("INDEX"), from_str(usize), fallback(0))]
+    #[bpaf(positional("INDEX"), fallback(0))]
     pub nth: usize,
 }
 
-fn verbose() -> impl Parser<usize> {
+fn verbosity() -> impl Parser<usize> {
     short('v')
         .long("verbose")
         .help("more verbose output, can be specified multiple times")

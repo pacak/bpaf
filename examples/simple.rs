@@ -1,3 +1,4 @@
+/// A very basic example with excessive documentation
 use bpaf::*;
 
 #[derive(Clone, Debug)]

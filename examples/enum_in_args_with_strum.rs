@@ -1,3 +1,4 @@
+//! parsing argument value into enum with fallback.
 use bpaf::*;
 use strum::{EnumString, EnumVariantNames, VariantNames};
 

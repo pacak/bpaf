@@ -1,3 +1,5 @@
+//! Consume a named argument with fallback to environment variable
+
 use bpaf::*;
 
 #[allow(dead_code)]

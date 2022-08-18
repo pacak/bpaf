@@ -1,3 +1,4 @@
+//! Non derive version for positional arguments
 use bpaf::*;
 use std::path::PathBuf;
 

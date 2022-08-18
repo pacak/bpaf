@@ -1,3 +1,5 @@
+//! convert verbosty level from count of -v flags into enum from a logger crate of your choice
+
 use bpaf::*;
 
 // generally you'd use this from the log crate itself

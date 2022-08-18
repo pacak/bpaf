@@ -1,3 +1,6 @@
+//! deriving for tri-state enabled/disabled/undecided switch, non derive version would use
+//! combination of `req_flag` and `construct!([on, off, undecined])`
+
 #![allow(dead_code)]
 use bpaf::{Bpaf, OptionParser};
 

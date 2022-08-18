@@ -1,3 +1,4 @@
+/// parser inspired by https://github.com/hood/rudo/blob/e448942b752c56dd2be2e2bb5026ced45e215ed6/src/main.rs
 use bpaf::*;
 
 #[derive(Debug, Clone, Bpaf)]
@@ -17,9 +18,6 @@ enum Action {
     Add(String),
 
     /// Mark nth item as done
-    ///
-    ///
-    /// ddd
     #[bpaf(command)]
     Mark(usize),
 
@@ -31,11 +29,8 @@ enum Action {
     // name argument for command is optional
     #[bpaf(command("list"))]
     List,
-
-    /// Similar to List but converted as a flag instead of a command
-    AlsoList,
 }
 
 fn main() {
-    println!("{:?}", options().run());
+    println!("{:?}", OptionParser::run(options()));
 }

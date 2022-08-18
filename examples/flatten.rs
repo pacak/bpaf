@@ -1,4 +1,5 @@
-//! How to nest things
+//! All the flags don't have to live in the same structure, this example uses non derive version.
+//! with derive API you would use `extern` annotation
 
 use bpaf::*;
 

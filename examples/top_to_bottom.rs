@@ -1,4 +1,5 @@
 //! A somewhat comprehensive example of a typical `bpaf` usage.
+//! Since those can be functions - order doesn't really matter
 
 use bpaf::*;
 use std::path::PathBuf;
@@ -16,15 +17,16 @@ struct Out {
 
 fn main() {
     // packing things in a struct assumes parser for each field is in scope.
-    let parser = construct!(Out {
+    let opt = (construct!(Out {
         debug(),
         verbose(),
         speed(),
         output(),
         nb_cars(),
         files_to_process()
-    });
-    let opt = parser.to_options().run();
+    }))
+    .to_options()
+    .run();
     println!("{:#?}", opt);
 }
 // A flag, true if used in the command line. Can be required, this one is optional
