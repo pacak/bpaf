@@ -364,6 +364,7 @@ pub trait OptionParser<T> {
     /// $ app --version
     /// Version: 0.5.0
     /// ```
+    #[must_use]
     fn version(self, version: &'static str) -> Self;
 
     /// Set the description field
@@ -426,6 +427,7 @@ pub trait OptionParser<T> {
     ///
     /// This is a footer
     /// ```
+    #[must_use]
     fn descr(self, descr: &'static str) -> Self;
 
     /// Set the header field
@@ -487,6 +489,7 @@ pub trait OptionParser<T> {
     ///
     /// This is a footer
     /// ```
+    #[must_use]
     fn header(self, header: &'static str) -> Self;
 
     /// Set the footer field
@@ -548,6 +551,7 @@ pub trait OptionParser<T> {
     ///
     /// This is a footer
     /// ```
+    #[must_use]
     fn footer(self, footer: &'static str) -> Self;
 
     /// Set custom usage field
@@ -568,6 +572,7 @@ pub trait OptionParser<T> {
     /// # Derive usage
     ///
     /// Not available at the moment
+    #[must_use]
     fn usage(self, usage: &'static str) -> Self;
 }
 
