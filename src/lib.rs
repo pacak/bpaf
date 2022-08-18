@@ -280,14 +280,47 @@ pub use bpaf_derive::Bpaf;
 
 /// Compose several parsers to produce a single result
 ///
-/// # Combinatoric usage, types of composition
+/// # Usage reference
+/// ```rust
+/// # use bpaf::*;
+/// # let a = short('a').switch();
+/// # let b = short('b').switch();
+/// # let c = short('c').switch();
+/// # { struct Res(bool, bool, bool)
+/// // structs with unnamed fields:
+/// construct!(Res(a, b, c));
+/// # }
+///
+/// # { struct Res { a: bool, b: bool, c: bool }
+/// // structs with named fields:
+/// construct!(Res {a, b, c});
+/// # }
+///
+/// # { enum Ty { Res(bool, bool, bool) }
+/// // enums with unnamed fields:
+/// construct!(Ty::Res(a, b, c));
+/// # }
+///
+/// # { enum Ty { Res { a: bool, b: bool, c: bool } }
+/// // enums with named fields:
+/// construct!(Ty::Res {a, b, c});
+/// # }
+///
+/// // tuples:
+/// construct!(a, b, c);
+///
+/// // parallel composition, an equivalent of a.or_else(b).or_else(c):
+/// construct!([a, b, c]);
+/// ```
+///
+/// # Combinatoric usage
 /// `construct!` can compose parsers sequentially or in parallel.
 ///
-/// Sequential composition runs each parser and if all of them succeeds you get a parser object of
-/// a new type back. This new type could be struct or enum with named or unnamed fields or a tuple.
-/// Placeholder names for values inside `construct!` macro must correspond to both struct/enum
-/// names and parser names present in scope. In examples below `a` corresponds to a function and
-/// `b` corresponds to a variable name.
+/// Sequential composition runs each parser and if all of them succeed you get a parser object of a
+/// new type back. Placeholder names for values inside `construct!` macro must correspond to both
+/// struct/enum names and parser names present in scope. In examples below `a` corresponds to a
+/// function and `b` corresponds to a variable name. Note parens in `a()`, you must to use them to
+/// indicate function parsers.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -319,8 +352,9 @@ pub use bpaf_derive::Bpaf;
 /// }
 /// ```
 ///
-/// Parallel composition picks one of several available parsers and returns a parser object of the
-/// same type. Similar to sequential composition you can use parsers from variables or functions:
+/// Parallel composition picks one of several available parsers (result types must match) and returns a
+/// parser object of the same type. Similar to sequential composition you can use parsers from variables
+/// or functions:
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -335,11 +369,10 @@ pub use bpaf_derive::Bpaf;
 /// }
 /// ```
 ///
-/// # Derive API considerations
+/// # Derive usage
 ///
 /// `bpaf_derive` would combine fields of struct or enum constructors sequentially and enum
-/// variants in parallel. For enums with variants containing more than one field it's better to
-/// represent them as commands: [`command`].
+/// variants in parallel.
 /// ```rust
 /// # use bpaf::*;
 /// // to satisfy this parser user needs to pass both -a and -b
@@ -365,46 +398,6 @@ pub use bpaf_derive::Bpaf;
 ///     CD { c: u32, d: u32 }
 /// }
 /// ```
-///
-/// # Examples considerations
-///
-/// Most of the examples declare parser as a top level function to show the type signature,
-/// you can still use them as variables: see `a` and `b` in earlier examples.
-///
-/// Most of the examples given in the documentation are more verbose than necessary preferring
-/// explicit naming and consumers. If you are trying to parse something that implements
-/// [`FromStr`](std::str::FromStr), only interested in a long name and don't mind metavar being
-/// `ARG` you don't need to add any extra annotations at all:
-///
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct PerfectlyValid {
-///     /// number used by the program
-///     number: u32,
-/// }
-/// ```
-///
-/// Toplevel types also require `options` annotation to generate [`OptionParser`] - it's usually
-/// omitted:
-///
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// #[bpaf(options)] // <- important bit
-/// struct Config {
-///     /// number used by the program
-///     number: u32,
-/// }
-/// ```
-///
-/// For combinatoric examples [`help`](Named::help) is usually omitted - you shouldn't do that.
-///
-/// For combinatoric examples usually implemented type is [`Parser`], to be able to run it you need to
-/// add metainformation to get [`OptionParser`].
-///
-/// In addition to examples in the documentation there's a bunch more in the github repository:
-/// <https://github.com/pacak/bpaf/tree/master/examples>
 
 #[macro_export]
 macro_rules! construct {

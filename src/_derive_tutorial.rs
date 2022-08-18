@@ -1,15 +1,27 @@
 //! # Using the library in derive style
 
-//! # Recommended reading order
+//! # About examples
+//!
+//! Most of the examples declare parser as a top level function to show the type signature,
+//! you can also use them as variables. Examples tend to omit [`help`](Named::help) unless they are
+//! about it - you should try to provide it whenever possible.
+//!
+//! Most of the examples stop at defining the [`Parser`], to be able to run them you need to
+//! convert your `Parsers` into [`OptionParser`] with [`to_options`](Parser::to_options).
+//!
+//! In addition to examples in the documentation there's a bunch more in the github repository:
+//! <https://github.com/pacak/bpaf/tree/master/examples>
 
+//! # Recommended reading order
+//!
 //! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
-//! 1. [`construct!`] - what combinations are and how you should read the examples
+//! 1. [`construct!`] - what combinations are
 //! 2. [`Named`], [`positional`] and [`command`] - on consuming data
 //! 3. [`Parser`] - on transforming the data
 //! 4. [`OptionParser`] - on running the result
 
 //! # Getting started
-
+//!
 //! 1. To use derive style API you need to enable `"derive"` feature for bpaf, **by default it's not
 //!    enabled**.
 //!
