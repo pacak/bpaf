@@ -283,34 +283,39 @@ pub use bpaf_derive::Bpaf;
 /// # Usage reference
 /// ```rust
 /// # use bpaf::*;
-/// # let a = short('a').switch();
-/// # let b = short('b').switch();
-/// # let c = short('c').switch();
-/// # { struct Res(bool, bool, bool)
+/// # { struct Res(bool, bool, bool);
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // structs with unnamed fields:
 /// construct!(Res(a, b, c));
 /// # }
 ///
 /// # { struct Res { a: bool, b: bool, c: bool }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // structs with named fields:
 /// construct!(Res {a, b, c});
 /// # }
 ///
 /// # { enum Ty { Res(bool, bool, bool) }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // enums with unnamed fields:
 /// construct!(Ty::Res(a, b, c));
 /// # }
 ///
 /// # { enum Ty { Res { a: bool, b: bool, c: bool } }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // enums with named fields:
 /// construct!(Ty::Res {a, b, c});
 /// # }
 ///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // tuples:
 /// construct!(a, b, c);
+/// # }
 ///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
 /// // parallel composition, an equivalent of a.or_else(b).or_else(c):
 /// construct!([a, b, c]);
+/// # }
 /// ```
 ///
 /// # Combinatoric usage

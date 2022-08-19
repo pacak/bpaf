@@ -1,15 +1,7 @@
 use crate::{Meta, Named};
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-enum ItemKind {
-    Flag,
-    Command,
-    Decor,
-    Positional,
-}
-
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Item {
     Decor {
         help: Option<String>,
@@ -36,15 +28,6 @@ pub enum Item {
 }
 
 impl Item {
-    fn kind(&self) -> ItemKind {
-        match self {
-            Item::Decor { .. } => ItemKind::Decor,
-            Item::Positional { .. } => ItemKind::Positional,
-            Item::Command { .. } => ItemKind::Command,
-            Item::Flag { .. } | Item::Argument { .. } => ItemKind::Flag,
-        }
-    }
-
     fn help(&self) -> Option<&String> {
         match self {
             Item::Decor { help }
@@ -227,25 +210,31 @@ impl Item {
 
     #[must_use]
     pub(crate) fn is_command(&self) -> bool {
-        match self.kind() {
-            ItemKind::Command => true,
-            ItemKind::Flag | ItemKind::Decor | ItemKind::Positional => false,
+        match self {
+            Item::Command { .. } => true,
+            Item::Decor { .. }
+            | Item::Positional { .. }
+            | Item::Flag { .. }
+            | Item::Argument { .. } => false,
         }
     }
 
     #[must_use]
     pub(crate) fn is_flag(&self) -> bool {
-        match self.kind() {
-            ItemKind::Flag | ItemKind::Decor => true,
-            ItemKind::Command | ItemKind::Positional => false,
+        match self {
+            Item::Decor { .. } | Item::Positional { .. } | Item::Command { .. } => false,
+            Item::Flag { .. } | Item::Argument { .. } => true,
         }
     }
 
     #[must_use]
     pub(crate) fn is_positional(&self) -> bool {
-        match self.kind() {
-            ItemKind::Positional => self.help().is_some(),
-            ItemKind::Flag | ItemKind::Decor | ItemKind::Command => false,
+        match self {
+            Item::Positional { help, .. } => help.is_some(),
+            Item::Decor { .. }
+            | Item::Command { .. }
+            | Item::Flag { .. }
+            | Item::Argument { .. } => false,
         }
     }
 }
