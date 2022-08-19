@@ -29,7 +29,7 @@
 //!
 //! 2. Define a structure containing command line attributes and run generated function
 //! ```no_run
-//! use bpaf::{Bpaf, OptionParser};
+//! use bpaf::Bpaf;
 //!
 //! #[derive(Clone, Debug, Bpaf)]
 //! #[bpaf(options, version)]
@@ -81,7 +81,7 @@
 //!
 //! 2. Declare parsers for components, combine them and run it
 //! ```no_run
-//! use bpaf::{construct, long, OptionParser, Parser};
+//! use bpaf::{construct, long, Parser};
 //! #[derive(Clone, Debug)]
 //! struct SpeedAndDistance {
 //!     /// Dpeed in KPH
@@ -256,7 +256,6 @@ mod tests;
 #[doc(hidden)]
 pub use crate::info::Error;
 use crate::item::Item;
-use info::OptionParserStruct;
 use std::marker::PhantomData;
 #[doc(hidden)]
 pub use structs::ParseConstruct;
@@ -1308,7 +1307,7 @@ pub trait Parser<T> {
     ///         .from_str::<u32>()
     /// }
     ///
-    /// fn option_parser() -> impl OptionParser<u32> {
+    /// fn option_parser() -> OptionParser<u32> {
     ///     parser()
     ///         .to_options()
     ///         .version("3.1415")
@@ -1346,14 +1345,14 @@ pub trait Parser<T> {
     /// This is a description
     /// <skip>
     /// ```
-    fn to_options(self) -> OptionParserStruct<T, Self>
+    fn to_options(self) -> OptionParser<T>
     where
-        Self: Sized + Parser<T>,
+        Self: Sized + Parser<T> + 'static,
     {
-        OptionParserStruct {
+        OptionParser {
             info: info::Info::default(),
             inner_type: PhantomData,
-            inner: self,
+            inner: Box::new(self),
         }
     }
     // }}}
@@ -1462,7 +1461,7 @@ impl ParseFailure {
 /// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// fn options() -> impl OptionParser<(u32, u32)> {
+/// fn options() -> OptionParser<(u32, u32)> {
 ///     let width = short('w').argument("PX").from_str::<u32>();
 ///     let height = short('h').argument("PX").from_str::<u32>();
 ///     let parser = construct!(width, height);

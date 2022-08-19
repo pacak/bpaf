@@ -463,13 +463,13 @@ impl ToTokens for Top {
             kind,
         } = self;
         let outer_kind = match kind {
-            ParserKind::BParser(_) => quote!(Parser),
-            ParserKind::OParser(_) => quote!(OptionParser),
+            ParserKind::BParser(_) => quote!(impl ::bpaf::Parser<#outer_ty>),
+            ParserKind::OParser(_) => quote!(::bpaf::OptionParser<#outer_ty>),
         };
         quote!(
-            #vis fn #name() -> impl ::bpaf::#outer_kind<#outer_ty> {
-                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+            #vis fn #name() -> #outer_kind {
+                #[allow(unused_imports)]
+                use ::bpaf::Parser;
                 #kind
             }
         )
@@ -641,9 +641,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opts() -> impl ::bpaf::OptionParser<Opts> {
+            fn opts() -> ::bpaf::OptionParser<Opts> {
                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     ::bpaf::cargo_helper("asm", {
                         let verbose = ::bpaf::long("verbose").switch();
@@ -666,7 +666,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let verbose = ::bpaf::long("verbose").switch();
                     ::bpaf::construct!(Opt { verbose })
@@ -687,7 +687,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let verbose_name = ::bpaf::long("verbose-name").switch();
                     ::bpaf::construct!(Opt::Foo { verbose_name })
@@ -707,9 +707,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> impl ::bpaf::OptionParser<Opt> {
+            fn opt() -> ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                     {
                         ::bpaf::construct!(Opt {})
                     }
@@ -730,9 +730,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> impl ::bpaf::OptionParser<Opt> {
+            fn opt() -> ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     ::bpaf::construct!(Opt {})
                 }
@@ -755,7 +755,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let inner_cmd =
                         { ::bpaf::construct!(Opt {}) }
@@ -786,7 +786,7 @@ mod test {
         let expected = quote! {
             fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let alt0 = {
                         let inner_cmd = {
@@ -824,9 +824,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> impl ::bpaf::OptionParser<Opt> {
+            fn opt() -> ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let f0 = ::bpaf::positional_os("ARG").help("help").map(PathBuf::from);
                     ::bpaf::construct!(Opt(f0))
@@ -847,9 +847,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt1() -> impl ::bpaf::OptionParser<Opt1> {
+            fn opt1() -> ::bpaf::OptionParser<Opt1> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     let f1 = ::bpaf::positional("ARG").from_str::<usize>();
@@ -884,7 +884,7 @@ mod test {
         let expected = quote! {
             pub fn opt() -> impl ::bpaf::Parser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let alt0 = ::bpaf::long("Foo").req_flag(Opt::Foo);
                     let alt1 = ::bpaf::short('p').req_flag(Opt::Pff);
@@ -928,9 +928,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn opt() -> impl ::bpaf::OptionParser<Opt> {
+            fn opt() -> ::bpaf::OptionParser<Opt> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Opt(f0))
@@ -953,9 +953,9 @@ mod test {
             }
         };
         let expected = quote! {
-            fn action() -> impl ::bpaf::OptionParser<Action> {
+            fn action() -> ::bpaf::OptionParser<Action> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let alt0 = ::bpaf::long("alpha").req_flag(Action::Alpha);
                     let alt1 = ::bpaf::long("beta").req_flag(Action::Beta);
@@ -980,7 +980,7 @@ mod test {
         let expected = quote! {
             fn command() -> impl ::bpaf::Parser<Command> {
                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let inner_cmd = {
                         let i = ::bpaf::short('i').switch();
@@ -1009,9 +1009,9 @@ mod test {
         };
 
         let expected = quote! {
-            fn action() -> impl ::bpaf::OptionParser<Action> {
+            fn action() -> ::bpaf::OptionParser<Action> {
                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     ::bpaf::cargo_helper("subcargo", {
                         let alt0 = {
@@ -1045,7 +1045,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1068,7 +1068,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1091,7 +1091,7 @@ mod test {
         let expected = quote! {
             fn options() -> impl ::bpaf::Parser<Options> {
                 #[allow (unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
@@ -1114,7 +1114,7 @@ mod test {
         let expected = quote! {
             fn decision() -> impl ::bpaf::Parser<Decision> {
                 #[allow(unused_imports)]
-                use ::bpaf::{OptionParser, Parser};
+                use ::bpaf::Parser;
                 {
                     let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
                     let alt1 = ::bpaf::long("no")

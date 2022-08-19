@@ -32,5 +32,5 @@ enum Action {
 }
 
 fn main() {
-    println!("{:?}", OptionParser::run(options()));
+    println!("{:?}", options().run());
 }

@@ -28,7 +28,7 @@ bpaf = { version = "0.5", features = ["derive"] }
 
 
 ```rust
-use bpaf::{Bpaf, OptionParser};
+use bpaf::Bpaf;
 
 #[derive(Clone, Debug, Bpaf)]
 #[bpaf(options, version)]
@@ -87,7 +87,7 @@ bpaf = "0.5"
 
 
 ```rust
-use bpaf::{construct, long, OptionParser, Parser};
+use bpaf::{construct, long, Parser};
 #[derive(Clone, Debug)]
 struct SpeedAndDistance {
     /// Dpeed in KPH
@@ -242,7 +242,7 @@ Usage --user <ARG>
 ```
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGxDnpFP8zWx8G7slxfCWZYSGG9GXTExypTIYGzLqfaxAqquQYWSBgmRicGFmZjAuNC4xMg
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGxZdIyDPSL3MG_bv4qUAteI6G1Sqm0jeZ7pnG1XITz95ELScYWSBgmRicGFmZjAuNC4xMg
  [__link0]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_combinatoric_tutorial
  [__link3]: https://docs.rs/bpaf/0.4.12/bpaf/?search=info::OptionParser::run_inner

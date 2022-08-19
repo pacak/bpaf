@@ -203,32 +203,23 @@ fn check_unexpected(args: &Args) -> Result<(), Error> {
     }
 }
 
-#[derive(Clone)]
-/// Parser with atteched meta information
-pub struct OptionParserStruct<T, P> {
-    pub(crate) inner: P,
+/// Ready to run [`Parser`] with additional information attached
+///
+/// Created with [`to_options`](Parser::to_options)
+pub struct OptionParser<T> {
+    pub(crate) inner: Box<dyn Parser<T>>,
     pub(crate) inner_type: PhantomData<T>,
     pub(crate) info: Info,
 }
 
-/// Ready to run [`Parser`] with additional information attached
-///
-/// Created with [`to_options`](Parser::to_options)
-// There's only one struct that implements this trait: OptionParserStruct and the only
-// reason for keeping it a as a trait is having type signatures more user friendly:
-// with trait:
-// fn foo() -> impl OptionParser<Foo>
-// with struct:
-// fn foo() -> OptionParser<Foo, impl Parser<Foo>>
-// With https://github.com/rust-lang/rust/issues/63063 it should be able to remove this
-pub trait OptionParser<T> {
+impl<T> OptionParser<T> {
     /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
     ///
     /// # Usage
     /// ```no_run
     /// # use bpaf::*;
     /// /// Parses number of repetitions of `-v` on a command line
-    /// fn verbosity() -> impl OptionParser<usize> {
+    /// fn verbosity() -> OptionParser<usize> {
     ///     let parser = short('v')
     ///         .req_flag(())
     ///         .many()
@@ -244,7 +235,7 @@ pub trait OptionParser<T> {
     /// }
     /// ```
     #[must_use]
-    fn run(self) -> T
+    pub fn run(self) -> T
     where
         Self: Sized,
     {
@@ -302,7 +293,7 @@ pub trait OptionParser<T> {
     /// [`parse`](Parser::parse), stdout/stderr isn't actually captured.
     ///
     /// Exact string reperentations may change between versions including minor releases.
-    fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
+    pub fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
     where
         Self: Sized,
     {
@@ -320,267 +311,7 @@ pub trait OptionParser<T> {
 
     /// Run subparser, implementation detail
     #[doc(hidden)]
-    fn run_subparser(&self, args: &mut Args) -> Result<T, Error>;
-
-    /// Get first line of description if Available
-    ///
-    /// Used internally to avoid duplicating description for [`command`].
-    #[doc(hidden)]
-    fn short_descr(&self) -> Option<&'static str>;
-
-    /// Set the version field.
-    ///
-    /// By default bpaf won't include any version info and won't accept `--version` switch.
-    ///
-    /// # Combinatoric usage
-    ///
-    /// ```rust
-    /// use bpaf::*;
-    /// fn options() -> impl OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .version(env!("CARGO_PKG_VERSION"))
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// `version` annotation is available after `options` and `command` annotations, takes
-    /// an optional argument - version value to use, otherwise `bpaf_derive` would use value from cargo.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, version)]
-    /// struct Options {
-    ///     #[bpaf(short)]
-    ///     switch: bool
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app --version
-    /// Version: 0.5.0
-    /// ```
-    #[must_use]
-    fn version(self, version: &'static str) -> Self;
-
-    /// Set the description field
-    ///
-    /// Description field should be 1-2 lines long briefly explaining program purpose. If
-    /// description field is present `bpaf` would print it right before the usage line.
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> impl OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .descr("This is a description")
-    ///        .header("This is a header")
-    ///        .footer("This is a footer")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
-    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
-    /// description, second block - header, third block - footer.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, version)]
-    /// /// This is a description
-    /// ///
-    /// ///
-    /// /// This is a header
-    /// ///
-    /// ///
-    /// /// This is a footer
-    /// ///
-    /// ///
-    /// /// This is just a comment
-    /// struct Options {
-    ///     #[bpaf(short)]
-    ///     switch: bool
-    /// }
-    /// ```
-    ///
-    /// # Example
-    ///
-    /// ```console
-    /// This is a description
-    ///
-    /// Usage: [-s]
-    ///
-    /// This is a header
-    ///
-    /// Available options:
-    ///     -s
-    ///     -h, --help     Prints help information
-    ///     -V, --version  Prints version information
-    ///
-    /// This is a footer
-    /// ```
-    #[must_use]
-    fn descr(self, descr: &'static str) -> Self;
-
-    /// Set the header field
-    ///
-    /// `bpaf` displays the header between the usage line and a list of the available options in `--help` output
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> impl OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .descr("This is a description")
-    ///        .header("This is a header")
-    ///        .footer("This is a footer")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
-    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
-    /// description, second block - header, third block - footer.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, version)]
-    /// /// This is a description
-    /// ///
-    /// ///
-    /// /// This is a header
-    /// ///
-    /// ///
-    /// /// This is a footer
-    /// ///
-    /// ///
-    /// /// This is just a comment
-    /// struct Options {
-    ///     #[bpaf(short)]
-    ///     switch: bool
-    /// }
-    /// ```
-    ///
-    /// # Example
-    ///
-    /// ```console
-    /// This is a description
-    ///
-    /// Usage: [-s]
-    ///
-    /// This is a header
-    ///
-    /// Available options:
-    ///     -s
-    ///     -h, --help     Prints help information
-    ///     -V, --version  Prints version information
-    ///
-    /// This is a footer
-    /// ```
-    #[must_use]
-    fn header(self, header: &'static str) -> Self;
-
-    /// Set the footer field
-    ///
-    /// `bpaf` displays the footer after list of the available options in `--help` output
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> impl OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .descr("This is a description")
-    ///        .header("This is a header")
-    ///        .footer("This is a footer")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
-    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
-    /// description, second block - header, third block - footer.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, version)]
-    /// /// This is a description
-    /// ///
-    /// ///
-    /// /// This is a header
-    /// ///
-    /// ///
-    /// /// This is a footer
-    /// ///
-    /// ///
-    /// /// This is just a comment
-    /// struct Options {
-    ///     #[bpaf(short)]
-    ///     switch: bool
-    /// }
-    /// ```
-    ///
-    /// # Example
-    ///
-    /// ```console
-    /// This is a description
-    ///
-    /// Usage: [-s]
-    ///
-    /// This is a header
-    ///
-    /// Available options:
-    ///     -s
-    ///     -h, --help     Prints help information
-    ///     -V, --version  Prints version information
-    ///
-    /// This is a footer
-    /// ```
-    #[must_use]
-    fn footer(self, footer: &'static str) -> Self;
-
-    /// Set custom usage field
-    ///
-    /// Custom usage field to use instead of one derived by `bpaf`
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> impl OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .usage("-s")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// Not available at the moment
-    #[must_use]
-    fn usage(self, usage: &'static str) -> Self;
-}
-
-impl<T, P> OptionParser<T> for OptionParserStruct<T, P>
-where
-    P: Parser<T>,
-{
-    fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
+    pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let mut reg_args = args.clone();
 
         let err = match self.inner.eval(&mut reg_args) {
@@ -620,31 +351,268 @@ where
 
         //self.inner.run(args)
     }
-
-    fn short_descr(&self) -> Option<&'static str> {
+    /// Get first line of description if Available
+    ///
+    /// Used internally to avoid duplicating description for [`command`].
+    #[doc(hidden)]
+    pub fn short_descr(&self) -> Option<&'static str> {
         self.info.descr.and_then(|descr| descr.lines().next())
     }
 
-    fn version(mut self, version: &'static str) -> Self {
+    /// Set the version field.
+    ///
+    /// By default bpaf won't include any version info and won't accept `--version` switch.
+    ///
+    /// # Combinatoric usage
+    ///
+    /// ```rust
+    /// use bpaf::*;
+    /// fn options() -> OptionParser<bool>  {
+    ///    short('s')
+    ///        .switch()
+    ///        .to_options()
+    ///        .version(env!("CARGO_PKG_VERSION"))
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `version` annotation is available after `options` and `command` annotations, takes
+    /// an optional argument - version value to use, otherwise `bpaf_derive` would use value from cargo.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, version)]
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --version
+    /// Version: 0.5.0
+    /// ```
+    #[must_use]
+    pub fn version(mut self, version: &'static str) -> Self {
         self.info.version = Some(version);
         self
     }
-
-    fn descr(mut self, descr: &'static str) -> Self {
+    /// Set the description field
+    ///
+    /// Description field should be 1-2 lines long briefly explaining program purpose. If
+    /// description field is present `bpaf` would print it right before the usage line.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn options() -> OptionParser<bool>  {
+    ///    short('s')
+    ///        .switch()
+    ///        .to_options()
+    ///        .descr("This is a description")
+    ///        .header("This is a header")
+    ///        .footer("This is a footer")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, version)]
+    /// /// This is a description
+    /// ///
+    /// ///
+    /// /// This is a header
+    /// ///
+    /// ///
+    /// /// This is a footer
+    /// ///
+    /// ///
+    /// /// This is just a comment
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
+    ///
+    /// # Example
+    ///
+    /// ```console
+    /// This is a description
+    ///
+    /// Usage: [-s]
+    ///
+    /// This is a header
+    ///
+    /// Available options:
+    ///     -s
+    ///     -h, --help     Prints help information
+    ///     -V, --version  Prints version information
+    ///
+    /// This is a footer
+    /// ```
+    #[must_use]
+    pub fn descr(mut self, descr: &'static str) -> Self {
         self.info.descr = Some(descr);
         self
     }
-
-    fn header(mut self, header: &'static str) -> Self {
+    /// Set the header field
+    ///
+    /// `bpaf` displays the header between the usage line and a list of the available options in `--help` output
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn options() -> OptionParser<bool>  {
+    ///    short('s')
+    ///        .switch()
+    ///        .to_options()
+    ///        .descr("This is a description")
+    ///        .header("This is a header")
+    ///        .footer("This is a footer")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, version)]
+    /// /// This is a description
+    /// ///
+    /// ///
+    /// /// This is a header
+    /// ///
+    /// ///
+    /// /// This is a footer
+    /// ///
+    /// ///
+    /// /// This is just a comment
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
+    ///
+    /// # Example
+    ///
+    /// ```console
+    /// This is a description
+    ///
+    /// Usage: [-s]
+    ///
+    /// This is a header
+    ///
+    /// Available options:
+    ///     -s
+    ///     -h, --help     Prints help information
+    ///     -V, --version  Prints version information
+    ///
+    /// This is a footer
+    /// ```
+    #[must_use]
+    pub fn header(mut self, header: &'static str) -> Self {
         self.info.header = Some(header);
         self
     }
-
-    fn footer(mut self, footer: &'static str) -> Self {
+    /// Set the footer field
+    ///
+    /// `bpaf` displays the footer after list of the available options in `--help` output
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn options() -> OptionParser<bool>  {
+    ///    short('s')
+    ///        .switch()
+    ///        .to_options()
+    ///        .descr("This is a description")
+    ///        .header("This is a header")
+    ///        .footer("This is a footer")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `bpaf_derive` uses doc comments on the `struct` / `enum` to derive description, it skips single empty
+    /// lines and uses double empty lines break it into blocks. `bpaf_derive` would use first block as the
+    /// description, second block - header, third block - footer.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, version)]
+    /// /// This is a description
+    /// ///
+    /// ///
+    /// /// This is a header
+    /// ///
+    /// ///
+    /// /// This is a footer
+    /// ///
+    /// ///
+    /// /// This is just a comment
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
+    ///
+    /// # Example
+    ///
+    /// ```console
+    /// This is a description
+    ///
+    /// Usage: [-s]
+    ///
+    /// This is a header
+    ///
+    /// Available options:
+    ///     -s
+    ///     -h, --help     Prints help information
+    ///     -V, --version  Prints version information
+    ///
+    /// This is a footer
+    /// ```
+    #[must_use]
+    pub fn footer(mut self, footer: &'static str) -> Self {
         self.info.footer = Some(footer);
         self
     }
-    fn usage(mut self, usage: &'static str) -> Self {
+    /// Set custom usage field
+    ///
+    /// Custom usage field to use instead of one derived by `bpaf`
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn options() -> OptionParser<bool>  {
+    ///    short('s')
+    ///        .switch()
+    ///        .to_options()
+    ///        .usage("-s")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// Not available at the moment
+    #[must_use]
+    pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
         self
     }

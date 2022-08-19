@@ -1,7 +1,7 @@
 //! Parsing snippet from cargo-show-asm
 //! Derive + typed fallback + external both with and without name
 
-use bpaf::{construct, long, short, Bpaf, OptionParser, Parser};
+use bpaf::{construct, long, short, Bpaf, Parser};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Bpaf)]

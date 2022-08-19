@@ -26,10 +26,7 @@ fn main() {
     );
 
     // packing things in a struct assumes parser for each field is in scope.
-    let opt = bpaf::OptionParser::run(bpaf::Parser::to_options(bpaf::construct!(Out {
-        debug,
-        speed
-    })));
+    let opt = bpaf::Parser::to_options(bpaf::construct!(Out { debug, speed })).run();
 
     println!("{:#?}", opt);
 }

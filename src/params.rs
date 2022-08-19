@@ -713,7 +713,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// };
 ///
 /// // First of all you need an inner parser
-/// fn check_workspace() -> impl OptionParser<Cmd> {
+/// fn check_workspace() -> OptionParser<Cmd> {
 ///     // Define a parser to use in a subcommand in a usual way.
 ///     // This parser accepts a single --workspace switch
 ///     let workspace = long("workspace")
@@ -762,9 +762,8 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// ```
 ///
 #[must_use]
-pub fn command<P, T>(name: &'static str, subparser: P) -> Command<P>
+pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> Command<T>
 where
-    P: OptionParser<T>,
     T: 'static,
 {
     Command {
@@ -778,12 +777,11 @@ where
 /// Builder structure for the [`command`]
 ///
 /// Created with [`command`], implements parser for the inner structure, gives access to [`help`](Command::help).
-#[derive(Clone)]
-pub struct Command<P> {
+pub struct Command<T> {
     longs: Vec<&'static str>,
     shorts: Vec<char>,
     help: Option<String>,
-    subparser: P,
+    subparser: OptionParser<T>,
 }
 
 impl<P> Command<P> {
@@ -797,7 +795,7 @@ impl<P> Command<P> {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// fn inner() -> impl OptionParser<bool> {
+    /// fn inner() -> OptionParser<bool> {
     ///     short('i')
     ///         .help("Mysterious inner switch")
     ///         .switch()
@@ -859,10 +857,7 @@ impl<P> Command<P> {
     }
 }
 
-impl<P, T> Parser<T> for Command<P>
-where
-    P: OptionParser<T>,
-{
+impl<T> Parser<T> for Command<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))

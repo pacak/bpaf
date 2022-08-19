@@ -1,5 +1,3 @@
-//use crate::OptionParser;
-//use crate::Parser;
 use crate::*;
 use std::str::FromStr;
 
@@ -534,7 +532,7 @@ mod git {
         },
     }
 
-    fn setup() -> impl info::OptionParser<Opt> {
+    fn setup() -> info::OptionParser<Opt> {
         let dry_run = long("dry_run").switch();
         let all = long("all").switch();
         let repository = positional("SRC").fallback("origin".to_string());
@@ -826,7 +824,7 @@ Available options:
 
 #[test]
 fn help_with_default_parse() {
-    use bpaf::{OptionParser, Parser};
+    use bpaf::Parser;
     #[derive(Debug, Clone, Bpaf)]
     enum Action {
         /// Add a new TODO item
@@ -887,7 +885,7 @@ fn command_and_fallback() {
         NoAction,
     }
 
-    use bpaf::{OptionParser, Parser};
+    use bpaf::Parser;
     let parser = action().fallback(Action::NoAction).to_options();
 
     let help = parser

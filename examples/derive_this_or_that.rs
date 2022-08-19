@@ -2,7 +2,7 @@
 //! combination of `req_flag` and `construct!([on, off, undecined])`
 
 #![allow(dead_code)]
-use bpaf::{Bpaf, OptionParser};
+use bpaf::Bpaf;
 
 // By default bpaf tries to parse booleans as flags, do something smart
 // about Strings and file names and handles Option/Vec.
