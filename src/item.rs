@@ -194,7 +194,14 @@ impl Item {
             Item::Flag { name, .. } => name.full_width(),
             Item::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
             Item::Positional { metavar, .. } => metavar.len() + 2,
-            Item::Command { name, short, .. } => name.len() + short.map_or(0, |_| 3),
+            Item::Command {
+                name, short: None, ..
+            } => name.len(),
+            Item::Command {
+                name,
+                short: Some(_),
+                ..
+            } => name.len() + 3,
         }
     }
 

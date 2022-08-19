@@ -93,7 +93,7 @@ mod inner {
         }
     }
 
-    pub struct ArgsIter<'a> {
+    pub(crate) struct ArgsIter<'a> {
         args: &'a Args,
         cur: usize,
     }
@@ -143,7 +143,7 @@ pub use inner::*;
 
 /// Preprocessed command line argument
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Arg {
+pub(crate) enum Arg {
     /// short flag
     Short(char),
     /// long flag
