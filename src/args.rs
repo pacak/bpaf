@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, Named};
 use std::ffi::OsString;
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
@@ -165,22 +165,6 @@ impl std::fmt::Display for Arg {
     }
 }
 
-impl Arg {
-    pub(crate) fn is_short(&self, short: char) -> bool {
-        match self {
-            &Arg::Short(c) => c == short,
-            Arg::Long(_) | Arg::Word(..) => false,
-        }
-    }
-
-    pub(crate) fn is_long(&self, long: &str) -> bool {
-        match self {
-            Arg::Long(l) => long == *l,
-            Arg::Short(_) | Arg::Word(..) => false,
-        }
-    }
-}
-
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
     // if after "--" sign or there's no utf8 representation for
     // an item - it can only be a positional argument
@@ -241,11 +225,10 @@ impl Args {
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
-    pub(crate) fn take_flag<P>(&mut self, predicate: P) -> bool
-    where
-        P: Fn(&Arg) -> bool,
-    {
-        let mut iter = self.items_iter().skip_while(|i| !predicate(i.1));
+    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
+        let mut iter = self
+            .items_iter()
+            .skip_while(|arg| !named.matches_arg(arg.1));
         if let Some((ix, _)) = iter.next() {
             self.remove(ix);
             true
@@ -258,11 +241,10 @@ impl Args {
     ///
     /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
-    pub(crate) fn take_arg<P>(&mut self, predicate: P) -> Result<Option<Word>, Error>
-    where
-        P: Fn(&Arg) -> bool,
-    {
-        let mut iter = self.items_iter().skip_while(|i| !predicate(i.1));
+    pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<Word>, Error> {
+        let mut iter = self
+            .items_iter()
+            .skip_while(|arg| !named.matches_arg(arg.1));
         let (key_ix, arg) = match iter.next() {
             Some(v) => v,
             None => return Ok(None),
@@ -320,17 +302,18 @@ impl Args {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{long, short};
     #[test]
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
     #[test]
     fn long_flag_and_positional() {
         let mut a = Args::from(&["--speed", "12"]);
-        let flag = a.take_flag(|f| f.is_long("speed"));
+        let flag = a.take_flag(&long("speed"));
         assert!(flag);
         assert!(!a.is_empty());
         let s = a.take_positional_word().unwrap().unwrap();
@@ -341,17 +324,17 @@ mod tests {
     #[test]
     fn multiple_short_flags() {
         let mut a = Args::from(&["-vvv"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(!a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(!a.take_flag(&short('v')));
         assert!(a.is_empty());
     }
 
     #[test]
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -359,7 +342,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
@@ -367,7 +350,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -375,7 +358,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
@@ -383,7 +366,7 @@ mod tests {
     #[test]
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -391,18 +374,18 @@ mod tests {
     #[test]
     fn two_short_flags() {
         let mut a = Args::from(&["-s", "-v"]);
-        assert!(a.take_flag(|f| f.is_short('s')));
-        assert!(a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('s')));
+        assert!(a.take_flag(&short('v')));
         assert!(a.is_empty());
     }
 
     #[test]
     fn two_short_flags2() {
         let mut a = Args::from(&["-s", "-v"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(!a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('s')));
-        assert!(!a.take_flag(|f| f.is_short('s')));
+        assert!(a.take_flag(&short('v')));
+        assert!(!a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('s')));
+        assert!(!a.take_flag(&short('s')));
         assert!(a.is_empty());
     }
 
@@ -410,7 +393,7 @@ mod tests {
     fn command_with_flags() {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "v");
         assert!(a.is_empty());
     }
@@ -427,7 +410,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash() {
         let mut a = Args::from(&["-v", "--", "-x"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "-x");
         assert!(a.is_empty());
@@ -436,7 +419,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash2() {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
-        let w = a.take_arg(|f| f.is_short('v')).unwrap().unwrap();
+        let w = a.take_arg(&short('v')).unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "12");
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "-x");

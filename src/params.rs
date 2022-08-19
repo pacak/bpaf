@@ -593,6 +593,14 @@ impl Named {
     pub fn argument_os(self, metavar: &'static str) -> impl Parser<OsString> {
         build_argument(self, metavar).map(|x| x.os)
     }
+
+    pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
+        match arg {
+            Arg::Short(s) => self.short.contains(s),
+            Arg::Long(l) => self.long.contains(&l.as_str()),
+            Arg::Word(_) => false,
+        }
+    }
 }
 
 /// Positional argument in utf8 (`String`) encoding
@@ -883,10 +891,6 @@ impl<T> Parser<T> for Command<T> {
     }
 }
 
-fn short_or_long_flag(arg: &Arg, named: &Named) -> bool {
-    named.short.iter().any(|&c| arg.is_short(c)) || named.long.iter().any(|s| arg.is_long(s))
-}
-
 fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Parser<T>
 where
     T: Clone + 'static,
@@ -907,8 +911,7 @@ struct BuildFlagParser<T> {
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        if args.take_flag(|arg| short_or_long_flag(arg, &self.named))
-            || self.named.env.iter().find_map(std::env::var_os).is_some()
+        if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             Ok(self.present.clone())
         } else {
@@ -948,7 +951,7 @@ struct BuildArgument {
 
 impl Parser<Word> for BuildArgument {
     fn eval(&self, args: &mut Args) -> Result<Word, Error> {
-        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &self.named))? {
+        if let Some(w) = args.take_arg(&self.named)? {
             Ok(w)
         } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             Ok(Word::from(val))
