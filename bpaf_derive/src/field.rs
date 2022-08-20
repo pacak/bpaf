@@ -155,6 +155,7 @@ enum ConsumerAttr {
     Pos(LitStr),
     PosOs(LitStr),
     Switch,
+    Flag(Box<Expr>, Box<Expr>), // incomplete
 }
 
 #[derive(Debug, Clone)]
@@ -348,6 +349,14 @@ impl Parse for ConsumerAttr {
         } else if input.peek(kw::switch) {
             input.parse::<kw::switch>()?;
             Ok(Self::Switch)
+        } else if input.peek(kw::flag) {
+            input.parse::<kw::flag>()?;
+            let content;
+            let _ = parenthesized!(content in input);
+            let a = content.parse()?;
+            content.parse::<token::Comma>()?;
+            let b = content.parse()?;
+            Ok(Self::Flag(Box::new(a), Box::new(b)))
         } else {
             Err(input.error("Not a consumer attribute"))
         }
@@ -663,7 +672,10 @@ impl FieldAttrs<StrictNameAttr> {
 impl<T> FieldAttrs<T> {
     fn consumer_needs_name(&self) -> Option<bool> {
         Some(match self.consumer.as_ref()? {
-            ConsumerAttr::Arg(_) | ConsumerAttr::ArgOs(_) | ConsumerAttr::Switch => true,
+            ConsumerAttr::Arg(_)
+            | ConsumerAttr::ArgOs(_)
+            | ConsumerAttr::Switch
+            | ConsumerAttr::Flag(_, _) => true,
             ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => false,
         })
     }
@@ -752,6 +764,7 @@ impl ToTokens for ConsumerAttr {
             ConsumerAttr::Pos(arg) => quote!(positional(#arg)),
             ConsumerAttr::PosOs(arg) => quote!(positional_os(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
+            ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
         }
         .to_tokens(tokens);
     }
@@ -1200,11 +1213,48 @@ mod tests {
     #[test]
     fn implicit_switch_argument() {
         let input: NamedField = parse_quote! {
-            #[bpaf(switch)]
             item: bool
         };
         let output = quote! {
             ::bpaf::long("item").switch()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn explicit_flag_argument_1() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(true, false))]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(true, false)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn explicit_flag_argument_2() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(True, False))]
+            item: Bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(True, False)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn explicit_flag_argument_3() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(True, False), optional)]
+            item: Option<Bool>
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(True, False).optional()
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
