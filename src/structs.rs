@@ -373,14 +373,14 @@ where
 }
 
 /// Create parser from a function, [`construct!`] uses it internally
-pub struct ParseConstruct<P> {
-    /// TODO
+pub struct PCon<P> {
+    /// inner parser closure
     pub inner: P,
-    /// TODO
+    /// metas for inner parsers
     pub meta: Meta,
 }
 
-impl<T, P> Parser<T> for ParseConstruct<P>
+impl<T, P> Parser<T> for PCon<P>
 where
     P: Fn(&mut Args) -> Result<T, Error>,
 {

@@ -259,7 +259,7 @@ pub use crate::info::Error;
 use crate::item::Item;
 use std::marker::PhantomData;
 #[doc(hidden)]
-pub use structs::ParseConstruct;
+pub use structs::PCon;
 
 use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
@@ -447,7 +447,7 @@ macro_rules! construct {
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };
-        $crate::ParseConstruct { inner, meta }
+        $crate::PCon { inner, meta }
     }};
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };

@@ -80,28 +80,4 @@ impl Item {
             Meta::Optional(Box::new(Meta::Item(self)))
         }
     }
-
-    #[must_use]
-    pub(crate) fn is_command(&self) -> bool {
-        match self {
-            Item::Command { .. } => true,
-            Item::Positional { .. } | Item::Flag { .. } | Item::Argument { .. } => false,
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn is_flag(&self) -> bool {
-        match self {
-            Item::Positional { .. } | Item::Command { .. } => false,
-            Item::Flag { .. } | Item::Argument { .. } => true,
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn is_positional(&self) -> bool {
-        match self {
-            Item::Positional { help, .. } => help.is_some(),
-            Item::Command { .. } | Item::Flag { .. } | Item::Argument { .. } => false,
-        }
-    }
 }
