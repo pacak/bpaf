@@ -1414,9 +1414,9 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
 /// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
-    /// Terminate and print this to stdout
+    /// Print this to stdout and exit with success code
     Stdout(String),
-    /// Terminate and print this to stderr
+    /// Print this to stderr and exit with failure code
     Stderr(String),
 }
 

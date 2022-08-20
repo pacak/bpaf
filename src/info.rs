@@ -141,13 +141,18 @@ impl<T> OptionParser<T> {
         }
     }
 
-    /// Execute the [`OptionParser`] and produce a values for unit tests
+    /// Execute the [`OptionParser`] and produce a values for unit tests or manual processing
     ///
-    /// ```
+    /// ```rust
+    /// # use bpaf::*;
+    /// # /*
     /// #[test]
     /// fn positional_argument() {
-    ///     let p = positional("FILE").help("File to process");
-    ///     let parser = Info::default().for_parser(p);
+    /// # */
+    ///     let parser =
+    ///         positional("FILE")
+    ///             .help("File to process")
+    ///             .to_options();
     ///
     ///     let help = parser
     ///         .run_inner(Args::from(&["--help"]))
@@ -156,11 +161,16 @@ impl<T> OptionParser<T> {
     ///     let expected_help = "\
     /// Usage: <FILE>
     ///
+    /// Available positional items:
+    ///     <FILE>  File to process
+    ///
     /// Available options:
-    ///     -h, --help   Prints help information
+    ///     -h, --help  Prints help information
     /// ";
     ///     assert_eq!(expected_help, help);
+    /// # /*
     /// }
+    /// # */
     /// ```
     ///
     /// See also [`Args`] and it's `From` impls to produce input and
