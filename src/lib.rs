@@ -247,6 +247,7 @@ mod args;
 mod info;
 mod item;
 mod meta;
+mod meta_usage;
 mod params;
 mod structs;
 
