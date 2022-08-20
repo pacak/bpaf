@@ -906,6 +906,7 @@ impl<T> Parser<T> for Command<T> {
                 args.take_cmd(&tmp)
             })
         {
+            args.head = usize::MAX;
             self.subparser.run_subparser(args)
         } else {
             Err(Error::Missing(vec![self.meta()]))

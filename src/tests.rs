@@ -1171,3 +1171,23 @@ fn many_doesnt_panic() {
     let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
     assert_eq!(r, 3);
 }
+
+#[test]
+fn command_resets_left_head_state() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Foo {
+        Bar1 { a: u32 },
+        Bar2 { b: () },
+    }
+
+    let a = short('a').argument("A").from_str::<u32>().fallback(0);
+    let b = short('b').req_flag(());
+
+    let p1 = construct!(Foo::Bar1 { a });
+    let p2 = construct!(Foo::Bar2 { b });
+    let p = construct!([p1, p2]);
+    let cmd = command("cmd", p.to_options()).to_options();
+
+    let xx = cmd.run_inner(Args::from(&["cmd", "-b"])).unwrap();
+    assert_eq!(xx, Foo::Bar2 { b: () });
+}
