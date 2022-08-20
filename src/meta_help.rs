@@ -1,4 +1,5 @@
 #![allow(clippy::write_with_newline)]
+#![allow(clippy::match_like_matches_macro)]
 use crate::{info::Info, item::ShortLong, Meta};
 
 #[derive(Debug)]
@@ -26,6 +27,92 @@ enum HelpItem<'a> {
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
+}
+
+#[derive(Default, Debug)]
+struct HelpItems<'a> {
+    cmds: Vec<HelpItem<'a>>,
+    psns: Vec<HelpItem<'a>>,
+    flgs: Vec<HelpItem<'a>>,
+}
+
+impl HelpItem<'_> {
+    pub fn is_decor(&self) -> bool {
+        match self {
+            HelpItem::Decor { .. } => true,
+            _ => false,
+        }
+    }
+}
+
+impl<'a> HelpItems<'a> {
+    fn classify(&mut self, meta: &'a Meta) {
+        match meta {
+            Meta::And(xs) | Meta::Or(xs) => {
+                for x in xs {
+                    self.classify(x);
+                }
+            }
+            Meta::Optional(x) | Meta::Many(x) => self.classify(x),
+            Meta::Item(item) => match item {
+                crate::item::Item::Positional { metavar, help } => {
+                    if help.is_some() {
+                        self.psns.push(HelpItem::Positional {
+                            metavar,
+                            help: help.as_deref(),
+                        });
+                    }
+                }
+                crate::item::Item::Command { name, short, help } => {
+                    self.cmds.push(HelpItem::Command {
+                        name,
+                        short: *short,
+                        help: help.as_deref(),
+                    });
+                }
+                crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
+                    name: ShortLongHelp(*name),
+                    help: help.as_deref(),
+                }),
+                crate::item::Item::Argument {
+                    name,
+                    metavar,
+                    env,
+                    help,
+                } => self.flgs.push(HelpItem::Argument {
+                    name: ShortLongHelp(*name),
+                    metavar,
+                    env: *env,
+                    help: help.as_deref(),
+                }),
+            },
+            Meta::Decorated(m, help) => {
+                self.flgs.push(HelpItem::Decor { help });
+                self.cmds.push(HelpItem::Decor { help });
+                self.psns.push(HelpItem::Decor { help });
+                self.classify(m);
+
+                if self.flgs.last().map_or(false, HelpItem::is_decor) {
+                    self.flgs.pop();
+                } else {
+                    self.flgs.push(HelpItem::BlankDecor);
+                }
+
+                if self.cmds.last().map_or(false, HelpItem::is_decor) {
+                    self.cmds.pop();
+                } else {
+                    self.cmds.push(HelpItem::BlankDecor);
+                }
+
+                if self.psns.last().map_or(false, HelpItem::is_decor) {
+                    self.psns.pop();
+                } else {
+                    self.psns.push(HelpItem::BlankDecor);
+                }
+            }
+            Meta::Skip => (),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -184,56 +271,6 @@ impl HelpItem<'_> {
     }
 }
 
-impl Meta {
-    fn commands(&self) -> Vec<HelpItem> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, crate::item::Item::is_command);
-        res
-    }
-
-    fn flags(&self) -> Vec<HelpItem> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, crate::item::Item::is_flag);
-        res
-    }
-
-    fn poss(&self) -> Vec<HelpItem> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, crate::item::Item::is_positional);
-        res
-    }
-
-    fn collect_items<'a, F>(&'a self, res: &mut Vec<HelpItem<'a>>, pred: F)
-    where
-        F: Fn(&crate::item::Item) -> bool + Copy,
-    {
-        match self {
-            Meta::Skip => {}
-            Meta::And(xs) | Meta::Or(xs) => {
-                for x in xs {
-                    x.collect_items(res, pred);
-                }
-            }
-            Meta::Many(a) | Meta::Optional(a) => a.collect_items(res, pred),
-            Meta::Item(i) => {
-                if pred(i) {
-                    res.push(HelpItem::from(i));
-                }
-            }
-            Meta::Decorated(x, msg) => {
-                res.push(HelpItem::Decor { help: msg.as_ref() });
-                let prev_len = res.len();
-                x.collect_items(res, pred);
-                if res.len() == prev_len {
-                    res.pop();
-                } else {
-                    res.push(HelpItem::BlankDecor);
-                }
-            }
-        }
-    }
-}
-
 pub(crate) fn render_help(
     info: &Info,
     parser_meta: Meta,
@@ -245,39 +282,55 @@ pub(crate) fn render_help(
     if let Some(t) = info.descr {
         write!(res, "{}\n\n", t)?;
     }
+
     if let Some(u) = info.usage {
         write!(res, "{}\n", u)?;
     } else if let Some(usage) = parser_meta.as_usage_meta() {
         write!(res, "Usage: {}\n", usage)?;
     }
+
     if let Some(t) = info.header {
         write!(res, "\n{}\n", t)?;
     }
-    let meta = Meta::And(vec![parser_meta, help_meta]);
 
-    let poss = &meta.poss();
-    if !poss.is_empty() {
-        let max_width = poss.iter().map(HelpItem::full_width).max().unwrap_or(0);
+    let mut items = HelpItems::default();
+    items.classify(&parser_meta);
+    items.classify(&help_meta);
+    if !items.psns.is_empty() {
+        let max_width = items
+            .psns
+            .iter()
+            .map(HelpItem::full_width)
+            .max()
+            .unwrap_or(0);
         write!(res, "\nAvailable positional items:\n")?;
-        for i in poss {
+        for i in items.psns {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
 
-    let flags = &meta.flags();
-    if !flags.is_empty() {
-        let max_width = flags.iter().map(HelpItem::full_width).max().unwrap_or(0);
+    if !items.flgs.is_empty() {
+        let max_width = items
+            .flgs
+            .iter()
+            .map(HelpItem::full_width)
+            .max()
+            .unwrap_or(0);
         write!(res, "\nAvailable options:\n")?;
-        for i in flags {
+        for i in items.flgs {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
 
-    let commands = &meta.commands();
-    if !commands.is_empty() {
+    if !items.cmds.is_empty() {
         write!(res, "\nAvailable commands:\n")?;
-        let max_width = commands.iter().map(HelpItem::full_width).max().unwrap_or(0);
-        for i in commands {
+        let max_width = items
+            .cmds
+            .iter()
+            .map(HelpItem::full_width)
+            .max()
+            .unwrap_or(0);
+        for i in items.cmds {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
