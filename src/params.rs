@@ -839,6 +839,7 @@ impl<P> Command<P> {
     /// Available commands:
     ///     mystery  This command performs a mystery operation
     /// ```
+    #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -850,6 +851,7 @@ impl<P> Command<P> {
     /// Add a custom short alias for a command
     ///
     /// Behavior is similar to [`short`](Named::short), only first short name is visible.
+    #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.shorts.push(short);
         self
@@ -859,6 +861,7 @@ impl<P> Command<P> {
     ///
     /// Behavior is similar to [`long`](Named::long), but since you had to specify the first long
     /// name when making the command - this one becomes a hidden alias.
+    #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.longs.push(long);
         self

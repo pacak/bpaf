@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use crate::{
     args::{self, Args},
-    item::Item,
+    meta_help::render_help,
     params::short,
     Meta, ParseFailure, Parser,
 };
@@ -63,127 +63,10 @@ pub(crate) struct Info {
 }
 
 impl Info {
-    /*
-        /// Set a version field.
-        ///
-        /// By default bpaf won't include any version info and won't accept `--version` switch
-        ///
-        /// ```rust
-        /// # use bpaf::*;
-        /// let info = Info::default().version(env!("CARGO_PKG_VERSION"));
-        /// # drop(info);
-        /// ```
-        #[must_use]
-        pub const fn version(mut self, version: &'static str) -> Self {
-            self.version = Some(version);
-            self
-        }
-
-        /// Set a program description
-        ///
-        /// ```rust
-        /// # use bpaf::*;
-        /// let info = Info::default().descr("This program calculates rectangle's area");
-        /// # drop(info);
-        /// ```
-        /// See complete example in `examples/rectangle.rs`
-        #[must_use]
-        pub const fn descr(mut self, descr: &'static str) -> Self {
-            self.descr = Some(descr);
-            self
-        }
-
-        /// Set a custom header before all the options
-        /// ```rust
-        /// # use bpaf::*;
-        /// let info = Info::default().header("header");
-        /// # drop(info);
-        /// ```
-        /// See complete example in `examples/rectangle.rs`
-        #[must_use]
-        pub const fn header(mut self, header: &'static str) -> Self {
-            self.header = Some(header);
-            self
-        }
-
-        /// Set a custom header after all the options
-        /// ```rust
-        /// # use bpaf::*;
-        /// let info = Info::default().header("footer");
-        /// # drop(info);
-        /// ```
-        /// See complete example in `examples/rectangle.rs`
-        #[must_use]
-        pub const fn footer(mut self, footer: &'static str) -> Self {
-            self.footer = Some(footer);
-            self
-        }
-
-        /// Replace generated usage string with a custom one
-        /// ```rust
-        /// # use bpaf::*;
-        /// let info = Info::default().usage("example [-v] -w <PX> -h <PX>");
-        /// # drop(info);
-        /// ```
-        /// See complete example in `examples/rectangle.rs`
-        #[must_use]
-        pub const fn usage(mut self, usage: &'static str) -> Self {
-            self.usage = Some(usage);
-            self
-        }
-    */
     fn help_parser(&self) -> impl Parser<ExtraParams> {
         ParseExtraParams {
             version: self.version,
         }
-    }
-    fn render_help(&self, parser_meta: Meta, help_meta: Meta) -> Result<String, std::fmt::Error> {
-        use std::fmt::Write;
-
-        let mut res = String::new();
-        if let Some(t) = self.descr {
-            write!(res, "{}\n\n", t)?;
-        }
-        if let Some(u) = self.usage {
-            write!(res, "{}\n", u)?;
-        } else if let Some(usage) = parser_meta.as_usage_meta() {
-            write!(res, "Usage: {}\n", usage)?;
-        }
-        if let Some(t) = self.header {
-            write!(res, "\n{}\n", t)?;
-        }
-        let meta = Meta::And(vec![parser_meta, help_meta]);
-
-        let poss = &meta.poss();
-        if !poss.is_empty() {
-            let max_width = poss.iter().map(Item::full_width).max().unwrap_or(0);
-            write!(res, "\nAvailable positional items:\n")?;
-            for i in poss {
-                write!(res, "{:#padding$}\n", i, padding = max_width)?;
-            }
-        }
-
-        let flags = &meta.flags();
-        if !flags.is_empty() {
-            let max_width = flags.iter().map(Item::full_width).max().unwrap_or(0);
-            write!(res, "\nAvailable options:\n")?;
-            for i in flags {
-                write!(res, "{:#padding$}\n", i, padding = max_width)?;
-            }
-        }
-
-        let commands = &meta.commands();
-        if !commands.is_empty() {
-            write!(res, "\nAvailable commands:\n")?;
-            let max_width = commands.iter().map(Item::full_width).max().unwrap_or(0);
-            for i in commands {
-                write!(res, "{:#padding$}\n", i, padding = max_width)?;
-            }
-        }
-        if let Some(t) = self.footer {
-            write!(res, "\n{}", t)?;
-        }
-        Ok(res)
     }
 }
 
@@ -336,10 +219,12 @@ impl<T> OptionParser<T> {
 
         match self.info.help_parser().eval(args) {
             Ok(ExtraParams::Help) => {
-                let msg = self
-                    .info
-                    .render_help(self.inner.meta(), self.info.help_parser().meta())
-                    .expect("Couldn't render help");
+                let msg = render_help(
+                    &self.info,
+                    self.inner.meta(),
+                    self.info.help_parser().meta(),
+                )
+                .expect("Couldn't render help");
                 return Err(Error::Stdout(msg));
             }
             Ok(ExtraParams::Version(v)) => {
@@ -355,6 +240,7 @@ impl<T> OptionParser<T> {
     ///
     /// Used internally to avoid duplicating description for [`command`].
     #[doc(hidden)]
+    #[must_use]
     pub fn short_descr(&self) -> Option<&'static str> {
         self.info.descr.and_then(|descr| descr.lines().next())
     }

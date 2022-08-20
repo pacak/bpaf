@@ -27,18 +27,6 @@ pub enum Item {
     },
 }
 
-impl Item {
-    fn help(&self) -> Option<&String> {
-        match self {
-            Item::Decor { help }
-            | Item::Command { help, .. }
-            | Item::Flag { help, .. }
-            | Item::Argument { help, .. }
-            | Item::Positional { help, .. } => help.as_ref(),
-        }
-    }
-}
-
 #[doc(hidden)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum ShortLong {
@@ -59,7 +47,7 @@ impl From<&Named> for ShortLong {
 }
 
 impl ShortLong {
-    fn full_width(&self) -> usize {
+    pub(crate) fn full_width(&self) -> usize {
         match self {
             ShortLong::Short(_) => 2,
             ShortLong::Long(l) | ShortLong::ShortLong(_, l) => 6 + l.len(),
@@ -89,88 +77,17 @@ impl std::fmt::Display for ShortLong {
 /// supports padding of the help by some max width
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // alternate version {:#} renders version for the option list
-        if f.alternate() {
-            match self {
-                Item::Flag { name, help: _ } => write!(f, "    {:#}", name),
-                Item::Argument {
-                    name,
-                    metavar,
-                    help: _,
-                    env,
-                } => {
-                    write!(f, "    {:#} <{}>", name, metavar)?;
-
-                    let width = f.width().unwrap();
-                    if let Some(env) = env {
-                        let pad = width - self.full_width();
-                        let val = match std::env::var(env) {
-                            Ok(val) => format!(" = {:?}", val),
-                            Err(std::env::VarError::NotPresent) => ": N/A".to_string(),
-                            Err(std::env::VarError::NotUnicode(_)) => {
-                                ": current value is not utf8".to_string()
-                            }
-                        };
-                        let next_pad = 4 + self.full_width();
-                        write!(
-                            f,
-                            "{:pad$}  [env:{}{}]\n{:width$}",
-                            "",
-                            env,
-                            val,
-                            "",
-                            pad = pad,
-                            width = next_pad,
-                        )?;
-                    }
-                    Ok(())
-                }
-                Item::Decor { help } => {
-                    if help.is_some() {
-                        write!(f, "    ")?;
-                    }
-                    Ok(())
-                }
-                Item::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
-                Item::Command {
-                    name,
-                    help: _,
-                    short,
-                } => match short {
-                    Some(s) => write!(f, "    {}, {}", name, s),
-                    None => write!(f, "    {}", name),
-                },
-            }?;
-
-            // alt view requires width, so unwrap should just work;
-            let width = f.width().unwrap();
-            if let Some(help) = self.help() {
-                let pad = width - self.full_width();
-                for (ix, line) in help.split('\n').enumerate() {
-                    {
-                        if ix == 0 {
-                            write!(f, "{:pad$}  {}", "", line, pad = pad)
-                        } else {
-                            write!(f, "\n{:pad$}      {}", "", line, pad = width)
-                        }
-                    }?;
-                }
-            }
-            Ok(())
-        } else {
-            // {} renders short version for usage and missing fields
-            match self {
-                Item::Decor { .. } => Ok(()),
-                Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),
-                Item::Command { .. } => write!(f, "COMMAND ..."),
-                Item::Flag { name, help: _ } => write!(f, "{}", name),
-                Item::Argument {
-                    name,
-                    metavar,
-                    help: _,
-                    env: _,
-                } => write!(f, "{} {}", name, metavar),
-            }
+        match self {
+            Item::Decor { .. } => Ok(()),
+            Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),
+            Item::Command { .. } => write!(f, "COMMAND ..."),
+            Item::Flag { name, help: _ } => write!(f, "{}", name),
+            Item::Argument {
+                name,
+                metavar,
+                help: _,
+                env: _,
+            } => write!(f, "{} {}", name, metavar),
         }
     }
 }
@@ -182,36 +99,6 @@ impl Item {
             Meta::Item(self)
         } else {
             Meta::Optional(Box::new(Meta::Item(self)))
-        }
-    }
-
-    #[must_use]
-    /// Full width for the name, including implicit short flag, space and comma
-    /// betwen short and log parameters and metavar variable if present
-    pub(crate) fn full_width(&self) -> usize {
-        match self {
-            Item::Decor { .. } => 0,
-            Item::Flag { name, .. } => name.full_width(),
-            Item::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
-            Item::Positional { metavar, .. } => metavar.len() + 2,
-            Item::Command {
-                name, short: None, ..
-            } => name.len(),
-            Item::Command {
-                name,
-                short: Some(_),
-                ..
-            } => name.len() + 3,
-        }
-    }
-
-    #[must_use]
-    pub(crate) fn decoration<M>(help: Option<M>) -> Self
-    where
-        M: Into<String>,
-    {
-        Item::Decor {
-            help: help.map(Into::into),
         }
     }
 

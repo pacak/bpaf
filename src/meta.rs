@@ -25,24 +25,6 @@ impl std::fmt::Display for Meta {
 }
 
 impl Meta {
-    pub(crate) fn commands(&self) -> Vec<Item> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, Item::is_command);
-        res
-    }
-
-    pub(crate) fn flags(&self) -> Vec<Item> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, Item::is_flag);
-        res
-    }
-
-    pub(crate) fn poss(&self) -> Vec<Item> {
-        let mut res = Vec::new();
-        self.collect_items(&mut res, Item::is_positional);
-        res
-    }
-
     fn alts(self, to: &mut Vec<Meta>) {
         match self {
             Meta::Or(mut xs) => to.append(&mut xs),
@@ -68,36 +50,6 @@ impl Meta {
         M: Into<String>,
     {
         Meta::Decorated(Box::new(self), msg.into())
-    }
-
-    fn collect_items<F>(&self, res: &mut Vec<Item>, pred: F)
-    where
-        F: Fn(&Item) -> bool + Copy,
-    {
-        match self {
-            Meta::Skip => {}
-            Meta::And(xs) | Meta::Or(xs) => {
-                for x in xs {
-                    x.collect_items(res, pred);
-                }
-            }
-            Meta::Many(a) | Meta::Optional(a) => a.collect_items(res, pred),
-            Meta::Item(i) => {
-                if pred(i) {
-                    res.push(i.clone());
-                }
-            }
-            Meta::Decorated(x, msg) => {
-                res.push(Item::decoration(Some(msg)));
-                let prev_len = res.len();
-                x.collect_items(res, pred);
-                if res.len() == prev_len {
-                    res.pop();
-                } else {
-                    res.push(Item::decoration(None::<String>));
-                }
-            }
-        }
     }
 
     /// Represent [`Meta`] as [`UsageMeta`]
