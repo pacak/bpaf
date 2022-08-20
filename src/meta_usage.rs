@@ -10,8 +10,10 @@ pub(crate) enum UsageMeta {
     Required(Box<Self>),
     Optional(Box<Self>),
     Many(Box<Self>),
-    Short(char, Option<&'static str>),
-    Long(&'static str, Option<&'static str>),
+    ShortFlag(char),
+    ShortArg(char, &'static str),
+    LongFlag(&'static str),
+    LongArg(&'static str, &'static str),
     Pos(&'static str),
     Command,
 }
@@ -84,8 +86,8 @@ pub(crate) fn collect_usage_meta(
                 UsageMeta::Command
             }
             Item::Flag { name, help: _ } => match name {
-                ShortLong::Short(s) | ShortLong::ShortLong(s, _) => UsageMeta::Short(*s, None),
-                ShortLong::Long(l) => UsageMeta::Long(l, None),
+                ShortLong::Short(s) | ShortLong::ShortLong(s, _) => UsageMeta::ShortFlag(*s),
+                ShortLong::Long(l) => UsageMeta::LongFlag(l),
             },
             Item::Argument {
                 name,
@@ -94,9 +96,9 @@ pub(crate) fn collect_usage_meta(
                 help: _,
             } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
-                    UsageMeta::Short(*s, Some(metavar))
+                    UsageMeta::ShortArg(*s, metavar)
                 }
-                ShortLong::Long(l) => UsageMeta::Long(l, Some(metavar)),
+                ShortLong::Long(l) => UsageMeta::LongArg(l, metavar),
             },
         },
     })
@@ -145,10 +147,10 @@ impl std::fmt::Display for UsageMeta {
             UsageMeta::Required(x) => write!(f, "({x})"),
             UsageMeta::Optional(x) => write!(f, "[{x}]"),
             UsageMeta::Many(x) => write!(f, "{x}..."),
-            UsageMeta::Short(c, None) => write!(f, "-{c}"),
-            UsageMeta::Long(l, None) => write!(f, "--{l}"),
-            UsageMeta::Short(c, Some(v)) => write!(f, "-{c} {v}"),
-            UsageMeta::Long(l, Some(v)) => write!(f, "--{l} {v}"),
+            UsageMeta::ShortFlag(c) => write!(f, "-{c}"),
+            UsageMeta::LongFlag(l) => write!(f, "--{l}"),
+            UsageMeta::ShortArg(c, v) => write!(f, "-{c} {v}"),
+            UsageMeta::LongArg(l, v) => write!(f, "--{l} {v}"),
             UsageMeta::Command => f.write_str("COMMAND ..."),
             UsageMeta::Pos(s) => write!(f, "<{s}>"),
         }
