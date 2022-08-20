@@ -15,7 +15,6 @@ rust-version = "1.56"
 bpaf_derive = { path = "./bpaf_derive", version = "0.1.4", optional = true }
 
 [dev-dependencies]
-strum = { version = "0.24", features = ["derive"] }
 bpaf = { path = ".",  features = ["derive"] }
 
 
