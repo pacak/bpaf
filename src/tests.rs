@@ -1162,3 +1162,11 @@ Available commands:
 ";
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn many_doesnt_panic() {
+    let parser = short('a').switch().many().map(|m| m.len()).to_options();
+
+    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    assert_eq!(r, 3);
+}

@@ -65,7 +65,17 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        let items = std::iter::from_fn(|| self.inner.eval(args).ok()).collect::<Vec<_>>();
+        let items = std::iter::from_fn(|| {
+            let before = args.len();
+            let val = self.inner.eval(args).ok()?;
+            if args.len() < before {
+                Some(val)
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
         if items.is_empty() {
             Err(Error::Stderr(self.message.to_string()))
         } else {
@@ -295,7 +305,16 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        Ok(std::iter::from_fn(|| self.inner.eval(args).ok()).collect())
+        Ok(std::iter::from_fn(|| {
+            let before = args.len();
+            let val = self.inner.eval(args).ok()?;
+            if args.len() < before {
+                Some(val)
+            } else {
+                None
+            }
+        })
+        .collect())
     }
 
     fn meta(&self) -> Meta {

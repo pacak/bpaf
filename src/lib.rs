@@ -563,6 +563,8 @@ pub trait Parser<T> {
     // {{{ many
     /// Consume zero or more items from a command line and collect them into [`Vec`]
     ///
+    /// `many` only collects elements that only consume something from the argument list.
+    ///
     /// # Combinatoric usage:
     /// ```rust
     /// # use bpaf::*;
@@ -603,12 +605,6 @@ pub trait Parser<T> {
     /// // [1, 2, 3]
     /// ```
     ///
-    /// # Panics
-    /// Panics if parser succeeds without consuming any input: any parser modified with
-    /// `many` must consume something: trying to parse `many` [`flag`](Named::flag) or
-    /// [`switch`](Named::switch) would cause this panic, instead you should use
-    /// [`req_flag`](Named::req_flag).
-    ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
     /// element to succeed
@@ -624,6 +620,8 @@ pub trait Parser<T> {
     /// Consume one or more items from a command line
     ///
     /// Takes a string used as an error message if there's no specified parameters
+    ///
+    /// `some` only collects elements that only consume something from the argument list.
     ///
     /// # Combinatoric usage:
     /// ```rust
@@ -656,12 +654,6 @@ pub trait Parser<T> {
     /// $ app -n 1 -n 2 -n 3
     /// // [1, 2, 3]
     /// ```
-    ///
-    /// # Panics
-    /// Panics if parser succeeds without consuming any input: any parser modified with
-    /// `some` must consume something: trying to parse `many` [`flag`](Named::flag) or
-    /// [`switch`](Named::switch) would cause this panic, instead you should use
-    /// [`req_flag`](Named::req_flag).
     ///
     /// # See also
     /// [`many`](Parser::many) also collects results to a vector but succeeds with

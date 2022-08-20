@@ -115,6 +115,9 @@ mod inner {
         pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
+        pub(crate) fn len(&self) -> usize {
+            self.remaining
+        }
 
         pub(crate) fn current_word(&self) -> Option<&Word> {
             let ix = self.current?;
