@@ -6,14 +6,13 @@
 
 //! # Derive and combinatoric API
 //!
-//! `bpaf` supports both combinatoric and derive APIs with the former being primary, but it's
-//! possible to mix and match both APIs at once. Both APIs provide access to mostly the same
-//! features, some things are more convenient to do with derive (usually less typing), some -
-//! with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases
-//! using just one would suffice. Whenever possible APIs share the same keywords and overall structure.
-//! Documentation for combinatoric API also explains how to perform the same action in derive
-//! style.
-
+//! `bpaf` supports both combinatoric and derive APIs and it's possible to mix and match both APIs
+//! at once. Both APIs provide access to mostly the same features, some things are more convenient
+//! to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility
+//! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
+//! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
+//! also explains how to perform the same action in derive style.
+//!
 //! # Tutorials
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)

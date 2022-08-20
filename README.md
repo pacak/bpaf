@@ -5,7 +5,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 
 ## Derive and combinatoric API
 
-`bpaf` supports both combinatoric and derive APIs with the former being primary, but it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
+`bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
 
 
 ## Tutorials
@@ -242,7 +242,7 @@ Usage --user <ARG>
 ```
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGxZdIyDPSL3MG_bv4qUAteI6G1Sqm0jeZ7pnG1XITz95ELScYWSBgmRicGFmZjAuNC4xMg
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG7oFseoBiIaIG3ZOm140BHGdG-66zfDxU54dG-gWbiJ0EMbFYWSBgmRicGFmZjAuNC4xMg
  [__link0]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_combinatoric_tutorial
  [__link3]: https://docs.rs/bpaf/0.4.12/bpaf/?search=info::OptionParser::run_inner

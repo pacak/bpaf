@@ -25,9 +25,9 @@ mod inner {
     };
 
     use super::{push_vec, Arg, Word};
-    /// All currently present command line parameters, use it for unit tests
+    /// All currently present command line parameters, use it for unit tests and manual parsing
     ///
-    /// The easiest way to create it is with `From` instance.
+    /// The easiest way to create `Args` is by using it's `From` instance.
     /// ```rust
     /// # use bpaf::*;
     /// let parser = short('f')

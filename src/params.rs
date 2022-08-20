@@ -61,7 +61,8 @@ use crate::{
     Item, Meta,
 };
 
-/// A named thing used to create flag, switch or argument.
+/// A named thing used to create [`flag`](Named::flag), [`switch`](Named::switch) or
+/// [`argument`](Named::argument)
 ///
 /// Create it with [`short`] or [`long`].
 ///
@@ -86,7 +87,7 @@ use crate::{
 /// ```
 ///
 /// - [`argument`](Named::argument) - a short or long `flag` followed by either a space or `=` and
-/// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid flags. Note, string
+/// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
 /// literal can't start with `-` unless separated from the flag with `=` and should be valid
 /// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you can use
 /// [`argument_os`](Named::argument_os).
@@ -152,7 +153,7 @@ use crate::{
 ///
 /// # Derive usage
 ///
-/// Unlike combinatoric API where you forced to specify names for your subparsers derive API allows
+/// Unlike combinatoric API where you forced to specify names for your parsers derive API allows
 /// to omit some or all the details:
 /// 1. If no naming information is present at all - `bpaf_derive` would use field name as a long name
 ///    (or a short name if field name consists of a single character)
@@ -282,16 +283,16 @@ pub fn long(long: &'static str) -> Named {
 /// ```
 ///
 /// # Combinatoric usage
-/// You must specify either short or long key if you start the chain from `env`.
+/// **You must specify either short or long key if you start the chain from `env`.**
 ///
 /// ```rust
 /// # use bpaf::*;
 /// fn parse_string() -> impl Parser<String> {
 ///     short('k')
-///            .long("key")
-///            .env("API_KEY")
-///            .help("Use this API key to access the API")
-///            .argument("KEY")
+///         .long("key")
+///         .env("API_KEY")
+///         .help("Use this API key to access the API")
+///         .argument("KEY")
 /// }
 /// ```
 ///
@@ -384,10 +385,10 @@ impl Named {
     /// # use bpaf::*;
     /// fn parse_string() -> impl Parser<String> {
     ///     short('k')
-    ///            .long("key")
-    ///            .env("API_KEY")
-    ///            .help("Use this API key to access the API")
-    ///            .argument("KEY")
+    ///         .long("key")
+    ///         .env("API_KEY")
+    ///         .help("Use this API key to access the API")
+    ///         .argument("KEY")
     /// }
     /// ```
     /// See [`Named`] and [`env`](env()) for more details and examples
@@ -458,6 +459,7 @@ impl Named {
 
     /// Flag with custom present/absent values
     ///
+    /// # Combinatoric usage
     /// Parser produces `present` if flag is present in a command line or `absent` otherwise
     /// ```rust
     /// # use bpaf::*;
@@ -473,6 +475,32 @@ impl Named {
     ///         .flag(Flag::Present, Flag::Absent)
     /// }
     /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// Currently available only with `external` annotation
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone)]
+    /// enum Flag {
+    ///     Absent,
+    ///     Present,
+    /// }
+    ///
+    /// fn flag() -> impl Parser<Flag> {
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .flag(Flag::Present, Flag::Absent)
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(external)]
+    ///     pub flag: Flag,
+    /// }
+    /// ```
+    ///
     #[must_use]
     /// See [`Named`] for more details
     pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
@@ -702,12 +730,12 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// Subcommand parser
 ///
 /// Subcommands allow to use a totally independent parser inside a current one. Inner parser
-/// can have its own help message, description, version and so on. You can have them arbitrarily
-/// nested too.
+/// can have its own help message, description, version and so on. You can nest them arbitrarily
+/// too.
 ///
 /// # Combinatoric use
 ///
-/// struct [`Command`] you get by calling this method is a builder that allows to add additional
+/// Structure [`Command`] you get by calling this method is a builder that allows to add additional
 /// aliases with [`short`](Command::short), [`long`](Command::long) (only first short and first
 /// long names are visible to `--help`) and override [`help`](Command::help). Without help override
 /// bpaf would use first line from the description

@@ -2,12 +2,20 @@
 
 //! # About examples
 //!
-//! Most of the examples declare parser as a top level function to show the type signature,
-//! you can also use them as variables. Examples tend to omit [`help`](Named::help) unless they are
-//! about it - you should try to provide it whenever possible.
+//! Most of the examples omit adding doc comments to the fields, to keep things clearer, you should do
+//! that when possible for better enduser experience. Similarly examples define [`Parser`] instead
+//! of [`OptionParser`] - to be able to run them you need to use `[bpaf(options)]` annotations on
+//! the most outer structure.
 //!
-//! Most of the examples stop at defining the [`Parser`], to be able to run them you need to
-//! convert your `Parsers` into [`OptionParser`] with [`to_options`](Parser::to_options).
+//! ```rust
+//! # use bpaf::*;
+//! #[derive(Debug, Clone, Bpaf)]
+//! #[bpaf(options)] // <- important bit
+//! struct Config {
+//!     /// number used by the program
+//!     number: u32,
+//! }
+//! ```
 //!
 //! In addition to examples in the documentation there's a bunch more in the github repository:
 //! <https://github.com/pacak/bpaf/tree/master/examples>
@@ -22,7 +30,7 @@
 
 //! # Getting started
 //!
-//! 1. To use derive style API you need to enable `"derive"` feature for bpaf, **by default it's not
+//! 1. To use derive style API you need to enable `"derive"` feature for `bpaf`, **by default it's not
 //!    enabled**.
 //!
 //! 2. Define primitive parsers if you want to use any. While it's possible to define most of them
@@ -35,76 +43,83 @@
 //! 4. Add annotations to the top level of a struct if needed, there's several to choose from and
 //!    you can specify several of them. For this annotation ordering doesn't matter.
 //!
-//!    - Generated function name. Unlike usual derive macro bpaf generates a function with a name
+//!    - ### Generated function name: `generate`
+//!
+//!      Unlike usual derive macro `bpaf_derive` generates a function with a name
 //!      derived from a struct name by transforming it from `CamelCase` to `snake_case`. `generate`
-//!      allows to override a name for the function
+//!      annotation allows to override a name for the function
 //!
-//!    ```rust
-//!    use bpaf::*;
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      #[bpaf(generate(make_config))] // function name is now make_config()
+//!      pub struct Config {
+//!          pub flag: bool
+//!      }
+//!      ```
 //!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(generate(make_config))] // function name is now make_config()
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
+//!    - ### Generated function visibility: `private`
 //!
-//!    - Generated function visibility. By default bpaf uses the same visibility as the datatype,
+//!      By default bpaf uses the same visibility as the datatype,
 //!      `private` makes it module private:
 //!
-//!    ```rust
-//!    use bpaf::*;
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      #[bpaf(private)] // config() is now private
+//!      pub struct Config {
+//!          pub flag: bool
+//!      }
+//!      ```
 //!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(private)] // config() is now private
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
+//!    - ### Generated function types: `command`, `options`
 //!
-//!    - Generated function type. By default bpaf would generate a function that parses
-//!      all the fields present (`impl` [`Parser`]), it's possible instead to turn it into a
-//!      one or more [`command`] with or top level `impl` [`OptionParser`] with `options`.
+//!      By default `bpaf_derive` would generate a function that generates a regular [`Parser`]
+//!      it's possible instead to turn it into a
+//!      [`command`] with `command` annotation or into a top level [`OptionParser`] with `options`
+//!      annotation.
 //!      Those annotations are mutually exclusive. `options` annotation takes an optional argument
-//!      to wrap options into [`cargo_helper`], `command` annotation takes an optional argument to
+//!      to use for [`cargo_helper`], `command` annotation takes an optional argument to
 //!      override a command name.
 //!
-//!    ```rust
-//!    use bpaf::*;
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      pub struct Flag { // impl Parser by default
+//!          pub flag: bool
+//!      }
 //!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    pub struct Flag { // impl Parser by default
-//!        pub flag: bool
-//!    }
-//!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(command)]
-//!    pub struct Make { // generates a command "make"
-//!        pub level: u32,
-//!    }
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      #[bpaf(command)]
+//!      pub struct Make { // generates a command "make"
+//!          pub level: u32,
+//!      }
 //!
 //!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(options)] // config() is now private
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      #[bpaf(options)] // config() is now OptionParser
+//!      pub struct Config {
+//!          pub flag: bool
+//!      }
+//!      ```
 //!
-//!    - Specify version for generated command. By default bpaf would use version as defined by
-//!      `"CARGO_PKG_VERSION"` env variable during compilation, usually taken from `Cargo.toml`,
-//!      it's possible to override it with a custom expression. Only makes sense for `command`
-//!      and `options` annotations. For more information see [`version`](OptionParser::version).
+//!    - ### Specify version for generated command: `version`
 //!
-//!    ```rust
-//!    use bpaf::*;
+//!      By default `bpaf_derive` embedds no version information. With `version` with no argument
+//!      results in using version from `CARGO_PKG_VERSION` env variable (specified by cargo on
+//!      compile time, usually originates from `Cargo.toml`), `version` with argument results in
+//!      using tht specific version - can be string literal or static string expression.
+//!      Only makes sense for `command` and `options` annotations. For more information see
+//!      [`version`](OptionParser::version).
 //!
-//!    #[derive(Debug, Clone, Bpaf)]
-//!    #[bpaf(options, version("3.1415"))] // --version is now 3.1415
-//!    pub struct Config {
-//!        pub flag: bool
-//!    }
-//!    ```
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      #[bpaf(options, version("3.1415"))] // --version is now 3.1415
+//!      pub struct Config {
+//!          pub flag: bool
+//!      }
+//!      ```
 //!
 //! 5. Add annotations to individual fields. Structure for annotation for individual fields
 //!    is similar to how you would write the same code with combinatoric API with exception
@@ -113,16 +128,16 @@
 //!    `((<naming> <consumer>) | <external>) <postprocessing>`
 //!
 //!    - `naming` section corresponds to [`short`],  [`long`] and [`env`](env()). `short` takes an optional
-//!      character literal as a parameter, `long` takes an optional string.
+//!      character literal as a parameter, `long` takes an optional string, `env` takes an
+//!      expression of type `&'static str` as a parameter - could be a string literal or a
+//!      constant.
 //!
 //!      + If parameter for `short`/`long` is parameter isn't present it's derived from the field
 //!      name: first character and a whole name respectively.
 //!
-//!      + If either of `short` or `long` is present - bpaf would not add the other one.
+//!      + If either of `short` or `long` is present - `bpaf_derive` would not add the other one.
 //!
-//!      + If neither is present - bpaf would add a long one.
-//!
-//!      + `env` takes an arbitrary expression of type `&'static str` - could be a string literal or a constant.
+//!      + If neither is present - `bpaf_derive` would add a `long` one.
 //!
 //!      ```rust
 //!      # use bpaf::*;
@@ -186,8 +201,7 @@
 //!      or derive with `Bpaf` macro.
 //!
 //!      ```rust
-//!      use bpaf::*;
-//!
+//!      # use bpaf::*;
 //!      fn verbosity() -> impl Parser<usize> {
 //!          short('v')
 //!              .help("vebosity, can specify multiple times")
@@ -239,7 +253,7 @@
 //!    processing after double empty line:
 //!
 //!    ```rust
-//!    use bpaf::*;
+//!    # use bpaf::*;
 //!    #[derive(Debug, Clone, Bpaf)]
 //!    pub struct Username {
 //!        /// this is a part of a help message

@@ -1,33 +1,17 @@
 //! # Using the library in combinatoric style
 
 //! # About examples
-//! Examples tend to omit doc comments for fields so generated parser won't have
-//! [`help`](Named::help), you should try to specify them whenever possible.
+//! Examples tend to omit [`help`](Named::help), you should try to specify them whenever possible.
 //!
 //! Most of the examples stop at defining the [`Parser`], to be able to run them you need to
-//! convert your `Parsers` into [`OptionParser`] with `options` annotation:
+//! convert your `Parser` into [`OptionParser`] with [`Parser::to_options`].
 //!
 //! ```rust
 //! # use bpaf::*;
-//! #[derive(Debug, Clone, Bpaf)]
-//! #[bpaf(options)] // <- important bit
-//! struct Config {
-//!     /// number used by the program
-//!     number: u32,
-//! }
-//! ```
-//!
-//! Most of the examples given in the documentation are more verbose than necessary preferring
-//! explicit naming and consumers. If you are trying to parse something that implements
-//! [`FromStr`](std::str::FromStr), only interested in a long name and don't mind metavar being
-//! `ARG` you don't need to add any extra annotations at all:
-//!
-//! ```rust
-//! # use bpaf::*;
-//! #[derive(Debug, Clone, Bpaf)]
-//! struct PerfectlyValid {
-//!     /// number used by the program
-//!     number: u32,
+//! fn parser() -> OptionParser<bool> {
+//!     short('s')
+//!         .switch()
+//!         .to_options() // <- important bit
 //! }
 //! ```
 
@@ -71,7 +55,7 @@
 //!
 //! 5. [`run`](OptionParser::run) the resulting option parser at the beginning of your program.
 //!    If option parser succeeds you'll get the results. If there are errors or user asked for help info
-//!    `bpaf` handles them and exits.
+//!    `bpaf` handles this and exits.
 
 #[allow(unused_imports)]
 use crate::*;
