@@ -81,6 +81,17 @@ mod inner {
         }
     }
 
+    impl From<&[OsString]> for Args {
+        fn from(xs: &[OsString]) -> Self {
+            let mut pos_only = false;
+            let mut vec = Vec::with_capacity(xs.len());
+            for x in xs {
+                push_vec(&mut vec, x.clone(), &mut pos_only);
+            }
+            Args::args_from(vec)
+        }
+    }
+
     impl Args {
         pub(crate) fn args_from(vec: Vec<Arg>) -> Self {
             Args {
