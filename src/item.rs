@@ -3,9 +3,6 @@ use crate::{Meta, Named};
 #[doc(hidden)]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Item {
-    Decor {
-        help: Option<String>,
-    },
     Positional {
         metavar: &'static str,
         help: Option<String>,
@@ -78,7 +75,6 @@ impl std::fmt::Display for ShortLong {
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Item::Decor { .. } => Ok(()),
             Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),
             Item::Command { .. } => write!(f, "COMMAND ..."),
             Item::Flag { name, help: _ } => write!(f, "{}", name),
@@ -106,17 +102,14 @@ impl Item {
     pub(crate) fn is_command(&self) -> bool {
         match self {
             Item::Command { .. } => true,
-            Item::Decor { .. }
-            | Item::Positional { .. }
-            | Item::Flag { .. }
-            | Item::Argument { .. } => false,
+            Item::Positional { .. } | Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
 
     #[must_use]
     pub(crate) fn is_flag(&self) -> bool {
         match self {
-            Item::Decor { .. } | Item::Positional { .. } | Item::Command { .. } => false,
+            Item::Positional { .. } | Item::Command { .. } => false,
             Item::Flag { .. } | Item::Argument { .. } => true,
         }
     }
@@ -125,10 +118,7 @@ impl Item {
     pub(crate) fn is_positional(&self) -> bool {
         match self {
             Item::Positional { help, .. } => help.is_some(),
-            Item::Decor { .. }
-            | Item::Command { .. }
-            | Item::Flag { .. }
-            | Item::Argument { .. } => false,
+            Item::Command { .. } | Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
 }

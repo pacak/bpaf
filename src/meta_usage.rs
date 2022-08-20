@@ -72,7 +72,6 @@ pub(crate) fn collect_usage_meta(
         Meta::Decorated(meta, _) => collect_usage_meta(meta, required, had_commands)?,
         Meta::Skip => return None,
         Meta::Item(i) => match i {
-            Item::Decor { help: _ } => return None,
             Item::Positional { metavar, help: _ } => UsageMeta::Pos(metavar),
             Item::Command {
                 name: _,

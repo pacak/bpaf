@@ -1,12 +1,12 @@
 #![allow(clippy::write_with_newline)]
 use crate::{info::Info, item::ShortLong, Meta};
 
-#[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 enum HelpItem<'a> {
     Decor {
-        help: Option<&'a str>,
+        help: &'a str,
     },
+    BlankDecor,
     Positional {
         metavar: &'static str,
         help: Option<&'a str>,
@@ -65,12 +65,8 @@ impl std::fmt::Display for HelpItem<'_> {
                 }
                 Ok(())
             }
-            HelpItem::Decor { help } => {
-                if help.is_some() {
-                    write!(f, "    ")?;
-                }
-                Ok(())
-            }
+            HelpItem::Decor { .. } => write!(f, "    "),
+            HelpItem::BlankDecor => Ok(()),
             HelpItem::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
             HelpItem::Command {
                 name,
@@ -103,9 +99,6 @@ impl std::fmt::Display for HelpItem<'_> {
 impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
     fn from(item: &'a crate::item::Item) -> Self {
         match item {
-            crate::item::Item::Decor { help } => Self::Decor {
-                help: help.as_deref(),
-            },
             crate::item::Item::Positional { metavar, help } => Self::Positional {
                 metavar,
                 help: help.as_deref(),
@@ -141,6 +134,7 @@ impl HelpItem<'_> {
     fn full_width(&self) -> usize {
         match self {
             HelpItem::Decor { .. } => 0,
+            HelpItem::BlankDecor { .. } => 0,
             HelpItem::Flag { name, .. } => name.full_width(),
             HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
             HelpItem::Positional { metavar, .. } => metavar.len() + 2,
@@ -157,8 +151,9 @@ impl HelpItem<'_> {
 
     fn help(&self) -> Option<&str> {
         match self {
-            HelpItem::Decor { help }
-            | HelpItem::Command { help, .. }
+            HelpItem::Decor { help } => Some(help),
+            HelpItem::BlankDecor => None,
+            HelpItem::Command { help, .. }
             | HelpItem::Flag { help, .. }
             | HelpItem::Argument { help, .. }
             | HelpItem::Positional { help, .. } => *help,
@@ -203,15 +198,13 @@ impl Meta {
                 }
             }
             Meta::Decorated(x, msg) => {
-                res.push(HelpItem::Decor {
-                    help: Some(msg.as_ref()),
-                });
+                res.push(HelpItem::Decor { help: msg.as_ref() });
                 let prev_len = res.len();
                 x.collect_items(res, pred);
                 if res.len() == prev_len {
                     res.pop();
                 } else {
-                    res.push(HelpItem::Decor { help: None });
+                    res.push(HelpItem::BlankDecor);
                 }
             }
         }
