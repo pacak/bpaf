@@ -49,7 +49,7 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::decorate(self.inner.meta(), self.message)
+        Meta::Decorated(Box::new(self.inner.meta()), self.message)
     }
 }
 
@@ -354,7 +354,6 @@ where
 }
 
 /// Create parser from a function, [`construct!`] uses it internally
-#[derive(Clone)]
 pub struct ParseConstruct<P> {
     /// TODO
     pub inner: P,

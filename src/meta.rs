@@ -11,7 +11,7 @@ pub enum Meta {
     Optional(Box<Meta>),
     Item(Item),
     Many(Box<Meta>),
-    Decorated(Box<Meta>, String),
+    Decorated(Box<Meta>, &'static str),
     Skip,
 }
 
@@ -42,14 +42,6 @@ impl Meta {
             1 => res.remove(0),
             _ => Meta::Or(res),
         }
-    }
-
-    #[must_use]
-    pub(crate) fn decorate<M>(self, msg: M) -> Self
-    where
-        M: Into<String>,
-    {
-        Meta::Decorated(Box::new(self), msg.into())
     }
 
     /// Represent [`Meta`] as [`UsageMeta`]
