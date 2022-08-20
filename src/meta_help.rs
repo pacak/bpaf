@@ -17,15 +17,38 @@ enum HelpItem<'a> {
         help: Option<&'a str>,
     },
     Flag {
-        name: ShortLong,
+        name: ShortLongHelp,
         help: Option<&'a str>,
     },
     Argument {
-        name: ShortLong,
+        name: ShortLongHelp,
         metavar: &'static str,
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
+}
+
+#[derive(Debug)]
+struct ShortLongHelp(ShortLong);
+
+impl ShortLongHelp {
+    #[inline]
+    fn full_width(&self) -> usize {
+        match self.0 {
+            ShortLong::Short(_) => 2,
+            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => 6 + l.len(),
+        }
+    }
+}
+
+impl std::fmt::Display for ShortLongHelp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            ShortLong::Short(short) => write!(f, "-{}", short),
+            ShortLong::Long(long) => write!(f, "    --{}", long),
+            ShortLong::ShortLong(short, long) => write!(f, "-{}, --{}", short, long),
+        }
+    }
 }
 
 /// supports padding of the help by some max width
@@ -109,7 +132,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 help: help.as_deref(),
             },
             crate::item::Item::Flag { name, help } => Self::Flag {
-                name: *name,
+                name: ShortLongHelp(*name),
                 help: help.as_deref(),
             },
             crate::item::Item::Argument {
@@ -118,7 +141,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 env,
                 help,
             } => Self::Argument {
-                name: *name,
+                name: ShortLongHelp(*name),
                 metavar,
                 env: *env,
                 help: help.as_deref(),

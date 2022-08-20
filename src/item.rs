@@ -43,32 +43,6 @@ impl From<&Named> for ShortLong {
     }
 }
 
-impl ShortLong {
-    pub(crate) fn full_width(&self) -> usize {
-        match self {
-            ShortLong::Short(_) => 2,
-            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => 6 + l.len(),
-        }
-    }
-}
-
-impl std::fmt::Display for ShortLong {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if f.alternate() {
-            match self {
-                ShortLong::Short(short) => write!(f, "-{}", short),
-                ShortLong::Long(long) => write!(f, "    --{}", long),
-                ShortLong::ShortLong(short, long) => write!(f, "-{}, --{}", short, long),
-            }
-        } else {
-            match self {
-                ShortLong::Short(short) | ShortLong::ShortLong(short, _) => write!(f, "-{}", short),
-                ShortLong::Long(long) => write!(f, "--{}", long),
-            }
-        }
-    }
-}
-
 /// {} renders a version for short usage string
 /// {:#} renders a full width version for --help body and complete, this version
 /// supports padding of the help by some max width
@@ -84,6 +58,15 @@ impl std::fmt::Display for Item {
                 help: _,
                 env: _,
             } => write!(f, "{} {}", name, metavar),
+        }
+    }
+}
+
+impl std::fmt::Display for ShortLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShortLong::Short(short) | ShortLong::ShortLong(short, _) => write!(f, "-{}", short),
+            ShortLong::Long(long) => write!(f, "--{}", long),
         }
     }
 }
