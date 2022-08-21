@@ -127,7 +127,7 @@ fn main() {
  3. Try to run it, output should be similar to derive edition
 
 
-## Design goals: flexibility, reusability
+## Design goals: flexibility, reusability, correctness
 
 Library allows to consume command line arguments by building up parsers for individual arguments and combining those primitive parsers using mostly regular Rust code plus one macro. For example it’s possible to take a parser that requires a single floating point number and transform it to a parser that takes several of them or takes it optionally so different subcommands or binaries can share a lot of the code:
 
@@ -178,6 +178,8 @@ fn speed() -> impl Parser<Speed> {
         .map(|speed| Speed(speed))
 }
 ```
+
+Library follows parse, don’t validate approach to validation when possible. Usually you parse your values just once and get the results as a rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
 
 ## Design goals: restrictions
@@ -257,7 +259,7 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG2xRQJNpdOb8G8pZqZ2izGzPG1wA1ywcrIZrG2-ocRrr5YG7YWSCgmRicGFmZTAuNS4wgmticGFmX2Rlcml2ZWUwLjIuMA
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG3fIB_IKY3hrGye-FOfCs2a-G-I-uYl_pcw3G470SW3PwtT2YWSCgmRicGFmZTAuNS4wgmticGFmX2Rlcml2ZWUwLjIuMA
  [__link0]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_combinatoric_tutorial
  [__link2]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_faq

@@ -176,9 +176,9 @@
 //! }
 //! ```
 //!
-//! Library follows parse, don’t validate approach to validation. Usually you parse your values
-//! just once and get the results as a rust struct with strict types rather than a stringly typed
-//! hashmap with stringly typed values in both combinatoric and derive APIs.
+//! Library follows parse, don’t validate approach to validation when possible. Usually you parse
+//! your values just once and get the results as a rust struct/enum with strict types rather than a
+//! stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
 //! # Design goals: restrictions
 //!
