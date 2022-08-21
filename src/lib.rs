@@ -13,7 +13,7 @@
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
 
-//! # Tutorials
+//! # Quick links
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
@@ -119,7 +119,7 @@
 //!
 //! 3. Try to run it, output should be similar to derive edition
 
-//! # Design goals: flexibility, reusability
+//! # Design goals: flexibility, reusability, correctness
 
 //! Library allows to consume command line arguments by building up parsers for individual
 //! arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
@@ -175,6 +175,10 @@
 //!         .map(|speed| Speed(speed))
 //! }
 //! ```
+//!
+//! Library follows parse, don’t validate approach to validation. Usually you parse your values
+//! just once and get the results as a rust struct with strict types rather than a stringly typed
+//! hashmap with stringly typed values in both combinatoric and derive APIs.
 
 //! # Design goals: restrictions
 //!

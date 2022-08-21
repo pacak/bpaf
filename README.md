@@ -8,10 +8,12 @@ Lightweight and flexible command line argument parser with derive and combinator
 `bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
 
 
-## Tutorials
+## Quick links
 
  - [Derive tutorial][__link0]
  - [Combinatoric tutorial][__link1]
+ - [FAQ][__link2]
+ - [Batteries included][__link3]
 
 
 ## Quick start, derive edition
@@ -216,7 +218,7 @@ $ cargo run --example example_name
 
 ## Testing your own parsers
 
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link3]
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link5]
 
 
 ```rust
@@ -242,7 +244,23 @@ Usage --user <ARG>
 ```
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG7oFseoBiIaIG3ZOm140BHGdG-66zfDxU54dG-gWbiJ0EMbFYWSBgmRicGFmZTAuNS4w
+## Cargo features
+
+ - `derive`: adds a dependency on [`bpaf_derive`][__link6] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API
+	
+	
+ - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>)
+	
+	
+ - `batteries`: helpers implemented with public `bpaf` API
+	
+	
+
+
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG2xRQJNpdOb8G8pZqZ2izGzPG1wA1ywcrIZrG2-ocRrr5YG7YWSCgmRicGFmZTAuNS4wgmticGFmX2Rlcml2ZWUwLjIuMA
  [__link0]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_combinatoric_tutorial
- [__link3]: https://docs.rs/bpaf/0.5.0/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_faq
+ [__link3]: https://docs.rs/bpaf/0.5.0/bpaf/?search=batteries
+ [__link5]: https://docs.rs/bpaf/0.5.0/bpaf/?search=info::OptionParser::run_inner
+ [__link6]: https://crates.io/crates/bpaf_derive/0.2.0
