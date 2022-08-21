@@ -15,15 +15,17 @@ rust-version = "1.56"
 bpaf_derive = { path = "./bpaf_derive", version = "0.1.4", optional = true }
 
 [dev-dependencies]
-bpaf = { path = ".",  features = ["derive"] }
+bpaf = { path = ".",  features = ["derive", "extradocs"] }
 
 
 [package.metadata.docs.rs]
-features = ["bpaf_derive"]
+features = ["derive", "extradocs"]
+cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
 
 
 [features]
 derive = ["bpaf_derive"]
+extradocs = []
 
 [workspace]
 members = [".", "./bpaf_derive"]

@@ -12,11 +12,13 @@
 //! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
-//!
+
 //! # Tutorials
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+//! - [FAQ](crate::_faq)
+//! - [Batteries included](crate::batteries)
 
 //! # Quick start, derive edition
 //!
@@ -240,8 +242,23 @@
 //! }
 //! ```
 
+//! # Cargo features
+//!
+//! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
+//!   need to enable it to use derive API
+//!
+//! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
+//! enable it for local development unless you want to build your own copy of the documentation
+//! (<https://github.com/rust-lang/cargo/issues/8905>)
+//!
+//! - `batteries`: helpers implemented with public `bpaf` API
+
+#[cfg(feature = "extradocs")]
 pub mod _combinatoric_tutorial;
+#[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
+#[cfg(feature = "extradocs")]
+pub mod _faq;
 mod args;
 mod info;
 mod item;
@@ -251,6 +268,7 @@ mod meta_usage;
 mod params;
 mod structs;
 
+pub mod batteries;
 #[cfg(test)]
 mod tests;
 
