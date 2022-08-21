@@ -242,7 +242,7 @@ Usage --user <ARG>
 ```
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG7oFseoBiIaIG3ZOm140BHGdG-66zfDxU54dG-gWbiJ0EMbFYWSBgmRicGFmZjAuNC4xMg
- [__link0]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.4.12/bpaf/?search=_combinatoric_tutorial
- [__link3]: https://docs.rs/bpaf/0.4.12/bpaf/?search=info::OptionParser::run_inner
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG7oFseoBiIaIG3ZOm140BHGdG-66zfDxU54dG-gWbiJ0EMbFYWSBgmRicGFmZTAuNS4w
+ [__link0]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_combinatoric_tutorial
+ [__link3]: https://docs.rs/bpaf/0.5.0/bpaf/?search=info::OptionParser::run_inner

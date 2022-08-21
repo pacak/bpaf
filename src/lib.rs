@@ -313,7 +313,7 @@ pub use bpaf_derive::Bpaf;
 /// # }
 ///
 /// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
-/// // parallel composition, an equivalent of a.or_else(b).or_else(c):
+/// // parallel composition, tries all parsers, picks succeeding left most one:
 /// construct!([a, b, c]);
 /// # }
 /// ```
@@ -435,9 +435,10 @@ macro_rules! construct {
         $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
 
-    (@prepare [alt] [$first:ident $($fields:ident)*]) => {{
-        use $crate::Parser; $first $(.or_else($fields))*
-    }};
+    (@prepare [alt] [$first:ident $($fields:ident)*]) => {
+        #[allow(deprecated)]
+        { use $crate::Parser; $first $(.or_else($fields))* }
+    };
 
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
@@ -1152,6 +1153,11 @@ pub trait Parser<T> {
     /// better error message for combinations of mutually exclusive parsers:
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.5.0",
+        note = "instead of a.or_else(b) you should use construct!([a, b])"
+    )]
     fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
     where
         Self: Sized + Parser<T>,
