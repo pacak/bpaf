@@ -65,21 +65,22 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        let items = std::iter::from_fn(|| {
-            let before = args.len();
-            let val = self.inner.eval(args).ok()?;
-            if args.len() < before {
-                Some(val)
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
+        let mut res = Vec::new();
+        let mut len = args.len();
 
-        if items.is_empty() {
+        while let Some(val) = parse_option(&self.inner, args)? {
+            if args.len() < len {
+                len = args.len();
+                res.push(val);
+            } else {
+                break;
+            }
+        }
+
+        if res.is_empty() {
             Err(Error::Stderr(self.message.to_string()))
         } else {
-            Ok(items)
+            Ok(res)
         }
     }
 
@@ -249,13 +250,7 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        let orig_args = args.clone();
-        if let Ok(val) = self.inner.eval(args) {
-            Ok(Some(val))
-        } else {
-            *args = orig_args;
-            Ok(None)
-        }
+        parse_option(&self.inner, args)
     }
 
     fn meta(&self) -> Meta {
@@ -300,21 +295,39 @@ pub struct ParseMany<P> {
     pub(crate) inner: P,
 }
 
+fn parse_option<P, T>(parser: &P, args: &mut Args) -> Result<Option<T>, Error>
+where
+    P: Parser<T>,
+{
+    let orig_args = args.clone();
+    match parser.eval(args) {
+        Ok(val) => Ok(Some(val)),
+        Err(err) => {
+            *args = orig_args;
+            match err {
+                Error::Stdout(_) | Error::Stderr(_) => Err(err),
+                Error::Missing(_) => Ok(None),
+            }
+        }
+    }
+}
+
 impl<T, P> Parser<Vec<T>> for ParseMany<P>
 where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
-        Ok(std::iter::from_fn(|| {
-            let before = args.len();
-            let val = self.inner.eval(args).ok()?;
-            if args.len() < before {
-                Some(val)
+        let mut res = Vec::new();
+        let mut len = args.len();
+        while let Some(val) = parse_option(&self.inner, args)? {
+            if args.len() < len {
+                len = args.len();
+                res.push(val);
             } else {
-                None
+                break;
             }
-        })
-        .collect())
+        }
+        Ok(res)
     }
 
     fn meta(&self) -> Meta {

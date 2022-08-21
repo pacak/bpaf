@@ -672,11 +672,10 @@ pub trait Parser<T> {
     // }}}
 
     // {{{ optional
-    /// Turn a required parser into optional
+    /// Turn a required argument into optional one
     ///
-    /// `optional` converts any failure inside the parser is `None`. Failures in parser
-    /// usually come from missing a command line argument, but it's possible to introduce
-    /// them with [`parse`](Parser::parse) or [`guard`](Parser::guard) methods.
+    /// `optional` converts any failure caused by missing items into is `None` and passes
+    /// the remaining parsing failures untouched.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -1502,9 +1501,9 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let skip = positional("")
-        .guard(move |s| cmd == s, "")
-        .optional()
-        .hide();
+    let eat_command =
+        positional("").parse(move |s| if cmd == s { Ok(()) } else { Err(String::new()) });
+    let ignore_non_command = pure(());
+    let skip = construct!([eat_command, ignore_non_command]).hide();
     construct!(skip, parser).map(|x| x.1)
 }

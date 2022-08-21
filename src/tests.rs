@@ -1131,7 +1131,6 @@ Available options:
     -h, --help         Prints help information
 ";
 
-    println!("{}", help);
     assert_eq!(expected_help, help);
 }
 
@@ -1167,7 +1166,13 @@ Available commands:
 #[test]
 fn many_doesnt_panic() {
     let parser = short('a').switch().many().map(|m| m.len()).to_options();
+    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    assert_eq!(r, 3);
+}
 
+#[test]
+fn some_doesnt_panic() {
+    let parser = short('a').switch().some("").map(|m| m.len()).to_options();
     let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
     assert_eq!(r, 3);
 }
@@ -1192,4 +1197,66 @@ fn command_resets_left_head_state() {
 
     let xx = cmd.run_inner(Args::from(&["cmd", "-b"])).unwrap();
     assert_eq!(xx, Foo::Bar2 { b: () });
+}
+
+#[test]
+fn command_preserves_custom_failure_message() {
+    let msg = "need more cheese";
+    let inner = fail::<()>(msg).to_options();
+
+    let err = inner
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err, msg);
+
+    let outer = inner.command("feed").to_options();
+
+    let err = outer
+        .run_inner(Args::from(&["feed"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err, msg);
+}
+
+#[test]
+fn optional_error_handling() {
+    let p = short('p')
+        .argument("P")
+        .from_str::<u32>()
+        .optional()
+        .to_options();
+
+    let res = p.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(res, None);
+
+    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    assert_eq!(res, Some(3));
+
+    let res = p
+        .run_inner(Args::from(&["-p", "pi"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
+}
+
+#[test]
+fn many_error_handling() {
+    let p = short('p')
+        .argument("P")
+        .from_str::<u32>()
+        .many()
+        .to_options();
+
+    let res = p.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(res, Vec::new());
+
+    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    assert_eq!(res, vec![3]);
+
+    let res = p
+        .run_inner(Args::from(&["-p", "pi"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
 }
