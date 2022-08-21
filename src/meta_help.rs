@@ -243,8 +243,7 @@ impl HelpItem<'_> {
     /// betwen short and log parameters and metavar variable if present
     fn full_width(&self) -> usize {
         match self {
-            HelpItem::Decor { .. } => 0,
-            HelpItem::BlankDecor { .. } => 0,
+            HelpItem::Decor { .. } | HelpItem::BlankDecor { .. } => 0,
             HelpItem::Flag { name, .. } => name.full_width(),
             HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
             HelpItem::Positional { metavar, .. } => metavar.len() + 2,
@@ -273,8 +272,8 @@ impl HelpItem<'_> {
 
 pub(crate) fn render_help(
     info: &Info,
-    parser_meta: Meta,
-    help_meta: Meta,
+    parser_meta: &Meta,
+    help_meta: &Meta,
 ) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
 
@@ -294,8 +293,8 @@ pub(crate) fn render_help(
     }
 
     let mut items = HelpItems::default();
-    items.classify(&parser_meta);
-    items.classify(&help_meta);
+    items.classify(parser_meta);
+    items.classify(help_meta);
     if !items.psns.is_empty() {
         let max_width = items
             .psns

@@ -231,8 +231,8 @@ impl<T> OptionParser<T> {
             Ok(ExtraParams::Help) => {
                 let msg = render_help(
                     &self.info,
-                    self.inner.meta(),
-                    self.info.help_parser().meta(),
+                    &self.inner.meta(),
+                    &self.info.help_parser().meta(),
                 )
                 .expect("Couldn't render help");
                 return Err(Error::Stdout(msg));
@@ -516,6 +516,7 @@ impl<T> OptionParser<T> {
     /// Turn `OptionParser` into subcommand parser
     ///
     /// This is identical to [`command`](crate::params::command)
+    #[must_use]
     pub fn command(self, name: &'static str) -> Command<T>
     where
         T: 'static,
