@@ -370,7 +370,7 @@ Available options:
 }
 
 #[test]
-fn group_help() {
+fn group_help_args() {
     let a = short('a').help("flag A, related to B").switch();
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
@@ -385,7 +385,7 @@ fn group_help() {
 Usage: [-a] [-b] [-c]
 
 Available options:
-                Explanation applicable for both A and B
+  Explanation applicable for both A and B
     -a          flag A, related to B
     -b          flag B, related to A
 
@@ -393,6 +393,47 @@ Available options:
     -h, --help  Prints help information
 ";
 
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn group_help_commands() {
+    let a = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_a")
+        .help("command that does A");
+    let b = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_b")
+        .help("command that does B");
+    let c = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_c")
+        .help("command that does C");
+    let parser = construct!([a, b]).group_help("Explanation applicable for both A and B");
+
+    let parser = construct!([parser, c]).to_options();
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+  Explanation applicable for both A and B
+    cmd_a  command that does A
+    cmd_b  command that does B
+
+    cmd_c  command that does C
+";
     assert_eq!(expected_help, help);
 }
 

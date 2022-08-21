@@ -44,12 +44,11 @@ pub(crate) fn collect_usage_meta(
         }
 
         Meta::Or(xs) => {
-            let mut had_commands = false;
             // if the whole group is optional - any item inside is in optional context:
             // no need to show [] if they're present.
             let mut items = xs
                 .iter()
-                .filter_map(|x| collect_usage_meta(x, required, &mut had_commands))
+                .filter_map(|x| collect_usage_meta(x, required, had_commands))
                 .collect::<Vec<_>>();
 
             match items.len() {

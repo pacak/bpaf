@@ -175,7 +175,7 @@ impl std::fmt::Display for HelpItem<'_> {
                 }
                 Ok(())
             }
-            HelpItem::Decor { .. } => write!(f, "    "),
+            HelpItem::Decor { help } => return write!(f, "  {}", help),
             HelpItem::BlankDecor => Ok(()),
             HelpItem::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
             HelpItem::Command {
