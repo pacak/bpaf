@@ -79,7 +79,7 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
 /// # assert_eq!(Level::Trace, res);
 /// ```
 #[must_use]
-pub fn verbose_by_slice<const N: usize, T: Copy + 'static>(
+pub fn verbose_by_slice<T: Copy + 'static, const N: usize>(
     offset: usize,
     items: [T; N],
 ) -> impl Parser<T> {

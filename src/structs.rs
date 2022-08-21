@@ -385,7 +385,7 @@ where
     }
 }
 
-/// Create parser from a function, [`construct!`] uses it internally
+/// Create parser from a function, [`construct!`](crate::construct!) uses it internally
 pub struct PCon<P> {
     /// inner parser closure
     pub inner: P,

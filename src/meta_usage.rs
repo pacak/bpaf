@@ -142,15 +142,15 @@ impl std::fmt::Display for UsageMeta {
                 }
                 Ok(())
             }
-            UsageMeta::Required(x) => write!(f, "({x})"),
-            UsageMeta::Optional(x) => write!(f, "[{x}]"),
-            UsageMeta::Many(x) => write!(f, "{x}..."),
-            UsageMeta::ShortFlag(c) => write!(f, "-{c}"),
-            UsageMeta::LongFlag(l) => write!(f, "--{l}"),
-            UsageMeta::ShortArg(c, v) => write!(f, "-{c} {v}"),
-            UsageMeta::LongArg(l, v) => write!(f, "--{l} {v}"),
+            UsageMeta::Required(x) => write!(f, "({})", x),
+            UsageMeta::Optional(x) => write!(f, "[{}]", x),
+            UsageMeta::Many(x) => write!(f, "{}...", x),
+            UsageMeta::ShortFlag(c) => write!(f, "-{}", c),
+            UsageMeta::LongFlag(l) => write!(f, "--{}", l),
+            UsageMeta::ShortArg(c, v) => write!(f, "-{} {}", c, v),
+            UsageMeta::LongArg(l, v) => write!(f, "--{} {}", l, v),
             UsageMeta::Command => f.write_str("COMMAND ..."),
-            UsageMeta::Pos(s) => write!(f, "<{s}>"),
+            UsageMeta::Pos(s) => write!(f, "<{}>", s),
         }
     }
 }

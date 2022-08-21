@@ -55,7 +55,7 @@ mod inner {
 
     impl<const N: usize> From<&[&str; N]> for Args {
         fn from(xs: &[&str; N]) -> Self {
-            Args::from(xs.as_slice())
+            Args::from(&xs[..])
         }
     }
 
