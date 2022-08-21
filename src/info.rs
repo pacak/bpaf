@@ -257,7 +257,7 @@ impl<T> OptionParser<T> {
 
     /// Set the version field.
     ///
-    /// By default bpaf won't include any version info and won't accept `--version` switch.
+    /// By default `bpaf` won't include any version info and won't accept `--version` switch.
     ///
     /// # Combinatoric usage
     ///

@@ -67,7 +67,7 @@ use crate::{
 /// Create it with [`short`] or [`long`].
 ///
 /// # Ways to consume data
-/// bpaf supports several different ways user can specify values on a command line:
+/// `bpaf` supports several different ways user can specify values on a command line:
 ///
 /// - [`flag`](Named::flag) - a string that consists of two dashes (`--flag`) and a name and a single
 /// dash and a single character (`-f`) - [`long`](Named::long) and [`short`](Named::short) name respectively.
@@ -115,7 +115,7 @@ use crate::{
 /// // fails since --out-dir isn't a valid argument for command "check"
 /// ```
 ///
-/// As most of the other parsers bpaf treats anything to the right of `--` symbol as positional
+/// As most of the other parsers `bpaf` treats anything to the right of `--` symbol as positional
 /// arguments regardless their names:
 ///
 /// ```console
@@ -827,7 +827,7 @@ impl<P> Command<P> {
     ///
     /// `bpaf` uses this description along with the command name
     /// in help output so it shouldn't exceed one or two lines. If `help` isn't specified
-    /// bpaf falls back to [`descr`](OptionParser::descr) from the inner parser.
+    /// `bpaf` falls back to [`descr`](OptionParser::descr) from the inner parser.
     ///
     /// # Combinatoric usage
     ///
@@ -848,7 +848,7 @@ impl<P> Command<P> {
     /// ```
     ///
     /// # Derive usage
-    /// bpaf uses doc comments for inner parser, no specific options are available.
+    /// `bpaf_derive` uses doc comments for inner parser, no specific options are available.
     /// See [`descr`](OptionParser::descr) for more details
     /// ```rust
     /// # use bpaf::*;
