@@ -339,7 +339,8 @@ where
 /// [`pure`](crate::pure).
 pub struct ParsePure<T>(pub(crate) T);
 impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
-    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        args.current = None;
         Ok(self.0.clone())
     }
 

@@ -117,6 +117,7 @@ mod inner {
 
         pub(crate) fn remove(&mut self, index: usize) {
             if !self.removed[index] {
+                self.current = Some(index);
                 self.remaining -= 1;
                 self.head = self.head.min(index);
             }
@@ -305,6 +306,7 @@ impl Args {
                 return true;
             }
         }
+        self.current = None;
         false
     }
 

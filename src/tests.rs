@@ -1301,3 +1301,16 @@ fn many_error_handling() {
         .unwrap_stderr();
     assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
 }
+
+#[test]
+fn failure_is_not_stupid() {
+    let a = short('a').argument("A").from_str::<u32>();
+    let b = pure(()).parse::<_, _, String>(|_| Err("nope".to_string()));
+    let parser = construct!(a, b).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["-a", "42"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse: nope");
+}
