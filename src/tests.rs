@@ -1185,8 +1185,10 @@ fn command_resets_left_head_state() {
 
     let p1 = construct!(Foo::Bar1 { a });
     let p2 = construct!(Foo::Bar2 { b });
-    let p = construct!([p1, p2]);
-    let cmd = command("cmd", p.to_options()).to_options();
+    let cmd = construct!([p1, p2])
+        .to_options()
+        .command("cmd")
+        .to_options();
 
     let xx = cmd.run_inner(Args::from(&["cmd", "-b"])).unwrap();
     assert_eq!(xx, Foo::Bar2 { b: () });

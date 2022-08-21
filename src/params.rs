@@ -733,6 +733,8 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// can have its own help message, description, version and so on. You can nest them arbitrarily
 /// too.
 ///
+/// Alternatively you can create commands using [`command`](OptionParser::command)
+///
 /// # Combinatoric use
 ///
 /// Structure [`Command`] you get by calling this method is a builder that allows to add additional

@@ -7,7 +7,7 @@ use crate::{
     args::{self, Args},
     meta_help::render_help,
     params::short,
-    Meta, ParseFailure, Parser,
+    Command, Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -511,6 +511,16 @@ impl<T> OptionParser<T> {
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
         self
+    }
+
+    /// Turn `OptionParser` into subcommand parser
+    ///
+    /// This is identical to [`command`](crate::params::command)
+    pub fn command(self, name: &'static str) -> Command<T>
+    where
+        T: 'static,
+    {
+        crate::params::command(name, self)
     }
 }
 
