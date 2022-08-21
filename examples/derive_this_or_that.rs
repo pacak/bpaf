@@ -1,3 +1,6 @@
+//! deriving for tri-state enabled/disabled/undecided switch, non derive version would use
+//! combination of `req_flag` and `construct!([on, off, undecined])`
+
 #![allow(dead_code)]
 use bpaf::Bpaf;
 
@@ -9,9 +12,14 @@ use bpaf::Bpaf;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
-struct Opts {
-    #[bpaf(external(flags))]
-    flag: Flags,
+enum Opts {
+    /// enabled
+    On,
+    /// disabled
+    Off,
+    /// undecined
+    #[bpaf(long("undecided"), hide, default)]
+    Undecided,
 }
 
 #[derive(Debug, Clone, Bpaf)]

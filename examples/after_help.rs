@@ -4,12 +4,15 @@
 use bpaf::*;
 
 fn main() {
-    let dragon = short('d').help("Release the dragon").switch();
-    let info = Info::default()
+    let opt = short('d')
+        .help("Release the dragon")
+        .switch()
+        .to_options()
+        // help metadata
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
-        .footer("Beware `-d`, dragons be here");
+        .footer("Beware `-d`, dragons be here")
+        .run();
 
-    let opt = info.for_parser(dragon).run();
     println!("{:?}", opt);
 }

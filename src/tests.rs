@@ -1,3 +1,4 @@
+#![allow(deprecated)]
 use crate::*;
 use std::str::FromStr;
 
@@ -10,19 +11,18 @@ fn construct_with_fn() {
         c: bool,
     }
 
-    fn a() -> Parser<bool> {
+    fn a() -> impl Parser<bool> {
         short('a').switch()
     }
 
     let b = short('b').switch();
 
-    fn c() -> Parser<bool> {
+    fn c() -> impl Parser<bool> {
         short('c').switch()
     }
 
-    let parser = Info::default().for_parser(construct!(Opts { a(), b, c() }));
+    let parser = construct!(Opts { a(), b, c() }).to_options();
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -53,20 +53,17 @@ fn simple_two_optional_flags() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch();
     let x = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(x);
+    let decorated = x.to_options().descr("this is a test");
 
     // no version information given - no version field generated
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("-V is not expected in this context", err);
 
-    // flag can be given only once
+    // accept only one copy of -a
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -94,21 +91,17 @@ Available options:
 fn simple_two_optional_flags_with_one_hidden() {
     let a = short('a').long("AAAAA").switch();
     let b = short('b').switch().hide();
-    let x = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(x);
+    let decorated = construct!(a, b).to_options().descr("this is a test");
 
     // no version information given - no version field generated
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("-V is not expected in this context", err);
 
-    // flag can be given only once
+    // accepts only one copy of -a
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -137,12 +130,10 @@ fn either_of_three_required_flags() {
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
     let p = a.or_else(b).or_else(c);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
+    // version help requires version meta
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -150,7 +141,6 @@ fn either_of_three_required_flags() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -183,12 +173,9 @@ fn either_of_three_required_flags2() {
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
     let p = construct!([a, b, c]);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -196,7 +183,6 @@ fn either_of_three_required_flags2() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -229,12 +215,9 @@ fn either_of_two_required_flags_and_one_optional() {
     let b = short('b').req_flag(false);
     let c = short('c').switch();
     let p = a.or_else(b).or_else(c);
-    let info = Info::default().version("1.0");
-    let decorated = info.for_parser(p);
+    let decorated = p.to_options().version("1.0");
 
-    // version is specified - version help is present
     let ver = decorated
-        .clone()
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -242,7 +225,6 @@ fn either_of_two_required_flags_and_one_optional() {
 
     // help is always generated
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -269,11 +251,9 @@ fn default_arguments() {
         .argument("ARG")
         .parse(|s| i32::from_str(&s))
         .fallback(42);
-    let info = Info::default();
-    let decorated = info.for_parser(a);
+    let decorated = a.to_options();
 
     let help = decorated
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -287,7 +267,6 @@ Available options:
     assert_eq!(expected_help, help);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "x12"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -304,11 +283,12 @@ Available options:
 
 #[test]
 fn parse_errors() {
-    let a = short('a').argument("ARG").parse(|s| i32::from_str(&s));
-    let decorated = Info::default().for_parser(a);
+    let decorated = short('a')
+        .argument("ARG")
+        .parse(|s| i32::from_str(&s))
+        .to_options();
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -316,7 +296,6 @@ fn parse_errors() {
     assert_eq!(expected_err, err);
 
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -334,9 +313,7 @@ fn parse_errors() {
 #[test]
 fn custom_usage() {
     let a = short('a').long("long").argument("ARG");
-    let parser = Info::default()
-        .usage("Usage: -a <ARG> or --long <ARG>")
-        .for_parser(a);
+    let parser = a.to_options().usage("Usage: -a <ARG> or --long <ARG>");
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -360,11 +337,9 @@ fn long_usage_string() {
     let e = short('e').long("e-very-long-flag-with").argument("ARG");
     let f = short('f').long("f-very-long-flag-with").argument("ARG");
 
-    let p = construct!(a, b, c, d, e, f);
-    let parser = Info::default().for_parser(p);
+    let parser = construct!(a, b, c, d, e, f).to_options();
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -386,7 +361,6 @@ Available options:
     assert_eq!(
         "-a requires an argument, got flag -b",
         parser
-            .clone()
             .run_inner(Args::from(&["-a", "-b"]))
             .unwrap_err()
             .unwrap_stderr()
@@ -396,12 +370,12 @@ Available options:
 }
 
 #[test]
-fn group_help() {
+fn group_help_args() {
     let a = short('a').help("flag A, related to B").switch();
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
     let ab = construct!(a, b).group_help("Explanation applicable for both A and B");
-    let parser = Info::default().for_parser(construct!(ab, c));
+    let parser = construct!(ab, c).to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -411,7 +385,7 @@ fn group_help() {
 Usage: [-a] [-b] [-c]
 
 Available options:
-                Explanation applicable for both A and B
+  Explanation applicable for both A and B
     -a          flag A, related to B
     -b          flag B, related to A
 
@@ -423,36 +397,72 @@ Available options:
 }
 
 #[test]
+fn group_help_commands() {
+    let a = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_a")
+        .help("command that does A");
+    let b = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_b")
+        .help("command that does B");
+    let c = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_c")
+        .help("command that does C");
+    let parser = construct!([a, b]).group_help("Explanation applicable for both A and B");
+
+    let parser = construct!([parser, c]).to_options();
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+  Explanation applicable for both A and B
+    cmd_a  command that does A
+    cmd_b  command that does B
+
+    cmd_c  command that does C
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
 fn from_several_alternatives_pick_more_meaningful() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
     let c = short('c').req_flag(());
-    let p = a.or_else(b).or_else(c);
-    let parser = Info::default().for_parser(p);
+    let parser = construct!([a, b, c]).to_options();
 
     let err1 = parser
-        .clone()
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err1, "-b is not expected in this context");
 
     let err2 = parser
-        .clone()
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err2, "-a is not expected in this context");
 
     let err3 = parser
-        .clone()
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err3, "-a is not expected in this context");
 
     let err4 = parser
-        .clone()
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -467,17 +477,13 @@ fn from_several_alternatives_pick_more_meaningful() {
 
 #[test]
 fn subcommands() {
-    let global_info = Info::default().descr("This is global info");
-    let local_info = Info::default().descr("This is local info");
-
     let bar = short('b').switch();
 
-    let bar_cmd = command("bar", Some("do bar"), local_info.for_parser(bar));
+    let bar_cmd = command("bar", bar.to_options().descr("This is local info"));
 
-    let parser = global_info.for_parser(bar_cmd);
+    let parser = bar_cmd.to_options().descr("This is global info");
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -490,7 +496,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    bar  do bar
+    bar  This is local info
 ";
     assert_eq!(expected_help, help);
 
@@ -513,10 +519,9 @@ Available options:
 #[test]
 fn multiple_aliases() {
     let a = short('a').short('b').short('c').req_flag(());
-    let parser = Info::default().for_parser(a);
+    let parser = a.to_options();
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -528,15 +533,15 @@ Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
-    parser.clone().run_inner(Args::from(&["-a"])).unwrap();
-    parser.clone().run_inner(Args::from(&["-b"])).unwrap();
+    parser.run_inner(Args::from(&["-a"])).unwrap();
+    parser.run_inner(Args::from(&["-b"])).unwrap();
     parser.run_inner(Args::from(&["-c"])).unwrap();
 }
 
 #[test]
 fn positional_argument() {
     let p = positional("FILE").group_help("File to process");
-    let parser = Info::default().for_parser(p);
+    let parser = p.to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -578,12 +583,10 @@ mod git {
             all,
             repository
         });
-        let fetch_info = Info::default().descr("fetches branches from remote repository");
-        let fetch_cmd = command(
-            "fetch",
-            Some("fetch branches from remote repository"),
-            fetch_info.for_parser(fetch),
-        );
+        let fetch_inner = fetch
+            .to_options()
+            .descr("fetches branches from remote repository");
+        let fetch_cmd = command("fetch", fetch_inner);
 
         let interactive = short('i').switch();
         let all = long("all").switch();
@@ -593,16 +596,12 @@ mod git {
             all,
             files
         });
-        let add_info = Info::default().descr("add files to the staging area");
-        let add_cmd = command(
-            "add",
-            Some("add files to the staging area"),
-            add_info.for_parser(add),
-        );
+        let add_inner = add.to_options().descr("add files to the staging area");
+        let add_cmd = command("add", add_inner);
 
-        Info::default()
+        construct!([fetch_cmd, add_cmd])
+            .to_options()
             .descr("The stupid content tracker")
-            .for_parser(fetch_cmd.or_else(add_cmd))
     }
 
     #[test]
@@ -631,7 +630,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    fetch  fetch branches from remote repository
+    fetch  fetches branches from remote repository
     add    add files to the staging area
 ";
 
@@ -702,7 +701,7 @@ fn arg_bench() {
     }
 
     let number = long("number")
-        .help("Sets a number")
+        .help("Sets a number\nin two lines")
         .argument("number")
         .from_str();
 
@@ -726,9 +725,8 @@ fn arg_bench() {
         opt_number,
         width,
         input
-    });
-
-    let parser = Info::default().for_parser(parser);
+    })
+    .to_options();
 
     assert_eq!(
         AppArgs {
@@ -738,7 +736,6 @@ fn arg_bench() {
             input: vec![PathBuf::from("foo"), PathBuf::from("foo2")],
         },
         parser
-            .clone()
             .run_inner(Args::from(&["--number", "42", "foo", "foo2"]))
             .unwrap()
     );
@@ -750,10 +747,7 @@ fn arg_bench() {
             width: 10,
             input: Vec::new()
         },
-        parser
-            .clone()
-            .run_inner(Args::from(&["--number", "42"]))
-            .unwrap()
+        parser.run_inner(Args::from(&["--number", "42"])).unwrap()
     );
 
     drop(parser);
@@ -761,26 +755,22 @@ fn arg_bench() {
 
 #[test]
 fn simple_cargo_helper() {
-    let a = short('a').long("AAAAA").switch();
+    let a = short('a').long("AAAAA").help("two lines\nof help").switch();
     let b = short('b').switch();
     let parser = construct!(a, b);
-    let info = Info::default().descr("this is a test");
-    let decorated = info.for_parser(cargo_helper("simple", parser));
+    let decorated = cargo_helper("simple", parser)
+        .to_options()
+        .descr("this is a test");
 
     // cargo run variant
-    let ok = decorated.clone().run_inner(Args::from(&["-a"])).unwrap();
+    let ok = decorated.run_inner(Args::from(&["-a"])).unwrap();
     assert_eq!((true, false), ok);
 
     // cargo simple variant
-    let ok = decorated
-        .clone()
-        .run_inner(Args::from(&["simple", "-b"]))
-        .unwrap();
+    let ok = decorated.run_inner(Args::from(&["simple", "-b"])).unwrap();
     assert_eq!((false, true), ok);
 
-    // flag can be given only once
     let err = decorated
-        .clone()
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -797,7 +787,8 @@ this is a test
 Usage: [-a] [-b]
 
 Available options:
-    -a, --AAAAA
+    -a, --AAAAA  two lines
+                 of help
     -b
     -h, --help   Prints help information
 ";
@@ -815,8 +806,9 @@ fn long_path_in_construct() {
 
 #[test]
 fn helpful_error_message() {
-    let a = positional("FOO").some("You need to specify at least one FOO");
-    let parser = Info::default().for_parser(a);
+    let parser = positional("FOO")
+        .some("You need to specify at least one FOO")
+        .to_options();
 
     let err = parser
         .run_inner(Args::from(&[]))
@@ -828,14 +820,13 @@ fn helpful_error_message() {
 #[test]
 fn env_variable() {
     let name = "BPAF_SECRET_API_KEY";
-    let key = long("key")
+    let parser = long("key")
         .env(name)
-        .help("use this secret key")
-        .argument("KEY");
-    let parser = Info::default().for_parser(key);
+        .help("use this secret key\ntwo lines")
+        .argument("KEY")
+        .to_options();
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -845,13 +836,13 @@ Usage: --key KEY
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY: N/A]
                      use this secret key
+                     two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
     std::env::set_var(name, "top s3cr3t");
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -861,14 +852,12 @@ Usage: --key KEY
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
                      use this secret key
+                     two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
 
-    let res = parser
-        .clone()
-        .run_inner(Args::from(&["--key", "secret"]))
-        .unwrap();
+    let res = parser.run_inner(Args::from(&["--key", "secret"])).unwrap();
     assert_eq!(res, "secret");
 
     let res = parser.run_inner(Args::from(&[])).unwrap();
@@ -877,6 +866,7 @@ Available options:
 
 #[test]
 fn help_with_default_parse() {
+    use bpaf::Parser;
     #[derive(Debug, Clone, Bpaf)]
     enum Action {
         /// Add a new TODO item
@@ -888,11 +878,9 @@ fn help_with_default_parse() {
         NoAction,
     }
 
-    let parser =
-        ::bpaf::Info::default().for_parser(action().or_else(bpaf::Parser::pure(Action::NoAction)));
+    let parser = action().or_else(bpaf::pure(Action::NoAction)).to_options();
 
     let help = parser
-        .clone()
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -934,15 +922,15 @@ fn command_and_fallback() {
         Add(String),
 
         /// Does nothing
+        /// in two lines
         #[bpaf(command)]
         NoAction,
     }
 
-    let parser = action().fallback(Action::NoAction);
+    use bpaf::Parser;
+    let parser = action().fallback(Action::NoAction).to_options();
 
-    let parser = ::bpaf::Info::default().for_parser(parser);
     let help = parser
-        .clone()
         .run_inner(bpaf::Args::from(&["add", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -971,6 +959,7 @@ Available options:
 Available commands:
     add        Add a new TODO item
     no_action  Does nothing
+               in two lines
 ";
     assert_eq!(expected_help, help);
 }
@@ -980,7 +969,7 @@ fn optional_req_select() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
     let ab = a.or_else(b).optional();
-    let parser = Info::default().for_parser(ab);
+    let parser = ab.to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
@@ -999,7 +988,7 @@ Available options:
 #[test]
 fn dash_is_positional() {
     let a = positional("FILE");
-    let parser = Info::default().for_parser(a);
+    let parser = a.to_options();
     assert_eq!("-", parser.run_inner(Args::from(&["-"])).unwrap());
 }
 
@@ -1016,19 +1005,13 @@ fn default_plays_nicely_with_command() {
         }
     }
 
-    let cmd = command(
-        "foo",
-        Some("foo"),
-        Info::default()
-            .descr("inner")
-            .for_parser(Parser::pure(Foo::Foo)),
-    )
-    .default();
+    let cmd = command("foo", pure(Foo::Foo).to_options().descr("inner"))
+        .help("foo")
+        .fallback(Default::default());
 
-    let parser = Info::default().descr("outer").for_parser(cmd);
+    let parser = cmd.to_options().descr("outer");
 
     let help = parser
-        .clone()
         .run_inner(Args::from(&["foo", "--help"]))
         .unwrap_err()
         .unwrap_stdout();
@@ -1061,4 +1044,273 @@ Available commands:
 ";
 
     assert_eq!(expected_help, help);
+}
+
+#[test]
+fn command_with_aliases() {
+    let inner = pure(()).to_options().descr("inner descr");
+    let cmd = command("foo", inner).long("bar").short('f').short('b');
+    let parser = cmd.to_options().descr("outer");
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+outer
+
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    foo, f  inner descr
+";
+    assert_eq!(expected_help, help);
+
+    let help = parser
+        .run_inner(Args::from(&["f", "--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+inner descr
+
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    // hidden and visible aliases are working
+    parser.run_inner(Args::from(&["foo"])).unwrap();
+    parser.run_inner(Args::from(&["f"])).unwrap();
+    parser.run_inner(Args::from(&["bar"])).unwrap();
+    parser.run_inner(Args::from(&["b"])).unwrap();
+
+    // and "k" isn't a thing
+    parser.run_inner(Args::from(&["k"])).unwrap_err();
+}
+
+#[test]
+fn positional_with_help() {
+    let user = positional("USER").help("github user\nin two lines");
+    let api = positional("API_KEY").help("api key to use");
+    let parser = construct!(user, api).to_options();
+
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage: <USER> <API_KEY>
+
+Available positional items:
+    <USER>     github user
+               in two lines
+    <API_KEY>  api key to use
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_positional() {
+    let c = positional("C").help("help for\nc");
+    let d = positional("DDD").help("help for\nddd");
+    let parser = construct!(c, d).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: <C> <DDD>
+
+Available positional items:
+    <C>    help for
+           c
+    <DDD>  help for
+           ddd
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_options() {
+    let a = short('a').help("help for\na").switch();
+    let b = short('c').env("BbBbB").help("help for\nb").argument("B");
+    let c = long("bbbbb")
+        .env("ccccCCccc")
+        .help("help for\nccc")
+        .argument("CCC");
+    let parser = construct!(a, b, c).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: [-a] -c B --bbbbb CCC
+
+Available options:
+    -a                 help for
+                       a
+    -c <B>             [env:BbBbB: N/A]
+                       help for
+                       b
+        --bbbbb <CCC>  [env:ccccCCccc: N/A]
+                       help for
+                       ccc
+    -h, --help         Prints help information
+";
+
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_commands() {
+    let d = command("thing_d", pure(()).to_options()).help("help for d\ntwo lines");
+    let e = command("thing_e", pure(()).to_options())
+        .short('e')
+        .help("help for e\ntwo lines");
+    let h = command("thing_h", pure(()).to_options());
+    let parser = construct!(d, e, h).to_options();
+    let help = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected_help = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    thing_d     help for d
+                two lines
+    thing_e, e  help for e
+                two lines
+    thing_h
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn many_doesnt_panic() {
+    let parser = short('a').switch().many().map(|m| m.len()).to_options();
+    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    assert_eq!(r, 3);
+}
+
+#[test]
+fn some_doesnt_panic() {
+    let parser = short('a').switch().some("").map(|m| m.len()).to_options();
+    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    assert_eq!(r, 3);
+}
+
+#[test]
+fn command_resets_left_head_state() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Foo {
+        Bar1 { a: u32 },
+        Bar2 { b: () },
+    }
+
+    let a = short('a').argument("A").from_str::<u32>().fallback(0);
+    let b = short('b').req_flag(());
+
+    let p1 = construct!(Foo::Bar1 { a });
+    let p2 = construct!(Foo::Bar2 { b });
+    let cmd = construct!([p1, p2])
+        .to_options()
+        .command("cmd")
+        .to_options();
+
+    let xx = cmd.run_inner(Args::from(&["cmd", "-b"])).unwrap();
+    assert_eq!(xx, Foo::Bar2 { b: () });
+}
+
+#[test]
+fn command_preserves_custom_failure_message() {
+    let msg = "need more cheese";
+    let inner = fail::<()>(msg).to_options();
+
+    let err = inner
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err, msg);
+
+    let outer = inner.command("feed").to_options();
+
+    let err = outer
+        .run_inner(Args::from(&["feed"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(err, msg);
+}
+
+#[test]
+fn optional_error_handling() {
+    let p = short('p')
+        .argument("P")
+        .from_str::<u32>()
+        .optional()
+        .to_options();
+
+    let res = p.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(res, None);
+
+    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    assert_eq!(res, Some(3));
+
+    let res = p
+        .run_inner(Args::from(&["-p", "pi"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
+}
+
+#[test]
+fn many_error_handling() {
+    let p = short('p')
+        .argument("P")
+        .from_str::<u32>()
+        .many()
+        .to_options();
+
+    let res = p.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(res, Vec::new());
+
+    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    assert_eq!(res, vec![3]);
+
+    let res = p
+        .run_inner(Args::from(&["-p", "pi"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
+}
+
+#[test]
+fn failure_is_not_stupid() {
+    let a = short('a').argument("A").from_str::<u32>();
+    let b = pure(()).parse::<_, _, String>(|_| Err("nope".to_string()));
+    let parser = construct!(a, b).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["-a", "42"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse: nope");
 }

@@ -1,4 +1,5 @@
-//! How to nest things
+//! All the flags don't have to live in the same structure, this example uses non derive version.
+//! with derive API you would use `extern` annotation
 
 use bpaf::*;
 
@@ -25,10 +26,11 @@ fn main() {
     let user = short('u').help("daemon user").argument("USER");
     let group = short('g').help("daemon group").argument("GROUP");
     let daemon_opts = construct!(DaemonOpts { user, group });
-    let cmdline = construct!(Cmdline {
+    let opt = construct!(Cmdline {
         verbose,
         daemon_opts
-    });
-    let opt = Info::default().for_parser(cmdline).run();
+    })
+    .to_options()
+    .run();
     println!("{:?}", opt);
 }

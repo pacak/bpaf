@@ -1,3 +1,5 @@
+//! Consume a named argument with fallback to environment variable
+
 use bpaf::*;
 
 #[allow(dead_code)]
@@ -12,8 +14,7 @@ pub fn main() {
         .help("access key to use")
         .argument("KEY");
 
-    let parser = construct!(Opts { key });
-    let opts = Info::default().for_parser(parser);
+    let opts = construct!(Opts { key }).to_options().run();
 
-    println!("{:?}", opts.run());
+    println!("{:?}", opts);
 }

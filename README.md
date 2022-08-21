@@ -1,178 +1,268 @@
-# bpaf
+# bpaf ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue) [![bpaf on crates.io](https://img.shields.io/crates/v/bpaf)](https://crates.io/crates/bpaf) [![bpaf on docs.rs](https://docs.rs/bpaf/badge.svg)](https://docs.rs/bpaf) [![Source Code Repository](https://img.shields.io/badge/Code-On%20github.com-blue)](https://github.com/pacak/bpaf) [![bpaf on deps.rs](https://deps.rs/repo/github/pacak/bpaf/status.svg)](https://deps.rs/repo/github/pacak/bpaf)
 
-Parse command line arguments by composing a parser from the components optimized for
-flexibility and compilation time
+Lightweight and flexible command line argument parser with derive and combinator style API
 
-# Usage
 
-Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+## Derive and combinatoric API
+
+`bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
+
+
+## Quick links
+
+ - [Derive tutorial][__link0]
+ - [Combinatoric tutorial][__link1]
+ - [FAQ][__link2]
+ - [Batteries included][__link3]
+
+
+## Quick start, derive edition
+
+ 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+
 
 ```toml
 [dependencies]
-bpaf = "0.3"
+bpaf = { version = "0.5", features = ["derive"] }
 ```
 
-Start with [`short`], [`long`], [`command`] or [`positional`] to define fields used in parser, use
-some of the member functions from [`Parser`] to apply further processing, combine parsers using
-[`construct!`] or [`or_else`][Parser::or_else], create a parser [`Info`], attach it to the parser
-with [`for_parser`][Info::for_parser] and execute with [`run`][OptionParser::run] to get the
-results out. As far as the rest of the application is concerned there's only one parameter. See
-[params] for starting points explanations.
+ 2. Define a structure containing command line attributes and run generated function
 
-```no_run
-use bpaf::*;
 
-#[derive(Clone, Debug)]
-struct Opts {
+```rust
+use bpaf::Bpaf;
+
+#[derive(Clone, Debug, Bpaf)]
+#[bpaf(options, version)]
+/// Accept speed and distance, print them
+struct SpeedAndDistance {
+    /// Speed in KPH
     speed: f64,
+    /// Distance in miles
     distance: f64,
 }
 
-fn opts() -> Opts {
-    let speed = short('k')
-        .long("speed")           // give it a name
-        .help("speed in KPH")    // and help message
-        .argument("SPEED")       // it's an argument with metavar
-        .from_str()              // that is parsed from string as f64
-        .map(|s: f64| s / 0.62); // and converted to mph
-
-    let distance = short('d')
-        .long("distance")
-        .help("distance in miles")
-        .argument("DISTANCE")
-        .from_str();
-
-    // combine parsers `speed` and `distance` parsers into a parser for Opts
-    let parser = construct!(Opts { speed, distance });
-
-    // define help message, attach it to parser, and run the results
-    Info::default().descr("Accept speed and distance, print them").for_parser(parser).run()
-}
-
 fn main() {
-    let opts = opts();
+    // #[derive(Bpaf) generates function speed_and_distance
+    let opts = speed_and_distance().run();
     println!("Options: {:?}", opts);
 }
 ```
 
-# Design goals
-
-## Flexibility
-
-Library allows to express accepted options by combining primitive parsers using mostly regular
-Rust code. For example it is possible to take a parser that requires a single floating point
-number and create a parser that takes a pair of them with names and help generated.
-
-The main restriction library sets is that parsed values (but not the fact that parser succeeded
-or failed) can't be used to decide how to parse subsequent values. In other words parsers don't
-have the monadic strength, only the applicative one.
+ 3. Try to run the app
 
 
-To give an example, this description is allowed:
-"Program takes one of `--stdout` or `--file` flag to specify the output, when it's `--file`
-program also requires `-f` attribute with the file name".
+```console
+% very_basic --help
+Accept speed and distance, print them
 
-```txt
-(--stdout | (--file -f ARG))
+Usage: --speed ARG --distance ARG
+
+Available options:
+        --speed <ARG>     Speed in KPH
+        --distance <ARG>  Distance in miles
+    -h, --help            Prints help information
+    -V, --version         Prints version information
+
+% very_basic --speed 100
+Expected --distance ARG, pass --help for usage information
+
+% very_basic --speed 100 --distance 500
+Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+
+% very_basic --version
+Version: 0.5.0 (taken from Cargo.toml by default)
 ```
 
-But this one isn't:
-"Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it's `'file'`
-program also requires `-f` attribute with the file name".
+
+## Quick start, combinatoric edition
+
+ 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 
 
-```txt
--o ARG ???????
+```toml
+[dependencies]
+bpaf = "0.5"
 ```
 
-A better approach would be to have two separate parsers that both transform into a single
-`enum Output { StdOut, File(File) }` datatype combined with [`or_else`][Parser::or_else].
+ 2. Declare parsers for components, combine them and run it
 
 
 ```rust
-use bpaf::*;
+use bpaf::{construct, long, Parser};
+#[derive(Clone, Debug)]
+struct SpeedAndDistance {
+    /// Dpeed in KPH
+    speed: f64,
+    /// Distance in miles
+    distance: f64,
+}
 
-#[derive(Clone)]
-enum Output { StdOut, File(String) };
+fn main() {
+    // primitive parsers
+    let speed = long("speed")
+        .help("Speed in KPG")
+        .argument("SPEED")
+        .from_str::<f64>();
 
-let stdout = long("stdout").req_flag(Output::StdOut);
-let file = long("file").argument("FILE").map(Output::File);
-let output: Parser<Output> = stdout.or_else(file);
-```
+    let distance = long("distance")
+        .help("Distance in miles")
+        .argument("DIST")
+        .from_str::<f64>();
 
-Library can handle alternatives and perform parsing and validation:
+    // parser containing information about both speed and distance
+    let parser = construct!(SpeedAndDistance { speed, distance });
 
-```rust
-use bpaf::*;
+    // option parser with metainformation attached
+    let speed_and_distance
+        = parser
+        .to_options()
+        .descr("Accept speed and distance, print them");
 
-/// As far as the end user is concerned `speed` is a single argument that is always valid
-fn speed() -> Parser<f64> {
-
-    // define a simple string argument
-    let kph = short('k').help("speed in KPH").argument("SPEED")
-            .from_str::<f64>()                             // parse it from string to f64
-            .guard(|&s| s > 0.0, "Speed must be positive"); // and add some restrictions
-
-    let mph = short('m').help("speed in MPH").argument("SPEED")
-            .from_str::<f64>()
-            .map(|s|s * 1.6)  // can also apply transformations
-            .guard(|&s| s > 0.0, "Speed must be positive");
-
-    // compose parsers and apply one more validation for composed parser
-    kph.or_else(mph).guard(|&s| s <= 99.9, "That's way too fast")
+    let opts = speed_and_distance.run();
+    println!("Options: {:?}", opts);
 }
 ```
 
-## Reusability
+ 3. Try to run it, output should be similar to derive edition
 
-`speed` defined in a previous example is a regular Rust function that can be exported and
-reused in many places. It can also be composed with other parsers to produce more parsers.
 
-## Help generation
+## Design goals: flexibility, reusability, correctness
 
-A typical set of options would generate a help message similar to this one:
-```txt
-Usage: [-a|--AAAAA] -b (-m|--mph ARG) | (-k|--kph ARG) COMMAND
+Library allows to consume command line arguments by building up parsers for individual arguments and combining those primitive parsers using mostly regular Rust code plus one macro. For example it’s possible to take a parser that requires a single floating point number and transform it to a parser that takes several of them or takes it optionally so different subcommands or binaries can share a lot of the code:
 
-This is a sample program
 
-Available options:
-    -a, AAAAA        maps to a boolean, is optional
-    -b               also maps to a boolean but mandatory
-    -m, mph <SPEED>  speed in MPH
-    -k, kph <SPEED>  speed in KPH
-    -h, help         Prints help information
-    -V, version      Prints version information
+```rust
+// a regular function that doesn't depend on anything, you can export it
+// and share across subcommands and binaries
+fn speed() -> impl Parser<f64> {
+    long("speed")
+        .help("Speed in KPH")
+        .argument("SPEED")
+        .from_str::<f64>()
+}
 
-Available commands:
-    accel  command for acceleration
+// this parser accepts multiple `--speed` flags from a command line when used,
+// collecting them into a vector
+fn multiple_args() -> impl Parser<Vec<f64>> {
+    speed().many()
+}
+
+// this parser checks if `--speed` is present and uses value of 42 if it's not
+fn with_fallback() -> impl Parser<f64> {
+    speed().fallback(42.0)
+}
+```
+
+At any point you can apply additional validation or fallback values in terms of current parsed state of each subparser and you can have several stages as well:
+
+
+```rust
+#[derive(Clone, Debug)]
+struct Speed(f64);
+fn speed() -> impl Parser<Speed> {
+    long("speed")
+        .help("Speed in KPH")
+        .argument("SPEED")
+        // After this point the type is `impl Parser<String>`
+        .from_str::<f64>()
+        // `from_str` uses FromStr trait to transform contained value into `f64`
+
+        // You can perform additional validation with `parse` and `guard` functions
+        // in as many steps as required.
+        // Before and after next two applications the type is still `impl Parser<f64>`
+        .guard(|&speed| speed >= 0.0, "You need to buy a DLC to move backwards")
+        .guard(|&speed| speed <= 100.0, "You need to buy a DLC to break the speed limits")
+
+        // You can transform contained values, next line gives `impl Parser<Speed>` as a result
+        .map(|speed| Speed(speed))
+}
+```
+
+Library follows parse, don’t validate approach to validation when possible. Usually you parse your values just once and get the results as a rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
+
+
+## Design goals: restrictions
+
+The main restricting library sets is that you can’t use parsed values (but not the fact that parser succeeded or failed) to decide how to parse subsequent values. In other words parsers don’t have the monadic strength, only the applicative one.
+
+To give an example, you can implement this description:
+
+
+> Program takes one of `--stdout` or `--file` flag to specify the output target, when it’s `--file` program also requires `-f` attribute with the filename
+> 
+> 
+But not this one:
+
+
+> Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it’s `'file'` program also requires `-f` attribute with the filename
+> 
+> 
+This set of restrictions allows to extract information about the structure of the computations to generate help and overall results in less confusing enduser experience
+
+
+## Design non goals: performance
+
+Library aims to optimize for flexibility, reusability and compilation time over runtime performance which means it might perform some additional clones, allocations and other less optimal things. In practice unless you are parsing tens of thousands of different parameters and your app exits within microseconds - this won’t affect you. That said - any actual performance related problems with real world applications is a bug.
+
+
+## More examples
+
+You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
+
+They’re usually documented or at least contain an explanation to important bits and you can see how they work by cloning the repo and running
+
+
+```shell
+$ cargo run --example example_name
 ```
 
 
-## Fast compilation time, slower runtime performance
+## Testing your own parsers
 
-Library aims to provide a small number of components that can be composed in a multiple ways on
-user side. Runtime performance is not an end goal since it's usually fast enough to take a tiny
-fraction of whole program runtime while compiling so library uses dynamic dispatch to generate
-less code and might perform additional clones if this allows to unify the code better. But
-any noticable performance issues should be fixed.
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link5]
 
 
-## Implementing cargo commands
+```rust
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    pub user: String
+}
 
-When implementing a cargo subcommand parser needs to be able to consume the first argument which
-is always the same as the executable name minus `cargo-` prefix. For example executable named `cargo-super`
-will be receiving `"super"` as its first argument. There's two ways to do thins:
+#[test]
+fn test_my_options() {
+    let help = options()
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage --user <ARG>
+<skip>
+";
 
-- wrap eveything into a [`command`] with this name. Pros: minimal chances of it misfiring, cons:
-  when using from a repository directly with `cargo run` users will have to specify the command
-  name as well
-
-- use [`cargo_helper`]. Pros: supports both `cargo super ...` and `cargo run ...` variants, cons:
-  if first parameter accepted happens to be a file named `"super"` `cargo_helper` might silently
-  consume it when used in `cargo run ...` scenario.
+    assert_eq!(help, expected_help);
+}
+```
 
 
-## Derive macros
+## Cargo features
 
-Derive macros are reexported with `derive` feature, disabled by default
+ - `derive`: adds a dependency on [`bpaf_derive`][__link6] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API
+	
+	
+ - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>)
+	
+	
+ - `batteries`: helpers implemented with public `bpaf` API
+	
+	
+
+
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG3fIB_IKY3hrGye-FOfCs2a-G-I-uYl_pcw3G470SW3PwtT2YWSCgmRicGFmZTAuNS4wgmticGFmX2Rlcml2ZWUwLjIuMA
+ [__link0]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_combinatoric_tutorial
+ [__link2]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_faq
+ [__link3]: https://docs.rs/bpaf/0.5.0/bpaf/?search=batteries
+ [__link5]: https://docs.rs/bpaf/0.5.0/bpaf/?search=info::OptionParser::run_inner
+ [__link6]: https://crates.io/crates/bpaf_derive/0.2.0

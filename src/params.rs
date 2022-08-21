@@ -52,16 +52,164 @@
 //! % cargo check --workspace
 //! ```
 //!
-use std::ffi::OsString;
+use std::{ffi::OsString, marker::PhantomData};
 
-use super::{Args, Error, OptionParser, Parser, Rc};
+use super::{Args, Error, OptionParser, Parser};
 use crate::{
     args::{Arg, Word},
     item::ShortLong,
     Item, Meta,
 };
 
-/// A named thing used to create Flag, Switch or Argument.
+/// A named thing used to create [`flag`](Named::flag), [`switch`](Named::switch) or
+/// [`argument`](Named::argument)
+///
+/// Create it with [`short`] or [`long`].
+///
+/// # Ways to consume data
+/// bpaf supports several different ways user can specify values on a command line:
+///
+/// - [`flag`](Named::flag) - a string that consists of two dashes (`--flag`) and a name and a single
+/// dash and a single character (`-f`) - [`long`](Named::long) and [`short`](Named::short) name respectively.
+/// Depending on it present or absent from the command line
+/// primitive flag parser takes one of two values. User can combine several short flags in a single
+/// invocation: `-a -b -c` is the same as `-abc`.
+///
+/// ```console
+/// $ app -a -bc
+/// ```
+///
+/// - [`switch`](Named::switch) - similar to `flag`, but instead of custom values `bpaf` uses `bool`.
+/// `switch` mostly serves as a convenient alias to `.flag(true, false)`
+///
+/// ```console
+/// $ app -a -bc
+/// ```
+///
+/// - [`argument`](Named::argument) - a short or long `flag` followed by either a space or `=` and
+/// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
+/// literal can't start with `-` unless separated from the flag with `=` and should be valid
+/// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you can use
+/// [`argument_os`](Named::argument_os).
+///
+/// ```console
+/// $ app -o file.txt
+/// ```
+///
+/// - [`positional`] - an arbitrary utf8 string literal (that can't start with `-`) passed on a
+/// command line, there's also [`positional_os`] variant that deals with `OsString` named. Usually
+/// represents input files such as `cat file.txt`, but can serve other purposes.
+///
+/// ```console
+/// $ cat file.txt
+/// ```
+///
+/// - [`command`] - a fixed utf8 string literal that starts a separate subparser that only
+/// gets executed when command name is present. For example `cargo build` invokes
+/// command `"build"` and after `"build"` `cargo` starts accepting values it won't accept otherwise
+///
+/// ```console
+/// $ cargo build --out-dir my_target
+/// // works since command "build" supports --out-dir argument
+/// $ cargo check --out-dir my_target
+/// // fails since --out-dir isn't a valid argument for command "check"
+/// ```
+///
+/// As most of the other parsers bpaf treats anything to the right of `--` symbol as positional
+/// arguments regardless their names:
+///
+/// ```console
+/// $ app -o file.txt -- --those --are --positional --items
+/// ```
+///
+/// # Combinatoric usage
+///
+/// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (short and long)
+/// and multiple hidden short and long aliases if needed. It's also possible to consume items from
+/// environment variables using [`env`](Named::env). You usually start with [`short`] or [`long`]
+/// function, then apply [`short`](Named::short) / [`long`](Named::long) / [`env`](Named::env) /
+/// [`help`](Named::help) repeatedly to build a desired set of names then transform it into
+/// a parser using `flag`, `switch` or `positional`.
+///
+/// ```rust
+/// # use bpaf::*;
+/// fn an_item() -> impl Parser<String> {
+///     short('i')
+///         .long("item")
+///         .long("also-item") // but hidden
+///         .env("ITEM")
+///         .help("A string used by this example")
+///         .argument("ITEM")
+/// }
+/// ```
+/// # Example
+/// ```console
+/// $ app --help
+///     <skip>
+///     -i --item <ITEM>  [env:ITEM: N/A]
+///                       A string used by this example
+///     <skip>
+/// ```
+///
+/// # Derive usage
+///
+/// Unlike combinatoric API where you forced to specify names for your parsers derive API allows
+/// to omit some or all the details:
+/// 1. If no naming information is present at all - `bpaf_derive` would use field name as a long name
+///    (or a short name if field name consists of a single character)
+/// 2. If `short` or `long` annotation is present without an argument - `bpaf_derive` would use first character
+///    or a full name as long and short name respectively. It won't try to add implicit long or
+///    short name from the previous item.
+/// 3. If `short` or `long` annotation is present with an argument - those are values `bpaf_derive` would
+///    use instead of the original field name
+/// 4. If `env(arg)` annotation is present - `bpaf_derive` would generate `.env(arg)` method:
+///
+///    ```rust
+///    # use bpaf::*;
+///    const DB: &str = "top_secret_database";
+///
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    pub struct Config {
+///       /// flag with no annotation
+///       pub flag_1: bool,
+///
+///       /// explicit short suppresses long
+///       #[bpaf(short)]
+///       pub flag_2: bool,
+///
+///       /// explicit short with custom letter
+///       #[bpaf(short('z'))]
+///       pub flag_3: bool,
+///
+///       /// explicit short and long
+///       #[bpaf(short, long)]
+///       pub deposit: bool,
+///
+///       /// implicit long + env variable from DB constant
+///       #[bpaf(env(DB))]
+///       pub database: String,
+///
+///       /// implicit long + env variable "USER"
+///       #[bpaf(env("USER"))]
+///       pub user: String,
+///    }
+///    ```
+///
+/// # Example
+/// ```console
+/// $ app --help
+///    <skip>
+///         --flag-1         flag with no annotation
+///    -f                    explicit short suppresses long
+///    -z                    explicit short with custom letter
+///    -d, --deposit         explicit short and long
+///        --database <ARG>  [env:top_secret_database: N/A]
+///                          implicit long + env variable from DB constant
+///        --user <ARG>      [env:USER = "pacak"]
+///                          implicit long + env variable "USER"
+///    <skip>
+/// ```
 #[derive(Clone, Debug)]
 pub struct Named {
     pub(crate) short: Vec<char>,
@@ -72,19 +220,19 @@ pub struct Named {
 
 /// A flag/switch/argument that has a short name
 ///
-/// You can specify it multiple times, items past the first one represent
-/// hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let switch: Parser<bool> =
+/// fn parse_bool() -> impl Parser<bool> {
 ///     short('f')
 ///         .short('F')
 ///         .long("flag")
 ///         .help("a flag that does a thing")
-///         .switch();
-/// # drop(switch);
+///         .switch()
+/// }
 /// ```
+/// See [`Named`] for more details
 #[must_use]
 pub fn short(short: char) -> Named {
     Named {
@@ -97,19 +245,19 @@ pub fn short(short: char) -> Named {
 
 /// A flag/switch/argument that has a long name
 ///
-/// You can specify it multiple times, items past the first represent
-/// hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let switch: Parser<bool> =
+/// fn parse_bool() -> impl Parser<bool> {
 ///     short('f')
 ///         .long("flag")
 ///         .long("Flag")
 ///         .help("a flag that does a thing")
-///         .switch();
-/// # drop(switch);
+///         .switch()
+/// }
 /// ```
+/// See [`Named`] for more details
 #[must_use]
 pub fn long(long: &'static str) -> Named {
     Named {
@@ -122,20 +270,59 @@ pub fn long(long: &'static str) -> Named {
 
 /// Environment variable fallback
 ///
-/// If named value is not present - try to fallback to this environment variable.
-/// You can specify it multiple times, items past the first one will become hidden aliases.
+/// If named value isn't present - try to fallback to this environment variable.
 ///
-/// You must specify either short or long key if you start the chain from `env`.
+/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
+///
+/// For [`flag`](Named::flag) and [`switch`](Named::switch) environment variable being present
+/// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
+/// variables:
+///
+/// ```console
+/// $ NO_COLOR=1 app --do-something
+/// ```
+///
+/// # Combinatoric usage
+/// **You must specify either short or long key if you start the chain from `env`.**
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let key = short('k')
-///            .long("key")
-///            .env("API_KEY")
-///            .help("Use this API key to access the API")
-///            .argument("KEY");
-/// # drop(key)
+/// fn parse_string() -> impl Parser<String> {
+///     short('k')
+///         .long("key")
+///         .env("API_KEY")
+///         .help("Use this API key to access the API")
+///         .argument("KEY")
+/// }
 /// ```
+///
+/// # Derive usage
+/// `enum` annotation takes a string literal or an expression of type `&'static str`.
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     /// Use this API key to access the API
+///     #[bpaf(short, long, env("API_KEY"))]
+///     key: String,
+/// }
+/// ```
+///
+/// # Example
+/// ```console
+/// $ app --help
+///     --key <KEY>  [env:ACCESS_KEY: N/A]
+///                  access key to use
+/// $ app
+/// // fails due to missing --key argument
+/// $ app --key SECRET
+/// // "SECRET"
+/// $ KEY=TOP_SECRET app
+/// // "TOP_SECRET"
+/// $ KEY=TOP_SECRET app --key SECRET
+/// // "SECRET" - argument takes a priority
+/// ```
+/// See [`Named`] for more details
 #[must_use]
 pub fn env(variable: &'static str) -> Named {
     Named {
@@ -149,19 +336,19 @@ pub fn env(variable: &'static str) -> Named {
 impl Named {
     /// Add a short name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, items past the first one represent
-    /// hidden aliases.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// fn parse_bool() -> impl Parser<bool> {
     ///     short('f')
     ///         .short('F')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
-    /// # drop(switch);
+    ///         .switch()
+    /// }
     /// ```
+    /// See [`Named`] for more details
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
@@ -170,19 +357,19 @@ impl Named {
 
     /// Add a long name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, items past the first one will become
-    /// hidden aliases.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// fn parse_bool() -> impl Parser<bool> {
     ///     short('f')
     ///         .long("flag")
     ///         .long("Flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
-    /// # drop(switch);
+    ///         .switch()
+    /// }
     /// ```
+    /// See [`Named`] for more details
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
@@ -191,18 +378,20 @@ impl Named {
 
     /// Environment variable fallback
     ///
-    /// If named value is not present - try to fallback to this environment variable.
-    /// You can specify it multiple times, items past the first one will become hidden aliases.
+    /// If named value isn't present - try to fallback to this environment variable.
+    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let key = short('k')
-    ///            .long("key")
-    ///            .env("API_KEY")
-    ///            .help("Use this API key to access the API")
-    ///            .argument("KEY");
-    /// # drop(key)
+    /// fn parse_string() -> impl Parser<String> {
+    ///     short('k')
+    ///         .long("key")
+    ///         .env("API_KEY")
+    ///         .help("Use this API key to access the API")
+    ///         .argument("KEY")
+    /// }
     /// ```
+    /// See [`Named`] and [`env`](env()) for more details and examples
     #[must_use]
     pub fn env(mut self, variable: &'static str) -> Self {
         self.env.push(variable);
@@ -211,16 +400,37 @@ impl Named {
 
     /// Add a help message to a flag/switch/argument
     ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// fn parse_bool() -> impl Parser<bool> {
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
-    /// # drop(switch);
+    ///         .switch()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// `bpaf_derive` converts doc comments into option help by following those rules:
+    /// 1. It skips blank lines, if present.
+    /// 2. It stops parsing after a double blank line.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     /// This line is part of help message
+    ///     ///
+    ///     /// So is this one
+    ///     ///
+    ///     ///
+    ///     /// But this one isn't
+    ///     key: String,
+    /// }
     /// ```
     #[must_use]
+    /// See [`Named`] for more details
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -234,20 +444,22 @@ impl Named {
     /// Parser produces `true` if flag is present in a command line or `false` otherwise
     /// ```rust
     /// # use bpaf::*;
-    /// let switch: Parser<bool> =
+    /// fn parse_bool() -> impl Parser<bool> {
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .switch();
-    /// # drop(switch);
+    ///         .switch()
+    /// }
     /// ```
     #[must_use]
-    pub fn switch(self) -> Parser<bool> {
+    /// See [`Named`] for more details
+    pub fn switch(self) -> impl Parser<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
     /// Flag with custom present/absent values
     ///
+    /// # Combinatoric usage
     /// Parser produces `present` if flag is present in a command line or `absent` otherwise
     /// ```rust
     /// # use bpaf::*;
@@ -256,15 +468,42 @@ impl Named {
     ///     Absent,
     ///     Present,
     /// }
-    /// let switch: Parser<Flag> =
+    /// fn parse_flag() -> impl Parser<Flag> {
     ///     short('f')
     ///         .long("flag")
     ///         .help("a flag that does a thing")
-    ///         .flag(Flag::Present, Flag::Absent);
-    /// # drop(switch);
+    ///         .flag(Flag::Present, Flag::Absent)
+    /// }
     /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// Currently available only with `external` annotation
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone)]
+    /// enum Flag {
+    ///     Absent,
+    ///     Present,
+    /// }
+    ///
+    /// fn flag() -> impl Parser<Flag> {
+    ///     short('f')
+    ///         .long("flag")
+    ///         .help("a flag that does a thing")
+    ///         .flag(Flag::Present, Flag::Absent)
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(external)]
+    ///     pub flag: Flag,
+    /// }
+    /// ```
+    ///
     #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> Parser<T>
+    /// See [`Named`] for more details
+    pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
     where
         T: Clone + 'static,
     {
@@ -274,7 +513,9 @@ impl Named {
     /// Required flag with custom value
     ///
     /// Parser produces a value if present and fails otherwise.
-    /// Designed to be used with combination of other parser(s).
+    /// Not very useful by itself and works best in combination with other parsers.
+    ///
+    /// # Combinatoric usage
     ///
     /// ```rust
     /// # use bpaf::*;
@@ -284,291 +525,543 @@ impl Named {
     ///     Off,
     ///     Undecided
     /// }
-    /// let on = long("on").req_flag(Decision::On);
-    /// let off = long("off").req_flag(Decision::Off);
-    /// // Requires user to specify either `--on` or `--off`
-    /// let state: Parser<Decision> = on.or_else(off).fallback(Decision::Undecided);
-    /// # drop(state);
+    ///
+    /// // user can specify either --on or --off, parser would fallback to `Undecided`
+    /// fn parse_decision() -> impl Parser<Decision> {
+    ///     let on = long("on").req_flag(Decision::On);
+    ///     let off = long("off").req_flag(Decision::Off);
+    ///     on.or_else(off).fallback(Decision::Undecided)
+    /// }
+    /// ```
+    ///
+    /// # Example
+    ///
+    /// ```console
+    /// $ app --on
+    /// // Decision::On
+    /// $ app
+    /// // Decision::Undecided
     /// ```
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// // counts how many times flag `-v` is given on a command line
-    /// let verbosity: Parser<usize> = short('v').req_flag(()).many().map(|v| v.len());
-    /// # drop(verbosity);
+    /// // counts number of flags `-v` on the command line
+    /// fn verbosity() -> impl Parser<usize> {
+    ///     short('v').req_flag(()).many().map(|v| v.len())
+    /// }
+    /// ```
+    /// # Example
+    /// ```console
+    /// $ app
+    /// // 0
+    /// $ app -vv -v
+    /// // 3
     /// ```
     ///
+    /// # Derive usage
+    /// bpaf would transform field-less enum variants into values combined by `req_flag`.
+    /// In addition to naming annotations (`short`, `long` and `env`) such variants also accept
+    /// `hide` and `default` annotations. Former hides it from `--help` (see
+    /// [`hide`](Parser::hide), later makes it a default choice if preceeding variants fail to
+    /// parse. You shoud only use `default` annotation on the last variant of enum.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// enum Decision {
+    ///     On,
+    ///     Off,
+    ///     #[bpaf(long, hide, default)]
+    ///     Undecided,
+    /// }
+    /// ```
+    ///
+    /// See [`Named`] for more details
     #[must_use]
-    pub fn req_flag<T>(self, present: T) -> Parser<T>
+    pub fn req_flag<T>(self, present: T) -> impl Parser<T>
     where
         T: Clone + 'static,
     {
         build_flag_parser(present, None, self)
     }
 
-    /// Named argument that can be encoded as String
+    /// Named argument in utf8 (String) encoding
     ///
-    /// Argument must be present (but can be made into [`Option`] using
-    /// [`optional`][Parser::optional]) and it must contain only valid unicode characters.
+    /// Argument must contain only valid utf8 characters.
     /// For OS specific encoding see [`argument_os`][Named::argument_os].
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let arg = short('n').long("name").argument("NAME");
-    /// # drop(arg)
+    /// fn parse_string() -> impl Parser<String> {
+    ///     short('n')
+    ///         .long("name")
+    ///         .argument("NAME")
+    /// }
     /// ```
     #[must_use]
-    pub fn argument(self, metavar: &'static str) -> Parser<String> {
+    /// See [`Named`] for more details
+    pub fn argument(self, metavar: &'static str) -> impl Parser<String> {
         build_argument(self, metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
     }
 
     /// Named argument in OS specific encoding
     ///
-    /// Argument must be present but can be made into [`Option`] using
-    /// [`optional`][Parser::optional]. If you prefer to panic on non utf8 encoding see
-    /// [`argument`][Named::argument].
+    /// If you prefer to panic on non utf8 encoding see [`argument`][Named::argument].
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let arg = short('n').long("name").argument_os("NAME");
-    /// # drop(arg)
+    /// fn parse_osstring() -> impl Parser<std::ffi::OsString> {
+    ///     short('n')
+    ///         .long("name")
+    ///         .argument_os("NAME")
+    /// }
     /// ```
     #[must_use]
-    pub fn argument_os(self, metavar: &'static str) -> Parser<OsString> {
+    /// See [`Named`] for more details
+    pub fn argument_os(self, metavar: &'static str) -> impl Parser<OsString> {
         build_argument(self, metavar).map(|x| x.os)
+    }
+
+    pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
+        match arg {
+            Arg::Short(s) => self.short.contains(s),
+            Arg::Long(l) => self.long.contains(&l.as_str()),
+            Arg::Word(_) => false,
+        }
     }
 }
 
-/// Positional argument that can be encoded as String
+/// Positional argument in utf8 (`String`) encoding
+///
+/// For named flags and arguments ordering generally doesn't matter: most programs would
+/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
+/// `cat hello world` and `cat world hello` would display contents of the same two files but in
+/// different order.
+///
+/// # Important restriction
+/// When parsing positional arguments from command lines you should have parsers for all your
+/// named values and command before parsers for positional items. In derive API fields parsed as
+/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
+/// fields nested inside other structures: such structures should go to the end as well.
+/// Failing to do can result in behavior confusing for the end user.
+///
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn input() -> impl Parser<String> {
+///     positional("INPUT")
+/// }
+/// ```
+///
+/// # Derive usage
+///
+/// `bpaf_derive` converts fields in tuple-like structures into positional items
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options(String);
+/// ```
+/// `positional` and `positional_os` annotations also accept an optional metavar name
 ///
 /// ```rust
 /// # use bpaf::*;
-/// let arg: Parser<String> = positional("INPUT");
-/// # drop(arg)
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     #[bpaf(positional("INPUT"))]
+///     input: String,
+/// }
 /// ```
+///
+/// See also [`positional_os`] - a simiar function
 #[must_use]
-pub fn positional(metavar: &'static str) -> Parser<String> {
-    build_positional(metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
-}
-
-/// Positional argument that can be encoded as String and will be taken only if check passes
-///
-/// ```rust
-/// # use bpaf::*;
-/// let is_short = |s: &str| s.len() < 10;
-/// // skip this positional argument unless it's less than 10 bytes long
-/// let arg: Parser<Option<String>> = positional_if("INPUT", is_short);
-/// # drop(arg)
-/// ```
-pub fn positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<String>>
-where
-    F: Fn(&str) -> bool + 'static,
-{
-    let check = move |w: &Word| match &w.utf8 {
-        Some(s) => check(s),
-        None => false,
-    };
-
-    build_positional_if(metavar, check).parse(|x| match x {
-        Some(Word { utf8: Some(w), .. }) => Ok(Some(w)),
-        Some(_) => Err("not utf8"),
-        None => Ok(None),
-    })
+pub fn positional(metavar: &'static str) -> Positional<String> {
+    build_positional(metavar)
 }
 
 /// Positional argument in OS specific encoding
 ///
+/// For named flags and arguments ordering generally doesn't matter: most programs would
+/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
+/// `cat hello world` and `cat world hello` would display contents of the same two files but in
+/// different order.
+///
+/// # Important restriction
+/// When parsing positional arguments from command lines you should have parsers for all your
+/// named values and command before parsers for positional items. In derive API fields parsed as
+/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
+/// fields nested inside other structures: such structures should go to the end as well.
+/// Failing to do can result in behavior confusing for the end user.
+///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// # use std::ffi::OsString;
-/// let arg: Parser<OsString> = positional_os("INPUT");
-/// # drop(arg)
+/// fn input() -> impl Parser<std::ffi::OsString> {
+///     positional_os("INPUT")
+/// }
 /// ```
+
+/// # Derive usage
+///
+/// `bpaf_derive` converts fields in tuple-like structures into positional items and automatically
+/// uses `positional_os` for `OsString` and `PathBuf`
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options(std::ffi::OsString);
+/// ```
+/// `positional` and `positional_os` annotations also accept an optional metavar name
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     #[bpaf(positional_os("INPUT"))]
+///     input: std::path::PathBuf,
+/// }
+/// ```
+///
+/// See also [`positional_os`] - a simiar function
 #[must_use]
-pub fn positional_os(metavar: &'static str) -> Parser<OsString> {
-    build_positional(metavar).map(|x| x.os)
+pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
+    build_positional(metavar)
 }
 
 /// Subcommand parser
 ///
+/// Subcommands allow to use a totally independent parser inside a current one. Inner parser
+/// can have its own help message, description, version and so on. You can nest them arbitrarily
+/// too.
+///
+/// Alternatively you can create commands using [`command`](OptionParser::command)
+///
+/// # Combinatoric use
+///
+/// Structure [`Command`] you get by calling this method is a builder that allows to add additional
+/// aliases with [`short`](Command::short), [`long`](Command::long) (only first short and first
+/// long names are visible to `--help`) and override [`help`](Command::help). Without help override
+/// bpaf would use first line from the description
 /// ```rust
 /// # use bpaf::*;
-/// // Define a parser to use in a subcommand in a usual way.
-/// // This parser accepts a single --workspace switch
-/// let ws = long("workspace").help("Check all packages in the workspace").switch();
-/// let decorated: OptionParser<bool> = Info::default()
-///     .descr("Check a package for errors")
-///     .for_parser(ws);
+/// #[derive(Debug, Clone)]
+/// enum Cmd {
+///     Check {
+///         workspace: bool,
+///     }
+/// };
+///
+/// // First of all you need an inner parser
+/// fn check_workspace() -> OptionParser<Cmd> {
+///     // Define a parser to use in a subcommand in a usual way.
+///     // This parser accepts a single --workspace switch
+///     let workspace = long("workspace")
+///         .help("Check all packages in the workspace")
+///         .switch();
+///
+///     // and attach some meta information to it in a usual way
+///     construct!(Cmd::Check { workspace })
+///         .to_options()
+///         // description to use for command's help
+///         .descr("Check a package for errors")
+/// }
 ///
 /// // Convert subparser into a parser.
-/// // Note description "Check a package for errors" is specified twice:
-/// // - Parser uses version from `descr` when user calls `% prog check --help`,
-/// // - Parser uses version from `command` user calls `% prog --help` along
-/// //   with descriptions for other commands if present.
-/// let check: Parser<bool> = command("check", Some("Check a local package for errors"), decorated);
-///
-/// // when ther's several commands it can be a good idea to wrap each into a enum either before
-/// // or after converting it into subparser:
-/// #[derive(Clone, Debug)]
-/// enum Command {
-///     Check(bool)
+/// fn check_workspace_command() -> impl Parser<Cmd> {
+///     command("check", check_workspace())
+///         // help to use to list the command
+///         .help("Check a package command")
 /// }
-/// let check: Parser<Command> = check.map(Command::Check);
-///
-/// // at this point command line accepts following commands:
-/// // `% prog --help`            - display a global help and exit
-/// // `% prog check --help`      - display help specific to check subcommand and exit
-/// // `% prog check`             - produce `Command::Check(false)`
-/// // `% prog check --workspace` - produce `Command::Check(true)`
-/// let opt = Info::default().for_parser(check);
-/// # drop(opt)
 /// ```
+///
+/// # Derive usage
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Clone, Debug, Bpaf)]
+/// enum Cmd {
+///     #[bpaf(command)]
+///     /// Check a package command
+///     Check {
+///         /// Check all the packages in the workspace
+///         workspace: bool
+///     }
+/// }
+/// ```
+///
+/// # Example
+/// ```console
+/// $ app --help
+/// // displays global help, not listed in this example
+/// $ app check --help
+/// // displays help for check: "Check a package command"
+/// $ app check
+/// // Cmd::Check(CheckWorkspace(false))
+/// $ app check --workspace
+/// // Cmd::Check(CheckWorkspace(true))
+/// ```
+///
 #[must_use]
-pub fn command<T, M>(name: &'static str, help: Option<M>, subparser: OptionParser<T>) -> Parser<T>
+pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> Command<T>
 where
     T: 'static,
-    M: Into<String>,
 {
-    let item = Item::Command {
-        name,
-        help: help.map(Into::into),
-    };
-
-    let meta = Meta::Item(item);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| {
-        if args.take_cmd(name) {
-            (subparser.parse)(args)
-        } else {
-            Err(Error::Missing(vec![meta2.clone()]))
-        }
-    };
-
-    Parser {
-        parse: Rc::new(parse),
-        meta,
+    Command {
+        longs: vec![name],
+        shorts: Vec::new(),
+        help: subparser.short_descr().map(Into::into),
+        subparser,
     }
 }
 
-fn short_or_long_flag(arg: &Arg, shorts: &[char], longs: &[&str]) -> bool {
-    shorts.iter().any(|&c| arg.is_short(c)) || longs.iter().any(|s| arg.is_long(s))
+/// Builder structure for the [`command`]
+///
+/// Created with [`command`], implements parser for the inner structure, gives access to [`help`](Command::help).
+pub struct Command<T> {
+    longs: Vec<&'static str>,
+    shorts: Vec<char>,
+    help: Option<String>,
+    subparser: OptionParser<T>,
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Parser<T>
+impl<P> Command<P> {
+    /// Add a brief description to a command
+    ///
+    /// `bpaf` uses this description along with the command name
+    /// in help output so it shouldn't exceed one or two lines. If `help` isn't specified
+    /// bpaf falls back to [`descr`](OptionParser::descr) from the inner parser.
+    ///
+    /// # Combinatoric usage
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn inner() -> OptionParser<bool> {
+    ///     short('i')
+    ///         .help("Mysterious inner switch")
+    ///         .switch()
+    ///         .to_options()
+    ///         .descr("performs an operation")
+    /// }
+    ///
+    /// fn mysterious_parser() -> impl Parser<bool> {
+    ///     command("mystery", inner())
+    ///         .help("This command performs a mystery operation")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// bpaf uses doc comments for inner parser, no specific options are available.
+    /// See [`descr`](OptionParser::descr) for more details
+    /// ```rust
+    /// # use bpaf::*;
+    /// /// This command performs a mystery operation
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(command)]
+    /// struct Mystery {
+    ///     #[bpaf(short)]
+    ///     /// Mysterious inner switch
+    ///     inner: bool,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --help
+    ///     <skip>
+    /// Available commands:
+    ///     mystery  This command performs a mystery operation
+    /// ```
+    #[must_use]
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
+        self
+    }
+
+    /// Add a custom short alias for a command
+    ///
+    /// Behavior is similar to [`short`](Named::short), only first short name is visible.
+    #[must_use]
+    pub fn short(mut self, short: char) -> Self {
+        self.shorts.push(short);
+        self
+    }
+
+    /// Add a custom hidden long alias for a command
+    ///
+    /// Behavior is similar to [`long`](Named::long), but since you had to specify the first long
+    /// name when making the command - this one becomes a hidden alias.
+    #[must_use]
+    pub fn long(mut self, long: &'static str) -> Self {
+        self.longs.push(long);
+        self
+    }
+}
+
+impl<T> Parser<T> for Command<T> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let mut tmp = String::new();
+        if self.longs.iter().any(|long| args.take_cmd(long))
+            || self.shorts.iter().any(|s| {
+                tmp.clear();
+                tmp.push(*s);
+                args.take_cmd(&tmp)
+            })
+        {
+            args.head = usize::MAX;
+            self.subparser.run_subparser(args)
+        } else {
+            Err(Error::Missing(vec![self.meta()]))
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        let item = Item::Command {
+            name: self.longs[0],
+            short: self.shorts.first().copied(),
+            help: self.help.clone(),
+        };
+        Meta::Item(item)
+    }
+}
+
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Parser<T>
 where
     T: Clone + 'static,
 {
-    if !named.env.is_empty() {
-        // mostly cosmetic reasons
-        assert!(
-            !(named.short.is_empty() && named.long.is_empty()),
-            "env fallback can only be used if name is present"
-        );
+    BuildFlagParser {
+        present,
+        absent,
+        named,
     }
+}
 
-    let item = Item::Flag {
-        name: ShortLong::from(&named),
-        help: named.help.clone(),
-    };
-    let meta = item.required(absent.is_none());
+#[derive(Clone)]
+struct BuildFlagParser<T> {
+    present: T,
+    absent: Option<T>,
+    named: Named,
+}
 
-    let missing = if absent.is_none() {
-        Error::Missing(vec![meta.clone()])
-    } else {
-        Error::Stdout(String::new())
-    };
-
-    let parse = move |mut args: Args| {
-        if args.take_flag(|arg| short_or_long_flag(arg, &named.short, &named.long))
-            || named.env.iter().find_map(std::env::var_os).is_some()
+impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
-            Ok((present.clone(), args))
+            Ok(self.present.clone())
         } else {
-            Ok((
-                absent.as_ref().ok_or_else(|| missing.clone())?.clone(),
-                args,
-            ))
-        }
-    };
-    Parser {
-        parse: Rc::new(parse),
-        meta,
-    }
-}
-
-fn build_argument(named: Named, metavar: &'static str) -> Parser<Word> {
-    if !named.env.is_empty() {
-        // mostly cosmetic reasons
-        assert!(
-            !(named.short.is_empty() && named.long.is_empty()),
-            "env fallback can only be used if name is present"
-        );
-    }
-    let item = Item::Argument {
-        name: ShortLong::from(&named),
-        metavar,
-        help: named.help,
-        env: named.env.first().copied(),
-    };
-    let meta = item.required(true);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| {
-        #[allow(clippy::option_if_let_else)]
-        if let Some(w) = args.take_arg(|arg| short_or_long_flag(arg, &named.short, &named.long))? {
-            Ok((w, args))
-        } else if let Some(val) = named.env.iter().find_map(std::env::var_os) {
-            Ok((Word::from(val), args))
-        } else {
-            Err(Error::Missing(vec![meta2.clone()]))
-        }
-    };
-
-    Parser {
-        parse: Rc::new(parse),
-        meta,
-    }
-}
-
-fn build_positional(metavar: &'static str) -> Parser<Word> {
-    let item = Item::Positional { metavar };
-    let meta = item.required(true);
-
-    let meta2 = meta.clone();
-
-    let parse = move |mut args: Args| match args.take_positional_word()? {
-        Some(word) => Ok((word, args)),
-        None => Err(Error::Missing(vec![meta2.clone()])),
-    };
-    Parser {
-        parse: Rc::new(parse),
-        meta,
-    }
-}
-
-fn build_positional_if<F>(metavar: &'static str, check: F) -> Parser<Option<Word>>
-where
-    F: Fn(&Word) -> bool + 'static,
-{
-    let item = Item::Positional { metavar };
-    let meta = item.required(false);
-    let meta2 = meta.clone();
-    let parse = move |mut args: Args| match args.peek() {
-        Some(Arg::Word(w_ref)) => {
-            if check(w_ref) {
-                let w_owned = args
-                    .take_positional_word()?
-                    .expect("We just confirmed it's there");
-                Ok((Some(w_owned), args))
-            } else {
-                Ok((None, args))
+            match &self.absent {
+                Some(ok) => Ok(ok.clone()),
+                None => Err(Error::Missing(vec![self.meta()])),
             }
         }
+    }
 
-        Some(_) => Err(Error::Missing(vec![meta2.clone()])),
-        None => Ok((None, args)),
-    };
-    Parser {
-        parse: Rc::new(parse),
-        meta,
+    fn meta(&self) -> Meta {
+        let item = Item::Flag {
+            name: ShortLong::from(&self.named),
+            help: self.named.help.clone(),
+        };
+
+        item.required(self.absent.is_none())
+    }
+}
+
+fn build_argument(named: Named, metavar: &'static str) -> impl Parser<Word> {
+    if !named.env.is_empty() {
+        // mostly cosmetic reasons
+        assert!(
+            !(named.short.is_empty() && named.long.is_empty()),
+            "env fallback can only be used if name is present"
+        );
+    }
+    BuildArgument { named, metavar }
+}
+
+#[derive(Clone)]
+struct BuildArgument {
+    named: Named,
+    metavar: &'static str,
+}
+
+impl Parser<Word> for BuildArgument {
+    fn eval(&self, args: &mut Args) -> Result<Word, Error> {
+        if let Some(w) = args.take_arg(&self.named)? {
+            Ok(w)
+        } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+            Ok(Word::from(val))
+        } else {
+            Err(Error::Missing(vec![self.meta()]))
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        {
+            let this = Item::Argument {
+                name: ShortLong::from(&self.named),
+                metavar: self.metavar,
+                env: self.named.env.first().copied(),
+                help: self.named.help.clone(),
+            };
+            Meta::Item(this)
+        }
+    }
+}
+
+fn build_positional<T>(metavar: &'static str) -> Positional<T> {
+    Positional {
+        metavar,
+        help: None,
+        result_type: PhantomData,
+    }
+}
+
+#[derive(Clone)]
+pub struct Positional<T> {
+    metavar: &'static str,
+    help: Option<String>,
+    result_type: PhantomData<T>,
+}
+
+impl<T> Positional<T> {
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<String>,
+    {
+        self.help = Some(help.into());
+        self
+    }
+    fn meta(&self) -> Meta {
+        Meta::Item(Item::Positional {
+            metavar: self.metavar,
+            help: self.help.clone(),
+        })
+    }
+}
+
+impl Parser<OsString> for Positional<OsString> {
+    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
+        match args.take_positional_word()? {
+            Some(word) => Ok(word.os),
+            None => Err(Error::Missing(vec![self.meta()])),
+        }
+    }
+    fn meta(&self) -> Meta {
+        self.meta()
+    }
+}
+
+impl Parser<String> for Positional<String> {
+    fn eval(&self, args: &mut Args) -> Result<String, Error> {
+        match args.take_positional_word()? {
+            Some(word) => match word.utf8 {
+                Some(ok) => Ok(ok),
+                None => Err(Error::Stderr("not utf8".to_owned())),
+            },
+            None => Err(Error::Missing(vec![self.meta()])),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta()
     }
 }

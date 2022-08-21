@@ -1,3 +1,19 @@
+//! Snippet from cargo-hackerman crate, shows how to use derive to parse commands and
+//! "positional_if" pattern.
+//!
+//! Command explain takes 3 parameters: required crate name and optional feature and crate version,
+//! user is allowed to omitt either field. This example uses simplified is_version, in practice youwould
+//! would use semver crate.
+//!
+//! End user would be able to run commands like
+//!
+//! ```console
+//! $ cargo hackerman explain random 314
+//! > krate: "random", feature: None, version: Some(314"),
+//! $ cargo hackerman explain serde derive
+//! > krate: "serde", feature: Some("derive"), version: None
+//! ```
+
 use bpaf::*;
 
 #[derive(Debug, Clone, Bpaf)]
@@ -14,12 +30,16 @@ pub enum Action {
     },
 }
 
-fn feature_if() -> Parser<Option<String>> {
-    positional_if("FEATURE", |v| !is_version(v))
+fn feature_if() -> impl Parser<Option<String>> {
+    positional("FEATURE")
+        .guard(move |s| !is_version(s), "")
+        .optional()
 }
 
-fn version_if() -> Parser<Option<String>> {
-    positional_if("VERSION", is_version)
+fn version_if() -> impl Parser<Option<String>> {
+    positional("VERSION")
+        .guard(move |s| is_version(s), "")
+        .optional()
 }
 
 fn is_version(v: &str) -> bool {

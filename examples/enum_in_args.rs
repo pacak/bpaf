@@ -1,4 +1,5 @@
-//! using enum flags
+//! parsing argument value into enum. You can use crate `strum`'s `EnumString` for this purposes as well
+//!
 use bpaf::*;
 use std::str::FromStr;
 
@@ -22,12 +23,13 @@ impl FromStr for Baz {
     }
 }
 fn main() {
-    let arg: Parser<Baz> = long("baz")
+    let opt = long("baz")
         .short('b')
         .help("choose between foo, bar or foobar")
         .argument("CMD")
-        .from_str();
+        .from_str::<Baz>()
+        .to_options()
+        .run();
 
-    let opt = Info::default().for_parser(arg).run();
     println!("{:#?}", opt);
 }

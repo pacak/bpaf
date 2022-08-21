@@ -1,4 +1,4 @@
-use crate::Error;
+use crate::{Error, Named};
 use std::ffi::OsString;
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
@@ -25,7 +25,19 @@ mod inner {
     };
 
     use super::{push_vec, Arg, Word};
-    /// All currently present command line parameters
+    /// All currently present command line parameters, use it for unit tests and manual parsing
+    ///
+    /// The easiest way to create `Args` is by using it's `From` instance.
+    /// ```rust
+    /// # use bpaf::*;
+    /// let parser = short('f')
+    ///     .switch()
+    ///     .to_options();
+    /// let value = parser
+    ///     .run_inner(Args::from(&["-f"]))
+    ///     .unwrap();
+    /// assert!(value);
+    /// ```
     #[derive(Clone, Debug)]
     pub struct Args {
         /// list of remaining arguments, for cheap cloning
@@ -35,7 +47,7 @@ mod inner {
         remaining: usize,
 
         /// Used to render an error message for [`parse`][crate::Parser::parse]
-        pub(crate) current: Option<Word>,
+        pub(crate) current: Option<usize>,
 
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
@@ -43,8 +55,7 @@ mod inner {
 
     impl<const N: usize> From<&[&str; N]> for Args {
         fn from(xs: &[&str; N]) -> Self {
-            let vec = xs.iter().copied().collect::<Vec<_>>();
-            Args::from(vec.as_slice())
+            Args::from(&xs[..])
         }
     }
 
@@ -55,7 +66,7 @@ mod inner {
             for x in xs {
                 push_vec(&mut vec, OsString::from(x), &mut pos_only);
             }
-            Args::from(vec)
+            Args::args_from(vec)
         }
     }
 
@@ -66,12 +77,23 @@ mod inner {
             for x in xs {
                 push_vec(&mut vec, OsString::from(x), &mut pos_only);
             }
-            Args::from(vec)
+            Args::args_from(vec)
         }
     }
 
-    impl From<Vec<Arg>> for Args {
-        fn from(vec: Vec<Arg>) -> Self {
+    impl From<&[OsString]> for Args {
+        fn from(xs: &[OsString]) -> Self {
+            let mut pos_only = false;
+            let mut vec = Vec::with_capacity(xs.len());
+            for x in xs {
+                push_vec(&mut vec, x.clone(), &mut pos_only);
+            }
+            Args::args_from(vec)
+        }
+    }
+
+    impl Args {
+        pub(crate) fn args_from(vec: Vec<Arg>) -> Self {
             Args {
                 removed: vec![false; vec.len()],
                 remaining: vec.len(),
@@ -82,31 +104,39 @@ mod inner {
         }
     }
 
-    pub struct ArgsIter<'a> {
+    pub(crate) struct ArgsIter<'a> {
         args: &'a Args,
         cur: usize,
     }
 
     impl<'a> Args {
         /// creates iterator over remaining elements
-        pub(crate) const fn items_iter(&'a self) -> ArgsIter<'a> {
+        pub(crate) fn items_iter(&'a self) -> ArgsIter<'a> {
             ArgsIter { args: self, cur: 0 }
         }
 
         pub(crate) fn remove(&mut self, index: usize) {
             if !self.removed[index] {
+                self.current = Some(index);
                 self.remaining -= 1;
                 self.head = self.head.min(index);
             }
             self.removed[index] = true;
         }
 
-        pub(crate) const fn is_empty(&self) -> bool {
+        pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
-
-        pub(crate) const fn len(&self) -> usize {
+        pub(crate) fn len(&self) -> usize {
             self.remaining
+        }
+
+        pub(crate) fn current_word(&self) -> Option<&Word> {
+            let ix = self.current?;
+            match &self.items[ix] {
+                Arg::Short(_) | Arg::Long(_) => None,
+                Arg::Word(w) => Some(w),
+            }
         }
     }
 
@@ -128,7 +158,7 @@ pub use inner::*;
 
 /// Preprocessed command line argument
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub enum Arg {
+pub(crate) enum Arg {
     /// short flag
     Short(char),
     /// long flag
@@ -150,24 +180,8 @@ impl std::fmt::Display for Arg {
     }
 }
 
-impl Arg {
-    pub(crate) const fn is_short(&self, short: char) -> bool {
-        match self {
-            &Arg::Short(c) => c == short,
-            Arg::Long(_) | Arg::Word(..) => false,
-        }
-    }
-
-    pub(crate) fn is_long(&self, long: &str) -> bool {
-        match self {
-            Arg::Long(l) => long == *l,
-            Arg::Short(_) | Arg::Word(..) => false,
-        }
-    }
-}
-
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    // if we are after "--" sign or there's no utf8 representation for
+    // if after "--" sign or there's no utf8 representation for
     // an item - it can only be a positional argument
     let utf8 = match (*pos_only, os.to_str()) {
         (true, v) | (_, v @ None) => {
@@ -225,12 +239,11 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
 impl Args {
     /// Get a short or long flag: `-f` / `--flag`
     ///
-    /// Returns false if value is not present
-    pub(crate) fn take_flag<P>(&mut self, predicate: P) -> bool
-    where
-        P: Fn(&Arg) -> bool,
-    {
-        let mut iter = self.items_iter().skip_while(|i| !predicate(i.1));
+    /// Returns false if value isn't present
+    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
+        let mut iter = self
+            .items_iter()
+            .skip_while(|arg| !named.matches_arg(arg.1));
         if let Some((ix, _)) = iter.next() {
             self.remove(ix);
             true
@@ -241,13 +254,12 @@ impl Args {
 
     /// get a short or long arguments
     ///
-    /// Returns Ok(None) if flag is not present
+    /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
-    pub(crate) fn take_arg<P>(&mut self, predicate: P) -> Result<Option<Word>, Error>
-    where
-        P: Fn(&Arg) -> bool,
-    {
-        let mut iter = self.items_iter().skip_while(|i| !predicate(i.1));
+    pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<Word>, Error> {
+        let mut iter = self
+            .items_iter()
+            .skip_while(|arg| !named.matches_arg(arg.1));
         let (key_ix, arg) = match iter.next() {
             Some(v) => v,
             None => return Ok(None),
@@ -263,7 +275,7 @@ impl Args {
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };
         let val = val.clone();
-        self.current = Some(val.clone());
+        self.current = Some(val_ix);
         self.remove(key_ix);
         self.remove(val_ix);
         Ok(Some(val))
@@ -277,7 +289,7 @@ impl Args {
         match self.items_iter().next() {
             Some((ix, Arg::Word(w))) => {
                 let w = w.clone();
-                self.current = Some(w.clone());
+                self.current = Some(ix);
                 self.remove(ix);
                 Ok(Some(w))
             }
@@ -287,13 +299,14 @@ impl Args {
     }
 
     /// take a static string argument from the first present argument
-    pub(crate) fn take_cmd(&mut self, word: &'static str) -> bool {
+    pub(crate) fn take_cmd(&mut self, word: &str) -> bool {
         if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
             if w.utf8.as_ref().map_or(false, |ww| ww == word) {
                 self.remove(ix);
                 return true;
             }
         }
+        self.current = None;
         false
     }
 
@@ -305,17 +318,18 @@ impl Args {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{long, short};
     #[test]
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
     #[test]
     fn long_flag_and_positional() {
         let mut a = Args::from(&["--speed", "12"]);
-        let flag = a.take_flag(|f| f.is_long("speed"));
+        let flag = a.take_flag(&long("speed"));
         assert!(flag);
         assert!(!a.is_empty());
         let s = a.take_positional_word().unwrap().unwrap();
@@ -326,17 +340,17 @@ mod tests {
     #[test]
     fn multiple_short_flags() {
         let mut a = Args::from(&["-vvv"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(!a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v')));
+        assert!(!a.take_flag(&short('v')));
         assert!(a.is_empty());
     }
 
     #[test]
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -344,7 +358,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
-        let s = a.take_arg(|f| f.is_long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed")).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
@@ -352,7 +366,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -360,7 +374,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "-12");
         assert!(a.is_empty());
     }
@@ -368,7 +382,7 @@ mod tests {
     #[test]
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "12");
         assert!(a.is_empty());
     }
@@ -376,18 +390,18 @@ mod tests {
     #[test]
     fn two_short_flags() {
         let mut a = Args::from(&["-s", "-v"]);
-        assert!(a.take_flag(|f| f.is_short('s')));
-        assert!(a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('s')));
+        assert!(a.take_flag(&short('v')));
         assert!(a.is_empty());
     }
 
     #[test]
     fn two_short_flags2() {
         let mut a = Args::from(&["-s", "-v"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
-        assert!(!a.take_flag(|f| f.is_short('v')));
-        assert!(a.take_flag(|f| f.is_short('s')));
-        assert!(!a.take_flag(|f| f.is_short('s')));
+        assert!(a.take_flag(&short('v')));
+        assert!(!a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('s')));
+        assert!(!a.take_flag(&short('s')));
         assert!(a.is_empty());
     }
 
@@ -395,7 +409,7 @@ mod tests {
     fn command_with_flags() {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
-        let s = a.take_arg(|f| f.is_short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s')).unwrap().unwrap();
         assert_eq!(s.utf8.unwrap(), "v");
         assert!(a.is_empty());
     }
@@ -412,7 +426,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash() {
         let mut a = Args::from(&["-v", "--", "-x"]);
-        assert!(a.take_flag(|f| f.is_short('v')));
+        assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "-x");
         assert!(a.is_empty());
@@ -421,7 +435,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash2() {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
-        let w = a.take_arg(|f| f.is_short('v')).unwrap().unwrap();
+        let w = a.take_arg(&short('v')).unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "12");
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "-x");

@@ -1,3 +1,5 @@
+//! pretty basic derive example with external function
+
 use bpaf::{short, Bpaf, Parser};
 use std::path::PathBuf;
 
@@ -22,7 +24,7 @@ struct Opts {
     files_to_process: Vec<PathBuf>,
 }
 
-fn verbose() -> Parser<usize> {
+fn verbose() -> impl Parser<usize> {
     // number of occurrences of the v/verbose flag capped at 3
     short('v')
         .long("verbose")

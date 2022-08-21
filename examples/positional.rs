@@ -1,3 +1,4 @@
+//! Non derive version for positional arguments
 use bpaf::*;
 use std::path::PathBuf;
 
@@ -15,9 +16,7 @@ fn main() {
         .from_str::<u32>()
         .fallback(42);
     let files = positional_os("FILE").map(PathBuf::from).many();
-    let parser = construct!(Options { value, files });
-
-    let opts = Info::default().for_parser(parser).run();
+    let opts = construct!(Options { value, files }).to_options().run();
 
     println!("{:#?}", opts);
 }

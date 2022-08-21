@@ -16,6 +16,7 @@ custom_keyword!(positional);
 custom_keyword!(argument_os);
 custom_keyword!(positional_os);
 custom_keyword!(switch);
+custom_keyword!(flag);
 custom_keyword!(external);
 
 custom_keyword!(from_str);
@@ -27,3 +28,6 @@ custom_keyword!(some);
 custom_keyword!(map);
 custom_keyword!(optional);
 custom_keyword!(parse);
+custom_keyword!(hide);
+custom_keyword!(group_help);
+custom_keyword!(default);

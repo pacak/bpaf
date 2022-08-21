@@ -1,5 +1,22 @@
 # Change Log
 
+## bpaf [0.5.0] - 2022-08-21
+A big rewrite, performance should stay mostly unchanged, binary overhead
+should be down by a third or so. Some minor cosmetic and correctness changes.
+Documentation rewrite.
+
+Migration guide:
+1. add `use bpaf::Parser;` if you don't have it already - it is now a trait
+   and needs to be in scope
+2. replace `fn foo() -> Parser<T>`
+   with `fn foo() -> impl Parser<T>`
+3. replace `Info::default().descr("xxx").for_parser(parser)`
+   with `parser.to_options().descr("xxx")`
+4. replace `a.or_else(b).or_else(c)
+   with `construct!([a, b, c])`
+5. replace `command("foo", Some("bar"), subparser)`
+   with `subparser.command("foo").help("bar")`
+
 ## bpaf [0.4.12] - 2022-08-08
 - bpaf now depends on a specific version of bpaf_derive
 

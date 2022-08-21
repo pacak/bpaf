@@ -1,4 +1,4 @@
-//! You don't need to import bpaf in order to use it
+//! You don't need to import bpaf in order to use it, it will look ugly though
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
@@ -15,15 +15,18 @@ fn main() {
         .switch();
 
     // an argument, parsed and with default value
-    let speed = bpaf::short('s')
-        .long("speed")
-        .help("Set speed")
-        .argument("SPEED")
-        .from_str::<f64>()
-        .fallback(42.0);
+    let speed = bpaf::Parser::fallback(
+        bpaf::Parser::from_str::<f64>(
+            bpaf::short('s')
+                .long("speed")
+                .help("Set speed")
+                .argument("SPEED"),
+        ),
+        42.0,
+    );
 
     // packing things in a struct assumes parser for each field is in scope.
-    let parser = bpaf::construct!(Out { debug, speed });
-    let opt = bpaf::Info::default().for_parser(parser).run();
+    let opt = bpaf::Parser::to_options(bpaf::construct!(Out { debug, speed })).run();
+
     println!("{:#?}", opt);
 }

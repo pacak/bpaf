@@ -22,16 +22,30 @@ pub struct ReqFlag {
     value: ConstrName,
     naming: Vec<StrictNameAttr>,
     help: Option<String>,
+    is_hidden: bool,
+    is_default: bool,
 }
 
 impl ReqFlag {
-    pub fn new(value: ConstrName, names: Vec<OptNameAttr>, help: &[String]) -> Self {
+    pub fn new(value: ConstrName, attrs: Vec<EnumSingleton<OptNameAttr>>, help: &[String]) -> Self {
+        let mut is_hidden = false;
+        let mut is_default = false;
+        let mut names = Vec::new();
+        for attr in attrs {
+            match attr {
+                EnumSingleton::Name(n) => names.push(n),
+                EnumSingleton::IsDefault => is_default = true,
+                EnumSingleton::Hidden => is_hidden = true,
+            }
+        }
         let naming = restrict_names(&value.constr, names);
         let help = LineIter::from(help).next();
         Self {
             value,
             naming,
             help,
+            is_hidden,
+            is_default,
         }
     }
 }
@@ -55,7 +69,15 @@ impl ToTokens for ReqFlag {
             }
         }
         let value = &self.value;
-        quote!(.req_flag(#value)).to_tokens(tokens);
+
+        if self.is_default {
+            quote!(.flag(#value, #value)).to_tokens(tokens);
+        } else {
+            quote!(.req_flag(#value)).to_tokens(tokens);
+        }
+        if self.is_hidden {
+            quote!(.hide()).to_tokens(tokens);
+        }
     }
 }
 
@@ -84,14 +106,46 @@ impl<T> Default for FieldAttrs<T> {
 }
 
 #[derive(Debug, Clone)]
+pub enum EnumSingleton<T> {
+    Name(T),
+    IsDefault,
+    Hidden,
+}
+
+impl<T: Parse> Parse for EnumSingleton<T> {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(kw::hide) {
+            input.parse::<kw::hide>()?;
+            Ok(Self::Hidden)
+        } else if input.peek(kw::default) {
+            input.parse::<kw::default>()?;
+            Ok(Self::IsDefault)
+        } else {
+            Ok(Self::Name(input.parse()?))
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum OptNameAttr {
     Short(Option<LitChar>),
     Long(Option<LitStr>),
+    Env(Box<Expr>),
 }
 #[derive(Debug, Clone)]
 pub enum StrictNameAttr {
     Short(LitChar),
     Long(LitStr),
+    Env(Box<Expr>),
+}
+
+impl StrictNameAttr {
+    fn is_name(&self) -> bool {
+        match self {
+            StrictNameAttr::Short(_) | StrictNameAttr::Long(_) => true,
+            StrictNameAttr::Env(_) => false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -101,20 +155,24 @@ enum ConsumerAttr {
     Pos(LitStr),
     PosOs(LitStr),
     Switch,
+    Flag(Box<Expr>, Box<Expr>), // incomplete
 }
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
     FromStr(Box<Type>),
-    Guard(Ident, LitStr),
+    Guard(Ident, Box<Expr>),
     Many(Option<LitStr>),
     Map(Ident),
     Optional,
-    Env(LitStr),
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
+    // used for deriving stuff to express map to convert
+    // from OsString to PathBuf... I wonder.
     Tokens(TokenStream),
+    Hide,
+    GroupHelp(Box<Expr>),
 }
 
 impl PostprAttr {
@@ -123,11 +181,14 @@ impl PostprAttr {
             PostprAttr::FromStr(_)
             | PostprAttr::Many(_)
             | PostprAttr::Map(_)
-            | PostprAttr::Env(_)
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
             | PostprAttr::Parse(_) => false,
-            PostprAttr::Guard(_, _) | PostprAttr::Fallback(_) | PostprAttr::FallbackWith(_) => true,
+            PostprAttr::Guard(_, _)
+            | PostprAttr::Fallback(_)
+            | PostprAttr::FallbackWith(_)
+            | PostprAttr::Hide
+            | PostprAttr::GroupHelp(_) => true,
         }
     }
 }
@@ -233,6 +294,11 @@ impl Parse for OptNameAttr {
             } else {
                 Ok(Self::Short(None))
             }
+        } else if input.peek(kw::env) {
+            let _ = input.parse::<kw::env>()?;
+            let content;
+            let _ = parenthesized!(content in input);
+            Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
             Err(input.error("Not a name attribute"))
         }
@@ -283,6 +349,14 @@ impl Parse for ConsumerAttr {
         } else if input.peek(kw::switch) {
             input.parse::<kw::switch>()?;
             Ok(Self::Switch)
+        } else if input.peek(kw::flag) {
+            input.parse::<kw::flag>()?;
+            let content;
+            let _ = parenthesized!(content in input);
+            let a = content.parse()?;
+            content.parse::<token::Comma>()?;
+            let b = content.parse()?;
+            Ok(Self::Flag(Box::new(a), Box::new(b)))
         } else {
             Err(input.error("Not a consumer attribute"))
         }
@@ -297,8 +371,8 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let guard_fn = content.parse::<Ident>()?;
             let _ = content.parse::<Token![,]>()?;
-            let msg = content.parse::<LitStr>()?;
-            Ok(Self::Guard(guard_fn, msg))
+            let msg = content.parse::<Expr>()?;
+            Ok(Self::Guard(guard_fn, Box::new(msg)))
         } else if input.peek(kw::fallback) {
             input.parse::<kw::fallback>()?;
             let _ = parenthesized!(content in input);
@@ -324,11 +398,6 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
-        } else if input.peek(kw::env) {
-            input.parse::<kw::env>()?;
-            let _ = parenthesized!(content in input);
-            let name = content.parse::<LitStr>()?;
-            Ok(Self::Env(name))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
             Ok(Self::Many(None))
@@ -339,6 +408,14 @@ impl Parse for PostprAttr {
         } else if input.peek(kw::optional) {
             input.parse::<kw::optional>()?;
             Ok(Self::Optional)
+        } else if input.peek(kw::hide) {
+            input.parse::<kw::hide>()?;
+            Ok(Self::Hide)
+        } else if input.peek(kw::group_help) {
+            input.parse::<kw::group_help>()?;
+            let _ = parenthesized!(content in input);
+            let expr = content.parse::<Expr>()?;
+            Ok(Self::GroupHelp(Box::new(expr)))
         } else {
             Err(input.error("Not an attribute"))
         }
@@ -504,28 +581,30 @@ fn restrict_names(base_name: &Ident, attrs: Vec<OptNameAttr>) -> Vec<StrictNameA
                 .collect::<String>()
         }
     };
-    if attrs.is_empty() {
+
+    for name_attr in attrs {
+        res.push(match name_attr {
+            OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
+            OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
+            OptNameAttr::Short(None) => {
+                let s = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
+                StrictNameAttr::Short(s)
+            }
+            OptNameAttr::Long(None) => {
+                let l = LitStr::new(&name_str, base_name.span());
+                StrictNameAttr::Long(l)
+            }
+            OptNameAttr::Env(e) => StrictNameAttr::Env(e),
+        });
+    }
+
+    if !res.iter().any(StrictNameAttr::is_name) {
         if name_str.chars().nth(1).is_some() {
             let l = LitStr::new(&name_str, base_name.span());
             res.push(StrictNameAttr::Long(l));
         } else {
             let c = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
             res.push(StrictNameAttr::Short(c));
-        }
-    } else {
-        for name_attr in attrs {
-            res.push(match name_attr {
-                OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
-                OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
-                OptNameAttr::Short(None) => {
-                    let s = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
-                    StrictNameAttr::Short(s)
-                }
-                OptNameAttr::Long(None) => {
-                    let l = LitStr::new(&name_str, base_name.span());
-                    StrictNameAttr::Long(l)
-                }
-            });
         }
     }
     res
@@ -593,7 +672,10 @@ impl FieldAttrs<StrictNameAttr> {
 impl<T> FieldAttrs<T> {
     fn consumer_needs_name(&self) -> Option<bool> {
         Some(match self.consumer.as_ref()? {
-            ConsumerAttr::Arg(_) | ConsumerAttr::ArgOs(_) | ConsumerAttr::Switch => true,
+            ConsumerAttr::Arg(_)
+            | ConsumerAttr::ArgOs(_)
+            | ConsumerAttr::Switch
+            | ConsumerAttr::Flag(_, _) => true,
             ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => false,
         })
     }
@@ -618,7 +700,7 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
                 first = false;
             }
             if let Some(help) = &self.help {
-                // help only makes sense for named things
+                // For named things help goes right after the name
                 if !first {
                     quote!(.help(#help)).to_tokens(tokens);
                 }
@@ -628,6 +710,12 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
                     quote!(.).to_tokens(tokens);
                 }
                 cons.to_tokens(tokens);
+            }
+            if let Some(help) = &self.help {
+                // For positional things help goes right after the consumer
+                if first {
+                    quote!(.help(#help)).to_tokens(tokens);
+                }
             }
         }
         for postpr in &self.postpr {
@@ -645,12 +733,13 @@ impl ToTokens for PostprAttr {
             PostprAttr::Many(None) => quote!(many()),
             PostprAttr::Many(Some(m)) => quote!(some(#m)),
             PostprAttr::Map(f) => quote!(map(#f)),
-            PostprAttr::Env(n) => quote!(env(#n)),
             PostprAttr::Optional => quote!(optional()),
             PostprAttr::Parse(f) => quote!(parse(#f)),
             PostprAttr::Fallback(v) => quote!(fallback(#v)),
             PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
+            PostprAttr::Hide => quote!(hide()),
+            PostprAttr::GroupHelp(m) => quote!(group_help(#m)),
         }
         .to_tokens(tokens);
     }
@@ -661,6 +750,7 @@ impl ToTokens for StrictNameAttr {
         match self {
             StrictNameAttr::Short(s) => quote!(short(#s)),
             StrictNameAttr::Long(l) => quote!(long(#l)),
+            StrictNameAttr::Env(e) => quote!(env(#e)),
         }
         .to_tokens(tokens);
     }
@@ -674,6 +764,7 @@ impl ToTokens for ConsumerAttr {
             ConsumerAttr::Pos(arg) => quote!(positional(#arg)),
             ConsumerAttr::PosOs(arg) => quote!(positional_os(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
+            ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
         }
         .to_tokens(tokens);
     }
@@ -820,6 +911,18 @@ mod tests {
         };
         let output = quote! {
             ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, "msg")
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn derive_field_guard_const() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(guard(positive, MSG))]
+            number: usize
+        };
+        let output = quote! {
+            ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, MSG)
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
@@ -1082,13 +1185,13 @@ mod tests {
     #[test]
     fn env_argument() {
         let input: NamedField = parse_quote! {
-            #[bpaf(argument("N"), env("N"), from_str(u32), some("need params"))]
+            #[bpaf(env(sim::DB), argument("N"), from_str(u32), some("need params"))]
             config: Vec<u32>
         };
         let output = quote! {
-            ::bpaf::long("config")
+            ::bpaf::env(sim::DB)
+                .long("config")
                 .argument("N")
-                .env("N")
                 .from_str::<u32>()
                 .some("need params")
         };
@@ -1110,11 +1213,60 @@ mod tests {
     #[test]
     fn implicit_switch_argument() {
         let input: NamedField = parse_quote! {
-            #[bpaf(switch)]
             item: bool
         };
         let output = quote! {
             ::bpaf::long("item").switch()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn explicit_flag_argument_1() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(true, false))]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(true, false)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    #[should_panic]
+    fn explicit_flag_argument_2() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(True, False))]
+            item: Bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(True, False)
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn explicit_flag_argument_3() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(flag(True, False), optional)]
+            item: Option<Bool>
+        };
+        let output = quote! {
+            ::bpaf::long("item").flag(True, False).optional()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn hide_and_group_help() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(hide, group_help("potato"))]
+            item: bool
+        };
+        let output = quote! {
+            ::bpaf::long("item").switch().hide().group_help("potato")
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }

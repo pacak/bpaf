@@ -1,89 +1,431 @@
 #![warn(missing_docs)]
 #![warn(rustdoc::missing_doc_code_examples)]
-#![doc = include_str!("../README.md")]
+#![allow(clippy::needless_doctest_main)]
 
-use std::rc::Rc;
-use std::str::FromStr;
+//! Lightweight and flexible command line argument parser with derive and combinator style API
 
-pub mod params;
+//! # Derive and combinatoric API
+//!
+//! `bpaf` supports both combinatoric and derive APIs and it's possible to mix and match both APIs
+//! at once. Both APIs provide access to mostly the same features, some things are more convenient
+//! to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility
+//! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
+//! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
+//! also explains how to perform the same action in derive style.
 
+//! # Quick links
+//!
+//! - [Derive tutorial](crate::_derive_tutorial)
+//! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+//! - [FAQ](crate::_faq)
+//! - [Batteries included](crate::batteries)
+
+//! # Quick start, derive edition
+//!
+//! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+//! ```toml
+//! [dependencies]
+//! bpaf = { version = "0.5", features = ["derive"] }
+//! ```
+//!
+//! 2. Define a structure containing command line attributes and run generated function
+//! ```no_run
+//! use bpaf::Bpaf;
+//!
+//! #[derive(Clone, Debug, Bpaf)]
+//! #[bpaf(options, version)]
+//! /// Accept speed and distance, print them
+//! struct SpeedAndDistance {
+//!     /// Speed in KPH
+//!     speed: f64,
+//!     /// Distance in miles
+//!     distance: f64,
+//! }
+//!
+//! fn main() {
+//!     // #[derive(Bpaf) generates function speed_and_distance
+//!     let opts = speed_and_distance().run();
+//!     println!("Options: {:?}", opts);
+//! }
+//! ```
+//!
+//! 3. Try to run the app
+//! ```console
+//! % very_basic --help
+//! Accept speed and distance, print them
+//!
+//! Usage: --speed ARG --distance ARG
+//!
+//! Available options:
+//!         --speed <ARG>     Speed in KPH
+//!         --distance <ARG>  Distance in miles
+//!     -h, --help            Prints help information
+//!     -V, --version         Prints version information
+//!
+//! % very_basic --speed 100
+//! Expected --distance ARG, pass --help for usage information
+//!
+//! % very_basic --speed 100 --distance 500
+//! Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+//!
+//! % very_basic --version
+//! Version: 0.5.0 (taken from Cargo.toml by default)
+//!```
+
+//! # Quick start, combinatoric edition
+//!
+//! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+//! ```toml
+//! [dependencies]
+//! bpaf = "0.5"
+//! ```
+//!
+//! 2. Declare parsers for components, combine them and run it
+//! ```no_run
+//! use bpaf::{construct, long, Parser};
+//! #[derive(Clone, Debug)]
+//! struct SpeedAndDistance {
+//!     /// Dpeed in KPH
+//!     speed: f64,
+//!     /// Distance in miles
+//!     distance: f64,
+//! }
+//!
+//! fn main() {
+//!     // primitive parsers
+//!     let speed = long("speed")
+//!         .help("Speed in KPG")
+//!         .argument("SPEED")
+//!         .from_str::<f64>();
+//!
+//!     let distance = long("distance")
+//!         .help("Distance in miles")
+//!         .argument("DIST")
+//!         .from_str::<f64>();
+//!
+//!     // parser containing information about both speed and distance
+//!     let parser = construct!(SpeedAndDistance { speed, distance });
+//!
+//!     // option parser with metainformation attached
+//!     let speed_and_distance
+//!         = parser
+//!         .to_options()
+//!         .descr("Accept speed and distance, print them");
+//!
+//!     let opts = speed_and_distance.run();
+//!     println!("Options: {:?}", opts);
+//! }
+//! ```
+//!
+//! 3. Try to run it, output should be similar to derive edition
+
+//! # Design goals: flexibility, reusability, correctness
+
+//! Library allows to consume command line arguments by building up parsers for individual
+//! arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
+//! For example it's possible to take a parser that requires a single floating point number and
+//! transform it to a parser that takes several of them or takes it optionally so different
+//! subcommands or binaries can share a lot of the code:
+
+//! ```rust
+//! # use bpaf::*;
+//! // a regular function that doesn't depend on anything, you can export it
+//! // and share across subcommands and binaries
+//! fn speed() -> impl Parser<f64> {
+//!     long("speed")
+//!         .help("Speed in KPH")
+//!         .argument("SPEED")
+//!         .from_str::<f64>()
+//! }
+//!
+//! // this parser accepts multiple `--speed` flags from a command line when used,
+//! // collecting them into a vector
+//! fn multiple_args() -> impl Parser<Vec<f64>> {
+//!     speed().many()
+//! }
+//!
+//! // this parser checks if `--speed` is present and uses value of 42 if it's not
+//! fn with_fallback() -> impl Parser<f64> {
+//!     speed().fallback(42.0)
+//! }
+//! ```
+//!
+//! At any point you can apply additional validation or fallback values in terms of current parsed
+//! state of each subparser and you can have several stages as well:
+//!
+//! ```rust
+//! # use bpaf::*;
+//! #[derive(Clone, Debug)]
+//! struct Speed(f64);
+//! fn speed() -> impl Parser<Speed> {
+//!     long("speed")
+//!         .help("Speed in KPH")
+//!         .argument("SPEED")
+//!         // After this point the type is `impl Parser<String>`
+//!         .from_str::<f64>()
+//!         // `from_str` uses FromStr trait to transform contained value into `f64`
+//!
+//!         // You can perform additional validation with `parse` and `guard` functions
+//!         // in as many steps as required.
+//!         // Before and after next two applications the type is still `impl Parser<f64>`
+//!         .guard(|&speed| speed >= 0.0, "You need to buy a DLC to move backwards")
+//!         .guard(|&speed| speed <= 100.0, "You need to buy a DLC to break the speed limits")
+//!
+//!         // You can transform contained values, next line gives `impl Parser<Speed>` as a result
+//!         .map(|speed| Speed(speed))
+//! }
+//! ```
+//!
+//! Library follows parse, don’t validate approach to validation when possible. Usually you parse
+//! your values just once and get the results as a rust struct/enum with strict types rather than a
+//! stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
+
+//! # Design goals: restrictions
+//!
+//! The main restricting library sets is that you can't use parsed values (but not the fact that
+//! parser succeeded or failed) to decide how to parse subsequent values. In other words parsers
+//! don't have the monadic strength, only the applicative one.
+//!
+//! To give an example, you can implement this description:
+//!
+//! > Program takes one of `--stdout` or `--file` flag to specify the output target, when it's `--file`
+//! > program also requires `-f` attribute with the filename
+//!
+//! But not this one:
+//!
+//! > Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it's `'file'`
+//! > program also requires `-f` attribute with the filename
+//!
+//! This set of restrictions allows to extract information about the structure of the computations
+//! to generate help and overall results in less confusing enduser experience
+
+//! # Design non goals: performance
+//!
+//! Library aims to optimize for flexibility, reusability and compilation time over runtime
+//! performance which means it might perform some additional clones, allocations and other less
+//! optimal things. In practice unless you are parsing tens of thousands of different parameters
+//! and your app exits within microseconds - this won't affect you. That said - any actual
+//! performance related problems with real world applications is a bug.
+
+//! # More examples
+//!
+//! You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
+//!
+//!
+//! They're usually documented or at least contain an explanation to important bits and you can see
+//! how they work by cloning the repo and running
+//! ```shell
+//! $ cargo run --example example_name
+//! ```
+
+//! # Testing your own parsers
+//!
+//! You can test your own parsers to maintain compatibility or simply checking expected output
+//! with [`run_inner`](OptionParser::run_inner)
+//!
+//! ```rust
+//! # use bpaf::*;
+//! #[derive(Debug, Clone, Bpaf)]
+//! #[bpaf(options)]
+//! pub struct Options {
+//!     pub user: String
+//! }
+//!
+//! #[test]
+//! fn test_my_options() {
+//!     let help = options()
+//!         .run_inner(Args::from(&["--help"]))
+//!         .unwrap_err()
+//!         .unwrap_stdout();
+//!     let expected_help = "\
+//! Usage --user <ARG>
+//! <skip>
+//! ";
+//!
+//!     assert_eq!(help, expected_help);
+//! }
+//! ```
+
+//! # Cargo features
+//!
+//! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
+//!   need to enable it to use derive API
+//!
+//! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
+//! enable it for local development unless you want to build your own copy of the documentation
+//! (<https://github.com/rust-lang/cargo/issues/8905>)
+//!
+//! - `batteries`: helpers implemented with public `bpaf` API
+
+#[cfg(feature = "extradocs")]
+pub mod _combinatoric_tutorial;
+#[cfg(feature = "extradocs")]
+pub mod _derive_tutorial;
+#[cfg(feature = "extradocs")]
+pub mod _faq;
 mod args;
-#[doc(hidden)]
-pub mod info;
-#[doc(hidden)]
-pub mod item;
-#[doc(hidden)]
-pub mod meta;
+mod info;
+mod item;
+mod meta;
+mod meta_help;
+mod meta_usage;
+mod params;
+mod structs;
 
-use crate::{args::Word, info::Error, item::Item};
-
+pub mod batteries;
 #[cfg(test)]
 mod tests;
+
+#[doc(hidden)]
+pub use crate::info::Error;
+use crate::item::Item;
+use std::marker::PhantomData;
+#[doc(hidden)]
+pub use structs::PCon;
+
+use structs::{
+    ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
+    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
+};
+
 #[doc(inline)]
 pub use crate::args::Args;
-pub use crate::info::{Info, OptionParser};
+pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
+
 #[doc(inline)]
-pub use crate::params::*;
+pub use crate::params::{command, env, long, positional, positional_os, short, Command, Named};
+
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
 
 /// Compose several parsers to produce a single result
 ///
-/// Every parser must succeed in order to produce a result for
-/// sequential composition and only one parser needs to succeed
-/// for a parallel one (`construct!([a, b, c])`)
+/// # Usage reference
+/// ```rust
+/// # use bpaf::*;
+/// # { struct Res(bool, bool, bool);
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // structs with unnamed fields:
+/// construct!(Res(a, b, c));
+/// # }
 ///
-/// Each parser must be present in a local scope and
-/// have the same name as struct field. Alternatively
-/// a parser can be present as a function producing a parser
-/// bpaf will call this function and use it's result. Later
-/// option might be useful when single parser is used in
-/// several `construct!` macros
+/// # { struct Res { a: bool, b: bool, c: bool }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // structs with named fields:
+/// construct!(Res {a, b, c});
+/// # }
+///
+/// # { enum Ty { Res(bool, bool, bool) }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // enums with unnamed fields:
+/// construct!(Ty::Res(a, b, c));
+/// # }
+///
+/// # { enum Ty { Res { a: bool, b: bool, c: bool } }
+/// # let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // enums with named fields:
+/// construct!(Ty::Res {a, b, c});
+/// # }
+///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // tuples:
+/// construct!(a, b, c);
+/// # }
+///
+/// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
+/// // parallel composition, tries all parsers, picks succeeding left most one:
+/// construct!([a, b, c]);
+/// # }
+/// ```
+///
+/// # Combinatoric usage
+/// `construct!` can compose parsers sequentially or in parallel.
+///
+/// Sequential composition runs each parser and if all of them succeed you get a parser object of a
+/// new type back. Placeholder names for values inside `construct!` macro must correspond to both
+/// struct/enum names and parser names present in scope. In examples below `a` corresponds to a
+/// function and `b` corresponds to a variable name. Note parens in `a()`, you must to use them to
+/// indicate function parsers.
 ///
 /// ```rust
 /// # use bpaf::*;
+/// struct Res (u32, u32);
+/// enum Ul { T { a: u32, b: u32 } }
+///
+/// // You can share parameters across multiple construct invocations
+/// // if defined as functions
+/// fn a() -> impl Parser<u32> {
+///     short('a').argument("N").from_str::<u32>()
+/// }
+///
+/// // You can construct structs or enums with unnamed fields
+/// fn res() -> impl Parser<Res> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(Res ( a(), b ))
+/// }
+///
+/// // You can construct structs or enums with named fields
+/// fn ult() -> impl Parser<Ul> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(Ul::T { a(), b })
+/// }
+///
+/// // You can also construct simple tuples
+/// fn tuple() -> impl Parser<(u32, u32)> {
+///     let b = short('b').argument("n").from_str::<u32>();
+///     construct!(a(), b)
+/// }
+/// ```
+///
+/// Parallel composition picks one of several available parsers (result types must match) and returns a
+/// parser object of the same type. Similar to sequential composition you can use parsers from variables
+/// or functions:
+///
+/// ```rust
+/// # use bpaf::*;
+/// fn b() -> impl Parser<u32> {
+///     short('b').argument("NUM").from_str::<u32>()
+/// }
+///
+/// fn a_or_b() -> impl Parser<u32> {
+///     let a = short('a').argument("NUM").from_str::<u32>();
+///     // equivalent way of writing this would be `a.or_else(b())`
+///     construct!([a, b()])
+/// }
+/// ```
+///
+/// # Derive usage
+///
+/// `bpaf_derive` would combine fields of struct or enum constructors sequentially and enum
+/// variants in parallel.
+/// ```rust
+/// # use bpaf::*;
+/// // to satisfy this parser user needs to pass both -a and -b
+/// #[derive(Debug, Clone, Bpaf)]
 /// struct Res {
-///     a: bool,
+///     a: u32,
 ///     b: u32,
 /// }
 ///
-/// // parser defined as a local variable
-/// let a: Parser<bool> = short('a').switch();
+/// // to satisfy this parser user needs to pass one (and only one) of -a, -b, -c or -d
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Enumeraton {
+///     A { a: u32 },
+///     B { b: u32 },
+///     C { c: u32 },
+///     D { d: u32 },
+/// }
 ///
-/// // parser defined as a function
-/// fn b() -> Parser<u32> { short('b').argument("B").from_str() }
-/// let res: Parser<Res> = construct!(Res { a, b() });
-/// # drop(res);
+/// // here user needs to pass either both -a AND -b or both -c and -d
+/// #[derive(Debug, Clone, Bpaf)]
+/// enum Ult {
+///     AB { a: u32, b: u32 },
+///     CD { c: u32, d: u32 }
+/// }
 /// ```
-///
-/// `construct!` supports following representations:
-///
-/// - structs with unnamed fields:
-/// ```rust ignore
-/// construct!(Res(a, b))
-/// ```
-/// - structs with named fields:
-/// ```ignore
-/// construct!(Res {a, b})
-/// ```
-/// - enums with unnamed fields:
-/// ```ignore
-/// construct!(Ty::Res(a, b))
-/// ```
-/// - enums with named fields:
-/// ```ignore
-/// construct!(Ty::Res {a, b})
-/// ```
-/// - tuples:
-/// ```ignore
-/// construct!(a, b)
-/// ```
-/// - parallel composition, a equivalent of `a.or_else(b).or_else(c)`
-/// ```ignore
-/// construct!([a, b, c])
-/// ```
+
 #[macro_export]
 macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
@@ -114,15 +456,21 @@ macro_rules! construct {
     (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
         $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
     }};
-    (@prepare [alt] [$first:ident $($fields:ident)*]) => { $first $(.or_else($fields))*  };
+
+    (@prepare [alt] [$first:ident $($fields:ident)*]) => {
+        #[allow(deprecated)]
+        { use $crate::Parser; $first $(.or_else($fields))* }
+    };
+
     (@prepare $ty:tt [$($fields:tt)*]) => {{
-        $crate::Parser {
-            parse: ::std::rc::Rc::new(move |args| {
-                $(let ($fields , args) = ($fields . parse)(args)?;)*
-                ::std::result::Result::Ok(($crate::construct!(@make $ty [$($fields)*]), args))
-            }),
-            meta: $crate::Meta::And(::std::vec![ $($fields.meta),* ])
-        }
+        use $crate::Parser;
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let inner = move |args: &mut $crate::Args| {
+            $(let $fields = $fields.eval(args)?;)*
+            ::std::result::Result::Ok::<_, $crate::Error>
+                ($crate::construct!(@make $ty [$($fields)*]))
+        };
+        $crate::PCon { inner, meta }
     }};
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
@@ -130,471 +478,973 @@ macro_rules! construct {
     (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
 }
 
-#[doc(hidden)]
-/// A bit more user friendly alias for parsing function
-pub type DynParse<T> = dyn Fn(Args) -> Result<(T, Args), Error>;
-
 /// Simple or composed argument parser
-#[derive(Clone)]
-pub struct Parser<T> {
+///
+/// # Overview
+///
+/// It's best to think of an object implementing [`Parser`] trait as a container with a value
+/// inside that are composable with other `Parser` containers using [`construct!`] and the only
+/// way to extract this value is by transforming it to [`OptionParser`] with
+/// [`to_options`](Parser::to_options) and running it with [`run`](OptionParser::run). At which
+/// point you either get your value out or bpaf would generate a message describing a problem
+/// (missing argument, validation failure, user requested help, etc) and the program would
+/// exit.
+///
+/// Values inside can be of any type for as long as they implement `Debug`, `Clone` and
+/// there's no lifetimes other than static.
+///
+/// When consuming the values you usually start with `Parser<String>` or `Parser<OsString>` which
+/// you then transform into something that your program would actually use. it's better to perform
+/// as much parsing and validation inside the `Parser` as possible so the program itself gets
+/// strictly typed and correct value while user gets immediate feedback on what's wrong with the
+/// arguments they pass.
+///
+/// For example suppose your program needs user to specify a dimensions of a rectangle, with sides
+/// being 1..20 units long and the total area must not exceed 200 units square. A parser that
+/// consumes it might look like this:
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Copy, Clone)]
+/// struct Rectangle {
+///     width: u32,
+///     height: u32,
+/// }
+///
+/// fn rectangle() -> impl Parser<Rectangle> {
+///     let invalid_size = "Sides of a rectangle must be 1..20 units long";
+///     let invalid_area = "Area of a rectangle must not exceed 200 units square";
+///     let width = long("width")
+///         .help("Width of the rectangle")
+///         .argument("PX")
+///         .from_str::<u32>()
+///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
+///     let height = long("height")
+///         .help("Height of the rectangle")
+///         .argument("PX")
+///         .from_str::<u32>()
+///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
+///     construct!(Rectangle { width, height })
+///         .guard(|&r| r.width * r.height <= 400, invalid_area)
+/// }
+/// ```
+///
+///
+/// # Derive specific considerations
+///
+/// Every method defined on this trait belongs to the `postprocessing` section of the field
+/// annotation. `bpaf_derive` would try to figure out what chain to use for as long as there's no
+/// options changing the type: you can use [`fallback`](Parser::fallback_with),
+/// [`fallback_with`](Parser::fallback_with), [`guard`](Parser::guard), [`hide`](Parser::hide`) and
+/// [`group_help`](Parser::group_help) but not the rest of them.
+///
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// struct Options {
+///     // no annotation at all - `bpaf_derive` inserts implicit `argument` and `from_str`
+///     number_1: u32,
+///
+///     // fallback isn't changing the type so `bpaf_derive` still handles it
+///     #[bpaf(fallback(42))]
+///     number_2: u32,
+///
+///     // `bpaf_derive` inserts implicit `argument`, `optional` and `from_str`
+///     number_3: Option<u32>,
+///
+///     // fails to compile: you need to specify a consumer, `argument` or `argument_os`
+///     // #[bpaf(optional)]
+///     // number_4: Option<u32>
+///
+///     // fails to compile: you also need to specify how to go from String to u32
+///     // #[bpaf(argument("N"), optional)]
+///     // number_5: Option<u32>,
+///
+///     // explicit consumer and a full postprocessing chain
+///     #[bpaf(argument("N"), from_str(u32), optional)]
+///     number_6: Option<u32>,
+/// }
+/// ```
+pub trait Parser<T> {
+    /// Evaluate inner function
+    ///
+    /// Mostly internal implementation details, you can try using it to test your parsers
+    // it's possible to move this function from the trait to the structs but having it
+    // in the trait ensures the composition always works
     #[doc(hidden)]
-    /// Parsing function
-    pub parse: Rc<DynParse<T>>,
-    #[doc(hidden)]
-    /// Included information about the parser
-    pub meta: Meta,
-}
+    fn eval(&self, args: &mut Args) -> Result<T, Error>;
 
-impl<T> Parser<T> {
-    /// Wrap a value into a `Parser`
+    /// Included information about the parser
     ///
-    /// Parser will produce `T` without consuming anything from the command line, can be useful
-    /// with [`construct!`].
+    /// Mostly internal implementation details, you can try using it to test your parsers
+    // it's possible to move this function from the trait to the structs but having it
+    // in the trait ensures the composition always works
+    #[doc(hidden)]
+    fn meta(&self) -> Meta;
+
+    // change shape
+    // {{{ many
+    /// Consume zero or more items from a command line and collect them into [`Vec`]
     ///
+    /// `many` only collects elements that only consume something from the argument list.
+    ///
+    /// # Combinatoric usage:
     /// ```rust
     /// # use bpaf::*;
-    /// let a = long("flag-a").switch();
-    /// let b = Parser::pure(42u32);
-    /// let t: Parser<(bool, u32)> = construct!(a, b);
-    /// # drop(t)
+    /// fn numbers() -> impl Parser<Vec<u32>> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .many()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage:
+    /// Bpaf would insert implicit `many` when resulting type is a vector
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"))]
+    ///     numbers: Vec<u32>
+    /// }
+    /// ```
+    /// But it's also possible to specify it explicitly, both cases renerate the same code.
+    /// Note, since using `many` resets the postprocessing chain - you also need to specify
+    /// [`from_str`](Parser::from_str)
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), from_str(u32), many)]
+    ///     numbers: Vec<u32>
+    /// }
+    /// ```
+    ///
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 1 -n 2 -n 3
+    /// // [1, 2, 3]
+    /// ```
+    ///
+    /// # See also
+    /// [`some`](Parser::some) also collects results to a vector but requires at least one
+    /// element to succeed
+    fn many(self) -> ParseMany<Self>
+    where
+        Self: Sized,
+    {
+        ParseMany { inner: self }
+    }
+    // }}}
+
+    // {{{ some
+    /// Consume one or more items from a command line
+    ///
+    /// Takes a string used as an error message if there's no specified parameters
+    ///
+    /// `some` only collects elements that only consume something from the argument list.
+    ///
+    /// # Combinatoric usage:
+    /// ```rust
+    /// # use bpaf::*;
+    /// let numbers
+    ///     = short('n')
+    ///     .argument("NUM")
+    ///     .from_str::<u32>()
+    ///     .some("Need at least one number");
+    /// # drop(numbers);
+    /// ```
+    ///
+    /// # Derive usage
+    /// Since using `some` resets the postprocessing chain - you also need to specify
+    /// [`from_str`](Parser::from_str) or similar, depending on your type
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), from_str(u32), some("Need at least one number"))]
+    ///     numbers: Vec<u32>
+    /// }
+    /// ```
+    ///
+    ///
+    /// # Example
+    /// ```console
+    /// $ app
+    /// // fails with "Need at least one number"
+    /// $ app -n 1 -n 2 -n 3
+    /// // [1, 2, 3]
+    /// ```
+    ///
+    /// # See also
+    /// [`many`](Parser::many) also collects results to a vector but succeeds with
+    /// no matching values
+    #[must_use]
+    fn some(self, message: &'static str) -> ParseSome<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseSome {
+            inner: self,
+            message,
+        }
+    }
+    // }}}
+
+    // {{{ optional
+    /// Turn a required argument into optional one
+    ///
+    /// `optional` converts any failure caused by missing items into is `None` and passes
+    /// the remaining parsing failures untouched.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn number() -> impl Parser<Option<u32>> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .optional()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// By default bpaf would automatically use optional for fields of type `Option<T>`,
+    /// for as long as it's not prevented from doing so by present postprocessing options
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"))]
+    ///    number: Option<u32>
+    /// }
+    /// ```
+    ///
+    /// But it's also possible to specify it explicitly, in which case you need to specify
+    /// a full postprocessing chain which starts from [`from_str`](Parser::from_str) in this
+    /// example.
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"), from_str(u32), optional)]
+    ///    number: Option<u32>
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app
+    /// // None
+    /// $ app -n 42
+    /// // Some(42)
     /// ```
     #[must_use]
-    pub fn pure(val: T) -> Parser<T>
+    fn optional(self) -> ParseOptional<Self>
     where
-        T: 'static + Clone,
+        Self: Sized + Parser<T>,
     {
-        let parse = move |i| Ok((val.clone(), i));
-        Parser {
-            parse: Rc::new(parse),
-            meta: Meta::Skip,
+        ParseOptional { inner: self }
+    }
+    // }}}
+
+    // parse
+    // {{{ parse
+    /// Apply a failing transformation to a contained value
+    ///
+    /// This is a most general of transforming parsers and you can express remaining ones
+    /// terms of it: [`map`](Parser::map), [`from_str`](Parser::from_str) and
+    /// [`guard`](Parser::guard).
+    ///
+    /// Examples given here are a bit artificail, to parse a value from string you should use
+    /// [`from_str`](Parser::from_str).
+    ///
+    /// # Combinatoric usage:
+    /// ```rust
+    /// # use bpaf::*;
+    /// # use std::str::FromStr;
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .parse(|s| u32::from_str(&s))
+    /// }
+    /// ```
+    /// # Derive usage:
+    /// `parse` takes a single parameter: function name to call. Function type should match
+    /// parameter `F` used by `parse` in combinatoric API.
+    /// ```rust
+    /// # use bpaf::*;
+    /// # use std::str::FromStr;
+    /// # use std::num::ParseIntError;
+    /// fn read_number(s: String) -> Result<u32, ParseIntError> {
+    ///     u32::from_str(&s)
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), parse(read_number))]
+    ///     number: u32
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 12
+    /// // 12
+    /// # app -n pi
+    /// // fails with "Couldn't parse "pi": invalid numeric literal"
+    /// ```
+    ///
+    fn parse<F, R, E>(self, f: F) -> ParseWith<T, Self, F, E, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> Result<R, E>,
+        E: ToString,
+    {
+        ParseWith {
+            inner: self,
+            inner_res: PhantomData,
+            parse_fn: f,
+            res: PhantomData,
+            err: PhantomData,
         }
     }
+    // }}}
 
-    #[doc(hidden)]
-    /// <*>
+    // {{{ map
+    /// Apply a pure transformation to a contained value
+    ///
+    /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .map(|v| v * 2)
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn double(num: u32) -> u32 {
+    ///     num * 2
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), from_str(u32), map(double))]
+    ///     number: u32,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 21
+    /// // 42
+    /// ```
+    fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> R + 'static,
+    {
+        ParseMap {
+            inner: self,
+            inner_res: PhantomData,
+            map_fn: map,
+            res: PhantomData,
+        }
+    }
+    // }}}
+
+    // {{{ from_str
+    /// Parse stored [`String`] using [`FromStr`](std::str::FromStr) instance
+    ///
+    /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn speed() -> impl Parser<f64> {
+    ///     short('s')
+    ///         .argument("SPEED")
+    ///         .from_str::<f64>()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// By default `bpaf_derive` would use [`from_str`](Parser::from_str) for any time it's not
+    /// familiar with so you don't need to specify anything
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("SPEED"))]
+    ///     speed: f64
+    /// }
+    /// ```
+    ///
+    /// But it's also possible to specify it explicitly
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("SPEED"), from_str(f64))]
+    ///     speed: f64
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -s pi
+    /// // fails with "Couldn't parse "pi": invalid float literal"
+    /// $ app -s 3.1415
+    /// // Version: 3.1415
+    /// ```
+    ///
+    /// # See also
+    /// Other parsing and restricting methods include [`parse`](Parser::parse) and
+    /// [`guard`](Parser). For transformations that can't fail you can use [`map`](Parser::map).
     #[must_use]
-    pub fn ap<A, B>(self, other: Parser<A>) -> Parser<B>
+    #[allow(clippy::wrong_self_convention)]
+    fn from_str<R>(self) -> ParseFromStr<Self, R>
     where
-        T: Fn(A) -> B + 'static,
-        A: 'static,
+        Self: Sized + Parser<T>,
     {
-        let parse = move |i| {
-            let (t, rest) = (self.parse)(i)?;
-            let (a, rest) = (other.parse)(rest)?;
-            Ok((t(a), rest))
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: Meta::And(vec![self.meta, other.meta]),
+        ParseFromStr {
+            inner: self,
+            ty: PhantomData,
         }
     }
+    // }}}
 
-    /// If first parser fails - try the second one
+    // {{{ guard
+    /// Validate or fail with a message
+    ///
+    /// If value doesn't satisfy the constraint - parser fails with the specified error message.
+    ///
+    /// # Combinatoric usage
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let a = short('a').switch();
-    /// let b = short('b').switch();
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .guard(|n| *n <= 10, "Values greater than 10 are only available in the DLC pack!")
+    /// }
+    /// ```
     ///
-    /// // Parser will accept either `-a` or `-b` on a command line but not both at once.
-    /// let a_or_b: Parser<bool> = a.or_else(b);
-    /// # drop(a_or_b);
+    /// # Derive usage
+    /// Unlike combinator counterpart, derive variant of `guard` takes a function name instead
+    /// of a closure, mostly to keep thing clean. Second argument can be either a string literal
+    /// or a constant name for a static [`str`].
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn dlc_check(number: &u32) -> bool {
+    ///     *number <= 10
+    /// }
+    ///
+    /// const DLC_NEEDED: &str = "Values greater than 10 are only available in the DLC pack!";
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short, argument("NUM"), guard(dlc_check, DLC_NEEDED))]
+    ///     number: u32,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 100
+    /// // fails with "Values greater than 10 are only available in the DLC pack!"
+    /// $ app -n 5
+    /// // 5
+    /// ```
+    #[must_use]
+    fn guard<F>(self, check: F, message: &'static str) -> ParseGuard<Self, F>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(&T) -> bool,
+    {
+        ParseGuard {
+            inner: self,
+            check,
+            message,
+        }
+    }
+    // }}}
+
+    // combine
+    // {{{ fallback
+    /// Use this value as default if value isn't present on a command line
+    ///
+    /// Parser would still fail if value is present but failure comes from some transformation
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn number() -> impl Parser<u32> {
+    ///     short('n')
+    ///         .argument("NUM")
+    ///         .from_str::<u32>()
+    ///         .fallback(42)
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// Expression in parens should have the right type, this example uses `u32` literal,
+    /// but it can also be your own type if that's what you are parsing, it can also be a function
+    /// call.
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///    #[bpaf(short, argument("NUM"), from_str(u32), fallback(42))]
+    ///    number: u32
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -n 100
+    /// // 10
+    /// $ app
+    /// // 42
+    /// $ app -n pi
+    /// // fails with "Couldn't parse "pi": invalid numeric literal"
+    /// ```
+    ///
+    /// # See also
+    /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
+    /// comes from a failing computation such as reading a file.
+    #[must_use]
+    fn fallback(self, value: T) -> ParseFallback<Self, T>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseFallback { inner: self, value }
+    }
+    // }}}
+
+    // {{{ fallback_with
+    /// Use value produced by this function as default if value isn't present
+    ///
+    /// Would still fail if value is present but failure comes from some earlier transformation
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn username() -> impl Parser<String> {
+    ///     long("user")
+    ///         .argument("USER")
+    ///         .fallback_with::<_, Box<dyn std::error::Error>>(||{
+    ///             let output = std::process::Command::new("whoami")
+    ///                 .stdout(std::process::Stdio::piped())
+    ///                 .spawn()?
+    ///                 .wait_with_output()?
+    ///                 .stdout;
+    ///             Ok(std::str::from_utf8(&output)?.to_owned())
+    ///         })
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn get_current_user() -> Result<String, Box<dyn std::error::Error>> {
+    ///     let output = std::process::Command::new("whoami")
+    ///         .stdout(std::process::Stdio::piped())
+    ///         .spawn()?
+    ///         .wait_with_output()?
+    ///         .stdout;
+    ///     Ok(std::str::from_utf8(&output)?.to_owned())
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(long, argument("USER"), fallback_with(get_current_user))]
+    ///     user: String,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --user bobert
+    /// // "bobert"
+    /// $ app
+    /// // "pacak"
+    /// ```
+    ///
+    /// # See also
+    /// [`fallback`](Parser::fallback) implements similar logic expect that failures
+    /// aren't expected.
+    #[must_use]
+    fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn() -> Result<T, E>,
+        E: ToString,
+    {
+        ParseFallbackWith {
+            inner: self,
+            inner_res: PhantomData,
+            fallback,
+            err: PhantomData,
+        }
+    }
+    // }}}
+
+    // {{{ or_else
+    /// If first parser fails - try the second one
+    ///
+    /// For parser to succeed eiter of the components needs to succeed. If both succeed - bpaf
+    /// would use output from one that consumed the left most value. The second flag on the command
+    /// line remains unconsumed by `or_else`.
+    ///
+    /// # Combinatoric usage:
+    /// There's two ways to write this combinator with identical results:
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn a() -> impl Parser<u32> {
+    ///     short('a').argument("NUM").from_str::<u32>()
+    /// }
+    ///
+    /// fn b() -> impl Parser<u32> {
+    ///     short('b').argument("NUM").from_str::<u32>()
+    /// }
+    ///
+    /// fn a_or_b_comb() -> impl Parser<u32> {
+    ///     construct!([a(), b()])
+    /// }
+    ///
+    /// fn a_or_b_comb2() -> impl Parser<u32> {
+    ///     a().or_else(b())
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -a 12 -b 3
+    /// // 12
+    /// $ app -b 3 -a 12
+    /// // 3
+    /// $ app -b 13
+    /// // 13
+    /// $ app
+    /// // fails asking for either -a NUM or -b NUM
+    /// ```
+    ///
+    /// # Derive usage:
+    ///
+    /// `bpaf_derive` translates enum into alternative combinations, different shapes of variants
+    /// produce different results.
+    ///
+    ///
+    /// ```bpaf
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// enum Flag {
+    ///     A { a: u32 }
+    ///     B { b: u32 }
+    /// }
+    /// ```
+    ///
+    /// ```console
+    /// $ app -a 12 -b 3
+    /// // Flag::A { a: 12 }
+    /// $ app -b 3 -a 12
+    /// // Flag::B { b: 3 }
+    /// $ app -b 3
+    /// // Flag::B { b: 3 }
+    /// $ app
+    /// // fails asking for either -a NUM or -b NUM
     /// ```
     ///
     /// # Performance
     ///
-    /// If first parser succeeds - second one will be called anyway to produce a
+    /// `bpaf` tries to evaluate both branches regardless of the successes to produce a
     /// better error message for combinations of mutually exclusive parsers:
-    ///
     /// Suppose program accepts one of two mutually exclusive switches `-a` and `-b`
     /// and both are present error message should point at the second flag
-    ///
-    /// [`construct!`] can be used to perform a similar task and might generate better code if
-    /// combines more than two parsers. Those two invocations are equivalent:
-    ///
-    /// ```ignore
-    /// let abc = a.or_else(b).or_else(c);
-    /// ```
-    /// ```ignore
-    /// let abc = construct!([a, b, c]);
-    /// ```
-    ///
-    #[must_use]
-    pub fn or_else(self, other: Parser<T>) -> Parser<T>
+    #[doc(hidden)]
+    #[deprecated(
+        since = "0.5.0",
+        note = "instead of a.or_else(b) you should use construct!([a, b])"
+    )]
+    fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
     where
-        T: 'static,
+        Self: Sized + Parser<T>,
+        P: Sized + Parser<T>,
     {
-        let parse = move |mut i: Args| -> Result<(T, Args), Error> {
-            i.head = usize::MAX;
-            // To generate less confusing error messages give priority to the left most flag/argument
-            // from the command line:
-            // So if program accepts only one of 3 flags: -a, -b and -c and all 3 are present
-            // take the first one and reject the remaining ones.
-            let (res, new_args) = match ((self.parse)(i.clone()), (other.parse)(i)) {
-                // side channel (--help) reporting takes priority
-                (e @ Err(Error::Stdout(_)), _) | (_, e @ Err(Error::Stdout(_))) => e,
-                (Ok((r1, a1)), Ok((r2, a2))) => {
-                    if a1.head < a2.head {
-                        Ok((r1, a1))
-                    } else {
-                        Ok((r2, a2))
-                    }
-                }
-                (Ok(ok), Err(_)) | (Err(_), Ok(ok)) => Ok(ok),
-                (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
-            }?;
-            Ok((res, new_args))
-        };
-
-        Parser {
-            parse: Rc::new(parse),
-            meta: self.meta.or(other.meta),
+        ParseOrElse {
+            this: self,
+            that: alt,
         }
     }
+    // }}}
 
-    /// Fail with a fixed error message
-    /// ```rust
-    /// # use bpaf::*;
-    /// let a = short('a').switch();
-    /// let no_a = Parser::fail("Custom error message for missing -a");
-    ///
-    /// // Parser will produce a custom error message if `-a` is not specified
-    /// let a_: Parser<bool> = a.or_else(no_a);
-    /// # drop(a_);
-    /// ```
-    #[must_use]
-    pub fn fail<M>(msg: M) -> Parser<T>
-    where
-        String: From<M>,
-        M: Clone + 'static,
-    {
-        Parser {
-            meta: Meta::Skip,
-            parse: Rc::new(move |_| Err(Error::Stderr(String::from(msg.clone())))),
-        }
-    }
-
-    /// Consume zero or more items from a command line
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// // parser will accept multiple `-n` arguments:
-    /// // `-n 1, -n 2, -n 3`
-    /// // and return all of them as a vector which can be empty if no `-n` specified
-    /// let n: Parser<Vec<u32>> = short('n').argument("NUM").from_str::<u32>().many();
-    /// # drop(n);
-    /// ```
-    ///
-    /// # Panics
-    /// Panics if parser succeeds without consuming any input: any parser modified with
-    /// `many` must consume something,
-    #[must_use]
-    pub fn many(self) -> Parser<Vec<T>>
-    where
-        T: 'static,
-    {
-        let parse = move |mut i: Args| {
-            let mut res = Vec::new();
-            let mut size = i.len();
-            while let Ok((elt, new_i)) = (self.parse)(i.clone()) {
-                let new_size = new_i.len();
-                #[allow(clippy::panic)]
-                if new_size < size {
-                    size = new_size;
-                } else {
-                    panic!("many can't be used with non failing parser")
-                }
-                i = new_i;
-                res.push(elt);
-            }
-            Ok((res, i))
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: self.meta.many(),
-        }
-    }
-
-    /// Validate or fail with a message
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>();
-    /// // Parser will reject values greater than 10
-    /// let n = n.guard(|v| *v <= 10, "Values greater than 10 are only available in the DLC pack!");
-    /// # drop(n);
-    /// ```
-    #[must_use]
-    pub fn guard<F>(self, m: F, message: &'static str) -> Parser<T>
-    where
-        F: Fn(&T) -> bool + 'static,
-        T: 'static,
-    {
-        let parse = move |i: Args| match (self.parse)(i) {
-            Ok((ok, i)) if m(&ok) => Ok((ok, i)),
-            Ok(_) => Err(Error::Stderr(message.to_owned())), // TODO - see what exactly we tried to parse
-            Err(err) => Err(err),
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: self.meta,
-        }
-    }
-
-    /// Consume one or more items from a command line
-    ///
-    /// Takes a string literal that will be used as an
-    /// error message if there's not enough parameters specified
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// // parser will accept multiple `-n` arguments:
-    /// // `-n 1, -n 2, -n 3`
-    /// // and return all of them as a vector. At least one `-n` argument is required.
-    /// let n: Parser<Vec<u32>> = short('n').argument("NUM")
-    ///     .from_str::<u32>().some("You need to specify at least one number");
-    /// # drop(n);
-    /// ```
-    #[must_use]
-    pub fn some(self, msg: &'static str) -> Parser<Vec<T>>
-    where
-        T: 'static,
-    {
-        self.many().guard(|x| !x.is_empty(), msg)
-    }
-
-    /// Turn a required parser into optional
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n: Parser<u32> = short('n').argument("NUM").from_str();
-    /// // if `-n` is not specified - parser will return `None`
-    /// let n: Parser<Option<u32>> = n.optional();
-    /// # drop(n);
-    /// ```
-    pub fn optional(self) -> Parser<Option<T>>
-    where
-        T: 'static + Clone,
-    {
-        self.map(Some).fallback(None)
-    }
-
-    /// Apply a pure transformation to a contained value
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n: Parser<u32> = short('n').argument("NUM").from_str();
-    /// // produced value is now twice as large
-    /// let n = n.map(|v| v * 2);
-    /// # drop(n);
-    /// ```
-    pub fn map<F, B>(self, map: F) -> Parser<B>
-    where
-        F: Fn(T) -> B + 'static,
-        T: 'static,
-    {
-        let parse = move |args: Args| {
-            let (t, args) = (self.parse)(args)?;
-            Ok((map(t), args))
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: self.meta,
-        }
-    }
-
-    /// Apply a failing transformation
-    ///
-    /// See also [`from_str`][Parser::from_str]
-    /// ```rust
-    /// # use bpaf::*;
-    /// let s: Parser<String> = short('n').argument("NUM");
-    /// // Try to parse String into u32 or fail during the parsing
-    /// use std::str::FromStr;
-    /// let n = s.map(|s| u32::from_str(&s));
-    /// # drop(n);
-    /// ```
-    pub fn parse<F, B, E>(self, map: F) -> Parser<B>
-    where
-        F: Fn(T) -> Result<B, E> + 'static,
-        T: 'static,
-        E: ToString,
-    {
-        let parse = move |args: Args| {
-            let (t, args) = (self.parse)(args)?;
-
-            match map(t) {
-                Ok(ok) => Ok((ok, args)),
-                Err(e) => Err(Error::Stderr(
-                    if let Some(Word { utf8: Some(w), .. }) = args.current {
-                        format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    } else {
-                        format!("Couldn't parse: {}", e.to_string())
-                    },
-                )),
-            }
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: self.meta,
-        }
-    }
-
-    /// Use this value as default if value is not present on a command line
-    ///
-    /// Would still fail if value is present but failure comes from some transformation
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>().fallback(42);
-    /// # drop(n)
-    /// ```
-    #[must_use]
-    pub fn fallback(self, val: T) -> Parser<T>
-    where
-        T: Clone + 'static,
-    {
-        let parse = move |i: Args| match (self.parse)(i.clone()) {
-            Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(_) => Ok((val.clone(), i)),
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: Meta::optional(self.meta),
-        }
-    }
-
-    /// Use value produced by this function as default if value is not present
-    ///
-    /// Would still fail if value is present but failure comes from some transformation
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>();
-    /// let n = n.fallback_with(|| Result::<u32, String>::Ok(42));
-    /// # drop(n)
-    /// ```
-    #[must_use]
-    pub fn fallback_with<F, E>(self, val: F) -> Parser<T>
-    where
-        F: Fn() -> Result<T, E> + Clone + 'static,
-        E: ToString,
-        T: Clone + 'static,
-    {
-        let parse = move |i: Args| match (self.parse)(i.clone()) {
-            Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(_) => match val() {
-                Ok(ok) => Ok((ok, i)),
-                Err(e) => Err(Error::Stderr(e.to_string())),
-            },
-        };
-        Parser {
-            parse: Rc::new(parse),
-            meta: Meta::optional(self.meta),
-        }
-    }
-
-    /// Parse `T` or fallback to `T::default()`
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let n = short('n').argument("NUM").from_str::<u32>().default();
-    /// # drop(n)
-    /// ```
-    #[must_use]
-    pub fn default(self) -> Parser<T>
-    where
-        T: Default + 'static + Clone,
-    {
-        self.fallback(T::default())
-    }
-
-    /// Attach help message to a complex parser
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// let width = short('w').argument("PX").from_str::<u32>();
-    /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = construct!(width, height).group_help("take a rectangle");
-    /// # drop(rect);
-    /// ```
-    /// See `examples/rectangle.rs` for a complete example
-    #[must_use]
-    pub fn group_help(self, msg: &'static str) -> Parser<T> {
-        Self {
-            parse: self.parse,
-            meta: Meta::decorate(self.meta, msg),
-        }
-    }
-
+    // misc
+    // {{{ hide
     /// Ignore this parser during any sort of help generation
     ///
-    /// Best used for optional parsers or parsers with a defined fallback
+    /// Best used for optional parsers or parsers with a defined fallback, usually for implementing
+    /// backward compatibility or hidden aliases
+    ///
+    /// # Combinatoric usage
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// // bpaf will accept `-w` but won't show it during help generation
-    /// let width = short('w').argument("PX").from_str::<u32>().fallback(10).hide();
-    /// let height = short('h').argument("PX").from_str::<u32>();
-    /// let rect = construct!(width, height);
-    /// # drop(rect);
+    /// /// bpaf would accept both `-W` and `-H` flags, but the help message
+    /// /// would contain only `-H`
+    /// fn rectangle() -> impl Parser<(u32, u32)> {
+    ///     let width = short('W')
+    ///         .argument("PX")
+    ///         .from_str::<u32>()
+    ///         .fallback(10)
+    ///         .hide();
+    ///     let height = short('H')
+    ///         .argument("PX")
+    ///         .from_str::<u32>()
+    ///         .fallback(10)
+    ///         .hide();
+    ///     construct!(width, height)
+    /// }
+    /// ```
+    /// # Example
+    /// ```console
+    /// $ app -W 12 -H 15
+    /// // (12, 15)
+    /// $ app -H 333
+    /// // (10, 333)
+    /// $ app --help
+    /// // contains -H but not -W
     /// ```
     ///
-    /// See also `examples/cargo-cmd.rs`
-    #[must_use]
-    pub fn hide(self) -> Parser<T>
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Rectangle {
+    ///     #[bpaf(short('W'), argument("PX"), from_str(u32), fallback(10), hide)]
+    ///     width: u32,
+    ///     #[bpaf(short('H'), argument("PX"), from_str(u32))]
+    ///     height: u32,
+    /// }
+    /// ```
+    ///
+    /// # Example
+    /// ```console
+    /// $ app -W 12 -H 15
+    /// // Rectangle { width: 12, height: 15 }
+    /// $ app -H 333
+    /// // Rectangle { width: 10, height: 333 }
+    /// $ app --help
+    /// // contains -H but not -W
+    /// ```
+    fn hide(self) -> ParseHide<Self>
     where
-        T: 'static,
+        Self: Sized + Parser<T>,
     {
-        Self {
-            parse: Rc::new(move |args: Args| {
-                (self.parse)(args).map_err(|_| Error::Missing(Vec::new()))
-            }),
-            meta: Meta::Skip,
+        ParseHide { inner: self }
+    }
+    // }}}
+
+    // {{{ group_help
+    /// Attach help message to a complex parser
+    ///
+    /// `bpaf` inserts the group help message before the block with all the fields
+    /// from the inner parser and an empty line after the block.
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn rectangle() -> impl Parser<(u32, u32)> {
+    ///     let width = short('w')
+    ///         .argument("PX")
+    ///         .from_str::<u32>();
+    ///     let height = short('h')
+    ///         .argument("PX")
+    ///         .from_str::<u32>();
+    ///     construct!(width, height)
+    ///         .group_help("Takes a rectangle")
+    /// }
+    /// ```
+    /// # Example
+    /// ```console
+    /// $ app --help
+    /// <skip>
+    ///             Takes a rectangle
+    ///    -w <PX>  Width of the rectangle
+    ///    -h <PX>  Height of the rectangle
+    ///
+    /// <skip>
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Rectangle {
+    ///     width: u32,
+    ///     height: u32,
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(external, group_help("Takes a rectangle"))]
+    ///     rectangle: Rectangle
+    /// }
+    /// ```
+    fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseGroupHelp {
+            inner: self,
+            message,
         }
     }
-}
+    // }}}
 
-impl Parser<String> {
-    /// Parse stored [`String`] using [`FromStr`] instance
+    // consume
+    // {{{ to_options
+    /// Transform `Parser` into [`OptionParser`] to attach metadata and run
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn parser() -> impl Parser<u32> {
+    ///     short('i')
+    ///         .argument("ARG")
+    ///         .from_str::<u32>()
+    /// }
+    ///
+    /// fn option_parser() -> OptionParser<u32> {
+    ///     parser()
+    ///         .to_options()
+    ///         .version("3.1415")
+    ///         .descr("This is a description")
+    /// }
+    /// ```
+    ///
+    /// See [`OptionParser`] for more methods available after conversion.
+    ///
+    /// # Derive usage
+    /// Add a top level `options` annotation to generate [`OptionParser`] instead of default
+    /// [`Parser`].
+    ///
+    /// In addition to `options` annotation you can also specify either `version` or
+    /// `version(value)` annotation. Former uses version from `cargo`, later uses the
+    /// specified value which should be an expression of type `&'static str`, see
+    /// [`version`](OptionParser::version).
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// let speed = short('s').argument("SPEED").from_str::<f64>();
-    /// // at this point program would accept things like "-s 3.1415"
-    /// // but reject "-s pi"
-    /// # drop(speed)
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, version("3.1415"))]
+    /// /// This is a description
+    /// struct Options {
+    ///    verbose: bool,
+    /// }
     /// ```
-    #[must_use]
-    pub fn from_str<T>(self) -> Parser<T>
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --version
+    /// // Version: 3.1415
+    /// $ app --help
+    /// <skip>
+    /// This is a description
+    /// <skip>
+    /// ```
+    fn to_options(self) -> OptionParser<T>
     where
-        T: FromStr,
-        <T as FromStr>::Err: std::fmt::Display,
+        Self: Sized + Parser<T> + 'static,
     {
-        self.parse(|s| T::from_str(&s))
+        OptionParser {
+            info: info::Info::default(),
+            inner_type: PhantomData,
+            inner: Box::new(self),
+        }
+    }
+    // }}}
+}
+
+/// Wrap a value into a `Parser`
+///
+/// This parser produces `T` without consuming anything from the command line, can be useful
+/// with [`construct!`]. As with any parsers `T` should be `Clone` and `Debug`.
+///
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn pair() -> impl Parser<(bool, u32)> {
+///     let a = long("flag-a").switch();
+///     let b = pure(42u32);
+///     construct!(a, b)
+/// }
+/// ```
+#[must_use]
+pub fn pure<T>(val: T) -> ParsePure<T> {
+    ParsePure(val)
+}
+
+/// Fail with a fixed error message
+///
+/// This parser produces `T` of any type but instead of producing it when asked - it fails
+/// with a custom error message. Can be useful for creating custom logic
+///
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn must_agree() -> impl Parser<()> {
+///     let a = long("accept").req_flag(());
+///     let no_a = fail("You must accept the license agreement with --agree before proceeding");
+///     construct!([a, no_a])
+/// }
+/// ```
+///
+/// # Example
+/// ```console
+/// $ app
+/// // exits with "You must accept the license agreement with --agree before proceeding"
+/// $ app --agree
+/// // succeeds
+/// ```
+#[must_use]
+pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
+    ParseFail {
+        field1: msg,
+        field2: PhantomData,
     }
 }
 
-/// Unsuccessful command line parsing outcome
+/// Unsuccessful command line parsing outcome, use it for unit tests
 ///
-/// Useful for unit testing for user parsers, intented to
-/// be consumed with [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
+/// Useful for unit testing for user parsers, consume it with
+/// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
-    /// Terminate and print this to stdout
+    /// Print this to stdout and exit with success code
     Stdout(String),
-    /// Terminate and print this to stderr
+    /// Print this to stderr and exit with failure code
     Stderr(String),
 }
 
 impl ParseFailure {
-    /// Returns the contained `stderr` values
-    ///
-    /// Intended to be used with unit tests
+    /// Returns the contained `stderr` values - for unit tests
     ///
     /// # Panics
     ///
-    /// Will panic if failure contains `stdout`
+    /// Panics if failure contains `stdout`
     #[allow(clippy::must_use_candidate)]
     pub fn unwrap_stderr(self) -> String {
         match self {
@@ -605,13 +1455,11 @@ impl ParseFailure {
         }
     }
 
-    /// Returns the contained `stdout` values
-    ///
-    /// Intended to be used with unit tests
+    /// Returns the contained `stdout` values - for unit tests
     ///
     /// # Panics
     ///
-    /// Will panic if failure contains `stderr`
+    /// Panics if failure contains `stderr`
     #[allow(clippy::must_use_candidate)]
     pub fn unwrap_stdout(self) -> String {
         match self {
@@ -623,112 +1471,61 @@ impl ParseFailure {
     }
 }
 
-impl<T> OptionParser<T> {
-    /// Execute the [`OptionParser`], extract a parsed value or print some diagnostic and exit
-    ///
-    /// ```no_run
-    /// # use bpaf::*;
-    /// let verbose = short('v').req_flag(()).many().map(|xs|xs.len());
-    /// let info = Info::default().descr("Takes verbosity flag and does nothing else");
-    ///
-    /// let opt = info.for_parser(verbose).run();
-    /// // At this point `opt` contains number of repetitions of `-v` on a command line
-    /// # drop(opt)
-    /// ```
-    #[must_use]
-    pub fn run(self) -> T {
-        let mut pos_only = false;
-        let mut vec = Vec::new();
-        for arg in std::env::args_os().skip(1) {
-            args::push_vec(&mut vec, arg, &mut pos_only);
-        }
-
-        match self.run_inner(Args::from(vec)) {
-            Ok(t) => t,
-            Err(ParseFailure::Stdout(msg)) => {
-                println!("{}", msg);
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(msg)) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
-        }
-    }
-
-    /// Execute the [`OptionParser`] and produce a value that can be used in unit tests
-    ///
-    /// ```
-    /// #[test]
-    /// fn positional_argument() {
-    ///     let p = positional("FILE").help("File to process");
-    ///     let parser = Info::default().for_parser(p);
-    ///
-    ///     let help = parser
-    ///         .run_inner(Args::from(&["--help"]))
-    ///         .unwrap_err()
-    ///         .unwrap_stdout();
-    ///     let expected_help = "\
-    /// Usage: <FILE>
-    ///
-    /// Available options:
-    ///     -h, --help   Prints help information
-    /// ";
-    ///     assert_eq!(expected_help, help);
-    /// }
-    /// ```
-    ///
-    /// See also [`Args`] and it's `From` impls to produce input and
-    /// [`ParseFailure::unwrap_stderr`] / [`ParseFailure::unwrap_stdout`] for processing results.
-    ///
-    /// # Errors
-    ///
-    /// If parser can't produce desired outcome `run_inner` will return [`ParseFailure`]
-    /// which represents runtime behavior: one branch to print something to stdout and exit with
-    /// success and the other branch to print something to stderr and exit with failure.
-    ///
-    /// Parser is not really capturing anything. If parser detects `--help` or `--version` it will
-    /// always produce something that can be consumed with [`ParseFailure::unwrap_stdout`].
-    /// Otherwise it will produce [`ParseFailure::unwrap_stderr`]  generated either by the parser
-    /// itself in case someone required field is missing or by user's [`Parser::guard`] or
-    /// [`Parser::parse`] functions.
-    ///
-    /// API for those is constructed to only produce a [`String`]. If you try to print something inside
-    /// [`Parser::map`] or [`Parser::parse`] - it will not be captured. Depending on a test case
-    /// you'll know what to use: `unwrap_stdout` if you want to test generated help or `unwrap_stderr`
-    /// if you are testing `parse` / `guard` / missing parameters.
-    ///
-    /// Exact string reperentations may change between versions including minor releases.
-    pub fn run_inner(self, args: Args) -> Result<T, ParseFailure> {
-        match (self.parse)(args) {
-            Ok((t, rest)) if rest.is_empty() => Ok(t),
-            Ok((_, rest)) => Err(ParseFailure::Stderr(format!("unexpected {:?}", rest))),
-            Err(Error::Missing(metas)) => Err(ParseFailure::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(metas)
-            ))),
-            Err(Error::Stdout(stdout)) => Err(ParseFailure::Stdout(stdout)),
-            Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
-        }
-    }
-}
-
-/// Strip a command name if present at the front when used as a cargo command
+/// Strip a command name if present at the front when used as a `cargo` command
 ///
-/// This helper should be used on a top level parser
+/// When implementing a cargo subcommand parser needs to be able to skip the first argument which
+/// is always the same as the executable name without `cargo-` prefix. For example if executable name is
+/// `cargo-cmd` so first argument would be `cmd`. `cargo_helper` helps to support both invocations:
+/// with name present when used via cargo and without it when used locally.
 ///
+/// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
-/// let width = short('w').argument("PX").from_str::<u32>();
-/// let height = short('h').argument("PX").from_str::<u32>();
-/// let parser: Parser<(u32, u32)> = cargo_helper("cmd", construct!(width, height));
-/// # drop(parser);
+/// fn options() -> OptionParser<(u32, u32)> {
+///     let width = short('w').argument("PX").from_str::<u32>();
+///     let height = short('h').argument("PX").from_str::<u32>();
+///     let parser = construct!(width, height);
+///     cargo_helper("cmd", parser).to_options()
+/// }
+/// ```
+///
+/// # Derive usage
+///
+/// If you pass a cargo command name as a parameter to `options` annotation `bpaf_derive` would generate `cargo_helper`.
+/// ```no_run
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options("cmd"))]
+/// struct Options {
+///     #[bpaf(short, argument("PX"))]
+///     width: u32,
+///     #[bpaf(short, argument("PX"))]
+///     height: u32,
+/// }
+///
+/// fn main() {
+///    println!("{:?}", options().run());
+/// }
+///
+/// ```
+///
+/// # Example
+///
+/// ```console
+/// $ cargo cmd -w 3 -h 5
+/// (3, 5)
+/// $ cargo run --bin cargo-cmd -- -w 3 -h 5
+/// (3, 5)
 /// ```
 #[must_use]
-pub fn cargo_helper<T>(cmd: &'static str, parser: Parser<T>) -> Parser<T>
+pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
 where
     T: 'static,
+    P: Parser<T>,
 {
-    let skip = positional_if("", move |s| cmd == s).optional().hide();
+    let eat_command =
+        positional("").parse(move |s| if cmd == s { Ok(()) } else { Err(String::new()) });
+    let ignore_non_command = pure(());
+    let skip = construct!([eat_command, ignore_non_command]).hide();
     construct!(skip, parser).map(|x| x.1)
 }

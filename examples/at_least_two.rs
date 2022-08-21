@@ -1,15 +1,16 @@
 //! How to require presence of at least N values,
 //!
-//! like `val1 val2 ... valN ... valM`.
+//! This program accepts "-f -f -f" or "-fffff" but not "-f"
 
 use bpaf::*;
 
 fn main() {
-    let flag = short('f')
+    let opt = short('f')
         .req_flag(())
         .many()
-        .guard(|x| x.len() >= 2, "at least two arguments are required");
+        .guard(|x| x.len() >= 2, "at least two arguments are required")
+        .to_options()
+        .run();
 
-    let opt = Info::default().for_parser(flag).run();
     println!("{:?}", opt);
 }

@@ -1,5 +1,8 @@
 //! `git.rs` serves as a demonstration of how to use subcommands,
 //! as well as a demonstration of adding documentation to subcommands.
+//!
+//! Note, this "fetch" command uses fallback to inner description to get the help message, "add"
+//! uses explicit override with the same value.
 
 use bpaf::*;
 
@@ -26,13 +29,11 @@ fn main() {
         dry_run,
         all,
         repository
-    });
-    let fetch_info = Info::default().descr("fetches branches from remote repository");
-    let fetch_cmd = command(
-        "fetch",
-        Some("fetch branches from remote repository"),
-        fetch_info.for_parser(fetch),
-    );
+    })
+    .to_options()
+    .descr("fetches branches from remote repository");
+
+    let fetch_cmd = command("fetch", fetch);
 
     let interactive = short('i').switch();
     let all = long("all").switch();
@@ -41,17 +42,15 @@ fn main() {
         interactive,
         all,
         files
-    });
-    let add_info = Info::default().descr("add files to the staging area");
-    let add_cmd = command(
-        "add",
-        Some("add files to the staging area"),
-        add_info.for_parser(add),
-    );
+    })
+    .to_options()
+    .descr("add files to the staging area");
 
-    let opt = Info::default()
+    let add_cmd = command("add", add).help("add files to the staging area");
+
+    let opt = construct!([fetch_cmd, add_cmd])
+        .to_options()
         .descr("The stupid content tracker")
-        .for_parser(fetch_cmd.or_else(add_cmd))
         .run();
 
     println!("{:?}", opt);

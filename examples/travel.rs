@@ -1,4 +1,8 @@
 //! A somewhat fancy example of a typical `bpaf` usage.
+//!
+//! Most important thing is probably a notion of "A pair of values, where each value can be one of
+//! two different values", here it's distance which can be miles and kilometers and speed - miles
+//! and kilometers per hours. Generated usage line can give a better hint to what's going on
 
 use bpaf::*;
 
@@ -16,24 +20,35 @@ fn main() {
 
     // parsers for speeds. Both speeds are converted to the same units
     let mph = long("mph")
+        .help("speed in MPH")
         .argument("SPEED")
-        .from_str()
-        .map(|x: f64| x * 1.6);
-    let kph = long("kph").argument("SPEED").from_str();
+        .from_str::<f64>()
+        .map(|x| x * 1.6);
+    let kph = long("kph")
+        .help("Speed in KPH")
+        .argument("SPEED")
+        .from_str::<f64>();
 
     // speed is either kph or mph, conversion to mph is handled by the parser
-    let speed = mph.or_else(kph);
+    let speed = construct!([mph, kph]);
 
     // parsers for distances, both are converted to the same units
-    let km = long("km").argument("SPEED").from_str();
+    let km = long("km")
+        .help("Distance in KM")
+        .argument("KMs")
+        .from_str::<f64>();
     let mi = long("mi")
-        .argument("SPEED")
-        .from_str()
-        .map(|x: f64| x * 1.6);
-    let dist = mi.or_else(km);
+        .help("distance in miles")
+        .argument("MILES")
+        .from_str::<f64>()
+        .map(|x| x * 1.6);
+    let dist = construct!([mi, km]);
 
     // time, presumably in seconds
-    let time = long("time").argument("TIME").from_str();
+    let time = long("time")
+        .help("Travel time in hours")
+        .argument("TIME")
+        .from_str::<f64>();
 
     // parsed time is trivially converted to time segment
     let segment_time = time.map(Segment::Time);
@@ -42,7 +57,7 @@ fn main() {
     let segment_speed = construct!(Segment::SpeedDistance { speed, dist });
 
     // segment can be either of two defined
-    let segment = segment_speed.or_else(segment_time);
+    let segment = construct!([segment_speed, segment_time]);
 
     // and we have several of them.
     let parser = segment
@@ -53,12 +68,13 @@ fn main() {
             "for more than 9 segments you need to purchase a premium subscription",
         );
 
-    let descr = "You need to specify one or more travel segments, segment is defined by
+    let descr = "Accepts one or more travel segments";
+    let header = "You need to specify one or more travel segments, segment is defined by
 a pair of speed and distance or by time.
 
 This example defines two separate travel segments, one given by speed/distance combo and one by time
     travel --km 180 --kph 35 --time";
-    let decorated = Info::default().descr(descr).for_parser(parser);
+    let decorated = parser.to_options().descr(descr).header(header);
 
     // help message tries to explain what's needed:
     // either --time OR one speed and one distance, both can be given in miles or km.

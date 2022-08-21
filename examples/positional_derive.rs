@@ -1,3 +1,5 @@
+//! Derive for struct with named values that uses positional argument
+
 use bpaf::*;
 use std::path::PathBuf;
 

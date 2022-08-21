@@ -19,12 +19,15 @@ fn main() {
         .argument("BAR")
         .optional();
 
-    let bar_cmd = Info::default()
-        .descr("This command will try to do foo given a bar argument")
-        .for_parser(construct!(Foo { bar }));
+    let bar_cmd = construct!(Foo { bar })
+        .to_options()
+        .descr("This command will try to do foo given a bar argument");
 
-    let command = command("foo", Some("command for doing foo"), bar_cmd).map(Command::Foo);
+    let opt = command("foo", bar_cmd)
+        .help("command for doing foo")
+        .map(Command::Foo)
+        .to_options()
+        .run();
 
-    let opt = Info::default().for_parser(command).run();
     println!("{:#?}", opt);
 }
