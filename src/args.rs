@@ -41,7 +41,7 @@ mod inner {
     #[derive(Clone, Debug)]
     pub struct Args {
         /// list of remaining arguments, for cheap cloning
-        items: Rc<[Arg]>,
+        pub(crate) items: Rc<[Arg]>,
         /// removed items, false - present, true - removed
         removed: Vec<bool>,
         remaining: usize,

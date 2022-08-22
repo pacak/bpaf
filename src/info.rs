@@ -213,6 +213,10 @@ impl<T> OptionParser<T> {
                     err
                 } else {
                     std::mem::swap(args, &mut reg_args);
+                    // <-
+                    // complain about any unused items - beats "not expected in this context"
+                    crate::meta_youmean::suggest(args, &self.inner.meta())?;
+                    // <-
                     return Ok(r);
                 }
             }
@@ -242,9 +246,14 @@ impl<T> OptionParser<T> {
             }
             Err(_) => {}
         }
-        Err(err)
 
-        //self.inner.run(args)
+        // <-
+        if crate::meta_youmean::should_suggest(&err) {
+            crate::meta_youmean::suggest(args, &self.inner.meta())?;
+        }
+        // <-
+
+        Err(err)
     }
     /// Get first line of description if Available
     ///

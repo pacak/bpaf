@@ -1348,3 +1348,78 @@ fn no_fallback_out_of_command_parser() {
     let res = parser.run_inner(Args::from(&[])).unwrap();
     assert_eq!(res, "");
 }
+
+#[test]
+fn did_you_mean_switch() {
+    let a = short('f').long("flag").switch();
+    let b = short('p').long("plag").switch();
+    let parser = construct!([a, b]).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let res = parser
+        .run_inner(Args::from(&["flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such command: `flag`, did you mean `--flag`?");
+
+    let res = parser
+        .run_inner(Args::from(&["--pla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--pla`, did you mean `--plag`?");
+
+    let res = parser
+        .run_inner(Args::from(&["--p"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--p`, did you mean `-p`?");
+}
+
+#[test]
+fn did_you_mean_req_flag() {
+    let parser = long("flag").req_flag(()).to_options();
+    let res = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Expected --flag, pass --help for usage information");
+}
+
+#[test]
+fn did_you_mean_argument() {
+    let parser = long("flag").argument("VAL").to_options();
+    let res = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        res,
+        "Expected --flag VAL, pass --help for usage information"
+    );
+}
+
+#[test]
+fn did_you_mean_command() {
+    let parser = pure(())
+        .to_options()
+        .command("command")
+        .short('c')
+        .to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["comman"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such command: `comman`, did you mean `command`?");
+
+    let res = parser
+        .run_inner(Args::from(&["--comman"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--comman`, did you mean `command`?");
+}

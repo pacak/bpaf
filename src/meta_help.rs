@@ -3,7 +3,7 @@
 use crate::{info::Info, item::ShortLong, Meta};
 
 #[derive(Debug)]
-enum HelpItem<'a> {
+pub(crate) enum HelpItem<'a> {
     Decor {
         help: &'a str,
     },
@@ -30,10 +30,10 @@ enum HelpItem<'a> {
 }
 
 #[derive(Default, Debug)]
-struct HelpItems<'a> {
+pub(crate) struct HelpItems<'a> {
     cmds: Vec<HelpItem<'a>>,
-    psns: Vec<HelpItem<'a>>,
-    flgs: Vec<HelpItem<'a>>,
+    pub(crate) psns: Vec<HelpItem<'a>>,
+    pub(crate) flgs: Vec<HelpItem<'a>>,
 }
 
 impl HelpItem<'_> {
@@ -46,7 +46,7 @@ impl HelpItem<'_> {
 }
 
 impl<'a> HelpItems<'a> {
-    fn classify(&mut self, meta: &'a Meta) {
+    pub(crate) fn classify(&mut self, meta: &'a Meta) {
         match meta {
             Meta::And(xs) | Meta::Or(xs) => {
                 for x in xs {
@@ -116,7 +116,7 @@ impl<'a> HelpItems<'a> {
 }
 
 #[derive(Debug)]
-struct ShortLongHelp(ShortLong);
+pub(crate) struct ShortLongHelp(ShortLong);
 
 impl ShortLongHelp {
     #[inline]
