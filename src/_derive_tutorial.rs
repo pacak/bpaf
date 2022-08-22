@@ -60,7 +60,7 @@
 //!
 //!    - ### Generated function visibility: `private`
 //!
-//!      By default bpaf uses the same visibility as the datatype,
+//!      By default `bpaf` uses the same visibility as the datatype,
 //!      `private` makes it module private:
 //!
 //!      ```rust

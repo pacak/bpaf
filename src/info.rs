@@ -212,7 +212,11 @@ impl<T> OptionParser<T> {
                 if let Err(err) = check_unexpected(&reg_args) {
                     err
                 } else {
-                    *args = reg_args;
+                    std::mem::swap(args, &mut reg_args);
+                    // <-
+                    // complain about any unused items - beats "not expected in this context"
+                    crate::meta_youmean::suggest(args, &self.inner.meta())?;
+                    // <-
                     return Ok(r);
                 }
             }
@@ -242,9 +246,14 @@ impl<T> OptionParser<T> {
             }
             Err(_) => {}
         }
-        Err(err)
 
-        //self.inner.run(args)
+        // <-
+        if crate::meta_youmean::should_suggest(&err) {
+            crate::meta_youmean::suggest(args, &self.inner.meta())?;
+        }
+        // <-
+
+        Err(err)
     }
     /// Get first line of description if Available
     ///
@@ -257,7 +266,7 @@ impl<T> OptionParser<T> {
 
     /// Set the version field.
     ///
-    /// By default bpaf won't include any version info and won't accept `--version` switch.
+    /// By default `bpaf` won't include any version info and won't accept `--version` switch.
     ///
     /// # Combinatoric usage
     ///

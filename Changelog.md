@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.5.1] - 2022-08-22
+improve error messages if argument parsing fails:
+  - matcher no longer escapes inner command if it gets there
+  - detect and try to suggest for possible typos
+
 ## bpaf [0.5.0] - 2022-08-21
 A big rewrite, performance should stay mostly unchanged, binary overhead
 should be down by a third or so. Some minor cosmetic and correctness changes.

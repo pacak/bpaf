@@ -21,9 +21,9 @@ pub(crate) enum UsageMeta {
 /// Transforms `Meta` to [`UsageMeta`]
 ///
 /// parameter `required` defines the value's context: optional or required.
-/// bpaf shows Optional values in required context in []
+/// `bpaf` shows Optional values in required context in []
 ///
-/// bpaf uses parameter `had_commands` for command deduplication, initialize it with false
+/// `bpaf` uses parameter `had_commands` for command deduplication, initialize it with false
 pub(crate) fn collect_usage_meta(
     meta: &Meta,
     required: bool,

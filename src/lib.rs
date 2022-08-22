@@ -269,6 +269,7 @@ mod item;
 mod meta;
 mod meta_help;
 mod meta_usage;
+mod meta_youmean;
 mod params;
 mod structs;
 
@@ -467,6 +468,7 @@ macro_rules! construct {
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = $fields.eval(args)?;)*
+            args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };
@@ -486,7 +488,7 @@ macro_rules! construct {
 /// inside that are composable with other `Parser` containers using [`construct!`] and the only
 /// way to extract this value is by transforming it to [`OptionParser`] with
 /// [`to_options`](Parser::to_options) and running it with [`run`](OptionParser::run). At which
-/// point you either get your value out or bpaf would generate a message describing a problem
+/// point you either get your value out or `bpaf` would generate a message describing a problem
 /// (missing argument, validation failure, user requested help, etc) and the program would
 /// exit.
 ///
@@ -600,7 +602,7 @@ pub trait Parser<T> {
     /// ```
     ///
     /// # Derive usage:
-    /// Bpaf would insert implicit `many` when resulting type is a vector
+    /// `bpaf` would insert implicit `many` when resulting type is a vector
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
@@ -712,7 +714,7 @@ pub trait Parser<T> {
     ///
     /// # Derive usage
     ///
-    /// By default bpaf would automatically use optional for fields of type `Option<T>`,
+    /// By default `bpaf_derive` would automatically use optional for fields of type `Option<T>`,
     /// for as long as it's not prevented from doing so by present postprocessing options
     /// ```rust
     /// # use bpaf::*;
@@ -1105,7 +1107,7 @@ pub trait Parser<T> {
     // {{{ or_else
     /// If first parser fails - try the second one
     ///
-    /// For parser to succeed eiter of the components needs to succeed. If both succeed - bpaf
+    /// For parser to succeed eiter of the components needs to succeed. If both succeed - `bpaf`
     /// would use output from one that consumed the left most value. The second flag on the command
     /// line remains unconsumed by `or_else`.
     ///
