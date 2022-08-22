@@ -212,7 +212,7 @@ impl<T> OptionParser<T> {
                 if let Err(err) = check_unexpected(&reg_args) {
                     err
                 } else {
-                    *args = reg_args;
+                    std::mem::swap(args, &mut reg_args);
                     return Ok(r);
                 }
             }
