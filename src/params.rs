@@ -909,6 +909,8 @@ impl<T> Parser<T> for Command<T> {
             })
         {
             args.head = usize::MAX;
+            args.depth += 1;
+            // failure past this point should be preserved in or_else parser
             self.subparser.run_subparser(args)
         } else {
             Err(Error::Missing(vec![self.meta()]))

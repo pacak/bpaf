@@ -46,8 +46,12 @@ mod inner {
         removed: Vec<bool>,
         remaining: usize,
 
+        #[doc(hidden)]
         /// Used to render an error message for [`parse`][crate::Parser::parse]
-        pub(crate) current: Option<usize>,
+        pub current: Option<usize>,
+        #[doc(hidden)]
+        /// "deeper" parser should win in or_else branches
+        pub depth: usize,
 
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
@@ -100,6 +104,7 @@ mod inner {
                 items: Rc::from(vec),
                 current: None,
                 head: usize::MAX,
+                depth: 0,
             }
         }
     }

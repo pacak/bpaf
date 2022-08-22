@@ -467,6 +467,7 @@ macro_rules! construct {
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = $fields.eval(args)?;)*
+            args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };

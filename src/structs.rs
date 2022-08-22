@@ -123,16 +123,27 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut args_a = args.clone();
         let mut args_b = args.clone();
-        match (self.this.eval(&mut args_a), self.that.eval(&mut args_b)) {
-            // side channel (--help) reporting takes priority
-            (e @ Err(Error::Stdout(_)), _) | (_, e @ Err(Error::Stdout(_))) => e,
+        let res_a = self.this.eval(&mut args_a);
+        let res_b = self.that.eval(&mut args_b);
 
+        match Ord::cmp(&args_a.depth, &args_b.depth) {
+            std::cmp::Ordering::Less => {
+                std::mem::swap(args, &mut args_b);
+                return res_b;
+            }
+            std::cmp::Ordering::Equal => {}
+            std::cmp::Ordering::Greater => {
+                std::mem::swap(args, &mut args_a);
+                return res_a;
+            }
+        }
+        match (res_a, res_b) {
             (Ok(a), Ok(b)) => {
                 if args_a.head <= args_b.head {
-                    *args = args_a;
+                    std::mem::swap(args, &mut args_a);
                     Ok(a)
                 } else {
-                    *args = args_b;
+                    std::mem::swap(args, &mut args_b);
                     Ok(b)
                 }
             }
