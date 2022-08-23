@@ -121,6 +121,8 @@ where
     B: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        // create forks for both branches, go with a successful one.
+        // if they both fail - fallback to the original arguments
         let mut args_a = args.clone();
         let mut args_b = args.clone();
         let res_a = self.this.eval(&mut args_a);
@@ -148,14 +150,17 @@ where
                 }
             }
             (Ok(a), Err(_)) => {
-                *args = args_a;
+                std::mem::swap(args, &mut args_a);
                 Ok(a)
             }
             (Err(_), Ok(b)) => {
-                *args = args_b;
+                std::mem::swap(args, &mut args_b);
                 Ok(b)
             }
-            (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
+            (Err(e1), Err(e2)) => {
+                args.tainted |= args_a.tainted | args_b.tainted;
+                Err(e1.combine_with(e2))
+            }
         }
     }
 
@@ -184,13 +189,16 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(Error::Stderr(
-                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                    format!("Couldn't parse {:?}: {}", w, e.to_string())
-                } else {
-                    format!("Couldn't parse: {}", e.to_string())
-                },
-            )),
+            Err(e) => {
+                args.tainted = true;
+                Err(Error::Stderr(
+                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
+                        format!("Couldn't parse {:?}: {}", w, e.to_string())
+                    } else {
+                        format!("Couldn't parse: {}", e.to_string())
+                    },
+                ))
+            }
         }
     }
 
@@ -212,8 +220,12 @@ where
     T: Clone,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        match self.inner.eval(args) {
-            Ok(ok) => Ok(ok),
+        let mut clone = args.clone();
+        match self.inner.eval(&mut clone) {
+            Ok(ok) => {
+                std::mem::swap(args, &mut clone);
+                Ok(ok)
+            }
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(Error::Missing(_)) => Ok(self.value.clone()),
         }
@@ -241,7 +253,14 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(Error::Stderr(self.message.to_string()))
+            args.tainted = true;
+            Err(Error::Stderr(
+                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
+                    format!("Failed to verify {:?}: {}", w, self.message)
+                } else {
+                    self.message.to_string()
+                },
+            ))
         }
     }
 
@@ -285,13 +304,16 @@ where
         let s = self.inner.eval(args)?;
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Stderr(
-                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                    format!("Couldn't parse {:?}: {}", w, e.to_string())
-                } else {
-                    format!("Couldn't parse: {}", e.to_string())
-                },
-            )),
+            Err(e) => {
+                args.tainted = true;
+                Err(Error::Stderr(
+                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
+                        format!("Couldn't parse {:?}: {}", w, e.to_string())
+                    } else {
+                        format!("Couldn't parse: {}", e.to_string())
+                    },
+                ))
+            }
         }
     }
 
@@ -310,11 +332,11 @@ fn parse_option<P, T>(parser: &P, args: &mut Args) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
-    let orig_args = args.clone();
+    let mut orig_args = args.clone();
     match parser.eval(args) {
         Ok(val) => Ok(Some(val)),
         Err(err) => {
-            *args = orig_args;
+            std::mem::swap(args, &mut orig_args);
             match err {
                 Error::Stdout(_) | Error::Stderr(_) => Err(err),
                 Error::Missing(_) => Ok(None),
@@ -366,7 +388,8 @@ pub struct ParseFail<T> {
     pub(crate) field2: PhantomData<T>,
 }
 impl<T> Parser<T> for ParseFail<T> {
-    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        args.current = None;
         Err(Error::Stderr(self.field1.to_owned()))
     }
 
@@ -410,16 +433,9 @@ where
     P: Fn(&mut Args) -> Result<T, Error>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let mut args_copy = args.clone();
-        let res = (self.inner)(&mut args_copy);
-
-        match res {
-            Ok(val) => {
-                std::mem::swap(args, &mut args_copy);
-                Ok(val)
-            }
-            Err(err) => Err(err),
-        }
+        let res = (self.inner)(args)?;
+        args.current = None;
+        Ok(res)
     }
 
     fn meta(&self) -> Meta {

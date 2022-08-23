@@ -205,14 +205,11 @@ impl<T> OptionParser<T> {
     /// Run subparser, implementation detail
     #[doc(hidden)]
     pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
-        let mut reg_args = args.clone();
-
-        let err = match self.inner.eval(&mut reg_args) {
+        let err = match self.inner.eval(args) {
             Ok(r) => {
-                if let Err(err) = check_unexpected(&reg_args) {
+                if let Err(err) = check_unexpected(args) {
                     err
                 } else {
-                    std::mem::swap(args, &mut reg_args);
                     // <-
                     // complain about any unused items - beats "not expected in this context"
                     crate::meta_youmean::suggest(args, &self.inner.meta())?;
@@ -246,7 +243,6 @@ impl<T> OptionParser<T> {
             }
             Err(_) => {}
         }
-
         // <-
         if crate::meta_youmean::should_suggest(&err) {
             crate::meta_youmean::suggest(args, &self.inner.meta())?;

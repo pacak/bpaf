@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.5.2] - 2022-08-23
+- fix a regression in error messaged caused by 0.5.1
+- guard now displays the problematic input if it's a single argument issue
+
 ## bpaf [0.5.1] - 2022-08-22
 improve error messages if argument parsing fails:
   - matcher no longer escapes inner command if it gets there

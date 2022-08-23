@@ -55,6 +55,22 @@ mod inner {
 
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
+
+        /// setting it to true prevents suggester from replacing the results
+        ///
+        /// Let's assume a parser that consumes this:
+        /// ["asm"] -t <NUM>
+        /// and we pass ["asm", "-t", "x"] to it.
+        ///
+        /// problematic steps look something like this:
+        /// - "asm" is parsed as expected
+        /// - "-t x" is consumed as expected
+        /// - parsing of "x" fails
+        /// - ParseWith rollbacks the arguments state - "asm" is back
+        /// - suggestion looks for something it can complain at and finds "asm"
+        ///
+        /// parse/guard failures should "taint" the arguments and disable the suggestion logic
+        pub(crate) tainted: bool,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -105,6 +121,7 @@ mod inner {
                 current: None,
                 head: usize::MAX,
                 depth: 0,
+                tainted: false,
             }
         }
     }
