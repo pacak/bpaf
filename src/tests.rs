@@ -60,7 +60,7 @@ fn simple_two_optional_flags() {
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("-V is not expected in this context", err);
+    assert_eq!("No such flag: `-V`, did you mean `-b`?", err);
 
     // accept only one copy of -a
     let err = decorated
@@ -98,7 +98,7 @@ fn simple_two_optional_flags_with_one_hidden() {
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("-V is not expected in this context", err);
+    assert_eq!("No such flag: `-V`, did you mean `-a`?", err);
 
     // accepts only one copy of -a
     let err = decorated
@@ -306,7 +306,7 @@ fn parse_errors() {
         .run_inner(Args::from(&["-a", "123", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "-b is not expected in this context";
+    let expected_err = "No such flag: `-b`, did you mean `-a`?";
     assert_eq!(expected_err, err);
 }
 
@@ -1422,4 +1422,163 @@ fn did_you_mean_command() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "No such flag: `--comman`, did you mean `command`?");
+}
+
+#[test]
+fn did_you_mean_two_and_arguments() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = cargo_helper("cmd", construct!(a, b)).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--flag", "--parametr"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--parameter", "--flg"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--flg`, did you mean `--flag`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+}
+
+#[test]
+fn did_you_mean_two_or_arguments() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = cargo_helper("cmd", construct!([a, b])).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--flag", "--parametr"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--parametr", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--parameter", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--flag is not expected in this context");
+
+    let r = parser
+        .run_inner(Args::from(&["--flag", "--parameter"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--parameter is not expected in this context");
+}
+
+// problematic steps look something like this:
+// - "asm" is parsed as expected
+// - "-t x" is consumed as expected
+// - parsing of "x" fails
+// - ParseWith rollbacks the arguments state - "asm" is back
+// - suggestion looks for something it can complain at and finds "asm"
+//
+// parse/guard failures should "taint" the arguments and disable the suggestion logic
+
+#[test]
+fn cargo_show_asm_issue_guard() {
+    let target_dir = short('t').argument("T").guard(|_| false, "nope");
+    let verbosity = short('v').switch();
+    let inner = construct!(target_dir, verbosity);
+    let parser = cargo_helper("asm", inner).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Failed to verify \"x\": nope");
+
+    let res = parser
+        .run_inner(Args::from(&["-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Failed to verify \"x\": nope");
+}
+
+#[test]
+fn cargo_show_asm_issue_from_str() {
+    let target_dir = short('t').argument("T").from_str::<usize>();
+    let verbosity = short('v').switch();
+    let inner = construct!(target_dir, verbosity);
+    let parser = cargo_helper("asm", inner).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"x\": invalid digit found in string");
+
+    let res = parser
+        .run_inner(Args::from(&["-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"x\": invalid digit found in string");
+}
+
+#[test]
+fn cargo_show_asm_issue_parse() {
+    let target_dir = short('t')
+        .argument("T")
+        .parse::<_, (), String>(|_| Err("nope".to_string()));
+
+    let verbosity = short('v').switch();
+    let inner = construct!(target_dir, verbosity);
+    let parser = cargo_helper("asm", inner).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"x\": nope");
+
+    let res = parser
+        .run_inner(Args::from(&["-t", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "Couldn't parse \"x\": nope");
+}
+
+// problematic case looks something like this:
+// "asm" is consumed
+// "--fla" is not consumed, but the output is not tainted
+// parser fails and arguments are restored.
+
+#[test]
+fn cargo_show_asm_issue_unknown_switch() {
+    let target = long("flag").switch();
+
+    let verbosity = short('v').switch();
+    let parser = cargo_helper("asm", construct!(target, verbosity)).to_options();
+
+    let res = parser
+        .run_inner(Args::from(&["asm", "--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let res = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 }

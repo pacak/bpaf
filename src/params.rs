@@ -990,6 +990,7 @@ impl Parser<Word> for BuildArgument {
         if let Some(w) = args.take_arg(&self.named)? {
             Ok(w)
         } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+            args.current = None;
             Ok(Word::from(val))
         } else {
             Err(Error::Missing(vec![self.meta()]))

@@ -20,10 +20,15 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
 
 /// Looks for potential typos
 pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
+    if args.tainted {
+        return Ok(());
+    }
+
     let arg = match args.peek() {
         Some(arg) => arg,
         None => return Ok(()),
     };
+
     if args.items.iter().filter(|&a| a == arg).count() > 1 {
         // We have more than one copy of unexpected item. Either user specified
         // several of those or parser accepts only limited number of them. Or

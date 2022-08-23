@@ -259,10 +259,10 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG3fIB_IKY3hrGye-FOfCs2a-G-I-uYl_pcw3G470SW3PwtT2YWSCgmRicGFmZTAuNS4wgmticGFmX2Rlcml2ZWUwLjIuMA
- [__link0]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_combinatoric_tutorial
- [__link2]: https://docs.rs/bpaf/0.5.0/bpaf/?search=_faq
- [__link3]: https://docs.rs/bpaf/0.5.0/bpaf/?search=batteries
- [__link5]: https://docs.rs/bpaf/0.5.0/bpaf/?search=info::OptionParser::run_inner
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG3fIB_IKY3hrGye-FOfCs2a-G-I-uYl_pcw3G470SW3PwtT2YWSCgmRicGFmZTAuNS4ygmticGFmX2Rlcml2ZWUwLjIuMA
+ [__link0]: https://docs.rs/bpaf/0.5.2/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.5.2/bpaf/?search=_combinatoric_tutorial
+ [__link2]: https://docs.rs/bpaf/0.5.2/bpaf/?search=_faq
+ [__link3]: https://docs.rs/bpaf/0.5.2/bpaf/?search=batteries
+ [__link5]: https://docs.rs/bpaf/0.5.2/bpaf/?search=info::OptionParser::run_inner
  [__link6]: https://crates.io/crates/bpaf_derive/0.2.0
