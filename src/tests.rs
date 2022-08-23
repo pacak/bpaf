@@ -1582,3 +1582,46 @@ fn cargo_show_asm_issue_unknown_switch() {
         .unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 }
+
+#[test]
+fn did_you_mean_inside_command() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = construct!([a, b]).to_options().command("cmd").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `cmd`?");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd", "--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd", "--flag", "--parametr"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd", "--parametr", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd", "--parameter", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--flag is not expected in this context");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd", "--flag", "--parameter"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--parameter is not expected in this context");
+}
