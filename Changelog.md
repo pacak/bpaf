@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.5.3] - 2022-08-23
+and a bit more cosmetics - preserve suggestion context when returning from a subcommand
+
 ## bpaf [0.5.2] - 2022-08-23
 - fix a regression in error messaged caused by 0.5.1
 - guard now displays the problematic input if it's a single argument issue
