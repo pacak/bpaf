@@ -1625,3 +1625,15 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(r, "--parameter is not expected in this context");
 }
+
+#[test]
+fn combine_flags_by_order() {
+    let a = short('a').req_flag(true);
+    let b = short('A').req_flag(false);
+    let parser = construct!([a, b]).many().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "-A", "-A", "-A", "-a"]))
+        .unwrap();
+    assert_eq!(r, vec![true, false, false, false, true]);
+}
