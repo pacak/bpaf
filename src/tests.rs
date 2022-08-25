@@ -1625,3 +1625,62 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(r, "--parameter is not expected in this context");
 }
+
+#[test]
+fn combine_flags_by_order() {
+    let a = short('a').req_flag(true);
+    let b = short('A').req_flag(false);
+    let parser = construct!([a, b]).many().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "-A", "-A", "-A", "-a"]))
+        .unwrap();
+    assert_eq!(r, vec![true, false, false, false, true]);
+}
+
+#[test]
+fn parse_many_errors_positional() {
+    let p = positional("N").from_str::<u32>().many().to_options();
+
+    let r = p.run_inner(Args::from(&["1", "2", "3"])).unwrap();
+    assert_eq!(r, vec![1, 2, 3]);
+
+    let r = p
+        .run_inner(Args::from(&["1", "2", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+}
+
+#[test]
+fn parse_many_errors_flag() {
+    let p = short('p')
+        .argument("N")
+        .from_str::<u32>()
+        .many()
+        .to_options();
+
+    let r = p.run_inner(Args::from(&["-p", "1", "-p", "2"])).unwrap();
+    assert_eq!(r, vec![1, 2]);
+
+    let r = p
+        .run_inner(Args::from(&["-p", "1", "-p", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+}
+
+#[test]
+fn command_with_req_parameters() {
+    let p = positional("X")
+        .to_options()
+        .command("cmd")
+        .fallback(String::new())
+        .to_options();
+
+    let r = p
+        .run_inner(Args::from(&["cmd"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Expected <X>, pass --help for usage information");
+}

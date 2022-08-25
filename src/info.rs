@@ -245,7 +245,14 @@ impl<T> OptionParser<T> {
             crate::meta_youmean::suggest(args, &self.inner.meta())?;
         }
 
-        Err(err)
+        if let Error::Missing(metas) = err {
+            Err(Error::Stderr(format!(
+                "Expected {}, pass --help for usage information",
+                Meta::Or(metas)
+            )))
+        } else {
+            Err(err)
+        }
     }
     /// Get first line of description if Available
     ///

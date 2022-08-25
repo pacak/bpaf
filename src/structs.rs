@@ -125,6 +125,8 @@ where
         // if they both fail - fallback to the original arguments
         let mut args_a = args.clone();
         let mut args_b = args.clone();
+        args_a.head = usize::MAX;
+        args_b.head = usize::MAX;
         let res_a = self.this.eval(&mut args_a);
         let res_b = self.that.eval(&mut args_b);
 
