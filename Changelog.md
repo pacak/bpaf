@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.5.4] - 2022-08-25
+minor bugfixes
+- more consistent alternative selection
+- handle "missing" inside a subparser
+
 ## bpaf [0.5.3] - 2022-08-23
 and a bit more cosmetics - preserve suggestion context when returning from a subcommand
 
