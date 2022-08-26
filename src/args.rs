@@ -276,6 +276,15 @@ pub(crate) enum ArgType {
 ///
 /// performance wise this (at least on unix) works some small number percentage slower than the
 /// previous version
+///
+///
+/// on supporting -fbar
+/// - ideally we want to support any utf8 character (here `f`) which requires detecting one
+///   out of bytes on unix and utf16 codepoints on windows
+/// - we'll want to store ambigous combo of -f=bar and -f -b -a -r until -f is parsed either as
+///   a flag or as an argument and drop -b, -a and -r if it was an argument.
+/// - we want to prevent users from using parsers for -b, -a or -r before parser for -f
+/// Conclusion: possible in theory but adds too much complexity for the value it offers.
 pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
     #[cfg(any(unix, windows))]
     {
@@ -450,11 +459,18 @@ impl Args {
         let (val_ix, val) = match iter.next() {
             Some((ix, Arg::Word(w))) => (ix, w),
             Some((_ix, Arg::Short(_, os) | Arg::Long(_, os))) => {
-                let os = os.to_string_lossy();
-                return Err(Error::Stderr(format!(
-                "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument",
-                arg, os, arg,os
-            )));
+                let msg = if let (Arg::Short(s, fos), true) = (&arg, os.is_empty()) {
+                    let fos = fos.to_string_lossy();
+                    let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
+                    format!(
+                        "`{}` is not accepted, try using it as `-{}={}`",
+                        fos, s, repl
+                    )
+                } else {
+                    let os = os.to_string_lossy();
+                    format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
+                };
+                return Err(Error::Stderr(msg));
             }
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };

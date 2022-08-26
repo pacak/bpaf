@@ -1861,3 +1861,20 @@ fn suggestion_for_equals_1() {
         "`--par` requires an argument, got a flag-like `--bar=baz`, try `--par=--bar=baz` to use it as an argument"
     );
 }
+
+#[test]
+fn reject_fbar() {
+    let parser = short('f').argument("F").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-fbar", "baz"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
+
+    let r = parser
+        .run_inner(Args::from(&["-fbar"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
+}
