@@ -359,7 +359,7 @@ Available options:
 
     assert_eq!(expected_help, help);
     assert_eq!(
-        "-a requires an argument, got flag -b",
+        "`-a` requires an argument, got flag `-b`, try `-a=-b` to use it as an argument",
         parser
             .run_inner(Args::from(&["-a", "-b"]))
             .unwrap_err()
@@ -1812,4 +1812,27 @@ fn positional_help_complain_4() {
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
+}
+
+#[test]
+fn suggestion_for_equals_1() {
+    let parser = short('p').long("par").argument("P").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-p", "--bar"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "`-p` requires an argument, got flag `--bar`, try `-p=--bar` to use it as an argument"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["--par", "--bar"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "`--par` requires an argument, got flag `--bar`, try `--par=--bar` to use it as an argument"
+    );
 }

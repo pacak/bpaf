@@ -446,12 +446,10 @@ impl Args {
         };
         let (val_ix, val) = match iter.next() {
             Some((ix, Arg::Word(w))) => (ix, w),
-            Some((_ix, flag)) => {
-                return Err(Error::Stderr(format!(
-                    "{} requires an argument, got flag {}",
-                    arg, flag
-                )))
-            }
+            Some((_ix, flag)) => return Err(Error::Stderr(format!(
+                "`{}` requires an argument, got flag `{}`, try `{}={}` to use it as an argument",
+                arg, flag, arg, flag
+            ))),
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };
         let val = val.clone();
