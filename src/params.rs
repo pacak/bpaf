@@ -639,11 +639,22 @@ impl Named {
 /// different order.
 ///
 /// # Important restriction
-/// When parsing positional arguments from command lines you should have parsers for all your
-/// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
-/// fields nested inside other structures: such structures should go to the end as well.
-/// Failing to do can result in behavior confusing for the end user.
+/// To parse positional arguments from a command line you should place parsers for all your
+/// named values before parsers for positional items and commands. In derive API fields parsed as
+/// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
+/// if positional fields or commands are nested inside other structures: such structures should
+/// go to the end as well.
+///
+/// For example for non positional `non_pos` and positional `pos` parsers
+/// ```rust
+/// # use bpaf::*;
+/// # let non_pos = || short('n').switch();
+/// # let pos = ||positional("POS");
+/// let valid = construct!(non_pos(), pos());
+/// let invalid = construct!(pos(), non_pos());
+/// ```
+///
+/// **`bpaf` will panic during help generation if this restriction is broken!**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -686,11 +697,22 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
 /// different order.
 ///
 /// # Important restriction
-/// When parsing positional arguments from command lines you should have parsers for all your
-/// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
-/// fields nested inside other structures: such structures should go to the end as well.
-/// Failing to do can result in behavior confusing for the end user.
+/// To parse positional arguments from a command line you should place parsers for all your
+/// named values before parsers for positional items and commands. In derive API fields parsed as
+/// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
+/// if positional fields or commands are nested inside other structures: such structures should
+/// go to the end as well.
+///
+/// For example for non positional `non_pos` and positional `pos` parsers
+/// ```rust
+/// # use bpaf::*;
+/// # let non_pos = || short('n').switch();
+/// # let pos = ||positional("POS");
+/// let valid = construct!(non_pos(), pos());
+/// let invalid = construct!(pos(), non_pos());
+/// ```
+///
+/// **`bpaf` will panic during help generation if this restriction is broken!**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -734,6 +756,24 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// too.
 ///
 /// Alternatively you can create commands using [`command`](OptionParser::command)
+///
+/// # Important restriction
+/// When parsing command arguments from command lines you should have parsers for all your
+/// named values and command before parsers for positional items. In derive API fields parsed as
+/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
+/// fields nested inside other structures: such structures should go to the end as well.
+/// Failing to do can result in behavior confusing for the end user.
+///
+/// For example for non positional `non_pos` and a command `command` parsers
+/// ```rust
+/// # use bpaf::*;
+/// # let non_pos = || short('n').switch();
+/// # let command = || command ("POS");
+/// let valid = construct!(non_pos(), pos());
+/// let invalid = construct!(pos(), non_pos());
+/// ```
+///
+/// **`bpaf` will panic during help generation if this restriction is broken!**
 ///
 /// # Combinatoric use
 ///

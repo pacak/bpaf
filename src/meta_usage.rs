@@ -18,23 +18,44 @@ pub(crate) enum UsageMeta {
     Command,
 }
 
+// positional validity rules:
+// - any meta containing a positional becomes positional itself
+// - positional item must occupy the right most position inside Meta::And
+
 /// Transforms `Meta` to [`UsageMeta`]
 ///
 /// parameter `required` defines the value's context: optional or required.
 /// `bpaf` shows Optional values in required context in []
 ///
 /// `bpaf` uses parameter `had_commands` for command deduplication, initialize it with false
+/// `bpaf` uses parameter `is_pos` for positional validation, initialize it with false
+///
+/// return value is None if parser takes no parameters at all
 pub(crate) fn collect_usage_meta(
     meta: &Meta,
     required: bool,
     had_commands: &mut bool,
+    is_pos: &mut bool,
 ) -> Option<UsageMeta> {
     Some(match meta {
         Meta::And(xs) => {
             // even if whole group is optional - it needs all the items inside to construct it
             let mut items = xs
                 .iter()
-                .filter_map(|x| collect_usage_meta(x, true, had_commands))
+                .filter_map(|x| {
+                    let mut this_pos = false;
+                    let umeta = collect_usage_meta(x, true, had_commands, &mut this_pos)?;
+                    if *is_pos && !this_pos {
+                        panic!(
+                            "bpaf usage BUG: all positional and command items must be placed in the right
+                            most position of the structure or tuple they are in but {} breaks this rule. \
+                            See bpaf documentation for `positional` and `positional_os` for details.",
+                            umeta
+                        )
+                    }
+                    *is_pos |= this_pos;
+                    Some(umeta)
+                })
                 .collect::<Vec<_>>();
             match items.len() {
                 0 => return None,
@@ -48,7 +69,7 @@ pub(crate) fn collect_usage_meta(
             // no need to show [] if they're present.
             let mut items = xs
                 .iter()
-                .filter_map(|x| collect_usage_meta(x, required, had_commands))
+                .filter_map(|x| collect_usage_meta(x, required, had_commands, is_pos))
                 .collect::<Vec<_>>();
 
             match items.len() {
@@ -58,25 +79,32 @@ pub(crate) fn collect_usage_meta(
             }
         }
         Meta::Optional(m) => {
-            let inner = collect_usage_meta(m, false, had_commands)?;
+            let inner = collect_usage_meta(m, false, had_commands, is_pos)?;
             if required {
                 UsageMeta::Optional(Box::new(inner))
             } else {
                 inner
             }
         }
-        Meta::Many(meta) => {
-            UsageMeta::Many(Box::new(collect_usage_meta(meta, required, had_commands)?))
-        }
-        Meta::Decorated(meta, _) => collect_usage_meta(meta, required, had_commands)?,
+        Meta::Many(meta) => UsageMeta::Many(Box::new(collect_usage_meta(
+            meta,
+            required,
+            had_commands,
+            is_pos,
+        )?)),
+        Meta::Decorated(meta, _) => collect_usage_meta(meta, required, had_commands, is_pos)?,
         Meta::Skip => return None,
         Meta::Item(i) => match i {
-            Item::Positional { metavar, help: _ } => UsageMeta::Pos(metavar),
+            Item::Positional { metavar, help: _ } => {
+                *is_pos = true;
+                UsageMeta::Pos(metavar)
+            }
             Item::Command {
                 name: _,
                 help: _,
                 short: _,
             } => {
+                *is_pos = true;
                 if *had_commands {
                     return None;
                 }

@@ -1758,3 +1758,58 @@ fn command_with_req_parameters() {
         .unwrap_stderr();
     assert_eq!(r, "Expected <X>, pass --help for usage information");
 }
+
+#[test]
+#[should_panic(expected = "bpaf usage BUG: all positional")]
+fn positional_help_complain_1() {
+    let a = positional("a");
+    let b = short('b').switch();
+    let parser = construct!(a, b).to_options();
+
+    parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stderr();
+}
+
+#[test]
+#[should_panic(expected = "bpaf usage BUG: all positional")]
+fn positional_help_complain_2() {
+    let a = positional("a");
+    let b = short('b').switch();
+    let ba = construct!(b, a);
+    let c = short('c').switch();
+    let parser = construct!(ba, c).to_options();
+
+    parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stderr();
+}
+
+#[test]
+#[should_panic(expected = "bpaf usage BUG: all positional")]
+fn positional_help_complain_3() {
+    let a = positional("a");
+    let b = short('b').argument("B");
+    let ba = construct!([b, a]);
+    let c = short('c').switch();
+    let parser = construct!(ba, c).to_options();
+
+    parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stderr();
+}
+
+#[test]
+fn positional_help_complain_4() {
+    let a = positional("a");
+    let b = short('b').argument("B");
+    let parser = construct!([b, a]).to_options();
+
+    parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+}
