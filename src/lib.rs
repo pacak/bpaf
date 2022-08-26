@@ -198,6 +198,18 @@
 //!
 //! This set of restrictions allows to extract information about the structure of the computations
 //! to generate help and overall results in less confusing enduser experience
+//!
+//! `bpaf` will not perform your parameter names validation, in fact having multiple parameters
+//! with the same name is fine and you can combine them as alternatives and performs no fallback
+//! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
+//! alternatives inside the macro: parser that consumes the left most available argument on a
+//! command line wins, if this is the same - left most parser wins. So to parse a parameter
+//! `--test` that can be used both as a [`switch`](Named::switch) and as an
+//! [`argument`](Named::argument) you should put the argument one first.
+//!
+//! `bpaf` does not support short flag names followed by immediate values: while this `-fbar` could
+//! mean `-f` followed by a parameter `"bar"` - this is not supported. Values must be separated by
+//! either a space or `=`. If value starts with a dash - it must be separated by `=` only.
 
 //! # Design non goals: performance
 //!
