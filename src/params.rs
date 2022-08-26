@@ -768,9 +768,9 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// ```rust
 /// # use bpaf::*;
 /// # let non_pos = || short('n').switch();
-/// # let command = || command ("POS");
-/// let valid = construct!(non_pos(), pos());
-/// let invalid = construct!(pos(), non_pos());
+/// # let command = || pure(()).to_options().command("POS");
+/// let valid = construct!(non_pos(), command());
+/// let invalid = construct!(command(), non_pos());
 /// ```
 ///
 /// **`bpaf` will panic during help generation if this restriction is broken!**
