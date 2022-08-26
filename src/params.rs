@@ -624,8 +624,8 @@ impl Named {
 
     pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
         match arg {
-            Arg::Short(s) => self.short.contains(s),
-            Arg::Long(l) => self.long.contains(&l.as_str()),
+            Arg::Short(s, _) => self.short.contains(s),
+            Arg::Long(l, _) => self.long.contains(&l.as_str()),
             Arg::Word(_) => false,
         }
     }

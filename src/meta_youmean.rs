@@ -92,8 +92,8 @@ fn ins(expected: I, actual: I, variants: &mut Vec<(usize, String)>) {
 
 fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
     let actual: I = match arg {
-        Arg::Short(s) => I::ShortFlag(*s),
-        Arg::Long(s) => I::LongFlag(s.as_str()),
+        Arg::Short(s, _) => I::ShortFlag(*s),
+        Arg::Long(s, _) => I::LongFlag(s.as_str()),
         Arg::Word(w) => match &w.utf8 {
             Some(s) => I::LongCmd(s.as_str()),
             None => return,

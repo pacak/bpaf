@@ -210,6 +210,9 @@
 //! `bpaf` does not support short flag names followed by immediate values: while this `-fbar` could
 //! mean `-f` followed by a parameter `"bar"` - this is not supported. Values must be separated by
 //! either a space or `=`. If value starts with a dash - it must be separated by `=` only.
+//!
+//! You must place [`positional`] and [`positional_os`] items at the end of a structure
+//! in derive API or consume them as last arguments in derive API.
 
 //! # Design non goals: performance
 //!

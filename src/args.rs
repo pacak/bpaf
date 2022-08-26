@@ -156,7 +156,7 @@ mod inner {
         pub(crate) fn current_word(&self) -> Option<&Word> {
             let ix = self.current?;
             match &self.items[ix] {
-                Arg::Short(_) | Arg::Long(_) => None,
+                Arg::Short(_, _) | Arg::Long(_, _) => None,
                 Arg::Word(w) => Some(w),
             }
         }
@@ -179,12 +179,14 @@ mod inner {
 pub use inner::*;
 
 /// Preprocessed command line argument
+///
+/// OsString in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
     /// short flag
-    Short(char),
+    Short(char, OsString),
     /// long flag
-    Long(String),
+    Long(String, OsString),
     /// separate word that can be command, positional or an argument to a flag
     Word(Word),
 }
@@ -192,8 +194,8 @@ pub(crate) enum Arg {
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Arg::Short(s) => write!(f, "-{}", s),
-            Arg::Long(l) => write!(f, "--{}", l),
+            Arg::Short(s, _) => write!(f, "-{}", s),
+            Arg::Long(l, _) => write!(f, "--{}", l),
             Arg::Word(w) => match &w.utf8 {
                 Some(s) => write!(f, "{}", s),
                 None => Err(std::fmt::Error),
@@ -210,7 +212,7 @@ pub(crate) fn word(os: OsString) -> Arg {
     })
 }
 
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
+pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
     if *pos_only {
         return vec.push(word(os));
     }
@@ -218,7 +220,8 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
     match split_os_argument(&os) {
         Some((ArgType::Short, short, None)) => {
             for f in short.chars() {
-                vec.push(Arg::Short(f));
+                vec.push(Arg::Short(f, os));
+                os = OsString::new();
             }
         }
         Some((ArgType::Short, short, Some(arg))) => {
@@ -228,14 +231,14 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
                 "short flag with an argument must have only one key"
             );
             let key = short.chars().next().unwrap();
-            vec.push(Arg::Short(key));
+            vec.push(Arg::Short(key, os));
             vec.push(arg);
         }
         Some((ArgType::Long, long, None)) => {
-            vec.push(Arg::Long(long));
+            vec.push(Arg::Long(long, os));
         }
         Some((ArgType::Long, long, Some(arg))) => {
-            vec.push(Arg::Long(long));
+            vec.push(Arg::Long(long, os));
             vec.push(arg);
         }
         _ => match os.to_str() {
@@ -446,10 +449,13 @@ impl Args {
         };
         let (val_ix, val) = match iter.next() {
             Some((ix, Arg::Word(w))) => (ix, w),
-            Some((_ix, flag)) => return Err(Error::Stderr(format!(
-                "`{}` requires an argument, got flag `{}`, try `{}={}` to use it as an argument",
-                arg, flag, arg, flag
-            ))),
+            Some((_ix, Arg::Short(_, os) | Arg::Long(_, os))) => {
+                let os = os.to_string_lossy();
+                return Err(Error::Stderr(format!(
+                "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument",
+                arg, os, arg,os
+            )));
+            }
             _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
         };
         let val = val.clone();

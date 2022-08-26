@@ -359,7 +359,7 @@ Available options:
 
     assert_eq!(expected_help, help);
     assert_eq!(
-        "`-a` requires an argument, got flag `-b`, try `-a=-b` to use it as an argument",
+        "`-a` requires an argument, got a flag-like `-b`, try `-a=-b` to use it as an argument",
         parser
             .run_inner(Args::from(&["-a", "-b"]))
             .unwrap_err()
@@ -1393,8 +1393,18 @@ fn did_you_mean_req_flag() {
 #[test]
 fn did_you_mean_argument() {
     let parser = long("flag").argument("VAL").to_options();
+
     let res = parser
         .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        res,
+        "Expected --flag VAL, pass --help for usage information"
+    );
+
+    let res = parser
+        .run_inner(Args::from(&["--flg=hellop"]))
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1435,6 +1445,12 @@ fn did_you_mean_two_and_arguments() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--flag", "--paramet=value"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--paramet`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(Args::from(&["--parameter", "--flg"]))
@@ -1824,7 +1840,7 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`-p` requires an argument, got flag `--bar`, try `-p=--bar` to use it as an argument"
+        "`-p` requires an argument, got a flag-like `--bar`, try `-p=--bar` to use it as an argument"
     );
 
     let r = parser
@@ -1833,6 +1849,15 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`--par` requires an argument, got flag `--bar`, try `--par=--bar` to use it as an argument"
+        "`--par` requires an argument, got a flag-like `--bar`, try `--par=--bar` to use it as an argument"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["--par", "--bar=baz"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "`--par` requires an argument, got a flag-like `--bar=baz`, try `--par=--bar=baz` to use it as an argument"
     );
 }
