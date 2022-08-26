@@ -202,60 +202,218 @@ impl std::fmt::Display for Arg {
     }
 }
 
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    // if after "--" sign or there's no utf8 representation for
-    // an item - it can only be a positional argument
-    let utf8 = match (*pos_only, os.to_str()) {
-        (true, v) | (_, v @ None) => {
-            return vec.push(Arg::Word(Word {
-                utf8: v.map(String::from),
-                os,
-            }))
-        }
-        (false, Some(x)) => x,
-    };
+#[inline(never)]
+pub(crate) fn word(os: OsString) -> Arg {
+    Arg::Word(Word {
+        utf8: os.to_str().map(String::from),
+        os,
+    })
+}
 
-    if utf8 == "--" {
-        *pos_only = true;
-    } else if utf8 == "-" {
-        vec.push(Arg::Word(Word {
-            utf8: Some(utf8.to_string()),
-            os,
-        }));
-    } else if let Some(body) = utf8.strip_prefix("--") {
-        if let Some((key, val)) = body.split_once('=') {
-            vec.push(Arg::Long(key.to_owned()));
-            vec.push(Arg::Word(Word {
-                utf8: Some(val.to_owned()),
-                os: OsString::from(val),
-            }));
-        } else {
-            vec.push(Arg::Long(body.to_owned()));
-        }
-    } else if let Some(body) = utf8.strip_prefix('-') {
-        if let Some((key, val)) = body.split_once('=') {
-            assert_eq!(
-                key.len(),
-                1,
-                "short flag with argument must have only one key"
-            );
-            let key = key.chars().next().expect("key should be one character");
-            vec.push(Arg::Short(key));
-            vec.push(Arg::Word(Word {
-                utf8: Some(val.to_owned()),
-                os: OsString::from(val),
-            }));
-        } else {
-            for f in body.chars() {
+pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
+    if *pos_only {
+        return vec.push(word(os));
+    }
+
+    match split_os_argument(&os) {
+        Some((ArgType::Short, short, None)) => {
+            for f in short.chars() {
                 vec.push(Arg::Short(f));
             }
         }
-    } else {
-        vec.push(Arg::Word(Word {
-            utf8: Some(utf8.to_string()),
-            os,
-        }));
+        Some((ArgType::Short, short, Some(arg))) => {
+            assert_eq!(
+                short.len(),
+                1,
+                "short flag with an argument must have only one key"
+            );
+            let key = short.chars().next().unwrap();
+            vec.push(Arg::Short(key));
+            vec.push(arg);
+        }
+        Some((ArgType::Long, long, None)) => {
+            vec.push(Arg::Long(long));
+        }
+        Some((ArgType::Long, long, Some(arg))) => {
+            vec.push(Arg::Long(long));
+            vec.push(arg);
+        }
+        _ => match os.to_str() {
+            Some("--") => *pos_only = true,
+            Some(utf8) => vec.push(Arg::Word(Word {
+                utf8: Some(utf8.to_string()),
+                os,
+            })),
+            None => vec.push(Arg::Word(Word { utf8: None, os })),
+        },
     }
+}
+
+#[derive(Eq, PartialEq, Debug)]
+pub(crate) enum ArgType {
+    Short,
+    Long,
+}
+
+/// split OsString into argument specific bits
+///
+/// takes a possibly non-utf8 string looking like "--name=value" and splits it into bits:
+/// "--" - type, "name" - name, must be representable as utf8, "=" - optional, "value" - flag
+///
+/// dashes and equals sign are low codepoint values and we look for them literally in a string.
+/// This probably means not supporting dashes with diacritics, but that's a sacrifice I'm willing
+/// to make.
+///
+/// name must be valid utf8 after conversion and must not include `=`
+///
+/// argument is optional and can be non valid utf8.
+///
+/// The idea is to split the OsString into opaque parts by looking only at the parts we are allowed
+/// to and let stdlib to handle the decoding of those parts.
+///
+/// performance wise this (at least on unix) works some small number percentage slower than the
+/// previous version
+pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
+    #[cfg(any(unix, windows))]
+    {
+        // OsString are composed from smaller smaller elements - bytes in unix and
+        // possibly invalid utf16 items on windows
+        #[cfg(unix)]
+        type Elt = u8;
+        #[cfg(windows)]
+        type Elt = u16;
+
+        // reuse allocation on unix, don't reuse allocations on windows
+        // either case - pack a vector of elements back into OsString
+        fn os_from_vec(vec: Vec<Elt>) -> OsString {
+            #[cfg(unix)]
+            {
+                <OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec)
+            }
+            #[cfg(windows)]
+            {
+                <OsString as std::os::windows::ffi::OsStringExt>::from_wide(&vec)
+            }
+        }
+
+        // try to decode elements into a String
+        fn str_from_vec(vec: Vec<Elt>) -> Option<String> {
+            Some(os_from_vec(vec).to_str()?.to_owned())
+        }
+
+        // but in either case dashes and equals are just literal values just with different width
+        const DASH: Elt = b'-' as Elt;
+        const EQUALS: Elt = b'=' as Elt;
+
+        // preallocate something to store the name. oversized but avoids extra allocations/copying
+        let mut name = Vec::with_capacity(input.len());
+
+        let mut items;
+        #[cfg(unix)]
+        {
+            items = std::os::unix::ffi::OsStrExt::as_bytes(input)
+                .iter()
+                .copied();
+        }
+        #[cfg(windows)]
+        {
+            items = std::os::windows::ffi::OsStrExt::encode_wide(input);
+        }
+
+        // first item must be dash, otherwise it's positional or a flag value
+        if items.next()? != DASH {
+            return None;
+        }
+
+        // second item may or may not be, but should be present
+        let ty;
+        match items.next()? {
+            DASH => ty = ArgType::Long,
+            val => {
+                ty = ArgType::Short;
+                name.push(val);
+            }
+        }
+
+        // keep collecting until we see = or the end
+        loop {
+            match items.next() {
+                Some(EQUALS) => break,
+                Some(val) => name.push(val),
+                None => {
+                    if name.is_empty() {
+                        return None;
+                    }
+                    return Some((ty, str_from_vec(name)?, None));
+                }
+            }
+        }
+
+        // name must be present
+        if name.is_empty() {
+            return None;
+        }
+        let name = str_from_vec(name)?;
+        let word = word(os_from_vec(items.collect()));
+        Some((ty, name, Some(word)))
+    }
+    #[cfg(not(any(unix, windows)))]
+    {
+        split_os_argument_fallback(input)
+    }
+}
+
+/// similar to split_os_argument but only works for utf8 values, used as a fallback function
+/// on non
+#[cfg(any(all(not(windows), not(unix)), test))]
+pub(crate) fn split_os_argument_fallback(
+    input: &std::ffi::OsStr,
+) -> Option<(ArgType, String, Option<Arg>)> {
+    // for fallback I'm assuming the string must be proper utf8
+    let string = input.to_str()?;
+
+    let mut chars = string.chars();
+    let mut name = String::with_capacity(string.len());
+
+    // first character must be dash, otherwise it's positional or a flag value
+    if chars.next()? != '-' {
+        return None;
+    }
+
+    // second character may or may not be
+    let ty;
+    match chars.next()? {
+        '-' => ty = ArgType::Long,
+        val => {
+            ty = ArgType::Short;
+            name.push(val);
+        }
+    }
+
+    // collect the argument's name up to '=' or until the end
+    // if it's a flag
+    loop {
+        match chars.next() {
+            Some('=') => break,
+            Some(val) => name.push(val),
+            None => {
+                if name.is_empty() {
+                    return None;
+                }
+                return Some((ty, name, None));
+            }
+        }
+    }
+    if name.is_empty() {
+        return None;
+    }
+
+    let utf8 = chars.collect::<String>();
+    let word = Word {
+        os: OsString::from(utf8.clone()),
+        utf8: Some(utf8),
+    };
+    Some((ty, name, Some(Arg::Word(word))))
 }
 
 impl Args {
