@@ -81,23 +81,15 @@ mod inner {
 
     impl From<&[&str]> for Args {
         fn from(xs: &[&str]) -> Self {
-            let mut pos_only = false;
-            let mut vec = Vec::with_capacity(xs.len());
-            for x in xs {
-                push_vec(&mut vec, OsString::from(x), &mut pos_only);
-            }
-            Args::args_from(vec)
+            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
+            Args::from(vec.as_slice())
         }
     }
 
     impl From<&[&OsStr]> for Args {
         fn from(xs: &[&OsStr]) -> Self {
-            let mut pos_only = false;
-            let mut vec = Vec::with_capacity(xs.len());
-            for x in xs {
-                push_vec(&mut vec, OsString::from(x), &mut pos_only);
-            }
-            Args::args_from(vec)
+            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
+            Args::from(vec.as_slice())
         }
     }
 
@@ -105,10 +97,18 @@ mod inner {
         fn from(xs: &[OsString]) -> Self {
             let mut pos_only = false;
             let mut vec = Vec::with_capacity(xs.len());
-            for x in xs {
+            let mut del = None;
+            for (ix, x) in xs.iter().enumerate() {
                 push_vec(&mut vec, x.clone(), &mut pos_only);
+                if del.is_none() && pos_only {
+                    del = Some(ix);
+                }
             }
-            Args::args_from(vec)
+            let mut args = Args::args_from(vec);
+            if let Some(ix) = del {
+                args.remove(ix);
+            }
+            args
         }
     }
 
@@ -242,11 +242,13 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool
             vec.push(arg);
         }
         _ => match os.to_str() {
-            Some("--") => *pos_only = true,
-            Some(utf8) => vec.push(Arg::Word(Word {
-                utf8: Some(utf8.to_string()),
-                os,
-            })),
+            Some(utf8) => {
+                *pos_only = utf8 == "--";
+                vec.push(Arg::Word(Word {
+                    utf8: Some(utf8.to_string()),
+                    os,
+                }))
+            }
             None => vec.push(Arg::Word(Word { utf8: None, os })),
         },
     }
