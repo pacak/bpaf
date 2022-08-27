@@ -279,6 +279,8 @@ pub mod _derive_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _faq;
 mod args;
+mod complete_gen;
+mod complete_run;
 mod info;
 mod item;
 mod meta;
@@ -300,8 +302,9 @@ use std::marker::PhantomData;
 pub use structs::PCon;
 
 use structs::{
-    ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
-    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
+    ParseComp, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
+    ParseWith,
 };
 
 #[doc(inline)]
@@ -478,11 +481,18 @@ macro_rules! construct {
         { use $crate::Parser; $first $(.or_else($fields))* }
     };
 
+
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
-            $(let $fields = $fields.eval(args)?;)*
+            $(let $fields = if args.is_comp() {
+                $fields.eval(args)
+            } else {
+                Ok($fields.eval(args)?)
+            };)*
+            $(let $fields = $fields?;)*
+
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
@@ -1330,6 +1340,13 @@ pub trait Parser<T> {
         }
     }
     // }}}
+
+    fn comp<F>(self, op: F) -> ParseComp<Self, F>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseComp { inner: self, op }
+    }
 
     // consume
     // {{{ to_options

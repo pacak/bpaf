@@ -43,7 +43,7 @@ mod inner {
         /// list of remaining arguments, for cheap cloning
         pub(crate) items: Rc<[Arg]>,
         /// removed items, false - present, true - removed
-        removed: Vec<bool>,
+        pub(crate) removed: Vec<bool>,
         remaining: usize,
 
         #[doc(hidden)]
@@ -71,6 +71,8 @@ mod inner {
         ///
         /// parse/guard failures should "taint" the arguments and disable the suggestion logic
         pub(crate) tainted: bool,
+
+        pub(crate) comp: Option<crate::complete_gen::Complete>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -122,6 +124,7 @@ mod inner {
                 head: usize::MAX,
                 depth: 0,
                 tainted: false,
+                comp: None,
             }
         }
     }
@@ -169,6 +172,26 @@ mod inner {
             } else {
                 Some(arg)
             }
+        }
+
+        /// check if completion is enabled, used by construct!
+        pub fn is_comp(&self) -> bool {
+            self.comp.is_some()
+        }
+
+        /// enable completions bash style
+        pub fn set_comp(mut self, touching: bool) -> Self {
+            self.comp = Some(crate::complete_gen::Complete::new(
+                touching,
+                crate::complete_run::Style::Bash,
+            ));
+            self
+        }
+
+        /// check if completion is enabled
+        pub fn styled_comp(mut self, touching: bool, style: crate::complete_run::Style) -> Self {
+            self.comp = Some(crate::complete_gen::Complete::new(touching, style));
+            self
         }
     }
 
@@ -519,6 +542,14 @@ impl Args {
 
     pub(crate) fn peek(&self) -> Option<&Arg> {
         self.items_iter().next().map(|x| x.1)
+    }
+
+    pub(crate) fn touching_last_remove(&self) -> bool {
+        if let Some(comp) = &self.comp {
+            self.items.len() - 1 == self.current.unwrap_or(usize::MAX) && comp.touching
+        } else {
+            false
+        }
     }
 }
 

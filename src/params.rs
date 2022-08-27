@@ -940,6 +940,7 @@ impl<P> Command<P> {
 
 impl<T> Parser<T> for Command<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        // used to avoid allocations for short names
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
             || self.shorts.iter().any(|s| {
@@ -948,22 +949,44 @@ impl<T> Parser<T> for Command<T> {
                 args.take_cmd(&tmp)
             })
         {
+            let touching = args.touching_last_remove();
             args.head = usize::MAX;
             args.depth += 1;
+
             // failure past this point should be preserved in or_else parser
-            self.subparser.run_subparser(args)
+            let res = self.subparser.run_subparser(args);
+
+            if let Some(comp) = &mut args.comp {
+                if touching {
+                    comp.comps.clear();
+                    comp.push_item(self.item(), args.depth - 1);
+                    // unless we are doing completions and just got the command
+                    args.depth -= 1;
+                }
+            }
+
+            res
         } else {
+            if let Some(comp) = &mut args.comp {
+                comp.push_item(self.item(), args.depth)
+            }
+
             Err(Error::Missing(vec![self.meta()]))
         }
     }
 
     fn meta(&self) -> Meta {
-        let item = Item::Command {
+        Meta::Item(self.item())
+    }
+}
+
+impl<T> Command<T> {
+    fn item(&self) -> Item {
+        Item::Command {
             name: self.longs[0],
             short: self.shorts.first().copied(),
             help: self.help.clone(),
-        };
-        Meta::Item(item)
+        }
     }
 }
 
@@ -984,13 +1007,30 @@ struct BuildFlagParser<T> {
     absent: Option<T>,
     named: Named,
 }
+impl<T> BuildFlagParser<T> {
+    pub(crate) fn item(&self) -> Item {
+        Item::Flag {
+            name: ShortLong::from(&self.named),
+            help: self.named.help.clone(),
+        }
+    }
+}
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
+            let touching = args.touching_last_remove();
+            if let Some(comp) = &mut args.comp {
+                if touching {
+                    comp.push_item(self.item(), args.depth)
+                }
+            }
             Ok(self.present.clone())
         } else {
+            if let Some(comp) = &mut args.comp {
+                comp.push_item(self.item(), args.depth)
+            }
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
                 None => Err(Error::Missing(vec![self.meta()])),
@@ -999,12 +1039,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     }
 
     fn meta(&self) -> Meta {
-        let item = Item::Flag {
-            name: ShortLong::from(&self.named),
-            help: self.named.help.clone(),
-        };
-
-        item.required(self.absent.is_none())
+        self.item().required(self.absent.is_none())
     }
 }
 
@@ -1025,11 +1060,63 @@ struct BuildArgument {
     metavar: &'static str,
 }
 
+impl BuildArgument {
+    fn item(&self) -> Item {
+        Item::Argument {
+            name: ShortLong::from(&self.named),
+            metavar: self.metavar,
+            env: self.named.env.first().copied(),
+            help: self.named.help.clone(),
+        }
+    }
+}
+
 impl Parser<Word> for BuildArgument {
     fn eval(&self, args: &mut Args) -> Result<Word, Error> {
-        if let Some(w) = args.take_arg(&self.named)? {
-            Ok(w)
-        } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+        match args.take_arg(&self.named) {
+            Ok(Some(w)) => {
+                if args.touching_last_remove() {
+                    if let Some(comp) = &mut args.comp {
+                        comp.push_metadata(
+                            self.metavar,
+                            self.named.help.clone(), // help is not actually used for argument metadata
+                            args.depth,
+                            true,
+                        );
+                    }
+                }
+                return Ok(w);
+            }
+            Err(err) => {
+                if args.comp.is_some() {
+                    let ix = args
+                        .items_iter()
+                        .find(|arg| self.named.matches_arg(arg.1))
+                        .unwrap()
+                        .0;
+
+                    if let Some(comp) = &mut args.comp {
+                        if args.items.len() - 1 == ix && comp.touching {
+                            comp.push_item(self.item(), args.depth);
+                        } else {
+                            comp.push_metadata(
+                                self.metavar,
+                                self.named.help.clone(), // help is not actually used for argument metadata
+                                args.depth,
+                                true,
+                            );
+                        }
+                    }
+                }
+                return Err(err);
+            }
+            _ => {}
+        }
+
+        if let Some(comp) = &mut args.comp {
+            comp.push_item(self.item(), args.depth)
+        }
+        if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             args.current = None;
             Ok(Word::from(val))
         } else {
@@ -1038,15 +1125,7 @@ impl Parser<Word> for BuildArgument {
     }
 
     fn meta(&self) -> Meta {
-        {
-            let this = Item::Argument {
-                name: ShortLong::from(&self.named),
-                metavar: self.metavar,
-                env: self.named.env.first().copied(),
-                help: self.named.help.clone(),
-            };
-            Meta::Item(this)
-        }
+        Meta::Item(self.item())
     }
 }
 
@@ -1074,9 +1153,11 @@ impl<T> Positional<T> {
         self
     }
     fn meta(&self) -> Meta {
-        Meta::Item(Item::Positional {
-            metavar: self.metavar,
-            help: self.help.clone(),
+        Meta::Item({
+            Item::Positional {
+                metavar: self.metavar,
+                help: self.help.clone(),
+            }
         })
     }
 }
@@ -1084,8 +1165,20 @@ impl<T> Positional<T> {
 impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_positional_word()? {
-            Some(word) => Ok(word.os),
-            None => Err(Error::Missing(vec![self.meta()])),
+            Some(word) => {
+                if args.touching_last_remove() {
+                    if let Some(comp) = &mut args.comp {
+                        comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
+                    }
+                }
+                Ok(word.os)
+            }
+            None => {
+                if let Some(comp) = &mut args.comp {
+                    comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
+                }
+                Err(Error::Missing(vec![self.meta()]))
+            }
         }
     }
     fn meta(&self) -> Meta {
@@ -1096,11 +1189,23 @@ impl Parser<OsString> for Positional<OsString> {
 impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         match args.take_positional_word()? {
-            Some(word) => match word.utf8 {
-                Some(ok) => Ok(ok),
-                None => Err(Error::Stderr("not utf8".to_owned())),
-            },
-            None => Err(Error::Missing(vec![self.meta()])),
+            Some(word) => {
+                if args.touching_last_remove() {
+                    if let Some(comp) = &mut args.comp {
+                        comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
+                    }
+                }
+                match word.utf8 {
+                    Some(ok) => Ok(ok),
+                    None => Err(Error::Stderr("not utf8".to_owned())),
+                }
+            }
+            None => {
+                if let Some(comp) = &mut args.comp {
+                    comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
+                }
+                Err(Error::Missing(vec![self.meta()]))
+            }
         }
     }
 

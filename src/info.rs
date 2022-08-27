@@ -124,14 +124,26 @@ impl<T> OptionParser<T> {
     {
         let mut pos_only = false;
         let mut vec = Vec::new();
+        let mut cvec = Vec::new();
+
         for arg in std::env::args_os().skip(1) {
-            args::push_vec(&mut vec, arg, &mut pos_only);
+            if arg
+                .to_str()
+                .map_or(false, |s| s.starts_with("--bpaf-complete-"))
+            {
+                args::push_vec(&mut cvec, arg, &mut pos_only);
+            } else {
+                args::push_vec(&mut vec, arg, &mut pos_only);
+            }
         }
 
-        match self.run_inner(Args::args_from(vec)) {
+        let args = crate::complete_run::args_with_complete(vec, cvec);
+        // let args = Args::args_from(vec);
+
+        match self.run_inner(args) {
             Ok(t) => t,
             Err(ParseFailure::Stdout(msg)) => {
-                println!("{}", msg);
+                print!("{}", msg); // completions are sad otherwise
                 std::process::exit(0);
             }
             Err(ParseFailure::Stderr(msg)) => {
@@ -206,7 +218,9 @@ impl<T> OptionParser<T> {
     #[doc(hidden)]
     pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
-        let err = match self.inner.eval(args) {
+        let res = self.inner.eval(args);
+        args.check_complete()?;
+        let err = match res {
             Ok(r) => {
                 if let Err(err) = check_unexpected(args) {
                     err
