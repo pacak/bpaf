@@ -149,6 +149,7 @@ mod inner {
         pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
+
         pub(crate) fn len(&self) -> usize {
             self.remaining
         }
@@ -158,6 +159,15 @@ mod inner {
             match &self.items[ix] {
                 Arg::Short(_, _) | Arg::Long(_, _) => None,
                 Arg::Word(w) => Some(w),
+            }
+        }
+
+        pub(crate) fn get(&self, ix: usize) -> Option<&Arg> {
+            let arg = self.items.get(ix)?;
+            if *self.removed.get(ix)? {
+                None
+            } else {
+                Some(arg)
             }
         }
     }
@@ -435,10 +445,7 @@ impl Args {
     ///
     /// Returns false if value isn't present
     pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
-        let mut iter = self
-            .items_iter()
-            .skip_while(|arg| !named.matches_arg(arg.1));
-        if let Some((ix, _)) = iter.next() {
+        if let Some((ix, _)) = self.items_iter().find(|arg| named.matches_arg(arg.1)) {
             self.remove(ix);
             true
         } else {
@@ -451,16 +458,14 @@ impl Args {
     /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<Word>, Error> {
-        let mut iter = self
-            .items_iter()
-            .skip_while(|arg| !named.matches_arg(arg.1));
-        let (key_ix, arg) = match iter.next() {
+        let (key_ix, arg) = match self.items_iter().find(|arg| named.matches_arg(arg.1)) {
             Some(v) => v,
             None => return Ok(None),
         };
-        let (val_ix, val) = match iter.next() {
-            Some((ix, Arg::Word(w))) => (ix, w),
-            Some((_ix, Arg::Short(_, os) | Arg::Long(_, os))) => {
+        let val_ix = key_ix + 1;
+        let val = match self.get(val_ix) {
+            Some(Arg::Word(w)) => w,
+            Some(Arg::Short(_, os) | Arg::Long(_, os)) => {
                 let msg = if let (Arg::Short(s, fos), true) = (&arg, os.is_empty()) {
                     let fos = fos.to_string_lossy();
                     let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
