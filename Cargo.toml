@@ -37,6 +37,10 @@ required-features = ["autocomplete"]
 name = "derive"
 required-features = ["derive"]
 
+[[test]]
+name = "batteries"
+required-features = ["batteries"]
+
 [[example]]
 name = "csample"
 required-features = ["autocomplete"]
