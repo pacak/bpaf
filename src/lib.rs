@@ -289,10 +289,10 @@ mod meta_usage;
 mod meta_youmean;
 mod params;
 mod structs;
-
-pub mod batteries;
 #[cfg(test)]
 mod tests;
+
+pub mod batteries;
 
 #[doc(hidden)]
 pub use crate::info::Error;
