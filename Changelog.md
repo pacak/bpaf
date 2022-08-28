@@ -1,5 +1,12 @@
 # Change Log
 
+## bpaf [0.5.5] - unreleased
+- invariant checker
+- more error message improvements
+- non-utf8 support in --foo=bar
+- dynamic shell completion
+- toggle flag battery
+
 ## bpaf [0.5.4] - 2022-08-25
 minor bugfixes
 - more consistent alternative selection
