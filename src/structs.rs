@@ -280,7 +280,11 @@ where
                 Ok(ok)
             }
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(Error::Missing(_)) => Ok(self.value.clone()),
+            Err(Error::Missing(_)) => {
+                #[cfg(feature = "autocomplete")]
+                std::mem::swap(&mut args.comp, &mut clone.comp);
+                Ok(self.value.clone())
+            }
         }
     }
 

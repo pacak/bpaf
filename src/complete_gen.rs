@@ -325,8 +325,10 @@ impl Complete {
                         descr,
                         padding = max_width
                     ),
-                    (Style::Zsh, None) => writeln!(res, "{}", item.subst1),
-                    (Style::Zsh, Some(descr)) => writeln!(res, "{}\t{}", item.subst1, descr),
+                    (Style::Zsh | Style::Fish, None) => writeln!(res, "{}", item.subst1),
+                    (Style::Zsh | Style::Fish, Some(descr)) => {
+                        writeln!(res, "{}\t{}", item.subst1, descr)
+                    }
                 }?
             }
         }

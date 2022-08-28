@@ -13,7 +13,7 @@
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
 //!
-//! `bpaf` supports dynamic shell completion for `bash` and `zsh`.
+//! `bpaf` supports dynamic shell completion for `bash`, `zsh` and `fish`.
 
 //! # Quick links
 //!
@@ -265,27 +265,36 @@
 //!
 //! # Dynamic shell completion
 //!
-//! 1. enable `autocomplete` feature:
+//! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
+//! names, but also argument and positional item values.
+//!
+//! 1. Enable `autocomplete` feature:
 //!    ```toml
 //!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
 //!    ```
-//! 2. decorate [`argument`](Named::argument) and [`positional`] parsers with
+//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
 //!    [`comp`](Parser::comp) to autocomplete argument values
 //!
-//! 3. In `bash`: make sure your binary is available in `$PATH` and add this to .bashrc
-//!    ```console
-//!    $ source <(your_program --bpaf-complete-style-bash)
-//!    ```
-//!    or place the output of this command into appropriate directory, such as
-//!    `/etc/bash_completion.d/`
-//!    ```console
-//!    $ your_program --bpaf-complete-style-bash
-//!    ```
-//! 4. Or in `zsh`: make sure your binary is available in `$PATH` and place the output of
-//!    this command into approach directory, such as `/usr/share/zsh/vendor-completions` or `~/.zsh`
-//!    ```console
-//!    $ your_program --bpaf-complete-style-zsh
-//!    ```
+//! 3. Depending on your shell generate appropriate completion file and place it to whereever your
+//!    shell is going to look for it, name of the file should correspond in some way to name of
+//!    your program. Consult manual for your shell for the location and named conventions:
+//!    1. **bash**
+//!        ```console
+//!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
+//!        ```
+//!    2. **zsh** - note `_` at the beginning of the file name
+//!       ```console
+//!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
+//!       ```
+//!    3. **fish**
+//!       ```console
+//!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+//!       ```
+//! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
+//!    upgrade: generated completion files contain only instructions how to ask your program for
+//!    possible completions and don't change even if options are different.
+//!
+//! 5. Generated scripts rely on your program being accessible in $PATH
 
 //! # Cargo features
 //!
@@ -1381,6 +1390,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // {{{ comp
     /// Dynamic shell completion
     ///
     /// Allows to generate autocompletion information for shell.
@@ -1448,6 +1458,7 @@ pub trait Parser<T> {
     {
         ParseComp { inner: self, op }
     }
+    // }}}
 
     // consume
     // {{{ to_options

@@ -501,3 +501,16 @@ fn static_with_hide() {
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 }
+
+#[test]
+fn static_with_fallback_and_hide() {
+    let a = short('a').switch();
+    let b = short('b').switch().hide();
+    let parser = construct!(a, b).fallback((false, false)).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[]).set_comp(false))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\n");
+}

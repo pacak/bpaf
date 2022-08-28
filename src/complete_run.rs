@@ -6,6 +6,7 @@ use crate::{args::Arg, *};
 pub enum Style {
     Bash,
     Zsh,
+    Fish,
 }
 
 const BASH_COMPLETER: &str = r#"#/usr/bin/env bash
@@ -47,6 +48,7 @@ done
 
 struct CompOptions {
     columns: Option<usize>,
+    fish_touch: bool,
     style: Style,
 }
 
@@ -56,11 +58,18 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
         .argument("COLS")
         .from_str::<usize>()
         .optional();
+    let fish_touch = long("bpaf-complete-fish-touch").switch();
 
     let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
     let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
-    let style = construct!([zsh, bash]);
-    construct!(CompOptions { columns, style }).to_options()
+    let fish = long("bpaf-complete-style-fish").req_flag(Style::Fish);
+    let style = construct!([zsh, bash, fish]);
+    construct!(CompOptions {
+        columns,
+        fish_touch,
+        style
+    })
+    .to_options()
 }
 
 pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
@@ -85,7 +94,11 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
                 if new_word {
                     vec.pop();
                 }
-                let touching = !new_word;
+                let touching = match comp.style {
+                    Style::Bash | Style::Zsh => !new_word,
+                    Style::Fish => comp.fish_touch,
+                };
+
                 Args::args_from(vec).styled_comp(touching, comp.style)
             } else {
                 match comp.style {
@@ -96,6 +109,25 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
                     Style::Zsh => {
                         println!("#compdef {}", name);
                         println!("{}", ZSH_COMPLETER);
+                    }
+                    Style::Fish => {
+                        println!(
+                            "\
+function _{}
+    set -l tmpline --bpaf-complete-style-fish --bpaf-complete-columns=\"$COLUMNS\"
+    if test (commandline --current-process) = (string trim (commandline --current-process))
+        set tmpline $tmpline --bpaf-complete-fish-touch
+    end
+    set tmpline $tmpline (commandline --tokenize --current-process)
+    for opt in ({} $tmpline)
+        echo -E \"$opt\"
+    end
+end
+
+complete --no-files --command {} --arguments '(_{})'
+",
+                            name, name, name, name
+                        );
                     }
                 };
                 std::process::exit(0)
