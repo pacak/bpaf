@@ -60,16 +60,16 @@ mod inner {
         ///
         /// assume a parser consumes this:
         /// ["asm"] -t <NUM>
-        /// and we pass ["asm", "-t", "x"] to it.
+        /// and user passes ["asm", "-t", "x"] to it.
         ///
         /// problematic steps look something like this:
-        /// - "asm" is parsed as expected
-        /// - "-t x" is consumed as expected
-        /// - parsing of "x" fails
+        /// - bpaf parses "asm" expected
+        /// - then it consumes "-t x"
+        /// - then fails to parse "x"
         /// - ParseWith rollbacks the arguments state - "asm" is back
         /// - suggestion looks for something it can complain at and finds "asm"
         ///
-        /// parse/guard failures should "taint" the arguments and disable the suggestion logic
+        /// parse/guard failures should "taint" the arguments and turn off the suggestion logic
         pub(crate) tainted: bool,
 
         #[cfg(feature = "autocomplete")]
@@ -177,7 +177,7 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
-        /// check if completion is enabled, used by construct!
+        /// used by construct macro
         pub fn is_comp(&self) -> bool {
             self.comp.is_some()
         }
@@ -193,7 +193,7 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
-        /// check if completion is enabled
+        /// enable completions, used in real code
         pub fn styled_comp(mut self, touching: bool, style: crate::complete_run::Style) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(touching, style));
             self
@@ -303,32 +303,32 @@ pub(crate) enum ArgType {
 /// takes a possibly non-utf8 string looking like "--name=value" and splits it into bits:
 /// "--" - type, "name" - name, must be representable as utf8, "=" - optional, "value" - flag
 ///
-/// dashes and equals sign are low codepoint values and we look for them literally in a string.
-/// This probably means not supporting dashes with diacritics, but that's a sacrifice I'm willing
-/// to make.
+/// dashes and equals sign are low codepoint values and - can look for them literally in a string.
+/// This probably means not supporting dashes with diacritics, but that's okay
 ///
 /// name must be valid utf8 after conversion and must not include `=`
 ///
 /// argument is optional and can be non valid utf8.
 ///
-/// The idea is to split the OsString into opaque parts by looking only at the parts we are allowed
-/// to and let stdlib to handle the decoding of those parts.
+/// The idea is to split the OsString into opaque parts by looking only at the parts simple parts
+/// and let stdlib to handle the decoding of those parts.
 ///
 /// performance wise this (at least on unix) works some small number percentage slower than the
 /// previous version
 ///
 ///
 /// on supporting -fbar
-/// - ideally we want to support any utf8 character (here `f`) which requires detecting one
+/// - ideally bpaf wants to support any utf8 character (here `f`) which requires detecting one
 ///   out of bytes on unix and utf16 codepoints on windows
-/// - we'll want to store ambigous combo of -f=bar and -f -b -a -r until -f is parsed either as
+/// - bpaf needs to store ambigous combo of -f=bar and -f -b -a -r until user consumes -f either as
 ///   a flag or as an argument and drop -b, -a and -r if it was an argument.
-/// - we want to prevent users from using parsers for -b, -a or -r before parser for -f
+/// - bpaf wants to prevent users from using parsers for -b, -a or -r before parser for -f
+///
 /// Conclusion: possible in theory but adds too much complexity for the value it offers.
 pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
     #[cfg(any(unix, windows))]
     {
-        // OsString are composed from smaller smaller elements - bytes in unix and
+        // OsString are sequences of smaller smaller elements - bytes in unix and
         // possibly invalid utf16 items on windows
         #[cfg(unix)]
         type Elt = u8;
@@ -387,7 +387,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             }
         }
 
-        // keep collecting until we see = or the end
+        // keep collecting until = or the end of the input
         loop {
             match items.next() {
                 Some(EQUALS) => break,
@@ -421,7 +421,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
 pub(crate) fn split_os_argument_fallback(
     input: &std::ffi::OsStr,
 ) -> Option<(ArgType, String, Option<Arg>)> {
-    // for fallback I'm assuming the string must be proper utf8
+    // fallback supports only valid utf8 os strings, matches old behavior
     let string = input.to_str()?;
 
     let mut chars = string.chars();

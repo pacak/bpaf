@@ -570,7 +570,7 @@ impl<T> OptionParser<T> {
     ///
     /// # Panics
     ///
-    /// It will panic if any invariant is broken.
+    /// `check_invariants` indicates problems with panic
     pub fn check_invariants(&self, _cosmetic: bool) {
         perform_invariant_check(&self.inner.meta(), true);
     }

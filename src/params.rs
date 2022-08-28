@@ -642,8 +642,9 @@ impl Named {
 /// To parse positional arguments from a command line you should place parsers for all your
 /// named values before parsers for positional items and commands. In derive API fields parsed as
 /// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// if positional fields or commands are nested inside other structures: such structures should
-/// go to the end as well.
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and positional `pos` parsers
 /// ```rust
@@ -700,8 +701,9 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
 /// To parse positional arguments from a command line you should place parsers for all your
 /// named values before parsers for positional items and commands. In derive API fields parsed as
 /// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// if positional fields or commands are nested inside other structures: such structures should
-/// go to the end as well.
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and positional `pos` parsers
 /// ```rust
@@ -760,9 +762,10 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// # Important restriction
 /// When parsing command arguments from command lines you should have parsers for all your
 /// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
-/// fields nested inside other structures: such structures should go to the end as well.
-/// Failing to do can result in behavior confusing for the end user.
+/// positional should be at the end of your `struct`/`enum`. Same rule applies
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and a command `command` parsers
 /// ```rust

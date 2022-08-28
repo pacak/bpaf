@@ -201,17 +201,17 @@
 //! This set of restrictions allows to extract information about the structure of the computations
 //! to generate help and overall results in less confusing enduser experience
 //!
-//! `bpaf` will not perform your parameter names validation, in fact having multiple parameters
+//! `bpaf` performs no parameter names validation, in fact having multiple parameters
 //! with the same name is fine and you can combine them as alternatives and performs no fallback
 //! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
 //! alternatives inside the macro: parser that consumes the left most available argument on a
 //! command line wins, if this is the same - left most parser wins. So to parse a parameter
-//! `--test` that can be used both as a [`switch`](Named::switch) and as an
-//! [`argument`](Named::argument) you should put the argument one first.
+//! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
+//! should put the argument one first.
 //!
-//! `bpaf` does not support short flag names followed by immediate values: while this `-fbar` could
-//! mean `-f` followed by a parameter `"bar"` - this is not supported. Values must be separated by
-//! either a space or `=`. If value starts with a dash - it must be separated by `=` only.
+//! `bpaf` doesn't support short flag names followed by immediate values: while this `-fbar` could
+//! mean `-f` followed by a parameter `"bar"` - this isn't supported. `bpaf` supports only
+//! `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
 //!
 //! You must place [`positional`] and [`positional_os`] items at the end of a structure
 //! in derive API or consume them as last arguments in derive API.
@@ -290,13 +290,13 @@
 //! # Cargo features
 //!
 //! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
-//!   need to enable it to use derive API, disabled by default.
+//!   need to enable it to use derive API. Disabled by default.
 //!
 //! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
 //! enable it for local development unless you want to build your own copy of the documentation
 //! (<https://github.com/rust-lang/cargo/issues/8905>)
 //!
-//! - `batteries`: helpers implemented with public `bpaf` API
+//! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
 //!
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 
@@ -1385,13 +1385,12 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for shell.
     /// Takes a function as a parameter that tries to complete partial input to full one with
-    /// optional description. If input parameter is missing - value was not parsed yet - it's best
+    /// optional description. If input parameter is missing - value isn't available yet - it's best
     /// to place them where parsing can't fail - right after [`argument`](Named::argument) or
     /// [`positional`].
     ///
-    /// [`OsString`](std::ffi::OsString) completion for strings that can't be represented in
-    /// utf8 is not supported: `bpaf` will have to print it to console and for non-string values
-    /// it's not possible (accurately).
+    /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
+    /// print completions to console and for non-string values it's not possible (accurately).
     ///
     /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
     ///

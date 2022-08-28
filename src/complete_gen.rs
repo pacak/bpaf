@@ -2,25 +2,17 @@
 // static: flag names, command names
 // dynamic: argument values, positional item values
 //
-// for static when running we collect any parser that fails
+// for static when running collect any parser that fails
 //
-// OR:
-//   when one branch succeeds - the other is ignored,
-//   when both fail - variants are combined
-// AND:
-//   usual logic but shortcircuit is removed
+// OR: combine completions
+// AND: usual logic without shortcircuits
 //
-// for static completion it is enough to collect items
-// for argument completion - only one argument should be active at once
+// for static completion it's enough to collect items
+// for argument completion - only one argument(Comp::Meta) should be active at once
 //
-// for rendering prefer longer version of names unless specified ?
+// for rendering prefer longer version of names
 //
-// short names should be extended to the long versions
-
-// problem
-//
-// we want to keep completion info from selection of commands or simple parsers
-// but not from complex ones
+// complete short names to long names if possible
 
 use crate::{
     args::Arg,
@@ -86,7 +78,7 @@ pub(crate) enum Comp {
     Meta {
         meta: &'static str,
         depth: usize,
-        /// true for argument metas, at this moment using other completion items is not valid
+        /// true for argument metas, at this moment using other completion items isn't valid
         /// false for positional metas - other items are valid
         is_arg: bool,
         help: Option<String>,
@@ -150,7 +142,7 @@ impl Args {
                 None
             };
             if comp.touching && pair.is_none() {
-                // can't do much completing with non-utf8 values since we must print them to stdout
+                // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
                 return Err(Error::Stdout("\n".to_string()));
             }
 
