@@ -1,7 +1,10 @@
 //!
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{args::Word, complete_gen::Comp, info::Error, Args, Meta, Parser};
+use crate::{args::Word, info::Error, Args, Meta, Parser};
+
+#[cfg(feature = "autocomplete")]
+use crate::complete_gen::Comp;
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
@@ -121,7 +124,9 @@ where
     B: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
+        #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
             std::mem::swap(&mut comp_items, &mut comp.comps);
         }
@@ -140,6 +145,7 @@ where
         match Ord::cmp(&args_a.depth, &args_b.depth) {
             std::cmp::Ordering::Less => {
                 std::mem::swap(args, &mut args_b);
+                #[cfg(feature = "autocomplete")]
                 if let Some(comp) = &mut args.comp {
                     comp.comps.extend(comp_items);
                 }
@@ -148,6 +154,7 @@ where
             std::cmp::Ordering::Equal => {}
             std::cmp::Ordering::Greater => {
                 std::mem::swap(args, &mut args_a);
+                #[cfg(feature = "autocomplete")]
                 if let Some(comp) = &mut args.comp {
                     comp.comps.extend(comp_items);
                 }
@@ -155,6 +162,7 @@ where
             }
         }
 
+        #[cfg(feature = "autocomplete")]
         if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
             comp_items.extend(a.comps.drain(0..));
             comp_items.extend(b.comps.drain(0..));
@@ -185,6 +193,7 @@ where
             }
         };
 
+        #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
             comp.comps.extend(comp_items);
         }
@@ -365,6 +374,7 @@ where
         Ok(val) => Ok(Some(val)),
         Err(err) => {
             std::mem::swap(args, &mut orig_args);
+            #[cfg(feature = "autocomplete")]
             if orig_args.comp.is_some() {
                 std::mem::swap(&mut args.comp, &mut orig_args.comp);
             }
@@ -490,12 +500,17 @@ where
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // stash old
+        #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
+
+        #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
             std::mem::swap(&mut comp_items, &mut comp.comps);
         }
 
         let res = self.inner.eval(args);
+
+        #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
             // restore old, now metavars added by inner parser, if any, are in comp_items
             std::mem::swap(&mut comp_items, &mut comp.comps);

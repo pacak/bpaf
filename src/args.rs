@@ -72,6 +72,7 @@ mod inner {
         /// parse/guard failures should "taint" the arguments and disable the suggestion logic
         pub(crate) tainted: bool,
 
+        #[cfg(feature = "autocomplete")]
         pub(crate) comp: Option<crate::complete_gen::Complete>,
     }
 
@@ -124,6 +125,7 @@ mod inner {
                 head: usize::MAX,
                 depth: 0,
                 tainted: false,
+                #[cfg(feature = "autocomplete")]
                 comp: None,
             }
         }
@@ -174,11 +176,19 @@ mod inner {
             }
         }
 
+        #[cfg(feature = "autocomplete")]
         /// check if completion is enabled, used by construct!
         pub fn is_comp(&self) -> bool {
             self.comp.is_some()
         }
 
+        #[cfg(not(feature = "autocomplete"))]
+        /// check if completion is enabled, used by construct!
+        pub const fn is_comp(&self) -> bool {
+            false
+        }
+
+        #[cfg(feature = "autocomplete")]
         /// enable completions bash style
         pub fn set_comp(mut self, touching: bool) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(
@@ -188,6 +198,7 @@ mod inner {
             self
         }
 
+        #[cfg(feature = "autocomplete")]
         /// check if completion is enabled
         pub fn styled_comp(mut self, touching: bool, style: crate::complete_run::Style) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(touching, style));
@@ -544,6 +555,7 @@ impl Args {
         self.items_iter().next().map(|x| x.1)
     }
 
+    #[cfg(feature = "autocomplete")]
     pub(crate) fn touching_last_remove(&self) -> bool {
         if let Some(comp) = &self.comp {
             self.items.len() - 1 == self.current.unwrap_or(usize::MAX) && comp.touching

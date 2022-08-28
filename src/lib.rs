@@ -279,7 +279,9 @@ pub mod _derive_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _faq;
 mod args;
+#[cfg(feature = "autocomplete")]
 mod complete_gen;
+#[cfg(feature = "autocomplete")]
 mod complete_run;
 mod info;
 mod item;
@@ -302,10 +304,12 @@ use std::marker::PhantomData;
 pub use structs::PCon;
 
 use structs::{
-    ParseComp, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
+    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
 };
+
+#[cfg(feature = "autocomplete")]
+use structs::ParseComp;
 
 #[doc(inline)]
 pub use crate::args::Args;
@@ -1341,6 +1345,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    #[cfg(feature = "autocomplete")]
     fn comp<F>(self, op: F) -> ParseComp<Self, F>
     where
         Self: Sized + Parser<T>,

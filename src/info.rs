@@ -137,8 +137,10 @@ impl<T> OptionParser<T> {
             }
         }
 
+        #[cfg(feature = "autocomplete")]
         let args = crate::complete_run::args_with_complete(vec, cvec);
-        // let args = Args::args_from(vec);
+        #[cfg(not(feature = "autocomplete"))]
+        let args = Args::args_from(vec);
 
         match self.run_inner(args) {
             Ok(t) => t,
@@ -219,6 +221,7 @@ impl<T> OptionParser<T> {
     pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
         let res = self.inner.eval(args);
+        #[cfg(feature = "autocomplete")]
         args.check_complete()?;
         let err = match res {
             Ok(r) => {

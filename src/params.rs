@@ -949,6 +949,7 @@ impl<T> Parser<T> for Command<T> {
                 args.take_cmd(&tmp)
             })
         {
+            #[cfg(feature = "autocomplete")]
             let touching = args.touching_last_remove();
             args.head = usize::MAX;
             args.depth += 1;
@@ -956,6 +957,7 @@ impl<T> Parser<T> for Command<T> {
             // failure past this point should be preserved in or_else parser
             let res = self.subparser.run_subparser(args);
 
+            #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 if touching {
                     comp.comps.clear();
@@ -967,6 +969,7 @@ impl<T> Parser<T> for Command<T> {
 
             res
         } else {
+            #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 comp.push_item(self.item(), args.depth)
             }
@@ -1020,7 +1023,9 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
+            #[cfg(feature = "autocomplete")]
             let touching = args.touching_last_remove();
+            #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 if touching {
                     comp.push_item(self.item(), args.depth)
@@ -1028,6 +1033,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
             }
             Ok(self.present.clone())
         } else {
+            #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 comp.push_item(self.item(), args.depth)
             }
@@ -1075,6 +1081,7 @@ impl Parser<Word> for BuildArgument {
     fn eval(&self, args: &mut Args) -> Result<Word, Error> {
         match args.take_arg(&self.named) {
             Ok(Some(w)) => {
+                #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
                     if let Some(comp) = &mut args.comp {
                         comp.push_metadata(
@@ -1088,6 +1095,7 @@ impl Parser<Word> for BuildArgument {
                 return Ok(w);
             }
             Err(err) => {
+                #[cfg(feature = "autocomplete")]
                 if args.comp.is_some() {
                     let ix = args
                         .items_iter()
@@ -1113,6 +1121,7 @@ impl Parser<Word> for BuildArgument {
             _ => {}
         }
 
+        #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
             comp.push_item(self.item(), args.depth)
         }
@@ -1166,6 +1175,7 @@ impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_positional_word()? {
             Some(word) => {
+                #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
                     if let Some(comp) = &mut args.comp {
                         comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
@@ -1174,6 +1184,7 @@ impl Parser<OsString> for Positional<OsString> {
                 Ok(word.os)
             }
             None => {
+                #[cfg(feature = "autocomplete")]
                 if let Some(comp) = &mut args.comp {
                     comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
                 }
@@ -1190,6 +1201,7 @@ impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         match args.take_positional_word()? {
             Some(word) => {
+                #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
                     if let Some(comp) = &mut args.comp {
                         comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
@@ -1201,6 +1213,7 @@ impl Parser<String> for Positional<String> {
                 }
             }
             None => {
+                #[cfg(feature = "autocomplete")]
                 if let Some(comp) = &mut args.comp {
                     comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
                 }

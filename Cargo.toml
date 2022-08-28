@@ -27,6 +27,7 @@ cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
 derive = ["bpaf_derive"]
 extradocs = []
 batteries = []
+autocomplete = []
 
 [workspace]
 members = [".", "./bpaf_derive"]
