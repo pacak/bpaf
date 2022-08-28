@@ -488,3 +488,16 @@ fn dynamic_complete_test_4() {
         .unwrap_stdout();
     assert_eq!(r, "Lupusregina\n");
 }
+
+#[test]
+fn static_with_hide() {
+    let a = short('a').switch();
+    let b = short('b').switch().hide();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[]).set_comp(false))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\n");
+}

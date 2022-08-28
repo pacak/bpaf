@@ -103,7 +103,19 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.eval(args)
+        #[cfg(feature = "autocomplete")]
+        let mut comps = Vec::new();
+
+        #[cfg(feature = "autocomplete")]
+        if let Some(comp) = &mut args.comp {
+            std::mem::swap(&mut comps, &mut comp.comps);
+        }
+        let res = self.inner.eval(args);
+        #[cfg(feature = "autocomplete")]
+        if let Some(comp) = &mut args.comp {
+            std::mem::swap(&mut comps, &mut comp.comps);
+        }
+        res
     }
 
     fn meta(&self) -> Meta {
