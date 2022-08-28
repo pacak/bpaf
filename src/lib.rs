@@ -17,7 +17,6 @@
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
-//! - [FAQ](crate::_faq)
 //! - [Batteries included](crate::batteries)
 
 //! # Quick start, derive edition
@@ -276,8 +275,6 @@
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
-#[cfg(feature = "extradocs")]
-pub mod _faq;
 mod args;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
