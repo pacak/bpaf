@@ -47,7 +47,6 @@ done
 
 struct CompOptions {
     columns: Option<usize>,
-    current: Option<usize>,
     style: Style,
 }
 
@@ -58,19 +57,10 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
         .from_str::<usize>()
         .optional();
 
-    let current = long("bpaf-complete-zsh-current")
-        .argument("COLS")
-        .from_str::<usize>()
-        .optional();
     let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
     let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
     let style = construct!([zsh, bash]);
-    construct!(CompOptions {
-        columns,
-        style,
-        current
-    })
-    .to_options()
+    construct!(CompOptions { columns, style }).to_options()
 }
 
 pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
