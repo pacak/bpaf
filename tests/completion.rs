@@ -459,3 +459,32 @@ fn dynamic_complete_test_3() {
         .unwrap_stdout();
     assert_eq!("alpha\nbeta\nbanana\ncat\ndurian\n", r);
 }
+
+#[test]
+fn dynamic_complete_test_4() {
+    fn complete_calculator(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+        let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
+        names
+            .iter()
+            .filter(|item| input.map_or(true, |input| item.starts_with(input)))
+            .map(|item| (*item, Some(*item)))
+            .collect::<Vec<_>>()
+    }
+
+    let parser = long("name")
+        .argument("NAME")
+        .comp(complete_calculator)
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--name"]).set_comp(false))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "Yuri         Yuri\nLupusregina  Lupusregina\nSolution     Solution\nShizu        Shizu\nEntoma       Entoma\n");
+
+    let r = parser
+        .run_inner(Args::from(&["--name", "L"]).set_comp(true))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "Lupusregina\n");
+}

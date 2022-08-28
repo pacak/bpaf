@@ -168,6 +168,7 @@ enum PostprAttr {
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
+    Comp(Ident),
     // used for deriving stuff to express map to convert
     // from OsString to PathBuf... I wonder.
     Tokens(TokenStream),
@@ -187,6 +188,7 @@ impl PostprAttr {
             PostprAttr::Guard(_, _)
             | PostprAttr::Fallback(_)
             | PostprAttr::FallbackWith(_)
+            | PostprAttr::Comp(_)
             | PostprAttr::Hide
             | PostprAttr::GroupHelp(_) => true,
         }
@@ -398,6 +400,11 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
+        } else if input.peek(kw::comp) {
+            input.parse::<kw::comp>()?;
+            let _ = parenthesized!(content in input);
+            let f = content.parse::<Ident>()?;
+            Ok(Self::Comp(f))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
             Ok(Self::Many(None))
@@ -739,6 +746,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
             PostprAttr::Hide => quote!(hide()),
+            PostprAttr::Comp(f) => quote!(comp(#f)),
             PostprAttr::GroupHelp(m) => quote!(group_help(#m)),
         }
         .to_tokens(tokens);
@@ -1163,6 +1171,22 @@ mod tests {
                 .argument("N")
                 .from_str::<u64>()
                 .optional()
+        };
+        assert_eq!(input.to_token_stream().to_string(), output.to_string());
+    }
+
+    #[test]
+    fn optional_argument_with_name_comp() {
+        let input: NamedField = parse_quote! {
+            #[bpaf(argument("N"), comp(magic))]
+            config: Option<u64>
+        };
+        let output = quote! {
+            ::bpaf::long("config")
+                .argument("N")
+                .from_str::<u64>()
+                .optional()
+                .comp(magic)
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }

@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, path::PathBuf};
 
 use crate::{args::Arg, *};
 
@@ -21,9 +21,9 @@ const ZSH_COMPLETER: &str = r#"
 local completions
 local word
 
-meta=( --bpaf-complete-style-zsh --bpaf-complete-columns="$COLUMNS" --bpaf-complete-zsh-current=${CURRENT} )
+meta=( --bpaf-complete-style-zsh --bpaf-complete-columns="$COLUMNS" )
 
-IFS=$'\n' completions=($( "${words[1]}" "${words[1]}"  "${meta[@]}"  "${words[@]:1}" ))
+IFS=$'\n' completions=($( "${words[1]}"  "${meta[@]}"  "${words[@]:1}" ))
 
 for word in $completions; do
   local -a parts
@@ -73,10 +73,19 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
     .to_options()
 }
 
-pub(crate) fn args_with_complete(mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
-    if cvec.is_empty() {
-        return Args::args_from(vec);
-    }
+pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
+    let path = PathBuf::from(os_name);
+    let path = path
+        .file_name()
+        .expect("what sourcery is this, there should be a file name?")
+        .to_str();
+
+    let name = match (path, cvec.is_empty()) {
+        (_, true) | (None, false) => {
+            return Args::args_from(vec);
+        }
+        (Some(name), _) => name,
+    };
 
     let cargs = Args::args_from(cvec);
     match parse_comp_options().run_inner(cargs) {
@@ -87,20 +96,15 @@ pub(crate) fn args_with_complete(mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
                     vec.pop();
                 }
                 let touching = !new_word;
-
-                let args = Args::args_from(vec).styled_comp(touching, comp.style);
-                //                todo!("{:?}", args);
-
-                //                eprintln!("going to run with {:?}", args);
-                args
+                Args::args_from(vec).styled_comp(touching, comp.style)
             } else {
                 match comp.style {
                     Style::Bash => {
                         println!("{}", BASH_COMPLETER);
-                        println!("complete -F _bpaf_dynamic_completion {}", "sample");
+                        println!("complete -F _bpaf_dynamic_completion {}", name);
                     }
                     Style::Zsh => {
-                        println!("#sample");
+                        println!("#compdef {}", name);
                         println!("{}", ZSH_COMPLETER);
                     }
                 };

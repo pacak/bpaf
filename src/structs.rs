@@ -168,7 +168,7 @@ where
             comp_items.extend(b.comps.drain(0..));
         }
 
-        // otherwise we pick based on the left most or successful one
+        // otherwise pick based on the left most or successful one
         let res = match (res_a, res_b) {
             (Ok(a), Ok(b)) => {
                 if args_a.head <= args_b.head {

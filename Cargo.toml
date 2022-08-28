@@ -15,11 +15,11 @@ rust-version = "1.56"
 bpaf_derive = { path = "./bpaf_derive", version = "0.2.0", optional = true }
 
 [dev-dependencies]
-bpaf = { path = ".",  features = ["derive", "extradocs"] }
+bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
 
 
 [package.metadata.docs.rs]
-features = ["derive", "extradocs"]
+features = ["derive", "extradocs", "autocomplete"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
 
 
@@ -28,6 +28,18 @@ derive = ["bpaf_derive"]
 extradocs = []
 batteries = []
 autocomplete = []
+
+[[test]]
+name = "completion"
+required-features = ["autocomplete"]
+
+[[test]]
+name = "derive"
+required-features = ["derive"]
+
+[[example]]
+name = "csample"
+required-features = ["autocomplete"]
 
 [workspace]
 members = [".", "./bpaf_derive"]

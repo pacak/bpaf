@@ -17,7 +17,20 @@ fn main() {
         .help("calculator expression")
         .argument("EXPR")
         .comp(complete_calculator);
-    let parser = construct!(a, b, bb, c).to_options();
+    let parser = construct!(a, b, bb, c)
+        .to_options()
+        .descr("Dynamic autocomplete example")
+        .footer(
+            "\
+Currently bpaf supports bash and zsh
+To use it in bash have this binary compiled and in PATH and run
+
+$ source <(csample --bpaf-complete-style-bash)
+
+To use it in zsh you need to place output of this command in ~/.zsh/_csample
+$ csample --bpaf-complete-style-zsh
+",
+        );
 
     println!("{:?}", parser.run());
 }

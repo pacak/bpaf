@@ -126,7 +126,10 @@ impl<T> OptionParser<T> {
         let mut vec = Vec::new();
         let mut cvec = Vec::new();
 
-        for arg in std::env::args_os().skip(1) {
+        let mut args = std::env::args_os();
+        let name = args.next().expect("no command name from args_os?");
+
+        for arg in args {
             if arg
                 .to_str()
                 .map_or(false, |s| s.starts_with("--bpaf-complete-"))
@@ -138,7 +141,7 @@ impl<T> OptionParser<T> {
         }
 
         #[cfg(feature = "autocomplete")]
-        let args = crate::complete_run::args_with_complete(vec, cvec);
+        let args = crate::complete_run::args_with_complete(name, vec, cvec);
         #[cfg(not(feature = "autocomplete"))]
         let args = Args::args_from(vec);
 

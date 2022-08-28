@@ -1715,10 +1715,3 @@ fn reject_fbar() {
         .unwrap_stderr();
     assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
 }
-
-#[test]
-fn todos() {
-    #![allow(unreachable_code)]
-    todo!("go over command/positional restrictions in docs");
-    todo!("get rid of sampel in bash complete");
-}

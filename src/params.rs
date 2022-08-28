@@ -654,7 +654,7 @@ impl Named {
 /// let invalid = construct!(pos(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -712,7 +712,7 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
 /// let invalid = construct!(pos(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -773,7 +773,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// let invalid = construct!(command(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric use
 ///
@@ -953,8 +953,7 @@ impl<T> Parser<T> for Command<T> {
             let touching = args.touching_last_remove();
             args.head = usize::MAX;
             args.depth += 1;
-
-            // failure past this point should be preserved in or_else parser
+            // `or_else` would prefer failures past this point to preceeding levels
             let res = self.subparser.run_subparser(args);
 
             #[cfg(feature = "autocomplete")]
@@ -962,7 +961,7 @@ impl<T> Parser<T> for Command<T> {
                 if touching {
                     comp.comps.clear();
                     comp.push_item(self.item(), args.depth - 1);
-                    // unless we are doing completions and just got the command
+                    // completion for the command word itself goes on the preceeding level
                     args.depth -= 1;
                 }
             }
@@ -1086,7 +1085,7 @@ impl Parser<Word> for BuildArgument {
                     if let Some(comp) = &mut args.comp {
                         comp.push_metadata(
                             self.metavar,
-                            self.named.help.clone(), // help is not actually used for argument metadata
+                            self.named.help.clone(), // help isn't used for argument metadata
                             args.depth,
                             true,
                         );
@@ -1109,7 +1108,7 @@ impl Parser<Word> for BuildArgument {
                         } else {
                             comp.push_metadata(
                                 self.metavar,
-                                self.named.help.clone(), // help is not actually used for argument metadata
+                                self.named.help.clone(), // help isn't used for argument metadata
                                 args.depth,
                                 true,
                             );

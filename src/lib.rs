@@ -12,12 +12,15 @@
 //! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
+//!
+//! `bpaf` supports dynamic shell completion for `bash` and `zsh`.
 
 //! # Quick links
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
 //! - [Batteries included](crate::batteries)
+//! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
 //! # Quick start, derive edition
 //!
@@ -259,17 +262,43 @@
 //!     assert_eq!(help, expected_help);
 //! }
 //! ```
+//!
+//! # Dynamic shell completion
+//!
+//! 1. enable `autocomplete` feature:
+//!    ```toml
+//!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
+//!    ```
+//! 2. decorate [`argument`](Named::argument) and [`positional`] parsers with
+//!    [`comp`](Parser::comp) to autocomplete argument values
+//!
+//! 3. In `bash`: make sure your binary is available in `$PATH` and add this to .bashrc
+//!    ```console
+//!    $ source <(your_program --bpaf-complete-style-bash)
+//!    ```
+//!    or place the output of this command into appropriate directory, such as
+//!    `/etc/bash_completion.d/`
+//!    ```console
+//!    $ your_program --bpaf-complete-style-bash
+//!    ```
+//! 4. Or in `zsh`: make sure your binary is available in `$PATH` and place the output of
+//!    this command into approach directory, such as `/usr/share/zsh/vendor-completions` or `~/.zsh`
+//!    ```console
+//!    $ your_program --bpaf-complete-style-zsh
+//!    ```
 
 //! # Cargo features
 //!
 //! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
-//!   need to enable it to use derive API
+//!   need to enable it to use derive API, disabled by default.
 //!
 //! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
 //! enable it for local development unless you want to build your own copy of the documentation
 //! (<https://github.com/rust-lang/cargo/issues/8905>)
 //!
 //! - `batteries`: helpers implemented with public `bpaf` API
+//!
+//! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 
 #[cfg(feature = "extradocs")]
 pub mod _combinatoric_tutorial;
@@ -486,6 +515,8 @@ macro_rules! construct {
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+
+        #[cfg(feature = "autocomplete")]
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = if args.is_comp() {
                 $fields.eval(args)
@@ -494,6 +525,14 @@ macro_rules! construct {
             };)*
             $(let $fields = $fields?;)*
 
+            args.current = None;
+            ::std::result::Result::Ok::<_, $crate::Error>
+                ($crate::construct!(@make $ty [$($fields)*]))
+        };
+
+        #[cfg(not(feature = "autocomplete"))]
+        let inner = move |args: &mut $crate::Args| {
+            $(let $fields = $fields.eval(args)?;)*
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
@@ -1342,9 +1381,70 @@ pub trait Parser<T> {
     }
     // }}}
 
+    /// Dynamic shell completion
+    ///
+    /// Allows to generate autocompletion information for shell.
+    /// Takes a function as a parameter that tries to complete partial input to full one with
+    /// optional description. If input parameter is missing - value was not parsed yet - it's best
+    /// to place them where parsing can't fail - right after [`argument`](Named::argument) or
+    /// [`positional`].
+    ///
+    /// [`OsString`](std::ffi::OsString) completion for strings that can't be represented in
+    /// utf8 is not supported: `bpaf` will have to print it to console and for non-string values
+    /// it's not possible (accurately).
+    ///
+    /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --name L<TAB>
+    /// $ app --name Lupusregina _
+    /// ```
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn completer(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
+    ///     names
+    ///         .iter()
+    ///         .filter(|name| input.map_or(true, |input| name.starts_with(input)))
+    ///         .map(|name| (*name, None))
+    ///         .collect::<Vec<_>>()
+    /// }
+    ///
+    /// fn name() -> impl Parser<String> {
+    ///     short('n')
+    ///         .long("name")
+    ///         .help("Specify character's name")
+    ///         .argument("Name")
+    ///         .comp(completer)
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn completer(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
+    ///     names
+    ///         .iter()
+    ///         .filter(|name| input.map_or(true, |input| name.starts_with(input)))
+    ///         .map(|name| (*name, None))
+    ///         .collect::<Vec<_>>()
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(argument("NAME"), comp(completer))]
+    ///     name: String,
+    /// }
+    /// ```
     #[cfg(feature = "autocomplete")]
-    fn comp<F>(self, op: F) -> ParseComp<Self, F>
+    fn comp<M, F>(self, op: F) -> ParseComp<Self, F>
     where
+        M: Into<String>,
+        F: Fn(Option<&T>) -> Vec<(M, Option<M>)>,
         Self: Sized + Parser<T>,
     {
         ParseComp { inner: self, op }

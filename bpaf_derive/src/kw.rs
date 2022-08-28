@@ -31,3 +31,4 @@ custom_keyword!(parse);
 custom_keyword!(hide);
 custom_keyword!(group_help);
 custom_keyword!(default);
+custom_keyword!(comp);

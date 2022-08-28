@@ -23,6 +23,13 @@ jobs:
           command: check
           args: --workspace --all-targets
 
+      # with autocomplete
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-targets --features autocomplete
+
+      # without autocomplete
       - uses: actions-rs/cargo@v1
         with:
           command: test

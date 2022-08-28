@@ -58,7 +58,7 @@ mod inner {
 
         /// setting it to true prevents suggester from replacing the results
         ///
-        /// Let's assume a parser that consumes this:
+        /// assume a parser consumes this:
         /// ["asm"] -t <NUM>
         /// and we pass ["asm", "-t", "x"] to it.
         ///
@@ -180,12 +180,6 @@ mod inner {
         /// check if completion is enabled, used by construct!
         pub fn is_comp(&self) -> bool {
             self.comp.is_some()
-        }
-
-        #[cfg(not(feature = "autocomplete"))]
-        /// check if completion is enabled, used by construct!
-        pub const fn is_comp(&self) -> bool {
-            false
         }
 
         #[cfg(feature = "autocomplete")]
