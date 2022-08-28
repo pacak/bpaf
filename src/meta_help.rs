@@ -292,9 +292,13 @@ pub(crate) fn render_help(
         write!(res, "{}\n\n", t)?;
     }
 
-    if let Some(u) = info.usage {
-        write!(res, "{}\n", u)?;
-    } else if let Some(usage) = parser_meta.as_usage_meta() {
+    let auto = parser_meta.as_usage_meta().map(|u| u.to_string());
+    if let Some(custom_usage) = info.usage {
+        match auto {
+            Some(auto_usage) => write!(res, "{}\n", custom_usage.replace("{usage}", &auto_usage)),
+            None => write!(res, "{}\n", custom_usage),
+        }?;
+    } else if let Some(usage) = auto {
         write!(res, "Usage: {}\n", usage)?;
     }
 

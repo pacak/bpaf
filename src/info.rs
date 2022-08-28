@@ -521,7 +521,11 @@ impl<T> OptionParser<T> {
     }
     /// Set custom usage field
     ///
-    /// Custom usage field to use instead of one derived by `bpaf`
+    /// Custom usage field to use instead of one derived by `bpaf`. Custom message should contain
+    /// `"Usage: "` prefix if you want to display one.
+    ///
+    /// Before using it `bpaf` would replace `"{usage}"` tokens inside a custom usage string with
+    /// automatically generated usage.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -530,7 +534,7 @@ impl<T> OptionParser<T> {
     ///    short('s')
     ///        .switch()
     ///        .to_options()
-    ///        .usage("-s")
+    ///        .usage("Usage: my_program: {usage}")
     /// }
     /// ```
     ///

@@ -1715,3 +1715,16 @@ fn reject_fbar() {
         .unwrap_stderr();
     assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
 }
+
+#[test]
+fn custom_usage_override() {
+    let parser = short('p').switch().to_options().usage("Usage: hey {usage}");
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
+    );
+}
