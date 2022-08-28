@@ -89,15 +89,18 @@ pub fn verbose_by_slice<T: Copy + 'static, const N: usize>(
         .map(move |i| items[i as usize])
 }
 
-/// Flag that can be toggled multiple times
+/// Pick last passed value between two different flags
 ///
 /// Usually `bpaf` only allows to parse a single instance for every invocation unless
-/// [`many`](Parser::many) or [`some`](Parser::some) is used. `toggle_flag` consumes
+/// you specify [`many`](Parser::many) or [`some`](Parser::some). `toggle_flag` would consume
 /// multiple instances of two different flags and returns last specified value.
 ///
 /// This function relies on a fact that selection between two different parsers prefers left most
 /// value. This helps to preserve relative order of parsrs.
 /// You can use similar approach to combine multiple flags accounting for their relative order.
+///
+/// Parser returns `Optional<T>` value, you can add a fallback with [`map`](Parser::map) or turn
+/// missing value info failure with a custom error message with [`parse`](Parser::parse).
 ///
 /// # Example
 /// ```console

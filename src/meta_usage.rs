@@ -44,17 +44,16 @@ pub(crate) fn collect_usage_meta(
                 .iter()
                 .filter_map(|x| {
                     let mut this_pos = false;
-                    let umeta = collect_usage_meta(x, true, had_commands, &mut this_pos)?;
-                    if *is_pos && !this_pos {
-                        panic!(
-                            "bpaf usage BUG: all positional and command items must be placed in the right
-                            most position of the structure or tuple they are in but {} breaks this rule. \
-                            See bpaf documentation for `positional` and `positional_os` for details.",
-                            umeta
-                        )
-                    }
+                    let usage_meta = collect_usage_meta(x, true, had_commands, &mut this_pos)?;
+                    assert!(!*is_pos || this_pos,
+                        "bpaf usage BUG: all positional and command items must be placed in the right \
+                        most position of the structure or tuple they are in but {} breaks this rule. \
+                        See bpaf documentation for `positional` and `positional_os` for details.",
+                        usage_meta
+                    );
+
                     *is_pos |= this_pos;
-                    Some(umeta)
+                    Some(usage_meta)
                 })
                 .collect::<Vec<_>>();
             match items.len() {

@@ -957,6 +957,7 @@ impl<T> Parser<T> for Command<T> {
             args.head = usize::MAX;
             args.depth += 1;
             // `or_else` would prefer failures past this point to preceeding levels
+            #[allow(clippy::let_and_return)]
             let res = self.subparser.run_subparser(args);
 
             #[cfg(feature = "autocomplete")]

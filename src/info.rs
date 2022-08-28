@@ -124,10 +124,11 @@ impl<T> OptionParser<T> {
         Self: Sized,
     {
         let mut pos_only = false;
-        let mut vec = Vec::new();
-        let mut cvec = Vec::new();
+        let mut arg_vec = Vec::new();
+        let mut complete_vec = Vec::new();
 
         let mut args = std::env::args_os();
+        #[allow(unused_variables)]
         let name = args.next().expect("no command name from args_os?");
 
         for arg in args {
@@ -135,16 +136,16 @@ impl<T> OptionParser<T> {
                 .to_str()
                 .map_or(false, |s| s.starts_with("--bpaf-complete-"))
             {
-                args::push_vec(&mut cvec, arg, &mut pos_only);
+                args::push_vec(&mut complete_vec, arg, &mut pos_only);
             } else {
-                args::push_vec(&mut vec, arg, &mut pos_only);
+                args::push_vec(&mut arg_vec, arg, &mut pos_only);
             }
         }
 
         #[cfg(feature = "autocomplete")]
-        let args = crate::complete_run::args_with_complete(name, vec, cvec);
+        let args = crate::complete_run::args_with_complete(name, arg_vec, complete_vec);
         #[cfg(not(feature = "autocomplete"))]
-        let args = Args::args_from(vec);
+        let args = Args::args_from(arg_vec);
 
         match self.run_inner(args) {
             Ok(t) => t,
@@ -590,7 +591,7 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
             }
         }
         Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
-            perform_invariant_check(x, false)
+            perform_invariant_check(x, false);
         }
         Meta::Item(i) => match i {
             Item::Command { meta, .. } => perform_invariant_check(meta, true),
