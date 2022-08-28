@@ -988,6 +988,7 @@ impl<T> Command<T> {
             name: self.longs[0],
             short: self.shorts.first().copied(),
             help: self.help.clone(),
+            meta: Box::new(self.subparser.inner.meta()),
         }
     }
 }

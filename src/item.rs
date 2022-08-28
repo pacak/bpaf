@@ -1,7 +1,7 @@
 use crate::{Meta, Named};
 
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Item {
     Positional {
         metavar: &'static str,
@@ -11,6 +11,7 @@ pub enum Item {
         name: &'static str,
         short: Option<char>,
         help: Option<String>,
+        meta: Box<Meta>,
     },
     Flag {
         name: ShortLong,

@@ -231,7 +231,12 @@ impl Complete {
             match item {
                 Comp::Item { item, depth: _ } => match item {
                     Item::Positional { metavar, help } => todo!("{:?} {:?}", metavar, help),
-                    Item::Command { name, short, help } => {
+                    Item::Command {
+                        name,
+                        short,
+                        help,
+                        meta: _,
+                    } => {
                         if let Some(long) = cmd_matches(arg, name, *short) {
                             items.push(ShowComp {
                                 subst: long.to_string(),

@@ -103,6 +103,7 @@ pub(crate) fn collect_usage_meta(
                 name: _,
                 help: _,
                 short: _,
+                meta: _,
             } => {
                 *is_pos = true;
                 if *had_commands {

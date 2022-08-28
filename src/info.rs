@@ -6,6 +6,7 @@ use std::marker::PhantomData;
 use crate::{
     args::{self, Args},
     meta_help::render_help,
+    meta_usage::collect_usage_meta,
     params::short,
     Command, Meta, ParseFailure, Parser,
 };
@@ -550,6 +551,52 @@ impl<T> OptionParser<T> {
         T: 'static,
     {
         crate::params::command(name, self)
+    }
+
+    /// Check the invariants `bpaf` relies on for normal operations
+    ///
+    /// Takes a parameter whether to check for cosmetic invariants or not
+    /// (max help width exceeding 120 symbols, etc), currently not in use
+    ///
+    /// Best used as part of your test suite:
+    /// ```no_run
+    /// # use bpaf::*;
+    /// #[test]
+    /// fn check_options() {
+    /// # let options = || short('p').switch().to_options();
+    ///     options().check_invariants(false)
+    /// }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// It will panic if any invariant is broken.
+    pub fn check_invariants(&self, _cosmetic: bool) {
+        perform_invariant_check(&self.inner.meta(), true);
+    }
+}
+
+fn perform_invariant_check(meta: &Meta, fresh: bool) {
+    use crate::item::Item;
+    let mut had_commands = false;
+    let mut is_pos = false;
+    if fresh {
+        collect_usage_meta(meta, true, &mut had_commands, &mut is_pos);
+    }
+    match meta {
+        Meta::And(xs) | Meta::Or(xs) => {
+            for i in xs.iter() {
+                perform_invariant_check(i, false);
+            }
+        }
+        Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
+            perform_invariant_check(x, false)
+        }
+        Meta::Item(i) => match i {
+            Item::Command { meta, .. } => perform_invariant_check(meta, true),
+            Item::Positional { .. } | Item::Flag { .. } | Item::Argument { .. } => {}
+        },
+        Meta::Skip => {}
     }
 }
 

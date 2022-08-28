@@ -265,6 +265,8 @@
 //!        pub user: String
 //!    }
 //!    ```
+//!
+//! 7. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
 #[allow(unused_imports)]
 use crate::*;

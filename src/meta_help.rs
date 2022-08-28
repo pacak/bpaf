@@ -63,7 +63,12 @@ impl<'a> HelpItems<'a> {
                         });
                     }
                 }
-                crate::item::Item::Command { name, short, help } => {
+                crate::item::Item::Command {
+                    name,
+                    short,
+                    help,
+                    meta: _,
+                } => {
                     self.cmds.push(HelpItem::Command {
                         name,
                         short: *short,
@@ -213,7 +218,12 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 metavar,
                 help: help.as_deref(),
             },
-            crate::item::Item::Command { name, short, help } => Self::Command {
+            crate::item::Item::Command {
+                name,
+                short,
+                help,
+                meta: _,
+            } => Self::Command {
                 name,
                 short: *short,
                 help: help.as_deref(),
