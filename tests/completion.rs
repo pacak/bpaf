@@ -540,3 +540,33 @@ fn static_with_fallback_and_hide() {
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 }
+
+#[test]
+fn csample_mystery() {
+    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+        let items = ["alpha", "beta", "banana", "cat", "durian"];
+        items
+            .iter()
+            .filter(|item| item.starts_with(input))
+            .map(|item| (*item, None))
+            .collect::<Vec<_>>()
+    }
+
+    let a = short('a').long("avocado").help("Use avocado").switch();
+    let b = short('b').long("banana").help("Use banana").switch();
+    let bb = long("bananananana").help("I'm Batman").switch();
+    let c = long("calculator")
+        .help("calculator expression")
+        .argument("EXPR")
+        .complete(complete_calculator);
+    let parser = construct!(a, b, bb, c)
+        .to_options()
+        .descr("Dynamic autocomplete example")
+        .footer("footer");
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--avocado            Use avocado\n--banana             Use banana\n--bananananana       I'm Batman\n--calculator <EXPR>  calculator expression\n");
+}

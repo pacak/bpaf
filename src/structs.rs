@@ -523,11 +523,21 @@ where
             std::mem::swap(&mut comp_items, &mut comp.comps);
         }
 
-        let res = self.inner.eval(args)?;
+        let res = self.inner.eval(args);
 
         if let Some(comp) = &mut args.comp {
             // restore old, now metavars added by inner parser, if any, are in comp_items
             std::mem::swap(&mut comp_items, &mut comp.comps);
+
+            if res.is_err() {
+                comp.comps.extend(comp_items);
+                return res;
+            }
+        }
+
+        let res = res?;
+
+        if let Some(comp) = &mut args.comp {
             for ci in comp_items {
                 if ci.is_meta() {
                     for (replacement, description) in (self.op)(&res) {

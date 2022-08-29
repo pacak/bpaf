@@ -22,14 +22,12 @@ fn main() {
         .descr("Dynamic autocomplete example")
         .footer(
             "\
-    Currently bpaf supports bash and zsh
-    To use it in bash have this binary compiled and in PATH and run
-
-    $ source <(csample --bpaf-complete-style-bash)
-
-    To use it in zsh you need to place output of this command in ~/.zsh/_csample
+    bpaf supports dynamic autocompletion for a few shells, make sure your binary is in $PATH
+    and try using one of those this output should go into a file that depends on your shell:
+    $ csample --bpaf-complete-style-bash
     $ csample --bpaf-complete-style-zsh
-    ",
+    $ csample --bpaf-complete-style-fish
+    $ csample --bpaf-complete-style-elvish",
         );
 
     println!("{:?}", parser.run());

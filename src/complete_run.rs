@@ -7,6 +7,7 @@ pub enum Style {
     Bash,
     Zsh,
     Fish,
+    Elvish,
 }
 
 const BASH_COMPLETER: &str = r#"#/usr/bin/env bash
@@ -15,8 +16,20 @@ _bpaf_dynamic_completion()
     IFS=$'\n' read -r -d '' -a COMPREPLY < <(
         "$1" --bpaf-complete-style-bash --bpaf-complete-columns="$COLUMNS" "${COMP_WORDS[@]:1}" && printf '\0'
     )
-}
-"#;
+}"#;
+
+const FISH_COMPLETER: &str = r#"
+function _bpaf_dynamic_completion
+    set -l app (commandline --tokenize --current-process)[1]
+    set -l tmpline --bpaf-complete-style-fish --bpaf-complete-columns="$COLUMNS"
+    set tmpline $tmpline (commandline --tokenize --current-process)[2..-1]
+    if test (commandline --current-process) != (string trim (commandline --current-process))
+        set tmpline $tmpline ""
+    end
+    for opt in ($app $tmpline)
+        echo -E "$opt"
+    end
+end"#;
 
 const ZSH_COMPLETER: &str = r#"
 local completions
@@ -43,12 +56,21 @@ for word in $completions; do
   else
     compadd -f -- $word
   fi
-done
-"#;
+done"#;
+
+const ELVISH_COMPLETER: &str = r#"use str;
+     for line $lines {
+         var @arg = (str:split "\t" $line)
+         try {
+             edit:complex-candidate $arg[0] &display=( printf "%-15s %s" $arg[0] $arg[1] )
+         } catch {
+             edit:complex-candidate $line
+         }
+     }
+}"#;
 
 struct CompOptions {
     columns: Option<usize>,
-    fish_touch: bool,
     style: Style,
 }
 
@@ -58,21 +80,16 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
         .argument("COLS")
         .from_str::<usize>()
         .optional();
-    let fish_touch = long("bpaf-complete-fish-touch").switch();
 
     let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
     let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
     let fish = long("bpaf-complete-style-fish").req_flag(Style::Fish);
-    let style = construct!([zsh, bash, fish]);
-    construct!(CompOptions {
-        columns,
-        fish_touch,
-        style
-    })
-    .to_options()
+    let elvish = long("bpaf-complete-style-elvish").req_flag(Style::Elvish);
+    let style = construct!([zsh, bash, fish, elvish]);
+    construct!(CompOptions { columns, style }).to_options()
 }
 
-pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
+pub(crate) fn args_with_complete(os_name: OsString, vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
     let path = PathBuf::from(os_name);
     let path = path
         .file_name()
@@ -91,19 +108,6 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
             if let Some(_cols) = comp.columns {
-                let new_word = vec.last() == Some(&args::word(OsString::new()));
-                if new_word {
-                    vec.pop();
-                }
-                let touching = match comp.style {
-                    Style::Bash | Style::Zsh => !new_word,
-                    Style::Fish => comp.fish_touch,
-                };
-
-                if !touching {
-                    vec.push(args::word(OsString::new()));
-                }
-
                 Args::args_from(vec).styled_comp(comp.style)
             } else {
                 match comp.style {
@@ -116,23 +120,13 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
                         println!("{}", ZSH_COMPLETER);
                     }
                     Style::Fish => {
-                        println!(
-                            "\
-function _{}
-    set -l tmpline --bpaf-complete-style-fish --bpaf-complete-columns=\"$COLUMNS\"
-    if test (commandline --current-process) = (string trim (commandline --current-process))
-        set tmpline $tmpline --bpaf-complete-fish-touch
-    end
-    set tmpline $tmpline (commandline --tokenize --current-process)[2..-1]
-    for opt in ({} $tmpline)
-        echo -E \"$opt\"
-    end
-end
-
-complete --no-files --command {} --arguments '(_{})'
-",
-                            name, name, name, name
-                        );
+                        println!("{}", FISH_COMPLETER);
+                        println!( "complete --no-files --command {} --arguments '(_bpaf_dynamic_completion)'", name);
+                    }
+                    Style::Elvish => {
+                        println!("set edit:completion:arg-completer[{}] = {{ |@args| var args = $args[1..];", name);
+                        println!("     var @lines = ( {} --bpaf-complete-style-zsh --bpaf-complete-columns=0 $@args );", name);
+                        println!("{}", ELVISH_COMPLETER);
                     }
                 };
                 std::process::exit(0)

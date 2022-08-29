@@ -278,17 +278,25 @@
 //! 3. Depending on your shell generate appropriate completion file and place it to whereever your
 //!    shell is going to look for it, name of the file should correspond in some way to name of
 //!    your program. Consult manual for your shell for the location and named conventions:
-//!    1. **bash**
+//!    1. **bash**: for the first `bpaf` completion you need to install the whole script
 //!        ```console
 //!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
 //!        ```
-//!    2. **zsh** - note `_` at the beginning of the filename
+//!        but since the script doesn't depend on a program name - it's enough to do this
+//!        ```console
+//!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
+//!        ```
+//!    2. **zsh**: note `_` at the beginning of the filename
 //!       ```console
 //!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
 //!       ```
 //!    3. **fish**
 //!       ```console
 //!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+//!       ```
+//!    4. **elvish** - not sure where to put it, documentation is a bit cryptic
+//!       ```console
+//!       $ your_program --bpaf-complete-style-elvish
 //!       ```
 //! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
 //!    upgrade: generated completion files contain only instructions how to ask your program for

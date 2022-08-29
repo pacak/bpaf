@@ -266,18 +266,23 @@ Usage --user <ARG>
 	```
 	
 	
- 1. Decorate [`argument`][__link11] and [`positional`][__link12] parsers with [`comp`][__link13] to autocomplete argument values
+ 1. Decorate [`argument`][__link11] and [`positional`][__link12] parsers with [`complete`][__link13] to autocomplete argument values
 	
 	
  1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
 	
-	 1. **bash**
+	 1. **bash**: for the first `bpaf` completion you need to install the whole script
 		```console
 		$ your_program --bpaf-complete-style-bash >> ~/.bash_completion
 		```
 		
+		but since the script doesn’t depend on a program name - it’s enough to do this
+		```console
+		echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
+		```
 		
-	 1. **zsh** - note `_` at the beginning of the filename
+		
+	 1. **zsh**: note `_` at the beginning of the filename
 		```console
 		$ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
 		```
@@ -286,6 +291,12 @@ Usage --user <ARG>
 	 1. **fish**
 		```console
 		$ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+		```
+		
+		
+	 1. **elvish** - not sure where to put it, documentation is a bit cryptic
+		```console
+		$ your_program --bpaf-complete-style-elvish
 		```
 		
 		
@@ -315,13 +326,13 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGyxEgtdxq65qGxv121-an4xAG9VNQ55j6fwEG2JJKLUFMH7PYWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMQ
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG4LTiaP6Z324G-CdWPC2FoZLG1q5lULhQgeOG8oIsl2PQlwZYWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMQ
  [__link0]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_combinatoric_tutorial
  [__link10]: https://docs.rs/bpaf/0.5.4/bpaf/?search=info::OptionParser::run_inner
  [__link11]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument
  [__link12]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
- [__link13]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::comp
+ [__link13]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::complete
  [__link14]: https://crates.io/crates/bpaf_derive/0.2.1
  [__link2]: https://docs.rs/bpaf/0.5.4/bpaf/?search=batteries
  [__link3]: https://github.com/pacak/bpaf/discussions/categories/q-a
