@@ -282,7 +282,7 @@
 //!        ```console
 //!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
 //!        ```
-//!    2. **zsh** - note `_` at the beginning of the file name
+//!    2. **zsh** - note `_` at the beginning of the filename
 //!       ```console
 //!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
 //!       ```
@@ -1394,9 +1394,9 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for shell.
     /// Takes a function as a parameter that tries to complete partial input to full one with
-    /// optional description. If input parameter is missing - value isn't available yet - it's best
-    /// to place them where parsing can't fail - right after [`argument`](Named::argument) or
-    /// [`positional`].
+    /// optional description. `bpaf` would substitute current positional with an empty string
+    /// if a value isn't available yet so it's best to run `complete` where parsing can't fail:
+    /// right after [`argument`](Named::argument) or [`positional`], but this isn't enforced.
     ///
     /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
     /// print completions to console and for non-string values it's not possible (accurately).
