@@ -13,7 +13,7 @@ const BASH_COMPLETER: &str = r#"#/usr/bin/env bash
 _bpaf_dynamic_completion()
 {
     IFS=$'\n' read -r -d '' -a COMPREPLY < <(
-        "$1" --bpaf-complete-style-bash --bpaf-complete-columns="$COLUMNS" "${COMP_WORDS[@]}" && printf '\0'
+        "$1" --bpaf-complete-style-bash --bpaf-complete-columns="$COLUMNS" "${COMP_WORDS[@]:1}" && printf '\0'
     )
 }
 "#;
@@ -87,6 +87,7 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
     };
 
     let cargs = Args::args_from(cvec);
+
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
             if let Some(_cols) = comp.columns {
@@ -99,7 +100,11 @@ pub(crate) fn args_with_complete(os_name: OsString, mut vec: Vec<Arg>, cvec: Vec
                     Style::Fish => comp.fish_touch,
                 };
 
-                Args::args_from(vec).styled_comp(touching, comp.style)
+                if !touching {
+                    vec.push(args::word(OsString::new()));
+                }
+
+                Args::args_from(vec).styled_comp(comp.style)
             } else {
                 match comp.style {
                     Style::Bash => {
@@ -118,7 +123,7 @@ function _{}
     if test (commandline --current-process) = (string trim (commandline --current-process))
         set tmpline $tmpline --bpaf-complete-fish-touch
     end
-    set tmpline $tmpline (commandline --tokenize --current-process)
+    set tmpline $tmpline (commandline --tokenize --current-process)[2..-1]
     for opt in ({} $tmpline)
         echo -E \"$opt\"
     end

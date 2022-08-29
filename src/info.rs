@@ -127,6 +127,8 @@ impl<T> OptionParser<T> {
         let mut arg_vec = Vec::new();
         let mut complete_vec = Vec::new();
 
+        //eprintln!("{:?}", std::env::args_os().collect::<Vec<_>>());
+
         let mut args = std::env::args_os();
         #[allow(unused_variables)]
         let name = args.next().expect("no command name from args_os?");
@@ -146,6 +148,8 @@ impl<T> OptionParser<T> {
         let args = crate::complete_run::args_with_complete(name, arg_vec, complete_vec);
         #[cfg(not(feature = "autocomplete"))]
         let args = Args::args_from(arg_vec);
+
+        //        eprintln!("args: {:?}", args);
 
         match self.run_inner(args) {
             Ok(t) => t,
@@ -226,8 +230,12 @@ impl<T> OptionParser<T> {
     pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
         let res = self.inner.eval(args);
+        if let Err(Error::Stdout(_)) = &res {
+            return res;
+        }
         #[cfg(feature = "autocomplete")]
         args.check_complete()?;
+
         let err = match res {
             Ok(r) => {
                 if let Err(err) = check_unexpected(args) {

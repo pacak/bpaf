@@ -186,9 +186,8 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// enable completions bash style
-        pub fn set_comp(mut self, touching: bool) -> Self {
+        pub fn set_comp(mut self) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(
-                touching,
                 crate::complete_run::Style::Bash,
             ));
             self
@@ -196,8 +195,8 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// enable completions, used in real code
-        pub fn styled_comp(mut self, touching: bool, style: crate::complete_run::Style) -> Self {
-            self.comp = Some(crate::complete_gen::Complete::new(touching, style));
+        pub fn styled_comp(mut self, style: crate::complete_run::Style) -> Self {
+            self.comp = Some(crate::complete_gen::Complete::new(style));
             self
         }
     }
@@ -553,11 +552,7 @@ impl Args {
 
     #[cfg(feature = "autocomplete")]
     pub(crate) fn touching_last_remove(&self) -> bool {
-        if let Some(comp) = &self.comp {
-            self.items.len() - 1 == self.current.unwrap_or(usize::MAX) && comp.touching
-        } else {
-            false
-        }
+        self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
     }
 }
 

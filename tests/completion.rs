@@ -1,5 +1,4 @@
 use bpaf::*;
-
 #[test]
 fn static_complete_test_1() {
     let a = short('a').long("avocado").help("Use avocado").switch();
@@ -11,7 +10,7 @@ fn static_complete_test_1() {
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(true))
+        .run_inner(Args::from(&["--"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -25,19 +24,19 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["-vvvv"]).set_comp(true))
+        .run_inner(Args::from(&["-vvvv"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-vvvv\n");
 
     let r = parser
-        .run_inner(Args::from(&["-v"]).set_comp(true))
+        .run_inner(Args::from(&["-v"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
 
     let r = parser
-        .run_inner(Args::from(&["--b"]).set_comp(true))
+        .run_inner(Args::from(&["--b"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -49,14 +48,14 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--a"]).set_comp(true))
+        .run_inner(Args::from(&["--a"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
 
     assert_eq!(r, "--avocado\n");
 
     let r = parser
-        .run_inner(Args::from(&["--banana"]).set_comp(true))
+        .run_inner(Args::from(&["--banana"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -68,16 +67,43 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--bananan"]).set_comp(true))
+        .run_inner(Args::from(&["--bananan"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--bananananana\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b"]).set_comp(true))
+        .run_inner(Args::from(&["-b"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--banana\n");
+}
+
+#[test]
+fn short_command_alias() {
+    let a = long("potato")
+        .argument("A")
+        .to_options()
+        .command("cmd_a")
+        .short('a');
+    let b = long("potato")
+        .argument("A")
+        .to_options()
+        .command("cmd_b")
+        .short('b');
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["a"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "cmd_a\n");
+
+    let r = parser
+        .run_inner(Args::from(&["b", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--potato\n");
 }
 
 #[test]
@@ -103,13 +129,19 @@ fn static_complete_test_2() {
     let parser = construct!([a, b, c]).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["check"]).set_comp(true))
+        .run_inner(Args::from(&["check", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--potato\n");
+
+    let r = parser
+        .run_inner(Args::from(&["check"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "check\n");
 
     let r = parser
-        .run_inner(Args::from(&["c"]).set_comp(true))
+        .run_inner(Args::from(&["c"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -121,19 +153,19 @@ clean  clean target dir
     );
 
     let r = parser
-        .run_inner(Args::from(&["c", "--p"]).set_comp(true))
+        .run_inner(Args::from(&["c", "--p"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
 
     let r = parser
-        .run_inner(Args::from(&["x"]).set_comp(true))
+        .run_inner(Args::from(&["x"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -146,16 +178,10 @@ build  build project
     );
 
     let r = parser
-        .run_inner(Args::from(&["ch"]).set_comp(true))
+        .run_inner(Args::from(&["ch"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "check\n");
-
-    let r = parser
-        .run_inner(Args::from(&["check"]).set_comp(false))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "--potato\n");
 }
 
 #[test]
@@ -167,25 +193,25 @@ fn static_complete_test_3() {
     let parser = construct!(ab, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato <P>  po\n--banana <B>  ba\n--durian <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp(true))
+        .run_inner(Args::from(&["-"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato <P>  po\n--banana <B>  ba\n--durian <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(true))
+        .run_inner(Args::from(&["--"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato <P>  po\n--banana <B>  ba\n--durian <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["--d"]).set_comp(true))
+        .run_inner(Args::from(&["--d"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
@@ -198,31 +224,31 @@ fn static_complete_test_4() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(false))
+        .run_inner(Args::from(&["-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(true))
+        .run_inner(Args::from(&["-a"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp(true))
+        .run_inner(Args::from(&["-"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(true))
+        .run_inner(Args::from(&["--"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -239,37 +265,37 @@ fn static_complete_test_5() {
     let parser = construct!(ab, cd).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a", "x"]).set_comp(false))
+        .run_inner(Args::from(&["-a", "x", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-b <B>\n-c <C>\n-d <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(false))
+        .run_inner(Args::from(&["-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(true))
+        .run_inner(Args::from(&["-a"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n-c <C>\n-d <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp(true))
+        .run_inner(Args::from(&["-"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n-c <C>\n-d <D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(true))
+        .run_inner(Args::from(&["--"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -282,43 +308,43 @@ fn static_complete_test_6() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "x"]).set_comp(false))
+        .run_inner(Args::from(&["-a", "x", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(false))
+        .run_inner(Args::from(&["-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(true))
+        .run_inner(Args::from(&["-a"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b"]).set_comp(false))
+        .run_inner(Args::from(&["-b", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b", "x"]).set_comp(false))
+        .run_inner(Args::from(&["-b", "x", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\n-b <B>\n");
@@ -331,13 +357,13 @@ fn static_complete_test_7() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a      switch\n<FILE>  File to use\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(false))
+        .run_inner(Args::from(&["-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<FILE>\n");
@@ -353,25 +379,25 @@ fn static_complete_test_8() {
         .to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "nom\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom"]).set_comp(false))
+        .run_inner(Args::from(&["nom", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom", "-a"]).set_comp(true))
+        .run_inner(Args::from(&["nom", "-a"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom", "-a"]).set_comp(false))
+        .run_inner(Args::from(&["nom", "-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -379,43 +405,43 @@ fn static_complete_test_8() {
 
 #[test]
 fn dynamic_complete_test_1() {
-    fn completer(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
         let items = ["alpha", "beta", "banana", "cat", "durian"];
         items
             .iter()
-            .filter(|item| input.map_or(true, |input| item.starts_with(input)))
+            .filter(|item| item.starts_with(input))
             .map(|item| (*item, None))
             .collect::<Vec<_>>()
     }
 
-    let parser = short('a').argument("ARG").comp(completer).to_options();
+    let parser = short('a').argument("ARG").complete(completer).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a", "b"]).set_comp(true))
+        .run_inner(Args::from(&["-a", "b"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\nbanana\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "be"]).set_comp(true))
+        .run_inner(Args::from(&["-a", "be"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "beta"]).set_comp(true))
+        .run_inner(Args::from(&["-a", "beta"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\n");
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp(false))
+        .run_inner(Args::from(&["-a", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "alpha\nbeta\nbanana\ncat\ndurian\n");
@@ -427,7 +453,7 @@ fn dynamic_complete_test_2() {
 
     // we don't know how to complete "b", compgen in bash returns an empty line, so should we
     let r = parser
-        .run_inner(Args::from(&["-a", "b"]).set_comp(true))
+        .run_inner(Args::from(&["-a", "b"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "b\n");
@@ -435,11 +461,11 @@ fn dynamic_complete_test_2() {
 
 #[test]
 fn dynamic_complete_test_3() {
-    fn complete_calculator(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
         let items = ["alpha", "beta", "banana", "cat", "durian"];
         items
             .iter()
-            .filter(|item| input.map_or(true, |input| item.starts_with(input)))
+            .filter(|item| item.starts_with(input))
             .map(|item| (*item, None))
             .collect::<Vec<_>>()
     }
@@ -450,11 +476,11 @@ fn dynamic_complete_test_3() {
     let c = long("calculator")
         .help("calculator expression")
         .argument("EXPR")
-        .comp(complete_calculator);
+        .complete(complete_calculator);
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--calculator"]).set_comp(false))
+        .run_inner(Args::from(&["--calculator", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("alpha\nbeta\nbanana\ncat\ndurian\n", r);
@@ -462,28 +488,28 @@ fn dynamic_complete_test_3() {
 
 #[test]
 fn dynamic_complete_test_4() {
-    fn complete_calculator(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
         let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
         names
             .iter()
-            .filter(|item| input.map_or(true, |input| item.starts_with(input)))
+            .filter(|item| item.starts_with(input))
             .map(|item| (*item, Some(*item)))
             .collect::<Vec<_>>()
     }
 
     let parser = long("name")
         .argument("NAME")
-        .comp(complete_calculator)
+        .complete(complete_calculator)
         .to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--name"]).set_comp(false))
+        .run_inner(Args::from(&["--name", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "Yuri         Yuri\nLupusregina  Lupusregina\nSolution     Solution\nShizu        Shizu\nEntoma       Entoma\n");
 
     let r = parser
-        .run_inner(Args::from(&["--name", "L"]).set_comp(true))
+        .run_inner(Args::from(&["--name", "L"]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "Lupusregina\n");
@@ -496,7 +522,7 @@ fn static_with_hide() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
@@ -509,7 +535,7 @@ fn static_with_fallback_and_hide() {
     let parser = construct!(a, b).fallback((false, false)).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[]).set_comp(false))
+        .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");

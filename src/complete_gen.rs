@@ -26,14 +26,12 @@ use std::ffi::OsStr;
 pub(crate) struct Complete {
     pub(crate) style: Style,
     pub(crate) comps: Vec<Comp>,
-    pub(crate) touching: bool,
 }
 
 impl Complete {
-    pub(crate) fn new(touching: bool, style: Style) -> Self {
+    pub(crate) fn new(style: Style) -> Self {
         Self {
             comps: Vec::new(),
-            touching,
             style,
         }
     }
@@ -138,33 +136,31 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
 
 impl Args {
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
-        if let Some(comp) = &self.comp {
-            let pair = if comp.touching {
-                self.items
-                    .iter()
-                    .rev()
-                    .find_map(Arg::and_os_string)
-                    .and_then(pair_to_os_string)
-            } else {
-                None
-            };
-            if comp.touching && pair.is_none() {
-                // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-                return Err(Error::Stdout("\n".to_string()));
-            }
+        let comp = match &self.comp {
+            Some(comp) => comp,
+            None => return Ok(()),
+        };
 
-            if let Some((Arg::Short(..), s)) = pair {
-                if s.chars().count() > 2 {
-                    // don't bother trying to expand -vvvv for now:
-                    // -vvv<TAB> => -vvv _
-                    return Err(Error::Stdout(format!("{}\n", s)));
-                }
-            }
+        let (arg, lit) = self
+            .items
+            .iter()
+            .rev()
+            .find_map(Arg::and_os_string)
+            .and_then(pair_to_os_string)
+            // value must be present here, and can fail only for non-utf8 values
+            // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
+            .ok_or_else(|| Error::Stdout("\n".to_string()))?;
 
-            Err(Error::Stdout(comp.complete(pair.map(|pair| pair.1))?))
-        } else {
-            Ok(())
+        if let Arg::Short(..) = arg {
+            if lit.chars().count() > 2 {
+                // don't bother trying to expand -vvvv for now:
+                // -vvv<TAB> => -vvv _
+                return Err(Error::Stdout(format!("{}\n", lit)));
+            }
         }
+
+        let res = comp.complete(lit)?;
+        Err(Error::Stdout(res))
     }
 }
 
@@ -176,11 +172,10 @@ fn preferred_name(name: ShortLong) -> String {
 }
 
 // check if argument can possibly match the argument passed in and returns a preferrable replacement
-fn arg_matches(arg: Option<&str>, name: ShortLong) -> Option<String> {
-    let arg = match arg {
-        Some(arg) => arg,
-        None => return Some(preferred_name(name)),
-    };
+fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
+    if arg.is_empty() {
+        return Some(preferred_name(name));
+    }
 
     let mut can_match = arg == "-";
 
@@ -207,21 +202,19 @@ fn arg_matches(arg: Option<&str>, name: ShortLong) -> Option<String> {
         None
     }
 }
-fn cmd_matches(arg: Option<&str>, name: &'static str, short: Option<char>) -> Option<&'static str> {
-    match arg {
-        Some(cur) => {
-            if name.starts_with(cur) || short.map_or(false, |s| cur == s.to_string()) {
-                Some(name)
-            } else {
-                None
-            }
-        }
-        None => Some(name),
+fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'static str> {
+    if arg.is_empty() {
+        return Some(name);
+    }
+    if name.starts_with(arg) || short.map_or(false, |s| arg == s.to_string()) {
+        Some(name)
+    } else {
+        None
     }
 }
 
 impl Complete {
-    pub fn complete(&self, arg: Option<&str>) -> Result<String, std::fmt::Error> {
+    pub(crate) fn complete(&self, arg: &str) -> Result<String, std::fmt::Error> {
         let mut items: Vec<ShowComp> = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
@@ -291,9 +284,10 @@ impl Complete {
                     help,
                 } => {
                     if *is_arg {
-                        return Ok(match arg {
-                            Some(val) => format!("{}\n", val),
-                            None => format!("<{}>\n", meta),
+                        return Ok(if arg.is_empty() {
+                            format!("<{}>\n", meta)
+                        } else {
+                            format!("{}\n", arg)
                         });
                     } else {
                         items.push(ShowComp {

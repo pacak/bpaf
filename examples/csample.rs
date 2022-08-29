@@ -1,8 +1,8 @@
-fn complete_calculator(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     let items = ["alpha", "beta", "banana", "cat", "durian"];
     items
         .iter()
-        .filter(|item| input.map_or(true, |input| item.starts_with(input)))
+        .filter(|item| item.starts_with(input))
         .map(|item| (*item, None))
         .collect::<Vec<_>>()
 }
@@ -16,20 +16,20 @@ fn main() {
     let c = long("calculator")
         .help("calculator expression")
         .argument("EXPR")
-        .comp(complete_calculator);
+        .complete(complete_calculator);
     let parser = construct!(a, b, bb, c)
         .to_options()
         .descr("Dynamic autocomplete example")
         .footer(
             "\
-Currently bpaf supports bash and zsh
-To use it in bash have this binary compiled and in PATH and run
+    Currently bpaf supports bash and zsh
+    To use it in bash have this binary compiled and in PATH and run
 
-$ source <(csample --bpaf-complete-style-bash)
+    $ source <(csample --bpaf-complete-style-bash)
 
-To use it in zsh you need to place output of this command in ~/.zsh/_csample
-$ csample --bpaf-complete-style-zsh
-",
+    To use it in zsh you need to place output of this command in ~/.zsh/_csample
+    $ csample --bpaf-complete-style-zsh
+    ",
         );
 
     println!("{:?}", parser.run());

@@ -954,22 +954,22 @@ impl<T> Parser<T> for Command<T> {
         {
             #[cfg(feature = "autocomplete")]
             let touching = args.touching_last_remove();
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                // in completion mode prefer to autocomplete the command name vs going inside the
+                // parser
+                if touching {
+                    comp.comps.clear();
+                    comp.push_item(self.item(), args.depth);
+                    return Err(Error::Missing(Vec::new()));
+                }
+            }
+
             args.head = usize::MAX;
             args.depth += 1;
             // `or_else` would prefer failures past this point to preceeding levels
             #[allow(clippy::let_and_return)]
             let res = self.subparser.run_subparser(args);
-
-            #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                if touching {
-                    comp.comps.clear();
-                    comp.push_item(self.item(), args.depth - 1);
-                    // completion for the command word itself goes on the preceeding level
-                    args.depth -= 1;
-                }
-            }
-
             res
         } else {
             #[cfg(feature = "autocomplete")]
@@ -1108,7 +1108,7 @@ impl Parser<Word> for BuildArgument {
                         .0;
 
                     if let Some(comp) = &mut args.comp {
-                        if args.items.len() - 1 == ix && comp.touching {
+                        if args.items.len() - 1 == ix {
                             comp.push_item(self.item(), args.depth);
                         } else {
                             comp.push_metadata(

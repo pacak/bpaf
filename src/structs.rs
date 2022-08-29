@@ -418,7 +418,6 @@ where
                 break;
             }
         }
-        println!("returning with res {:?}", args);
         Ok(res)
     }
 
@@ -514,7 +513,7 @@ impl<P, T, F, M> Parser<T> for ParseComp<P, F>
 where
     P: Parser<T> + Sized,
     M: Into<String>,
-    F: Fn(Option<&T>) -> Vec<(M, Option<M>)>,
+    F: Fn(&T) -> Vec<(M, Option<M>)>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // stash old
@@ -524,14 +523,14 @@ where
             std::mem::swap(&mut comp_items, &mut comp.comps);
         }
 
-        let res = self.inner.eval(args);
+        let res = self.inner.eval(args)?;
 
         if let Some(comp) = &mut args.comp {
             // restore old, now metavars added by inner parser, if any, are in comp_items
             std::mem::swap(&mut comp_items, &mut comp.comps);
             for ci in comp_items {
                 if ci.is_meta() {
-                    for (replacement, description) in (self.op)(res.as_ref().ok()) {
+                    for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
                             description.map(|s| s.into()),
@@ -543,7 +542,7 @@ where
                 }
             }
         }
-        res
+        Ok(res)
     }
 
     fn meta(&self) -> Meta {

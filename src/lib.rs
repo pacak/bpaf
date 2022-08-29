@@ -273,7 +273,7 @@
 //!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
 //!    ```
 //! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
-//!    [`comp`](Parser::comp) to autocomplete argument values
+//!    [`complete`](Parser::complete) to autocomplete argument values
 //!
 //! 3. Depending on your shell generate appropriate completion file and place it to whereever your
 //!    shell is going to look for it, name of the file should correspond in some way to name of
@@ -1412,11 +1412,11 @@ pub trait Parser<T> {
     /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// fn completer(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
     ///     names
     ///         .iter()
-    ///         .filter(|name| input.map_or(true, |input| name.starts_with(input)))
+    ///         .filter(|name| name.starts_with(input))
     ///         .map(|name| (*name, None))
     ///         .collect::<Vec<_>>()
     /// }
@@ -1426,33 +1426,33 @@ pub trait Parser<T> {
     ///         .long("name")
     ///         .help("Specify character's name")
     ///         .argument("Name")
-    ///         .comp(completer)
+    ///         .complete(completer)
     /// }
     /// ```
     ///
     /// # Derive usage
     /// ```rust
     /// # use bpaf::*;
-    /// fn completer(input: Option<&String>) -> Vec<(&'static str, Option<&'static str>)> {
+    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
     ///     names
     ///         .iter()
-    ///         .filter(|name| input.map_or(true, |input| name.starts_with(input)))
+    ///         .filter(|name| name.starts_with(input))
     ///         .map(|name| (*name, None))
     ///         .collect::<Vec<_>>()
     /// }
     ///
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///     #[bpaf(argument("NAME"), comp(completer))]
+    ///     #[bpaf(argument("NAME"), complete(completer))]
     ///     name: String,
     /// }
     /// ```
     #[cfg(feature = "autocomplete")]
-    fn comp<M, F>(self, op: F) -> ParseComp<Self, F>
+    fn complete<M, F>(self, op: F) -> ParseComp<Self, F>
     where
         M: Into<String>,
-        F: Fn(Option<&T>) -> Vec<(M, Option<M>)>,
+        F: Fn(&T) -> Vec<(M, Option<M>)>,
         Self: Sized + Parser<T>,
     {
         ParseComp { inner: self, op }

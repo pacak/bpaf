@@ -168,7 +168,7 @@ enum PostprAttr {
     Parse(Ident),
     Fallback(Box<Expr>),
     FallbackWith(Box<Expr>),
-    Comp(Ident),
+    Complete(Ident),
     // used for deriving stuff to express map to convert
     // from OsString to PathBuf... I wonder.
     Tokens(TokenStream),
@@ -188,7 +188,7 @@ impl PostprAttr {
             PostprAttr::Guard(_, _)
             | PostprAttr::Fallback(_)
             | PostprAttr::FallbackWith(_)
-            | PostprAttr::Comp(_)
+            | PostprAttr::Complete(_)
             | PostprAttr::Hide
             | PostprAttr::GroupHelp(_) => true,
         }
@@ -400,11 +400,11 @@ impl Parse for PostprAttr {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
-        } else if input.peek(kw::comp) {
-            input.parse::<kw::comp>()?;
+        } else if input.peek(kw::complete) {
+            input.parse::<kw::complete>()?;
             let _ = parenthesized!(content in input);
             let f = content.parse::<Ident>()?;
-            Ok(Self::Comp(f))
+            Ok(Self::Complete(f))
         } else if input.peek(kw::many) {
             input.parse::<kw::many>()?;
             Ok(Self::Many(None))
@@ -746,7 +746,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
             PostprAttr::Tokens(t) => quote!(#t),
             PostprAttr::Hide => quote!(hide()),
-            PostprAttr::Comp(f) => quote!(comp(#f)),
+            PostprAttr::Complete(f) => quote!(complete(#f)),
             PostprAttr::GroupHelp(m) => quote!(group_help(#m)),
         }
         .to_tokens(tokens);
@@ -1176,9 +1176,9 @@ mod tests {
     }
 
     #[test]
-    fn optional_argument_with_name_comp() {
+    fn optional_argument_with_name_complete() {
         let input: NamedField = parse_quote! {
-            #[bpaf(argument("N"), comp(magic))]
+            #[bpaf(argument("N"), complete(magic))]
             config: Option<u64>
         };
         let output = quote! {
@@ -1186,7 +1186,7 @@ mod tests {
                 .argument("N")
                 .from_str::<u64>()
                 .optional()
-                .comp(magic)
+                .complete(magic)
         };
         assert_eq!(input.to_token_stream().to_string(), output.to_string());
     }
