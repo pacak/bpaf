@@ -93,6 +93,13 @@ impl Comp {
             }
         }
     }
+
+    pub(crate) fn is_meta(&self) -> bool {
+        match self {
+            Comp::Item { .. } | Comp::Value { .. } => false,
+            Comp::Meta { .. } => true,
+        }
+    }
 }
 
 #[derive(Debug)]

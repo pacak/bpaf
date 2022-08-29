@@ -121,7 +121,7 @@ impl<'a> HelpItems<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct ShortLongHelp(pub(crate) ShortLong);
+pub(crate) struct ShortLongHelp(ShortLong);
 
 impl ShortLongHelp {
     #[inline]
@@ -251,7 +251,7 @@ impl HelpItem<'_> {
     #[must_use]
     /// Full width for the name, including implicit short flag, space and comma
     /// betwen short and log parameters and metavar variable if present
-    pub(crate) fn full_width(&self) -> usize {
+    fn full_width(&self) -> usize {
         match self {
             HelpItem::Decor { .. } | HelpItem::BlankDecor { .. } => 0,
             HelpItem::Flag { name, .. } => name.full_width(),

@@ -43,7 +43,7 @@ mod inner {
         /// list of remaining arguments, for cheap cloning
         pub(crate) items: Rc<[Arg]>,
         /// removed items, false - present, true - removed
-        pub(crate) removed: Vec<bool>,
+        removed: Vec<bool>,
         remaining: usize,
 
         #[doc(hidden)]
@@ -104,6 +104,8 @@ mod inner {
             for (ix, x) in xs.iter().enumerate() {
                 push_vec(&mut vec, x.clone(), &mut pos_only);
                 if del.is_none() && pos_only {
+                    // keep "--" in the argument list but mark it as removed
+                    // completer uses it to deal with "--" inputs
                     del = Some(ix);
                 }
             }

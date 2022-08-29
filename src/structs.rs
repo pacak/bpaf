@@ -3,9 +3,6 @@ use std::{marker::PhantomData, str::FromStr};
 
 use crate::{args::Word, info::Error, Args, Meta, Parser};
 
-#[cfg(feature = "autocomplete")]
-use crate::complete_gen::Comp;
-
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
 pub struct ParseFallbackWith<T, P, F, E> {
@@ -533,7 +530,7 @@ where
             // restore old, now metavars added by inner parser, if any, are in comp_items
             std::mem::swap(&mut comp_items, &mut comp.comps);
             for ci in comp_items {
-                if let Comp::Meta { .. } = ci {
+                if ci.is_meta() {
                     for (replacement, description) in (self.op)(res.as_ref().ok()) {
                         comp.push_value(
                             replacement.into(),

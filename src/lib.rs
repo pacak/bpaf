@@ -520,7 +520,6 @@ macro_rules! construct {
         { use $crate::Parser; $first $(.or_else($fields))* }
     };
 
-
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);

@@ -540,7 +540,7 @@ impl<T> OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// Not available at the moment
+    /// Not available directly, but you can call `usage` on generated [`OptionParser`].
     #[must_use]
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
