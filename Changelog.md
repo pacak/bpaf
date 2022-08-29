@@ -4,7 +4,7 @@
 - invariant checker
 - more error message improvements
 - non-utf8 support in --foo=bar
-- dynamic shell completion
+- dynamic shell completion: bash, zsh, fish
 - toggle flag battery
 
 ## bpaf [0.5.4] - 2022-08-25
