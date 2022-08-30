@@ -1,13 +1,13 @@
 # bpaf ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue) [![bpaf on crates.io](https://img.shields.io/crates/v/bpaf)](https://crates.io/crates/bpaf) [![bpaf on docs.rs](https://docs.rs/bpaf/badge.svg)](https://docs.rs/bpaf) [![Source Code Repository](https://img.shields.io/badge/Code-On%20github.com-blue)](https://github.com/pacak/bpaf) [![bpaf on deps.rs](https://deps.rs/repo/github/pacak/bpaf/status.svg)](https://deps.rs/repo/github/pacak/bpaf)
 
-Lightweight and flexible command line argument parser with derive and combinator style API
+Lightweight and flexible command line argument parser with derive and combinatoric style API
 
 
 ## Derive and combinatoric API
 
 `bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
 
-`bpaf` supports dynamic shell completion for `bash`, `zsh` and `fish`.
+`bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
 
 ## Quick links
@@ -209,51 +209,6 @@ This set of restrictions allows to extract information about the structure of th
 You must place [`positional`][__link7] and [`positional_os`][__link8] items at the end of a structure in derive API or consume them as last arguments in derive API.
 
 
-## Design non goals: performance
-
-Library aims to optimize for flexibility, reusability and compilation time over runtime performance which means it might perform some additional clones, allocations and other less optimal things. In practice unless you are parsing tens of thousands of different parameters and your app exits within microseconds - this won’t affect you. That said - any actual performance related problems with real world applications is a bug.
-
-
-## More examples
-
-You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
-
-They’re usually documented or at least contain an explanation to important bits and you can see how they work by cloning the repo and running
-
-
-```shell
-$ cargo run --example example_name
-```
-
-
-## Testing your own parsers
-
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link10]
-
-
-```rust
-#[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
-pub struct Options {
-    pub user: String
-}
-
-#[test]
-fn test_my_options() {
-    let help = options()
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
-    let expected_help = "\
-Usage --user <ARG>
-<skip>
-";
-
-    assert_eq!(help, expected_help);
-}
-```
-
-
 ## Dynamic shell completion
 
 `bpaf` implements shell completion to allow to automatically fill in not only flag and command names, but also argument and positional item values.
@@ -266,7 +221,7 @@ Usage --user <ARG>
 	```
 	
 	
- 1. Decorate [`argument`][__link11] and [`positional`][__link12] parsers with [`complete`][__link13] to autocomplete argument values
+ 1. Decorate [`argument`][__link9] and [`positional`][__link10] parsers with [`complete`][__link11] to autocomplete argument values
 	
 	
  1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
@@ -310,12 +265,57 @@ Usage --user <ARG>
 	
 
 
+## Design non goals: performance
+
+Library aims to optimize for flexibility, reusability and compilation time over runtime performance which means it might perform some additional clones, allocations and other less optimal things. In practice unless you are parsing tens of thousands of different parameters and your app exits within microseconds - this won’t affect you. That said - any actual performance related problems with real world applications is a bug.
+
+
+## More examples
+
+You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
+
+They’re usually documented or at least contain an explanation to important bits and you can see how they work by cloning the repo and running
+
+
+```shell
+$ cargo run --example example_name
+```
+
+
+## Testing your own parsers
+
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link13]
+
+
+```rust
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    pub user: String
+}
+
+#[test]
+fn test_my_options() {
+    let help = options()
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected_help = "\
+Usage --user <ARG>
+<skip>
+";
+
+    assert_eq!(help, expected_help);
+}
+```
+
+
 ## Cargo features
 
  - `derive`: adds a dependency on [`bpaf_derive`][__link14] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API. Disabled by default.
 	
 	
- - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>)
+ - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 	
 	
  - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
@@ -326,13 +326,12 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG4LTiaP6Z324G-CdWPC2FoZLG1q5lULhQgeOG8oIsl2PQlwZYWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMQ
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG33lLIO4rfBrG1WvRTEyUQcdGycALd81ueq1G-jPdJeBv7JGYWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMQ
  [__link0]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_derive_tutorial
  [__link1]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.5.4/bpaf/?search=info::OptionParser::run_inner
- [__link11]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument
- [__link12]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
- [__link13]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::complete
+ [__link10]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
+ [__link11]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::complete
+ [__link13]: https://docs.rs/bpaf/0.5.4/bpaf/?search=info::OptionParser::run_inner
  [__link14]: https://crates.io/crates/bpaf_derive/0.2.1
  [__link2]: https://docs.rs/bpaf/0.5.4/bpaf/?search=batteries
  [__link3]: https://github.com/pacak/bpaf/discussions/categories/q-a
@@ -341,3 +340,4 @@ Usage --user <ARG>
  [__link6]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument
  [__link7]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
  [__link8]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional_os
+ [__link9]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument

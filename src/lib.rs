@@ -2,7 +2,7 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![allow(clippy::needless_doctest_main)]
 
-//! Lightweight and flexible command line argument parser with derive and combinator style API
+//! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
 //! # Derive and combinatoric API
 //!
@@ -13,7 +13,7 @@
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
 //!
-//! `bpaf` supports dynamic shell completion for `bash`, `zsh` and `fish`.
+//! `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
 //! # Quick links
 //!
@@ -216,6 +216,47 @@
 //! You must place [`positional`] and [`positional_os`] items at the end of a structure
 //! in derive API or consume them as last arguments in derive API.
 
+//! # Dynamic shell completion
+//!
+//! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
+//! names, but also argument and positional item values.
+//!
+//! 1. Enable `autocomplete` feature:
+//!    ```toml
+//!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
+//!    ```
+//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
+//!    [`complete`](Parser::complete) to autocomplete argument values
+//!
+//! 3. Depending on your shell generate appropriate completion file and place it to whereever your
+//!    shell is going to look for it, name of the file should correspond in some way to name of
+//!    your program. Consult manual for your shell for the location and named conventions:
+//!    1. **bash**: for the first `bpaf` completion you need to install the whole script
+//!        ```console
+//!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
+//!        ```
+//!        but since the script doesn't depend on a program name - it's enough to do this
+//!        ```console
+//!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
+//!        ```
+//!    2. **zsh**: note `_` at the beginning of the filename
+//!       ```console
+//!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
+//!       ```
+//!    3. **fish**
+//!       ```console
+//!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+//!       ```
+//!    4. **elvish** - not sure where to put it, documentation is a bit cryptic
+//!       ```console
+//!       $ your_program --bpaf-complete-style-elvish
+//!       ```
+//! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
+//!    upgrade: generated completion files contain only instructions how to ask your program for
+//!    possible completions and don't change even if options are different.
+//!
+//! 5. Generated scripts rely on your program being accessible in $PATH
+
 //! # Design non goals: performance
 //!
 //! Library aims to optimize for flexibility, reusability and compilation time over runtime
@@ -263,46 +304,6 @@
 //! }
 //! ```
 //!
-//! # Dynamic shell completion
-//!
-//! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
-//! names, but also argument and positional item values.
-//!
-//! 1. Enable `autocomplete` feature:
-//!    ```toml
-//!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
-//!    ```
-//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
-//!    [`complete`](Parser::complete) to autocomplete argument values
-//!
-//! 3. Depending on your shell generate appropriate completion file and place it to whereever your
-//!    shell is going to look for it, name of the file should correspond in some way to name of
-//!    your program. Consult manual for your shell for the location and named conventions:
-//!    1. **bash**: for the first `bpaf` completion you need to install the whole script
-//!        ```console
-//!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
-//!        ```
-//!        but since the script doesn't depend on a program name - it's enough to do this
-//!        ```console
-//!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
-//!        ```
-//!    2. **zsh**: note `_` at the beginning of the filename
-//!       ```console
-//!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
-//!       ```
-//!    3. **fish**
-//!       ```console
-//!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
-//!       ```
-//!    4. **elvish** - not sure where to put it, documentation is a bit cryptic
-//!       ```console
-//!       $ your_program --bpaf-complete-style-elvish
-//!       ```
-//! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
-//!    upgrade: generated completion files contain only instructions how to ask your program for
-//!    possible completions and don't change even if options are different.
-//!
-//! 5. Generated scripts rely on your program being accessible in $PATH
 
 //! # Cargo features
 //!
@@ -311,7 +312,7 @@
 //!
 //! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
 //! enable it for local development unless you want to build your own copy of the documentation
-//! (<https://github.com/rust-lang/cargo/issues/8905>)
+//! (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 //!
 //! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
 //!

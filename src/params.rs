@@ -590,12 +590,27 @@ impl Named {
     /// Argument must contain only valid utf8 characters.
     /// For OS specific encoding see [`argument_os`][Named::argument_os].
     ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_string() -> impl Parser<String> {
     ///     short('n')
     ///         .long("name")
     ///         .argument("NAME")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `bpaf_derive` would automatically pick between `argument` and
+    /// [`argument_os`](Named::argument_os) depending on
+    /// a field type but you can specify it manually to override the metavar value
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short('n'), argument("NAME"))]
+    ///     name: String,
     /// }
     /// ```
     #[must_use]
@@ -608,12 +623,27 @@ impl Named {
     ///
     /// If you prefer to panic on non utf8 encoding see [`argument`][Named::argument].
     ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_osstring() -> impl Parser<std::ffi::OsString> {
     ///     short('n')
     ///         .long("name")
     ///         .argument_os("NAME")
+    /// }
+    /// ```
+    ///
+    ///
+    /// # Derive usage
+    /// `bpaf_derive` would automatically pick between [`argument`](Named::argument) and
+    /// `argument_os` depending on
+    /// a field type but you can specify it manually to override the metavar value
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short('n'), argument_os("NAME"))]
+    ///     name: std::ffi::OsString,
     /// }
     /// ```
     #[must_use]
