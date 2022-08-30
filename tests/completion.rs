@@ -587,3 +587,36 @@ fn csample_mystery() {
         .unwrap_stdout();
     assert_eq!(r, "--avocado            Use avocado\n--banana             Use banana\n--bananananana       I'm Batman\n--calculator <EXPR>  calculator expression\n");
 }
+
+#[test]
+fn only_positionals_after_double_dash() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let c = short('c').switch();
+    let d = positional("D");
+    let parser = construct!(a, b, c, d).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\n");
+
+    let r = parser
+        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\n-c\n<D>\n");
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "--"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--\n");
+
+    let r = parser
+        .run_inner(Args::from(&["--", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "<D>\n");
+}

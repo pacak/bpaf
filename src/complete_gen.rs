@@ -149,16 +149,24 @@ impl Args {
             None => return Ok(()),
         };
 
-        // try to get an item we are completing - must be non-virtual right most one
-        let (arg, lit) = self
+        let mut items = self
             .items
             .iter()
             .rev()
-            .find_map(Arg::and_os_string)
-            .and_then(pair_to_os_string)
-            // value must be present here, and can fail only for non-utf8 values
-            // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
+            .filter_map(Arg::and_os_string)
+            .filter_map(pair_to_os_string);
+
+        // try to get an item we are completing - must be non-virtual right most one
+        // value must be present here, and can fail only for non-utf8 values
+        // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
+        let (arg, lit) = items
+            .next()
             .ok_or_else(|| Error::Stdout("\n".to_string()))?;
+
+        // also if lit is to the _right_ of double dash - it can be positional only - so meta or
+        // value
+
+        let pos_only = items.any(|(_arg, lit)| lit == "--");
 
         if let Arg::Short(..) = arg {
             if lit.chars().count() > 2 {
@@ -168,7 +176,7 @@ impl Args {
             }
         }
 
-        let res = comp.complete(lit)?;
+        let res = comp.complete(lit, arg.is_word(), pos_only)?;
         Err(Error::Stdout(res))
     }
 }
@@ -231,7 +239,12 @@ fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'s
 }
 
 impl Complete {
-    fn complete(&self, arg: &str) -> Result<String, std::fmt::Error> {
+    fn complete(
+        &self,
+        arg: &str,
+        is_word: bool,
+        pos_only: bool,
+    ) -> Result<String, std::fmt::Error> {
         let mut items: Vec<ShowComp> = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
@@ -250,6 +263,9 @@ impl Complete {
                         help,
                         meta: _,
                     } => {
+                        if pos_only {
+                            continue;
+                        }
                         if let Some(long) = cmd_matches(arg, name, *short) {
                             items.push(ShowComp {
                                 subst: long.to_string(),
@@ -260,6 +276,9 @@ impl Complete {
                         }
                     }
                     Item::Flag { name, help } => {
+                        if pos_only {
+                            continue;
+                        }
                         if let Some(long) = arg_matches(arg, *name) {
                             items.push(ShowComp {
                                 subst: long.clone(),
@@ -275,6 +294,9 @@ impl Complete {
                         env: _,
                         help,
                     } => {
+                        if pos_only {
+                            continue;
+                        }
                         if let Some(long) = arg_matches(arg, *name) {
                             items.push(ShowComp {
                                 subst: format!("{} <{}>", long, metavar),
@@ -304,6 +326,10 @@ impl Complete {
                     is_arg,
                     help,
                 } => {
+                    // only words can go in place of meta, not ags/flags
+                    if !is_word {
+                        continue;
+                    }
                     // if all we have is metadata - preserve original user input
                     let mut subst = if arg.is_empty() {
                         format!("<{}>", meta)

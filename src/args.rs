@@ -686,3 +686,11 @@ mod tests {
         assert!(a.is_empty());
     }
 }
+impl Arg {
+    pub(crate) fn is_word(&self) -> bool {
+        match self {
+            Arg::Short(_, _) | Arg::Long(_, _) => false,
+            Arg::Word(_) => true,
+        }
+    }
+}
