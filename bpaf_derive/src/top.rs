@@ -152,13 +152,13 @@ impl Parse for CommandAttr {
                     input.parse::<kw::short>()?;
                     let content;
                     let _ = parenthesized!(content in input);
-                    shorts.push(content.parse::<LitChar>()?)
+                    shorts.push(content.parse::<LitChar>()?);
                 } else if input.peek(token::Comma) && input.peek2(kw::long) {
                     input.parse::<token::Comma>()?;
                     input.parse::<kw::long>()?;
                     let content;
                     let _ = parenthesized!(content in input);
-                    longs.push(content.parse::<LitStr>()?)
+                    longs.push(content.parse::<LitStr>()?);
                 } else {
                     break;
                 }
@@ -273,7 +273,7 @@ impl Parse for Top {
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
                     OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
                     OuterAttr::Version(None) => {
-                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
                     }
                     OuterAttr::Private => {
                         vis = Visibility::Inherited;
@@ -334,7 +334,7 @@ impl Parse for Top {
                     OuterAttr::Generate(n) => name = Some(n.clone()),
                     OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
                     OuterAttr::Version(None) => {
-                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
                     }
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
                     OuterAttr::Private => {
@@ -380,7 +380,7 @@ impl Parse for Top {
                         };
                         branches.push(BParser::Command(cmd_name, cmd_arg, Box::new(oparser)));
                     } else {
-                        branches.push(BParser::Constructor(constr, bra))
+                        branches.push(BParser::Constructor(constr, bra));
                     }
                 } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
                     .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
@@ -498,10 +498,10 @@ impl ToTokens for BParser {
         match self {
             BParser::Command(cmd_name, cmd_attr, oparser) => {
                 let mut names = quote!();
-                for short in cmd_attr.shorts.iter() {
+                for short in &cmd_attr.shorts {
                     names = quote!(#names .short(#short));
                 }
-                for long in cmd_attr.longs.iter() {
+                for long in &cmd_attr.longs {
                     names = quote!(#names .long(#long));
                 }
 

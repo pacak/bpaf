@@ -974,7 +974,7 @@ impl<T> Parser<T> for Command<T> {
         } else {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.push_item(self.item(), args.depth)
+                comp.push_item(self.item(), args.depth);
             }
 
             Err(Error::Missing(vec![self.meta()]))
@@ -1032,14 +1032,14 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 if touching {
-                    comp.push_item(self.item(), args.depth)
+                    comp.push_item(self.item(), args.depth);
                 }
             }
             Ok(self.present.clone())
         } else {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.push_item(self.item(), args.depth)
+                comp.push_item(self.item(), args.depth);
             }
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
@@ -1127,7 +1127,7 @@ impl Parser<Word> for BuildArgument {
 
         #[cfg(feature = "autocomplete")]
         if let Some(comp) = &mut args.comp {
-            comp.push_item(self.item(), args.depth)
+            comp.push_item(self.item(), args.depth);
         }
         if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             args.current = None;
@@ -1187,13 +1187,7 @@ impl Parser<OsString> for Positional<OsString> {
                 }
                 Ok(word.os)
             }
-            None => {
-                #[cfg(feature = "autocomplete")]
-                if let Some(comp) = &mut args.comp {
-                    comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
-                }
-                Err(Error::Missing(vec![self.meta()]))
-            }
+            None => Err(Error::Missing(vec![self.meta()])),
         }
     }
     fn meta(&self) -> Meta {

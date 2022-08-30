@@ -180,12 +180,14 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// used by construct macro
+        #[must_use]
         pub fn is_comp(&self) -> bool {
             self.comp.is_some()
         }
 
         #[cfg(feature = "autocomplete")]
         /// enable completions bash style
+        #[must_use]
         pub fn set_comp(mut self) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(
                 crate::complete_run::Style::Bash,
@@ -195,6 +197,7 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// enable completions, used in real code
+        #[must_use]
         pub fn styled_comp(mut self, style: crate::complete_run::Style) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(style));
             self
@@ -416,7 +419,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
     }
 }
 
-/// similar to split_os_argument but only works for utf8 values, used as a fallback function
+/// similar to [`split_os_argument`] but only works for utf8 values, used as a fallback function
 /// on non
 #[cfg(any(all(not(windows), not(unix)), test))]
 pub(crate) fn split_os_argument_fallback(

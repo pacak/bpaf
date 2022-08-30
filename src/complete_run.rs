@@ -1,6 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 
-use crate::{args::Arg, *};
+use crate::{args::Arg, construct, Args};
 
 #[derive(Clone, Debug, Copy)]
 pub enum Style {
@@ -75,7 +75,7 @@ struct CompOptions {
 }
 
 fn parse_comp_options() -> crate::OptionParser<CompOptions> {
-    use crate::*;
+    use crate::{long, Parser};
     let columns = long("bpaf-complete-columns")
         .argument("COLS")
         .from_str::<usize>()

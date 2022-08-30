@@ -24,7 +24,9 @@ use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Complete {
-    pub(crate) style: Style,
+    /// used do decide which version to render, mostly bash vs everything else
+    style: Style,
+    /// completions accumulated so far
     pub(crate) comps: Vec<Comp>,
 }
 
@@ -37,7 +39,7 @@ impl Complete {
     }
 
     pub(crate) fn push_item(&mut self, item: Item, depth: usize) {
-        self.comps.push(Comp::Item { item, depth })
+        self.comps.push(Comp::Item { item, depth });
     }
 
     pub(crate) fn push_metadata(
@@ -52,7 +54,7 @@ impl Complete {
             depth,
             is_arg: arg,
             help,
-        })
+        });
     }
 
     pub(crate) fn push_value(&mut self, body: String, help: Option<String>, depth: usize) {
@@ -76,14 +78,16 @@ pub(crate) enum Comp {
     Meta {
         meta: &'static str,
         depth: usize,
-        /// true for argument metas, at this moment using other completion items isn't valid
-        /// false for positional metas - other items are valid
+        /// true for argument metas
+        /// false for positional metas
         is_arg: bool,
         help: Option<String>,
     },
 }
 
 impl Comp {
+    /// depth is used to track where this parser is relative to other parser, mostly
+    /// to prevent completion from commands from leaking into levels below them
     fn depth(&self) -> usize {
         match self {
             Comp::Item { depth, .. } | Comp::Value { depth, .. } | Comp::Meta { depth, .. } => {
@@ -92,6 +96,7 @@ impl Comp {
         }
     }
 
+    /// completer needs to replace meta placeholder with actual values - uses this
     pub(crate) fn is_meta(&self) -> bool {
         match self {
             Comp::Item { .. } | Comp::Value { .. } => false,
@@ -111,6 +116,8 @@ struct ShowComp<'a> {
     /// substitution to use for a single item
     subst1: String,
 
+    /// if we start rendering values - drop everything else and finish them.
+    ///
     is_value: bool,
 }
 
@@ -136,11 +143,13 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
 
 impl Args {
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
+        // are we even active?
         let comp = match &self.comp {
             Some(comp) => comp,
             None => return Ok(()),
         };
 
+        // try to get an item we are completing - must be non-virtual right most one
         let (arg, lit) = self
             .items
             .iter()
@@ -164,6 +173,7 @@ impl Args {
     }
 }
 
+/// Try to expand short string names into long names if possible
 fn preferred_name(name: ShortLong) -> String {
     match name {
         ShortLong::Short(s) => format!("-{}", s),
@@ -173,22 +183,26 @@ fn preferred_name(name: ShortLong) -> String {
 
 // check if argument can possibly match the argument passed in and returns a preferrable replacement
 fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
-    if arg.is_empty() {
+    // "" and "-" match any flag
+    if arg.is_empty() || arg == "-" {
         return Some(preferred_name(name));
     }
 
-    let mut can_match = arg == "-";
+    let mut can_match = false;
 
+    // separately check for short and long names, fancy strip prefix things is here to avoid
+    // allocations and cloning
     match name {
         ShortLong::Long(_) => {}
         ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
             can_match |= arg
                 .strip_prefix('-')
                 .and_then(|a| a.strip_prefix(s))
-                .map_or(false, |s| s.is_empty());
+                .map_or(false, str::is_empty);
         }
     }
 
+    // and long string too
     match name {
         ShortLong::Short(_) => {}
         ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
@@ -203,6 +217,7 @@ fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
     }
 }
 fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'static str> {
+    // empty string matches anything
     if arg.is_empty() {
         return Some(name);
     }
@@ -214,7 +229,7 @@ fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'s
 }
 
 impl Complete {
-    pub(crate) fn complete(&self, arg: &str) -> Result<String, std::fmt::Error> {
+    fn complete(&self, arg: &str) -> Result<String, std::fmt::Error> {
         let mut items: Vec<ShowComp> = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
@@ -275,7 +290,7 @@ impl Complete {
                         subst: body.clone(),
                         subst1: body.clone(),
                         is_value: true,
-                    })
+                    });
                 }
                 Comp::Meta {
                     meta,
@@ -289,14 +304,13 @@ impl Complete {
                         } else {
                             format!("{}\n", arg)
                         });
-                    } else {
-                        items.push(ShowComp {
-                            descr: help,
-                            subst: format!("<{}>", meta),
-                            subst1: format!("<{}>", meta),
-                            is_value: false,
-                        })
                     }
+                    items.push(ShowComp {
+                        descr: help,
+                        subst: format!("<{}>", meta),
+                        subst1: format!("<{}>", meta),
+                        is_value: false,
+                    });
                 }
             }
         }
@@ -304,7 +318,10 @@ impl Complete {
         if has_values {
             items.retain(|i| i.is_value);
         }
+        self.render(&items)
+    }
 
+    fn render(&self, items: &[ShowComp]) -> Result<String, std::fmt::Error> {
         use std::fmt::Write;
         let mut res = String::new();
         if items.len() == 1 {
@@ -316,7 +333,7 @@ impl Complete {
                 .max()
                 .unwrap_or(0);
 
-            for item in &items {
+            for item in items {
                 match (self.style, item.descr) {
                     (Style::Bash, None) => writeln!(res, "{}", item.subst),
                     (Style::Bash, Some(descr)) => writeln!(
@@ -332,7 +349,7 @@ impl Complete {
                     (Style::Zsh | Style::Fish | Style::Elvish, Some(descr)) => {
                         writeln!(res, "{}\t{}", item.subst1, descr)
                     }
-                }?
+                }?;
             }
         }
         Ok(res)

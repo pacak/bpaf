@@ -543,7 +543,7 @@ where
                     for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
-                            description.map(|s| s.into()),
+                            description.map(Into::into),
                             args.depth,
                         );
                     }
