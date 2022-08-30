@@ -80,7 +80,6 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
         .argument("COLS")
         .from_str::<usize>()
         .optional();
-
     let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
     let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
     let fish = long("bpaf-complete-style-fish").req_flag(Style::Fish);
@@ -89,27 +88,31 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
     construct!(CompOptions { columns, style }).to_options()
 }
 
-pub(crate) fn args_with_complete(os_name: OsString, vec: Vec<Arg>, cvec: Vec<Arg>) -> Args {
+pub(crate) fn args_with_complete(
+    os_name: OsString,
+    arguments: Vec<Arg>,
+    complete_arguments: Vec<Arg>,
+) -> Args {
     let path = PathBuf::from(os_name);
-    let path = path
-        .file_name()
-        .expect("what sourcery is this, there should be a file name?")
-        .to_str();
+    let path = path.file_name().expect("binary with no name?").to_str();
 
-    let name = match (path, cvec.is_empty()) {
-        (_, true) | (None, false) => {
-            return Args::args_from(vec);
-        }
-        (Some(name), _) => name,
-    };
+    // if we are not trying to run a completer - just make the arguments
+    if complete_arguments.is_empty() {
+        return Args::args_from(arguments);
+    }
 
-    let cargs = Args::args_from(cvec);
+    let cargs = Args::args_from(complete_arguments);
 
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
             if let Some(_cols) = comp.columns {
-                Args::args_from(vec).styled_comp(comp.style)
+                Args::args_from(arguments).styled_comp(comp.style)
             } else {
+                let name = match path {
+                    Some(path) => path,
+                    None => panic!("app name is not utf8, giving up rendering completer"),
+                };
+                // render prefered completer
                 match comp.style {
                     Style::Bash => {
                         println!("{}", BASH_COMPLETER);

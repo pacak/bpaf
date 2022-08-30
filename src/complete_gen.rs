@@ -217,11 +217,13 @@ fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
     }
 }
 fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'static str> {
-    // empty string matches anything
-    if arg.is_empty() {
-        return Some(name);
-    }
-    if name.starts_with(arg) || short.map_or(false, |s| arg == s.to_string()) {
+    // partial long name and exact short name match anything
+    if name.starts_with(arg)
+        || short.map_or(false, |s| {
+            // avoid allocations
+            arg.strip_prefix(s).map_or(false, str::is_empty)
+        })
+    {
         Some(name)
     } else {
         None
@@ -237,7 +239,11 @@ impl Complete {
         for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
             match item {
                 Comp::Item { item, depth: _ } => match item {
-                    Item::Positional { metavar, help } => todo!("{:?} {:?}", metavar, help),
+                    // we don't push those guys, instead this is Comp::Meta which
+                    // is shared between positionals and arguments
+                    Item::Positional { .. } => {
+                        unreachable!("completion for positional item detected")
+                    }
                     Item::Command {
                         name,
                         short,
@@ -298,23 +304,32 @@ impl Complete {
                     is_arg,
                     help,
                 } => {
+                    // if all we have is metadata - preserve original user input
+                    let mut subst = if arg.is_empty() {
+                        format!("<{}>", meta)
+                    } else {
+                        arg.to_string()
+                    };
+
+                    // suppress all other completion when trying to complete argument's meta:
+                    // if valid arguments are `-a <A> | -b <B>` and we see `-a` - suggesting
+                    // user to type `-b` would be wrong
                     if *is_arg {
-                        return Ok(if arg.is_empty() {
-                            format!("<{}>\n", meta)
-                        } else {
-                            format!("{}\n", arg)
-                        });
+                        subst.push('\n');
+                        return Ok(subst);
                     }
                     items.push(ShowComp {
                         descr: help,
-                        subst: format!("<{}>", meta),
-                        subst1: format!("<{}>", meta),
+                        subst1: subst.clone(),
+                        subst,
                         is_value: false,
                     });
                 }
             }
         }
 
+        // similar to handling metadata from the case above but now we are
+        // actually completing values for A
         if has_values {
             items.retain(|i| i.is_value);
         }
@@ -327,6 +342,8 @@ impl Complete {
         if items.len() == 1 {
             writeln!(res, "{}", items[0].subst1)?;
         } else {
+            // we can probably make this logic simplier by moving
+            // rendering to bash side... Maybe one day.
             let max_width = items
                 .iter()
                 .map(|s| s.subst.chars().count())

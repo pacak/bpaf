@@ -404,6 +404,23 @@ fn static_complete_test_8() {
 }
 
 #[test]
+fn just_positional() {
+    let parser = positional("FILE").help("File to use").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "<FILE>\n");
+
+    let r = parser
+        .run_inner(Args::from(&["xxx"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "xxx\n");
+}
+
+#[test]
 fn dynamic_complete_test_1() {
     fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
         let items = ["alpha", "beta", "banana", "cat", "durian"];

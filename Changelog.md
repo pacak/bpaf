@@ -1,10 +1,10 @@
 # Change Log
 
 ## bpaf [0.5.5] - unreleased
-- invariant checker
+- invariant checker - for tests
 - more error message improvements
-- non-utf8 support in --foo=bar
-- dynamic shell completion: bash, zsh, fish
+- non-utf8 support in --foo=bar / -f=bar
+- dynamic shell completion: bash, zsh, fish, elvish
 - toggle flag battery
 
 ## bpaf [0.5.4] - 2022-08-25
