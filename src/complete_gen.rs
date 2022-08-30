@@ -249,6 +249,8 @@ impl Complete {
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
 
+        let mut metas = std::collections::BTreeSet::new();
+
         for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
             match item {
                 Comp::Item { item, depth: _ } => match item {
@@ -330,6 +332,12 @@ impl Complete {
                     if !is_word {
                         continue;
                     }
+
+                    // deduplicate metadata - in case we are dealing with many positionals, etc.
+                    if !metas.insert(meta) {
+                        continue;
+                    }
+
                     // if all we have is metadata - preserve original user input
                     let mut subst = if arg.is_empty() {
                         format!("<{}>", meta)

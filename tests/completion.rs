@@ -620,3 +620,64 @@ fn only_positionals_after_double_dash() {
         .unwrap_stdout();
     assert_eq!(r, "<D>\n");
 }
+
+#[test]
+fn many_does_not_duplicate_metadata() {
+    let parser = positional("D").many().to_options();
+    let r = parser
+        .run_inner(Args::from(&["xxx"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "xxx\n");
+}
+
+#[test]
+fn some_does_not_duplicate_metadata() {
+    let parser = positional("D").some("").to_options();
+    let r = parser
+        .run_inner(Args::from(&["xxx"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "xxx\n");
+}
+
+#[test]
+fn only_positionals_after_positionals() {
+    let a = short('a').switch();
+    let d = positional("D").many();
+    let parser = construct!(a, d).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["xxx"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "xxx\n");
+}
+
+#[test]
+fn positionals_complete_in_order() {
+    #![allow(clippy::ptr_arg)]
+    fn c_a(_input: &String) -> Vec<(String, Option<String>)> {
+        vec![("a".to_string(), None)]
+    }
+
+    fn c_b(_input: &String) -> Vec<(String, Option<String>)> {
+        vec![("b".to_string(), None)]
+    }
+
+    let a = positional("A").complete(c_a);
+    let b = positional("B").complete(c_b);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "a\n");
+
+    let r = parser
+        .run_inner(Args::from(&["xxx", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "b\n");
+}
