@@ -57,8 +57,19 @@ impl Complete {
         });
     }
 
-    pub(crate) fn push_value(&mut self, body: String, help: Option<String>, depth: usize) {
-        self.comps.push(Comp::Value { body, help, depth });
+    pub(crate) fn push_value(
+        &mut self,
+        body: String,
+        help: Option<String>,
+        depth: usize,
+        is_arg: bool,
+    ) {
+        self.comps.push(Comp::Value {
+            body,
+            help,
+            depth,
+            is_arg,
+        });
     }
 }
 
@@ -72,6 +83,7 @@ pub(crate) enum Comp {
         body: String,
         help: Option<String>,
         depth: usize,
+        is_arg: bool,
     },
 
     /// Placeholder completion - static completion
@@ -97,10 +109,12 @@ impl Comp {
     }
 
     /// completer needs to replace meta placeholder with actual values - uses this
-    pub(crate) fn is_meta(&self) -> bool {
+    ///
+    /// value indicates if it's an argument or a positional meta
+    pub(crate) fn meta_type(&self) -> Option<bool> {
         match self {
-            Comp::Item { .. } | Comp::Value { .. } => false,
-            Comp::Meta { .. } => true,
+            Comp::Item { .. } | Comp::Value { .. } => None,
+            Comp::Meta { is_arg, .. } => Some(*is_arg),
         }
     }
 }
@@ -313,8 +327,9 @@ impl Complete {
                     body,
                     help,
                     depth: _,
+                    is_arg,
                 } => {
-                    has_values = true;
+                    has_values |= is_arg;
                     items.push(ShowComp {
                         descr: help,
                         subst: body.clone(),

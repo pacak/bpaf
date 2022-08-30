@@ -539,12 +539,13 @@ where
 
         if let Some(comp) = &mut args.comp {
             for ci in comp_items {
-                if ci.is_meta() {
+                if let Some(is_arg) = ci.meta_type() {
                     for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),
                             args.depth,
+                            is_arg,
                         );
                     }
                 } else {

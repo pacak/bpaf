@@ -554,6 +554,7 @@ impl Args {
     }
 
     #[cfg(feature = "autocomplete")]
+    /// Are we trying to autocomplete a word or just trying to parse something?
     pub(crate) fn touching_last_remove(&self) -> bool {
         self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
     }
