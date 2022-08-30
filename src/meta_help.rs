@@ -151,7 +151,7 @@ impl std::fmt::Display for HelpItem<'_> {
             HelpItem::Argument {
                 name,
                 metavar,
-                help: _,
+                help,
                 env,
             } => {
                 write!(f, "    {:#} <{}>", name, metavar)?;
@@ -167,16 +167,10 @@ impl std::fmt::Display for HelpItem<'_> {
                         }
                     };
                     let next_pad = 4 + self.full_width();
-                    write!(
-                        f,
-                        "{:pad$}  [env:{}{}]\n{:width$}",
-                        "",
-                        env,
-                        val,
-                        "",
-                        pad = pad,
-                        width = next_pad,
-                    )?;
+                    write!(f, "{:pad$}  [env:{}{}]", "", env, val, pad = pad,)?;
+                    if help.is_some() {
+                        write!(f, "\n{:width$}", "", width = next_pad)?;
+                    }
                 }
                 Ok(())
             }
@@ -349,6 +343,9 @@ pub(crate) fn render_help(
     }
     if let Some(t) = info.footer {
         write!(res, "\n{}", t)?;
+    }
+    if !res.ends_with('\n') {
+        res.push('\n');
     }
     Ok(res)
 }
