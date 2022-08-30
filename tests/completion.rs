@@ -1,3 +1,5 @@
+#![allow(clippy::ptr_arg)]
+
 use bpaf::*;
 #[test]
 fn static_complete_test_1() {
@@ -656,7 +658,6 @@ fn only_positionals_after_positionals() {
 
 #[test]
 fn positionals_complete_in_order() {
-    #![allow(clippy::ptr_arg)]
     fn c_a(_input: &String) -> Vec<(String, Option<String>)> {
         vec![("a".to_string(), None)]
     }
@@ -685,7 +686,6 @@ fn positionals_complete_in_order() {
 
 #[test]
 fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
-    #![allow(clippy::ptr_arg)]
     fn c_a(_input: &String) -> Vec<(String, Option<String>)> {
         vec![("a".to_string(), None)]
     }
@@ -702,4 +702,26 @@ fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a <A>\nb\n");
+}
+
+#[test]
+fn should_be_able_to_suggest_double_dash() {
+    fn c_b(_input: &String) -> Vec<(String, Option<String>)> {
+        vec![("--".to_string(), None)]
+    }
+    let a = long("arg").argument("ARG").optional();
+    let b = positional("B").complete(c_b);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--arg <ARG>\n--\n");
+
+    let r = parser
+        .run_inner(Args::from(&["--"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--arg <ARG>\n--\n");
 }
