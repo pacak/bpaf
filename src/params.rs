@@ -1205,20 +1205,39 @@ impl<T> Positional<T> {
     }
 }
 
+fn parse_word(
+    args: &mut Args,
+    metavar: &'static str,
+    help: &Option<String>,
+) -> Result<Word, Error> {
+    match args.take_positional_word()? {
+        Some(word) => {
+            #[cfg(feature = "autocomplete")]
+            if args.touching_last_remove() {
+                if let Some(comp) = &mut args.comp {
+                    comp.push_metadata(metavar, help.clone(), args.depth, false);
+                }
+            }
+            Ok(word)
+        }
+        None => {
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                comp.push_metadata(metavar, help.clone(), args.depth, false);
+            }
+            let meta = Meta::Item(Item::Positional {
+                metavar,
+                help: help.clone(),
+            });
+            Err(Error::Missing(vec![meta]))
+        }
+    }
+}
+
 impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        match args.take_positional_word()? {
-            Some(word) => {
-                #[cfg(feature = "autocomplete")]
-                if args.touching_last_remove() {
-                    if let Some(comp) = &mut args.comp {
-                        comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
-                    }
-                }
-                Ok(word.os)
-            }
-            None => Err(Error::Missing(vec![self.meta()])),
-        }
+        let res = parse_word(args, self.metavar, &self.help)?;
+        Ok(res.os)
     }
     fn meta(&self) -> Meta {
         self.meta()
@@ -1227,26 +1246,13 @@ impl Parser<OsString> for Positional<OsString> {
 
 impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
-        match args.take_positional_word()? {
-            Some(word) => {
-                #[cfg(feature = "autocomplete")]
-                if args.touching_last_remove() {
-                    if let Some(comp) = &mut args.comp {
-                        comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
-                    }
-                }
-                match word.utf8 {
-                    Some(ok) => Ok(ok),
-                    None => Err(Error::Stderr("not utf8".to_owned())),
-                }
-            }
-            None => {
-                #[cfg(feature = "autocomplete")]
-                if let Some(comp) = &mut args.comp {
-                    comp.push_metadata(self.metavar, self.help.clone(), args.depth, false);
-                }
-                Err(Error::Missing(vec![self.meta()]))
-            }
+        let res = parse_word(args, self.metavar, &self.help)?;
+        match res.utf8 {
+            Some(ok) => Ok(ok),
+            None => Err(Error::Stderr(format!(
+                "<{}> is not a valid utf",
+                self.metavar
+            ))),
         }
     }
 

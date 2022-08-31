@@ -513,7 +513,7 @@ impl Args {
 
     /// gets first positional argument present
     ///
-    /// returns Ok(None) if imput is empty
+    /// returns Ok(None) if input is empty
     /// returns Err if first positional argument is a flag
     pub(crate) fn take_positional_word(&mut self) -> Result<Option<Word>, Error> {
         match self.items_iter().next() {
