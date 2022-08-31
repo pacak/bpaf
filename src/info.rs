@@ -125,9 +125,11 @@ impl<T> OptionParser<T> {
         let mut complete_vec = Vec::new();
 
         let mut args = std::env::args_os();
+
         #[allow(unused_variables)]
         let name = args.next().expect("no command name from args_os?");
 
+        #[cfg(feature = "autocomplete")]
         for arg in args {
             if arg
                 .to_str()
@@ -138,11 +140,13 @@ impl<T> OptionParser<T> {
                 arg_vec.push(arg);
             }
         }
+        #[cfg(not(feature = "autocomplete"))]
+        arg_vec.extend(args);
 
         #[cfg(feature = "autocomplete")]
         let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
         #[cfg(not(feature = "autocomplete"))]
-        let args = Args::args_from(arg_vec);
+        let args = Args::from(arg_vec.as_slice());
 
         match self.run_inner(args) {
             Ok(t) => t,
