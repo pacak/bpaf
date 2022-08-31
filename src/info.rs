@@ -123,11 +123,16 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
+        // TODO - deduplicate everything with From<[OsString]> instance
+
+        // should never be set
+        #[cfg(feature = "autocomplete")]
+        let mut pos_only_comp = false;
+        let mut del = None;
+
         let mut pos_only = false;
         let mut arg_vec = Vec::new();
         let mut complete_vec = Vec::new();
-
-        //eprintln!("{:?}", std::env::args_os().collect::<Vec<_>>());
 
         let mut args = std::env::args_os();
         #[allow(unused_variables)]
@@ -138,18 +143,23 @@ impl<T> OptionParser<T> {
                 .to_str()
                 .map_or(false, |s| s.starts_with("--bpaf-complete-"))
             {
-                args::push_vec(&mut complete_vec, arg, &mut pos_only);
+                args::push_vec(&mut complete_vec, arg, &mut pos_only_comp);
             } else {
                 args::push_vec(&mut arg_vec, arg, &mut pos_only);
+                if del.is_none() && pos_only {
+                    del = Some(arg_vec.len() - 1);
+                }
             }
         }
 
         #[cfg(feature = "autocomplete")]
-        let args = crate::complete_run::args_with_complete(name, arg_vec, complete_vec);
+        let mut args = crate::complete_run::args_with_complete(name, arg_vec, complete_vec);
         #[cfg(not(feature = "autocomplete"))]
-        let args = Args::args_from(arg_vec);
+        let mut args = Args::args_from(arg_vec);
 
-        //        eprintln!("args: {:?}", args);
+        if let Some(ix) = del {
+            args.remove(ix);
+        }
 
         match self.run_inner(args) {
             Ok(t) => t,

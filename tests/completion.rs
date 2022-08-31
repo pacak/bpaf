@@ -102,10 +102,33 @@ fn short_command_alias() {
     assert_eq!(r, "cmd_a\n");
 
     let r = parser
+        .run_inner(Args::from(&["cmd_a"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "cmd_a\n");
+
+    let r = parser
         .run_inner(Args::from(&["b", ""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
+}
+
+#[test]
+fn single_command_completes_to_full() {
+    let parser = short('a').switch().to_options().command("cmd").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["c"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "cmd\n");
+
+    let r = parser
+        .run_inner(Args::from(&["cmd"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "cmd\n");
 }
 
 #[test]

@@ -100,13 +100,14 @@ mod inner {
         fn from(xs: &[OsString]) -> Self {
             let mut pos_only = false;
             let mut vec = Vec::with_capacity(xs.len());
+
             let mut del = None;
-            for (ix, x) in xs.iter().enumerate() {
+            for x in xs {
                 push_vec(&mut vec, x.clone(), &mut pos_only);
                 if del.is_none() && pos_only {
                     // keep "--" in the argument list but mark it as removed
                     // completer uses it to deal with "--" inputs
-                    del = Some(ix);
+                    del = Some(vec.len() - 1);
                 }
             }
             let mut args = Args::args_from(vec);
