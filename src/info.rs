@@ -4,11 +4,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    args::{self, Args},
-    meta_help::render_help,
-    meta_usage::collect_usage_meta,
-    params::short,
-    Command, Meta, ParseFailure, Parser,
+    args::Args, meta_help::render_help, meta_usage::collect_usage_meta, params::short, Command,
+    Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -123,15 +120,8 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
-        // TODO - deduplicate everything with From<[OsString]> instance
-
-        // should never be set
-        #[cfg(feature = "autocomplete")]
-        let mut pos_only_comp = false;
-        let mut del = None;
-
-        let mut pos_only = false;
         let mut arg_vec = Vec::new();
+        #[cfg(feature = "autocomplete")]
         let mut complete_vec = Vec::new();
 
         let mut args = std::env::args_os();
@@ -143,23 +133,16 @@ impl<T> OptionParser<T> {
                 .to_str()
                 .map_or(false, |s| s.starts_with("--bpaf-complete-"))
             {
-                args::push_vec(&mut complete_vec, arg, &mut pos_only_comp);
+                complete_vec.push(arg);
             } else {
-                args::push_vec(&mut arg_vec, arg, &mut pos_only);
-                if del.is_none() && pos_only {
-                    del = Some(arg_vec.len() - 1);
-                }
+                arg_vec.push(arg);
             }
         }
 
         #[cfg(feature = "autocomplete")]
-        let mut args = crate::complete_run::args_with_complete(name, arg_vec, complete_vec);
+        let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
         #[cfg(not(feature = "autocomplete"))]
-        let mut args = Args::args_from(arg_vec);
-
-        if let Some(ix) = del {
-            args.remove(ix);
-        }
+        let args = Args::args_from(arg_vec);
 
         match self.run_inner(args) {
             Ok(t) => t,

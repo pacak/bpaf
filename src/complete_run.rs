@@ -1,6 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 
-use crate::{args::Arg, construct, Args};
+use crate::{construct, Args};
 
 #[derive(Clone, Debug, Copy)]
 pub enum Style {
@@ -90,18 +90,18 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
 
 pub(crate) fn args_with_complete(
     os_name: OsString,
-    arguments: Vec<Arg>,
-    complete_arguments: Vec<Arg>,
+    arguments: &[OsString],
+    complete_arguments: &[OsString],
 ) -> Args {
     let path = PathBuf::from(os_name);
     let path = path.file_name().expect("binary with no name?").to_str();
 
     // if we are not trying to run a completer - just make the arguments
     if complete_arguments.is_empty() {
-        return Args::args_from(arguments);
+        return Args::from(arguments);
     }
 
-    let cargs = Args::args_from(complete_arguments);
+    let cargs = Args::from(complete_arguments);
 
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
@@ -135,7 +135,7 @@ pub(crate) fn args_with_complete(
                 };
                 std::process::exit(0)
             } else {
-                Args::args_from(arguments).set_comp()
+                Args::from(arguments).set_comp()
             }
         }
 

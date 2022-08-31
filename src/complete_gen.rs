@@ -378,7 +378,12 @@ impl Complete {
                         writeln!(res, "{}", item.subst)
                     }
                     Some(descr) => {
-                        writeln!(res, "{}\t{}", item.subst, descr)
+                        writeln!(
+                            res,
+                            "{}\t{}",
+                            item.subst,
+                            descr.split('\n').next().unwrap_or("")
+                        )
                     }
                 }?;
             }
