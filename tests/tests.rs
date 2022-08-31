@@ -1728,3 +1728,13 @@ fn custom_usage_override() {
         "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
     );
 }
+
+#[test]
+fn strictly_positional() {
+    let parser = positional("A").strict().to_options();
+    let r = parser
+        .run_inner(Args::from(&["a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "");
+}

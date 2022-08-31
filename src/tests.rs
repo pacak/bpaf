@@ -71,3 +71,8 @@ fn wtf_shenanigans_2() {
         assert_eq!(word(i_suffix.clone()), o_suffix.unwrap());
     }
 }
+
+#[todo]
+fn asdf() {
+    todo!("extract stuff out of ParseThisOrThat - only parsers need to be monomorphic, everything else just picks what to use");
+}

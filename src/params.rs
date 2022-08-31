@@ -1177,6 +1177,7 @@ fn build_positional<T>(metavar: &'static str) -> Positional<T> {
         metavar,
         help: None,
         result_type: PhantomData,
+        strict: false,
     }
 }
 
@@ -1185,6 +1186,7 @@ pub struct Positional<T> {
     metavar: &'static str,
     help: Option<String>,
     result_type: PhantomData<T>,
+    strict: bool,
 }
 
 impl<T> Positional<T> {
@@ -1195,6 +1197,11 @@ impl<T> Positional<T> {
         self.help = Some(help.into());
         self
     }
+    pub fn strict(mut self) -> Self {
+        self.strict = true;
+        self
+    }
+
     fn meta(&self) -> Meta {
         Meta::Item({
             Item::Positional {

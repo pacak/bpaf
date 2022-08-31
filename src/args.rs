@@ -3,7 +3,7 @@ use std::ffi::OsString;
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub struct Word {
+pub(crate) struct Word {
     pub utf8: Option<String>,
     pub os: OsString,
 }
