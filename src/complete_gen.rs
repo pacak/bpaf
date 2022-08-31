@@ -16,28 +16,18 @@
 
 use crate::{
     args::Arg,
-    complete_run::Style,
     item::{Item, ShortLong},
     Args, Error,
 };
 use std::ffi::OsStr;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Complete {
-    /// used do decide which version to render, mostly bash vs everything else
-    style: Style,
     /// completions accumulated so far
     pub(crate) comps: Vec<Comp>,
 }
 
 impl Complete {
-    pub(crate) fn new(style: Style) -> Self {
-        Self {
-            comps: Vec::new(),
-            style,
-        }
-    }
-
     pub(crate) fn push_item(&mut self, item: Item, depth: usize) {
         self.comps.push(Comp::Item { item, depth });
     }
@@ -124,14 +114,10 @@ struct ShowComp<'a> {
     /// completion description, only rendered if there's several of them
     descr: &'a Option<String>,
 
-    /// substitution to use for multiple items, unlike subst1 includes metavars
+    /// substitutions to use
     subst: String,
 
-    /// substitution to use for a single item
-    subst1: String,
-
     /// if we start rendering values - drop everything else and finish them.
-    ///
     is_value: bool,
 }
 
@@ -285,7 +271,6 @@ impl Complete {
                         if let Some(long) = cmd_matches(arg, name, *short) {
                             items.push(ShowComp {
                                 subst: long.to_string(),
-                                subst1: long.to_string(),
                                 descr: help,
                                 is_value: false,
                             });
@@ -297,8 +282,7 @@ impl Complete {
                         }
                         if let Some(long) = arg_matches(arg, *name) {
                             items.push(ShowComp {
-                                subst: long.clone(),
-                                subst1: long,
+                                subst: long,
                                 descr: help,
                                 is_value: false,
                             });
@@ -306,7 +290,7 @@ impl Complete {
                     }
                     Item::Argument {
                         name,
-                        metavar,
+                        metavar: _,
                         env: _,
                         help,
                     } => {
@@ -315,8 +299,7 @@ impl Complete {
                         }
                         if let Some(long) = arg_matches(arg, *name) {
                             items.push(ShowComp {
-                                subst: format!("{} <{}>", long, metavar),
-                                subst1: long,
+                                subst: long,
                                 descr: help,
                                 is_value: false,
                             });
@@ -333,7 +316,6 @@ impl Complete {
                     items.push(ShowComp {
                         descr: help,
                         subst: body.clone(),
-                        subst1: body.clone(),
                         is_value: true,
                     });
                 }
@@ -369,7 +351,6 @@ impl Complete {
                     }
                     items.push(ShowComp {
                         descr: help,
-                        subst1: subst.clone(),
                         subst,
                         is_value: false,
                     });
@@ -389,31 +370,15 @@ impl Complete {
         use std::fmt::Write;
         let mut res = String::new();
         if items.len() == 1 {
-            writeln!(res, "{}", items[0].subst1)?;
+            writeln!(res, "{}", items[0].subst)?;
         } else {
-            // we can probably make this logic simplier by moving
-            // rendering to bash side... Maybe one day.
-            let max_width = items
-                .iter()
-                .map(|s| s.subst.chars().count())
-                .max()
-                .unwrap_or(0);
-
             for item in items {
-                match (self.style, item.descr) {
-                    (Style::Bash, None) => writeln!(res, "{}", item.subst),
-                    (Style::Bash, Some(descr)) => writeln!(
-                        res,
-                        "{:padding$}  {}",
-                        item.subst,
-                        descr,
-                        padding = max_width
-                    ),
-                    (Style::Zsh | Style::Fish | Style::Elvish, None) => {
-                        writeln!(res, "{}", item.subst1)
+                match item.descr {
+                    None => {
+                        writeln!(res, "{}", item.subst)
                     }
-                    (Style::Zsh | Style::Fish | Style::Elvish, Some(descr)) => {
-                        writeln!(res, "{}\t{}", item.subst1, descr)
+                    Some(descr) => {
+                        writeln!(res, "{}\t{}", item.subst, descr)
                     }
                 }?;
             }

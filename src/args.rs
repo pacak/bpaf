@@ -189,17 +189,7 @@ mod inner {
         /// enable completions bash style
         #[must_use]
         pub fn set_comp(mut self) -> Self {
-            self.comp = Some(crate::complete_gen::Complete::new(
-                crate::complete_run::Style::Bash,
-            ));
-            self
-        }
-
-        #[cfg(feature = "autocomplete")]
-        /// enable completions, used in real code
-        #[must_use]
-        pub fn styled_comp(mut self, style: crate::complete_run::Style) -> Self {
-            self.comp = Some(crate::complete_gen::Complete::new(style));
+            self.comp = Some(crate::complete_gen::Complete::default());
             self
         }
     }

@@ -13,15 +13,22 @@ pub enum Style {
 const BASH_COMPLETER: &str = r#"#/usr/bin/env bash
 _bpaf_dynamic_completion()
 {
-    IFS=$'\n' read -r -d '' -a COMPREPLY < <(
-        "$1" --bpaf-complete-style-bash --bpaf-complete-columns="$COLUMNS" "${COMP_WORDS[@]:1}" && printf '\0'
-    )
+    COMPREPLY=()
+    IFS='$\n'
+    for line in $( "$1" --bpaf-complete-style-bash "${COMP_WORDS[@]:1}") ; do
+        IFS='$\t' parts=($line)
+        if [[ -n ${parts[1]} ]] ; then
+            COMPREPLY+=($( printf "%-19s %s" "${parts[0]}" "${parts[1]}" ))
+        else
+            COMPREPLY+=(${parts[0]})
+        fi
+    done
 }"#;
 
 const FISH_COMPLETER: &str = r#"
 function _bpaf_dynamic_completion
     set -l app (commandline --tokenize --current-process)[1]
-    set -l tmpline --bpaf-complete-style-fish --bpaf-complete-columns="$COLUMNS"
+    set -l tmpline --bpaf-complete-style-fish
     set tmpline $tmpline (commandline --tokenize --current-process)[2..-1]
     if test (commandline --current-process) != (string trim (commandline --current-process))
         set tmpline $tmpline ""
@@ -35,9 +42,7 @@ const ZSH_COMPLETER: &str = r#"
 local completions
 local word
 
-meta=( --bpaf-complete-style-zsh --bpaf-complete-columns="$COLUMNS" )
-
-IFS=$'\n' completions=($( "${words[1]}"  "${meta[@]}"  "${words[@]:1}" ))
+IFS=$'\n' completions=($( "${words[1]}" --bpaf-complete-style-zsh "${words[@]:1}" ))
 
 for word in $completions; do
   local -a parts
@@ -62,7 +67,7 @@ const ELVISH_COMPLETER: &str = r#"use str;
      for line $lines {
          var @arg = (str:split "\t" $line)
          try {
-             edit:complex-candidate $arg[0] &display=( printf "%-15s %s" $arg[0] $arg[1] )
+             edit:complex-candidate $arg[0] &display=( printf "%-19s %s" $arg[0] $arg[1] )
          } catch {
              edit:complex-candidate $line
          }
@@ -70,22 +75,17 @@ const ELVISH_COMPLETER: &str = r#"use str;
 }"#;
 
 struct CompOptions {
-    columns: Option<usize>,
     style: Style,
 }
 
 fn parse_comp_options() -> crate::OptionParser<CompOptions> {
     use crate::{long, Parser};
-    let columns = long("bpaf-complete-columns")
-        .argument("COLS")
-        .from_str::<usize>()
-        .optional();
     let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
     let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
     let fish = long("bpaf-complete-style-fish").req_flag(Style::Fish);
     let elvish = long("bpaf-complete-style-elvish").req_flag(Style::Elvish);
     let style = construct!([zsh, bash, fish, elvish]);
-    construct!(CompOptions { columns, style }).to_options()
+    construct!(CompOptions { style }).to_options()
 }
 
 pub(crate) fn args_with_complete(
@@ -105,9 +105,7 @@ pub(crate) fn args_with_complete(
 
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
-            if let Some(_cols) = comp.columns {
-                Args::args_from(arguments).styled_comp(comp.style)
-            } else {
+            if arguments.is_empty() {
                 let name = match path {
                     Some(path) => path,
                     None => panic!("app name is not utf8, giving up rendering completer"),
@@ -128,11 +126,16 @@ pub(crate) fn args_with_complete(
                     }
                     Style::Elvish => {
                         println!("set edit:completion:arg-completer[{}] = {{ |@args| var args = $args[1..];", name);
-                        println!("     var @lines = ( {} --bpaf-complete-style-zsh --bpaf-complete-columns=0 $@args );", name);
+                        println!(
+                            "     var @lines = ( {} --bpaf-complete-style-elvish $@args );",
+                            name
+                        );
                         println!("{}", ELVISH_COMPLETER);
                     }
                 };
                 std::process::exit(0)
+            } else {
+                Args::args_from(arguments).set_comp()
             }
         }
 
