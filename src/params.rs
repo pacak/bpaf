@@ -1213,9 +1213,10 @@ fn parse_word(
     match args.take_positional_word()? {
         Some(word) => {
             #[cfg(feature = "autocomplete")]
-            if args.touching_last_remove() {
+            if args.touching_last_remove() && !args.no_pos_ahead {
                 if let Some(comp) = &mut args.comp {
                     comp.push_metadata(metavar, help.clone(), args.depth, false);
+                    args.no_pos_ahead = true;
                 }
             }
             Ok(word)
@@ -1223,7 +1224,10 @@ fn parse_word(
         None => {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.push_metadata(metavar, help.clone(), args.depth, false);
+                if !args.no_pos_ahead {
+                    comp.push_metadata(metavar, help.clone(), args.depth, false);
+                    args.no_pos_ahead = true;
+                }
             }
             let meta = Meta::Item(Item::Positional {
                 metavar,
@@ -1239,6 +1243,7 @@ impl Parser<OsString> for Positional<OsString> {
         let res = parse_word(args, self.metavar, &self.help)?;
         Ok(res.os)
     }
+
     fn meta(&self) -> Meta {
         self.meta()
     }

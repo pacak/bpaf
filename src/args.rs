@@ -44,11 +44,13 @@ mod inner {
         pub(crate) items: Rc<[Arg]>,
         /// removed items, false - present, true - removed
         removed: Vec<bool>,
+        /// performance optimization mostly,
         remaining: usize,
 
         #[doc(hidden)]
         /// Used to render an error message for [`parse`][crate::Parser::parse]
         pub current: Option<usize>,
+
         #[doc(hidden)]
         /// "deeper" parser should win in or_else branches
         pub depth: usize,
@@ -71,6 +73,11 @@ mod inner {
         ///
         /// parse/guard failures should "taint" the arguments and turn off the suggestion logic
         pub(crate) tainted: bool,
+
+        /// don't try to suggest any more positional items after there's a positional item failure
+        /// or parsing in progress
+        #[cfg(feature = "autocomplete")]
+        pub(crate) no_pos_ahead: bool,
 
         #[cfg(feature = "autocomplete")]
         pub(crate) comp: Option<crate::complete_gen::Complete>,
@@ -130,6 +137,8 @@ mod inner {
                 tainted: false,
                 #[cfg(feature = "autocomplete")]
                 comp: None,
+                #[cfg(feature = "autocomplete")]
+                no_pos_ahead: false,
             }
         }
     }

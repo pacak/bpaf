@@ -696,12 +696,11 @@ fn positionals_complete_in_order() {
     let b = positional("B").complete(c_b);
     let parser = construct!(a, b).to_options();
 
-    let _r = parser
+    let r = parser
         .run_inner(Args::from(&[""]).set_comp())
         .unwrap_err()
         .unwrap_stdout();
-    // THIS IS WRONG, need to think more about it
-    // assert_eq!(r, "a\n");
+    assert_eq!(r, "a\n");
 
     let r = parser
         .run_inner(Args::from(&["xxx", ""]).set_comp())
