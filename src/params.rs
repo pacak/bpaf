@@ -1161,7 +1161,7 @@ impl Parser<Word> for BuildArgument {
         }
         if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             args.current = None;
-            Ok(Word::from(val))
+            Ok(crate::args::word(val, false))
         } else {
             Err(Error::Missing(vec![self.meta()]))
         }
@@ -1207,6 +1207,7 @@ impl<T> Positional<T> {
             Item::Positional {
                 metavar: self.metavar,
                 help: self.help.clone(),
+                strict: self.strict,
             }
         })
     }
@@ -1214,11 +1215,19 @@ impl<T> Positional<T> {
 
 fn parse_word(
     args: &mut Args,
+    strict: bool,
     metavar: &'static str,
     help: &Option<String>,
 ) -> Result<Word, Error> {
     match args.take_positional_word()? {
         Some(word) => {
+            if strict && !word.pos_only {
+                return Err(Error::Stderr(format!(
+                    "Expected <{}> to be on the right side of --",
+                    metavar,
+                )));
+            }
+
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.no_pos_ahead {
                 if let Some(comp) = &mut args.comp {
@@ -1239,6 +1248,7 @@ fn parse_word(
             let meta = Meta::Item(Item::Positional {
                 metavar,
                 help: help.clone(),
+                strict,
             });
             Err(Error::Missing(vec![meta]))
         }
@@ -1247,7 +1257,7 @@ fn parse_word(
 
 impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        let res = parse_word(args, self.metavar, &self.help)?;
+        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
         Ok(res.os)
     }
 
@@ -1258,7 +1268,7 @@ impl Parser<OsString> for Positional<OsString> {
 
 impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
-        let res = parse_word(args, self.metavar, &self.help)?;
+        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
         match res.utf8 {
             Some(ok) => Ok(ok),
             None => Err(Error::Stderr(format!(

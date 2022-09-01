@@ -4,8 +4,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    args::Args, meta_help::render_help, meta_usage::collect_usage_meta, params::short, Command,
-    Meta, ParseFailure, Parser,
+    args::Args, meta_help::render_help, meta_usage::to_usage_meta, params::short, Command, Meta,
+    ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -588,10 +588,8 @@ impl<T> OptionParser<T> {
 
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
     use crate::item::Item;
-    let mut had_commands = false;
-    let mut is_pos = false;
     if fresh {
-        collect_usage_meta(meta, true, &mut had_commands, &mut is_pos);
+        to_usage_meta(meta);
     }
     match meta {
         Meta::And(xs) | Meta::Or(xs) => {

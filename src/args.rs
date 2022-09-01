@@ -6,15 +6,7 @@ use std::ffi::OsString;
 pub(crate) struct Word {
     pub utf8: Option<String>,
     pub os: OsString,
-}
-
-impl From<OsString> for Word {
-    fn from(os: OsString) -> Self {
-        Self {
-            utf8: os.to_str().map(str::to_owned),
-            os,
-        }
-    }
+    pub pos_only: bool,
 }
 
 /// Hides [`Args`] internal implementation
@@ -247,16 +239,21 @@ impl std::fmt::Display for Arg {
 }
 
 #[inline(never)]
-pub(crate) fn word(os: OsString) -> Arg {
-    Arg::Word(Word {
+pub(crate) fn word(os: OsString, pos_only: bool) -> Word {
+    Word {
         utf8: os.to_str().map(String::from),
         os,
-    })
+        pos_only,
+    }
+}
+
+pub(crate) fn word_arg(os: OsString, pos_only: bool) -> Arg {
+    Arg::Word(word(os, pos_only))
 }
 
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
     if *pos_only {
-        return vec.push(word(os));
+        return vec.push(word_arg(os, true));
     }
 
     match split_os_argument(&os) {
@@ -288,10 +285,16 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool
                 *pos_only = utf8 == "--";
                 vec.push(Arg::Word(Word {
                     utf8: Some(utf8.to_string()),
+                    pos_only: false,
                     os,
                 }));
             }
-            None => vec.push(Arg::Word(Word { utf8: None, os })),
+            None => vec.push(Arg::Word(Word {
+                utf8: None,
+                os,
+
+                pos_only: false,
+            })),
         },
     }
 }
@@ -410,7 +413,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             return None;
         }
         let name = str_from_vec(name)?;
-        let word = word(os_from_vec(items.collect()));
+        let word = word_arg(os_from_vec(items.collect()), false);
         Some((ty, name, Some(word)))
     }
     #[cfg(not(any(unix, windows)))]
@@ -468,6 +471,7 @@ pub(crate) fn split_os_argument_fallback(
     let word = Word {
         os: OsString::from(utf8.clone()),
         utf8: Some(utf8),
+        pos_only: false,
     };
     Some((ty, name, Some(Arg::Word(word))))
 }

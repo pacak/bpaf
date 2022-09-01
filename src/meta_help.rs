@@ -9,6 +9,7 @@ pub(crate) enum HelpItem<'a> {
     },
     BlankDecor,
     Positional {
+        strict: bool,
         metavar: &'static str,
         help: Option<&'a str>,
     },
@@ -55,11 +56,16 @@ impl<'a> HelpItems<'a> {
             }
             Meta::Optional(x) | Meta::Many(x) => self.classify(x),
             Meta::Item(item) => match item {
-                crate::item::Item::Positional { metavar, help } => {
+                crate::item::Item::Positional {
+                    metavar,
+                    help,
+                    strict,
+                } => {
                     if help.is_some() {
                         self.psns.push(HelpItem::Positional {
                             metavar,
                             help: help.as_deref(),
+                            strict: *strict,
                         });
                     }
                 }
@@ -176,7 +182,17 @@ impl std::fmt::Display for HelpItem<'_> {
             }
             HelpItem::Decor { help } => return write!(f, "  {}", help),
             HelpItem::BlankDecor => Ok(()),
-            HelpItem::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
+            HelpItem::Positional {
+                metavar,
+                help: _,
+                strict,
+            } => {
+                if *strict {
+                    write!(f, "    -- <{}>", metavar)
+                } else {
+                    write!(f, "    <{}>", metavar)
+                }
+            }
             HelpItem::Command {
                 name,
                 help: _,
@@ -208,8 +224,13 @@ impl std::fmt::Display for HelpItem<'_> {
 impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
     fn from(item: &'a crate::item::Item) -> Self {
         match item {
-            crate::item::Item::Positional { metavar, help } => Self::Positional {
+            crate::item::Item::Positional {
                 metavar,
+                help,
+                strict,
+            } => Self::Positional {
+                metavar,
+                strict: *strict,
                 help: help.as_deref(),
             },
             crate::item::Item::Command {
