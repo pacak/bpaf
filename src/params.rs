@@ -215,7 +215,7 @@ pub struct Named {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
-    help: Option<String>,
+    pub(crate) help: Option<String>,
 }
 
 impl Named {
@@ -992,16 +992,12 @@ impl<T> Parser<T> for Command<T> {
             })
         {
             #[cfg(feature = "autocomplete")]
-            let touching = args.touching_last_remove();
-            #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
+            if args.touching_last_remove() {
                 // in completion mode prefer to autocomplete the command name vs going inside the
                 // parser
-                if touching {
-                    comp.comps.clear();
-                    comp.push_item(self.item(), args.depth);
-                    return Err(Error::Missing(Vec::new()));
-                }
+                args.clear_comps();
+                args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
+                return Err(Error::Missing(Vec::new()));
             }
 
             args.head = usize::MAX;
@@ -1012,9 +1008,7 @@ impl<T> Parser<T> for Command<T> {
             res
         } else {
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                comp.push_item(self.item(), args.depth);
-            }
+            args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
 
             Err(Error::Missing(vec![self.item()]))
         }
@@ -1059,19 +1053,13 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             #[cfg(feature = "autocomplete")]
-            let touching = args.touching_last_remove();
-            #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                if touching {
-                    comp.push_item(self.named.flag_item(), args.depth);
-                }
+            if args.touching_last_remove() {
+                args.push_flag(&self.named)
             }
             Ok(self.present.clone())
         } else {
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                comp.push_item(self.named.flag_item(), args.depth);
-            }
+            args.push_flag(&self.named);
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
                 None => Err(Error::Missing(vec![self.named.flag_item()])),
@@ -1138,17 +1126,10 @@ impl Parser<Word> for BuildArgument {
                         .unwrap()
                         .0;
 
-                    if let Some(comp) = &mut args.comp {
-                        if args.items.len() - 1 == ix {
-                            comp.push_item(self.item(), args.depth);
-                        } else {
-                            comp.push_metadata(
-                                self.metavar,
-                                self.named.help.clone(), // help isn't used for argument metadata
-                                args.depth,
-                                true,
-                            );
-                        }
+                    if args.items.len() - 1 == ix {
+                        args.push_flag(&self.named)
+                    } else {
+                        args.push_metadata(self.metavar, &self.named.help, true)
                     }
                 }
                 return Err(err);
@@ -1157,9 +1138,7 @@ impl Parser<Word> for BuildArgument {
         }
 
         #[cfg(feature = "autocomplete")]
-        if let Some(comp) = &mut args.comp {
-            comp.push_item(self.item(), args.depth);
-        }
+        args.push_flag(&self.named);
         if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
             args.current = None;
             Ok(crate::args::word(val, false))

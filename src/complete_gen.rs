@@ -14,11 +14,7 @@
 //
 // complete short names to long names if possible
 
-use crate::{
-    args::Arg,
-    item::{Item, ShortLong},
-    Args, Error,
-};
+use crate::{args::Arg, item::ShortLong, Args, Error, Named};
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug, Default)]
@@ -27,11 +23,61 @@ pub(crate) struct Complete {
     pub(crate) comps: Vec<Comp>,
 }
 
-impl Complete {
-    pub(crate) fn push_item(&mut self, item: Item, depth: usize) {
-        self.comps.push(Comp::Item { item, depth });
+impl Args {
+    /// Add a new completion hint for flag if completion is enabled
+    pub(crate) fn push_flag(&mut self, named: &Named) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.push(Comp::Flag {
+                name: ShortLong::from(named),
+                help: named.help.clone(),
+                depth: self.depth,
+            })
+        }
     }
 
+    /// Add a new completion hint for metadata if completion is enabled
+    pub(crate) fn push_metadata(
+        &mut self,
+        meta: &'static str,
+        help: &Option<String>,
+        is_arg: bool,
+    ) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.push(Comp::Meta {
+                meta,
+                depth: self.depth,
+                is_arg,
+                help: help.clone(),
+            })
+        }
+    }
+
+    /// Add a new completion hint for command if completion is enabled
+    pub(crate) fn push_command(
+        &mut self,
+        name: &'static str,
+        short: Option<char>,
+        help: &Option<String>,
+    ) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.push(Comp::Command {
+                name,
+                short,
+                help: help.clone(),
+                depth: self.depth,
+            })
+        }
+    }
+
+    /// Clear collected completions if enabled
+    pub(crate) fn clear_comps(&mut self) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.clear()
+        }
+    }
+}
+
+impl Complete {
     pub(crate) fn push_metadata(
         &mut self,
         meta: &'static str,
@@ -65,21 +111,32 @@ impl Complete {
 
 #[derive(Clone, Debug)]
 pub(crate) enum Comp {
-    /// comes from named items, part of "static" completion
-    Item { item: Item, depth: usize },
+    /// Flag. corresponds to -f | --f parts of both flags and arguments
+    Flag {
+        depth: usize,
+        name: ShortLong,
+        help: Option<String>,
+    },
+
+    Command {
+        depth: usize,
+        name: &'static str,
+        short: Option<char>,
+        help: Option<String>,
+    },
 
     /// comes from completed values, part of "dynamic" completion
     Value {
+        depth: usize,
         body: String,
         help: Option<String>,
-        depth: usize,
         is_arg: bool,
     },
 
     /// Placeholder completion - static completion
     Meta {
-        meta: &'static str,
         depth: usize,
+        meta: &'static str,
         /// true for argument metas
         /// false for positional metas
         is_arg: bool,
@@ -92,9 +149,10 @@ impl Comp {
     /// to prevent completion from commands from leaking into levels below them
     fn depth(&self) -> usize {
         match self {
-            Comp::Item { depth, .. } | Comp::Value { depth, .. } | Comp::Meta { depth, .. } => {
-                *depth
-            }
+            Comp::Command { depth, .. }
+            | Comp::Value { depth, .. }
+            | Comp::Meta { depth, .. }
+            | Comp::Flag { depth, .. } => *depth,
         }
     }
 
@@ -103,7 +161,7 @@ impl Comp {
     /// value indicates if it's an argument or a positional meta
     pub(crate) fn meta_type(&self) -> Option<bool> {
         match self {
-            Comp::Item { .. } | Comp::Value { .. } => None,
+            Comp::Command { .. } | Comp::Value { .. } | Comp::Flag { .. } => None,
             Comp::Meta { is_arg, .. } => Some(*is_arg),
         }
     }
@@ -253,59 +311,40 @@ impl Complete {
 
         for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
             match item {
-                Comp::Item { item, depth: _ } => match item {
-                    // we don't push those guys, instead this is Comp::Meta which
-                    // is shared between positionals and arguments
-                    Item::Positional { .. } => {
-                        unreachable!("completion for positional item detected")
+                Comp::Command {
+                    name,
+                    short,
+                    help,
+                    depth: _,
+                } => {
+                    if pos_only {
+                        continue;
                     }
-                    Item::Command {
-                        name,
-                        short,
-                        help,
-                        meta: _,
-                    } => {
-                        if pos_only {
-                            continue;
-                        }
-                        if let Some(long) = cmd_matches(arg, name, *short) {
-                            items.push(ShowComp {
-                                subst: long.to_string(),
-                                descr: help,
-                                is_value: false,
-                            });
-                        }
+                    if let Some(long) = cmd_matches(arg, name, *short) {
+                        items.push(ShowComp {
+                            subst: long.to_string(),
+                            descr: help,
+                            is_value: false,
+                        });
                     }
-                    Item::Flag { name, help } => {
-                        if pos_only {
-                            continue;
-                        }
-                        if let Some(long) = arg_matches(arg, *name) {
-                            items.push(ShowComp {
-                                subst: long,
-                                descr: help,
-                                is_value: false,
-                            });
-                        }
+                }
+
+                Comp::Flag {
+                    name,
+                    help,
+                    depth: _,
+                } => {
+                    if pos_only {
+                        continue;
                     }
-                    Item::Argument {
-                        name,
-                        metavar: _,
-                        env: _,
-                        help,
-                    } => {
-                        if pos_only {
-                            continue;
-                        }
-                        if let Some(long) = arg_matches(arg, *name) {
-                            items.push(ShowComp {
-                                subst: long,
-                                descr: help,
-                                is_value: false,
-                            });
-                        }
+                    if let Some(long) = arg_matches(arg, *name) {
+                        items.push(ShowComp {
+                            subst: long,
+                            descr: help,
+                            is_value: false,
+                        });
                     }
-                },
+                }
                 Comp::Value {
                     body,
                     help,
