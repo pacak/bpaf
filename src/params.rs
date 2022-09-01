@@ -218,6 +218,15 @@ pub struct Named {
     help: Option<String>,
 }
 
+impl Named {
+    pub(crate) fn flag_item(&self) -> Item {
+        Item::Flag {
+            name: ShortLong::from(self),
+            help: self.help.clone(),
+        }
+    }
+}
+
 /// A flag/switch/argument that has a short name
 ///
 /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
@@ -1044,14 +1053,6 @@ struct BuildFlagParser<T> {
     absent: Option<T>,
     named: Named,
 }
-impl<T> BuildFlagParser<T> {
-    pub(crate) fn item(&self) -> Item {
-        Item::Flag {
-            name: ShortLong::from(&self.named),
-            help: self.named.help.clone(),
-        }
-    }
-}
 
 impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
@@ -1062,14 +1063,14 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
                 if touching {
-                    comp.push_item(self.item(), args.depth);
+                    comp.push_item(self.named.flag_item(), args.depth);
                 }
             }
             Ok(self.present.clone())
         } else {
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.push_item(self.item(), args.depth);
+                comp.push_item(self.named.flag_item(), args.depth);
             }
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
@@ -1079,7 +1080,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     }
 
     fn meta(&self) -> Meta {
-        self.item().required(self.absent.is_none())
+        self.named.flag_item().required(self.absent.is_none())
     }
 }
 
