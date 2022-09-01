@@ -108,12 +108,25 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace --all-targets
+          args: -p bpaf
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p bpaf_derive
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-targets --no-default-features
+          args: -p bpaf --all-targets --no-default-features
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-targets --all-features
+          args: -p bpaf --all-targets --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p bpaf_derive --all-targets --no-default-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p bpaf_derive --all-targets --all-features
