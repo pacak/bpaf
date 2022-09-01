@@ -104,17 +104,13 @@ where
         let mut comps = Vec::new();
 
         #[cfg(feature = "autocomplete")]
-        if let Some(comp) = &mut args.comp {
-            std::mem::swap(&mut comps, &mut comp.comps);
-        }
+        args.swap_comps(&mut comps);
 
         #[allow(clippy::let_and_return)]
         let res = self.inner.eval(args);
 
         #[cfg(feature = "autocomplete")]
-        if let Some(comp) = &mut args.comp {
-            std::mem::swap(&mut comps, &mut comp.comps);
-        }
+        args.swap_comps(&mut comps);
         res
     }
 
@@ -139,9 +135,7 @@ where
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
         #[cfg(feature = "autocomplete")]
-        if let Some(comp) = &mut args.comp {
-            std::mem::swap(&mut comp_items, &mut comp.comps);
-        }
+        args.swap_comps(&mut comp_items);
 
         // create forks for both branches, go with a successful one.
         // if they both fail - fallback to the original arguments
@@ -391,10 +385,12 @@ where
         Ok(val) => Ok(Some(val)),
         Err(err) => {
             std::mem::swap(args, &mut orig_args);
+
             #[cfg(feature = "autocomplete")]
             if orig_args.comp.is_some() {
                 std::mem::swap(&mut args.comp, &mut orig_args.comp);
             }
+
             match err {
                 Error::Stdout(_) | Error::Stderr(_) => Err(err),
                 Error::Missing(_) => Ok(None),
@@ -519,16 +515,13 @@ where
         // stash old
         let mut comp_items = Vec::new();
 
-        if let Some(comp) = &mut args.comp {
-            std::mem::swap(&mut comp_items, &mut comp.comps);
-        }
+        args.swap_comps(&mut comp_items);
 
         let res = self.inner.eval(args);
 
+        // restore old, now metavars added by inner parser, if any, are in comp_items
+        args.swap_comps(&mut comp_items);
         if let Some(comp) = &mut args.comp {
-            // restore old, now metavars added by inner parser, if any, are in comp_items
-            std::mem::swap(&mut comp_items, &mut comp.comps);
-
             if res.is_err() {
                 comp.comps.extend(comp_items);
                 return res;
