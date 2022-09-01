@@ -184,9 +184,6 @@ fn this_or_that_picks_first(
 
     #[cfg(feature = "autocomplete")] mut comp_stash: Vec<crate::complete_gen::Comp>,
 ) -> Result<bool, Error> {
-    println!("A: {:?}/{:?}", err_a, args_a);
-    println!("B: {:?}/{:?}", err_b, args_b);
-
     // if higher depth parser succeeds - it takes a priority
     // completion from different depths should never mix either
     match Ord::cmp(&args_a.depth, &args_b.depth) {
