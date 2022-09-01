@@ -140,21 +140,19 @@ where
         // create forks for both branches, go with a successful one.
         // if they both fail - fallback to the original arguments
         let mut args_a = args.clone();
-        let mut args_b = args.clone();
         args_a.head = usize::MAX;
+        let (res_a, err_a) = match self.this.eval(&mut args_a) {
+            Ok(ok) => (Some(ok), None),
+            Err(err) => (None, Some(err)),
+        };
+
+        let mut args_b = args.clone();
         args_b.head = usize::MAX;
-        let res_a = self.this.eval(&mut args_a);
-        let res_b = self.that.eval(&mut args_b);
-
-        let (res_a, err_a) = match res_a {
+        let (res_b, err_b) = match self.that.eval(&mut args_b) {
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
         };
 
-        let (res_b, err_b) = match res_b {
-            Ok(ok) => (Some(ok), None),
-            Err(err) => (None, Some(err)),
-        };
         if this_or_that_picks_first(
             err_a,
             err_b,
