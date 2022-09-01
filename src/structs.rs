@@ -155,7 +155,15 @@ where
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
         };
-        if this_or_that_picks_first(err_a, err_b, args, &mut args_a, &mut args_b, comp_items)? {
+        if this_or_that_picks_first(
+            err_a,
+            err_b,
+            args,
+            &mut args_a,
+            &mut args_b,
+            #[cfg(feature = "autocomplete")]
+            comp_items,
+        )? {
             Ok(res_a.unwrap())
         } else {
             Ok(res_b.unwrap())
@@ -173,7 +181,8 @@ fn this_or_that_picks_first(
     args: &mut Args,
     args_a: &mut Args,
     args_b: &mut Args,
-    mut comp_stash: Vec<crate::complete_gen::Comp>,
+
+    #[cfg(feature = "autocomplete")] mut comp_stash: Vec<crate::complete_gen::Comp>,
 ) -> Result<bool, Error> {
     println!("A: {:?}/{:?}", err_a, args_a);
     println!("B: {:?}/{:?}", err_b, args_b);

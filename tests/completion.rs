@@ -82,6 +82,29 @@ fn static_complete_test_1() {
 }
 
 #[test]
+fn long_and_short_arguments() {
+    let parser = short('p').long("potato").argument("POTATO").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-p"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--potato\n");
+
+    let r = parser
+        .run_inner(Args::from(&["-p", ""]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "<POTATO>\n");
+
+    let r = parser
+        .run_inner(Args::from(&["-p", "x"]).set_comp())
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "x\n");
+}
+
+#[test]
 fn short_command_alias() {
     let a = long("potato")
         .argument("A")

@@ -1,4 +1,4 @@
-use crate::{complete_gen::Comp, Error, Named};
+use crate::{Error, Named};
 use std::ffi::OsString;
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
@@ -478,7 +478,8 @@ pub(crate) fn split_os_argument_fallback(
 
 impl Args {
     #[inline(never)]
-    pub(crate) fn swap_comps(&mut self, comps: &mut Vec<Comp>) {
+    #[cfg(feature = "autocomplete")]
+    pub(crate) fn swap_comps(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
         if let Some(comp) = &mut self.comp {
             std::mem::swap(comps, &mut comp.comps);
         }

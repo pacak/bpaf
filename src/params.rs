@@ -1115,35 +1115,23 @@ impl Parser<Word> for BuildArgument {
                         );
                     }
                 }
-                return Ok(w);
+                Ok(w)
             }
             Err(err) => {
                 #[cfg(feature = "autocomplete")]
-                if args.comp.is_some() {
-                    let ix = args
-                        .items_iter()
-                        .find(|arg| self.named.matches_arg(arg.1))
-                        .unwrap()
-                        .0;
-
-                    if args.items.len() - 1 == ix {
-                        args.push_flag(&self.named)
-                    } else {
-                        args.push_metadata(self.metavar, &self.named.help, true)
-                    }
-                }
-                return Err(err);
+                args.push_flag(&self.named);
+                Err(err)
             }
-            _ => {}
-        }
-
-        #[cfg(feature = "autocomplete")]
-        args.push_flag(&self.named);
-        if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
-            args.current = None;
-            Ok(crate::args::word(val, false))
-        } else {
-            Err(Error::Missing(vec![self.item()]))
+            _ => {
+                #[cfg(feature = "autocomplete")]
+                args.push_flag(&self.named);
+                if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+                    args.current = None;
+                    Ok(crate::args::word(val, false))
+                } else {
+                    Err(Error::Missing(vec![self.item()]))
+                }
+            }
         }
     }
 

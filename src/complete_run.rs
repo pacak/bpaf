@@ -112,26 +112,22 @@ pub(crate) fn args_with_complete(
                 };
                 // render prefered completer
                 match comp.style {
-                    Style::Bash => {
-                        println!("{}", BASH_COMPLETER);
-                        println!("complete -F _bpaf_dynamic_completion {}", name);
-                    }
-                    Style::Zsh => {
-                        println!("#compdef {}", name);
-                        println!("{}", ZSH_COMPLETER);
-                    }
-                    Style::Fish => {
-                        println!("{}", FISH_COMPLETER);
-                        println!( "complete --no-files --command {} --arguments '(_bpaf_dynamic_completion)'", name);
-                    }
-                    Style::Elvish => {
-                        println!("set edit:completion:arg-completer[{}] = {{ |@args| var args = $args[1..];", name);
-                        println!(
-                            "     var @lines = ( {} --bpaf-complete-style-elvish $@args );",
-                            name
-                        );
-                        println!("{}", ELVISH_COMPLETER);
-                    }
+                    Style::Bash => println!(
+                        "{}\ncomplete -F _bpaf_dynamic_completion {}",
+                        BASH_COMPLETER, name
+                    ),
+                    Style::Zsh => println!("#compdef {}\n{}", name, ZSH_COMPLETER),
+                    Style::Fish => println!(
+                        "{}
+complete --no-files --command {} --arguments '(_bpaf_dynamic_completion)'",
+                        FISH_COMPLETER, name
+                    ),
+                    Style::Elvish => println!(
+                        "set edit:completion:arg-completer[{}] = {{ |@args| var args = $args[1..];
+     var @lines = ( {} --bpaf-complete-style-elvish $@args );
+{}",
+                        name, name, ELVISH_COMPLETER
+                    ),
                 };
                 std::process::exit(0)
             } else {
