@@ -1106,14 +1106,7 @@ impl Parser<Word> for BuildArgument {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
-                    if let Some(comp) = &mut args.comp {
-                        comp.push_metadata(
-                            self.metavar,
-                            self.named.help.clone(), // help isn't used for argument metadata
-                            args.depth,
-                            true,
-                        );
-                    }
+                    args.push_metadata(self.metavar, &self.named.help, true);
                 }
                 Ok(w)
             }
@@ -1190,6 +1183,8 @@ fn parse_word(
     match args.take_positional_word()? {
         Some(word) => {
             if strict && !word.pos_only {
+                args.push_value("--", &None, false);
+
                 return Err(Error::Stderr(format!(
                     "Expected <{}> to be on the right side of --",
                     metavar,
@@ -1198,21 +1193,18 @@ fn parse_word(
 
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.no_pos_ahead {
-                if let Some(comp) = &mut args.comp {
-                    comp.push_metadata(metavar, help.clone(), args.depth, false);
-                    args.no_pos_ahead = true;
-                }
+                args.push_metadata(metavar, help, false);
+                args.no_pos_ahead = true;
             }
             Ok(word)
         }
         None => {
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                if !args.no_pos_ahead {
-                    comp.push_metadata(metavar, help.clone(), args.depth, false);
-                    args.no_pos_ahead = true;
-                }
+            if !args.no_pos_ahead {
+                args.push_metadata(metavar, help, false);
+                args.no_pos_ahead = true;
             }
+
             let item = Item::Positional {
                 metavar,
                 help: help.clone(),

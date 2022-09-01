@@ -75,24 +75,20 @@ impl Args {
             comp.comps.clear()
         }
     }
+
+    pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.push(Comp::Value {
+                depth: self.depth,
+                body: body.to_owned(),
+                help: help.clone(),
+                is_arg,
+            })
+        }
+    }
 }
 
 impl Complete {
-    pub(crate) fn push_metadata(
-        &mut self,
-        meta: &'static str,
-        help: Option<String>,
-        depth: usize,
-        arg: bool,
-    ) {
-        self.comps.push(Comp::Meta {
-            meta,
-            depth,
-            is_arg: arg,
-            help,
-        });
-    }
-
     pub(crate) fn push_value(
         &mut self,
         body: String,
