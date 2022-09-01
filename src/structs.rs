@@ -146,71 +146,104 @@ where
         let res_a = self.this.eval(&mut args_a);
         let res_b = self.that.eval(&mut args_b);
 
-        // if higher depth parser succeeds - it takes a priority
-        // completion from different depths should never mix either
-        match Ord::cmp(&args_a.depth, &args_b.depth) {
-            std::cmp::Ordering::Less => {
-                std::mem::swap(args, &mut args_b);
-                #[cfg(feature = "autocomplete")]
-                if let Some(comp) = &mut args.comp {
-                    comp.comps.extend(comp_items);
-                }
-                return res_b;
-            }
-            std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Greater => {
-                std::mem::swap(args, &mut args_a);
-                #[cfg(feature = "autocomplete")]
-                if let Some(comp) = &mut args.comp {
-                    comp.comps.extend(comp_items);
-                }
-                return res_a;
-            }
-        }
-
-        #[cfg(feature = "autocomplete")]
-        if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
-            comp_items.extend(a.comps.drain(0..));
-            comp_items.extend(b.comps.drain(0..));
-        }
-
-        // otherwise pick based on the left most or successful one
-        #[allow(clippy::let_and_return)]
-        let res = match (res_a, res_b) {
-            (Ok(a), Ok(b)) => {
-                if args_a.head <= args_b.head {
-                    std::mem::swap(args, &mut args_a);
-                    Ok(a)
-                } else {
-                    std::mem::swap(args, &mut args_b);
-                    Ok(b)
-                }
-            }
-            (Ok(a), Err(_)) => {
-                std::mem::swap(args, &mut args_a);
-                Ok(a)
-            }
-            (Err(_), Ok(b)) => {
-                std::mem::swap(args, &mut args_b);
-                Ok(b)
-            }
-            (Err(e1), Err(e2)) => {
-                args.tainted |= args_a.tainted | args_b.tainted;
-                Err(e1.combine_with(e2))
-            }
+        let (res_a, err_a) = match res_a {
+            Ok(ok) => (Some(ok), None),
+            Err(err) => (None, Some(err)),
         };
 
-        #[cfg(feature = "autocomplete")]
-        if let Some(comp) = &mut args.comp {
-            comp.comps.extend(comp_items);
+        let (res_b, err_b) = match res_b {
+            Ok(ok) => (Some(ok), None),
+            Err(err) => (None, Some(err)),
+        };
+        if this_or_that_picks_first(err_a, err_b, args, &mut args_a, &mut args_b, comp_items)? {
+            Ok(res_a.unwrap())
+        } else {
+            Ok(res_b.unwrap())
         }
-
-        res
     }
 
     fn meta(&self) -> Meta {
         self.this.meta().or(self.that.meta())
     }
+}
+
+fn this_or_that_picks_first(
+    err_a: Option<Error>,
+    err_b: Option<Error>,
+    args: &mut Args,
+    args_a: &mut Args,
+    args_b: &mut Args,
+    mut comp_stash: Vec<crate::complete_gen::Comp>,
+) -> Result<bool, Error> {
+    println!("A: {:?}/{:?}", err_a, args_a);
+    println!("B: {:?}/{:?}", err_b, args_b);
+
+    // if higher depth parser succeeds - it takes a priority
+    // completion from different depths should never mix either
+    match Ord::cmp(&args_a.depth, &args_b.depth) {
+        std::cmp::Ordering::Less => {
+            std::mem::swap(args, args_b);
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                comp.comps.extend(comp_stash);
+            }
+            return match err_b {
+                Some(err) => Err(err),
+                None => Ok(false),
+            };
+        }
+        std::cmp::Ordering::Equal => {}
+        std::cmp::Ordering::Greater => {
+            std::mem::swap(args, args_a);
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                comp.comps.extend(comp_stash);
+            }
+            return match err_a {
+                Some(err) => Err(err),
+                None => Ok(true),
+            };
+        }
+    }
+
+    #[cfg(feature = "autocomplete")]
+    if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
+        comp_stash.extend(a.comps.drain(0..));
+        comp_stash.extend(b.comps.drain(0..));
+    }
+
+    // otherwise pick based on the left most or successful one
+    #[allow(clippy::let_and_return)]
+    let res = match (err_a, err_b) {
+        (None, None) => {
+            if args_a.head <= args_b.head {
+                std::mem::swap(args, args_a);
+                Ok(true)
+            } else {
+                std::mem::swap(args, args_b);
+                Ok(false)
+            }
+        }
+        (None, Some(_)) => {
+            std::mem::swap(args, args_a);
+            Ok(true)
+        }
+        (Some(_), None) => {
+            std::mem::swap(args, args_b);
+            Ok(false)
+        }
+        (Some(e1), Some(e2)) => {
+            args.tainted |= args_a.tainted | args_b.tainted;
+            Err(e1.combine_with(e2))
+        }
+    };
+
+    #[cfg(feature = "autocomplete")]
+    if let Some(comp) = &mut args.comp {
+        comp.comps.extend(comp_stash);
+    }
+
+    res
 }
 
 /// Parser that transforms parsed value with a failing function, created with
