@@ -4,8 +4,8 @@
 use std::marker::PhantomData;
 
 use crate::{
-    args::Args, meta_help::render_help, meta_usage::to_usage_meta, params::short, Command, Meta,
-    ParseFailure, Parser,
+    args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
+    Command, Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -18,7 +18,7 @@ pub enum Error {
     /// Expected one of those values
     ///
     /// Used internally to generate better error messages
-    Missing(Vec<Meta>),
+    Missing(Vec<Item>),
 }
 
 impl Error {
@@ -213,12 +213,11 @@ impl<T> OptionParser<T> {
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(Error::Missing(metas)) => Err(ParseFailure::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(metas)
-            ))),
-            Err(Error::Stdout(stdout)) => Err(ParseFailure::Stdout(stdout)),
-            Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
+            Err(err) => match report_missing_items(err) {
+                Error::Stdout(msg) => Err(ParseFailure::Stdout(msg)),
+                Error::Stderr(msg) => Err(ParseFailure::Stderr(msg)),
+                Error::Missing(_) => unreachable!(),
+            },
         }
     }
 
@@ -272,14 +271,7 @@ impl<T> OptionParser<T> {
             crate::meta_youmean::suggest(args, &self.inner.meta())?;
         }
 
-        if let Error::Missing(metas) = err {
-            Err(Error::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(metas)
-            )))
-        } else {
-            Err(err)
-        }
+        Err(report_missing_items(err))
     }
     /// Get first line of description if Available
     ///
@@ -586,8 +578,17 @@ impl<T> OptionParser<T> {
     }
 }
 
+fn report_missing_items(err: Error) -> Error {
+    match err {
+        Error::Stdout(_) | Error::Stderr(_) => err,
+        Error::Missing(items) => Error::Stderr(format!(
+            "Expected {}, pass --help for usage information",
+            Meta::Or(items.into_iter().map(Meta::Item).collect::<Vec<_>>())
+        )),
+    }
+}
+
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
-    use crate::item::Item;
     if fresh {
         to_usage_meta(meta);
     }

@@ -11,7 +11,7 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
         Error::Missing(xs) => {
             let mut hi = crate::meta_help::HelpItems::default();
             for x in xs.iter() {
-                hi.classify(x);
+                hi.classify_item(x);
             }
             hi.flgs.is_empty() && hi.psns.is_empty()
         }

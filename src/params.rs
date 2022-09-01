@@ -1016,7 +1016,7 @@ impl<T> Parser<T> for Command<T> {
                 comp.push_item(self.item(), args.depth);
             }
 
-            Err(Error::Missing(vec![self.meta()]))
+            Err(Error::Missing(vec![self.item()]))
         }
     }
 
@@ -1074,7 +1074,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
             }
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
-                None => Err(Error::Missing(vec![self.meta()])),
+                None => Err(Error::Missing(vec![self.named.flag_item()])),
             }
         }
     }
@@ -1164,7 +1164,7 @@ impl Parser<Word> for BuildArgument {
             args.current = None;
             Ok(crate::args::word(val, false))
         } else {
-            Err(Error::Missing(vec![self.meta()]))
+            Err(Error::Missing(vec![self.item()]))
         }
     }
 
@@ -1246,12 +1246,12 @@ fn parse_word(
                     args.no_pos_ahead = true;
                 }
             }
-            let meta = Meta::Item(Item::Positional {
+            let item = Item::Positional {
                 metavar,
                 help: help.clone(),
                 strict,
-            });
-            Err(Error::Missing(vec![meta]))
+            };
+            Err(Error::Missing(vec![item]))
         }
     }
 }

@@ -1,6 +1,10 @@
 #![allow(clippy::write_with_newline)]
 #![allow(clippy::match_like_matches_macro)]
-use crate::{info::Info, item::ShortLong, Meta};
+use crate::{
+    info::Info,
+    item::{Item, ShortLong},
+    Meta,
+};
 
 #[derive(Debug)]
 pub(crate) enum HelpItem<'a> {
@@ -47,6 +51,52 @@ impl HelpItem<'_> {
 }
 
 impl<'a> HelpItems<'a> {
+    #[inline(never)]
+    pub(crate) fn classify_item(&mut self, item: &'a Item) {
+        match item {
+            crate::item::Item::Positional {
+                metavar,
+                help,
+                strict,
+            } => {
+                if help.is_some() {
+                    self.psns.push(HelpItem::Positional {
+                        metavar,
+                        help: help.as_deref(),
+                        strict: *strict,
+                    });
+                }
+            }
+            crate::item::Item::Command {
+                name,
+                short,
+                help,
+                meta: _,
+            } => {
+                self.cmds.push(HelpItem::Command {
+                    name,
+                    short: *short,
+                    help: help.as_deref(),
+                });
+            }
+            crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
+                name: ShortLongHelp(*name),
+                help: help.as_deref(),
+            }),
+            crate::item::Item::Argument {
+                name,
+                metavar,
+                env,
+                help,
+            } => self.flgs.push(HelpItem::Argument {
+                name: ShortLongHelp(*name),
+                metavar,
+                env: *env,
+                help: help.as_deref(),
+            }),
+        }
+    }
+
     pub(crate) fn classify(&mut self, meta: &'a Meta) {
         match meta {
             Meta::And(xs) | Meta::Or(xs) => {
@@ -55,48 +105,8 @@ impl<'a> HelpItems<'a> {
                 }
             }
             Meta::Optional(x) | Meta::Many(x) => self.classify(x),
-            Meta::Item(item) => match item {
-                crate::item::Item::Positional {
-                    metavar,
-                    help,
-                    strict,
-                } => {
-                    if help.is_some() {
-                        self.psns.push(HelpItem::Positional {
-                            metavar,
-                            help: help.as_deref(),
-                            strict: *strict,
-                        });
-                    }
-                }
-                crate::item::Item::Command {
-                    name,
-                    short,
-                    help,
-                    meta: _,
-                } => {
-                    self.cmds.push(HelpItem::Command {
-                        name,
-                        short: *short,
-                        help: help.as_deref(),
-                    });
-                }
-                crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
-                    name: ShortLongHelp(*name),
-                    help: help.as_deref(),
-                }),
-                crate::item::Item::Argument {
-                    name,
-                    metavar,
-                    env,
-                    help,
-                } => self.flgs.push(HelpItem::Argument {
-                    name: ShortLongHelp(*name),
-                    metavar,
-                    env: *env,
-                    help: help.as_deref(),
-                }),
-            },
+            Meta::Item(item) => self.classify_item(item),
+
             Meta::Decorated(m, help) => {
                 self.flgs.push(HelpItem::Decor { help });
                 self.cmds.push(HelpItem::Decor { help });
