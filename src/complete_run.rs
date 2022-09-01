@@ -62,7 +62,7 @@ for word in $completions; do
        compadd -l -d desc -- $parts[1]
      fi
   else
-    compadd -f -- $word
+    compadd -- $word
   fi
 done",
         name = name,
