@@ -484,6 +484,17 @@ impl Args {
         }
     }
 
+    pub(crate) fn word_parse_error(&mut self, error: String) -> Error {
+        self.tainted = true;
+        Error::Stderr(
+            if let Some(Word { utf8: Some(w), .. }) = self.current_word() {
+                format!("Couldn't parse {:?}: {}", w, error)
+            } else {
+                format!("Couldn't parse: {}", error)
+            },
+        )
+    }
+
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present

@@ -1,7 +1,7 @@
 //!
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{args::Word, info::Error, Args, Meta, Parser};
+use crate::{info::Error, Args, Meta, Parser};
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
@@ -233,16 +233,7 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => {
-                args.tainted = true;
-                Err(Error::Stderr(
-                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                        format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    } else {
-                        format!("Couldn't parse: {}", e.to_string())
-                    },
-                ))
-            }
+            Err(e) => Err(args.word_parse_error(e.to_string())),
         }
     }
 
@@ -301,14 +292,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            args.tainted = true;
-            Err(Error::Stderr(
-                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                    format!("Failed to verify {:?}: {}", w, self.message)
-                } else {
-                    self.message.to_string()
-                },
-            ))
+            Err(args.word_parse_error(self.message.to_string()))
         }
     }
 
@@ -352,16 +336,7 @@ where
         let s = self.inner.eval(args)?;
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
-            Err(e) => {
-                args.tainted = true;
-                Err(Error::Stderr(
-                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                        format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    } else {
-                        format!("Couldn't parse: {}", e.to_string())
-                    },
-                ))
-            }
+            Err(e) => Err(args.word_parse_error(e.to_string())),
         }
     }
 
