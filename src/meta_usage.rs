@@ -27,7 +27,7 @@ pub(crate) fn to_usage_meta(meta: &Meta) -> Option<UsageMeta> {
     let mut had_commands = false;
     let mut is_pos = false;
 
-    collect_usage_meta(meta, false, &mut had_commands, &mut is_pos)
+    collect_usage_meta(meta, true, &mut had_commands, &mut is_pos)
 }
 /// Transforms `Meta` to [`UsageMeta`]
 ///

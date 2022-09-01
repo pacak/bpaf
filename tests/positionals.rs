@@ -174,5 +174,5 @@ fn strictly_positional() {
         .run_inner(Args::from(&["--"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <A>, pass --help for usage information");
+    assert_eq!(r, "Expected -- <A>, pass --help for usage information");
 }

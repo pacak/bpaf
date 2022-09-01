@@ -1335,13 +1335,13 @@ fn cargo_show_asm_issue_guard() {
         .run_inner(Args::from(&["asm", "-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Failed to verify \"x\": nope");
+    assert_eq!(res, "Couldn't parse \"x\": nope");
 
     let res = parser
         .run_inner(Args::from(&["-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Failed to verify \"x\": nope");
+    assert_eq!(res, "Couldn't parse \"x\": nope");
 }
 
 #[test]
