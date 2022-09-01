@@ -1183,6 +1183,7 @@ fn parse_word(
     match args.take_positional_word()? {
         Some(word) => {
             if strict && !word.pos_only {
+                #[cfg(feature = "autocomplete")]
                 args.push_value("--", &None, false);
 
                 return Err(Error::Stderr(format!(

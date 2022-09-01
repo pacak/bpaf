@@ -1,6 +1,4 @@
-use std::process::ExitCode;
-
-use bpaf_cauwugo::opts::{cargo_command, options, Options, CARGO_PARAMS};
+use bpaf_cauwugo::opts::{cargo_command, options, Options};
 
 fn main() {
     let opts = options().run();
