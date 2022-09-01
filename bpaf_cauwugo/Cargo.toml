@@ -1,0 +1,15 @@
+[package]
+name = "bpaf_cauwugo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+bpaf = { version = "0.5.5", path = "../", features = ["derive", "autocomplete"] }
+cargo_metadata = "0.15.0"
+once_cell = "1.13.1"
+
+[[bin]]
+name = "cauwugo"
+path = "src/main.rs"

@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.5.4"
+version = "0.5.5"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -12,7 +12,7 @@ repository = "https://github.com/pacak/bpaf"
 rust-version = "1.56"
 
 [dependencies]
-bpaf_derive = { path = "./bpaf_derive", version = "0.2.0", optional = true }
+bpaf_derive = { path = "./bpaf_derive", version = "0.2.1", optional = true }
 
 [dev-dependencies]
 bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
@@ -46,4 +46,4 @@ name = "csample"
 required-features = ["autocomplete"]
 
 [workspace]
-members = [".", "./bpaf_derive"]
+members = [".", "./bpaf_derive", "./bpaf_cauwugo"]
