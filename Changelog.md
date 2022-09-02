@@ -1,11 +1,12 @@
 # Change Log
 
-## bpaf [0.5.5] - unreleased
+## bpaf [0.5.5] - 2022-09-02
 - invariant checker - for tests
 - more error message improvements
 - non-utf8 support in --foo=bar / -f=bar
 - dynamic shell completion: bash, zsh, fish, elvish
 - toggle flag battery
+- templated usage string: can use "{usage}" in custom overrides
 
 ## bpaf [0.5.4] - 2022-08-25
 minor bugfixes
