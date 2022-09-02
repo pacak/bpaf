@@ -50,6 +50,7 @@ pub static METADATA: Lazy<Metadata> = Lazy::new(|| {
 });
 
 #[derive(Debug, Default, Bpaf, Clone)]
+#[bpaf(complete_style(CompleteDecor::VisibleGroup("== Cargo options")))]
 pub struct CargoParams {
     #[bpaf(
         short,
@@ -146,7 +147,10 @@ pub fn cargo_command(
 
 fn complete_binary_args(input: &Vec<OsString>) -> Vec<(String, Option<String>)> {
     if input.is_empty() {
-        return vec![("--".to_owned(), None)];
+        return vec![(
+            "--".to_owned(),
+            Some("proceed to inner app arguments".to_owned()),
+        )];
     }
     let mut cmd = cargo_command("run", &CARGO_PARAMS.lock().unwrap(), None);
 
@@ -245,16 +249,12 @@ fn pick_binary() -> impl Parser<Exec<'static>> {
         .parse(parse_ws_binary)
 }
 
-fn cargo_params_dec() -> impl Parser<CargoParams> {
-    cargo_params().complete_style(CompleteDecor::VisibleGroup("== Cargo options"))
-}
-
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub enum Options {
     #[bpaf(command)]
     Run {
-        #[bpaf(external(cargo_params_dec))]
+        #[bpaf(external)]
         cargo_params: CargoParams,
 
         #[bpaf(external(pick_binary), optional)]

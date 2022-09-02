@@ -957,10 +957,50 @@ fn derive_decorations() {
         &opts,
         &[""],
         &[
-            ["--release", "--release    optimize", "", ""],
-            ["--target", "--target <ARG>    pick target", "", ""],
-            ["--focus", "--focus <ARG>    pick focus", "", ""],
-            ["--inline", "--inline    inline rust", "", ""],
+            [
+                "--release",
+                "--release    optimize",
+                "== Cargo options",
+                "== Cargo options",
+            ],
+            [
+                "--target",
+                "--target <ARG>    pick target",
+                "== Cargo options",
+                "== Cargo options",
+            ],
+            [
+                "--focus",
+                "--focus <ARG>    pick focus",
+                "== Application options",
+                "== Application options",
+            ],
+            [
+                "--inline",
+                "--inline    inline rust",
+                "== Application options",
+                "== Application options",
+            ],
+        ],
+    );
+}
+
+#[test]
+fn zsh_complete_info() {
+    fn foo(_input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+        vec![("hello", Some("word")), ("sample", None)]
+    }
+    let parser = short('a').argument("X").complete(foo).to_options();
+
+    test_zsh_comp(&parser, &[""], &[["-a", "-a <X>", "", ""]]);
+
+    test_zsh_comp(&parser, &["-"], &[["-a", "-a <X>", "", ""]]);
+    test_zsh_comp(
+        &parser,
+        &["-a", ""],
+        &[
+            ["hello", "hello    word", "", ""],
+            ["sample", "sample", "", ""],
         ],
     );
 }

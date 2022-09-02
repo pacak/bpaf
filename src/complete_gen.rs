@@ -444,10 +444,7 @@ impl Complete {
                 } => {
                     has_values |= is_arg;
                     items.push(ShowComp {
-                        pretty: match &extra.help {
-                            Some(help) => format!("{}    {}", body, help),
-                            None => body.clone(),
-                        },
+                        pretty: body.clone(),
                         descr: &extra.help,
                         extra,
                         subst: body.clone(),
