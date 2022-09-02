@@ -188,10 +188,10 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
-        /// enable completions bash style
+        /// enable completions with custom output revision style
         #[must_use]
-        pub fn set_comp(mut self) -> Self {
-            self.comp = Some(crate::complete_gen::Complete::default());
+        pub fn set_comp(mut self, rev: usize) -> Self {
+            self.comp = Some(crate::complete_gen::Complete::new(rev));
             self
         }
     }
@@ -485,7 +485,7 @@ impl Args {
         }
     }
 
-    pub(crate) fn word_parse_error(&mut self, error: String) -> Error {
+    pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
         self.tainted = true;
         Error::Stderr(
             if let Some(Word { utf8: Some(w), .. }) = self.current_word() {
@@ -708,13 +708,5 @@ mod tests {
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.utf8.unwrap(), "-x");
         assert!(a.is_empty());
-    }
-}
-impl Arg {
-    pub(crate) fn is_word(&self) -> bool {
-        match self {
-            Arg::Short(_, _) | Arg::Long(_, _) => false,
-            Arg::Word(_) => true,
-        }
     }
 }

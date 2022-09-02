@@ -2,10 +2,6 @@ use std::{ffi::OsString, path::PathBuf};
 
 use crate::{construct, Args};
 
-/// completion variants are dumped as lines of variants by themselves one item on a line
-/// or variants and descriptions separated by a tab
-const REVISION: usize = 1;
-
 #[derive(Clone, Debug, Copy)]
 pub enum Style {
     Bash,
@@ -33,7 +29,7 @@ _bpaf_dynamic_completion()
 }}
 complete -F _bpaf_dynamic_completion {name}",
         name = name,
-        rev = REVISION
+        rev = 1,
     );
 }
 
@@ -41,32 +37,24 @@ fn dump_zsh_completer(name: &str) {
     println!(
         "\
 #compdef {name}
-
-local completions
-local word
-
-IFS=$'\\n' completions=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
-
-for word in $completions; do
-  local -a parts
-
-  # Split the line at a tab if there is one.
-  IFS=$'\\t' parts=($( echo $word ))
-
-  if [[ -n $parts[2] ]]; then
-     if [[ $word[1] == \"-\" ]]; then
-       local desc=(\"$parts[1] ($parts[2])\")
-       compadd -d desc -- $parts[1]
-     else
-       local desc=($(print -f  \"%-019s -- %s\" $parts[1] $parts[2]))
-       compadd -l -d desc -- $parts[1]
-     fi
-  else
-    compadd -- $word
-  fi
+IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
+for line in \"${{(@)lines}}\" ; do
+    IFS=$'\0' parts=($( echo $line ))
+    cmd=()
+    if [[ -n $parts[2] ]] ; then
+        descr=($parts[2])
+        cmd+=(-d descr)
+    fi
+    if [[ -n $parts[3] ]] ; then
+        cmd+=(-X \"${{parts[3]}}\")
+    fi
+    if [[ -n $parts[4] ]] ; then
+        cmd+=(-J \"${{parts[4]}}\")
+    fi
+    compadd ${{cmd[@]}} -- \"$parts[1]\"
 done",
         name = name,
-        rev = REVISION
+        rev = 2,
     );
 }
 
@@ -87,7 +75,7 @@ end
 
 complete --no-files --command {} --arguments '(_bpaf_dynamic_completion)'",
         name = name,
-        rev = REVISION
+        rev = 1,
     );
 }
 
@@ -107,7 +95,7 @@ set edit:completion:arg-completer[{name}] = {{ |@args| var args = $args[1..];
      }}
 }}",
         name = name,
-        rev = REVISION
+        rev = 1,
     );
 }
 
@@ -155,7 +143,7 @@ pub(crate) fn args_with_complete(
                 None => panic!("app name is not utf8, giving up rendering completer"),
             };
 
-            match comp {
+            let rev = match comp {
                 CompOptions::Dump { style } => {
                     match style {
                         Style::Bash => dump_bash_completer(name),
@@ -165,13 +153,9 @@ pub(crate) fn args_with_complete(
                     }
                     std::process::exit(0)
                 }
-                CompOptions::Complete { revision } => {
-                    if revision != REVISION {
-                        panic!("Revision mismatch, expected {}, got {}. You should regenerate completion files for your shell", REVISION, revision);
-                    }
-                }
-            }
-            Args::from(arguments).set_comp()
+                CompOptions::Complete { revision } => revision,
+            };
+            Args::from(arguments).set_comp(rev)
         }
 
         Err(err) => {

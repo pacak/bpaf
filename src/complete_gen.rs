@@ -14,13 +14,23 @@
 //
 // complete short names to long names if possible
 
-use crate::{args::Arg, item::ShortLong, Args, Error, Named};
+use crate::{args::Arg, item::ShortLong, Args, CompleteDecor, Error, Named};
 use std::ffi::OsStr;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub(crate) struct Complete {
     /// completions accumulated so far
     pub(crate) comps: Vec<Comp>,
+    pub(crate) output_rev: usize,
+}
+
+impl Complete {
+    pub(crate) fn new(output_rev: usize) -> Self {
+        Self {
+            comps: Vec::new(),
+            output_rev,
+        }
+    }
 }
 
 impl Args {
@@ -28,10 +38,30 @@ impl Args {
     pub(crate) fn push_flag(&mut self, named: &Named) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Flag {
+                extra: CompExtra {
+                    depth: self.depth,
+                    hidden_group: "",
+                    visible_group: "",
+                    help: named.help.clone(),
+                },
                 name: ShortLong::from(named),
-                help: named.help.clone(),
-                depth: self.depth,
-            })
+            });
+        }
+    }
+
+    /// Add a new completion hint for flag if completion is enabled
+    pub(crate) fn push_argument(&mut self, named: &Named, metavar: &'static str) {
+        if let Some(comp) = &mut self.comp {
+            comp.comps.push(Comp::Argument {
+                extra: CompExtra {
+                    depth: self.depth,
+                    hidden_group: "",
+                    visible_group: "",
+                    help: named.help.clone(),
+                },
+                metavar,
+                name: ShortLong::from(named),
+            });
         }
     }
 
@@ -43,12 +73,16 @@ impl Args {
         is_arg: bool,
     ) {
         if let Some(comp) = &mut self.comp {
-            comp.comps.push(Comp::Meta {
+            comp.comps.push(Comp::Positional {
+                extra: CompExtra {
+                    depth: self.depth,
+                    hidden_group: "",
+                    visible_group: "",
+                    help: help.clone(),
+                },
                 meta,
-                depth: self.depth,
                 is_arg,
-                help: help.clone(),
-            })
+            });
         }
     }
 
@@ -61,29 +95,45 @@ impl Args {
     ) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Command {
+                extra: CompExtra {
+                    depth: self.depth,
+                    hidden_group: "",
+                    visible_group: "",
+                    help: help.clone(),
+                },
                 name,
                 short,
-                help: help.clone(),
-                depth: self.depth,
-            })
+            });
         }
     }
 
     /// Clear collected completions if enabled
     pub(crate) fn clear_comps(&mut self) {
         if let Some(comp) = &mut self.comp {
-            comp.comps.clear()
+            comp.comps.clear();
         }
     }
 
     pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Value {
-                depth: self.depth,
+                extra: CompExtra {
+                    depth: self.depth,
+                    hidden_group: "",
+                    visible_group: "",
+                    help: help.clone(),
+                },
                 body: body.to_owned(),
-                help: help.clone(),
                 is_arg,
-            })
+            });
+        }
+    }
+}
+impl Arg {
+    pub(crate) fn is_word(&self) -> bool {
+        match self {
+            Arg::Short(_, _) | Arg::Long(_, _) => false,
+            Arg::Word(_) => true,
         }
     }
 }
@@ -98,45 +148,56 @@ impl Complete {
     ) {
         self.comps.push(Comp::Value {
             body,
-            help,
-            depth,
+            extra: CompExtra {
+                depth,
+                hidden_group: "",
+                visible_group: "",
+                help,
+            },
             is_arg,
         });
     }
 }
 
 #[derive(Clone, Debug)]
+pub(crate) struct CompExtra {
+    depth: usize,
+    hidden_group: &'static str,
+    visible_group: &'static str,
+    help: Option<String>,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) enum Comp {
-    /// Flag. corresponds to -f | --f parts of both flags and arguments
     Flag {
-        depth: usize,
+        extra: CompExtra,
         name: ShortLong,
-        help: Option<String>,
+    },
+
+    Argument {
+        extra: CompExtra,
+        name: ShortLong,
+        metavar: &'static str,
     },
 
     Command {
-        depth: usize,
+        extra: CompExtra,
         name: &'static str,
         short: Option<char>,
-        help: Option<String>,
     },
 
     /// comes from completed values, part of "dynamic" completion
     Value {
-        depth: usize,
+        extra: CompExtra,
         body: String,
-        help: Option<String>,
         is_arg: bool,
     },
 
     /// Placeholder completion - static completion
-    Meta {
-        depth: usize,
+    Positional {
+        extra: CompExtra,
         meta: &'static str,
-        /// true for argument metas
-        /// false for positional metas
         is_arg: bool,
-        help: Option<String>,
     },
 }
 
@@ -145,10 +206,11 @@ impl Comp {
     /// to prevent completion from commands from leaking into levels below them
     fn depth(&self) -> usize {
         match self {
-            Comp::Command { depth, .. }
-            | Comp::Value { depth, .. }
-            | Comp::Meta { depth, .. }
-            | Comp::Flag { depth, .. } => *depth,
+            Comp::Command { extra, .. }
+            | Comp::Value { extra, .. }
+            | Comp::Positional { extra, .. }
+            | Comp::Flag { extra, .. }
+            | Comp::Argument { extra, .. } => extra.depth,
         }
     }
 
@@ -157,8 +219,25 @@ impl Comp {
     /// value indicates if it's an argument or a positional meta
     pub(crate) fn meta_type(&self) -> Option<bool> {
         match self {
-            Comp::Command { .. } | Comp::Value { .. } | Comp::Flag { .. } => None,
-            Comp::Meta { is_arg, .. } => Some(*is_arg),
+            Comp::Command { .. }
+            | Comp::Value { .. }
+            | Comp::Flag { .. }
+            | Comp::Argument { .. } => None,
+            Comp::Positional { is_arg, .. } => Some(*is_arg),
+        }
+    }
+
+    pub(crate) fn set_decor(&mut self, style: CompleteDecor) {
+        let extra = match self {
+            Comp::Flag { extra, .. }
+            | Comp::Argument { extra, .. }
+            | Comp::Command { extra, .. }
+            | Comp::Value { extra, .. }
+            | Comp::Positional { extra, .. } => extra,
+        };
+        match style {
+            CompleteDecor::HiddenGroup(name) => extra.hidden_group = name,
+            CompleteDecor::VisibleGroup(name) => extra.visible_group = name,
         }
     }
 }
@@ -171,7 +250,12 @@ struct ShowComp<'a> {
     /// substitutions to use
     subst: String,
 
-    /// if we start rendering values - drop everything else and finish them.
+    /// pretty rendering which might include metavars, etc
+    pretty: String,
+
+    extra: &'a CompExtra,
+
+    /// if we start rendering values - drop anything that is not a value
     is_value: bool,
 }
 
@@ -293,6 +377,7 @@ fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'s
 }
 
 impl Complete {
+    #[allow(clippy::too_many_lines)]
     fn complete(
         &self,
         arg: &str,
@@ -307,58 +392,73 @@ impl Complete {
 
         for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
             match item {
-                Comp::Command {
-                    name,
-                    short,
-                    help,
-                    depth: _,
-                } => {
+                Comp::Command { name, short, extra } => {
                     if pos_only {
                         continue;
                     }
                     if let Some(long) = cmd_matches(arg, name, *short) {
                         items.push(ShowComp {
                             subst: long.to_string(),
-                            descr: help,
+                            pretty: long.to_string(),
+                            descr: &extra.help,
                             is_value: false,
+                            extra,
                         });
                     }
                 }
 
-                Comp::Flag {
+                Comp::Flag { name, extra } => {
+                    if pos_only {
+                        continue;
+                    }
+                    if let Some(long) = arg_matches(arg, *name) {
+                        items.push(ShowComp {
+                            pretty: long.clone(),
+                            subst: long,
+                            descr: &extra.help,
+                            is_value: false,
+                            extra,
+                        });
+                    }
+                }
+
+                Comp::Argument {
                     name,
-                    help,
-                    depth: _,
+                    metavar,
+                    extra,
                 } => {
                     if pos_only {
                         continue;
                     }
                     if let Some(long) = arg_matches(arg, *name) {
                         items.push(ShowComp {
+                            pretty: format!("{} <{}>", long, metavar),
                             subst: long,
-                            descr: help,
+                            descr: &extra.help,
                             is_value: false,
+                            extra,
                         });
                     }
                 }
+
                 Comp::Value {
                     body,
-                    help,
-                    depth: _,
+                    extra,
                     is_arg,
                 } => {
                     has_values |= is_arg;
                     items.push(ShowComp {
-                        descr: help,
+                        pretty: body.clone(),
+                        descr: &extra.help,
+                        extra,
                         subst: body.clone(),
                         is_value: true,
                     });
                 }
-                Comp::Meta {
+                Comp::Positional {
                     meta,
-                    depth: _,
                     is_arg,
-                    help,
+                    extra,
                 } => {
                     // only words can go in place of meta, not ags/flags
                     if !is_word {
@@ -385,7 +485,9 @@ impl Complete {
                         return Ok(subst);
                     }
                     items.push(ShowComp {
-                        descr: help,
+                        extra,
+                        pretty: subst.clone(),
+                        descr: &extra.help,
                         subst,
                         is_value: false,
                     });
@@ -398,33 +500,60 @@ impl Complete {
         if has_values {
             items.retain(|i| i.is_value);
         }
-        self.render(&items)
-    }
-
-    fn render(&self, items: &[ShowComp]) -> Result<String, std::fmt::Error> {
-        use std::fmt::Write;
-        let mut res = String::new();
-        if items.len() == 1 {
-            writeln!(res, "{}", items[0].subst)?;
-        } else {
-            for item in items {
-                match item.descr {
-                    None => {
-                        writeln!(res, "{}", item.subst)
-                    }
-                    Some(descr) => {
-                        writeln!(
-                            res,
-                            "{}\t{}",
-                            item.subst,
-                            descr.split('\n').next().unwrap_or("")
-                        )
-                    }
-                }?;
-            }
+        match self.output_rev {
+            1 => render_1(&items),
+            2 => render_2(&items),
+            unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
         }
-        Ok(res)
     }
+}
+// eveything but zsh, for single items rende replacement as is, otherwise
+// render replacement or tab separated replacement and description
+fn render_1(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+    if items.len() == 1 {
+        writeln!(res, "{}", items[0].subst)?;
+    } else {
+        for item in items {
+            match item.descr {
+                None => {
+                    writeln!(res, "{}", item.subst)
+                }
+                Some(descr) => {
+                    writeln!(
+                        res,
+                        "{}\t{}",
+                        item.subst,
+                        descr.split('\n').next().unwrap_or("")
+                    )
+                }
+            }?;
+        }
+    }
+    Ok(res)
+}
+
+// zsh style, renders one item on a line, \0 separated
+// - replacement to use
+// - description to display, might contain metavars for example
+// - visible group - to display a message
+// - hidden group, just to group
+fn render_2(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+    for item in items {
+        write!(res, "{}\0{}", item.subst, item.pretty)?;
+        if let Some(h) = &item.extra.help {
+            write!(res, "    {}", h)?;
+        }
+        writeln!(
+            res,
+            "\0{}\0{}",
+            item.extra.visible_group, item.extra.hidden_group
+        )?;
+    }
+    Ok(res)
 }
 
 // to allow using ? inside check_complete

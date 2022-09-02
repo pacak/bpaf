@@ -1,7 +1,7 @@
 //!
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{info::Error, Args, Meta, Parser};
+use crate::{info::Error, Args, CompleteDecor, Meta, Parser};
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
@@ -270,7 +270,7 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(args.word_parse_error(e.to_string())),
+            Err(e) => Err(args.word_parse_error(&e.to_string())),
         }
     }
 
@@ -329,7 +329,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(args.word_parse_error(self.message.to_string()))
+            Err(args.word_parse_error(self.message))
         }
     }
 
@@ -373,7 +373,7 @@ where
         let s = self.inner.eval(args)?;
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(args.word_parse_error(e.to_string())),
+            Err(e) => Err(args.word_parse_error(&e.to_string())),
         }
     }
 
@@ -563,5 +563,43 @@ where
 
     fn meta(&self) -> Meta {
         self.inner.meta()
+    }
+}
+#[cfg(feature = "autocomplete")]
+pub struct ParseCompStyle<P> {
+    pub(crate) inner: P,
+    pub(crate) style: CompleteDecor,
+}
+
+#[cfg(feature = "autocomplete")]
+impl<P, T> Parser<T> for ParseCompStyle<P>
+where
+    P: Parser<T> + Sized,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let mut comp_items = Vec::new();
+        args.swap_comps(&mut comp_items);
+        let res = self.inner.eval(args);
+        args.swap_comps(&mut comp_items);
+        extend_with_args_style(args, self.style, &mut comp_items);
+        res
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+#[cfg(feature = "autocomplete")]
+fn extend_with_args_style(
+    args: &mut Args,
+    style: CompleteDecor,
+    comps: &mut Vec<crate::complete_gen::Comp>,
+) {
+    if let Some(comp) = &mut args.comp {
+        for mut item in comps.drain(..) {
+            item.set_decor(style);
+            comp.comps.push(item);
+        }
     }
 }

@@ -12,7 +12,7 @@ fn static_complete_test_1() {
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -26,19 +26,19 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["-vvvv"]).set_comp())
+        .run_inner(Args::from(&["-vvvv"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-vvvv\n");
 
     let r = parser
-        .run_inner(Args::from(&["-v"]).set_comp())
+        .run_inner(Args::from(&["-v"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
 
     let r = parser
-        .run_inner(Args::from(&["--b"]).set_comp())
+        .run_inner(Args::from(&["--b"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -50,14 +50,14 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--a"]).set_comp())
+        .run_inner(Args::from(&["--a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
 
     assert_eq!(r, "--avocado\n");
 
     let r = parser
-        .run_inner(Args::from(&["--banana"]).set_comp())
+        .run_inner(Args::from(&["--banana"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -69,13 +69,13 @@ fn static_complete_test_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--bananan"]).set_comp())
+        .run_inner(Args::from(&["--bananan"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--bananananana\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b"]).set_comp())
+        .run_inner(Args::from(&["-b"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--banana\n");
@@ -86,19 +86,19 @@ fn long_and_short_arguments() {
     let parser = short('p').long("potato").argument("POTATO").to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-p"]).set_comp())
+        .run_inner(Args::from(&["-p"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
 
     let r = parser
-        .run_inner(Args::from(&["-p", ""]).set_comp())
+        .run_inner(Args::from(&["-p", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<POTATO>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-p", "x"]).set_comp())
+        .run_inner(Args::from(&["-p", "x"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "x\n");
@@ -119,19 +119,19 @@ fn short_command_alias() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["a"]).set_comp())
+        .run_inner(Args::from(&["a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "cmd_a\n");
 
     let r = parser
-        .run_inner(Args::from(&["cmd_a"]).set_comp())
+        .run_inner(Args::from(&["cmd_a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "cmd_a\n");
 
     let r = parser
-        .run_inner(Args::from(&["b", ""]).set_comp())
+        .run_inner(Args::from(&["b", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
@@ -142,13 +142,13 @@ fn single_command_completes_to_full() {
     let parser = short('a').switch().to_options().command("cmd").to_options();
 
     let r = parser
-        .run_inner(Args::from(&["c"]).set_comp())
+        .run_inner(Args::from(&["c"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "cmd\n");
 
     let r = parser
-        .run_inner(Args::from(&["cmd"]).set_comp())
+        .run_inner(Args::from(&["cmd"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "cmd\n");
@@ -177,19 +177,19 @@ fn static_complete_test_2() {
     let parser = construct!([a, b, c]).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["check", ""]).set_comp())
+        .run_inner(Args::from(&["check", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
 
     let r = parser
-        .run_inner(Args::from(&["check"]).set_comp())
+        .run_inner(Args::from(&["check"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "check\n");
 
     let r = parser
-        .run_inner(Args::from(&["c"]).set_comp())
+        .run_inner(Args::from(&["c"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -201,19 +201,19 @@ clean\tclean target dir
     );
 
     let r = parser
-        .run_inner(Args::from(&["c", "--p"]).set_comp())
+        .run_inner(Args::from(&["c", "--p"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\n");
 
     let r = parser
-        .run_inner(Args::from(&["x"]).set_comp())
+        .run_inner(Args::from(&["x"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -226,7 +226,7 @@ build\tbuild project
     );
 
     let r = parser
-        .run_inner(Args::from(&["ch"]).set_comp())
+        .run_inner(Args::from(&["ch"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "check\n");
@@ -241,25 +241,25 @@ fn static_complete_test_3() {
     let parser = construct!(ab, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\tpo\n--banana\tba\n--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp())
+        .run_inner(Args::from(&["-"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\tpo\n--banana\tba\n--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--potato\tpo\n--banana\tba\n--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["--d"]).set_comp())
+        .run_inner(Args::from(&["--d"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
@@ -272,31 +272,31 @@ fn static_complete_test_4() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp())
+        .run_inner(Args::from(&["-a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp())
+        .run_inner(Args::from(&["-"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -313,37 +313,37 @@ fn static_complete_test_5() {
     let parser = construct!(ab, cd).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a", "x", ""]).set_comp())
+        .run_inner(Args::from(&["-a", "x", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-b\n-c\n-d\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp())
+        .run_inner(Args::from(&["-a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n-c\n-d\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp())
+        .run_inner(Args::from(&["-"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n-c\n-d\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -356,43 +356,43 @@ fn static_complete_test_6() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "x", ""]).set_comp())
+        .run_inner(Args::from(&["-a", "x", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<A>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp())
+        .run_inner(Args::from(&["-a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b", ""]).set_comp())
+        .run_inner(Args::from(&["-b", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<B>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-b", "x", ""]).set_comp())
+        .run_inner(Args::from(&["-b", "x", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n-b\n");
@@ -405,13 +405,13 @@ fn static_complete_test_7() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\tswitch\n<FILE>\tFile to use\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<FILE>\n");
@@ -427,25 +427,25 @@ fn static_complete_test_8() {
         .to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "nom\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom", ""]).set_comp())
+        .run_inner(Args::from(&["nom", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom", "-a"]).set_comp())
+        .run_inner(Args::from(&["nom", "-a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--durian\n");
 
     let r = parser
-        .run_inner(Args::from(&["nom", "-a", ""]).set_comp())
+        .run_inner(Args::from(&["nom", "-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "");
@@ -456,13 +456,13 @@ fn just_positional() {
     let parser = positional("FILE").help("File to use").to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<FILE>\n");
 
     let r = parser
-        .run_inner(Args::from(&["xxx"]).set_comp())
+        .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -482,31 +482,31 @@ fn dynamic_complete_test_1() {
     let parser = short('a').argument("ARG").complete(completer).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a", "b"]).set_comp())
+        .run_inner(Args::from(&["-a", "b"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\nbanana\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "be"]).set_comp())
+        .run_inner(Args::from(&["-a", "be"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "beta"]).set_comp())
+        .run_inner(Args::from(&["-a", "beta"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta\n");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "alpha\nbeta\nbanana\ncat\ndurian\n");
@@ -518,7 +518,7 @@ fn dynamic_complete_test_2() {
 
     // we don't know how to complete "b", compgen in bash returns an empty line, so should we
     let r = parser
-        .run_inner(Args::from(&["-a", "b"]).set_comp())
+        .run_inner(Args::from(&["-a", "b"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "b\n");
@@ -545,7 +545,7 @@ fn dynamic_complete_test_3() {
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--calculator", ""]).set_comp())
+        .run_inner(Args::from(&["--calculator", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!("alpha\nbeta\nbanana\ncat\ndurian\n", r);
@@ -568,7 +568,7 @@ fn dynamic_complete_test_4() {
         .to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--name", ""]).set_comp())
+        .run_inner(Args::from(&["--name", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(
@@ -577,7 +577,7 @@ fn dynamic_complete_test_4() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--name", "L"]).set_comp())
+        .run_inner(Args::from(&["--name", "L"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "Lupusregina\n");
@@ -590,7 +590,7 @@ fn static_with_hide() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
@@ -603,7 +603,7 @@ fn static_with_fallback_and_hide() {
     let parser = construct!(a, b).fallback((false, false)).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
@@ -633,7 +633,7 @@ fn csample_mystery() {
         .footer("footer");
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--avocado\tUse avocado\n--banana\tUse banana\n--bananananana\tI'm Batman\n--calculator\tcalculator expression\n");
@@ -648,25 +648,25 @@ fn only_positionals_after_double_dash() {
     let parser = construct!(a, b, c, d).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-a"]).set_comp())
+        .run_inner(Args::from(&["-a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", ""]).set_comp())
+        .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-b\n-c\n<D>\n");
 
     let r = parser
-        .run_inner(Args::from(&["-a", "--"]).set_comp())
+        .run_inner(Args::from(&["-a", "--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--", ""]).set_comp())
+        .run_inner(Args::from(&["--", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<D>\n");
@@ -676,7 +676,7 @@ fn only_positionals_after_double_dash() {
 fn many_does_not_duplicate_metadata() {
     let parser = positional("D").many().to_options();
     let r = parser
-        .run_inner(Args::from(&["xxx"]).set_comp())
+        .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -686,7 +686,7 @@ fn many_does_not_duplicate_metadata() {
 fn some_does_not_duplicate_metadata() {
     let parser = positional("D").some("").to_options();
     let r = parser
-        .run_inner(Args::from(&["xxx"]).set_comp())
+        .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -699,7 +699,7 @@ fn only_positionals_after_positionals() {
     let parser = construct!(a, d).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["xxx"]).set_comp())
+        .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "xxx\n");
@@ -720,13 +720,13 @@ fn positionals_complete_in_order() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "a\n");
 
     let r = parser
-        .run_inner(Args::from(&["xxx", ""]).set_comp())
+        .run_inner(Args::from(&["xxx", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "b\n");
@@ -746,7 +746,7 @@ fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\nb\n");
@@ -762,13 +762,13 @@ fn should_be_able_to_suggest_double_dash() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--arg\n--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--arg\n--\n");
@@ -781,26 +781,113 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&[""]).set_comp())
+        .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n--\n");
 
     let r = parser
-        .run_inner(Args::from(&["-"]).set_comp())
+        .run_inner(Args::from(&["-"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "-a\n--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp())
+        .run_inner(Args::from(&["--"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--", ""]).set_comp())
+        .run_inner(Args::from(&["--", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "<B>\n");
+}
+
+#[track_caller]
+fn test_zsh_comp<T: std::fmt::Debug>(
+    parser: OptionParser<T>,
+    args: &[&str],
+    expected: &[[&str; 4]],
+) {
+    let expected_len = expected.len();
+    let mut actual_len = 0;
+    let padding = std::iter::repeat(&["\0"; 4]);
+    let padded = expected.iter().chain(padding);
+    for (ix, (line, expected)) in parser
+        .run_inner(Args::from(args).set_comp(2))
+        .unwrap_err()
+        .unwrap_stdout()
+        .lines()
+        .zip(padded)
+        .enumerate()
+    {
+        actual_len += 1;
+        if expected[0] == "\0" {
+            panic!(
+                "expected {} items, but output contains at least{}",
+                expected_len, actual_len
+            );
+        }
+        let mut actual_words = ["\0"; 4];
+        for (ix, w) in line.split('\0').enumerate() {
+            actual_words[ix] = w;
+        }
+        assert_eq!(&actual_words, expected, "on line {}", ix)
+    }
+
+    assert_eq!(actual_len, expected_len);
+}
+
+#[test]
+fn zsh_style_completion_visible() {
+    let a = short('a')
+        .long("argument")
+        .help("this is an argument")
+        .argument("ARG");
+    let b = short('b').argument("BANANA");
+    let parser = construct!(a, b)
+        .complete_style(CompleteDecor::VisibleGroup("items"))
+        .to_options();
+
+    test_zsh_comp(
+        parser,
+        &[""],
+        &[
+            [
+                "--argument",
+                "--argument <ARG>    this is an argument",
+                "items",
+                "",
+            ],
+            ["-b", "-b <BANANA>", "items", ""],
+        ],
+    );
+}
+
+#[test]
+fn zsh_style_completion_hidden() {
+    let a = short('a')
+        .long("argument")
+        .help("this is an argument")
+        .argument("ARG");
+    let b = short('b').argument("BANANA");
+    let parser = construct!(a, b)
+        .complete_style(CompleteDecor::HiddenGroup("items"))
+        .to_options();
+
+    test_zsh_comp(
+        parser,
+        &[""],
+        &[
+            [
+                "--argument",
+                "--argument <ARG>    this is an argument",
+                "",
+                "items",
+            ],
+            ["-b", "-b <BANANA>", "", "items"],
+        ],
+    );
 }

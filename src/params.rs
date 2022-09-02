@@ -1054,7 +1054,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
         {
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() {
-                args.push_flag(&self.named)
+                args.push_flag(&self.named);
             }
             Ok(self.present.clone())
         } else {
@@ -1112,12 +1112,12 @@ impl Parser<Word> for BuildArgument {
             }
             Err(err) => {
                 #[cfg(feature = "autocomplete")]
-                args.push_flag(&self.named);
+                args.push_argument(&self.named, self.metavar);
                 Err(err)
             }
             _ => {
                 #[cfg(feature = "autocomplete")]
-                args.push_flag(&self.named);
+                args.push_argument(&self.named, self.metavar);
                 if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
                     args.current = None;
                     Ok(crate::args::word(val, false))

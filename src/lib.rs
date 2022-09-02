@@ -353,7 +353,7 @@ use structs::{
 };
 
 #[cfg(feature = "autocomplete")]
-use structs::ParseComp;
+use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
@@ -1401,10 +1401,14 @@ pub trait Parser<T> {
     // {{{ comp
     /// Dynamic shell completion
     ///
-    /// Allows to generate autocompletion information for shell.
-    /// Takes a function as a parameter that tries to complete partial input to full one with
-    /// optional description. `bpaf` would substitute current positional with an empty string
-    /// if a value isn't available yet so it's best to run `complete` where parsing can't fail:
+    /// Allows to generate autocompletion information for shell. Completer places generated input
+    /// in place of metavar placeholders, so running `completer` on something that doesn't have a
+    /// [`positional`] or an [`argument`](Named::argument) (or their `_os` variants) doesn't make
+    /// much sense.
+    ///
+    /// Takes a function as a parameter that tries to complete partial input to a full one with
+    /// optional description. `bpaf` would substitute current positional item or an argument an empty
+    /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
     /// right after [`argument`](Named::argument) or [`positional`], but this isn't enforced.
     ///
     /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
@@ -1468,6 +1472,30 @@ pub trait Parser<T> {
     }
     // }}}
 
+    /// Add extra annotations to completion information
+    ///
+    /// Not all information is gets supported by all the shells
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn opts -> impl Parser<(bool, bool)> {
+    ///     let a = short('a').switch();
+    ///     let b = short('b').switch();
+    ///     let c = short('c').switch();
+    ///     let d = short('d').switch();
+    ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
+    ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
+    ///     construct!([a, b])
+    /// }
+    #[cfg(feature = "autocomplete")]
+    fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseCompStyle { inner: self, style }
+    }
+
     // consume
     // {{{ to_options
     /// Transform `Parser` into [`OptionParser`] to attach metadata and run
@@ -1530,6 +1558,16 @@ pub trait Parser<T> {
         }
     }
     // }}}
+}
+
+#[non_exhaustive]
+/// Various complete options decorations
+#[derive(Debug, Clone, Copy)]
+pub enum CompleteDecor {
+    /// Group items according to this group
+    HiddenGroup(&'static str),
+    /// Group items according to this group but also show the group name
+    VisibleGroup(&'static str),
 }
 
 /// Wrap a value into a `Parser`
