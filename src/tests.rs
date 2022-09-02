@@ -82,7 +82,7 @@ fn different_methods_of_args_cration_are_identical() {
 
     // No Eq instances :)
     let args1 = format!("{:?}", Args::from(&items));
-    let args2 = format!("{:?}", Args::from(items.as_slice()));
+    let args2 = format!("{:?}", Args::from(&items[..])); // not available in 1.56
     let args3 = format!("{:?}", Args::from(oitems.as_slice()));
     let args4 = format!("{:?}", Args::from(oitems2.as_slice()));
 
