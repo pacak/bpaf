@@ -231,7 +231,7 @@ You must place [`positional`][__link7] and [`positional_os`][__link8] items at t
 		$ your_program --bpaf-complete-style-bash >> ~/.bash_completion
 		```
 		
-		but since the script doesn’t depend on a program name - it’s enough to do this
+		but since the script doesn’t depend on a program name - it’s enough to do this for each next program
 		```console
 		echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
 		```
@@ -326,18 +326,18 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG33lLIO4rfBrG1WvRTEyUQcdGycALd81ueq1G-jPdJeBv7JGYWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMQ
- [__link0]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
- [__link11]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::complete
- [__link13]: https://docs.rs/bpaf/0.5.4/bpaf/?search=info::OptionParser::run_inner
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG8Yk6tpPTRS2G-pflOrhCn1EGyn11z3zENIkG6A8mBNsl5uGYWSCgmRicGFmZTAuNS41gmticGFmX2Rlcml2ZWUwLjIuMQ
+ [__link0]: https://docs.rs/bpaf/0.5.5/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.5.5/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional
+ [__link11]: https://docs.rs/bpaf/0.5.5/bpaf/?search=bpaf::Parser::complete
+ [__link13]: https://docs.rs/bpaf/0.5.5/bpaf/?search=info::OptionParser::run_inner
  [__link14]: https://crates.io/crates/bpaf_derive/0.2.1
- [__link2]: https://docs.rs/bpaf/0.5.4/bpaf/?search=batteries
+ [__link2]: https://docs.rs/bpaf/0.5.5/bpaf/?search=batteries
  [__link3]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link4]: https://docs.rs/bpaf/0.5.4/bpaf/?search=bpaf::Parser::fallback
- [__link5]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::switch
- [__link6]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument
- [__link7]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional
- [__link8]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::positional_os
- [__link9]: https://docs.rs/bpaf/0.5.4/bpaf/?search=params::Named::argument
+ [__link4]: https://docs.rs/bpaf/0.5.5/bpaf/?search=bpaf::Parser::fallback
+ [__link5]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::switch
+ [__link6]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::argument
+ [__link7]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional
+ [__link8]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional_os
+ [__link9]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::argument

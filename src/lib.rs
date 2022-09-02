@@ -235,7 +235,8 @@
 //!        ```console
 //!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
 //!        ```
-//!        but since the script doesn't depend on a program name - it's enough to do this
+//!        but since the script doesn't depend on a program name - it's enough to do this for
+//!        each next program
 //!        ```console
 //!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
 //!        ```
@@ -1562,6 +1563,30 @@ pub trait Parser<T> {
 
 #[non_exhaustive]
 /// Various complete options decorations
+///
+/// Somewhat work in progress, only makes a difference in zsh
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn pair() -> impl Parser<(bool, bool)> {
+///     let a = short('a').switch();
+///     let b = short('b').switch();
+///     construct!(a, b)
+///         .complete_style(CompleteDecor::VisibleGroup("a and b"))
+/// }
+/// ```
+///
+/// # Derive usage
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(complete_style(CompleteDecor::VisibleGroup("a and b")))]
+/// struct Options {
+///     a: bool,
+///     b: bool,
+/// }
+/// ```
+///
 #[derive(Debug, Clone, Copy)]
 pub enum CompleteDecor {
     /// Group items according to this group
