@@ -154,10 +154,12 @@ fn complete_binary_args(input: &Vec<OsString>) -> Vec<(String, Option<String>)> 
     }
     let mut cmd = cargo_command("run", &CARGO_PARAMS.lock().unwrap(), None);
 
+    let rev = std::env::args_os().nth(1).unwrap();
+
     let output = cmd
         .arg("--quiet")
         .arg("--")
-        .arg("--bpaf-complete-rev=2")
+        .arg(rev)
         .args(input.as_slice())
         .stdout(std::process::Stdio::piped())
         .spawn()
