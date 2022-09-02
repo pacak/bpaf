@@ -918,3 +918,49 @@ fn bash_help_single_line_only() {
 
     assert_eq!(r, "-a\thello\n-b\thello\n");
 }
+
+#[test]
+fn derive_decorations() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[allow(dead_code)]
+    #[bpaf(complete_style(CompleteDecor::VisibleGroup("== Cargo options")))]
+    struct CargoOpts {
+        /// optimize
+        release: bool,
+        /// pick target
+        target: String,
+    }
+
+    #[derive(Debug, Clone, Bpaf)]
+    #[allow(dead_code)]
+    #[bpaf(complete_style(CompleteDecor::VisibleGroup("== Application options")))]
+    struct AppOpts {
+        /// pick focus
+        focus: String,
+        /// inline rust
+        inline: bool,
+    }
+
+    #[derive(Debug, Clone, Bpaf)]
+    #[allow(dead_code)]
+    #[bpaf(options)]
+    struct Opts {
+        #[bpaf(external)]
+        cargo_opts: CargoOpts,
+        #[bpaf(external)]
+        app_opts: AppOpts,
+    }
+
+    let opts = opts();
+
+    test_zsh_comp(
+        &opts,
+        &[""],
+        &[
+            ["--release", "--release    optimize", "", ""],
+            ["--target", "--target <ARG>    pick target", "", ""],
+            ["--focus", "--focus <ARG>    pick focus", "", ""],
+            ["--inline", "--inline    inline rust", "", ""],
+        ],
+    );
+}
