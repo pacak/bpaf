@@ -1,7 +1,10 @@
 //!
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{info::Error, Args, CompleteDecor, Meta, Parser};
+use crate::{info::Error, Args, Meta, Parser};
+
+#[cfg(feature = "autocomplete")]
+use crate::CompleteDecor;
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).

@@ -1588,6 +1588,7 @@ pub trait Parser<T> {
 /// ```
 ///
 #[derive(Debug, Clone, Copy)]
+#[cfg(feature = "autocomplete")]
 pub enum CompleteDecor {
     /// Group items according to this group
     HiddenGroup(&'static str),
