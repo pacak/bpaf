@@ -1184,7 +1184,7 @@ fn parse_word(
         Some(word) => {
             if strict && !word.pos_only {
                 #[cfg(feature = "autocomplete")]
-                args.push_value("--", &None, false);
+                args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
                 return Err(Error::Stderr(format!(
                     "Expected <{}> to be on the right side of --",

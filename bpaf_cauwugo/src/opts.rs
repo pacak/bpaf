@@ -1,6 +1,6 @@
 use std::{ffi::OsString, sync::Mutex};
 
-use bpaf::{positional, positional_os, Bpaf, Parser};
+use bpaf::{positional, positional_os, Bpaf, CompleteDecor, Parser};
 use cargo_metadata::{CargoOpt, Metadata, MetadataCommand};
 use once_cell::sync::Lazy;
 
@@ -153,7 +153,7 @@ fn complete_binary_args(input: &Vec<OsString>) -> Vec<(String, Option<String>)> 
     let output = cmd
         .arg("--quiet")
         .arg("--")
-        .arg("--bpaf-complete-rev=1")
+        .arg("--bpaf-complete-rev=2")
         .args(input.as_slice())
         .stdout(std::process::Stdio::piped())
         .spawn()
@@ -216,11 +216,7 @@ fn complete_ws_binary(name: &String) -> Vec<(String, Option<String>)> {
                 continue;
             }
         }
-        let help = match exec.kind {
-            Kind::Bin => format!("binary from {}", exec.package),
-            Kind::Example => format!("example from {}", exec.package),
-        };
-        res.push((exec.name.to_owned(), Some(help)));
+        res.push((exec.name.to_owned(), None));
     }
     res
 }
@@ -245,7 +241,12 @@ fn pick_binary() -> impl Parser<Exec<'static>> {
     positional("BIN")
         .help("binary or executable name available in a workspace")
         .complete(complete_ws_binary)
+        .complete_style(CompleteDecor::VisibleGroup("== Workspace binaries"))
         .parse(parse_ws_binary)
+}
+
+fn cargo_params_dec() -> impl Parser<CargoParams> {
+    cargo_params().complete_style(CompleteDecor::VisibleGroup("== Cargo options"))
 }
 
 #[derive(Debug, Clone, Bpaf)]
@@ -253,7 +254,7 @@ fn pick_binary() -> impl Parser<Exec<'static>> {
 pub enum Options {
     #[bpaf(command)]
     Run {
-        #[bpaf(external)]
+        #[bpaf(external(cargo_params_dec))]
         cargo_params: CargoParams,
 
         #[bpaf(external(pick_binary), optional)]

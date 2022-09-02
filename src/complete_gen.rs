@@ -34,7 +34,7 @@ impl Complete {
 }
 
 impl Args {
-    /// Add a new completion hint for flag if completion is enabled
+    /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &Named) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Flag {
@@ -49,7 +49,7 @@ impl Args {
         }
     }
 
-    /// Add a new completion hint for flag if completion is enabled
+    /// Add a new completion hint for an argument, if needed
     pub(crate) fn push_argument(&mut self, named: &Named, metavar: &'static str) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Argument {
@@ -65,7 +65,7 @@ impl Args {
         }
     }
 
-    /// Add a new completion hint for metadata if completion is enabled
+    /// Add a new completion hint for metadata, if needed
     pub(crate) fn push_metadata(
         &mut self,
         meta: &'static str,
@@ -86,7 +86,7 @@ impl Args {
         }
     }
 
-    /// Add a new completion hint for command if completion is enabled
+    /// Add a new completion hint for command, if needed
     pub(crate) fn push_command(
         &mut self,
         name: &'static str,
@@ -202,8 +202,7 @@ pub(crate) enum Comp {
 }
 
 impl Comp {
-    /// depth is used to track where this parser is relative to other parser, mostly
-    /// to prevent completion from commands from leaking into levels below them
+    /// to avoid leaking items with higher depth into items with lower depth
     fn depth(&self) -> usize {
         match self {
             Comp::Command { extra, .. }
@@ -255,7 +254,7 @@ struct ShowComp<'a> {
 
     extra: &'a CompExtra,
 
-    /// if we start rendering values - drop anything that is not a value
+    /// to render only values when values are present
     is_value: bool,
 }
 
@@ -281,7 +280,6 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
 
 impl Args {
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
-        // are we even active?
         let comp = match &self.comp {
             Some(comp) => comp,
             None => return Ok(()),
@@ -294,7 +292,7 @@ impl Args {
             .filter_map(Arg::and_os_string)
             .filter_map(pair_to_os_string);
 
-        // try to get an item we are completing - must be non-virtual right most one
+        // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
         let (arg, lit) = items
@@ -388,8 +386,6 @@ impl Complete {
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
 
-        let mut metas = std::collections::BTreeSet::new();
-
         for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
             match item {
                 Comp::Command { name, short, extra } => {
@@ -448,7 +444,10 @@ impl Complete {
                 } => {
                     has_values |= is_arg;
                     items.push(ShowComp {
-                        pretty: body.clone(),
+                        pretty: match &extra.help {
+                            Some(help) => format!("{}    {}", body, help),
+                            None => body.clone(),
+                        },
                         descr: &extra.help,
                         extra,
                         subst: body.clone(),
@@ -465,12 +464,7 @@ impl Complete {
                         continue;
                     }
 
-                    // deduplicate metadata - in case we are dealing with many positionals, etc.
-                    if !metas.insert(meta) {
-                        continue;
-                    }
-
-                    // if all we have is metadata - preserve original user input
+                    // render empty positionals as placeholders
                     let mut subst = if arg.is_empty() {
                         format!("<{}>", meta)
                     } else {
@@ -478,7 +472,7 @@ impl Complete {
                     };
 
                     // suppress all other completion when trying to complete argument's meta:
-                    // if valid arguments are `-a <A> | -b <B>` and we see `-a` - suggesting
+                    // if valid arguments are `-a <A> | -b <B>` and current args are `-a` - suggesting
                     // user to type `-b` would be wrong
                     if *is_arg {
                         subst.push('\n');
@@ -495,8 +489,6 @@ impl Complete {
             }
         }
 
-        // similar to handling metadata from the case above but now we are
-        // actually completing values for A
         if has_values {
             items.retain(|i| i.is_value);
         }
@@ -545,13 +537,14 @@ fn render_2(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
     for item in items {
         write!(res, "{}\0{}", item.subst, item.pretty)?;
         if let Some(h) = &item.extra.help {
-            write!(res, "    {}", h)?;
+            write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
         }
-        writeln!(
-            res,
-            "\0{}\0{}",
-            item.extra.visible_group, item.extra.hidden_group
-        )?;
+        write!(res, "\0{}", item.extra.visible_group)?;
+        if !item.extra.visible_group.is_empty() && item.extra.hidden_group.is_empty() {
+            writeln!(res, "\0{}", item.extra.visible_group)?;
+        } else {
+            writeln!(res, "\0{}", item.extra.hidden_group)?;
+        }
     }
     Ok(res)
 }

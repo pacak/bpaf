@@ -784,13 +784,13 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
         .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a\n--\n");
+    assert_eq!(r, "-a\n--\t-- Positional only items\n");
 
     let r = parser
         .run_inner(Args::from(&["-"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a\n--\n");
+    assert_eq!(r, "-a\n--\t-- Positional only items\n");
 
     let r = parser
         .run_inner(Args::from(&["--"]).set_comp(1))
@@ -807,7 +807,7 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 
 #[track_caller]
 fn test_zsh_comp<T: std::fmt::Debug>(
-    parser: OptionParser<T>,
+    parser: &OptionParser<T>,
     args: &[&str],
     expected: &[[&str; 4]],
 ) {
@@ -826,8 +826,8 @@ fn test_zsh_comp<T: std::fmt::Debug>(
         actual_len += 1;
         if expected[0] == "\0" {
             panic!(
-                "expected {} items, but output contains at least{}",
-                expected_len, actual_len
+                "expected {} items, but output contains at least {}. unexpected: {:?}",
+                expected_len, actual_len, line,
             );
         }
         let mut actual_words = ["\0"; 4];
@@ -852,16 +852,16 @@ fn zsh_style_completion_visible() {
         .to_options();
 
     test_zsh_comp(
-        parser,
+        &parser,
         &[""],
         &[
             [
                 "--argument",
                 "--argument <ARG>    this is an argument",
                 "items",
-                "",
+                "items",
             ],
-            ["-b", "-b <BANANA>", "items", ""],
+            ["-b", "-b <BANANA>", "items", "items"],
         ],
     );
 }
@@ -878,7 +878,7 @@ fn zsh_style_completion_hidden() {
         .to_options();
 
     test_zsh_comp(
-        parser,
+        &parser,
         &[""],
         &[
             [
@@ -890,4 +890,31 @@ fn zsh_style_completion_hidden() {
             ["-b", "-b <BANANA>", "", "items"],
         ],
     );
+}
+
+#[test]
+fn zsh_many_positionals() {
+    let parser = positional("POS").many().to_options();
+    test_zsh_comp(&parser, &[""], &[["<POS>", "<POS>", "", ""]]);
+    test_zsh_comp(&parser, &["p"], &[["p", "p", "", ""]]);
+}
+
+#[test]
+fn zsh_help_single_line_only() {
+    let parser = short('a').help("hello\nworld").argument("X").to_options();
+    test_zsh_comp(&parser, &[""], &[["-a", "-a <X>    hello", "", ""]]);
+}
+
+#[test]
+fn bash_help_single_line_only() {
+    let a = short('a').help("hello\nworld").argument("X");
+    let b = short('b').help("hello\nworld").argument("X");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(1))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(r, "-a\thello\n-b\thello\n");
 }

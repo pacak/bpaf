@@ -129,7 +129,7 @@ pub(crate) fn args_with_complete(
     let path = PathBuf::from(os_name);
     let path = path.file_name().expect("binary with no name?").to_str();
 
-    // if we are not trying to run a completer - just make the arguments
+    // not trying to run a completer - just make the arguments
     if complete_arguments.is_empty() {
         return Args::from(arguments);
     }

@@ -1479,14 +1479,14 @@ pub trait Parser<T> {
     /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
-    /// fn opts -> impl Parser<(bool, bool)> {
+    /// fn opts() -> impl Parser<(bool, bool)> {
     ///     let a = short('a').switch();
     ///     let b = short('b').switch();
     ///     let c = short('c').switch();
     ///     let d = short('d').switch();
     ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
     ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
-    ///     construct!([a, b])
+    ///     construct!([ab, cd])
     /// }
     #[cfg(feature = "autocomplete")]
     fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
