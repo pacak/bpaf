@@ -15,6 +15,7 @@ pub(crate) enum UsageMeta {
     LongFlag(&'static str),
     LongArg(&'static str, &'static str),
     Pos(&'static str),
+    StrictPos(&'static str),
     Command,
 }
 
@@ -22,6 +23,12 @@ pub(crate) enum UsageMeta {
 // - any meta containing a positional becomes positional itself
 // - positional item must occupy the right most position inside Meta::And
 
+pub(crate) fn to_usage_meta(meta: &Meta) -> Option<UsageMeta> {
+    let mut had_commands = false;
+    let mut is_pos = false;
+
+    collect_usage_meta(meta, true, &mut had_commands, &mut is_pos)
+}
 /// Transforms `Meta` to [`UsageMeta`]
 ///
 /// parameter `required` defines the value's context: optional or required.
@@ -31,7 +38,7 @@ pub(crate) enum UsageMeta {
 /// `bpaf` uses parameter `is_pos` for positional validation, initialize it with false
 ///
 /// return value is None if parser takes no parameters at all
-pub(crate) fn collect_usage_meta(
+fn collect_usage_meta(
     meta: &Meta,
     required: bool,
     had_commands: &mut bool,
@@ -44,17 +51,16 @@ pub(crate) fn collect_usage_meta(
                 .iter()
                 .filter_map(|x| {
                     let mut this_pos = false;
-                    let umeta = collect_usage_meta(x, true, had_commands, &mut this_pos)?;
-                    if *is_pos && !this_pos {
-                        panic!(
-                            "bpaf usage BUG: all positional and command items must be placed in the right
-                            most position of the structure or tuple they are in but {} breaks this rule. \
-                            See bpaf documentation for `positional` and `positional_os` for details.",
-                            umeta
-                        )
-                    }
+                    let usage_meta = collect_usage_meta(x, true, had_commands, &mut this_pos)?;
+                    assert!(!*is_pos || this_pos,
+                        "bpaf usage BUG: all positional and command items must be placed in the right \
+                        most position of the structure or tuple they are in but {} breaks this rule. \
+                        See bpaf documentation for `positional` and `positional_os` for details.",
+                        usage_meta
+                    );
+
                     *is_pos |= this_pos;
-                    Some(umeta)
+                    Some(usage_meta)
                 })
                 .collect::<Vec<_>>();
             match items.len() {
@@ -95,14 +101,23 @@ pub(crate) fn collect_usage_meta(
         Meta::Decorated(meta, _) => collect_usage_meta(meta, required, had_commands, is_pos)?,
         Meta::Skip => return None,
         Meta::Item(i) => match i {
-            Item::Positional { metavar, help: _ } => {
+            Item::Positional {
+                metavar,
+                strict,
+                help: _,
+            } => {
                 *is_pos = true;
-                UsageMeta::Pos(metavar)
+                if *strict {
+                    UsageMeta::StrictPos(metavar)
+                } else {
+                    UsageMeta::Pos(metavar)
+                }
             }
             Item::Command {
                 name: _,
                 help: _,
                 short: _,
+                meta: _,
             } => {
                 *is_pos = true;
                 if *had_commands {
@@ -179,6 +194,7 @@ impl std::fmt::Display for UsageMeta {
             UsageMeta::LongArg(l, v) => write!(f, "--{} {}", l, v),
             UsageMeta::Command => f.write_str("COMMAND ..."),
             UsageMeta::Pos(s) => write!(f, "<{}>", s),
+            UsageMeta::StrictPos(s) => write!(f, "-- <{}>", s),
         }
     }
 }

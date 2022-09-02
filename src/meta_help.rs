@@ -1,6 +1,10 @@
 #![allow(clippy::write_with_newline)]
 #![allow(clippy::match_like_matches_macro)]
-use crate::{info::Info, item::ShortLong, Meta};
+use crate::{
+    info::Info,
+    item::{Item, ShortLong},
+    Meta,
+};
 
 #[derive(Debug)]
 pub(crate) enum HelpItem<'a> {
@@ -9,6 +13,7 @@ pub(crate) enum HelpItem<'a> {
     },
     BlankDecor,
     Positional {
+        strict: bool,
         metavar: &'static str,
         help: Option<&'a str>,
     },
@@ -46,6 +51,52 @@ impl HelpItem<'_> {
 }
 
 impl<'a> HelpItems<'a> {
+    #[inline(never)]
+    pub(crate) fn classify_item(&mut self, item: &'a Item) {
+        match item {
+            crate::item::Item::Positional {
+                metavar,
+                help,
+                strict,
+            } => {
+                if help.is_some() {
+                    self.psns.push(HelpItem::Positional {
+                        metavar,
+                        help: help.as_deref(),
+                        strict: *strict,
+                    });
+                }
+            }
+            crate::item::Item::Command {
+                name,
+                short,
+                help,
+                meta: _,
+            } => {
+                self.cmds.push(HelpItem::Command {
+                    name,
+                    short: *short,
+                    help: help.as_deref(),
+                });
+            }
+            crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
+                name: ShortLongHelp(*name),
+                help: help.as_deref(),
+            }),
+            crate::item::Item::Argument {
+                name,
+                metavar,
+                env,
+                help,
+            } => self.flgs.push(HelpItem::Argument {
+                name: ShortLongHelp(*name),
+                metavar,
+                env: *env,
+                help: help.as_deref(),
+            }),
+        }
+    }
+
     pub(crate) fn classify(&mut self, meta: &'a Meta) {
         match meta {
             Meta::And(xs) | Meta::Or(xs) => {
@@ -54,38 +105,8 @@ impl<'a> HelpItems<'a> {
                 }
             }
             Meta::Optional(x) | Meta::Many(x) => self.classify(x),
-            Meta::Item(item) => match item {
-                crate::item::Item::Positional { metavar, help } => {
-                    if help.is_some() {
-                        self.psns.push(HelpItem::Positional {
-                            metavar,
-                            help: help.as_deref(),
-                        });
-                    }
-                }
-                crate::item::Item::Command { name, short, help } => {
-                    self.cmds.push(HelpItem::Command {
-                        name,
-                        short: *short,
-                        help: help.as_deref(),
-                    });
-                }
-                crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
-                    name: ShortLongHelp(*name),
-                    help: help.as_deref(),
-                }),
-                crate::item::Item::Argument {
-                    name,
-                    metavar,
-                    env,
-                    help,
-                } => self.flgs.push(HelpItem::Argument {
-                    name: ShortLongHelp(*name),
-                    metavar,
-                    env: *env,
-                    help: help.as_deref(),
-                }),
-            },
+            Meta::Item(item) => self.classify_item(item),
+
             Meta::Decorated(m, help) => {
                 self.flgs.push(HelpItem::Decor { help });
                 self.cmds.push(HelpItem::Decor { help });
@@ -146,7 +167,7 @@ impl std::fmt::Display for HelpItem<'_> {
             HelpItem::Argument {
                 name,
                 metavar,
-                help: _,
+                help,
                 env,
             } => {
                 write!(f, "    {:#} <{}>", name, metavar)?;
@@ -162,22 +183,26 @@ impl std::fmt::Display for HelpItem<'_> {
                         }
                     };
                     let next_pad = 4 + self.full_width();
-                    write!(
-                        f,
-                        "{:pad$}  [env:{}{}]\n{:width$}",
-                        "",
-                        env,
-                        val,
-                        "",
-                        pad = pad,
-                        width = next_pad,
-                    )?;
+                    write!(f, "{:pad$}  [env:{}{}]", "", env, val, pad = pad,)?;
+                    if help.is_some() {
+                        write!(f, "\n{:width$}", "", width = next_pad)?;
+                    }
                 }
                 Ok(())
             }
             HelpItem::Decor { help } => return write!(f, "  {}", help),
             HelpItem::BlankDecor => Ok(()),
-            HelpItem::Positional { metavar, help: _ } => write!(f, "    <{}>", metavar),
+            HelpItem::Positional {
+                metavar,
+                help: _,
+                strict,
+            } => {
+                if *strict {
+                    write!(f, "    -- <{}>", metavar)
+                } else {
+                    write!(f, "    <{}>", metavar)
+                }
+            }
             HelpItem::Command {
                 name,
                 help: _,
@@ -209,11 +234,21 @@ impl std::fmt::Display for HelpItem<'_> {
 impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
     fn from(item: &'a crate::item::Item) -> Self {
         match item {
-            crate::item::Item::Positional { metavar, help } => Self::Positional {
+            crate::item::Item::Positional {
                 metavar,
+                help,
+                strict,
+            } => Self::Positional {
+                metavar,
+                strict: *strict,
                 help: help.as_deref(),
             },
-            crate::item::Item::Command { name, short, help } => Self::Command {
+            crate::item::Item::Command {
+                name,
+                short,
+                help,
+                meta: _,
+            } => Self::Command {
                 name,
                 short: *short,
                 help: help.as_deref(),
@@ -282,9 +317,13 @@ pub(crate) fn render_help(
         write!(res, "{}\n\n", t)?;
     }
 
-    if let Some(u) = info.usage {
-        write!(res, "{}\n", u)?;
-    } else if let Some(usage) = parser_meta.as_usage_meta() {
+    let auto = parser_meta.as_usage_meta().map(|u| u.to_string());
+    if let Some(custom_usage) = info.usage {
+        match auto {
+            Some(auto_usage) => write!(res, "{}\n", custom_usage.replace("{usage}", &auto_usage)),
+            None => write!(res, "{}\n", custom_usage),
+        }?;
+    } else if let Some(usage) = auto {
         write!(res, "Usage: {}\n", usage)?;
     }
 
@@ -335,6 +374,9 @@ pub(crate) fn render_help(
     }
     if let Some(t) = info.footer {
         write!(res, "\n{}", t)?;
+    }
+    if !res.ends_with('\n') {
+        res.push('\n');
     }
     Ok(res)
 }

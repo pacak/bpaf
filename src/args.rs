@@ -3,18 +3,10 @@ use std::ffi::OsString;
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub struct Word {
+pub(crate) struct Word {
     pub utf8: Option<String>,
     pub os: OsString,
-}
-
-impl From<OsString> for Word {
-    fn from(os: OsString) -> Self {
-        Self {
-            utf8: os.to_str().map(str::to_owned),
-            os,
-        }
-    }
+    pub pos_only: bool,
 }
 
 /// Hides [`Args`] internal implementation
@@ -44,11 +36,13 @@ mod inner {
         pub(crate) items: Rc<[Arg]>,
         /// removed items, false - present, true - removed
         removed: Vec<bool>,
+        /// performance optimization mostly,
         remaining: usize,
 
         #[doc(hidden)]
         /// Used to render an error message for [`parse`][crate::Parser::parse]
         pub current: Option<usize>,
+
         #[doc(hidden)]
         /// "deeper" parser should win in or_else branches
         pub depth: usize,
@@ -58,19 +52,27 @@ mod inner {
 
         /// setting it to true prevents suggester from replacing the results
         ///
-        /// Let's assume a parser that consumes this:
+        /// assume a parser consumes this:
         /// ["asm"] -t <NUM>
-        /// and we pass ["asm", "-t", "x"] to it.
+        /// and user passes ["asm", "-t", "x"] to it.
         ///
         /// problematic steps look something like this:
-        /// - "asm" is parsed as expected
-        /// - "-t x" is consumed as expected
-        /// - parsing of "x" fails
+        /// - bpaf parses "asm" expected
+        /// - then it consumes "-t x"
+        /// - then fails to parse "x"
         /// - ParseWith rollbacks the arguments state - "asm" is back
         /// - suggestion looks for something it can complain at and finds "asm"
         ///
-        /// parse/guard failures should "taint" the arguments and disable the suggestion logic
+        /// parse/guard failures should "taint" the arguments and turn off the suggestion logic
         pub(crate) tainted: bool,
+
+        /// don't try to suggest any more positional items after there's a positional item failure
+        /// or parsing in progress
+        #[cfg(feature = "autocomplete")]
+        pub(crate) no_pos_ahead: bool,
+
+        #[cfg(feature = "autocomplete")]
+        pub(crate) comp: Option<crate::complete_gen::Complete>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -81,23 +83,15 @@ mod inner {
 
     impl From<&[&str]> for Args {
         fn from(xs: &[&str]) -> Self {
-            let mut pos_only = false;
-            let mut vec = Vec::with_capacity(xs.len());
-            for x in xs {
-                push_vec(&mut vec, OsString::from(x), &mut pos_only);
-            }
-            Args::args_from(vec)
+            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
+            Args::from(vec.as_slice())
         }
     }
 
     impl From<&[&OsStr]> for Args {
         fn from(xs: &[&OsStr]) -> Self {
-            let mut pos_only = false;
-            let mut vec = Vec::with_capacity(xs.len());
-            for x in xs {
-                push_vec(&mut vec, OsString::from(x), &mut pos_only);
-            }
-            Args::args_from(vec)
+            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
+            Args::from(vec.as_slice())
         }
     }
 
@@ -105,10 +99,21 @@ mod inner {
         fn from(xs: &[OsString]) -> Self {
             let mut pos_only = false;
             let mut vec = Vec::with_capacity(xs.len());
+
+            let mut del = None;
             for x in xs {
                 push_vec(&mut vec, x.clone(), &mut pos_only);
+                if del.is_none() && pos_only {
+                    // keep "--" in the argument list but mark it as removed
+                    // completer uses it to deal with "--" inputs
+                    del = Some(vec.len() - 1);
+                }
             }
-            Args::args_from(vec)
+            let mut args = Args::args_from(vec);
+            if let Some(ix) = del {
+                args.remove(ix);
+            }
+            args
         }
     }
 
@@ -122,6 +127,10 @@ mod inner {
                 head: usize::MAX,
                 depth: 0,
                 tainted: false,
+                #[cfg(feature = "autocomplete")]
+                comp: None,
+                #[cfg(feature = "autocomplete")]
+                no_pos_ahead: false,
             }
         }
     }
@@ -149,6 +158,7 @@ mod inner {
         pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
+
         pub(crate) fn len(&self) -> usize {
             self.remaining
         }
@@ -159,6 +169,30 @@ mod inner {
                 Arg::Short(_, _) | Arg::Long(_, _) => None,
                 Arg::Word(w) => Some(w),
             }
+        }
+
+        pub(crate) fn get(&self, ix: usize) -> Option<&Arg> {
+            let arg = self.items.get(ix)?;
+            if *self.removed.get(ix)? {
+                None
+            } else {
+                Some(arg)
+            }
+        }
+
+        #[cfg(feature = "autocomplete")]
+        /// used by construct macro
+        #[must_use]
+        pub fn is_comp(&self) -> bool {
+            self.comp.is_some()
+        }
+
+        #[cfg(feature = "autocomplete")]
+        /// enable completions with custom output revision style
+        #[must_use]
+        pub fn set_comp(mut self, rev: usize) -> Self {
+            self.comp = Some(crate::complete_gen::Complete::new(rev));
+            self
         }
     }
 
@@ -180,7 +214,7 @@ pub use inner::*;
 
 /// Preprocessed command line argument
 ///
-/// OsString in Short/Long correspond to orignal command line item used for errors
+/// [`OsString`] in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
     /// short flag
@@ -205,16 +239,21 @@ impl std::fmt::Display for Arg {
 }
 
 #[inline(never)]
-pub(crate) fn word(os: OsString) -> Arg {
-    Arg::Word(Word {
+pub(crate) fn word(os: OsString, pos_only: bool) -> Word {
+    Word {
         utf8: os.to_str().map(String::from),
         os,
-    })
+        pos_only,
+    }
+}
+
+pub(crate) fn word_arg(os: OsString, pos_only: bool) -> Arg {
+    Arg::Word(word(os, pos_only))
 }
 
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
     if *pos_only {
-        return vec.push(word(os));
+        return vec.push(word_arg(os, true));
     }
 
     match split_os_argument(&os) {
@@ -242,12 +281,20 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool
             vec.push(arg);
         }
         _ => match os.to_str() {
-            Some("--") => *pos_only = true,
-            Some(utf8) => vec.push(Arg::Word(Word {
-                utf8: Some(utf8.to_string()),
+            Some(utf8) => {
+                *pos_only = utf8 == "--";
+                vec.push(Arg::Word(Word {
+                    utf8: Some(utf8.to_string()),
+                    pos_only: false,
+                    os,
+                }));
+            }
+            None => vec.push(Arg::Word(Word {
+                utf8: None,
                 os,
+
+                pos_only: false,
             })),
-            None => vec.push(Arg::Word(Word { utf8: None, os })),
         },
     }
 }
@@ -258,37 +305,37 @@ pub(crate) enum ArgType {
     Long,
 }
 
-/// split OsString into argument specific bits
+/// split [`OsString`] into argument specific bits
 ///
 /// takes a possibly non-utf8 string looking like "--name=value" and splits it into bits:
 /// "--" - type, "name" - name, must be representable as utf8, "=" - optional, "value" - flag
 ///
-/// dashes and equals sign are low codepoint values and we look for them literally in a string.
-/// This probably means not supporting dashes with diacritics, but that's a sacrifice I'm willing
-/// to make.
+/// dashes and equals sign are low codepoint values and - can look for them literally in a string.
+/// This probably means not supporting dashes with diacritics, but that's okay
 ///
 /// name must be valid utf8 after conversion and must not include `=`
 ///
 /// argument is optional and can be non valid utf8.
 ///
-/// The idea is to split the OsString into opaque parts by looking only at the parts we are allowed
-/// to and let stdlib to handle the decoding of those parts.
+/// The idea is to split the [`OsString`] into opaque parts by looking only at the parts simple parts
+/// and let stdlib to handle the decoding of those parts.
 ///
 /// performance wise this (at least on unix) works some small number percentage slower than the
 /// previous version
 ///
 ///
 /// on supporting -fbar
-/// - ideally we want to support any utf8 character (here `f`) which requires detecting one
+/// - ideally bpaf wants to support any utf8 character (here `f`) which requires detecting one
 ///   out of bytes on unix and utf16 codepoints on windows
-/// - we'll want to store ambigous combo of -f=bar and -f -b -a -r until -f is parsed either as
+/// - bpaf needs to store ambigous combo of -f=bar and -f -b -a -r until user consumes -f either as
 ///   a flag or as an argument and drop -b, -a and -r if it was an argument.
-/// - we want to prevent users from using parsers for -b, -a or -r before parser for -f
+/// - bpaf wants to prevent users from using parsers for -b, -a or -r before parser for -f
+///
 /// Conclusion: possible in theory but adds too much complexity for the value it offers.
 pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
     #[cfg(any(unix, windows))]
     {
-        // OsString are composed from smaller smaller elements - bytes in unix and
+        // OsString are sequences of smaller smaller elements - bytes in unix and
         // possibly invalid utf16 items on windows
         #[cfg(unix)]
         type Elt = u8;
@@ -347,7 +394,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             }
         }
 
-        // keep collecting until we see = or the end
+        // keep collecting until = or the end of the input
         loop {
             match items.next() {
                 Some(EQUALS) => break,
@@ -366,7 +413,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             return None;
         }
         let name = str_from_vec(name)?;
-        let word = word(os_from_vec(items.collect()));
+        let word = word_arg(os_from_vec(items.collect()), false);
         Some((ty, name, Some(word)))
     }
     #[cfg(not(any(unix, windows)))]
@@ -375,13 +422,13 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
     }
 }
 
-/// similar to split_os_argument but only works for utf8 values, used as a fallback function
+/// similar to [`split_os_argument`] but only works for utf8 values, used as a fallback function
 /// on non
 #[cfg(any(all(not(windows), not(unix)), test))]
 pub(crate) fn split_os_argument_fallback(
     input: &std::ffi::OsStr,
 ) -> Option<(ArgType, String, Option<Arg>)> {
-    // for fallback I'm assuming the string must be proper utf8
+    // fallback supports only valid utf8 os strings, matches old behavior
     let string = input.to_str()?;
 
     let mut chars = string.chars();
@@ -424,19 +471,36 @@ pub(crate) fn split_os_argument_fallback(
     let word = Word {
         os: OsString::from(utf8.clone()),
         utf8: Some(utf8),
+        pos_only: false,
     };
     Some((ty, name, Some(Arg::Word(word))))
 }
 
 impl Args {
+    #[inline(never)]
+    #[cfg(feature = "autocomplete")]
+    pub(crate) fn swap_comps(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
+        if let Some(comp) = &mut self.comp {
+            std::mem::swap(comps, &mut comp.comps);
+        }
+    }
+
+    pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
+        self.tainted = true;
+        Error::Stderr(
+            if let Some(Word { utf8: Some(w), .. }) = self.current_word() {
+                format!("Couldn't parse {:?}: {}", w, error)
+            } else {
+                format!("Couldn't parse: {}", error)
+            },
+        )
+    }
+
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
     pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
-        let mut iter = self
-            .items_iter()
-            .skip_while(|arg| !named.matches_arg(arg.1));
-        if let Some((ix, _)) = iter.next() {
+        if let Some((ix, _)) = self.items_iter().find(|arg| named.matches_arg(arg.1)) {
             self.remove(ix);
             true
         } else {
@@ -449,16 +513,14 @@ impl Args {
     /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<Word>, Error> {
-        let mut iter = self
-            .items_iter()
-            .skip_while(|arg| !named.matches_arg(arg.1));
-        let (key_ix, arg) = match iter.next() {
+        let (key_ix, arg) = match self.items_iter().find(|arg| named.matches_arg(arg.1)) {
             Some(v) => v,
             None => return Ok(None),
         };
-        let (val_ix, val) = match iter.next() {
-            Some((ix, Arg::Word(w))) => (ix, w),
-            Some((_ix, Arg::Short(_, os) | Arg::Long(_, os))) => {
+        let val_ix = key_ix + 1;
+        let val = match self.get(val_ix) {
+            Some(Arg::Word(w)) => w,
+            Some(Arg::Short(_, os) | Arg::Long(_, os)) => {
                 let msg = if let (Arg::Short(s, fos), true) = (&arg, os.is_empty()) {
                     let fos = fos.to_string_lossy();
                     let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
@@ -483,7 +545,7 @@ impl Args {
 
     /// gets first positional argument present
     ///
-    /// returns Ok(None) if imput is empty
+    /// returns Ok(None) if input is empty
     /// returns Err if first positional argument is a flag
     pub(crate) fn take_positional_word(&mut self) -> Result<Option<Word>, Error> {
         match self.items_iter().next() {
@@ -512,6 +574,12 @@ impl Args {
 
     pub(crate) fn peek(&self) -> Option<&Arg> {
         self.items_iter().next().map(|x| x.1)
+    }
+
+    #[cfg(feature = "autocomplete")]
+    /// check if bpaf tries to complete last consumed element
+    pub(crate) fn touching_last_remove(&self) -> bool {
+        self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
     }
 }
 

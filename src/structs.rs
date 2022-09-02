@@ -1,7 +1,7 @@
 //!
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{args::Word, info::Error, Args, Meta, Parser};
+use crate::{info::Error, Args, CompleteDecor, Meta, Parser};
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
@@ -100,7 +100,18 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.eval(args)
+        #[cfg(feature = "autocomplete")]
+        let mut comps = Vec::new();
+
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps(&mut comps);
+
+        #[allow(clippy::let_and_return)]
+        let res = self.inner.eval(args);
+
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps(&mut comps);
+        res
     }
 
     fn meta(&self) -> Meta {
@@ -121,54 +132,122 @@ where
     B: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        #[cfg(feature = "autocomplete")]
+        let mut comp_items = Vec::new();
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps(&mut comp_items);
+
         // create forks for both branches, go with a successful one.
         // if they both fail - fallback to the original arguments
         let mut args_a = args.clone();
-        let mut args_b = args.clone();
         args_a.head = usize::MAX;
-        args_b.head = usize::MAX;
-        let res_a = self.this.eval(&mut args_a);
-        let res_b = self.that.eval(&mut args_b);
+        let (res_a, err_a) = match self.this.eval(&mut args_a) {
+            Ok(ok) => (Some(ok), None),
+            Err(err) => (None, Some(err)),
+        };
 
-        match Ord::cmp(&args_a.depth, &args_b.depth) {
-            std::cmp::Ordering::Less => {
-                std::mem::swap(args, &mut args_b);
-                return res_b;
-            }
-            std::cmp::Ordering::Equal => {}
-            std::cmp::Ordering::Greater => {
-                std::mem::swap(args, &mut args_a);
-                return res_a;
-            }
-        }
-        match (res_a, res_b) {
-            (Ok(a), Ok(b)) => {
-                if args_a.head <= args_b.head {
-                    std::mem::swap(args, &mut args_a);
-                    Ok(a)
-                } else {
-                    std::mem::swap(args, &mut args_b);
-                    Ok(b)
-                }
-            }
-            (Ok(a), Err(_)) => {
-                std::mem::swap(args, &mut args_a);
-                Ok(a)
-            }
-            (Err(_), Ok(b)) => {
-                std::mem::swap(args, &mut args_b);
-                Ok(b)
-            }
-            (Err(e1), Err(e2)) => {
-                args.tainted |= args_a.tainted | args_b.tainted;
-                Err(e1.combine_with(e2))
-            }
+        let mut args_b = args.clone();
+        args_b.head = usize::MAX;
+        let (res_b, err_b) = match self.that.eval(&mut args_b) {
+            Ok(ok) => (Some(ok), None),
+            Err(err) => (None, Some(err)),
+        };
+
+        if this_or_that_picks_first(
+            err_a,
+            err_b,
+            args,
+            &mut args_a,
+            &mut args_b,
+            #[cfg(feature = "autocomplete")]
+            comp_items,
+        )? {
+            Ok(res_a.unwrap())
+        } else {
+            Ok(res_b.unwrap())
         }
     }
 
     fn meta(&self) -> Meta {
         self.this.meta().or(self.that.meta())
     }
+}
+
+fn this_or_that_picks_first(
+    err_a: Option<Error>,
+    err_b: Option<Error>,
+    args: &mut Args,
+    args_a: &mut Args,
+    args_b: &mut Args,
+
+    #[cfg(feature = "autocomplete")] mut comp_stash: Vec<crate::complete_gen::Comp>,
+) -> Result<bool, Error> {
+    // if higher depth parser succeeds - it takes a priority
+    // completion from different depths should never mix either
+    match Ord::cmp(&args_a.depth, &args_b.depth) {
+        std::cmp::Ordering::Less => {
+            std::mem::swap(args, args_b);
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                comp.comps.extend(comp_stash);
+            }
+            return match err_b {
+                Some(err) => Err(err),
+                None => Ok(false),
+            };
+        }
+        std::cmp::Ordering::Equal => {}
+        std::cmp::Ordering::Greater => {
+            std::mem::swap(args, args_a);
+            #[cfg(feature = "autocomplete")]
+            if let Some(comp) = &mut args.comp {
+                comp.comps.extend(comp_stash);
+            }
+            return match err_a {
+                Some(err) => Err(err),
+                None => Ok(true),
+            };
+        }
+    }
+
+    #[cfg(feature = "autocomplete")]
+    if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
+        comp_stash.extend(a.comps.drain(0..));
+        comp_stash.extend(b.comps.drain(0..));
+    }
+
+    // otherwise pick based on the left most or successful one
+    #[allow(clippy::let_and_return)]
+    let res = match (err_a, err_b) {
+        (None, None) => {
+            if args_a.head <= args_b.head {
+                std::mem::swap(args, args_a);
+                Ok(true)
+            } else {
+                std::mem::swap(args, args_b);
+                Ok(false)
+            }
+        }
+        (None, Some(_)) => {
+            std::mem::swap(args, args_a);
+            Ok(true)
+        }
+        (Some(_), None) => {
+            std::mem::swap(args, args_b);
+            Ok(false)
+        }
+        (Some(e1), Some(e2)) => {
+            args.tainted |= args_a.tainted | args_b.tainted;
+            Err(e1.combine_with(e2))
+        }
+    };
+
+    #[cfg(feature = "autocomplete")]
+    if let Some(comp) = &mut args.comp {
+        comp.comps.extend(comp_stash);
+    }
+
+    res
 }
 
 /// Parser that transforms parsed value with a failing function, created with
@@ -191,16 +270,7 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => {
-                args.tainted = true;
-                Err(Error::Stderr(
-                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                        format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    } else {
-                        format!("Couldn't parse: {}", e.to_string())
-                    },
-                ))
-            }
+            Err(e) => Err(args.word_parse_error(&e.to_string())),
         }
     }
 
@@ -229,7 +299,11 @@ where
                 Ok(ok)
             }
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
-            Err(Error::Missing(_)) => Ok(self.value.clone()),
+            Err(Error::Missing(_)) => {
+                #[cfg(feature = "autocomplete")]
+                std::mem::swap(&mut args.comp, &mut clone.comp);
+                Ok(self.value.clone())
+            }
         }
     }
 
@@ -255,14 +329,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            args.tainted = true;
-            Err(Error::Stderr(
-                if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                    format!("Failed to verify {:?}: {}", w, self.message)
-                } else {
-                    self.message.to_string()
-                },
-            ))
+            Err(args.word_parse_error(self.message))
         }
     }
 
@@ -306,16 +373,7 @@ where
         let s = self.inner.eval(args)?;
         match T::from_str(&s) {
             Ok(ok) => Ok(ok),
-            Err(e) => {
-                args.tainted = true;
-                Err(Error::Stderr(
-                    if let Some(Word { utf8: Some(w), .. }) = args.current_word() {
-                        format!("Couldn't parse {:?}: {}", w, e.to_string())
-                    } else {
-                        format!("Couldn't parse: {}", e.to_string())
-                    },
-                ))
-            }
+            Err(e) => Err(args.word_parse_error(&e.to_string())),
         }
     }
 
@@ -339,6 +397,12 @@ where
         Ok(val) => Ok(Some(val)),
         Err(err) => {
             std::mem::swap(args, &mut orig_args);
+
+            #[cfg(feature = "autocomplete")]
+            if orig_args.comp.is_some() {
+                std::mem::swap(&mut args.comp, &mut orig_args.comp);
+            }
+
             match err {
                 Error::Stdout(_) | Error::Stderr(_) => Err(err),
                 Error::Missing(_) => Ok(None),
@@ -435,12 +499,107 @@ where
     P: Fn(&mut Args) -> Result<T, Error>,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let res = (self.inner)(args)?;
+        let res = (self.inner)(args);
         args.current = None;
-        Ok(res)
+        res
     }
 
     fn meta(&self) -> Meta {
         self.meta.clone()
+    }
+}
+
+/// Parser that replaces metavar placeholders with actual info in shell completion
+#[cfg(feature = "autocomplete")]
+pub struct ParseComp<P, F> {
+    pub(crate) inner: P,
+    pub(crate) op: F,
+}
+
+#[cfg(feature = "autocomplete")]
+impl<P, T, F, M> Parser<T> for ParseComp<P, F>
+where
+    P: Parser<T> + Sized,
+    M: Into<String>,
+    F: Fn(&T) -> Vec<(M, Option<M>)>,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        // stash old
+        let mut comp_items = Vec::new();
+
+        args.swap_comps(&mut comp_items);
+
+        let res = self.inner.eval(args);
+
+        // restore old, now metavars added by inner parser, if any, are in comp_items
+        args.swap_comps(&mut comp_items);
+        if let Some(comp) = &mut args.comp {
+            if res.is_err() {
+                comp.comps.extend(comp_items);
+                return res;
+            }
+        }
+
+        let res = res?;
+
+        if let Some(comp) = &mut args.comp {
+            for ci in comp_items {
+                if let Some(is_arg) = ci.meta_type() {
+                    for (replacement, description) in (self.op)(&res) {
+                        comp.push_value(
+                            replacement.into(),
+                            description.map(Into::into),
+                            args.depth,
+                            is_arg,
+                        );
+                    }
+                } else {
+                    comp.comps.push(ci);
+                }
+            }
+        }
+        Ok(res)
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+#[cfg(feature = "autocomplete")]
+pub struct ParseCompStyle<P> {
+    pub(crate) inner: P,
+    pub(crate) style: CompleteDecor,
+}
+
+#[cfg(feature = "autocomplete")]
+impl<P, T> Parser<T> for ParseCompStyle<P>
+where
+    P: Parser<T> + Sized,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let mut comp_items = Vec::new();
+        args.swap_comps(&mut comp_items);
+        let res = self.inner.eval(args);
+        args.swap_comps(&mut comp_items);
+        extend_with_args_style(args, self.style, &mut comp_items);
+        res
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+#[cfg(feature = "autocomplete")]
+fn extend_with_args_style(
+    args: &mut Args,
+    style: CompleteDecor,
+    comps: &mut Vec<crate::complete_gen::Comp>,
+) {
+    if let Some(comp) = &mut args.comp {
+        for mut item in comps.drain(..) {
+            item.set_decor(style);
+            comp.comps.push(item);
+        }
     }
 }

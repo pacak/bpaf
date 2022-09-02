@@ -1,6 +1,6 @@
 use crate::{
     item::Item,
-    meta_usage::{collect_usage_meta, UsageMeta},
+    meta_usage::{to_usage_meta, UsageMeta},
 };
 
 #[doc(hidden)]
@@ -48,8 +48,6 @@ impl Meta {
     ///
     /// `None` indicates no parameters - usage line isn't shown
     pub(crate) fn as_usage_meta(&self) -> Option<UsageMeta> {
-        let mut had_commands = false;
-        let mut is_pos = false;
-        collect_usage_meta(self, true, &mut had_commands, &mut is_pos)
+        to_usage_meta(self)
     }
 }

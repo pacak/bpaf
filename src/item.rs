@@ -1,16 +1,18 @@
 use crate::{Meta, Named};
 
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum Item {
     Positional {
         metavar: &'static str,
+        strict: bool,
         help: Option<String>,
     },
     Command {
         name: &'static str,
         short: Option<char>,
         help: Option<String>,
+        meta: Box<Meta>,
     },
     Flag {
         name: ShortLong,
@@ -49,7 +51,11 @@ impl From<&Named> for ShortLong {
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Item::Positional { metavar, help: _ } => write!(f, "<{}>", metavar),
+            Item::Positional {
+                metavar,
+                help: _,
+                strict: _,
+            } => write!(f, "<{}>", metavar),
             Item::Command { .. } => write!(f, "COMMAND ..."),
             Item::Flag { name, help: _ } => write!(f, "{}", name),
             Item::Argument {

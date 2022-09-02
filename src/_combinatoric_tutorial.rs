@@ -56,6 +56,8 @@
 //! 5. [`run`](OptionParser::run) the resulting option parser at the beginning of your program.
 //!    If option parser succeeds you'll get the results. If there are errors or user asked for help info
 //!    `bpaf` handles this and exits.
+//!
+//! 6. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
 #[allow(unused_imports)]
 use crate::*;

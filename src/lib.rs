@@ -2,7 +2,7 @@
 #![warn(rustdoc::missing_doc_code_examples)]
 #![allow(clippy::needless_doctest_main)]
 
-//! Lightweight and flexible command line argument parser with derive and combinator style API
+//! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
 //! # Derive and combinatoric API
 //!
@@ -12,13 +12,15 @@
 //! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
 //! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
 //! also explains how to perform the same action in derive style.
+//!
+//! `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
 //! # Quick links
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
-//! - [FAQ](crate::_faq)
 //! - [Batteries included](crate::batteries)
+//! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
 //! # Quick start, derive edition
 //!
@@ -199,20 +201,62 @@
 //! This set of restrictions allows to extract information about the structure of the computations
 //! to generate help and overall results in less confusing enduser experience
 //!
-//! `bpaf` will not perform your parameter names validation, in fact having multiple parameters
+//! `bpaf` performs no parameter names validation, in fact having multiple parameters
 //! with the same name is fine and you can combine them as alternatives and performs no fallback
 //! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
 //! alternatives inside the macro: parser that consumes the left most available argument on a
 //! command line wins, if this is the same - left most parser wins. So to parse a parameter
-//! `--test` that can be used both as a [`switch`](Named::switch) and as an
-//! [`argument`](Named::argument) you should put the argument one first.
+//! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
+//! should put the argument one first.
 //!
-//! `bpaf` does not support short flag names followed by immediate values: while this `-fbar` could
-//! mean `-f` followed by a parameter `"bar"` - this is not supported. Values must be separated by
-//! either a space or `=`. If value starts with a dash - it must be separated by `=` only.
+//! `bpaf` doesn't support short flag names followed by immediate values: while this `-fbar` could
+//! mean `-f` followed by a parameter `"bar"` - this isn't supported. `bpaf` supports only
+//! `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
 //!
 //! You must place [`positional`] and [`positional_os`] items at the end of a structure
 //! in derive API or consume them as last arguments in derive API.
+
+//! # Dynamic shell completion
+//!
+//! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
+//! names, but also argument and positional item values.
+//!
+//! 1. Enable `autocomplete` feature:
+//!    ```toml
+//!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
+//!    ```
+//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
+//!    [`complete`](Parser::complete) to autocomplete argument values
+//!
+//! 3. Depending on your shell generate appropriate completion file and place it to whereever your
+//!    shell is going to look for it, name of the file should correspond in some way to name of
+//!    your program. Consult manual for your shell for the location and named conventions:
+//!    1. **bash**: for the first `bpaf` completion you need to install the whole script
+//!        ```console
+//!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
+//!        ```
+//!        but since the script doesn't depend on a program name - it's enough to do this for
+//!        each next program
+//!        ```console
+//!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
+//!        ```
+//!    2. **zsh**: note `_` at the beginning of the filename
+//!       ```console
+//!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
+//!       ```
+//!    3. **fish**
+//!       ```console
+//!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+//!       ```
+//!    4. **elvish** - not sure where to put it, documentation is a bit cryptic
+//!       ```console
+//!       $ your_program --bpaf-complete-style-elvish
+//!       ```
+//! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
+//!    upgrade: generated completion files contain only instructions how to ask your program for
+//!    possible completions and don't change even if options are different.
+//!
+//! 5. Generated scripts rely on your program being accessible in $PATH
 
 //! # Design non goals: performance
 //!
@@ -260,25 +304,30 @@
 //!     assert_eq!(help, expected_help);
 //! }
 //! ```
+//!
 
 //! # Cargo features
 //!
 //! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
-//!   need to enable it to use derive API
+//!   need to enable it to use derive API. Disabled by default.
 //!
 //! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
 //! enable it for local development unless you want to build your own copy of the documentation
-//! (<https://github.com/rust-lang/cargo/issues/8905>)
+//! (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 //!
-//! - `batteries`: helpers implemented with public `bpaf` API
+//! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
+//!
+//! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 
 #[cfg(feature = "extradocs")]
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
-#[cfg(feature = "extradocs")]
-pub mod _faq;
 mod args;
+#[cfg(feature = "autocomplete")]
+mod complete_gen;
+#[cfg(feature = "autocomplete")]
+mod complete_run;
 mod info;
 mod item;
 mod meta;
@@ -287,10 +336,10 @@ mod meta_usage;
 mod meta_youmean;
 mod params;
 mod structs;
-
-pub mod batteries;
 #[cfg(test)]
 mod tests;
+
+pub mod batteries;
 
 #[doc(hidden)]
 pub use crate::info::Error;
@@ -303,6 +352,9 @@ use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
     ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
 };
+
+#[cfg(feature = "autocomplete")]
+use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
@@ -481,6 +533,22 @@ macro_rules! construct {
     (@prepare $ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+
+        #[cfg(feature = "autocomplete")]
+        let inner = move |args: &mut $crate::Args| {
+            $(let $fields = if args.is_comp() {
+                $fields.eval(args)
+            } else {
+                Ok($fields.eval(args)?)
+            };)*
+            $(let $fields = $fields?;)*
+
+            args.current = None;
+            ::std::result::Result::Ok::<_, $crate::Error>
+                ($crate::construct!(@make $ty [$($fields)*]))
+        };
+
+        #[cfg(not(feature = "autocomplete"))]
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = $fields.eval(args)?;)*
             args.current = None;
@@ -1331,6 +1399,104 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // {{{ comp
+    /// Dynamic shell completion
+    ///
+    /// Allows to generate autocompletion information for shell. Completer places generated input
+    /// in place of metavar placeholders, so running `completer` on something that doesn't have a
+    /// [`positional`] or an [`argument`](Named::argument) (or their `_os` variants) doesn't make
+    /// much sense.
+    ///
+    /// Takes a function as a parameter that tries to complete partial input to a full one with
+    /// optional description. `bpaf` would substitute current positional item or an argument an empty
+    /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
+    /// right after [`argument`](Named::argument) or [`positional`], but this isn't enforced.
+    ///
+    /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
+    /// print completions to console and for non-string values it's not possible (accurately).
+    ///
+    /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --name L<TAB>
+    /// $ app --name Lupusregina _
+    /// ```
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
+    ///     names
+    ///         .iter()
+    ///         .filter(|name| name.starts_with(input))
+    ///         .map(|name| (*name, None))
+    ///         .collect::<Vec<_>>()
+    /// }
+    ///
+    /// fn name() -> impl Parser<String> {
+    ///     short('n')
+    ///         .long("name")
+    ///         .help("Specify character's name")
+    ///         .argument("Name")
+    ///         .complete(completer)
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
+    ///     names
+    ///         .iter()
+    ///         .filter(|name| name.starts_with(input))
+    ///         .map(|name| (*name, None))
+    ///         .collect::<Vec<_>>()
+    /// }
+    ///
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(argument("NAME"), complete(completer))]
+    ///     name: String,
+    /// }
+    /// ```
+    #[cfg(feature = "autocomplete")]
+    fn complete<M, F>(self, op: F) -> ParseComp<Self, F>
+    where
+        M: Into<String>,
+        F: Fn(&T) -> Vec<(M, Option<M>)>,
+        Self: Sized + Parser<T>,
+    {
+        ParseComp { inner: self, op }
+    }
+    // }}}
+
+    /// Add extra annotations to completion information
+    ///
+    /// Not all information is gets supported by all the shells
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn opts() -> impl Parser<(bool, bool)> {
+    ///     let a = short('a').switch();
+    ///     let b = short('b').switch();
+    ///     let c = short('c').switch();
+    ///     let d = short('d').switch();
+    ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
+    ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
+    ///     construct!([ab, cd])
+    /// }
+    #[cfg(feature = "autocomplete")]
+    fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseCompStyle { inner: self, style }
+    }
+
     // consume
     // {{{ to_options
     /// Transform `Parser` into [`OptionParser`] to attach metadata and run
@@ -1393,6 +1559,40 @@ pub trait Parser<T> {
         }
     }
     // }}}
+}
+
+#[non_exhaustive]
+/// Various complete options decorations
+///
+/// Somewhat work in progress, only makes a difference in zsh
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn pair() -> impl Parser<(bool, bool)> {
+///     let a = short('a').switch();
+///     let b = short('b').switch();
+///     construct!(a, b)
+///         .complete_style(CompleteDecor::VisibleGroup("a and b"))
+/// }
+/// ```
+///
+/// # Derive usage
+/// ```rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(complete_style(CompleteDecor::VisibleGroup("a and b")))]
+/// struct Options {
+///     a: bool,
+///     b: bool,
+/// }
+/// ```
+///
+#[derive(Debug, Clone, Copy)]
+pub enum CompleteDecor {
+    /// Group items according to this group
+    HiddenGroup(&'static str),
+    /// Group items according to this group but also show the group name
+    VisibleGroup(&'static str),
 }
 
 /// Wrap a value into a `Parser`

@@ -11,7 +11,7 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
         Error::Missing(xs) => {
             let mut hi = crate::meta_help::HelpItems::default();
             for x in xs.iter() {
-                hi.classify(x);
+                hi.classify_item(x);
             }
             hi.flgs.is_empty() && hi.psns.is_empty()
         }
@@ -30,9 +30,9 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
     };
 
     if args.items.iter().filter(|&a| a == arg).count() > 1 {
-        // We have more than one copy of unexpected item. Either user specified
-        // several of those or parser accepts only limited number of them. Or
-        // they are accepted in a different branch. Give up and produce a default
+        // args contains more than one copy of unexpected item. Either user specified
+        // several of those or parser accepts only limited number of them.
+        // Or a different branch handles them. Give up and produce a default
         // "not expected in this context" error
         return Ok(());
     }

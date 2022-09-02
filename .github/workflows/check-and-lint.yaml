@@ -8,8 +8,29 @@ on:
 name: Check and Lint
 
 jobs:
+  windows:
+    runs-on: windows-latest
+    name: Check windows
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace --all-targets
+
+      - uses: actions-rs/cargo@v1
+        name: all features
+        with:
+          command: test
+          args: --workspace --all-targets --all-features
+
   check:
-    name: Check
+    name: Check linux
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -24,9 +45,16 @@ jobs:
           args: --workspace --all-targets
 
       - uses: actions-rs/cargo@v1
+        name: all features
         with:
           command: test
-          args: --workspace --all-targets
+          args: --workspace --all-targets --all-features
+
+      # without autocomplete
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --all-targets --no-default-features
 
       - name: Rustdoc
         uses: actions-rs/cargo@v1
@@ -68,7 +96,7 @@ jobs:
           args: --all-features
           name: Clippy Output
   compat:
-    name: Check 1.56
+    name: Check compat 1.56
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -80,8 +108,25 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: check
-          args: --workspace --all-targets
+          args: -p bpaf
+
+      - uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: -p bpaf_derive
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-targets
+          args: -p bpaf --all-targets --no-default-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p bpaf --all-targets --all-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p bpaf_derive --all-targets --no-default-features
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: -p bpaf_derive --all-targets --all-features

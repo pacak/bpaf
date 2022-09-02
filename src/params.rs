@@ -215,7 +215,16 @@ pub struct Named {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
-    help: Option<String>,
+    pub(crate) help: Option<String>,
+}
+
+impl Named {
+    pub(crate) fn flag_item(&self) -> Item {
+        Item::Flag {
+            name: ShortLong::from(self),
+            help: self.help.clone(),
+        }
+    }
 }
 
 /// A flag/switch/argument that has a short name
@@ -590,12 +599,27 @@ impl Named {
     /// Argument must contain only valid utf8 characters.
     /// For OS specific encoding see [`argument_os`][Named::argument_os].
     ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_string() -> impl Parser<String> {
     ///     short('n')
     ///         .long("name")
     ///         .argument("NAME")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    ///
+    /// `bpaf_derive` would automatically pick between `argument` and
+    /// [`argument_os`](Named::argument_os) depending on
+    /// a field type but you can specify it manually to override the metavar value
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short('n'), argument("NAME"))]
+    ///     name: String,
     /// }
     /// ```
     #[must_use]
@@ -608,12 +632,27 @@ impl Named {
     ///
     /// If you prefer to panic on non utf8 encoding see [`argument`][Named::argument].
     ///
+    /// # Combinatoric usage
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_osstring() -> impl Parser<std::ffi::OsString> {
     ///     short('n')
     ///         .long("name")
     ///         .argument_os("NAME")
+    /// }
+    /// ```
+    ///
+    ///
+    /// # Derive usage
+    /// `bpaf_derive` would automatically pick between [`argument`](Named::argument) and
+    /// `argument_os` depending on
+    /// a field type but you can specify it manually to override the metavar value
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     #[bpaf(short('n'), argument_os("NAME"))]
+    ///     name: std::ffi::OsString,
     /// }
     /// ```
     #[must_use]
@@ -642,8 +681,9 @@ impl Named {
 /// To parse positional arguments from a command line you should place parsers for all your
 /// named values before parsers for positional items and commands. In derive API fields parsed as
 /// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// if positional fields or commands are nested inside other structures: such structures should
-/// go to the end as well.
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and positional `pos` parsers
 /// ```rust
@@ -654,7 +694,7 @@ impl Named {
 /// let invalid = construct!(pos(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -700,8 +740,9 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
 /// To parse positional arguments from a command line you should place parsers for all your
 /// named values before parsers for positional items and commands. In derive API fields parsed as
 /// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// if positional fields or commands are nested inside other structures: such structures should
-/// go to the end as well.
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and positional `pos` parsers
 /// ```rust
@@ -712,7 +753,7 @@ pub fn positional(metavar: &'static str) -> Positional<String> {
 /// let invalid = construct!(pos(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric usage
 /// ```rust
@@ -760,9 +801,10 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// # Important restriction
 /// When parsing command arguments from command lines you should have parsers for all your
 /// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. Same rule applies for positional
-/// fields nested inside other structures: such structures should go to the end as well.
-/// Failing to do can result in behavior confusing for the end user.
+/// positional should be at the end of your `struct`/`enum`. Same rule applies
+/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+///
+/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
 ///
 /// For example for non positional `non_pos` and a command `command` parsers
 /// ```rust
@@ -773,7 +815,7 @@ pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
 /// let invalid = construct!(command(), non_pos());
 /// ```
 ///
-/// **`bpaf` will panic during help generation if this restriction is broken!**
+/// **`bpaf` panics during help generation unless if this restriction holds**
 ///
 /// # Combinatoric use
 ///
@@ -940,6 +982,7 @@ impl<P> Command<P> {
 
 impl<T> Parser<T> for Command<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        // used to avoid allocations for short names
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
             || self.shorts.iter().any(|s| {
@@ -948,22 +991,42 @@ impl<T> Parser<T> for Command<T> {
                 args.take_cmd(&tmp)
             })
         {
+            #[cfg(feature = "autocomplete")]
+            if args.touching_last_remove() {
+                // in completion mode prefer to autocomplete the command name vs going inside the
+                // parser
+                args.clear_comps();
+                args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
+                return Err(Error::Missing(Vec::new()));
+            }
+
             args.head = usize::MAX;
             args.depth += 1;
-            // failure past this point should be preserved in or_else parser
-            self.subparser.run_subparser(args)
+            // `or_else` would prefer failures past this point to preceeding levels
+            #[allow(clippy::let_and_return)]
+            let res = self.subparser.run_subparser(args);
+            res
         } else {
-            Err(Error::Missing(vec![self.meta()]))
+            #[cfg(feature = "autocomplete")]
+            args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
+
+            Err(Error::Missing(vec![self.item()]))
         }
     }
 
     fn meta(&self) -> Meta {
-        let item = Item::Command {
+        Meta::Item(self.item())
+    }
+}
+
+impl<T> Command<T> {
+    fn item(&self) -> Item {
+        Item::Command {
             name: self.longs[0],
             short: self.shorts.first().copied(),
             help: self.help.clone(),
-        };
-        Meta::Item(item)
+            meta: Box::new(self.subparser.inner.meta()),
+        }
     }
 }
 
@@ -989,22 +1052,23 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
+            #[cfg(feature = "autocomplete")]
+            if args.touching_last_remove() {
+                args.push_flag(&self.named);
+            }
             Ok(self.present.clone())
         } else {
+            #[cfg(feature = "autocomplete")]
+            args.push_flag(&self.named);
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
-                None => Err(Error::Missing(vec![self.meta()])),
+                None => Err(Error::Missing(vec![self.named.flag_item()])),
             }
         }
     }
 
     fn meta(&self) -> Meta {
-        let item = Item::Flag {
-            name: ShortLong::from(&self.named),
-            help: self.named.help.clone(),
-        };
-
-        item.required(self.absent.is_none())
+        self.named.flag_item().required(self.absent.is_none())
     }
 }
 
@@ -1025,28 +1089,47 @@ struct BuildArgument {
     metavar: &'static str,
 }
 
+impl BuildArgument {
+    fn item(&self) -> Item {
+        Item::Argument {
+            name: ShortLong::from(&self.named),
+            metavar: self.metavar,
+            env: self.named.env.first().copied(),
+            help: self.named.help.clone(),
+        }
+    }
+}
+
 impl Parser<Word> for BuildArgument {
     fn eval(&self, args: &mut Args) -> Result<Word, Error> {
-        if let Some(w) = args.take_arg(&self.named)? {
-            Ok(w)
-        } else if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
-            args.current = None;
-            Ok(Word::from(val))
-        } else {
-            Err(Error::Missing(vec![self.meta()]))
+        match args.take_arg(&self.named) {
+            Ok(Some(w)) => {
+                #[cfg(feature = "autocomplete")]
+                if args.touching_last_remove() {
+                    args.push_metadata(self.metavar, &self.named.help, true);
+                }
+                Ok(w)
+            }
+            Err(err) => {
+                #[cfg(feature = "autocomplete")]
+                args.push_argument(&self.named, self.metavar);
+                Err(err)
+            }
+            _ => {
+                #[cfg(feature = "autocomplete")]
+                args.push_argument(&self.named, self.metavar);
+                if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
+                    args.current = None;
+                    Ok(crate::args::word(val, false))
+                } else {
+                    Err(Error::Missing(vec![self.item()]))
+                }
+            }
         }
     }
 
     fn meta(&self) -> Meta {
-        {
-            let this = Item::Argument {
-                name: ShortLong::from(&self.named),
-                metavar: self.metavar,
-                env: self.named.env.first().copied(),
-                help: self.named.help.clone(),
-            };
-            Meta::Item(this)
-        }
+        Meta::Item(self.item())
     }
 }
 
@@ -1055,6 +1138,7 @@ fn build_positional<T>(metavar: &'static str) -> Positional<T> {
         metavar,
         help: None,
         result_type: PhantomData,
+        strict: false,
     }
 }
 
@@ -1063,6 +1147,7 @@ pub struct Positional<T> {
     metavar: &'static str,
     help: Option<String>,
     result_type: PhantomData<T>,
+    strict: bool,
 }
 
 impl<T> Positional<T> {
@@ -1073,21 +1158,70 @@ impl<T> Positional<T> {
         self.help = Some(help.into());
         self
     }
+    pub fn strict(mut self) -> Self {
+        self.strict = true;
+        self
+    }
+
     fn meta(&self) -> Meta {
-        Meta::Item(Item::Positional {
-            metavar: self.metavar,
-            help: self.help.clone(),
+        Meta::Item({
+            Item::Positional {
+                metavar: self.metavar,
+                help: self.help.clone(),
+                strict: self.strict,
+            }
         })
+    }
+}
+
+fn parse_word(
+    args: &mut Args,
+    strict: bool,
+    metavar: &'static str,
+    help: &Option<String>,
+) -> Result<Word, Error> {
+    match args.take_positional_word()? {
+        Some(word) => {
+            if strict && !word.pos_only {
+                #[cfg(feature = "autocomplete")]
+                args.push_value("--", &Some("-- Positional only items".to_owned()), false);
+
+                return Err(Error::Stderr(format!(
+                    "Expected <{}> to be on the right side of --",
+                    metavar,
+                )));
+            }
+
+            #[cfg(feature = "autocomplete")]
+            if args.touching_last_remove() && !args.no_pos_ahead {
+                args.push_metadata(metavar, help, false);
+                args.no_pos_ahead = true;
+            }
+            Ok(word)
+        }
+        None => {
+            #[cfg(feature = "autocomplete")]
+            if !args.no_pos_ahead {
+                args.push_metadata(metavar, help, false);
+                args.no_pos_ahead = true;
+            }
+
+            let item = Item::Positional {
+                metavar,
+                help: help.clone(),
+                strict,
+            };
+            Err(Error::Missing(vec![item]))
+        }
     }
 }
 
 impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        match args.take_positional_word()? {
-            Some(word) => Ok(word.os),
-            None => Err(Error::Missing(vec![self.meta()])),
-        }
+        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
+        Ok(res.os)
     }
+
     fn meta(&self) -> Meta {
         self.meta()
     }
@@ -1095,12 +1229,13 @@ impl Parser<OsString> for Positional<OsString> {
 
 impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
-        match args.take_positional_word()? {
-            Some(word) => match word.utf8 {
-                Some(ok) => Ok(ok),
-                None => Err(Error::Stderr("not utf8".to_owned())),
-            },
-            None => Err(Error::Missing(vec![self.meta()])),
+        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
+        match res.utf8 {
+            Some(ok) => Ok(ok),
+            None => Err(Error::Stderr(format!(
+                "<{}> is not a valid utf",
+                self.metavar
+            ))),
         }
     }
 

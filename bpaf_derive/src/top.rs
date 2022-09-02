@@ -38,6 +38,7 @@ enum ParserKind {
 enum BParser {
     Command(LitStr, CommandAttr, Box<OParser>),
     CargoHelper(LitStr, Box<BParser>),
+    CompStyle(Box<Expr>, Box<BParser>),
     Constructor(ConstrName, Fields),
     Singleton(ReqFlag),
     Fold(Vec<BParser>),
@@ -121,6 +122,7 @@ enum OuterAttr {
     Generate(Ident),
     Command(CommandAttr),
     Version(Option<Box<Expr>>),
+    CompStyle(Box<Expr>),
 }
 
 #[derive(Clone, Debug)]
@@ -152,13 +154,13 @@ impl Parse for CommandAttr {
                     input.parse::<kw::short>()?;
                     let content;
                     let _ = parenthesized!(content in input);
-                    shorts.push(content.parse::<LitChar>()?)
+                    shorts.push(content.parse::<LitChar>()?);
                 } else if input.peek(token::Comma) && input.peek2(kw::long) {
                     input.parse::<token::Comma>()?;
                     input.parse::<kw::long>()?;
                     let content;
                     let _ = parenthesized!(content in input);
-                    longs.push(content.parse::<LitStr>()?)
+                    longs.push(content.parse::<LitStr>()?);
                 } else {
                     break;
                 }
@@ -198,6 +200,11 @@ impl Parse for OuterAttr {
             } else {
                 Ok(Self::Options(None))
             }
+        } else if input.peek(kw::complete_style) {
+            input.parse::<kw::complete_style>()?;
+            let _ = parenthesized!(content in input);
+            let expr = content.parse::<Expr>()?;
+            Ok(Self::CompStyle(Box::new(expr)))
         } else if input.peek(kw::command) {
             Ok(Self::Command(input.parse::<CommandAttr>()?))
         } else if input.peek(kw::version) {
@@ -265,6 +272,7 @@ impl Parse for Top {
         if input.peek(Token![struct]) {
             let (help, outer) = split_help_and::<OuterAttr>(&attrs)?;
             let mut outer_kind = None;
+            let mut comp_style = None;
             for attr in outer {
                 match attr {
                     OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
@@ -273,10 +281,13 @@ impl Parse for Top {
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
                     OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
                     OuterAttr::Version(None) => {
-                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
                     }
                     OuterAttr::Private => {
                         vis = Visibility::Inherited;
+                    }
+                    OuterAttr::CompStyle(style) => {
+                        comp_style = Some(style);
                     }
                 }
             }
@@ -296,6 +307,10 @@ impl Parse for Top {
             let inner = BParser::Constructor(constr, bra);
             match outer_kind.unwrap_or(OuterKind::Construct) {
                 OuterKind::Construct => {
+                    let inner = match comp_style {
+                        Some(style) => BParser::CompStyle(style, Box::new(inner)),
+                        None => inner,
+                    };
                     kind = ParserKind::BParser(inner);
                 }
                 OuterKind::Options(n) => {
@@ -327,6 +342,7 @@ impl Parse for Top {
         } else if input.peek(Token![enum]) {
             let (help, outer) = split_help_and::<OuterAttr>(&attrs)?;
             let mut outer_kind = None;
+            let mut comp_style = None;
             for attr in outer {
                 match attr {
                     OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
@@ -334,11 +350,14 @@ impl Parse for Top {
                     OuterAttr::Generate(n) => name = Some(n.clone()),
                     OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
                     OuterAttr::Version(None) => {
-                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")))
+                        version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
                     }
                     OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
                     OuterAttr::Private => {
                         vis = Visibility::Inherited;
+                    }
+                    OuterAttr::CompStyle(style) => {
+                        comp_style = Some(style);
                     }
                 }
             }
@@ -362,7 +381,8 @@ impl Parse for Top {
                     constr: inner_ty.clone(),
                 };
 
-                if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
+                let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace)
+                {
                     let (help, mut inner) = split_help_and::<CommandAttr>(&attrs)?;
 
                     let bra = enum_contents.parse::<Fields>()?;
@@ -378,9 +398,9 @@ impl Parse for Top {
                             inner: Box::new(BParser::Constructor(constr, bra)),
                             decor,
                         };
-                        branches.push(BParser::Command(cmd_name, cmd_arg, Box::new(oparser)));
+                        BParser::Command(cmd_name, cmd_arg, Box::new(oparser))
                     } else {
-                        branches.push(BParser::Constructor(constr, bra))
+                        BParser::Constructor(constr, bra)
                     }
                 } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
                     .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
@@ -396,11 +416,17 @@ impl Parse for Top {
                         inner: Box::new(BParser::Constructor(constr, fields)),
                         decor,
                     };
-                    branches.push(BParser::Command(cmd_name, inner, Box::new(oparser)));
+                    BParser::Command(cmd_name, inner, Box::new(oparser))
                 } else {
                     let (help, inner) = split_help_and::<EnumSingleton<OptNameAttr>>(&attrs)?;
-                    branches.push(BParser::Singleton(ReqFlag::new(constr, inner, &help)));
-                }
+                    BParser::Singleton(ReqFlag::new(constr, inner, &help))
+                };
+
+                let branch = match &comp_style {
+                    Some(style) => BParser::CompStyle(style.clone(), Box::new(branch)),
+                    None => branch,
+                };
+                branches.push(branch);
 
                 if !enum_contents.is_empty() {
                     enum_contents.parse::<Token![,]>()?;
@@ -498,10 +524,10 @@ impl ToTokens for BParser {
         match self {
             BParser::Command(cmd_name, cmd_attr, oparser) => {
                 let mut names = quote!();
-                for short in cmd_attr.shorts.iter() {
+                for short in &cmd_attr.shorts {
                     names = quote!(#names .short(#short));
                 }
-                for long in cmd_attr.longs.iter() {
+                for long in &cmd_attr.longs {
                     names = quote!(#names .long(#long));
                 }
 
@@ -551,6 +577,9 @@ impl ToTokens for BParser {
                 }
             }
             BParser::Singleton(field) => field.to_tokens(tokens),
+            BParser::CompStyle(style, inner) => {
+                quote!(#inner.complete_style(#style)).to_tokens(tokens);
+            }
         }
     }
 }
@@ -1073,6 +1102,51 @@ mod test {
                     let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
                     ::bpaf::construct!(Options { path })
                 }
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn comp_visibility_struct() {
+        let top: Top = parse_quote! {
+            #[bpaf(complete_style(x))]
+            pub struct Options {
+                path: PathBuf,
+            }
+        };
+        let expected = quote! {
+            pub fn options() -> impl ::bpaf::Parser<Options> {
+                #[allow(unused_imports)]
+                use ::bpaf::Parser;
+                {
+                    let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                    :: bpaf :: construct ! (Options { path })
+                }.complete_style(x)
+            }
+        };
+        assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    fn comp_visibility_enum() {
+        let top: Top = parse_quote! {
+            #[bpaf(complete_style(x))]
+            pub enum Foo {
+                Bar {
+                    path: PathBuf,
+                }
+            }
+        };
+        let expected = quote! {
+            pub fn foo() -> impl ::bpaf::Parser<Foo> {
+                #[allow(unused_imports)]
+                use ::bpaf::Parser;
+                {
+                    let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                    :: bpaf :: construct ! (Foo::Bar { path })
+                }
+                .complete_style(x)
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());

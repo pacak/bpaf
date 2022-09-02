@@ -4,9 +4,7 @@
 use std::marker::PhantomData;
 
 use crate::{
-    args::{self, Args},
-    meta_help::render_help,
-    params::short,
+    args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
     Command, Meta, ParseFailure, Parser,
 };
 
@@ -20,7 +18,7 @@ pub enum Error {
     /// Expected one of those values
     ///
     /// Used internally to generate better error messages
-    Missing(Vec<Meta>),
+    Missing(Vec<Item>),
 }
 
 impl Error {
@@ -122,16 +120,38 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
-        let mut pos_only = false;
-        let mut vec = Vec::new();
-        for arg in std::env::args_os().skip(1) {
-            args::push_vec(&mut vec, arg, &mut pos_only);
-        }
+        let mut arg_vec = Vec::new();
+        #[cfg(feature = "autocomplete")]
+        let mut complete_vec = Vec::new();
 
-        match self.run_inner(Args::args_from(vec)) {
+        let mut args = std::env::args_os();
+
+        #[allow(unused_variables)]
+        let name = args.next().expect("no command name from args_os?");
+
+        #[cfg(feature = "autocomplete")]
+        for arg in args {
+            if arg
+                .to_str()
+                .map_or(false, |s| s.starts_with("--bpaf-complete-"))
+            {
+                complete_vec.push(arg);
+            } else {
+                arg_vec.push(arg);
+            }
+        }
+        #[cfg(not(feature = "autocomplete"))]
+        arg_vec.extend(args);
+
+        #[cfg(feature = "autocomplete")]
+        let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
+        #[cfg(not(feature = "autocomplete"))]
+        let args = Args::from(arg_vec.as_slice());
+
+        match self.run_inner(args) {
             Ok(t) => t,
             Err(ParseFailure::Stdout(msg)) => {
-                println!("{}", msg);
+                print!("{}", msg); // completions are sad otherwise
                 std::process::exit(0);
             }
             Err(ParseFailure::Stderr(msg)) => {
@@ -193,12 +213,11 @@ impl<T> OptionParser<T> {
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(Error::Missing(metas)) => Err(ParseFailure::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(metas)
-            ))),
-            Err(Error::Stdout(stdout)) => Err(ParseFailure::Stdout(stdout)),
-            Err(Error::Stderr(stderr)) => Err(ParseFailure::Stderr(stderr)),
+            Err(err) => match report_missing_items(err) {
+                Error::Stdout(msg) => Err(ParseFailure::Stdout(msg)),
+                Error::Stderr(msg) => Err(ParseFailure::Stderr(msg)),
+                Error::Missing(_) => unreachable!(),
+            },
         }
     }
 
@@ -206,7 +225,14 @@ impl<T> OptionParser<T> {
     #[doc(hidden)]
     pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
-        let err = match self.inner.eval(args) {
+        let res = self.inner.eval(args);
+        if let Err(Error::Stdout(_)) = &res {
+            return res;
+        }
+        #[cfg(feature = "autocomplete")]
+        args.check_complete()?;
+
+        let err = match res {
             Ok(r) => {
                 if let Err(err) = check_unexpected(args) {
                     err
@@ -245,14 +271,7 @@ impl<T> OptionParser<T> {
             crate::meta_youmean::suggest(args, &self.inner.meta())?;
         }
 
-        if let Error::Missing(metas) = err {
-            Err(Error::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(metas)
-            )))
-        } else {
-            Err(err)
-        }
+        Err(report_missing_items(err))
     }
     /// Get first line of description if Available
     ///
@@ -499,7 +518,11 @@ impl<T> OptionParser<T> {
     }
     /// Set custom usage field
     ///
-    /// Custom usage field to use instead of one derived by `bpaf`
+    /// Custom usage field to use instead of one derived by `bpaf`. Custom message should contain
+    /// `"Usage: "` prefix if you want to display one.
+    ///
+    /// Before using it `bpaf` would replace `"{usage}"` tokens inside a custom usage string with
+    /// automatically generated usage.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -508,13 +531,13 @@ impl<T> OptionParser<T> {
     ///    short('s')
     ///        .switch()
     ///        .to_options()
-    ///        .usage("-s")
+    ///        .usage("Usage: my_program: {usage}")
     /// }
     /// ```
     ///
     /// # Derive usage
     ///
-    /// Not available at the moment
+    /// Not available directly, but you can call `usage` on generated [`OptionParser`].
     #[must_use]
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
@@ -530,6 +553,59 @@ impl<T> OptionParser<T> {
         T: 'static,
     {
         crate::params::command(name, self)
+    }
+
+    /// Check the invariants `bpaf` relies on for normal operations
+    ///
+    /// Takes a parameter whether to check for cosmetic invariants or not
+    /// (max help width exceeding 120 symbols, etc), currently not in use
+    ///
+    /// Best used as part of your test suite:
+    /// ```no_run
+    /// # use bpaf::*;
+    /// #[test]
+    /// fn check_options() {
+    /// # let options = || short('p').switch().to_options();
+    ///     options().check_invariants(false)
+    /// }
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// `check_invariants` indicates problems with panic
+    pub fn check_invariants(&self, _cosmetic: bool) {
+        perform_invariant_check(&self.inner.meta(), true);
+    }
+}
+
+fn report_missing_items(err: Error) -> Error {
+    match err {
+        Error::Stdout(_) | Error::Stderr(_) => err,
+        Error::Missing(items) => Error::Stderr(format!(
+            "Expected {}, pass --help for usage information",
+            Meta::Or(items.into_iter().map(Meta::Item).collect::<Vec<_>>())
+        )),
+    }
+}
+
+fn perform_invariant_check(meta: &Meta, fresh: bool) {
+    if fresh {
+        to_usage_meta(meta);
+    }
+    match meta {
+        Meta::And(xs) | Meta::Or(xs) => {
+            for i in xs.iter() {
+                perform_invariant_check(i, false);
+            }
+        }
+        Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
+            perform_invariant_check(x, false);
+        }
+        Meta::Item(i) => match i {
+            Item::Command { meta, .. } => perform_invariant_check(meta, true),
+            Item::Positional { .. } | Item::Flag { .. } | Item::Argument { .. } => {}
+        },
+        Meta::Skip => {}
     }
 }
 

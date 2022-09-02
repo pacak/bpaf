@@ -1,19 +1,21 @@
 # bpaf ![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue) [![bpaf on crates.io](https://img.shields.io/crates/v/bpaf)](https://crates.io/crates/bpaf) [![bpaf on docs.rs](https://docs.rs/bpaf/badge.svg)](https://docs.rs/bpaf) [![Source Code Repository](https://img.shields.io/badge/Code-On%20github.com-blue)](https://github.com/pacak/bpaf) [![bpaf on deps.rs](https://deps.rs/repo/github/pacak/bpaf/status.svg)](https://deps.rs/repo/github/pacak/bpaf)
 
-Lightweight and flexible command line argument parser with derive and combinator style API
+Lightweight and flexible command line argument parser with derive and combinatoric style API
 
 
 ## Derive and combinatoric API
 
 `bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
 
+`bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
+
 
 ## Quick links
 
  - [Derive tutorial][__link0]
  - [Combinatoric tutorial][__link1]
- - [FAQ][__link2]
- - [Batteries included][__link3]
+ - [Batteries included][__link2]
+ - [Q&A][__link3]
 
 
 ## Quick start, derive edition
@@ -200,6 +202,68 @@ But not this one:
 > 
 This set of restrictions allows to extract information about the structure of the computations to generate help and overall results in less confusing enduser experience
 
+`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link4]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link5] and [`argument`][__link6] you should put the argument one first.
+
+`bpaf` doesn’t support short flag names followed by immediate values: while this `-fbar` could mean `-f` followed by a parameter `"bar"` - this isn’t supported. `bpaf` supports only `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
+
+You must place [`positional`][__link7] and [`positional_os`][__link8] items at the end of a structure in derive API or consume them as last arguments in derive API.
+
+
+## Dynamic shell completion
+
+`bpaf` implements shell completion to allow to automatically fill in not only flag and command names, but also argument and positional item values.
+
+ 1. Enable `autocomplete` feature:
+	
+	
+	```toml
+	bpaf = { version = "0.5.5", features = ["autocomplete"] }
+	```
+	
+	
+ 1. Decorate [`argument`][__link9] and [`positional`][__link10] parsers with [`complete`][__link11] to autocomplete argument values
+	
+	
+ 1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
+	
+	 1. **bash**: for the first `bpaf` completion you need to install the whole script
+		```console
+		$ your_program --bpaf-complete-style-bash >> ~/.bash_completion
+		```
+		
+		but since the script doesn’t depend on a program name - it’s enough to do this for each next program
+		```console
+		echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
+		```
+		
+		
+	 1. **zsh**: note `_` at the beginning of the filename
+		```console
+		$ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
+		```
+		
+		
+	 1. **fish**
+		```console
+		$ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+		```
+		
+		
+	 1. **elvish** - not sure where to put it, documentation is a bit cryptic
+		```console
+		$ your_program --bpaf-complete-style-elvish
+		```
+		
+		
+	
+	
+ 1. Restart your shell - you need to done it only once or optionally after bpaf major version upgrade: generated completion files contain only instructions how to ask your program for possible completions and don’t change even if options are different.
+	
+	
+ 1. Generated scripts rely on your program being accessible in $PATH
+	
+	
+
 
 ## Design non goals: performance
 
@@ -220,7 +284,7 @@ $ cargo run --example example_name
 
 ## Testing your own parsers
 
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link5]
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link13]
 
 
 ```rust
@@ -248,21 +312,32 @@ Usage --user <ARG>
 
 ## Cargo features
 
- - `derive`: adds a dependency on [`bpaf_derive`][__link6] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API
+ - `derive`: adds a dependency on [`bpaf_derive`][__link14] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API. Disabled by default.
 	
 	
- - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>)
+ - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 	
 	
- - `batteries`: helpers implemented with public `bpaf` API
+ - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
+	
+	
+ - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 	
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG3fIB_IKY3hrGye-FOfCs2a-G-I-uYl_pcw3G470SW3PwtT2YWSCgmRicGFmZTAuNS40gmticGFmX2Rlcml2ZWUwLjIuMA
- [__link0]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_combinatoric_tutorial
- [__link2]: https://docs.rs/bpaf/0.5.4/bpaf/?search=_faq
- [__link3]: https://docs.rs/bpaf/0.5.4/bpaf/?search=batteries
- [__link5]: https://docs.rs/bpaf/0.5.4/bpaf/?search=info::OptionParser::run_inner
- [__link6]: https://crates.io/crates/bpaf_derive/0.2.0
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG8Yk6tpPTRS2G-pflOrhCn1EGyn11z3zENIkG6A8mBNsl5uGYWSCgmRicGFmZTAuNS41gmticGFmX2Rlcml2ZWUwLjIuMQ
+ [__link0]: https://docs.rs/bpaf/0.5.5/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.5.5/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional
+ [__link11]: https://docs.rs/bpaf/0.5.5/bpaf/?search=bpaf::Parser::complete
+ [__link13]: https://docs.rs/bpaf/0.5.5/bpaf/?search=info::OptionParser::run_inner
+ [__link14]: https://crates.io/crates/bpaf_derive/0.2.1
+ [__link2]: https://docs.rs/bpaf/0.5.5/bpaf/?search=batteries
+ [__link3]: https://github.com/pacak/bpaf/discussions/categories/q-a
+ [__link4]: https://docs.rs/bpaf/0.5.5/bpaf/?search=bpaf::Parser::fallback
+ [__link5]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::switch
+ [__link6]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::argument
+ [__link7]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional
+ [__link8]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::positional_os
+ [__link9]: https://docs.rs/bpaf/0.5.5/bpaf/?search=params::Named::argument
