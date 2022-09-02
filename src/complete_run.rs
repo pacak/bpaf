@@ -17,9 +17,10 @@ fn dump_bash_completer(name: &str) {
 _bpaf_dynamic_completion()
 {{
     COMPREPLY=()
-    IFS='$\\n'
-    for line in $( \"$1\" --bpaf-complete-rev={rev} \"${{COMP_WORDS[@]:1}}\") ; do
-        IFS='$\\t' parts=($line)
+
+    IFS=$'\\n' BPAF_REPLY=($( \"$1\" --bpaf-complete-rev={rev} \"${{COMP_WORDS[@]:1}}\" ))
+    for line in ${{BPAF_REPLY[@]}} ; do
+        IFS=$'\\t' parts=( $line )
         if [[ -n ${{parts[1]}} ]] ; then
             COMPREPLY+=($( printf \"%-19s %s\" \"${{parts[0]}}\" \"${{parts[1]}}\" ))
         else
