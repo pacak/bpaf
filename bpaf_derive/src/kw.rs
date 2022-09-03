@@ -19,17 +19,6 @@ custom_keyword!(switch);
 custom_keyword!(flag);
 custom_keyword!(external);
 
-custom_keyword!(from_str);
-custom_keyword!(fallback);
-custom_keyword!(fallback_with);
-custom_keyword!(guard);
-custom_keyword!(many);
-custom_keyword!(some);
-custom_keyword!(map);
-custom_keyword!(optional);
-custom_keyword!(parse);
 custom_keyword!(hide);
-custom_keyword!(group_help);
 custom_keyword!(default);
-custom_keyword!(complete);
 custom_keyword!(complete_style);
