@@ -259,8 +259,9 @@ struct ExtAttr {
 
 impl Parse for ExtAttr {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(kw::external) {
-            input.parse::<kw::external>()?;
+        let input_copy = input.fork();
+        let keyword = input.parse::<Ident>()?;
+        if keyword == "external" {
             if input.peek(token::Paren) {
                 let content;
                 let _ = parenthesized!(content in input);
@@ -271,15 +272,16 @@ impl Parse for ExtAttr {
                 Ok(Self { ident: None })
             }
         } else {
-            Err(input.error("Not a name attribute"))
+            Err(input_copy.error("Not a name attribute"))
         }
     }
 }
 
 impl Parse for OptNameAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        if input.peek(kw::long) {
-            input.parse::<kw::long>()?;
+        let input_copy = input.fork();
+        let keyword = input.parse::<Ident>()?;
+        if keyword == "long" {
             if input.peek(token::Paren) {
                 let content;
                 let _ = parenthesized!(content in input);
@@ -287,8 +289,7 @@ impl Parse for OptNameAttr {
             } else {
                 Ok(Self::Long(None))
             }
-        } else if input.peek(kw::short) {
-            let _ = input.parse::<kw::short>()?;
+        } else if keyword == "short" {
             if input.peek(token::Paren) {
                 let content;
                 let _ = parenthesized!(content in input);
@@ -296,13 +297,12 @@ impl Parse for OptNameAttr {
             } else {
                 Ok(Self::Short(None))
             }
-        } else if input.peek(kw::env) {
-            let _ = input.parse::<kw::env>()?;
+        } else if keyword == "env" {
             let content;
             let _ = parenthesized!(content in input);
             Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
-            Err(input.error("Not a name attribute"))
+            Err(input_copy.error("Not a name attribute"))
         }
     }
 }
