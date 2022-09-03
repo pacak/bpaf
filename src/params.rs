@@ -1142,6 +1142,10 @@ fn build_positional<T>(metavar: &'static str) -> Positional<T> {
     }
 }
 
+/// Parse a positional item, created with [`positional`] and [`positional_os`]
+///
+/// You can add extra information to positional parsers with [`help`](Positional::help) and
+/// [`strict`](Positional::strict) on this struct.
 #[derive(Clone)]
 pub struct Positional<T> {
     metavar: &'static str,
@@ -1151,6 +1155,37 @@ pub struct Positional<T> {
 }
 
 impl<T> Positional<T> {
+    /// Add a help message to a [`positional`]/[`positional_os`] parser
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn parse_name() -> impl Parser<String> {
+    ///     positional("NAME")
+    ///         .help("a flag that does a thing")
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// `bpaf_derive` converts doc comments into option help by following those rules:
+    /// 1. It skips blank lines, if present.
+    /// 2. It stops parsing after a double blank line.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options (
+    ///     /// This line is part of help message
+    ///     ///
+    ///     /// So is this one
+    ///     ///
+    ///     ///
+    ///     /// But this one isn't
+    ///     String,
+    /// )
+    /// ```
+    /// See also [`Named::help`]
+    #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -1158,6 +1193,51 @@ impl<T> Positional<T> {
         self.help = Some(help.into());
         self
     }
+
+    /// Changes positional parser to be "strict" positional
+    ///
+    /// Usually positional items can appear anywhere on a command line:
+    /// ```console
+    /// $ ls -d bpaf
+    /// $ ls bpaf -d
+    /// ```
+    /// here `ls` takes a positional item `bpaf` and a flag `-d`
+    ///
+    /// But in some cases it might be useful to have a stricter separation between
+    /// positonal items and flags, such as passing arguments to a subprocess:
+    /// ```console
+    /// $ cargo run --example simple -- --help
+    /// ```
+    /// here `cargo` takes a `--help` as a positional item and passes it to the example
+    ///
+    /// `bpaf` allows to require user to pass `--` for positional items with `strict` annotation.
+    /// `bpaf` would display such positional elements differently in usage line as well. If your
+    /// application requires several different strict positional elements - it's better to place
+    /// this annotation only to the first one.
+    ///
+    /// # Example
+    /// Usage line for a cargo-run like app that takes an application and possibly many strictly
+    /// positional child arguments can look like this:
+    /// ```console
+    /// $ app --help
+    /// Usage: [-p SPEC] [[--bin NAME] | [--example NAME]] [--release] [<BIN>] -- <CHILD_ARG>...
+    /// <skip>
+    /// ```
+    ///
+    /// # Combinatoric usage
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn options() -> impl Parser<Vec<OsString>> {
+    ///     positional_os("OPTS")
+    ///         .strict()
+    ///         .many()
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// Not available at the moment
+    #[must_use]
     pub fn strict(mut self) -> Self {
         self.strict = true;
         self
