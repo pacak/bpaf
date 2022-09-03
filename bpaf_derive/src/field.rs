@@ -333,23 +333,20 @@ impl Parse for ConsumerAttr {
                 Ok(LitStr::new("ARG", Span::call_site()))
             }
         };
-        if input.peek(kw::argument) {
-            input.parse::<kw::argument>()?;
+
+        let input_copy = input.fork();
+        let keyword = input.parse::<Ident>()?;
+        if keyword == "argument" {
             Ok(Self::Arg(parse_arg(input)?))
-        } else if input.peek(kw::argument_os) {
-            input.parse::<kw::argument_os>()?;
+        } else if keyword == "argument_os" {
             Ok(Self::ArgOs(parse_arg(input)?))
-        } else if input.peek(kw::positional) {
-            input.parse::<kw::positional>()?;
+        } else if keyword == "positional" {
             Ok(Self::Pos(parse_arg(input)?))
-        } else if input.peek(kw::positional_os) {
-            input.parse::<kw::positional_os>()?;
+        } else if keyword == "positional_os" {
             Ok(Self::PosOs(parse_arg(input)?))
-        } else if input.peek(kw::switch) {
-            input.parse::<kw::switch>()?;
+        } else if keyword == "switch" {
             Ok(Self::Switch)
-        } else if input.peek(kw::flag) {
-            input.parse::<kw::flag>()?;
+        } else if keyword == "flag" {
             let content;
             let _ = parenthesized!(content in input);
             let a = content.parse()?;
@@ -357,7 +354,7 @@ impl Parse for ConsumerAttr {
             let b = content.parse()?;
             Ok(Self::Flag(Box::new(a), Box::new(b)))
         } else {
-            Err(input.error("Not a consumer attribute"))
+            Err(input_copy.error("Not a consumer attribute"))
         }
     }
 }
