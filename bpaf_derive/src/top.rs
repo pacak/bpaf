@@ -7,7 +7,7 @@ use syn::{
     Token, Visibility,
 };
 
-use crate::field::{ConstrName, Doc, EnumSingleton, FieldParser, OptNameAttr, ReqFlag};
+use crate::field::{ConstrName, Doc, EnumSingleton, FieldParser, ReqFlag};
 use crate::kw;
 use crate::utils::{snake_case_ident, to_snake_case, LineIter};
 
@@ -418,7 +418,7 @@ impl Parse for Top {
                     };
                     BParser::Command(cmd_name, inner, Box::new(oparser))
                 } else {
-                    let (help, inner) = split_help_and::<EnumSingleton<OptNameAttr>>(&attrs)?;
+                    let (help, inner) = split_help_and::<EnumSingleton>(&attrs)?;
                     BParser::Singleton(ReqFlag::new(constr, inner, &help))
                 };
 

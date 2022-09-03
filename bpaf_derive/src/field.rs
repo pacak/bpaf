@@ -27,15 +27,17 @@ pub struct ReqFlag {
 }
 
 impl ReqFlag {
-    pub fn new(value: ConstrName, attrs: Vec<EnumSingleton<OptNameAttr>>, help: &[String]) -> Self {
+    pub fn new(value: ConstrName, attrs: Vec<EnumSingleton>, help: &[String]) -> Self {
         let mut is_hidden = false;
         let mut is_default = false;
         let mut names = Vec::new();
         for attr in attrs {
             match attr {
-                EnumSingleton::Name(n) => names.push(n),
                 EnumSingleton::IsDefault => is_default = true,
                 EnumSingleton::Hidden => is_hidden = true,
+                EnumSingleton::Short(short) => names.push(OptNameAttr::Short(short)),
+                EnumSingleton::Long(long) => names.push(OptNameAttr::Long(long)),
+                EnumSingleton::Env(env) => names.push(OptNameAttr::Env(env)),
             }
         }
         let naming = restrict_names(&value.constr, names);
@@ -106,22 +108,42 @@ impl<T> Default for FieldAttrs<T> {
 }
 
 #[derive(Debug, Clone)]
-pub enum EnumSingleton<T> {
-    Name(T),
+pub enum EnumSingleton {
+    Short(Option<LitChar>),
+    Long(Option<LitStr>),
+    Env(Box<Expr>),
     IsDefault,
     Hidden,
 }
 
-impl<T: Parse> Parse for EnumSingleton<T> {
+impl Parse for EnumSingleton {
     fn parse(input: ParseStream) -> Result<Self> {
-        if input.peek(kw::hide) {
-            input.parse::<kw::hide>()?;
+        let input_copy = input.fork();
+        let keyword = input.parse::<Ident>()?;
+        let content;
+        if keyword == "hide" {
             Ok(Self::Hidden)
-        } else if input.peek(kw::default) {
-            input.parse::<kw::default>()?;
+        } else if keyword == "default" {
             Ok(Self::IsDefault)
+        } else if keyword == "long" {
+            if input.peek(token::Paren) {
+                let _ = parenthesized!(content in input);
+                Ok(Self::Long(Some(content.parse::<LitStr>()?)))
+            } else {
+                Ok(Self::Long(None))
+            }
+        } else if keyword == "short" {
+            if input.peek(token::Paren) {
+                let _ = parenthesized!(content in input);
+                Ok(Self::Short(Some(content.parse::<LitChar>()?)))
+            } else {
+                Ok(Self::Short(None))
+            }
+        } else if keyword == "env" {
+            let _ = parenthesized!(content in input);
+            Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
-            Ok(Self::Name(input.parse()?))
+            Err(input_copy.error("Not a name attribute"))
         }
     }
 }
@@ -710,8 +732,7 @@ impl ToTokens for FieldAttrs<StrictNameAttr> {
             }
         }
         for postpr in &self.postpr {
-            quote!(.).to_tokens(tokens);
-            postpr.to_tokens(tokens);
+            quote!(.#postpr).to_tokens(tokens);
         }
     }
 }
