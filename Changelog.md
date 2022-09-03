@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.5.6] - 2022-09-03
+- minor doc fixes
+- bugfix for dynamic completion
+
 ## bpaf [0.5.5] - 2022-09-02
 - invariant checker - for tests
 - more error message improvements
