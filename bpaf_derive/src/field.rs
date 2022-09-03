@@ -1,15 +1,13 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
-use syn::spanned::Spanned;
 use syn::{
     parenthesized, parse, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr,
     PathArguments, Result, Token, Type, Visibility,
 };
 
 use crate::kw;
-use crate::top::split_help_and;
-use crate::utils::{to_kebab_case, LineIter};
+use crate::utils::to_kebab_case;
 
 #[derive(Debug)]
 pub struct ConstrName {
@@ -20,6 +18,7 @@ pub struct ConstrName {
 mod named_field;
 mod req_flag;
 
+pub use self::named_field::Field;
 pub use req_flag::ReqFlag;
 
 #[derive(Debug, Clone)]
@@ -99,8 +98,8 @@ enum PostprAttr {
 impl PostprAttr {
     const fn can_derive(&self) -> bool {
         match self {
-            PostprAttr::FromStr(_)
-            | PostprAttr::Many(_)
+            PostprAttr::Many(_)
+            | PostprAttr::FromStr(_)
             | PostprAttr::Map(_)
             | PostprAttr::Tokens(_)
             | PostprAttr::Optional
@@ -111,16 +110,6 @@ impl PostprAttr {
             | PostprAttr::Complete(_)
             | PostprAttr::Hide
             | PostprAttr::GroupHelp(_) => true,
-        }
-    }
-}
-
-impl FieldParser {
-    pub fn var_name(&self, ix: usize) -> Ident {
-        let name = &self.name;
-        match name {
-            Some(name) => name.clone(),
-            None => Ident::new(&format!("f{}", ix), Span::call_site()),
         }
     }
 }
@@ -333,9 +322,6 @@ impl Parse for PostprAttr {
     }
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub type FieldParser = FieldAttrs<StrictNameAttr>;
-
 pub struct Doc(pub String);
 impl Parse for Doc {
     fn parse(input: parse::ParseStream) -> Result<Self> {
@@ -391,226 +377,50 @@ fn split_type(ty: &Type) -> Shape {
     try_split_type(ty).unwrap_or_else(|| Shape::Direct(ty.clone()))
 }
 
-impl Shape {
-    fn is_os_str(&self) -> bool {
-        let ty = match self {
-            Shape::Bool => return false,
-            Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => t,
-        };
-        ty == &parse_quote!(PathBuf)
-            || ty == &parse_quote!(OsString)
-            || ty == &parse_quote!(std::path::PathBuf)
-            || ty == &parse_quote!(std::ffi::OsString)
-    }
+fn is_os_str_ty(ty: &Type) -> bool {
+    ty == &parse_quote!(PathBuf)
+        || ty == &parse_quote!(OsString)
+        || ty == &parse_quote!(std::path::PathBuf)
+        || ty == &parse_quote!(std::ffi::OsString)
 }
 
-impl FieldParser {
+impl Field {
     pub fn parse_unnamed(input: parse::ParseStream) -> Result<Self> {
-        let i = input.fork();
         let attrs = input.call(Attribute::parse_outer)?;
         let _vis = input.parse::<Visibility>()?;
         let ty = input.parse::<Type>()?;
-        let (help, mut attrs) = split_help_and::<FieldAttrs<StrictNameAttr>>(&attrs)?;
-        let mut parser = match attrs.len() {
-            0 => FieldAttrs::<StrictNameAttr>::default(),
-            1 => attrs.pop().unwrap(),
-            _ => return Err(i.error("At most one bpaf annotation is expected")),
-        };
-
-        if let Some(err) = parser.implicit_consumer(&ty) {
-            return Err(i.error(err));
-        }
-
-        if parser.naming.is_empty() && parser.consumer_needs_name() == Some(true) {
-            return Err(i.error(
-                "This consumer needs a name, you can specify it with long(\"name\") or short('n')",
-            ));
-        }
-        if let Some(ext) = &parser.external {
-            if ext.ident.is_none() {
-                return Err(
-                    i.error("Name shortcut for external attribute is only valid for named field")
-                );
-            }
-        }
-
-        parser.help = LineIter::from(&help[..]).next();
-        Ok(parser)
+        Field::make(ty, None, attrs)
     }
 
     pub fn parse_named(input: ParseStream) -> Result<Self> {
-        let i = input.fork();
         let attrs = input.call(Attribute::parse_outer)?;
         let _vis = input.parse::<Visibility>()?;
         let name = input.parse::<Ident>()?;
         input.parse::<Token![:]>()?;
         let ty = input.parse::<Type>()?;
-        let (help, mut attrs) = split_help_and::<FieldAttrs<OptNameAttr>>(&attrs)?;
-        let parser = match attrs.len() {
-            0 => FieldAttrs::<OptNameAttr>::default(),
-            1 => attrs.pop().unwrap(),
-            _ => return Err(i.error("At most one bpaf annotation is expected")),
-        };
-
-        let strip_name = parser.naming.is_empty() && parser.consumer_needs_name() == Some(false);
-        let mut parser = parser.implicit_name(name);
-        if strip_name {
-            parser.naming.clear();
-        }
-        if let Some(err) = parser.implicit_consumer(&ty) {
-            return Err(i.error(err));
-        }
-
-        parser.help = LineIter::from(&help[..]).next();
-
-        Ok(parser)
+        Field::make(ty, Some(name), attrs)
     }
 }
 
-impl FieldAttrs<OptNameAttr> {
-    fn implicit_name(self, name: Ident) -> FieldAttrs<StrictNameAttr> {
-        FieldAttrs {
-            external: self.external,
-            naming: restrict_names(&name, self.naming),
-            consumer: self.consumer,
-            postpr: self.postpr,
-            help: self.help,
-            name: Some(name),
-        }
-    }
-}
-
-pub fn as_short_name(value: &ConstrName) -> LitChar {
-    let name_str = value.constr.to_string();
+pub fn as_short_name(value: &Ident) -> LitChar {
+    let name_str = value.to_string();
     LitChar::new(
         name_str.chars().next().unwrap().to_ascii_lowercase(),
-        value.constr.span(),
+        value.span(),
     )
 }
 
-pub fn as_long_name(value: &ConstrName) -> LitStr {
-    let kebabed_name = to_kebab_case(&value.constr.to_string());
-    LitStr::new(&kebabed_name, value.constr.span())
+pub fn as_long_name(value: &Ident) -> LitStr {
+    let kebabed_name = to_kebab_case(&value.to_string());
+    LitStr::new(&kebabed_name, value.span())
 }
 
-pub fn fill_in_name(value: &ConstrName, names: &mut Vec<StrictNameAttr>) {
+pub fn fill_in_name(value: &Ident, names: &mut Vec<StrictNameAttr>) {
     if !names.iter().any(StrictNameAttr::is_name) {
-        names.push(if value.constr.to_string().chars().nth(1).is_some() {
+        names.push(if value.to_string().chars().nth(1).is_some() {
             StrictNameAttr::Long(as_long_name(value))
         } else {
             StrictNameAttr::Short(as_short_name(value))
-        })
-    }
-}
-
-fn restrict_names(base_name: &Ident, attrs: Vec<OptNameAttr>) -> Vec<StrictNameAttr> {
-    let mut res = Vec::new();
-    let name_str = {
-        let s = base_name.to_string();
-        if s.chars().next().unwrap().is_uppercase() {
-            to_kebab_case(&s)
-        } else {
-            s.chars()
-                .map(|c| if c == '_' { '-' } else { c })
-                .collect::<String>()
-        }
-    };
-
-    for name_attr in attrs {
-        res.push(match name_attr {
-            OptNameAttr::Short(Some(s)) => StrictNameAttr::Short(s),
-            OptNameAttr::Long(Some(l)) => StrictNameAttr::Long(l),
-            OptNameAttr::Short(None) => {
-                let s = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
-                StrictNameAttr::Short(s)
-            }
-            OptNameAttr::Long(None) => {
-                let l = LitStr::new(&name_str, base_name.span());
-                StrictNameAttr::Long(l)
-            }
-            OptNameAttr::Env(e) => StrictNameAttr::Env(e),
-        });
-    }
-
-    if !res.iter().any(StrictNameAttr::is_name) {
-        if name_str.chars().nth(1).is_some() {
-            let l = LitStr::new(&name_str, base_name.span());
-            res.push(StrictNameAttr::Long(l));
-        } else {
-            let c = LitChar::new(name_str.chars().next().unwrap(), base_name.span());
-            res.push(StrictNameAttr::Short(c));
-        }
-    }
-    res
-}
-
-impl FieldAttrs<StrictNameAttr> {
-    fn implicit_consumer(&mut self, ty: &Type) -> Option<&'static str> {
-        let arg = LitStr::new("ARG", ty.span());
-        let shape = split_type(ty);
-        let can_derive_postpr =
-            self.external.is_none() && self.postpr.iter().all(PostprAttr::can_derive);
-
-        let os_str = shape.is_os_str();
-        let inner_ty = match shape {
-            Shape::Bool => {
-                return if self.naming.is_empty() {
-                    Some("Can't parse bool as a positional attribute")
-                } else {
-                    self.consumer = Some(ConsumerAttr::Switch);
-                    None
-                }
-            }
-            Shape::Direct(ty) => ty,
-            Shape::Optional(ty) => {
-                if can_derive_postpr {
-                    self.postpr.insert(0, PostprAttr::Optional);
-                }
-                ty
-            }
-            Shape::Multiple(ty) => {
-                if can_derive_postpr {
-                    self.postpr.insert(0, PostprAttr::Many(None));
-                }
-                ty
-            }
-        };
-
-        if self.consumer.is_none() && self.external.is_none() {
-            if !can_derive_postpr {
-                return Some(
-                "Can't derive consumer for this element, try specifying `argument(\"arg\")` or `argument_os(\"arg\")`"
-            );
-            }
-            self.consumer = Some(match (os_str, self.naming.is_empty()) {
-                (true, true) => ConsumerAttr::PosOs(arg),
-                (true, false) => ConsumerAttr::ArgOs(arg),
-                (false, true) => ConsumerAttr::Pos(arg),
-                (false, false) => ConsumerAttr::Arg(arg),
-            });
-        }
-
-        if can_derive_postpr && self.external.is_none() {
-            if os_str {
-                let attr = PostprAttr::Tokens(quote!(map(#inner_ty::from)));
-                self.postpr.insert(0, attr);
-            } else if inner_ty != parse_quote!(String) {
-                let attr = PostprAttr::FromStr(Box::new(inner_ty));
-                self.postpr.insert(0, attr);
-            }
-        }
-
-        None
-    }
-}
-impl<T> FieldAttrs<T> {
-    fn consumer_needs_name(&self) -> Option<bool> {
-        Some(match self.consumer.as_ref()? {
-            ConsumerAttr::Arg(_)
-            | ConsumerAttr::ArgOs(_)
-            | ConsumerAttr::Switch
-            | ConsumerAttr::Flag(_, _) => true,
-            ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => false,
         })
     }
 }

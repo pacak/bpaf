@@ -7,12 +7,12 @@ use syn::{parse, parse_quote, Result};
 
 #[derive(Debug, Clone)]
 struct UnnamedField {
-    parser: FieldParser,
+    parser: Field,
 }
 
 impl Parse for UnnamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let parser = FieldParser::parse_unnamed(input)?;
+        let parser = Field::parse_unnamed(input)?;
         Ok(Self { parser })
     }
 }
@@ -25,12 +25,12 @@ impl ToTokens for UnnamedField {
 
 #[derive(Debug, Clone)]
 struct NamedField {
-    parser: FieldParser,
+    parser: Field,
 }
 
 impl Parse for NamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let parser = FieldParser::parse_named(input)?;
+        let parser = Field::parse_named(input)?;
         Ok(Self { parser })
     }
 }
@@ -192,7 +192,7 @@ fn map_requires_explicit_parser2() {
         #[bpaf(map(double))]
         pub number: usize
     };
-    let err = "Can't derive consumer for this element, try specifying `argument(\"arg\")` or `argument_os(\"arg\")`";
+    let err = "Can't derive implicit consumer with this annotation present";
     field_trans_fail(input, err);
 }
 
@@ -435,8 +435,8 @@ fn env_argument() {
         config: Vec<u32>
     };
     let output = quote! {
-        ::bpaf::env(sim::DB)
-            .long("config")
+        ::bpaf::long("config")
+            .env(sim::DB)
             .argument("N")
             .from_str::<u32>()
             .some("need params")
@@ -468,7 +468,6 @@ fn implicit_switch_argument() {
 }
 
 #[test]
-#[should_panic]
 fn explicit_flag_argument_1() {
     let input: NamedField = parse_quote! {
         #[bpaf(flag(true, false))]

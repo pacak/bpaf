@@ -7,7 +7,7 @@ use syn::{
     Token, Visibility,
 };
 
-use crate::field::{ConstrName, Doc, FieldParser, ReqFlag};
+use crate::field::{ConstrName, Doc, Field, ReqFlag};
 use crate::kw;
 use crate::utils::{snake_case_ident, to_snake_case, LineIter};
 
@@ -85,8 +85,8 @@ impl ToTokens for Decor {
 /// without the name
 #[derive(Clone, Debug)]
 enum Fields {
-    Named(Punctuated<FieldParser, Token![,]>),
-    Unnamed(Punctuated<FieldParser, Token![,]>),
+    Named(Punctuated<Field, Token![,]>),
+    Unnamed(Punctuated<Field, Token![,]>),
     NoFields,
 }
 impl Parse for Fields {
@@ -94,12 +94,12 @@ impl Parse for Fields {
         let content;
         if input.peek(token::Brace) {
             let _ = braced!(content in input);
-            let fields = content.parse_terminated(FieldParser::parse_named)?;
+            let fields = content.parse_terminated(Field::parse_named)?;
             Ok(Fields::Named(fields))
         } else if input.peek(token::Paren) {
             let _ = parenthesized!(content in input);
             let fields: Punctuated<_, Token![,]> =
-                content.parse_terminated(FieldParser::parse_unnamed)?;
+                content.parse_terminated(Field::parse_unnamed)?;
             Ok(Fields::Unnamed(fields))
         } else {
             Err(input.error("Expected named or unnamed struct"))

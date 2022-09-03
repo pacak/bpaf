@@ -42,14 +42,14 @@ impl ReqFlag {
                             let _ = parenthesized!(content in input);
                             StrictNameAttr::Long(content.parse::<LitStr>()?)
                         } else {
-                            StrictNameAttr::Long(as_long_name(&res.value))
+                            StrictNameAttr::Long(as_long_name(&res.value.constr))
                         })
                     } else if keyword == "short" {
                         res.naming.push(if input.peek(token::Paren) {
                             let _ = parenthesized!(content in input);
                             StrictNameAttr::Short(content.parse::<LitChar>()?)
                         } else {
-                            StrictNameAttr::Short(as_short_name(&res.value))
+                            StrictNameAttr::Short(as_short_name(&res.value.constr))
                         })
                     } else if keyword == "env" {
                         let _ = parenthesized!(content in input);
@@ -73,7 +73,7 @@ impl ReqFlag {
             }
         }
         res.help = LineIter::from(&help[..]).next();
-        fill_in_name(&res.value, &mut res.naming);
+        fill_in_name(&res.value.constr, &mut res.naming);
         Ok(res)
     }
 }
