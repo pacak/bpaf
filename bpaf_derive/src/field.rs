@@ -367,64 +367,55 @@ impl Parse for ConsumerAttr {
 
 impl Parse for PostprAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
+        let input_copy = input.fork();
         let content;
-        if input.peek(kw::guard) {
-            input.parse::<kw::guard>()?;
+        let keyword = input.parse::<Ident>()?;
+
+        if keyword == "guard" {
             let _ = parenthesized!(content in input);
             let guard_fn = content.parse::<Ident>()?;
             let _ = content.parse::<Token![,]>()?;
             let msg = content.parse::<Expr>()?;
             Ok(Self::Guard(guard_fn, Box::new(msg)))
-        } else if input.peek(kw::fallback) {
-            input.parse::<kw::fallback>()?;
+        } else if keyword == "fallback" {
             let _ = parenthesized!(content in input);
             let expr = content.parse::<Expr>()?;
             Ok(Self::Fallback(Box::new(expr)))
-        } else if input.peek(kw::fallback_with) {
-            input.parse::<kw::fallback_with>()?;
+        } else if keyword == "fallback_with" {
             let _ = parenthesized!(content in input);
             let expr = content.parse::<Expr>()?;
             Ok(Self::FallbackWith(Box::new(expr)))
-        } else if input.peek(kw::parse) {
-            input.parse::<kw::parse>()?;
+        } else if keyword == "parse" {
             let _ = parenthesized!(content in input);
             let parse_fn = content.parse::<Ident>()?;
             Ok(Self::Parse(parse_fn))
-        } else if input.peek(kw::map) {
-            input.parse::<kw::map>()?;
+        } else if keyword == "map" {
             let _ = parenthesized!(content in input);
             let map_fn = content.parse::<Ident>()?;
             Ok(Self::Map(map_fn))
-        } else if input.peek(kw::from_str) {
-            input.parse::<kw::from_str>()?;
+        } else if keyword == "from_str" {
             let _ = parenthesized!(content in input);
             let ty = content.parse::<Type>()?;
             Ok(Self::FromStr(Box::new(ty)))
-        } else if input.peek(kw::complete) {
-            input.parse::<kw::complete>()?;
+        } else if keyword == "complete" {
             let _ = parenthesized!(content in input);
             let f = content.parse::<Ident>()?;
             Ok(Self::Complete(f))
-        } else if input.peek(kw::many) {
-            input.parse::<kw::many>()?;
+        } else if keyword == "many" {
             Ok(Self::Many(None))
-        } else if input.peek(kw::some) {
-            input.parse::<kw::some>()?;
+        } else if keyword == "some" {
             let _ = parenthesized!(content in input);
             Ok(Self::Many(Some(content.parse::<LitStr>()?)))
-        } else if input.peek(kw::optional) {
-            input.parse::<kw::optional>()?;
+        } else if keyword == "optional" {
             Ok(Self::Optional)
-        } else if input.peek(kw::hide) {
-            input.parse::<kw::hide>()?;
+        } else if keyword == "hide" {
             Ok(Self::Hide)
-        } else if input.peek(kw::group_help) {
-            input.parse::<kw::group_help>()?;
+        } else if keyword == "group_help" {
             let _ = parenthesized!(content in input);
             let expr = content.parse::<Expr>()?;
             Ok(Self::GroupHelp(Box::new(expr)))
         } else {
-            Err(input.error("Not an attribute"))
+            Err(input_copy.error("Not a valid postprocessing attribute"))
         }
     }
 }
