@@ -530,11 +530,41 @@ macro_rules! construct {
         { use $crate::Parser; $first $(.or_else($fields))* }
     };
 
-    (@prepare $ty:tt [$($fields:tt)*]) => {{
+    (@prepare $ty:tt [$($fields:tt)*]) => {
+        $crate::__cons_prepare!($ty [$($fields)*])
+    };
+
+    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
+    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields),* ) };
+    (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
+}
+
+#[macro_export]
+#[doc(hidden)]
+#[cfg(not(feature = "autocomplete"))]
+/// to avoid extra parsing when autocomplete feature is off
+macro_rules! __cons_prepare {
+    ($ty:tt [$($fields:tt)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let inner = move |args: &mut $crate::Args| {
+            $(let $fields = $fields.eval(args)?;)*
+            args.current = None;
+            ::std::result::Result::Ok::<_, $crate::Error>
+                ($crate::construct!(@make $ty [$($fields)*]))
+        };
+        $crate::PCon { inner, meta }
+    }};
+}
 
-        #[cfg(feature = "autocomplete")]
+#[macro_export]
+#[doc(hidden)]
+#[cfg(feature = "autocomplete")]
+/// for completion bpaf needs to observe all the failures in a branch
+macro_rules! __cons_prepare {
+    ($ty:tt [$($fields:tt)*]) => {{
+        use $crate::Parser;
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = if args.is_comp() {
                 $fields.eval(args)
@@ -547,20 +577,8 @@ macro_rules! construct {
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)*]))
         };
-
-        #[cfg(not(feature = "autocomplete"))]
-        let inner = move |args: &mut $crate::Args| {
-            $(let $fields = $fields.eval(args)?;)*
-            args.current = None;
-            ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)*]))
-        };
         $crate::PCon { inner, meta }
     }};
-
-    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
-    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields),* ) };
-    (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
 }
 
 /// Simple or composed argument parser
