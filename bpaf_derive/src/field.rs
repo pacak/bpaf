@@ -143,7 +143,7 @@ impl Parse for EnumSingleton {
             let _ = parenthesized!(content in input);
             Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
-            Err(input_copy.error("Not a name attribute"))
+            Err(input_copy.error("Not a valid enum singleton constructor attribute"))
         }
     }
 }

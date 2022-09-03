@@ -1179,9 +1179,19 @@ mod test {
     fn hidden_default_enum_singleton() {
         let top: Top = parse_quote! {
             enum Decision {
+                /// HALP
+                #[bpaf(long("YES"))]
                 Yes,
                 #[bpaf(default, hide)]
                 No,
+                #[bpaf(env("x"))]
+                Maybe,
+                #[bpaf(long)]
+                Dunno,
+                #[bpaf(short)]
+                Umm,
+                #[bpaf(short('U'))]
+                Ummmmmmm,
             }
         };
 
@@ -1190,14 +1200,29 @@ mod test {
                 #[allow(unused_imports)]
                 use ::bpaf::Parser;
                 {
-                    let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
+                    let alt0 = ::bpaf::long("YES").help("HALP").req_flag(Decision::Yes);
                     let alt1 = ::bpaf::long("no")
                         .flag(Decision::No, Decision::No)
                         .hide();
-                    ::bpaf::construct!([alt0, alt1])
+                    let alt2 = ::bpaf::env("x").long("maybe").req_flag(Decision::Maybe);
+                    let alt3 = ::bpaf::long("dunno").req_flag(Decision::Dunno);
+                    let alt4 = ::bpaf::short('u').req_flag(Decision::Umm);
+                    let alt5 = ::bpaf::short('U').req_flag(Decision::Ummmmmmm);
+                    ::bpaf::construct!([alt0, alt1, alt2, alt3, alt4, alt5])
                 }
             }
         };
         assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+    }
+
+    #[test]
+    #[should_panic(expected = "Not a valid enum singleton constructor attribute")]
+    fn enum_singleton_unk() {
+        let _top: Top = parse_quote! {
+            enum X {
+                #[bpaf(zzz)]
+                Y
+            }
+        };
     }
 }
