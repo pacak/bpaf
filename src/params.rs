@@ -1182,7 +1182,7 @@ impl<T> Positional<T> {
     ///     ///
     ///     /// But this one isn't
     ///     String,
-    /// )
+    /// );
     /// ```
     /// See also [`Named::help`]
     #[must_use]
@@ -1228,7 +1228,7 @@ impl<T> Positional<T> {
     ///
     /// ```rust
     /// # use bpaf::*;
-    /// fn options() -> impl Parser<Vec<OsString>> {
+    /// fn options() -> impl Parser<Vec<std::ffi::OsString>> {
     ///     positional_os("OPTS")
     ///         .strict()
     ///         .many()
