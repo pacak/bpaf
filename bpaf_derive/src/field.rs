@@ -322,28 +322,27 @@ impl Parse for StrictNameAttr {
     }
 }
 
+fn parse_optional_arg(input: parse::ParseStream) -> Result<LitStr> {
+    let content;
+    if input.peek(syn::token::Paren) {
+        let _ = parenthesized!(content in input);
+        content.parse::<LitStr>()
+    } else {
+        Ok(LitStr::new("ARG", Span::call_site()))
+    }
+}
 impl Parse for ConsumerAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let parse_arg = |input: &parse::ParseBuffer| {
-            let content;
-            if input.peek(syn::token::Paren) {
-                let _ = parenthesized!(content in input);
-                content.parse::<LitStr>()
-            } else {
-                Ok(LitStr::new("ARG", Span::call_site()))
-            }
-        };
-
         let input_copy = input.fork();
         let keyword = input.parse::<Ident>()?;
         if keyword == "argument" {
-            Ok(Self::Arg(parse_arg(input)?))
+            Ok(Self::Arg(parse_optional_arg(input)?))
         } else if keyword == "argument_os" {
-            Ok(Self::ArgOs(parse_arg(input)?))
+            Ok(Self::ArgOs(parse_optional_arg(input)?))
         } else if keyword == "positional" {
-            Ok(Self::Pos(parse_arg(input)?))
+            Ok(Self::Pos(parse_optional_arg(input)?))
         } else if keyword == "positional_os" {
-            Ok(Self::PosOs(parse_arg(input)?))
+            Ok(Self::PosOs(parse_optional_arg(input)?))
         } else if keyword == "switch" {
             Ok(Self::Switch)
         } else if keyword == "flag" {
