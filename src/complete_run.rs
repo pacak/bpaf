@@ -40,7 +40,7 @@ fn dump_zsh_completer(name: &str) {
 #compdef {name}
 IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
 for line in \"${{(@)lines}}\" ; do
-    IFS=$'\0' parts=($( echo $line ))
+    IFS=$'\\0' parts=($( echo $line ))
     cmd=()
     if [[ -n $parts[2] ]] ; then
         descr=($parts[2])
