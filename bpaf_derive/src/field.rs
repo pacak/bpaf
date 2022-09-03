@@ -17,71 +17,10 @@ pub struct ConstrName {
     pub constr: Ident,
 }
 
-#[derive(Debug)]
-pub struct ReqFlag {
-    value: ConstrName,
-    naming: Vec<StrictNameAttr>,
-    help: Option<String>,
-    is_hidden: bool,
-    is_default: bool,
-}
+mod named_field;
+mod req_flag;
 
-impl ReqFlag {
-    pub fn new(value: ConstrName, attrs: Vec<EnumSingleton>, help: &[String]) -> Self {
-        let mut is_hidden = false;
-        let mut is_default = false;
-        let mut names = Vec::new();
-        for attr in attrs {
-            match attr {
-                EnumSingleton::IsDefault => is_default = true,
-                EnumSingleton::Hidden => is_hidden = true,
-                EnumSingleton::Short(short) => names.push(OptNameAttr::Short(short)),
-                EnumSingleton::Long(long) => names.push(OptNameAttr::Long(long)),
-                EnumSingleton::Env(env) => names.push(OptNameAttr::Env(env)),
-            }
-        }
-        let naming = restrict_names(&value.constr, names);
-        let help = LineIter::from(help).next();
-        Self {
-            value,
-            naming,
-            help,
-            is_hidden,
-            is_default,
-        }
-    }
-}
-
-impl ToTokens for ReqFlag {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut first = true;
-        for naming in &self.naming {
-            if first {
-                quote!(::bpaf::).to_tokens(tokens);
-            } else {
-                quote!(.).to_tokens(tokens);
-            }
-            naming.to_tokens(tokens);
-            first = false;
-        }
-        if let Some(help) = &self.help {
-            // help only makes sense for named things
-            if !first {
-                quote!(.help(#help)).to_tokens(tokens);
-            }
-        }
-        let value = &self.value;
-
-        if self.is_default {
-            quote!(.flag(#value, #value)).to_tokens(tokens);
-        } else {
-            quote!(.req_flag(#value)).to_tokens(tokens);
-        }
-        if self.is_hidden {
-            quote!(.hide()).to_tokens(tokens);
-        }
-    }
-}
+pub use req_flag::ReqFlag;
 
 #[derive(Debug, Clone)]
 #[allow(clippy::module_name_repetitions)]
@@ -103,47 +42,6 @@ impl<T> Default for FieldAttrs<T> {
             consumer: None,
             postpr: Vec::new(),
             help: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum EnumSingleton {
-    Short(Option<LitChar>),
-    Long(Option<LitStr>),
-    Env(Box<Expr>),
-    IsDefault,
-    Hidden,
-}
-
-impl Parse for EnumSingleton {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let keyword = input.parse::<Ident>()?;
-        let content;
-        if keyword == "hide" {
-            Ok(Self::Hidden)
-        } else if keyword == "default" {
-            Ok(Self::IsDefault)
-        } else if keyword == "long" {
-            if input.peek(token::Paren) {
-                let _ = parenthesized!(content in input);
-                Ok(Self::Long(Some(content.parse::<LitStr>()?)))
-            } else {
-                Ok(Self::Long(None))
-            }
-        } else if keyword == "short" {
-            if input.peek(token::Paren) {
-                let _ = parenthesized!(content in input);
-                Ok(Self::Short(Some(content.parse::<LitChar>()?)))
-            } else {
-                Ok(Self::Short(None))
-            }
-        } else if keyword == "env" {
-            let _ = parenthesized!(content in input);
-            Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
-        } else {
-            Err(input_copy.error("Not a valid enum singleton constructor attribute"))
         }
     }
 }
@@ -579,6 +477,29 @@ impl FieldAttrs<OptNameAttr> {
             help: self.help,
             name: Some(name),
         }
+    }
+}
+
+pub fn as_short_name(value: &ConstrName) -> LitChar {
+    let name_str = value.constr.to_string();
+    LitChar::new(
+        name_str.chars().next().unwrap().to_ascii_lowercase(),
+        value.constr.span(),
+    )
+}
+
+pub fn as_long_name(value: &ConstrName) -> LitStr {
+    let kebabed_name = to_kebab_case(&value.constr.to_string());
+    LitStr::new(&kebabed_name, value.constr.span())
+}
+
+pub fn fill_in_name(value: &ConstrName, names: &mut Vec<StrictNameAttr>) {
+    if !names.iter().any(StrictNameAttr::is_name) {
+        names.push(if value.constr.to_string().chars().nth(1).is_some() {
+            StrictNameAttr::Long(as_long_name(value))
+        } else {
+            StrictNameAttr::Short(as_short_name(value))
+        })
     }
 }
 
