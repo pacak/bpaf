@@ -281,9 +281,9 @@ impl Parse for OptNameAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let input_copy = input.fork();
         let keyword = input.parse::<Ident>()?;
+        let content;
         if keyword == "long" {
             if input.peek(token::Paren) {
-                let content;
                 let _ = parenthesized!(content in input);
                 Ok(Self::Long(Some(content.parse::<LitStr>()?)))
             } else {
@@ -291,14 +291,12 @@ impl Parse for OptNameAttr {
             }
         } else if keyword == "short" {
             if input.peek(token::Paren) {
-                let content;
                 let _ = parenthesized!(content in input);
                 Ok(Self::Short(Some(content.parse::<LitChar>()?)))
             } else {
                 Ok(Self::Short(None))
             }
         } else if keyword == "env" {
-            let content;
             let _ = parenthesized!(content in input);
             Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
         } else {
@@ -309,18 +307,17 @@ impl Parse for OptNameAttr {
 
 impl Parse for StrictNameAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        if input.peek(kw::long) {
-            input.parse::<kw::long>()?;
-            let content;
+        let input_copy = input.fork();
+        let keyword = input.parse::<Ident>()?;
+        let content;
+        if keyword == "long" {
             let _ = parenthesized!(content in input);
             Ok(Self::Long(content.parse::<LitStr>()?))
-        } else if input.peek(kw::short) {
-            let _ = input.parse::<kw::short>()?;
-            let content;
+        } else if keyword == "short" {
             let _ = parenthesized!(content in input);
             Ok(Self::Short(content.parse::<LitChar>()?))
         } else {
-            Err(input.error("Not a name attribute"))
+            Err(input_copy.error("Not a name attribute"))
         }
     }
 }
