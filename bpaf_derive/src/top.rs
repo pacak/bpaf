@@ -43,7 +43,7 @@ enum BParser {
     CargoHelper(LitStr, Box<BParser>),
     CompStyle(Box<Expr>, Box<BParser>),
     Constructor(ConstrName, Fields),
-    Singleton(ReqFlag),
+    Singleton(Box<ReqFlag>),
     Fold(Vec<BParser>),
 }
 
@@ -420,7 +420,6 @@ impl Top {
                 ParserKind::BParser(cmd)
             }
         };
-
         Ok(Top {
             kind,
             name: outer
@@ -514,7 +513,7 @@ impl Top {
                 BParser::Command(cmd_name, inner, Box::new(oparser))
             } else {
                 let req_flag = ReqFlag::make(constr, attrs)?;
-                BParser::Singleton(req_flag)
+                BParser::Singleton(Box::new(req_flag))
             };
 
             let branch = match &comp_style {
