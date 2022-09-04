@@ -59,6 +59,16 @@ fn parse_arg<T: Parse>(input: &ParseStream) -> Result<T> {
     content.parse::<T>()
 }
 
+pub fn parse_opt_arg<T: Parse>(input: &ParseStream) -> Result<Option<T>> {
+    if input.peek(token::Paren) {
+        let content;
+        let _ = parenthesized!(content in input);
+        Ok(Some(content.parse::<T>()?))
+    } else {
+        Ok(None)
+    }
+}
+
 #[inline(never)]
 pub fn parse_lit_char(input: &ParseStream) -> Result<LitChar> {
     parse_arg(input)
