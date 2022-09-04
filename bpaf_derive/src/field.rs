@@ -22,7 +22,7 @@ pub use self::named_field::*;
 pub use req_flag::ReqFlag;
 
 #[derive(Debug, Clone)]
-pub enum StrictNameAttr {
+pub enum Name {
     Short(LitChar),
     Long(LitStr),
 }
@@ -34,7 +34,7 @@ enum ConsumerAttr {
     Pos(LitStr),
     PosOs(LitStr),
     Switch,
-    Flag(Box<Expr>, Box<Expr>), // incomplete
+    Flag(Box<Expr>, Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
@@ -177,12 +177,12 @@ pub fn as_long_name(value: &Ident) -> LitStr {
     LitStr::new(&kebabed_name, value.span())
 }
 
-pub fn fill_in_name(value: &Ident, names: &mut Vec<StrictNameAttr>) {
+pub fn fill_in_name(value: &Ident, names: &mut Vec<Name>) {
     if names.is_empty() {
         names.push(if value.to_string().chars().nth(1).is_some() {
-            StrictNameAttr::Long(as_long_name(value))
+            Name::Long(as_long_name(value))
         } else {
-            StrictNameAttr::Short(as_short_name(value))
+            Name::Short(as_short_name(value))
         })
     }
 }
@@ -208,11 +208,11 @@ impl ToTokens for PostprAttr {
     }
 }
 
-impl ToTokens for StrictNameAttr {
+impl ToTokens for Name {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            StrictNameAttr::Short(s) => quote!(short(#s)),
-            StrictNameAttr::Long(l) => quote!(long(#l)),
+            Name::Short(s) => quote!(short(#s)),
+            Name::Long(l) => quote!(long(#l)),
         }
         .to_tokens(tokens);
     }

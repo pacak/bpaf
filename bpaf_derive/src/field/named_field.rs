@@ -11,13 +11,13 @@ use crate::utils::{to_kebab_case, LineIter};
 
 use super::{
     as_long_name, as_short_name, is_os_str_ty, parse_optional_arg, split_type, ConsumerAttr, Doc,
-    PostprAttr, Shape, StrictNameAttr,
+    Name, PostprAttr, Shape,
 };
 
 #[derive(Debug, Clone)]
 pub struct Field {
     ty: Type,
-    naming: Vec<StrictNameAttr>,
+    naming: Vec<Name>,
     env: Option<Box<Expr>>,
     consumer: Option<ConsumerAttr>,
     external: Option<Ident>,
@@ -120,9 +120,9 @@ impl Field {
                         check_stage(&mut stage, 1, keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
                             let lit = parse_lit_str(&input)?;
-                            StrictNameAttr::Long(lit)
+                            Name::Long(lit)
                         } else if let Some(name) = res.name.as_ref() {
-                            StrictNameAttr::Long(as_long_name(name))
+                            Name::Long(as_long_name(name))
                         } else {
                             break Err(
                                 input_copy.error("unnamed field needs to have a name specified")
@@ -132,9 +132,9 @@ impl Field {
                         check_stage(&mut stage, 1, keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
                             let lit = parse_lit_char(&input)?;
-                            StrictNameAttr::Short(lit)
+                            Name::Short(lit)
                         } else if let Some(name) = res.name.as_ref() {
-                            StrictNameAttr::Short(as_short_name(name))
+                            Name::Short(as_short_name(name))
                         } else {
                             break Err(
                                 input_copy.error("unnamed field needs to have a name specified")
@@ -282,10 +282,10 @@ impl Field {
         };
 
         self.naming.push(if name.chars().nth(1).is_some() {
-            StrictNameAttr::Long(LitStr::new(&name, self.name.span()))
+            Name::Long(LitStr::new(&name, self.name.span()))
         } else {
             let c = name.chars().next().unwrap();
-            StrictNameAttr::Short(LitChar::new(c, self.name.span()))
+            Name::Short(LitChar::new(c, self.name.span()))
         });
         Ok(())
     }

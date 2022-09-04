@@ -3,13 +3,13 @@ use quote::{quote, ToTokens};
 use syn::parse::ParseStream;
 use syn::{parenthesized, parse2, token, Attribute, Expr, Ident, LitChar, LitStr, Result};
 
-use crate::field::{as_long_name, as_short_name, fill_in_name, ConstrName, Doc, StrictNameAttr};
+use crate::field::{as_long_name, as_short_name, fill_in_name, ConstrName, Doc, Name};
 use crate::utils::LineIter;
 
 #[derive(Debug)]
 pub struct ReqFlag {
     value: ConstrName,
-    naming: Vec<StrictNameAttr>,
+    naming: Vec<Name>,
     env: Option<Expr>,
     help: Option<String>,
     is_hidden: bool,
@@ -42,16 +42,16 @@ impl ReqFlag {
                     if keyword == "long" {
                         res.naming.push(if input.peek(token::Paren) {
                             let _ = parenthesized!(content in input);
-                            StrictNameAttr::Long(content.parse::<LitStr>()?)
+                            Name::Long(content.parse::<LitStr>()?)
                         } else {
-                            StrictNameAttr::Long(as_long_name(&res.value.constr))
+                            Name::Long(as_long_name(&res.value.constr))
                         })
                     } else if keyword == "short" {
                         res.naming.push(if input.peek(token::Paren) {
                             let _ = parenthesized!(content in input);
-                            StrictNameAttr::Short(content.parse::<LitChar>()?)
+                            Name::Short(content.parse::<LitChar>()?)
                         } else {
-                            StrictNameAttr::Short(as_short_name(&res.value.constr))
+                            Name::Short(as_short_name(&res.value.constr))
                         })
                     } else if keyword == "env" {
                         let _ = parenthesized!(content in input);
