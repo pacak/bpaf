@@ -250,8 +250,6 @@ impl Field {
                         input.parse::<token::Comma>()?;
                     }
                 })?;
-            } else {
-                unreachable!("Shouldn't get any attributes other than bpaf and doc")
             }
         }
 

@@ -3,8 +3,8 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    braced, parenthesized, parse, parse2, token, Attribute, Expr, Ident, LitChar, LitStr, Result,
-    Token, Visibility,
+    braced, parenthesized, parse, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar,
+    LitStr, Result, Token, Visibility,
 };
 
 use crate::field::{
@@ -39,7 +39,7 @@ enum ParserKind {
 
 #[derive(Debug)]
 enum BParser {
-    Command(LitStr, CommandAttr, Box<OParser>),
+    Command(CommandAttr, Box<OParser>),
     CargoHelper(LitStr, Box<BParser>),
     CompStyle(Box<Expr>, Box<BParser>),
     Constructor(ConstrName, Fields),
@@ -129,12 +129,13 @@ enum OuterAttr {
 }
 
 #[derive(Clone, Debug)]
-struct CommandAttr {
-    name: Option<LitStr>,
+pub struct CommandAttr {
+    name: LitStr,
     shorts: Vec<LitChar>,
     longs: Vec<LitStr>,
 }
 
+/*
 impl Parse for CommandAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         if input.peek(kw::command) {
@@ -177,6 +178,88 @@ impl Parse for CommandAttr {
             Err(input.error("Unexpected attribute"))
         }
     }
+}*/
+
+#[derive(Debug, Clone)]
+pub struct Inner {
+    pub command: Option<CommandAttr>,
+    pub help: Vec<String>, // TODO - use the same with Outer
+    pub shorts: Vec<LitChar>,
+    pub longs: Vec<LitStr>,
+    pub envs: Vec<Expr>,
+    pub is_hidden: bool,
+    pub is_default: bool,
+}
+
+impl Inner {
+    fn make(inner_ty: &Ident, attrs: Vec<Attribute>) -> Result<Self> {
+        let mut res = Inner {
+            command: None,
+            help: Vec::new(),
+            shorts: Vec::new(),
+            longs: Vec::new(),
+            envs: Vec::new(),
+            is_hidden: false,
+            is_default: false,
+        };
+        for attr in attrs {
+            if attr.path.is_ident("doc") {
+                res.help.push(parse2::<Doc>(attr.tokens)?.0);
+            } else if attr.path.is_ident("bpaf") {
+                attr.parse_args_with(|input: ParseStream| loop {
+                    if input.is_empty() {
+                        break Ok(());
+                    }
+                    /////
+
+                    let input_copy = input.fork();
+                    let keyword = input.parse::<Ident>()?;
+
+                    if keyword == "command" {
+                        let name = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string());
+                            LitStr::new(&n, inner_ty.span())
+                        });
+                        res.command = Some(CommandAttr {
+                            name,
+                            shorts: Vec::new(),
+                            longs: Vec::new(),
+                        });
+                    } else if keyword == "short" {
+                        let lit = parse_opt_arg::<LitChar>(&input)?.unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string()).chars().next().unwrap();
+                            LitChar::new(n, inner_ty.span())
+                        });
+                        res.shorts.push(lit);
+                    } else if keyword == "long" {
+                        let lit = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string());
+                            LitStr::new(&n, inner_ty.span())
+                        });
+                        res.longs.push(lit);
+                    } else if keyword == "env" {
+                        let lit = parse_expr(&input)?;
+                        res.envs.push(lit);
+                    } else if keyword == "hide" {
+                        res.is_hidden = true;
+                    } else if keyword == "default" {
+                        res.is_default = true;
+                    } else {
+                        return Err(input_copy.error("Not a valid inner attribute"));
+                    }
+
+                    if !input.is_empty() {
+                        input.parse::<token::Comma>()?;
+                    }
+                })?;
+            }
+        }
+        if let Some(cmd) = &mut res.command {
+            cmd.shorts.append(&mut res.shorts);
+            cmd.longs.append(&mut res.longs);
+        }
+        Ok(res)
+    }
 }
 
 #[derive(Debug)]
@@ -192,7 +275,7 @@ struct Outer {
 }
 
 impl Outer {
-    fn make(vis: Visibility, attrs: Vec<Attribute>) -> Result<Self> {
+    fn make(outer_ty: &Ident, vis: Visibility, attrs: Vec<Attribute>) -> Result<Self> {
         let mut res = Outer {
             kind: None,
             version: None,
@@ -234,33 +317,36 @@ impl Outer {
                     } else if keyword == "construct" {
                         res.kind = Some(OuterKind::Construct);
                     } else if keyword == "version" {
-                        let ver = parse_opt_arg::<Expr>(&input)?;
-                        res.version = ver.map(Box::new);
+                        let ver = parse_opt_arg::<Expr>(&input)?
+                            .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION")));
+                        res.version = Some(Box::new(ver));
                     } else if keyword == "command" {
-                        let name = parse_opt_arg::<LitStr>(&input)?;
+                        let name = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                            let n = to_snake_case(&outer_ty.to_string());
+                            LitStr::new(&n, outer_ty.span())
+                        });
                         res.kind = Some(OuterKind::Command(CommandAttr {
                             name,
                             shorts: Vec::new(),
                             longs: Vec::new(),
                         }));
                     } else if keyword == "short" {
+                        // those are aliaes, no fancy name figuring out logic
                         let lit = parse_lit_char(&input)?;
                         res.shorts.push(lit);
                     } else if keyword == "long" {
+                        // those are aliaes, no fancy name figuring out logic
                         let lit = parse_lit_str(&input)?;
                         res.longs.push(lit);
                     } else if keyword == "private" {
                         res.vis = Visibility::Inherited;
                     } else {
-                        println!("{:?}", keyword); // TODO
                         return Err(input_copy.error("Unexpected attribute"));
                     }
                     if !input.is_empty() {
                         input.parse::<token::Comma>()?;
                     }
                 })?;
-            } else {
-                unreachable!("Shouldn't get any attributes other than bpaf and doc")
             }
         }
         if let Some(OuterKind::Command(cmd)) = &mut res.kind {
@@ -276,6 +362,7 @@ impl Outer {
     }
 }
 
+/*
 impl Parse for OuterAttr {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         let content;
@@ -321,7 +408,7 @@ impl Parse for OuterAttr {
             Err(input.error("Unexpected attribute"))
         }
     }
-}
+}*/
 
 struct InnerAttr(Option<LitStr>);
 impl Parse for InnerAttr {
@@ -375,11 +462,42 @@ impl Parse for Top {
     }
 }
 
+fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
+    let inner = if let Some(comp_style) = outer.comp_style {
+        BParser::CompStyle(Box::new(comp_style), Box::new(inner))
+    } else {
+        inner
+    };
+
+    match outer.kind.unwrap_or(OuterKind::Construct) {
+        OuterKind::Construct => ParserKind::BParser(inner),
+        OuterKind::Options(mcargo) => {
+            let inner = match mcargo {
+                Some(cargo) => BParser::CargoHelper(cargo, Box::new(inner)),
+                None => inner,
+            };
+            ParserKind::OParser(OParser {
+                decor: outer.decor,
+                inner: Box::new(inner),
+            })
+        }
+        OuterKind::Command(cmd_attr) => {
+            let oparser = OParser {
+                decor: outer.decor,
+                inner: Box::new(inner),
+            };
+
+            let cmd = BParser::Command(cmd_attr, Box::new(oparser));
+            ParserKind::BParser(cmd)
+        }
+    }
+}
+
 impl Top {
     fn parse_struct(attrs: Vec<Attribute>, vis: Visibility, input: ParseStream) -> Result<Self> {
-        let outer = Outer::make(vis, attrs)?;
-
         let outer_ty = input.parse::<Ident>()?;
+        let outer = Outer::make(&outer_ty, vis, attrs)?;
+
         let fields = input.parse::<Fields>()?;
 
         if fields.struct_definition_followed_by_semi() {
@@ -391,74 +509,21 @@ impl Top {
             constr: outer_ty.clone(),
         };
         let inner = BParser::Constructor(constr, fields);
-        let inner = match outer.comp_style {
-            Some(style) => BParser::CompStyle(Box::new(style), Box::new(inner)),
-            None => inner,
-        };
-        let kind = match outer.kind.unwrap_or(OuterKind::Construct) {
-            OuterKind::Construct => ParserKind::BParser(inner),
-            OuterKind::Options(mcargo) => {
-                let inner = match mcargo {
-                    Some(cargo) => BParser::CargoHelper(cargo, Box::new(inner)),
-                    None => inner,
-                };
-                ParserKind::OParser(OParser {
-                    decor: outer.decor,
-                    inner: Box::new(inner),
-                })
-            }
-            OuterKind::Command(cmd_attr) => {
-                let oparser = OParser {
-                    decor: outer.decor,
-                    inner: Box::new(inner),
-                };
-                let cmd_name = cmd_attr.name.clone().unwrap_or_else(|| {
-                    let n = to_snake_case(&outer_ty.to_string());
-                    LitStr::new(&n, outer_ty.span())
-                });
-                let cmd = BParser::Command(cmd_name, cmd_attr, Box::new(oparser));
-                ParserKind::BParser(cmd)
-            }
-        };
         Ok(Top {
-            kind,
             name: outer
                 .generate
+                .clone()
                 .unwrap_or_else(|| snake_case_ident(&outer_ty)),
-            vis: outer.vis,
+            vis: outer.vis.clone(),
+            kind: decorate_with_kind(outer, inner),
             outer_ty,
         })
     }
 
     fn parse_enum(attrs: Vec<Attribute>, mut vis: Visibility, input: ParseStream) -> Result<Self> {
-        let mut name = None;
-        let mut version = None;
-
-        let kind;
-
-        let (help, outer) = split_help_and::<OuterAttr>(&attrs)?;
-        let mut outer_kind = None;
-        let mut comp_style = None;
-        for attr in outer {
-            match attr {
-                OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
-                OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
-                OuterAttr::Generate(n) => name = Some(n.clone()),
-                OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
-                OuterAttr::Version(None) => {
-                    version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
-                }
-                OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
-                OuterAttr::Private => {
-                    vis = Visibility::Inherited;
-                }
-                OuterAttr::CompStyle(style) => {
-                    comp_style = Some(style);
-                }
-            }
-        }
-
         let outer_ty = input.parse::<Ident>()?;
+        let outer = Outer::make(&outer_ty, vis, attrs)?;
+
         let mut branches: Vec<BParser> = Vec::new();
 
         let enum_contents;
@@ -468,19 +533,19 @@ impl Top {
                 break;
             }
             let attrs = enum_contents.call(Attribute::parse_outer)?;
-
             let inner_ty = enum_contents.parse::<Ident>()?;
+            let inner = Inner::make(&inner_ty, attrs.clone())?;
 
             let constr = ConstrName {
                 namespace: Some(outer_ty.clone()),
-                constr: inner_ty.clone(),
+                constr: inner_ty,
             };
 
             let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
-                let (help, mut inner) = split_help_and::<CommandAttr>(&attrs)?;
+                let fields = Fields::parse(&enum_contents)?;
+                BParser::Constructor(constr, fields)
 
-                let bra = enum_contents.parse::<Fields>()?;
-
+                /*
                 assert!(inner.len() <= 1);
                 if let Some(cmd_arg) = inner.pop() {
                     let cmd_name = cmd_arg.name.clone().unwrap_or_else(|| {
@@ -496,74 +561,189 @@ impl Top {
                 } else {
                     BParser::Constructor(constr, bra)
                 }
-            } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
-                .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
-            {
-                let cmd_name = inner.name.clone().unwrap_or_else(|| {
-                    let n = to_snake_case(&inner_ty.to_string());
-                    LitStr::new(&n, inner_ty.span())
-                });
-
-                let decor = Decor::new(&help, None);
+                */
+            } else if let Some(_cmd) = &inner.command {
+                ////////////////////////////////////////////////////////////////
                 let fields = Fields::NoFields;
-                let oparser = OParser {
-                    inner: Box::new(BParser::Constructor(constr, fields)),
-                    decor,
-                };
-                BParser::Command(cmd_name, inner, Box::new(oparser))
+
+                BParser::Constructor(constr, fields)
+
+                ////////////////////////////////////////////////////////////////
             } else {
-                let req_flag = ReqFlag::make(constr, attrs)?;
+                let req_flag = ReqFlag::make2(constr, inner.clone())?;
                 BParser::Singleton(Box::new(req_flag))
             };
 
-            let branch = match &comp_style {
-                Some(style) => BParser::CompStyle(style.clone(), Box::new(branch)),
-                None => branch,
-            };
-            branches.push(branch);
+            if let Some(cmd_arg) = inner.command {
+                let decor = Decor::new(&inner.help, None);
+                let oparser = OParser {
+                    inner: Box::new(branch),
+                    decor,
+                };
+                let branch = BParser::Command(cmd_arg, Box::new(oparser));
+                branches.push(branch);
+            } else {
+                branches.push(branch);
+            }
 
             if !enum_contents.is_empty() {
-                enum_contents.parse::<Token![,]>()?;
+                enum_contents.parse::<token::Comma>()?;
             }
         }
 
-        let inner = BParser::Fold(branches);
-        match outer_kind.unwrap_or(OuterKind::Construct) {
-            OuterKind::Construct => {
-                kind = ParserKind::BParser(inner);
-            }
-            OuterKind::Options(n) => {
-                let decor = Decor::new(&help, version.take());
-                let inner = match n {
-                    Some(name) => BParser::CargoHelper(name, Box::new(inner)),
-                    None => inner,
-                };
-                let oparser = OParser {
-                    decor,
-                    inner: Box::new(inner),
-                };
-                kind = ParserKind::OParser(oparser);
-            }
-            OuterKind::Command(cmd_attr) => {
-                let cmd_name = cmd_attr.name.clone().unwrap_or_else(|| {
-                    let n = to_snake_case(&outer_ty.to_string());
-                    LitStr::new(&n, outer_ty.span())
-                });
-                let decor = Decor::new(&help, version.take());
-                let oparser = OParser {
-                    inner: Box::new(inner),
-                    decor,
-                };
-                kind = ParserKind::BParser(BParser::Command(cmd_name, cmd_attr, Box::new(oparser)));
-            }
-        }
+        let inner = match branches.len() {
+            0 => todo!(),
+            1 => branches.remove(0),
+            _ => BParser::Fold(branches),
+        };
 
         Ok(Top {
-            name: name.unwrap_or_else(|| snake_case_ident(&outer_ty)),
-            vis,
+            name: outer
+                .generate
+                .clone()
+                .unwrap_or_else(|| snake_case_ident(&outer_ty)),
+            vis: outer.vis.clone(),
+            kind: decorate_with_kind(outer, inner),
             outer_ty,
-            kind,
         })
+
+        /*
+                let outer
+
+        //{{{
+                let mut name = None;
+                let mut version = None;
+
+                let kind;
+
+                let (help, outer) = split_help_and::<OuterAttr>(&attrs)?;
+                let mut outer_kind = None;
+                let mut comp_style = None;
+                for attr in outer {
+                    match attr {
+                        OuterAttr::Options(n) => outer_kind = Some(OuterKind::Options(n)),
+                        OuterAttr::Construct => outer_kind = Some(OuterKind::Construct),
+                        OuterAttr::Generate(n) => name = Some(n.clone()),
+                        OuterAttr::Version(Some(ver)) => version = Some(ver.clone()),
+                        OuterAttr::Version(None) => {
+                            version = Some(syn::parse_quote!(env!("CARGO_PKG_VERSION")));
+                        }
+                        OuterAttr::Command(n) => outer_kind = Some(OuterKind::Command(n)),
+                        OuterAttr::Private => {
+                            vis = Visibility::Inherited;
+                        }
+                        OuterAttr::CompStyle(style) => {
+                            comp_style = Some(style);
+                        }
+                    }
+                }//}}}
+
+                let outer_ty = input.parse::<Ident>()?;
+                let mut branches: Vec<BParser> = Vec::new();
+
+                let enum_contents;
+                let _ = braced!(enum_contents in input);
+                loop {
+                    if enum_contents.is_empty() {
+                        break;
+                    }
+                    let attrs = enum_contents.call(Attribute::parse_outer)?;
+
+                    let inner_ty = enum_contents.parse::<Ident>()?;
+
+                    let constr = ConstrName {
+                        namespace: Some(outer_ty.clone()),
+                        constr: inner_ty.clone(),
+                    };
+
+                    let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
+                        let (help, mut inner) = split_help_and::<CommandAttr>(&attrs)?;
+
+                        let bra = enum_contents.parse::<Fields>()?;
+
+                        assert!(inner.len() <= 1);
+                        if let Some(cmd_arg) = inner.pop() {
+                            let cmd_name = cmd_arg.name.clone().unwrap_or_else(|| {
+                                let n = to_snake_case(&inner_ty.to_string());
+                                LitStr::new(&n, inner_ty.span())
+                            });
+                            let decor = Decor::new(&help, None);
+                            let oparser = OParser {
+                                inner: Box::new(BParser::Constructor(constr, bra)),
+                                decor,
+                            };
+                            BParser::Command(cmd_name, cmd_arg, Box::new(oparser))
+                        } else {
+                            BParser::Constructor(constr, bra)
+                        }
+                    } else if let Ok((help, Some(inner))) = split_help_and::<CommandAttr>(&attrs)
+                        .map(|(h, a)| (h, (a.len() == 1).then(|| a.first().cloned()).flatten()))
+                    {
+                        let cmd_name = inner.name.clone().unwrap_or_else(|| {
+                            let n = to_snake_case(&inner_ty.to_string());
+                            LitStr::new(&n, inner_ty.span())
+                        });
+
+                        let decor = Decor::new(&help, None);
+                        let fields = Fields::NoFields;
+                        let oparser = OParser {
+                            inner: Box::new(BParser::Constructor(constr, fields)),
+                            decor,
+                        };
+                        BParser::Command(cmd_name, inner, Box::new(oparser))
+                    } else {
+                        let req_flag = ReqFlag::make(constr, attrs)?;
+                        BParser::Singleton(Box::new(req_flag))
+                    };
+
+                    let branch = match &comp_style {
+                        Some(style) => BParser::CompStyle(style.clone(), Box::new(branch)),
+                        None => branch,
+                    };
+                    branches.push(branch);
+
+                    if !enum_contents.is_empty() {
+                        enum_contents.parse::<Token![,]>()?;
+                    }
+                }
+
+                let inner = BParser::Fold(branches);
+                match outer_kind.unwrap_or(OuterKind::Construct) {
+                    OuterKind::Construct => {
+                        kind = ParserKind::BParser(inner);
+                    }
+                    OuterKind::Options(n) => {
+                        let decor = Decor::new(&help, version.take());
+                        let inner = match n {
+                            Some(name) => BParser::CargoHelper(name, Box::new(inner)),
+                            None => inner,
+                        };
+                        let oparser = OParser {
+                            decor,
+                            inner: Box::new(inner),
+                        };
+                        kind = ParserKind::OParser(oparser);
+                    }
+                    OuterKind::Command(cmd_attr) => {
+                        let cmd_name = cmd_attr.name.clone().unwrap_or_else(|| {
+                            let n = to_snake_case(&outer_ty.to_string());
+                            LitStr::new(&n, outer_ty.span())
+                        });
+                        let decor = Decor::new(&help, version.take());
+                        let oparser = OParser {
+                            inner: Box::new(inner),
+                            decor,
+                        };
+                        kind = ParserKind::BParser(BParser::Command(cmd_name, cmd_attr, Box::new(oparser)));
+                    }
+                }
+
+                Ok(Top {
+                    name: name.unwrap_or_else(|| snake_case_ident(&outer_ty)),
+                    vis,
+                    outer_ty,
+                    kind,
+                }) */
     }
 }
 
@@ -609,7 +789,8 @@ impl ToTokens for OParser {
 impl ToTokens for BParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            BParser::Command(cmd_name, cmd_attr, oparser) => {
+            BParser::Command(cmd_attr, oparser) => {
+                let cmd_name = &cmd_attr.name;
                 let mut names = quote!();
                 for short in &cmd_attr.shorts {
                     names = quote!(#names .short(#short));

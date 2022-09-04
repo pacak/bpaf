@@ -528,9 +528,9 @@ fn hidden_default_enum_singleton() {
             No,
             #[bpaf(env("x"))]
             Maybe,
-            #[bpaf(long)]
+            #[bpaf(long("dunno"))]
             Dunno,
-            #[bpaf(short)]
+            #[bpaf(short('u'))]
             Umm,
             #[bpaf(short('U'))]
             Ummmmmmm,
@@ -558,7 +558,7 @@ fn hidden_default_enum_singleton() {
 }
 
 #[test]
-#[should_panic(expected = "Not a valid enum singleton constructor attribute")]
+#[should_panic(expected = "Not a valid inner attribute")]
 fn enum_singleton_unk() {
     let _top: Top = parse_quote! {
         enum X {

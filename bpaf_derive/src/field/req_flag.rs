@@ -4,24 +4,46 @@ use syn::parse::ParseStream;
 use syn::{parenthesized, parse2, token, Attribute, Expr, Ident, LitChar, LitStr, Result};
 
 use crate::field::{as_long_name, as_short_name, fill_in_name, ConstrName, Doc, Name};
+use crate::top::Inner;
 use crate::utils::LineIter;
 
 #[derive(Debug)]
 pub struct ReqFlag {
     value: ConstrName,
     naming: Vec<Name>,
-    env: Option<Expr>,
+    env: Vec<Expr>,
     help: Option<String>,
     is_hidden: bool,
     is_default: bool,
 }
 
 impl ReqFlag {
+    pub fn make2(value: ConstrName, mut inner: Inner) -> Result<Self> {
+        if inner.longs.is_empty() && inner.shorts.is_empty() {
+            if value.constr.to_string().chars().nth(1).is_some() {
+                inner.longs.push(as_long_name(&value.constr));
+            } else {
+                inner.shorts.push(as_short_name(&value.constr));
+            }
+        }
+
+        let longs = inner.longs.into_iter().map(Name::Long);
+        let short = inner.shorts.into_iter().map(Name::Short);
+        Ok(ReqFlag {
+            value,
+            naming: longs.chain(short).collect::<Vec<_>>(),
+            env: inner.envs,
+            help: inner.help.first().cloned(), // TODO
+            is_hidden: inner.is_hidden,
+            is_default: inner.is_default,
+        })
+    }
+    /*
     pub fn make(value: ConstrName, attrs: Vec<Attribute>) -> Result<Self> {
         let mut res = ReqFlag {
             value,
             naming: Vec::new(),
-            env: None,
+            env: Vec::new(),
             help: None,
             is_hidden: false,
             is_default: false,
@@ -56,7 +78,7 @@ impl ReqFlag {
                     } else if keyword == "env" {
                         let _ = parenthesized!(content in input);
                         let env = content.parse::<Expr>()?;
-                        res.env = Some(env);
+                        res.env = vec![env];
                     } else if keyword == "hide" {
                         res.is_hidden = true;
                     } else if keyword == "default" {
@@ -77,7 +99,7 @@ impl ReqFlag {
         res.help = LineIter::from(&help[..]).next();
         fill_in_name(&res.value.constr, &mut res.naming);
         Ok(res)
-    }
+    } */
 }
 
 impl ToTokens for ReqFlag {
@@ -92,7 +114,7 @@ impl ToTokens for ReqFlag {
             naming.to_tokens(tokens);
             first = false;
         }
-        if let Some(env) = &self.env {
+        for env in &self.env {
             quote!(.env(#env)).to_tokens(tokens);
         }
         if let Some(help) = &self.help {
