@@ -1,8 +1,8 @@
 # Change Log
 
-## bpaf [0.5.7] - unreleased
+## bpaf [0.5.7] - 2022-09-04
+- bugfix with zsh autocomplete #46
 - reimplement bpaf derive - should be faster to compile and easier to work with
-- bugfix with zsh autocomplete
 
 ## bpaf [0.5.6] - 2022-09-03
 - minor doc fixes
