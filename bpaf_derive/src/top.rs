@@ -159,7 +159,7 @@ impl Inner {
                     let keyword = input.parse::<Ident>()?;
 
                     if keyword == "command" {
-                        let name = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                        let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&inner_ty.to_string());
                             LitStr::new(&n, inner_ty.span())
                         });
@@ -169,19 +169,19 @@ impl Inner {
                             longs: Vec::new(),
                         });
                     } else if keyword == "short" {
-                        let lit = parse_opt_arg::<LitChar>(&input)?.unwrap_or_else(|| {
+                        let lit = parse_opt_arg::<LitChar>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&inner_ty.to_string()).chars().next().unwrap();
                             LitChar::new(n, inner_ty.span())
                         });
                         res.shorts.push(lit);
                     } else if keyword == "long" {
-                        let lit = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                        let lit = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&inner_ty.to_string());
                             LitStr::new(&n, inner_ty.span())
                         });
                         res.longs.push(lit);
                     } else if keyword == "env" {
-                        let lit = parse_expr(&input)?;
+                        let lit = parse_expr(input)?;
                         res.envs.push(lit);
                     } else if keyword == "hide" {
                         res.is_hidden = true;
@@ -244,7 +244,7 @@ impl Outer {
                     let keyword = input.parse::<Ident>()?;
 
                     if keyword == "generate" {
-                        res.generate = Some(parse_ident(&input)?);
+                        res.generate = Some(parse_ident(input)?);
                     } else if keyword == "options" {
                         let lit = if input.peek(token::Paren) {
                             let content;
@@ -253,18 +253,18 @@ impl Outer {
                         } else {
                             None
                         };
-                        res.kind = Some(OuterKind::Options(lit))
+                        res.kind = Some(OuterKind::Options(lit));
                     } else if keyword == "complete_style" {
-                        let style = parse_expr(&input)?;
+                        let style = parse_expr(input)?;
                         res.comp_style = Some(style);
                     } else if keyword == "construct" {
                         res.kind = Some(OuterKind::Construct);
                     } else if keyword == "version" {
-                        let ver = parse_opt_arg::<Expr>(&input)?
+                        let ver = parse_opt_arg::<Expr>(input)?
                             .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION")));
                         res.version = Some(Box::new(ver));
                     } else if keyword == "command" {
-                        let name = parse_opt_arg::<LitStr>(&input)?.unwrap_or_else(|| {
+                        let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&outer_ty.to_string());
                             LitStr::new(&n, outer_ty.span())
                         });
@@ -275,11 +275,11 @@ impl Outer {
                         }));
                     } else if keyword == "short" {
                         // those are aliaes, no fancy name figuring out logic
-                        let lit = parse_lit_char(&input)?;
+                        let lit = parse_lit_char(input)?;
                         res.shorts.push(lit);
                     } else if keyword == "long" {
                         // those are aliaes, no fancy name figuring out logic
-                        let lit = parse_lit_str(&input)?;
+                        let lit = parse_lit_str(input)?;
                         res.longs.push(lit);
                     } else if keyword == "private" {
                         res.vis = Visibility::Inherited;
@@ -331,8 +331,8 @@ fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
 
     match outer.kind.unwrap_or(OuterKind::Construct) {
         OuterKind::Construct => ParserKind::BParser(inner),
-        OuterKind::Options(mcargo) => {
-            let inner = match mcargo {
+        OuterKind::Options(maybe_cargo) => {
+            let inner = match maybe_cargo {
                 Some(cargo) => BParser::CargoHelper(cargo, Box::new(inner)),
                 None => inner,
             };
@@ -407,7 +407,7 @@ impl Top {
             } else if let Some(_cmd) = &inner.command {
                 BParser::Constructor(constr, Fields::NoFields)
             } else {
-                let req_flag = ReqFlag::make2(constr, inner.clone())?;
+                let req_flag = ReqFlag::make(constr, inner.clone());
                 BParser::Singleton(Box::new(req_flag))
             };
 

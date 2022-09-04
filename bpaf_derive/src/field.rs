@@ -39,37 +39,54 @@ enum ConsumerAttr {
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
-    FromStr(Box<Type>),
-    Guard(Ident, Box<Expr>),
-    Many(Option<LitStr>),
-    Map(Ident),
-    Optional,
-    Parse(Ident),
-    Fallback(Box<Expr>),
-    FallbackWith(Box<Expr>),
-    Complete(Ident),
+    FromStr(Span, Box<Type>),
+    Guard(Span, Ident, Box<Expr>),
+    Many(Span, Option<LitStr>),
+    Map(Span, Ident),
+    Optional(Span),
+    Parse(Span, Ident),
+    Fallback(Span, Box<Expr>),
+    FallbackWith(Span, Box<Expr>),
+    Complete(Span, Ident),
     // used for deriving stuff to express map to convert
     // from OsString to PathBuf... I wonder.
-    Tokens(TokenStream),
-    Hide,
-    GroupHelp(Box<Expr>),
+    Tokens(Span, TokenStream),
+    Hide(Span),
+    GroupHelp(Span, Box<Expr>),
 }
 
 impl PostprAttr {
     const fn can_derive(&self) -> bool {
         match self {
-            PostprAttr::Many(_)
-            | PostprAttr::FromStr(_)
-            | PostprAttr::Map(_)
-            | PostprAttr::Tokens(_)
-            | PostprAttr::Optional
-            | PostprAttr::Parse(_) => false,
-            PostprAttr::Guard(_, _)
-            | PostprAttr::Fallback(_)
-            | PostprAttr::FallbackWith(_)
-            | PostprAttr::Complete(_)
-            | PostprAttr::Hide
-            | PostprAttr::GroupHelp(_) => true,
+            PostprAttr::Many(..)
+            | PostprAttr::FromStr(..)
+            | PostprAttr::Map(..)
+            | PostprAttr::Tokens(..)
+            | PostprAttr::Optional(..)
+            | PostprAttr::Parse(..) => false,
+            PostprAttr::Guard(..)
+            | PostprAttr::Fallback(..)
+            | PostprAttr::FallbackWith(..)
+            | PostprAttr::Complete(..)
+            | PostprAttr::Hide(..)
+            | PostprAttr::GroupHelp(..) => true,
+        }
+    }
+
+    fn span(&self) -> Span {
+        match self {
+            PostprAttr::FromStr(span, _)
+            | PostprAttr::Guard(span, _, _)
+            | PostprAttr::Many(span, _)
+            | PostprAttr::Map(span, _)
+            | PostprAttr::Optional(span)
+            | PostprAttr::Parse(span, _)
+            | PostprAttr::Fallback(span, _)
+            | PostprAttr::FallbackWith(span, _)
+            | PostprAttr::Complete(span, _)
+            | PostprAttr::Tokens(span, _)
+            | PostprAttr::Hide(span)
+            | PostprAttr::GroupHelp(span, _) => *span,
         }
     }
 }
@@ -177,32 +194,22 @@ pub fn as_long_name(value: &Ident) -> LitStr {
     LitStr::new(&kebabed_name, value.span())
 }
 
-pub fn fill_in_name(value: &Ident, names: &mut Vec<Name>) {
-    if names.is_empty() {
-        names.push(if value.to_string().chars().nth(1).is_some() {
-            Name::Long(as_long_name(value))
-        } else {
-            Name::Short(as_short_name(value))
-        })
-    }
-}
-
 impl ToTokens for PostprAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            PostprAttr::FromStr(ty) => quote!(from_str::<#ty>()),
-            PostprAttr::Guard(f, m) => quote!(guard(#f, #m)),
-            PostprAttr::Many(None) => quote!(many()),
-            PostprAttr::Many(Some(m)) => quote!(some(#m)),
-            PostprAttr::Map(f) => quote!(map(#f)),
-            PostprAttr::Optional => quote!(optional()),
-            PostprAttr::Parse(f) => quote!(parse(#f)),
-            PostprAttr::Fallback(v) => quote!(fallback(#v)),
-            PostprAttr::FallbackWith(v) => quote!(fallback_with(#v)),
-            PostprAttr::Tokens(t) => quote!(#t),
-            PostprAttr::Hide => quote!(hide()),
-            PostprAttr::Complete(f) => quote!(complete(#f)),
-            PostprAttr::GroupHelp(m) => quote!(group_help(#m)),
+            PostprAttr::FromStr(_span, ty) => quote!(from_str::<#ty>()),
+            PostprAttr::Guard(_span, f, m) => quote!(guard(#f, #m)),
+            PostprAttr::Many(_span, None) => quote!(many()),
+            PostprAttr::Many(_span, Some(m)) => quote!(some(#m)),
+            PostprAttr::Map(_span, f) => quote!(map(#f)),
+            PostprAttr::Optional(_span) => quote!(optional()),
+            PostprAttr::Parse(_span, f) => quote!(parse(#f)),
+            PostprAttr::Fallback(_span, v) => quote!(fallback(#v)),
+            PostprAttr::FallbackWith(_span, v) => quote!(fallback_with(#v)),
+            PostprAttr::Tokens(_span, t) => quote!(#t),
+            PostprAttr::Hide(_span) => quote!(hide()),
+            PostprAttr::Complete(_span, f) => quote!(complete(#f)),
+            PostprAttr::GroupHelp(_span, m) => quote!(group_help(#m)),
         }
         .to_tokens(tokens);
     }

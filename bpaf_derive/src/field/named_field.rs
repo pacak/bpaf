@@ -26,7 +26,7 @@ pub struct Field {
     help: Option<String>,
 }
 
-fn check_stage(prev: &mut usize, new: usize, keyword: Ident) -> Result<()> {
+fn check_stage(prev: &mut usize, new: usize, keyword: &Ident) -> Result<()> {
     let stages = ["naming", "consumer", "external", "postprocessing"];
     if *prev > new {
         return Err(syn::Error::new(
@@ -53,13 +53,13 @@ fn check_stage(prev: &mut usize, new: usize, keyword: Ident) -> Result<()> {
     Ok(())
 }
 
-fn parse_arg<T: Parse>(input: &ParseStream) -> Result<T> {
+fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
     let content;
     let _ = parenthesized!(content in input);
     content.parse::<T>()
 }
 
-pub fn parse_opt_arg<T: Parse>(input: &ParseStream) -> Result<Option<T>> {
+pub fn parse_opt_arg<T: Parse>(input: ParseStream) -> Result<Option<T>> {
     if input.peek(token::Paren) {
         let content;
         let _ = parenthesized!(content in input);
@@ -70,22 +70,22 @@ pub fn parse_opt_arg<T: Parse>(input: &ParseStream) -> Result<Option<T>> {
 }
 
 #[inline(never)]
-pub fn parse_lit_char(input: &ParseStream) -> Result<LitChar> {
+pub fn parse_lit_char(input: ParseStream) -> Result<LitChar> {
     parse_arg(input)
 }
 
 #[inline(never)]
-pub fn parse_lit_str(input: &ParseStream) -> Result<LitStr> {
+pub fn parse_lit_str(input: ParseStream) -> Result<LitStr> {
     parse_arg(input)
 }
 
 #[inline(never)]
-pub fn parse_ident(input: &ParseStream) -> Result<Ident> {
+pub fn parse_ident(input: ParseStream) -> Result<Ident> {
     parse_arg(input)
 }
 
 #[inline(never)]
-pub fn parse_expr(input: &ParseStream) -> Result<Expr> {
+pub fn parse_expr(input: ParseStream) -> Result<Expr> {
     parse_arg(input)
 }
 
@@ -122,14 +122,15 @@ impl Field {
                     }
                     let input_copy = input.fork();
                     let keyword = input.parse::<Ident>()?;
+                    let span = keyword.span();
 
                     let content;
 
                     // naming
                     if keyword == "long" {
-                        check_stage(&mut stage, 1, keyword)?;
+                        check_stage(&mut stage, 1, &keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
-                            let lit = parse_lit_str(&input)?;
+                            let lit = parse_lit_str(input)?;
                             Name::Long(lit)
                         } else if let Some(name) = res.name.as_ref() {
                             Name::Long(as_long_name(name))
@@ -137,11 +138,11 @@ impl Field {
                             break Err(
                                 input_copy.error("unnamed field needs to have a name specified")
                             );
-                        })
+                        });
                     } else if keyword == "short" {
-                        check_stage(&mut stage, 1, keyword)?;
+                        check_stage(&mut stage, 1, &keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
-                            let lit = parse_lit_char(&input)?;
+                            let lit = parse_lit_char(input)?;
                             Name::Short(lit)
                         } else if let Some(name) = res.name.as_ref() {
                             Name::Short(as_short_name(name))
@@ -149,30 +150,30 @@ impl Field {
                             break Err(
                                 input_copy.error("unnamed field needs to have a name specified")
                             );
-                        })
+                        });
                     } else if keyword == "env" {
-                        check_stage(&mut stage, 1, keyword)?;
+                        check_stage(&mut stage, 1, &keyword)?;
 
-                        res.env = Some(Box::new(parse_expr(&input)?));
+                        res.env = Some(Box::new(parse_expr(input)?));
                     //
                     // consumer
                     } else if keyword == "argument" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Arg(parse_optional_arg(input)?));
                     } else if keyword == "argument_os" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::ArgOs(parse_optional_arg(input)?));
                     } else if keyword == "positional" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Pos(parse_optional_arg(input)?));
                     } else if keyword == "positional_os" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::PosOs(parse_optional_arg(input)?));
                     } else if keyword == "switch" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Switch);
                     } else if keyword == "flag" {
-                        check_stage(&mut stage, 2, keyword)?;
+                        check_stage(&mut stage, 2, &keyword)?;
                         let _ = parenthesized!(content in input);
                         let a = content.parse()?;
                         content.parse::<token::Comma>()?;
@@ -181,10 +182,10 @@ impl Field {
                     //
                     // external
                     } else if keyword == "external" {
-                        check_stage(&mut stage, 3, keyword)?;
+                        check_stage(&mut stage, 3, &keyword)?;
 
                         if input.peek(token::Paren) {
-                            res.external = Some(parse_ident(&input)?);
+                            res.external = Some(parse_ident(input)?);
                         } else if res.name.is_some() {
                             res.external = res.name.clone();
                         } else {
@@ -196,52 +197,54 @@ impl Field {
                     //
                     // postpr
                     } else if keyword == "guard" {
-                        check_stage(&mut stage, 4, keyword)?;
+                        check_stage(&mut stage, 4, &keyword)?;
                         let _ = parenthesized!(content in input);
                         let guard_fn = content.parse::<Ident>()?;
                         let _ = content.parse::<Token![,]>()?;
                         let msg = content.parse::<Expr>()?;
-                        res.postpr.push(PostprAttr::Guard(guard_fn, Box::new(msg)));
+                        res.postpr
+                            .push(PostprAttr::Guard(span, guard_fn, Box::new(msg)));
                     } else if keyword == "fallback" {
-                        check_stage(&mut stage, 4, keyword)?;
+                        check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
-                            .push(PostprAttr::Fallback(Box::new(parse_expr(&input)?)));
+                            .push(PostprAttr::Fallback(span, Box::new(parse_expr(input)?)));
                     } else if keyword == "fallback_with" {
-                        check_stage(&mut stage, 4, keyword)?;
+                        check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
-                            .push(PostprAttr::FallbackWith(Box::new(parse_expr(&input)?)));
+                            .push(PostprAttr::FallbackWith(span, Box::new(parse_expr(input)?)));
                     } else if keyword == "parse" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        res.postpr.push(PostprAttr::Parse(parse_ident(&input)?));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr
+                            .push(PostprAttr::Parse(span, parse_ident(input)?));
                     } else if keyword == "map" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        res.postpr.push(PostprAttr::Map(parse_ident(&input)?));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
                     } else if keyword == "from_str" {
-                        check_stage(&mut stage, 4, keyword)?;
+                        check_stage(&mut stage, 4, &keyword)?;
                         let _ = parenthesized!(content in input);
                         let ty = content.parse::<Type>()?;
-                        res.postpr.push(PostprAttr::FromStr(Box::new(ty)));
+                        res.postpr.push(PostprAttr::FromStr(span, Box::new(ty)));
                     } else if keyword == "complete" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        let f = parse_ident(&input)?;
-                        res.postpr.push(PostprAttr::Complete(f));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        let f = parse_ident(input)?;
+                        res.postpr.push(PostprAttr::Complete(span, f));
                     } else if keyword == "many" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        res.postpr.push(PostprAttr::Many(None));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::Many(span, None));
                     } else if keyword == "some" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        let lit = parse_lit_str(&input)?;
-                        res.postpr.push(PostprAttr::Many(Some(lit)));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        let lit = parse_lit_str(input)?;
+                        res.postpr.push(PostprAttr::Many(span, Some(lit)));
                     } else if keyword == "optional" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        res.postpr.push(PostprAttr::Optional);
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::Optional(span));
                     } else if keyword == "hide" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        res.postpr.push(PostprAttr::Hide);
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::Hide(span));
                     } else if keyword == "group_help" {
-                        check_stage(&mut stage, 4, keyword)?;
-                        let expr = parse_expr(&input)?;
-                        res.postpr.push(PostprAttr::GroupHelp(Box::new(expr)));
+                        check_stage(&mut stage, 4, &keyword)?;
+                        let expr = parse_expr(input)?;
+                        res.postpr.push(PostprAttr::GroupHelp(span, Box::new(expr)));
                     } else {
                         return Err(input_copy.error("Unexpected attribute"));
                     }
@@ -253,7 +256,7 @@ impl Field {
             }
         }
 
-        res.implicit_naming()?;
+        res.implicit_naming();
         res.implicit_consumer()?;
         res.help = LineIter::from(&help[..]).next();
 
@@ -268,15 +271,15 @@ impl Field {
 }
 
 impl Field {
-    fn implicit_naming(&mut self) -> Result<()> {
+    fn implicit_naming(&mut self) {
         if self.external.is_some() || !self.naming.is_empty() {
-            return Ok(());
+            return;
         }
 
         // Do we even need to derive the name here?
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => return Ok(()),
+                ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => return,
                 ConsumerAttr::Arg(_)
                 | ConsumerAttr::ArgOs(_)
                 | ConsumerAttr::Switch
@@ -286,7 +289,7 @@ impl Field {
 
         let name = match &self.name {
             Some(name) => to_kebab_case(&name.to_string()),
-            None => return Ok(()),
+            None => return,
         };
 
         self.naming.push(if name.chars().nth(1).is_some() {
@@ -295,7 +298,6 @@ impl Field {
             let c = name.chars().next().unwrap();
             Name::Short(LitChar::new(c, self.name.span()))
         });
-        Ok(())
     }
 
     fn implicit_consumer(&mut self) -> Result<()> {
@@ -322,13 +324,13 @@ impl Field {
         let ty = match split_type(&self.ty) {
             Shape::Optional(ty) => {
                 if derive_postpr {
-                    self.postpr.insert(0, PostprAttr::Optional);
+                    self.postpr.insert(0, PostprAttr::Optional(ty.span()));
                 }
                 ty
             }
             Shape::Multiple(ty) => {
                 if derive_postpr {
-                    self.postpr.insert(0, PostprAttr::Many(None));
+                    self.postpr.insert(0, PostprAttr::Many(ty.span(), None));
                 }
                 ty
             }
@@ -338,12 +340,11 @@ impl Field {
                         self.ty.span(),
                         "Can't derive consumer for unnamed boolean field",
                     ));
-                } else {
-                    if self.consumer.is_none() {
-                        self.consumer = Some(ConsumerAttr::Switch);
-                    }
-                    return Ok(());
                 }
+                if self.consumer.is_none() {
+                    self.consumer = Some(ConsumerAttr::Switch);
+                }
+                return Ok(());
             }
             Shape::Direct(ty) => ty,
         };
@@ -379,9 +380,9 @@ impl Field {
             self.postpr.insert(
                 0,
                 if is_os {
-                    PostprAttr::Tokens(quote!(map(#ty::from)))
+                    PostprAttr::Tokens(ty.span(), quote!(map(#ty::from)))
                 } else if ty != parse_quote!(String) {
-                    PostprAttr::FromStr(Box::new(ty))
+                    PostprAttr::FromStr(ty.span(), Box::new(ty))
                 } else {
                     return Ok(());
                 },
