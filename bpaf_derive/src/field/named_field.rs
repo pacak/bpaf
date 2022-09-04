@@ -29,13 +29,25 @@ pub struct Field {
 fn check_stage(prev: &mut usize, new: usize, keyword: Ident) -> Result<()> {
     let stages = ["naming", "consumer", "external", "postprocessing"];
     if *prev > new {
-        todo!();
+        return Err(syn::Error::new(
+            keyword.span(),
+            format!(
+                "{} is a {} can't follow previous stage ({})",
+                keyword, stages[new], stages[*prev]
+            ),
+        ));
     }
     if new == 3 && *prev != 0 {
-        todo!();
+        return Err(syn::Error::new(
+            keyword.span(),
+            "Processing chain must start with external if external is present".to_owned(),
+        ));
     }
     if *prev == 2 && new == 2 {
-        todo!();
+        return Err(syn::Error::new(
+            keyword.span(),
+            "You can have only one consumer".to_owned(),
+        ));
     }
     *prev = new;
     Ok(())
