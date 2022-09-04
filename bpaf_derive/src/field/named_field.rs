@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::parse::ParseStream;
+use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
     parenthesized, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr, Result,
@@ -39,6 +39,32 @@ fn check_stage(prev: &mut usize, new: usize, keyword: Ident) -> Result<()> {
     }
     *prev = new;
     Ok(())
+}
+
+fn parse_arg<T: Parse>(input: &ParseStream) -> Result<T> {
+    let content;
+    let _ = parenthesized!(content in input);
+    content.parse::<T>()
+}
+
+#[inline(never)]
+fn parse_lit_char(input: &ParseStream) -> Result<LitChar> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+fn parse_lit_str(input: &ParseStream) -> Result<LitStr> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+fn parse_ident(input: &ParseStream) -> Result<Ident> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+fn parse_expr(input: &ParseStream) -> Result<Expr> {
+    parse_arg(input)
 }
 
 impl Field {
@@ -81,8 +107,8 @@ impl Field {
                     if keyword == "long" {
                         check_stage(&mut stage, 1, keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
-                            let _ = parenthesized!(content in input);
-                            StrictNameAttr::Long(content.parse::<LitStr>()?)
+                            let lit = parse_lit_str(&input)?;
+                            StrictNameAttr::Long(lit)
                         } else if let Some(name) = res.name.as_ref() {
                             StrictNameAttr::Long(as_long_name(name))
                         } else {
@@ -93,8 +119,8 @@ impl Field {
                     } else if keyword == "short" {
                         check_stage(&mut stage, 1, keyword)?;
                         res.naming.push(if input.peek(token::Paren) {
-                            let _ = parenthesized!(content in input);
-                            StrictNameAttr::Short(content.parse::<LitChar>()?)
+                            let lit = parse_lit_char(&input)?;
+                            StrictNameAttr::Short(lit)
                         } else if let Some(name) = res.name.as_ref() {
                             StrictNameAttr::Short(as_short_name(name))
                         } else {
@@ -104,8 +130,8 @@ impl Field {
                         })
                     } else if keyword == "env" {
                         check_stage(&mut stage, 1, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        res.env = Some(Box::new(content.parse::<Expr>()?));
+
+                        res.env = Some(Box::new(parse_expr(&input)?));
                     //
                     // consumer
                     } else if keyword == "argument" {
@@ -136,9 +162,7 @@ impl Field {
                         check_stage(&mut stage, 3, keyword)?;
 
                         if input.peek(token::Paren) {
-                            let content;
-                            let _ = parenthesized!(content in input);
-                            res.external = Some(content.parse::<Ident>()?);
+                            res.external = Some(parse_ident(&input)?);
                         } else if res.name.is_some() {
                             res.external = res.name.clone();
                         } else {
@@ -158,24 +182,18 @@ impl Field {
                         res.postpr.push(PostprAttr::Guard(guard_fn, Box::new(msg)));
                     } else if keyword == "fallback" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let expr = content.parse::<Expr>()?;
-                        res.postpr.push(PostprAttr::Fallback(Box::new(expr)));
+                        res.postpr
+                            .push(PostprAttr::Fallback(Box::new(parse_expr(&input)?)));
                     } else if keyword == "fallback_with" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let expr = content.parse::<Expr>()?;
-                        res.postpr.push(PostprAttr::FallbackWith(Box::new(expr)));
+                        res.postpr
+                            .push(PostprAttr::FallbackWith(Box::new(parse_expr(&input)?)));
                     } else if keyword == "parse" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let parse_fn = content.parse::<Ident>()?;
-                        res.postpr.push(PostprAttr::Parse(parse_fn));
+                        res.postpr.push(PostprAttr::Parse(parse_ident(&input)?));
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let map_fn = content.parse::<Ident>()?;
-                        res.postpr.push(PostprAttr::Map(map_fn));
+                        res.postpr.push(PostprAttr::Map(parse_ident(&input)?));
                     } else if keyword == "from_str" {
                         check_stage(&mut stage, 4, keyword)?;
                         let _ = parenthesized!(content in input);
@@ -183,17 +201,15 @@ impl Field {
                         res.postpr.push(PostprAttr::FromStr(Box::new(ty)));
                     } else if keyword == "complete" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let f = content.parse::<Ident>()?;
+                        let f = parse_ident(&input)?;
                         res.postpr.push(PostprAttr::Complete(f));
                     } else if keyword == "many" {
                         check_stage(&mut stage, 4, keyword)?;
                         res.postpr.push(PostprAttr::Many(None));
                     } else if keyword == "some" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        res.postpr
-                            .push(PostprAttr::Many(Some(content.parse::<LitStr>()?)));
+                        let lit = parse_lit_str(&input)?;
+                        res.postpr.push(PostprAttr::Many(Some(lit)));
                     } else if keyword == "optional" {
                         check_stage(&mut stage, 4, keyword)?;
                         res.postpr.push(PostprAttr::Optional);
@@ -202,8 +218,7 @@ impl Field {
                         res.postpr.push(PostprAttr::Hide);
                     } else if keyword == "group_help" {
                         check_stage(&mut stage, 4, keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let expr = content.parse::<Expr>()?;
+                        let expr = parse_expr(&input)?;
                         res.postpr.push(PostprAttr::GroupHelp(Box::new(expr)));
                     }
 
