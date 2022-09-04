@@ -2,11 +2,10 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parenthesized, parse, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr,
-    PathArguments, Result, Token, Type, Visibility,
+    parenthesized, parse, parse_quote, Attribute, Expr, Ident, LitChar, LitStr, PathArguments,
+    Result, Token, Type, Visibility,
 };
 
-use crate::kw;
 use crate::utils::to_kebab_case;
 
 #[derive(Debug)]
@@ -19,52 +18,13 @@ mod named_field;
 mod req_flag;
 
 pub use self::named_field::Field;
+pub use self::named_field::*;
 pub use req_flag::ReqFlag;
 
-#[derive(Debug, Clone)]
-#[allow(clippy::module_name_repetitions)]
-pub struct FieldAttrs<T> {
-    external: Option<ExtAttr>,
-    name: Option<Ident>,
-    naming: Vec<T>,
-    consumer: Option<ConsumerAttr>,
-    postpr: Vec<PostprAttr>,
-    help: Option<String>,
-}
-
-impl<T> Default for FieldAttrs<T> {
-    fn default() -> Self {
-        Self {
-            external: None,
-            name: None,
-            naming: Vec::new(),
-            consumer: None,
-            postpr: Vec::new(),
-            help: None,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum OptNameAttr {
-    Short(Option<LitChar>),
-    Long(Option<LitStr>),
-    Env(Box<Expr>),
-}
 #[derive(Debug, Clone)]
 pub enum StrictNameAttr {
     Short(LitChar),
     Long(LitStr),
-    Env(Box<Expr>),
-}
-
-impl StrictNameAttr {
-    fn is_name(&self) -> bool {
-        match self {
-            StrictNameAttr::Short(_) | StrictNameAttr::Long(_) => true,
-            StrictNameAttr::Env(_) => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -114,123 +74,6 @@ impl PostprAttr {
     }
 }
 
-fn comma(input: parse::ParseStream) -> Result<()> {
-    if !input.is_empty() {
-        input.parse::<Token![,]>()?;
-    }
-    Ok(())
-}
-
-impl<T: Parse> Parse for FieldAttrs<T> {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let mut naming = Vec::new();
-        let mut consumer = None;
-        let mut postpr = Vec::new();
-        let mut external = None;
-        if input.peek(kw::external) {
-            external = Some(input.parse::<ExtAttr>()?);
-            comma(input)?;
-        } else {
-            // we are parsing arguments twice here, syn docs explicitly asks us not to
-            // This is fine since field attributes should be only a few tokens at most
-            while input.fork().parse::<T>().is_ok() {
-                naming.push(input.parse::<T>()?);
-                comma(input)?;
-            }
-            if input.fork().parse::<ConsumerAttr>().is_ok() {
-                consumer = Some(input.parse()?);
-                comma(input)?;
-            }
-        }
-        while !input.is_empty() {
-            postpr.push(input.parse::<PostprAttr>()?);
-            if !input.is_empty() {
-                comma(input)?;
-            }
-        }
-
-        Ok(FieldAttrs {
-            external,
-            naming,
-            consumer,
-            postpr,
-            // those two are filled in during postprocessing
-            name: None,
-            help: None,
-        })
-    }
-}
-
-#[derive(Debug, Clone)]
-struct ExtAttr {
-    ident: Option<Ident>,
-}
-
-impl Parse for ExtAttr {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let keyword = input.parse::<Ident>()?;
-        if keyword == "external" {
-            if input.peek(token::Paren) {
-                let content;
-                let _ = parenthesized!(content in input);
-                Ok(Self {
-                    ident: Some(content.parse::<Ident>()?),
-                })
-            } else {
-                Ok(Self { ident: None })
-            }
-        } else {
-            Err(input_copy.error("Not a name attribute"))
-        }
-    }
-}
-
-impl Parse for OptNameAttr {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let keyword = input.parse::<Ident>()?;
-        let content;
-        if keyword == "long" {
-            if input.peek(token::Paren) {
-                let _ = parenthesized!(content in input);
-                Ok(Self::Long(Some(content.parse::<LitStr>()?)))
-            } else {
-                Ok(Self::Long(None))
-            }
-        } else if keyword == "short" {
-            if input.peek(token::Paren) {
-                let _ = parenthesized!(content in input);
-                Ok(Self::Short(Some(content.parse::<LitChar>()?)))
-            } else {
-                Ok(Self::Short(None))
-            }
-        } else if keyword == "env" {
-            let _ = parenthesized!(content in input);
-            Ok(Self::Env(Box::new(content.parse::<Expr>()?)))
-        } else {
-            Err(input_copy.error("Not a name attribute"))
-        }
-    }
-}
-
-impl Parse for StrictNameAttr {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let keyword = input.parse::<Ident>()?;
-        let content;
-        if keyword == "long" {
-            let _ = parenthesized!(content in input);
-            Ok(Self::Long(content.parse::<LitStr>()?))
-        } else if keyword == "short" {
-            let _ = parenthesized!(content in input);
-            Ok(Self::Short(content.parse::<LitChar>()?))
-        } else {
-            Err(input_copy.error("Not a name attribute"))
-        }
-    }
-}
-
 fn parse_optional_arg(input: parse::ParseStream) -> Result<LitStr> {
     let content;
     if input.peek(syn::token::Paren) {
@@ -238,87 +81,6 @@ fn parse_optional_arg(input: parse::ParseStream) -> Result<LitStr> {
         content.parse::<LitStr>()
     } else {
         Ok(LitStr::new("ARG", Span::call_site()))
-    }
-}
-impl Parse for ConsumerAttr {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let keyword = input.parse::<Ident>()?;
-        if keyword == "argument" {
-            Ok(Self::Arg(parse_optional_arg(input)?))
-        } else if keyword == "argument_os" {
-            Ok(Self::ArgOs(parse_optional_arg(input)?))
-        } else if keyword == "positional" {
-            Ok(Self::Pos(parse_optional_arg(input)?))
-        } else if keyword == "positional_os" {
-            Ok(Self::PosOs(parse_optional_arg(input)?))
-        } else if keyword == "switch" {
-            Ok(Self::Switch)
-        } else if keyword == "flag" {
-            let content;
-            let _ = parenthesized!(content in input);
-            let a = content.parse()?;
-            content.parse::<token::Comma>()?;
-            let b = content.parse()?;
-            Ok(Self::Flag(Box::new(a), Box::new(b)))
-        } else {
-            Err(input_copy.error("Not a consumer attribute"))
-        }
-    }
-}
-
-impl Parse for PostprAttr {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let input_copy = input.fork();
-        let content;
-        let keyword = input.parse::<Ident>()?;
-
-        if keyword == "guard" {
-            let _ = parenthesized!(content in input);
-            let guard_fn = content.parse::<Ident>()?;
-            let _ = content.parse::<Token![,]>()?;
-            let msg = content.parse::<Expr>()?;
-            Ok(Self::Guard(guard_fn, Box::new(msg)))
-        } else if keyword == "fallback" {
-            let _ = parenthesized!(content in input);
-            let expr = content.parse::<Expr>()?;
-            Ok(Self::Fallback(Box::new(expr)))
-        } else if keyword == "fallback_with" {
-            let _ = parenthesized!(content in input);
-            let expr = content.parse::<Expr>()?;
-            Ok(Self::FallbackWith(Box::new(expr)))
-        } else if keyword == "parse" {
-            let _ = parenthesized!(content in input);
-            let parse_fn = content.parse::<Ident>()?;
-            Ok(Self::Parse(parse_fn))
-        } else if keyword == "map" {
-            let _ = parenthesized!(content in input);
-            let map_fn = content.parse::<Ident>()?;
-            Ok(Self::Map(map_fn))
-        } else if keyword == "from_str" {
-            let _ = parenthesized!(content in input);
-            let ty = content.parse::<Type>()?;
-            Ok(Self::FromStr(Box::new(ty)))
-        } else if keyword == "complete" {
-            let _ = parenthesized!(content in input);
-            let f = content.parse::<Ident>()?;
-            Ok(Self::Complete(f))
-        } else if keyword == "many" {
-            Ok(Self::Many(None))
-        } else if keyword == "some" {
-            let _ = parenthesized!(content in input);
-            Ok(Self::Many(Some(content.parse::<LitStr>()?)))
-        } else if keyword == "optional" {
-            Ok(Self::Optional)
-        } else if keyword == "hide" {
-            Ok(Self::Hide)
-        } else if keyword == "group_help" {
-            let _ = parenthesized!(content in input);
-            let expr = content.parse::<Expr>()?;
-            Ok(Self::GroupHelp(Box::new(expr)))
-        } else {
-            Err(input_copy.error("Not a valid postprocessing attribute"))
-        }
     }
 }
 
@@ -416,55 +178,12 @@ pub fn as_long_name(value: &Ident) -> LitStr {
 }
 
 pub fn fill_in_name(value: &Ident, names: &mut Vec<StrictNameAttr>) {
-    if !names.iter().any(StrictNameAttr::is_name) {
+    if names.is_empty() {
         names.push(if value.to_string().chars().nth(1).is_some() {
             StrictNameAttr::Long(as_long_name(value))
         } else {
             StrictNameAttr::Short(as_short_name(value))
         })
-    }
-}
-
-impl ToTokens for FieldAttrs<StrictNameAttr> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut first = true;
-        if let Some(ext) = &self.external {
-            let name = ext.ident.as_ref().or(self.name.as_ref()).unwrap();
-            quote!(#name()).to_tokens(tokens);
-        } else {
-            if first {
-                quote!(::bpaf::).to_tokens(tokens);
-            }
-
-            for naming in &self.naming {
-                if !first {
-                    quote!(.).to_tokens(tokens);
-                }
-                naming.to_tokens(tokens);
-                first = false;
-            }
-            if let Some(help) = &self.help {
-                // For named things help goes right after the name
-                if !first {
-                    quote!(.help(#help)).to_tokens(tokens);
-                }
-            }
-            if let Some(cons) = &self.consumer {
-                if !first {
-                    quote!(.).to_tokens(tokens);
-                }
-                cons.to_tokens(tokens);
-            }
-            if let Some(help) = &self.help {
-                // For positional things help goes right after the consumer
-                if first {
-                    quote!(.help(#help)).to_tokens(tokens);
-                }
-            }
-        }
-        for postpr in &self.postpr {
-            quote!(.#postpr).to_tokens(tokens);
-        }
     }
 }
 
@@ -494,7 +213,6 @@ impl ToTokens for StrictNameAttr {
         match self {
             StrictNameAttr::Short(s) => quote!(short(#s)),
             StrictNameAttr::Long(l) => quote!(long(#l)),
-            StrictNameAttr::Env(e) => quote!(env(#e)),
         }
         .to_tokens(tokens);
     }

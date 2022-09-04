@@ -7,7 +7,7 @@ use syn::{
     Token, Visibility,
 };
 
-use crate::field::{ConstrName, Doc, Field, ReqFlag};
+use crate::field::{parse_ident, ConstrName, Doc, Field, ReqFlag};
 use crate::kw;
 use crate::utils::{snake_case_ident, to_snake_case, LineIter};
 
@@ -173,6 +173,54 @@ impl Parse for CommandAttr {
         } else {
             Err(input.error("Unexpected attribute"))
         }
+    }
+}
+
+#[derive(Debug)]
+struct Outer {
+    kind: Option<OuterKind>,
+    version: Option<Expr>,
+    comp_style: Option<Expr>,
+    generate: Option<Ident>,
+    help: Option<Decor>,
+}
+
+impl Outer {
+    fn make(attrs: Vec<Attribute>) -> Result<Self> {
+        let mut res = Outer {
+            kind: None,
+            version: None,
+            comp_style: None,
+            generate: None,
+            help: None,
+        };
+
+        let mut help = Vec::new();
+        for attr in attrs {
+            if attr.path.is_ident("doc") {
+                help.push(parse2::<Doc>(attr.tokens)?.0);
+            } else if attr.path.is_ident("bpaf") {
+                attr.parse_args_with(|input: ParseStream| loop {
+                    if input.is_empty() {
+                        break Ok(());
+                    }
+
+                    let input_copy = input.fork();
+                    let keyword = input.parse::<Ident>()?;
+                    if keyword == "generate" {
+                        res.generate = Some(parse_ident(&input)?);
+                    } else {
+                        return Err(input_copy.error("Unexpected attribute"));
+                    }
+
+                    let input_copy = input.fork();
+                    let keyword = input.parse::<Ident>()?;
+                })?;
+            } else {
+                unreachable!("Shouldn't get any attributes other than bpaf and doc")
+            }
+        }
+        todo!("{:?}, {:?}", res, help);
     }
 }
 

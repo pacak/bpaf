@@ -546,7 +546,7 @@ fn hidden_default_enum_singleton() {
                 let alt1 = ::bpaf::long("no")
                     .flag(Decision::No, Decision::No)
                     .hide();
-                let alt2 = ::bpaf::env("x").long("maybe").req_flag(Decision::Maybe);
+                let alt2 = ::bpaf::long("maybe").env("x").req_flag(Decision::Maybe);
                 let alt3 = ::bpaf::long("dunno").req_flag(Decision::Dunno);
                 let alt4 = ::bpaf::short('u').req_flag(Decision::Umm);
                 let alt5 = ::bpaf::short('U').req_flag(Decision::Ummmmmmm);

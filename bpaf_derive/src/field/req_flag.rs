@@ -10,6 +10,7 @@ use crate::utils::LineIter;
 pub struct ReqFlag {
     value: ConstrName,
     naming: Vec<StrictNameAttr>,
+    env: Option<Expr>,
     help: Option<String>,
     is_hidden: bool,
     is_default: bool,
@@ -20,6 +21,7 @@ impl ReqFlag {
         let mut res = ReqFlag {
             value,
             naming: Vec::new(),
+            env: None,
             help: None,
             is_hidden: false,
             is_default: false,
@@ -53,8 +55,8 @@ impl ReqFlag {
                         })
                     } else if keyword == "env" {
                         let _ = parenthesized!(content in input);
-                        let env = Box::new(content.parse::<Expr>()?);
-                        res.naming.push(StrictNameAttr::Env(env));
+                        let env = content.parse::<Expr>()?;
+                        res.env = Some(env);
                     } else if keyword == "hide" {
                         res.is_hidden = true;
                     } else if keyword == "default" {
@@ -89,6 +91,9 @@ impl ToTokens for ReqFlag {
             }
             naming.to_tokens(tokens);
             first = false;
+        }
+        if let Some(env) = &self.env {
+            quote!(.env(#env)).to_tokens(tokens);
         }
         if let Some(help) = &self.help {
             // help only makes sense for named things

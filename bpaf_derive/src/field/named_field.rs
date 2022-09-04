@@ -60,22 +60,22 @@ fn parse_arg<T: Parse>(input: &ParseStream) -> Result<T> {
 }
 
 #[inline(never)]
-fn parse_lit_char(input: &ParseStream) -> Result<LitChar> {
+pub fn parse_lit_char(input: &ParseStream) -> Result<LitChar> {
     parse_arg(input)
 }
 
 #[inline(never)]
-fn parse_lit_str(input: &ParseStream) -> Result<LitStr> {
+pub fn parse_lit_str(input: &ParseStream) -> Result<LitStr> {
     parse_arg(input)
 }
 
 #[inline(never)]
-fn parse_ident(input: &ParseStream) -> Result<Ident> {
+pub fn parse_ident(input: &ParseStream) -> Result<Ident> {
     parse_arg(input)
 }
 
 #[inline(never)]
-fn parse_expr(input: &ParseStream) -> Result<Expr> {
+pub fn parse_expr(input: &ParseStream) -> Result<Expr> {
     parse_arg(input)
 }
 
@@ -232,6 +232,8 @@ impl Field {
                         check_stage(&mut stage, 4, keyword)?;
                         let expr = parse_expr(&input)?;
                         res.postpr.push(PostprAttr::GroupHelp(Box::new(expr)));
+                    } else {
+                        return Err(input_copy.error("Unexpected attribute"));
                     }
 
                     if !input.is_empty() {
