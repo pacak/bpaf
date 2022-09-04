@@ -5,7 +5,7 @@ use syn::parse_macro_input;
 mod field;
 #[cfg(test)]
 mod field_tests;
-mod kw;
+//mod kw;
 mod top;
 mod utils;
 use top::Top;
