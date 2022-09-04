@@ -3,10 +3,13 @@ use quote::ToTokens;
 use syn::parse_macro_input;
 
 mod field;
-mod kw;
+#[cfg(test)]
+mod field_tests;
 mod top;
 mod utils;
 use top::Top;
+#[cfg(test)]
+mod top_tests;
 
 /// Derive macro for bpaf command line parser
 ///

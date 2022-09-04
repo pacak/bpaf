@@ -39,6 +39,7 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+
       - uses: actions-rs/cargo@v1
         with:
           command: check
@@ -55,6 +56,18 @@ jobs:
         with:
           command: test
           args: --workspace --all-targets --no-default-features
+
+      - uses: actions-rs/cargo@v1
+        name: all features
+        with:
+          command: test
+          args: --workspace --doc --all-features
+
+      # without autocomplete
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --workspace --doc --no-default-features
 
       - name: Rustdoc
         uses: actions-rs/cargo@v1

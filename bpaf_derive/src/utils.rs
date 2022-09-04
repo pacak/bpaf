@@ -49,6 +49,8 @@ pub fn to_custom_case(input: &str, sep: char) -> String {
                 res.push(sep);
             }
             res.push(c.to_ascii_lowercase());
+        } else if c == '-' || c == '_' {
+            res.push(sep);
         } else {
             res.push(c);
         }

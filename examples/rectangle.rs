@@ -5,7 +5,7 @@ use bpaf::*;
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone)]
 struct Out {
-    rect: Rect,
+    rect: Option<Rect>,
     verbose: bool,
 }
 
@@ -30,7 +30,8 @@ fn main() {
         .from_str::<usize>();
 
     let rect = construct!(Rect { width, height })
-        .group_help("Rectangle is defined by width and height in meters");
+        .group_help("Rectangle is defined by width and height in meters")
+        .optional();
 
     let verbose = short('v')
         .long("verbose")

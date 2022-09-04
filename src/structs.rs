@@ -255,7 +255,7 @@ fn this_or_that_picks_first(
 
 /// Parser that transforms parsed value with a failing function, created with
 /// [`parse`](Parser::parse)
-pub struct ParseWith<T, P, F, R, E> {
+pub struct ParseWith<T, P, F, E, R> {
     pub(crate) inner: P,
     pub(crate) inner_res: PhantomData<T>,
     pub(crate) parse_fn: F,

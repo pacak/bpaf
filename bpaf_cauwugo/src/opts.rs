@@ -64,7 +64,7 @@ pub struct CargoParams {
 
     #[bpaf(external, map(remember_binary), optional)]
     binary: Option<Binary>,
-    #[bpaf(map(remember_release))]
+    #[bpaf(switch, map(remember_release))]
     release: bool,
     //    quiet: bool,
     //    verbose: usize,
