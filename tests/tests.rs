@@ -834,27 +834,6 @@ Available options:
 }
 
 #[test]
-fn optional_req_select() {
-    let a = short('a').req_flag(());
-    let b = short('b').req_flag(());
-    let ab = a.or_else(b).optional();
-    let parser = ab.to_options();
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
-    let expected_help = "\
-Usage: [-a | -b]
-
-Available options:
-    -a
-    -b
-    -h, --help  Prints help information
-";
-    assert_eq!(expected_help, help);
-}
-
-#[test]
 fn default_plays_nicely_with_command() {
     #[derive(Debug, Clone)]
     enum Foo {
@@ -995,7 +974,7 @@ fn help_for_commands() {
         .short('e')
         .help("help for e\ntwo lines");
     let h = command("thing_h", pure(()).to_options());
-    let parser = construct!(d, e, h).to_options();
+    let parser = construct!([d, e, h]).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
