@@ -349,8 +349,9 @@ use std::marker::PhantomData;
 pub use structs::PCon;
 
 use structs::{
-    ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp, ParseGuard,
-    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
+    ParseCatch, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
+    ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1492,6 +1493,22 @@ pub trait Parser<T> {
         ParseComp { inner: self, op }
     }
     // }}}
+
+    #[must_use]
+    /// Handle and ignore any failing parser
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` would consume items and return the value
+    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed values and return
+    /// None.
+    /// # Combinatoric usage
+    ///
+    fn catch(self) -> ParseCatch<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseCatch { inner: self }
+    }
 
     /// Add extra annotations to completion information
     ///

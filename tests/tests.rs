@@ -1565,3 +1565,25 @@ fn custom_usage_override() {
         "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
     );
 }
+
+#[test]
+fn catch_works() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum A {
+        Num(usize),
+        Str(String),
+    }
+    let a_n = short('a')
+        .argument("A")
+        .from_str::<usize>()
+        .map(A::Num)
+        .catch();
+    let a_s = short('a').argument("A").map(A::Str).hide().optional();
+    let parser = construct!([a_n, a_s]).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    assert_eq!(r, Some(A::Num(1)));
+
+    let r = parser.run_inner(Args::from(&["-a", "x1"])).unwrap();
+    assert_eq!(r, Some(A::Str("x1".to_owned())));
+}

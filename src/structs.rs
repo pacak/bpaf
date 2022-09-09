@@ -390,6 +390,34 @@ where
 pub struct ParseMany<P> {
     pub(crate) inner: P,
 }
+pub struct ParseCatch<P> {
+    pub(crate) inner: P,
+}
+
+impl<P, T> Parser<Option<T>> for ParseCatch<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
+        let mut orig_args = args.clone();
+        match self.inner.eval(args) {
+            Ok(res) => Ok(Some(res)),
+            Err(Error::Stderr(_err)) => {
+                std::mem::swap(args, &mut orig_args);
+                #[cfg(feature = "autocomplete")]
+                if orig_args.comp.is_some() {
+                    std::mem::swap(&mut args.comp, &mut orig_args.comp);
+                }
+                Ok(None)
+            }
+            Err(err @ Error::Missing(_) | err @ Error::Stdout(..)) => Err(err),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
 
 fn parse_option<P, T>(parser: &P, args: &mut Args) -> Result<Option<T>, Error>
 where
