@@ -1504,7 +1504,7 @@ pub trait Parser<T> {
     ///
     /// Parser transformed with `catch` needs to return `Option<T>` already, so most
     /// likely you will be using `catch` in combination with [`optional`].
-    #[doc = include_str!("../docs/src/catch.md")]
+    #[doc = include_str!("docs/catch.md")]
     fn catch(self) -> ParseCatch<Self>
     where
         Self: Sized + Parser<T>,

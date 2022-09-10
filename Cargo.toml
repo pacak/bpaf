@@ -10,6 +10,8 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
 rust-version = "1.56"
+exclude = [".github/workflows"]
+
 
 [dependencies]
 bpaf_derive = { path = "./bpaf_derive", version = "0.2.2", optional = true }

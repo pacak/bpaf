@@ -168,7 +168,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
     for sample in &cases {
         writeln!(t_d, "\n{}", sample.descr.trim())?;
         writeln!(t_d, "```console")?;
-        writeln!(t_d, "% app {}", sample.args)?;
+        writeln!(t_d, "% app {}", sample.args.trim())?;
         writeln!(t_d, "{}", sample.output.trim())?;
         writeln!(t_d, "```")?
     }
@@ -232,7 +232,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         name.set_extension("rs");
         write_updated(example, name)?;
 
-        let mut name = PathBuf::from(&"src").join(file.file_name());
+        let mut name = PathBuf::from("../src/docs").join(file.file_name());
         name.set_extension("md");
         write_updated(docs, name)?;
     }
