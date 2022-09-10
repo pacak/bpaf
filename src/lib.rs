@@ -1495,14 +1495,16 @@ pub trait Parser<T> {
     // }}}
 
     #[must_use]
-    /// Handle and ignore any failing parser
+    /// Handle parse failures
     ///
     /// Can be useful to decide to skip parsing of some items on a command line
     /// When parser succeeds - `catch` would consume items and return the value
-    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed values and return
-    /// None.
-    /// # Combinatoric usage
+    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed
+    /// values and return None.
     ///
+    /// Parser transformed with `catch` needs to return `Option<T>` already, so most
+    /// likely you will be using `catch` in combination with [`optional`].
+    #[doc = include_str!("../docs/src/catch.md")]
     fn catch(self) -> ParseCatch<Self>
     where
         Self: Sized + Parser<T>,

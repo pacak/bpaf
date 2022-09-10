@@ -46,4 +46,4 @@ name = "csample"
 required-features = ["autocomplete"]
 
 [workspace]
-members = [".", "./bpaf_derive", "./bpaf_cauwugo"]
+members = [".", "./bpaf_derive", "./bpaf_cauwugo", "docs"]

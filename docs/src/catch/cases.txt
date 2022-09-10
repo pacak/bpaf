@@ -1,0 +1,12 @@
+# No argument, both parsers succeed due to [`option`]
+>
+OK
+Options { version: None, feature: None }
+# Decimal value - version parser succeeds
+> 10
+OK
+Options { version: Some(10), feature: None }
+# String value - version parser fails, catch handles that.
+> feature
+OK
+Options { version: None, feature: Some("feature") }
