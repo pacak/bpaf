@@ -1577,6 +1577,7 @@ fn catch_works() {
         .argument("A")
         .from_str::<usize>()
         .map(A::Num)
+        .optional()
         .catch();
     let a_s = short('a').argument("A").map(A::Str).hide().optional();
     let parser = construct!([a_n, a_s]).to_options();

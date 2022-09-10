@@ -241,6 +241,9 @@ impl Field {
                     } else if keyword == "hide" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Hide(span));
+                    } else if keyword == "catch" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::Catch(span));
                     } else if keyword == "group_help" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let expr = parse_expr(input)?;
