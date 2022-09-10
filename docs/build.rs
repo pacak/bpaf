@@ -26,6 +26,7 @@ impl Default for Code {
     }
 }
 
+#[derive(Debug)]
 enum Mode {
     Descr,
     Args,
@@ -46,7 +47,7 @@ fn parse_test_cases<P: AsRef<Path>>(path: P) -> Result<Vec<TestCase>, Box<dyn Er
         loop {
             match mode {
                 Mode::Descr => {
-                    if let Some(descr) = line.strip_prefix("# ") {
+                    if let Some(descr) = line.strip_prefix("? ") {
                         cur.descr.push_str(descr);
                         cur.descr.push('\n');
                     } else {
@@ -72,7 +73,7 @@ fn parse_test_cases<P: AsRef<Path>>(path: P) -> Result<Vec<TestCase>, Box<dyn Er
                     mode = Mode::Output;
                 }
                 Mode::Output => {
-                    if line.starts_with("# ") {
+                    if line.starts_with("? ") {
                         mode = Mode::Descr;
                         res.push(std::mem::take(&mut cur));
                         continue;
@@ -122,6 +123,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
 
     if combine {
         writeln!(t_r, "mod combine;\n")?;
+        writeln!(t_r, "#[rustfmt::skip]")?;
         writeln!(t_r, "#[test]\nfn combine_works() {{")?;
         writeln!(t_r, "    use bpaf::*;")?;
         writeln!(t_r, "    let options = combine::options();")?;
@@ -131,6 +133,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
 
     if derive {
         writeln!(t_r, "mod derive;\n")?;
+        writeln!(t_r, "#[rustfmt::skip]")?;
         writeln!(t_r, "#[test]\nfn derive_works() {{")?;
         writeln!(t_r, "    use bpaf::*;")?;
         writeln!(t_r, "    let options = derive::options();")?;

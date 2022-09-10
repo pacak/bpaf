@@ -69,6 +69,15 @@ jobs:
           command: test
           args: --workspace --doc --no-default-features
 
+      - name: example documentation
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --all-features -p docs
+
+      - name: should not have any changes
+        run: git diff && git diff-index --quiet HEAD --
+
       - name: Rustdoc
         uses: actions-rs/cargo@v1
         with:
