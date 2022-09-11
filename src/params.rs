@@ -1274,3 +1274,89 @@ impl Parser<String> for Positional<String> {
         self.meta()
     }
 }
+
+pub struct GetAny<T> {
+    ty: PhantomData<T>,
+    metavar: &'static str,
+    strict: bool,
+    help: Option<String>,
+}
+
+pub fn any(metavar: &'static str) -> GetAny<OsString> {
+    GetAny {
+        ty: PhantomData,
+        metavar,
+        strict: false,
+        help: None,
+    }
+}
+
+impl<T> GetAny<T> {
+    pub fn str(self) -> GetAny<String> {
+        GetAny {
+            ty: PhantomData,
+            metavar: self.metavar,
+            help: self.help,
+            strict: self.strict,
+        }
+    }
+    pub fn help<M: ToString>(mut self, help: M) -> Self {
+        self.help = Some(help.to_string());
+        self
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Item(self.item())
+    }
+
+    fn item(&self) -> Item {
+        Item::Positional {
+            metavar: self.metavar,
+            strict: self.strict,
+            help: self.help.clone(),
+        }
+    }
+
+    /// returns real items only
+    fn next_os_string(&self, args: &mut Args) -> Result<OsString, Error> {
+        let (ix, item) = match args.items_iter().next() {
+            Some(item_with_index) => item_with_index,
+            None => return Err(Error::Missing(vec![self.item()])),
+        };
+        let os = item.as_os().to_owned();
+        args.remove(ix);
+        if os.is_empty() {
+            todo!("explain error here");
+        } else {
+            Ok(os)
+        }
+    }
+}
+
+impl Parser<String> for GetAny<String> {
+    fn eval(&self, args: &mut Args) -> Result<String, Error> {
+        let os = self.next_os_string(args)?;
+        match os.to_str() {
+            Some(s) => Ok(s.to_owned()),
+            None => Err(Error::Stderr(format!(
+                "Can't consume {} as String: {} contains non-utf8 characters",
+                self.item(),
+                os.to_string_lossy(),
+            ))),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta()
+    }
+}
+
+impl Parser<OsString> for GetAny<OsString> {
+    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
+        self.next_os_string(args)
+    }
+
+    fn meta(&self) -> Meta {
+        self.meta()
+    }
+}

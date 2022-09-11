@@ -1,5 +1,5 @@
 use crate::{Error, Named};
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
 /// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
 #[derive(Debug, Clone, Eq, PartialEq, Default)]
@@ -234,6 +234,14 @@ impl std::fmt::Display for Arg {
                 Some(s) => write!(f, "{}", s),
                 None => Err(std::fmt::Error),
             },
+        }
+    }
+}
+
+impl Arg {
+    pub(crate) fn as_os(&self) -> &OsStr {
+        match self {
+            Arg::Short(_, os) | Arg::Long(_, os) | Arg::Word(Word { os, .. }) => os.as_ref(),
         }
     }
 }
