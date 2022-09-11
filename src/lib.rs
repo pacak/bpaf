@@ -1131,6 +1131,7 @@ pub trait Parser<T> {
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
     /// comes from a failing computation such as reading a file.
+    /// TODO: document top level fallback for derive
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
