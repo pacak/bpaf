@@ -247,6 +247,19 @@
 //!    - field-less enum variants obey slightly different set of rules, see
 //!    [`req_flag`](Named::req_flag) for more details.
 //!
+//!    - any constructor in `enum` can have `skip` annotation - bpaf_derive
+//!      would ignore them when generating code:
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      enum Decision {
+//!          Yes,
+//!          No,
+//!          #[bpaf(skip)]
+//!          Maybe
+//!      }
+//!
+//!      ```
 //!
 //! 6. Add documentation for help messages.
 //!    `bpaf_derive` generates help messages from doc comments, it skips single empty lines and stops

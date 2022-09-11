@@ -575,6 +575,8 @@ fn fallback_for_enum() {
         enum Decision {
             Yes,
             No,
+            #[bpaf(skip)]
+            Undecided,
         }
     };
 

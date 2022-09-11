@@ -132,6 +132,7 @@ pub struct Inner {
     pub envs: Vec<Expr>,
     pub is_hidden: bool,
     pub is_default: bool,
+    pub skip: bool,
 }
 
 impl Inner {
@@ -144,6 +145,7 @@ impl Inner {
             envs: Vec::new(),
             is_hidden: false,
             is_default: false,
+            skip: false,
         };
         for attr in attrs {
             if attr.path.is_ident("doc") {
@@ -187,6 +189,8 @@ impl Inner {
                         res.is_hidden = true;
                     } else if keyword == "default" {
                         res.is_default = true;
+                    } else if keyword == "skip" {
+                        res.skip = true;
                     } else {
                         return Err(input_copy.error("Not a valid inner attribute"));
                     }
@@ -418,16 +422,18 @@ impl Top {
                 BParser::Singleton(Box::new(req_flag))
             };
 
-            if let Some(cmd_arg) = inner.command {
-                let decor = Decor::new(&inner.help, None);
-                let oparser = OParser {
-                    inner: Box::new(branch),
-                    decor,
-                };
-                let branch = BParser::Command(cmd_arg, Box::new(oparser));
-                branches.push(branch);
-            } else {
-                branches.push(branch);
+            if !inner.skip {
+                if let Some(cmd_arg) = inner.command {
+                    let decor = Decor::new(&inner.help, None);
+                    let oparser = OParser {
+                        inner: Box::new(branch),
+                        decor,
+                    };
+                    let branch = BParser::Command(cmd_arg, Box::new(oparser));
+                    branches.push(branch);
+                } else {
+                    branches.push(branch);
+                }
             }
 
             if !enum_contents.is_empty() {
