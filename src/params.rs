@@ -521,71 +521,22 @@ impl Named {
 
     /// Required flag with custom value
     ///
-    /// Parser produces a value if present and fails otherwise.
+    /// Similar to [`flag`](Named::flag) takes no option arguments, but will only
+    /// succeed if user specifies it on a command line.
     /// Not very useful by itself and works best in combination with other parsers.
+    /// ## Using `req_flag` to implement 3-state options.
     ///
-    /// # Combinatoric usage
+    /// In derive mode `bpaf` would transform field-less enum variants into `req_flag`
+    /// In addition to naming annotations (`short`, `long` and `env`) such variants also
+    /// accepts `hide` and `default` annotations. Former hides it from `--help` (see
+    /// [`hide`](Parser::hide), later makes it a default choice if preceeding variants
+    /// fail to parse. You shoud only use `default` annotation on the last variant of
+    /// enum. To better convey the meaning you might want to use a combination of
+    /// `skip` and `fallback` annotations, see examples.
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Clone)]
-    /// enum Decision {
-    ///     On,
-    ///     Off,
-    ///     Undecided
-    /// }
-    ///
-    /// // user can specify either --on or --off, parser would fallback to `Undecided`
-    /// fn parse_decision() -> impl Parser<Decision> {
-    ///     let on = long("on").req_flag(Decision::On);
-    ///     let off = long("off").req_flag(Decision::Off);
-    ///     on.or_else(off).fallback(Decision::Undecided)
-    /// }
-    /// ```
-    ///
-    /// # Example
-    ///
-    /// ```console
-    /// $ app --on
-    /// // Decision::On
-    /// $ app
-    /// // Decision::Undecided
-    /// ```
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// // counts number of flags `-v` on the command line
-    /// fn verbosity() -> impl Parser<usize> {
-    ///     short('v').req_flag(()).many().map(|v| v.len())
-    /// }
-    /// ```
-    /// # Example
-    /// ```console
-    /// $ app
-    /// // 0
-    /// $ app -vv -v
-    /// // 3
-    /// ```
-    ///
-    /// # Derive usage
-    /// bpaf would transform field-less enum variants into values combined by `req_flag`.
-    /// In addition to naming annotations (`short`, `long` and `env`) such variants also accept
-    /// `hide` and `default` annotations. Former hides it from `--help` (see
-    /// [`hide`](Parser::hide), later makes it a default choice if preceeding variants fail to
-    /// parse. You shoud only use `default` annotation on the last variant of enum.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// enum Decision {
-    ///     On,
-    ///     Off,
-    ///     #[bpaf(long, hide, default)]
-    ///     Undecided,
-    /// }
-    /// ```
     ///
     /// See [`Named`] for more details
+    #[doc = include_str!("docs/req_flag.md")]
     #[must_use]
     pub fn req_flag<T>(self, present: T) -> impl Parser<T>
     where

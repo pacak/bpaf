@@ -1,0 +1,28 @@
+? This example implements a tri-state switch: wether decision was made
+? positive, negative or not at all. Alternative implementation can use
+? [`optional`](Parser::optional) and `None` to indicate "no decision" case.
+? A case with positive decision:
+> --on
+OK
+Options { decision: On }
+
+? A case with no decision:
+>
+OK
+Options { decision: Undecided }
+
+? `--on` and `--off` are mutually exclusive:
+> --on --off
+Stderr
+--off is not expected in this context
+
+? help
+> --help
+Stdout
+Usage: [--on | --off]
+
+Available options:
+        --on    Positive decision
+        --off   Negative decision
+    -h, --help  Prints help information
+
