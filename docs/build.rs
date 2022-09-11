@@ -38,6 +38,11 @@ fn parse_test_cases<P: AsRef<Path>>(path: P) -> Result<Vec<TestCase>, Box<dyn Er
     let path = path.as_ref();
     let mut res = Vec::new();
 
+    if !path.exists() {
+        let mut file = std::fs::File::create(path)?;
+        const SAMPLE: &str = "? description\n> arguments\nOK -- code\nexpected output";
+        std::io::Write::write_all(&mut file, SAMPLE.as_bytes())?;
+    }
     let file = std::fs::File::open(path)?;
     let mut cur = TestCase::default();
 
@@ -103,10 +108,14 @@ fn write_cases(res: &mut String, cases: &[TestCase]) -> Result<(), Box<dyn Error
                 writeln!(res, "unwrap();")?;
                 writeln!(res, "    let r = format!(\"{{:?}}\", r);")?;
             }
-            Code::Stderr => writeln!(res, "unwrap_err().unwrap_err()")?,
-            Code::Stdout => writeln!(res, "unwrap_err().unwrap_stdout()")?,
+            Code::Stderr => writeln!(res, "unwrap_err().unwrap_stderr();")?,
+            Code::Stdout => writeln!(res, "unwrap_err().unwrap_stdout();")?,
         }
-        writeln!(res, "    assert_eq!(r, {:?});", case.output.trim_end())?;
+        writeln!(
+            res,
+            "    assert_eq!(r.trim_end(), {:?});",
+            case.output.trim_end()
+        )?;
     }
     Ok(())
 }
