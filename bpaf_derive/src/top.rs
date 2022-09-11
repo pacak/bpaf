@@ -43,7 +43,7 @@ enum BParser {
     CompStyle(Box<Expr>, Box<BParser>),
     Constructor(ConstrName, Fields),
     Singleton(Box<ReqFlag>),
-    Fold(Vec<BParser>),
+    Fold(Vec<BParser>, Option<Expr>),
 }
 
 #[derive(Debug)]
@@ -215,6 +215,7 @@ struct Outer {
     decor: Decor,
     longs: Vec<LitStr>,
     shorts: Vec<LitChar>,
+    fallback: Option<Expr>,
 }
 
 impl Outer {
@@ -228,6 +229,7 @@ impl Outer {
             decor: Decor::default(),
             longs: Vec::new(),
             shorts: Vec::new(),
+            fallback: None,
         };
 
         let mut help = Vec::new();
@@ -283,6 +285,9 @@ impl Outer {
                         res.longs.push(lit);
                     } else if keyword == "private" {
                         res.vis = Visibility::Inherited;
+                    } else if keyword == "fallback" {
+                        let fallback = parse_expr(input)?;
+                        res.fallback = Some(fallback);
                     } else {
                         return Err(input_copy.error("Unexpected attribute"));
                     }
@@ -367,6 +372,7 @@ impl Top {
         let constr = ConstrName {
             namespace: None,
             constr: outer_ty.clone(),
+            fallback: outer.fallback.clone(),
         };
         let inner = BParser::Constructor(constr, fields);
         Ok(Top {
@@ -399,6 +405,7 @@ impl Top {
             let constr = ConstrName {
                 namespace: Some(outer_ty.clone()),
                 constr: inner_ty,
+                fallback: None,
             };
 
             let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
@@ -431,7 +438,7 @@ impl Top {
         let inner = match branches.len() {
             0 => todo!(),
             1 => branches.remove(0),
-            _ => BParser::Fold(branches),
+            _ => BParser::Fold(branches, outer.fallback.clone()),
         };
 
         Ok(Top {
@@ -517,6 +524,9 @@ impl ToTokens for BParser {
             .to_tokens(tokens),
             BParser::Constructor(con, Fields::NoFields) => {
                 quote!(::bpaf::pure(#con)).to_tokens(tokens);
+                if let Some(fallback) = &con.fallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
+                }
             }
             BParser::Constructor(con, bra) => {
                 let parse_decls = bra.parser_decls();
@@ -525,8 +535,11 @@ impl ToTokens for BParser {
                     ::bpaf::construct!(#con #bra)
                 })
                 .to_tokens(tokens);
+                if let Some(fallback) = &con.fallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
+                }
             }
-            BParser::Fold(xs) => {
+            BParser::Fold(xs, mfallback) => {
                 if xs.len() == 1 {
                     xs[0].to_tokens(tokens);
                 } else {
@@ -541,6 +554,9 @@ impl ToTokens for BParser {
                         ::bpaf::construct!([#(#names),*])
                     })
                     .to_tokens(tokens);
+                }
+                if let Some(fallback) = mfallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
                 }
             }
             BParser::Singleton(field) => field.to_tokens(tokens),

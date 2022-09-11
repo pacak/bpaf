@@ -567,3 +567,51 @@ fn enum_singleton_unk() {
         }
     };
 }
+
+#[test]
+fn fallback_for_enum() {
+    let top: Top = parse_quote! {
+        #[bpaf(fallback(Decision::No))]
+        enum Decision {
+            Yes,
+            No,
+        }
+    };
+
+    let expected = quote! {
+        fn decision() -> impl ::bpaf::Parser<Decision> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
+                let alt1 = ::bpaf::long("no").req_flag(Decision::No);
+                ::bpaf::construct!([alt0, alt1])
+            }
+            .fallback(Decision::No)
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn fallback_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(fallback(Value { count: 10 }))]
+        struct Value {
+            count: usize,
+        }
+    };
+
+    let expected = quote! {
+        fn value() -> impl ::bpaf::Parser<Value> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let count = ::bpaf::long("count").argument("ARG").from_str::<usize>();
+                ::bpaf::construct!(Value { count })
+            }
+            .fallback(Value { count: 10 })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
