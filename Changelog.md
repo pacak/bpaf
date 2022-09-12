@@ -1,4 +1,7 @@
 # Change Log
+## bpaf [0.5.8] - unreleased
+- usage line refactor, cosmetic mostly
+- include \n in --version, cosmetic
 
 ## bpaf [0.5.7] - 2022-09-04
 - bugfix with zsh autocomplete #46
