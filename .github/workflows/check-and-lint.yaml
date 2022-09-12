@@ -97,6 +97,7 @@ jobs:
           toolchain: stable
           override: true
       - run: rustup component add rustfmt
+      - run: echo "" > docs/src/lib.rs
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
