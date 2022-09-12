@@ -137,7 +137,7 @@ fn either_of_three_required_flags() {
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated
@@ -179,7 +179,7 @@ fn either_of_three_required_flags2() {
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated
@@ -221,7 +221,7 @@ fn either_of_two_required_flags_and_one_optional() {
         .run_inner(Args::from(&["-V"]))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated
