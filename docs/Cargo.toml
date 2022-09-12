@@ -2,13 +2,14 @@
 name = "docs"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 path = "src/lib.rs"
 
 [dependencies]
-bpaf = { version = "0.5.7", path = "../", features = ["autocomplete", "derive"] }
+bpaf = { path = "../", features = ["autocomplete", "derive"] }
 
 [build-dependencies]
 shell-words = "1.1.0"
