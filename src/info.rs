@@ -262,7 +262,7 @@ impl<T> OptionParser<T> {
                 return Err(Error::Stdout(msg));
             }
             Ok(ExtraParams::Version(v)) => {
-                return Err(Error::Stdout(format!("Version: {}", v)));
+                return Err(Error::Stdout(format!("Version: {}\n", v)));
             }
             Err(_) => {}
         }
