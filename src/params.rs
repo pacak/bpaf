@@ -219,6 +219,7 @@ impl Named {
         Item::Flag {
             name: ShortLong::from(self),
             help: self.help.clone(),
+            shorts: self.short.clone(),
         }
     }
 }
@@ -612,11 +613,13 @@ impl Named {
         build_argument(self, metavar)
     }
 
+    #[track_caller]
     pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
         match arg {
             Arg::Short(s, _) => self.short.contains(s),
             Arg::Long(l, _) => self.long.contains(&l.as_str()),
             Arg::Word(_) | Arg::PosWord(_) => false,
+            Arg::Ambiguity(..) => false,
         }
     }
 }
@@ -1047,6 +1050,7 @@ impl BuildArgument {
             metavar: self.metavar,
             env: self.named.env.first().copied(),
             help: self.named.help.clone(),
+            shorts: self.named.short.clone(),
         }
     }
 }
@@ -1317,7 +1321,9 @@ impl<T> GetAny<T> {
     }
 
     /// returns real items only
-    fn next_os_string(&self, args: &mut Args) -> Result<OsString, Error> {
+    fn next_os_string(&self, _args: &mut Args) -> Result<OsString, Error> {
+        todo!()
+        /*
         let (ix, item) = match args.items_iter().next() {
             Some(item_with_index) => item_with_index,
             None => return Err(Error::Missing(vec![self.item()])),
@@ -1328,7 +1334,7 @@ impl<T> GetAny<T> {
             todo!("explain error here");
         } else {
             Ok(os)
-        }
+        }*/
     }
 }
 

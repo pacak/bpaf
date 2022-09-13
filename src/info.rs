@@ -210,6 +210,16 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
+        let mut avail_flags = Vec::new();
+        let mut avail_args = Vec::new();
+        self.inner
+            .meta()
+            .collect_shorts(&mut avail_flags, &mut avail_args);
+        args.disambiguate(&avail_flags, &avail_args)?;
+        println!(
+            "disambiguated to {:?} / {:?} / {:?}",
+            args, avail_flags, avail_args
+        );
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),

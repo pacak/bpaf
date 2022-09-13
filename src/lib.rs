@@ -1705,6 +1705,7 @@ impl ParseFailure {
     ///
     /// Panics if failure contains `stdout`
     #[allow(clippy::must_use_candidate)]
+    #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
             Self::Stderr(err) => err,
@@ -1720,6 +1721,7 @@ impl ParseFailure {
     ///
     /// Panics if failure contains `stderr`
     #[allow(clippy::must_use_candidate)]
+    #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
             Self::Stdout(err) => err,

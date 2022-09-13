@@ -10,6 +10,8 @@ mod inner {
         rc::Rc,
     };
 
+    use crate::ParseFailure;
+
     use super::{push_vec, Arg};
     /// All currently present command line parameters, use it for unit tests and manual parsing
     ///
@@ -67,6 +69,9 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         pub(crate) comp: Option<crate::complete_gen::Complete>,
+
+        /// how many Ambiguities are there
+        pub(crate) ambig: usize,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -93,18 +98,30 @@ mod inner {
         fn from(xs: &[OsString]) -> Self {
             let mut pos_only = false;
             let mut vec = Vec::with_capacity(xs.len());
+            let mut ambig = 0;
 
-            let mut del = None;
+            let mut del = Vec::new();
             for x in xs {
-                push_vec(&mut vec, x.clone(), &mut pos_only);
-                if del.is_none() && pos_only {
+                let prev_pos_only = pos_only;
+                if push_vec(&mut vec, x.clone(), &mut pos_only) {
+                    for (ix, arg) in vec.iter().enumerate().rev() {
+                        // mark objects following the Ambiguity as removed
+                        // until Ambiguity is resolved
+                        if matches!(arg, Arg::Ambiguity(..)) {
+                            ambig += 1;
+                            break;
+                        }
+                        del.push(ix);
+                    }
+                }
+                if !prev_pos_only && pos_only {
                     // keep "--" in the argument list but mark it as removed
                     // completer uses it to deal with "--" inputs
-                    del = Some(vec.len() - 1);
+                    del.push(vec.len() - 1);
                 }
             }
-            let mut args = Args::args_from(vec);
-            if let Some(ix) = del {
+            let mut args = Args::args_from(vec, ambig);
+            for ix in del {
                 args.remove(ix);
             }
             args
@@ -112,7 +129,7 @@ mod inner {
     }
 
     impl Args {
-        pub(crate) fn args_from(vec: Vec<Arg>) -> Self {
+        pub(crate) fn args_from(vec: Vec<Arg>, ambig: usize) -> Self {
             Args {
                 removed: vec![false; vec.len()],
                 remaining: vec.len(),
@@ -125,6 +142,7 @@ mod inner {
                 comp: None,
                 #[cfg(feature = "autocomplete")]
                 no_pos_ahead: false,
+                ambig,
             }
         }
     }
@@ -162,6 +180,7 @@ mod inner {
             match &self.items[ix] {
                 Arg::Short(_, _) | Arg::Long(_, _) => None,
                 Arg::Word(w) | Arg::PosWord(w) => Some(w),
+                Arg::Ambiguity(..) => unreachable!("Unresolved Ambiguity"),
             }
         }
 
@@ -187,6 +206,55 @@ mod inner {
         pub fn set_comp(mut self, rev: usize) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(rev));
             self
+        }
+
+        #[inline(never)]
+        pub(crate) fn disambiguate(
+            &mut self,
+            flags: &[char],
+            args: &[char],
+        ) -> Result<(), ParseFailure> {
+            for (ix, arg) in self.items.iter().enumerate() {
+                if let Arg::Ambiguity(items, os) = &arg {
+                    let flag_ok = items.iter().all(|i| flags.contains(i));
+                    let arg_ok = args.contains(&items[0]);
+
+                    match (flag_ok, arg_ok) {
+                        (true, true) => {
+                            let s = os.to_str().unwrap();
+                            let msg = format!(
+                                "Parser supports -{} as both option and option-argument, \
+                                          try to split {} into individual options (-{} -{} ..) \
+                                          or use -{}={} syntax to disambiguate",
+                                items[0],
+                                s,
+                                items[0],
+                                items[1],
+                                items[0],
+                                &s[1 + items[0].len_utf8()..]
+                            );
+                            return Err(ParseFailure::Stderr(msg));
+                        }
+                        (true, false) => {
+                            self.removed[ix] = true;
+                            for i in 0..items.len() {
+                                self.removed[ix + i + 1] = false;
+                            }
+                            self.remaining += items.len() - 1;
+                            self.ambig -= 1;
+                        }
+                        (false, true) => {
+                            self.removed[ix] = true;
+                            self.removed[ix + items.len() + 1] = false;
+                            self.removed[ix + items.len() + 2] = false;
+                            self.remaining += 1; // removed Ambiguity, added short and word
+                            self.ambig -= 1;
+                        }
+                        (false, false) => {}
+                    }
+                }
+            }
+            Ok(())
         }
     }
 
@@ -342,6 +410,7 @@ mod tests {
     #[test]
     fn multiple_short_flags() {
         let mut a = Args::from(&["-vvv"]);
+        a.disambiguate(&['v'], &[]).unwrap();
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
@@ -451,5 +520,39 @@ mod tests {
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.1, "-x");
         assert!(a.is_empty());
+    }
+
+    #[test]
+    fn abiguity_towards_flag() {
+        let mut a = Args::from(&["-abc"]);
+        a.disambiguate(&['a', 'b', 'c'], &[]).unwrap();
+        assert!(a.take_flag(&short('a')));
+        assert!(a.take_flag(&short('b')));
+        assert!(a.take_flag(&short('c')));
+    }
+
+    #[test]
+    fn abiguity_towards_argument() {
+        let mut a = Args::from(&["-abc"]);
+        a.disambiguate(&[], &['a']).unwrap();
+        let r = a.take_arg(&short('a')).unwrap().unwrap();
+        assert_eq!(r, "bc");
+    }
+
+    #[test]
+    fn abiguity_towards_error() {
+        let mut a = Args::from(&["-abc"]);
+        let msg = a
+            .disambiguate(&['a', 'b', 'c'], &['a'])
+            .unwrap_err()
+            .unwrap_stderr();
+        assert_eq!(msg, "Parser supports -a as both option and option-argument, try to split -abc into individual options (-a -b ..) or use -a=bc syntax to disambiguate");
+    }
+
+    #[test]
+    fn abiguity_towards_default() {
+        let a = Args::from(&["-abc"]);
+        let is_ambig = matches!(a.peek(), Some(Arg::Ambiguity(_, _)));
+        assert!(is_ambig);
     }
 }

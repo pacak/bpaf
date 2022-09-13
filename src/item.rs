@@ -16,10 +16,12 @@ pub enum Item {
     },
     Flag {
         name: ShortLong,
+        shorts: Vec<char>,
         help: Option<String>,
     },
     Argument {
         name: ShortLong,
+        shorts: Vec<char>,
         metavar: &'static str,
         env: Option<&'static str>,
         help: Option<String>,
@@ -57,12 +59,17 @@ impl std::fmt::Display for Item {
                 strict: _,
             } => write!(f, "<{}>", metavar),
             Item::Command { .. } => write!(f, "COMMAND ..."),
-            Item::Flag { name, help: _ } => write!(f, "{}", name),
+            Item::Flag {
+                name,
+                help: _,
+                shorts: _,
+            } => write!(f, "{}", name),
             Item::Argument {
                 name,
                 metavar,
                 help: _,
                 env: _,
+                shorts: _,
             } => write!(f, "{} {}", name, metavar),
         }
     }

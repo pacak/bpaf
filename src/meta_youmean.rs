@@ -98,6 +98,7 @@ fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
             Some(s) => I::LongCmd(s),
             None => return,
         },
+        Arg::Ambiguity(_, _) => todo!(),
     };
     match item {
         Item::Positional { .. } => {}

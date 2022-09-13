@@ -133,7 +133,11 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                 *is_pos = true;
                 UsageMeta::Command
             }
-            Item::Flag { name, help: _ } => match name {
+            Item::Flag {
+                name,
+                help: _,
+                shorts: _,
+            } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => UsageMeta::ShortFlag(*s),
                 ShortLong::Long(l) => UsageMeta::LongFlag(l),
             },
@@ -142,6 +146,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                 metavar,
                 env: _,
                 help: _,
+                shorts: _,
             } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
                     UsageMeta::ShortArg(*s, metavar)

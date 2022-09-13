@@ -132,7 +132,7 @@ impl Args {
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
-            Arg::Short(_, _) | Arg::Long(_, _) => false,
+            Arg::Short(_, _) | Arg::Long(_, _) | Arg::Ambiguity(_, _) => false,
             Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
@@ -269,7 +269,8 @@ impl Arg {
                 }
             }
             Arg::Long(_, s) => Some((self, s)),
-            Arg::Word(w) | Arg::PosWord(w) => Some((self, &w)),
+            Arg::Word(w) | Arg::PosWord(w) => Some((self, w)),
+            Arg::Ambiguity(_, s) => Some((self, s)),
         }
     }
 }
@@ -292,15 +293,18 @@ impl Args {
             .filter_map(Arg::and_os_string)
             .filter_map(pair_to_os_string);
 
-        // try get a current item to complete - must be non-virtual right most one
-        // value must be present here, and can fail only for non-utf8 values
-        // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (arg, lit) = items
-            .next()
-            .ok_or_else(|| Error::Stdout("\n".to_string()))?;
-
-        // also if lit is to the _right_ of double dash - it can be positional only - so meta or
-        // value
+        let arg;
+        let lit;
+        if self.ambig > 0 {
+            todo!()
+        } else {
+            // try get a current item to complete - must be non-virtual right most one
+            // value must be present here, and can fail only for non-utf8 values
+            // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
+            (arg, lit) = items
+                .next()
+                .ok_or_else(|| Error::Stdout("\n".to_string()))?;
+        }
 
         let pos_only = items.any(|(_arg, lit)| lit == "--");
 

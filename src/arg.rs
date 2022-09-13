@@ -1,50 +1,122 @@
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 
 /// Preprocessed command line argument
 ///
 /// [`OsString`] in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
-    /// short flag
+    /// ambiguity between group of short options and a short option with an argument
+    /// `-abc` can be either equivalent of `-a -b -c` or `-a=bc`
+    ///
+    /// OsString is always valid utf8 here
+    Ambiguity(Vec<char>, OsString),
+
+    /// short flag: `-f`
+    ///
+    /// OsString is always valid utf8 here
     Short(char, OsString),
-    /// long flag
+
+    /// long flag: `--flag`
+    ///
+    /// OsString is always valid utf8 here
     Long(String, OsString),
+
     /// separate word that can be command, positional or an argument to a flag
+    ///
+    /// Can start with `-` or `--`, doesn't have to be valid utf8
+    ///
+    /// `hello`
     Word(OsString),
-    /// separate word that goes after --, strictly positional
+
+    /// separate word that goes after `--`, strictly positional
+    ///
+    /// Can start with `-` or `--`, doesn't have to be valid utf8
     PosWord(OsString),
 }
 
+// short flag disambiguations:
+//
+// Short flags | short arg
+// No          | No        | no problem
+// Yes         | No        | use flag
+// No          | Yes       | use arg
+// Yes         | Yes       | ask user?
+//
+// -a  - just a regular short flag: "-a"
+// -abc - assuming there are short flags a, b and c: "-a -b -c", assuming utf8 values AND there's no argument -a
+// -abc - assuming there's no -a -b -c: "-a bc"
+// -abc - assuming both short a b c AND there's argument -a - need to disambiguate  on a context level
+//
+// 1. parse argument into ambigous representation that can store both short flags and argument
+// 2. collect short flag/arg when entering the subparsre
+// 3. when reaching ambi
+//
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Arg::Short(s, _) => write!(f, "-{}", s),
             Arg::Long(l, _) => write!(f, "--{}", l),
-            Arg::Word(w) | Arg::PosWord(w) => write!(f, "{}", w.to_string_lossy()),
+            Arg::Ambiguity(_, w) | Arg::Word(w) | Arg::PosWord(w) => {
+                write!(f, "{}", w.to_string_lossy())
+            }
         }
     }
 }
-
+/*
 impl Arg {
     pub(crate) fn as_os(&self) -> &OsStr {
         match self {
             Arg::Short(_, os) | Arg::Long(_, os) | Arg::Word(os) | Arg::PosWord(os) => os.as_ref(),
         }
     }
-}
+}*/
 
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
+pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) -> bool {
     if *pos_only {
-        return vec.push(Arg::PosWord(os));
+        vec.push(Arg::PosWord(os));
+        return false;
     }
 
     match split_os_argument(&os) {
+        // -f and -fbar
         Some((ArgType::Short, short, None)) => {
-            for f in short.chars() {
-                vec.push(Arg::Short(f, os));
-                os = OsString::new();
+            let mut chars = short.chars();
+            let mut prev = chars.next();
+            let mut ambig = Vec::new();
+            for c in chars {
+                if let Some(prev) = std::mem::take(&mut prev) {
+                    ambig.push(prev)
+                }
+                ambig.push(c);
+            }
+            match prev {
+                Some(p) => vec.push(Arg::Short(p, os)),
+                None => {
+                    // -fbar gets stored as
+                    // ambiguity [f,b,a,r]
+                    // short 'f'  ""
+                    // short 'b'  ""
+                    // short 'a'  ""
+                    // short 'r'  ""
+                    // short 'f'  "-fbar" <- note second f
+                    // word "bar"
+                    // and everything except for the ambiguity itself is pre-removed
+                    let head = ambig[0];
+                    let tail = ambig[1..].to_vec();
+                    vec.push(Arg::Ambiguity(ambig, os.clone()));
+
+                    vec.push(Arg::Short(head, os.clone()));
+                    for t in tail {
+                        vec.push(Arg::Short(t, OsString::new()));
+                    }
+                    vec.push(Arg::Short(head, os));
+                    let w = short[head.len_utf8()..].to_string();
+                    vec.push(Arg::Word(OsString::from(w)));
+                    return true;
+                }
             }
         }
+        // -f=a
         Some((ArgType::Short, short, Some(arg))) => {
             assert_eq!(
                 short.len(),
@@ -63,14 +135,15 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool
             vec.push(arg);
         }
         _ => {
+            *pos_only = os == "--";
             if *pos_only {
                 vec.push(Arg::PosWord(os));
             } else {
-                *pos_only = os == "--";
                 vec.push(Arg::Word(os));
             }
         }
     }
+    false
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -98,14 +171,9 @@ pub(crate) enum ArgType {
 /// previous version
 ///
 ///
-/// on supporting -fbar
-/// - ideally bpaf wants to support any utf8 character (here `f`) which requires detecting one
-///   out of bytes on unix and utf16 codepoints on windows
-/// - bpaf needs to store ambigous combo of -f=bar and -f -b -a -r until user consumes -f either as
-///   a flag or as an argument and drop -b, -a and -r if it was an argument.
-/// - bpaf wants to prevent users from using parsers for -b, -a or -r before parser for -f
-///
-/// Conclusion: possible in theory but adds too much complexity for the value it offers.
+/// Notation -fbar is ambigous and could mean either `-f -b -a -r` or `-f=bar`, resolve it into
+/// Arg::Ambiguity and let subparser disambiguate it later depending on available short flag and
+/// arguments
 pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
     #[cfg(any(unix, windows))]
     {

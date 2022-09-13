@@ -50,4 +50,23 @@ impl Meta {
     pub(crate) fn as_usage_meta(&self) -> Option<UsageMeta> {
         to_usage_meta(self)
     }
+
+    pub(crate) fn collect_shorts(&self, flags: &mut Vec<char>, args: &mut Vec<char>) {
+        match self {
+            Meta::And(xs) | Meta::Or(xs) => {
+                for x in xs {
+                    x.collect_shorts(flags, args);
+                }
+            }
+            Meta::Item(m) => match m {
+                Item::Positional { .. } | Item::Command { .. } => {}
+                Item::Flag { shorts, .. } => flags.extend(shorts),
+                Item::Argument { shorts, .. } => args.extend(shorts),
+            },
+            Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
+                m.collect_shorts(flags, args)
+            }
+            Meta::Skip => {}
+        }
+    }
 }

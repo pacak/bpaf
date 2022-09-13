@@ -830,15 +830,39 @@ fn test_zsh_comp<T: std::fmt::Debug>(
                 expected_len, actual_len, line,
             );
         }
-        let mut actual_words = ["\0"; 4];
+        let mut actual_words = [""; 4];
+        let mut items = 0;
         for (ix, w) in line.split('\0').enumerate() {
             actual_words[ix] = w;
+            items = ix + 1;
         }
+        assert_eq!(
+            items, 4,
+            "zsh line must contain 4 separate \\0 separated items, got {:?}",
+            line
+        );
         assert_eq!(&actual_words, expected, "on line {}", ix)
     }
 
     assert_eq!(actual_len, expected_len);
 }
+
+/*
+#[test]
+fn ambiguity() {
+    #[derive(Debug, Clone)]
+    enum A {
+        V(Vec<bool>),
+        W(String),
+    }
+
+    let a0 = short('a').switch().many().map(A::V);
+    let a1 = short('a').argument("AAAAAA").map(A::W);
+
+    let parser = construct!([a0, a1]).to_options();
+    test_zsh_comp(&parser, &["-aaa"], &[["-aaa", "", "", ""]]);
+    todo!();
+}*/
 
 #[test]
 fn zsh_style_completion_visible() {
