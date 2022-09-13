@@ -83,7 +83,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
             let mut ambig = Vec::new();
             for c in chars {
                 if let Some(prev) = std::mem::take(&mut prev) {
-                    ambig.push(prev)
+                    ambig.push(prev);
                 }
                 ambig.push(c);
             }
@@ -149,7 +149,7 @@ pub(crate) enum ArgType {
 ///
 ///
 /// Notation -fbar is ambigous and could mean either `-f -b -a -r` or `-f=bar`, resolve it into
-/// Arg::Ambiguity and let subparser disambiguate it later depending on available short flag and
+/// [`Arg::Ambiguity`] and let subparser disambiguate it later depending on available short flag and
 /// arguments
 pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
     #[cfg(any(unix, windows))]

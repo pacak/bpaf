@@ -268,9 +268,9 @@ impl Arg {
                     Some((self, s))
                 }
             }
-            Arg::Long(_, _, s) => Some((self, s)),
-            Arg::Word(w) | Arg::PosWord(w) => Some((self, w)),
-            Arg::Ambiguity(_, s) => Some((self, s)),
+            Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) | Arg::Ambiguity(_, s) => {
+                Some((self, s))
+            }
         }
     }
 }

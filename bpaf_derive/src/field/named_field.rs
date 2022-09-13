@@ -98,6 +98,7 @@ impl Field {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn make(ty: Type, name: Option<Ident>, attrs: Vec<Attribute>) -> Result<Self> {
         let mut res = Field {
             ty,
@@ -116,6 +117,7 @@ impl Field {
             if attr.path.is_ident("doc") {
                 help.push(parse2::<Doc>(attr.tokens)?.0);
             } else if attr.path.is_ident("bpaf") {
+                #[allow(clippy::cognitive_complexity)]
                 attr.parse_args_with(|input: ParseStream| loop {
                     if input.is_empty() {
                         break Ok(());
@@ -392,7 +394,7 @@ impl Field {
                 }
                 if !is_os && ty != string {
                     self.postpr
-                        .insert(1, PostprAttr::FromStr(ty.span(), Box::new(ty)))
+                        .insert(1, PostprAttr::FromStr(ty.span(), Box::new(ty)));
                 }
                 return Ok(());
             }

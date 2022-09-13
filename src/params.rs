@@ -618,8 +618,7 @@ impl Named {
         match arg {
             Arg::Short(s, _, _) => self.short.contains(s),
             Arg::Long(l, _, _) => self.long.contains(&l.as_str()),
-            Arg::Word(_) | Arg::PosWord(_) => false,
-            Arg::Ambiguity(..) => false,
+            Arg::Word(_) | Arg::PosWord(_) | Arg::Ambiguity(..) => false,
         }
     }
 }
@@ -1291,6 +1290,7 @@ pub struct GetAny<T> {
 /// the consumer struct.
 ///
 #[doc = include_str!("docs/any.md")]
+#[must_use]
 pub fn any(metavar: &'static str) -> GetAny<OsString> {
     GetAny {
         ty: PhantomData,
@@ -1309,8 +1309,8 @@ impl<T> GetAny<T> {
             strict: self.strict,
         }
     }
-    pub fn help<M: ToString>(mut self, help: M) -> Self {
-        self.help = Some(help.to_string());
+    pub fn help<M: Into<String>>(mut self, help: M) -> Self {
+        self.help = Some(help.into());
         self
     }
 

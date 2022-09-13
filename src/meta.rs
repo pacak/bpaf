@@ -64,7 +64,7 @@ impl Meta {
                 Item::Argument { shorts, .. } => args.extend(shorts),
             },
             Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
-                m.collect_shorts(flags, args)
+                m.collect_shorts(flags, args);
             }
             Meta::Skip => {}
         }

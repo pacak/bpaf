@@ -247,7 +247,7 @@
 //!    - field-less enum variants obey slightly different set of rules, see
 //!    [`req_flag`](Named::req_flag) for more details.
 //!
-//!    - any constructor in `enum` can have `skip` annotation - bpaf_derive
+//!    - any constructor in `enum` can have `skip` annotation - `bpaf_derive`
 //!      would ignore them when generating code:
 //!      ```rust
 //!      # use bpaf::*;

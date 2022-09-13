@@ -42,11 +42,11 @@ pub(crate) fn to_usage_meta(meta: &Meta) -> Option<UsageMeta> {
 /// 3. Flatten Commands inside OR constructs
 /// 4  Set required for top level
 /// 5. Set required for Items inside OR and AND constructs
-/// 6. Set optional for Items marked inside Meta::Optional
-/// 7. put optional OR construct into UM::Optional
-/// 8. put required OR constructs into UM::Required
+/// 6. Set optional for Items marked inside [`Meta::Optional`]
+/// 7. put optional OR construct into [`UM::Optional`]
+/// 8. put required OR constructs into [`UM::Required`]
 /// 9. put [] around any optional item
-/// 10. put () around AND construct and commands inside Meta::Many
+/// 10. put () around AND construct and commands inside [`Meta::Many`]
 fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
     let r = match meta {
         Meta::And(xs) => {
@@ -113,9 +113,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
         Meta::Skip => return None,
         Meta::Item(i) => match i {
             Item::Positional {
-                metavar,
-                strict,
-                help: _,
+                metavar, strict, ..
             } => {
                 *is_pos = true;
                 if *strict {
@@ -124,30 +122,15 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                     UsageMeta::Pos(metavar)
                 }
             }
-            Item::Command {
-                name: _,
-                help: _,
-                short: _,
-                meta: _,
-            } => {
+            Item::Command { .. } => {
                 *is_pos = true;
                 UsageMeta::Command
             }
-            Item::Flag {
-                name,
-                help: _,
-                shorts: _,
-            } => match name {
+            Item::Flag { name, .. } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => UsageMeta::ShortFlag(*s),
                 ShortLong::Long(l) => UsageMeta::LongFlag(l),
             },
-            Item::Argument {
-                name,
-                metavar,
-                env: _,
-                help: _,
-                shorts: _,
-            } => match name {
+            Item::Argument { name, metavar, .. } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
                     UsageMeta::ShortArg(*s, metavar)
                 }

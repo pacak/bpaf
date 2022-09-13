@@ -171,9 +171,8 @@ mod inner {
         pub(crate) fn current_word(&self) -> Option<&OsStr> {
             let ix = self.current?;
             match &self.items[ix] {
-                Arg::Short(..) | Arg::Long(..) => None,
                 Arg::Word(w) | Arg::PosWord(w) => Some(w),
-                Arg::Ambiguity(..) => None,
+                Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(..) => None,
             }
         }
 
@@ -268,7 +267,6 @@ mod inner {
                     }
                 }
                 pos += 1;
-                continue;
             }
         }
     }
