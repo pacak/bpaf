@@ -616,8 +616,8 @@ impl Named {
     #[track_caller]
     pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
         match arg {
-            Arg::Short(s, _) => self.short.contains(s),
-            Arg::Long(l, _) => self.long.contains(&l.as_str()),
+            Arg::Short(s, _, _) => self.short.contains(s),
+            Arg::Long(l, _, _) => self.long.contains(&l.as_str()),
             Arg::Word(_) | Arg::PosWord(_) => false,
             Arg::Ambiguity(..) => false,
         }
@@ -1321,20 +1321,39 @@ impl<T> GetAny<T> {
     }
 
     /// returns real items only
-    fn next_os_string(&self, _args: &mut Args) -> Result<OsString, Error> {
-        todo!()
-        /*
+    fn next_os_string(&self, args: &mut Args) -> Result<OsString, Error> {
         let (ix, item) = match args.items_iter().next() {
             Some(item_with_index) => item_with_index,
             None => return Err(Error::Missing(vec![self.item()])),
         };
-        let os = item.as_os().to_owned();
-        args.remove(ix);
-        if os.is_empty() {
-            todo!("explain error here");
-        } else {
-            Ok(os)
-        }*/
+        match item {
+            Arg::Ambiguity(_, s) => {
+                let os = s.clone();
+                args.remove(ix);
+                Ok(os)
+            }
+            Arg::Short(_, part, s) | Arg::Long(_, part, s) => {
+                let os = s.clone();
+                if *part {
+                    args.remove(ix + 1);
+                }
+                args.remove(ix);
+
+                Ok(os)
+            }
+
+            Arg::Word(_) => todo!(),
+            Arg::PosWord(_) => todo!(),
+        }
+
+        /*
+        //        let os = item.as_os().to_owned();
+        //        args.remove(ix);
+                if os.is_empty() {
+                    todo!("explain error here");
+                } else {
+                    Ok(os)
+                }*/
     }
 }
 

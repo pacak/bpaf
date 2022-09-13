@@ -132,7 +132,7 @@ impl Args {
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
-            Arg::Short(_, _) | Arg::Long(_, _) | Arg::Ambiguity(_, _) => false,
+            Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(_, _) => false,
             Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
@@ -261,14 +261,14 @@ struct ShowComp<'a> {
 impl Arg {
     fn and_os_string(&self) -> Option<(&Self, &OsStr)> {
         match self {
-            Arg::Short(_, s) => {
+            Arg::Short(_, _, s) => {
                 if s.is_empty() {
                     None
                 } else {
                     Some((self, s))
                 }
             }
-            Arg::Long(_, s) => Some((self, s)),
+            Arg::Long(_, _, s) => Some((self, s)),
             Arg::Word(w) | Arg::PosWord(w) => Some((self, w)),
             Arg::Ambiguity(_, s) => Some((self, s)),
         }

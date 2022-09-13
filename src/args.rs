@@ -171,9 +171,9 @@ mod inner {
         pub(crate) fn current_word(&self) -> Option<&OsStr> {
             let ix = self.current?;
             match &self.items[ix] {
-                Arg::Short(_, _) | Arg::Long(_, _) => None,
+                Arg::Short(..) | Arg::Long(..) => None,
                 Arg::Word(w) | Arg::PosWord(w) => Some(w),
-                Arg::Ambiguity(..) => unreachable!("Unresolved Ambiguity"),
+                Arg::Ambiguity(..) => None,
             }
         }
 
@@ -244,10 +244,10 @@ mod inner {
                             self.removed.remove(pos);
                             for short in items.iter().rev() {
                                 // inefficient but ambiguities shouldn't supposed to happen
-                                new_items.insert(pos, Arg::Short(*short, OsString::new()));
+                                new_items.insert(pos, Arg::Short(*short, false, OsString::new()));
                                 self.removed.insert(pos, false);
                             }
-                            new_items[pos] = Arg::Short(items[0], os.clone());
+                            new_items[pos] = Arg::Short(items[0], false, os.clone());
                             self.remaining += items.len() - 1;
                             self.items = Rc::from(new_items);
                             self.ambig -= 1;
@@ -255,7 +255,7 @@ mod inner {
                         (false, true) => {
                             // disambiguate as a single option-argument
                             let mut new_items = self.items.to_vec();
-                            new_items[pos] = Arg::Short(items[0], os.clone());
+                            new_items[pos] = Arg::Short(items[0], true, os.clone());
                             let word = os.to_str().unwrap()[1 + items[0].len_utf8()..].to_string();
                             new_items.insert(pos + 1, Arg::Word(OsString::from(word)));
                             self.items = Rc::from(new_items);
@@ -331,8 +331,8 @@ impl Args {
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            Some(Arg::Short(_, os) | Arg::Long(_, os)) => {
-                let msg = if let (Arg::Short(s, fos), true) = (&arg, os.is_empty()) {
+            Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
+                let msg = if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
                     let fos = fos.to_string_lossy();
                     let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
                     format!(

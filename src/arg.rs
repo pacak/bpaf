@@ -13,13 +13,12 @@ pub(crate) enum Arg {
 
     /// short flag: `-f`
     ///
-    /// OsString is always valid utf8 here
-    Short(char, OsString),
+    /// bool indicates if following item is also part of this Short (created
+    Short(char, bool, OsString),
 
     /// long flag: `--flag`
     ///
-    /// OsString is always valid utf8 here
-    Long(String, OsString),
+    Long(String, bool, OsString),
 
     /// separate word that can be command, positional or an argument to a flag
     ///
@@ -54,8 +53,8 @@ pub(crate) enum Arg {
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Arg::Short(s, _) => write!(f, "-{}", s),
-            Arg::Long(l, _) => write!(f, "--{}", l),
+            Arg::Short(s, _, _) => write!(f, "-{}", s),
+            Arg::Long(l, _, _) => write!(f, "--{}", l),
             Arg::Ambiguity(_, w) | Arg::Word(w) | Arg::PosWord(w) => {
                 write!(f, "{}", w.to_string_lossy())
             }
@@ -89,7 +88,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
                 ambig.push(c);
             }
             match prev {
-                Some(p) => vec.push(Arg::Short(p, os)),
+                Some(p) => vec.push(Arg::Short(p, false, os)),
                 None => {
                     vec.push(Arg::Ambiguity(ambig, os));
                 }
@@ -103,14 +102,14 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
                 "short flag with an argument must have only one key"
             );
             let key = short.chars().next().unwrap();
-            vec.push(Arg::Short(key, os));
+            vec.push(Arg::Short(key, true, os));
             vec.push(arg);
         }
         Some((ArgType::Long, long, None)) => {
-            vec.push(Arg::Long(long, os));
+            vec.push(Arg::Long(long, false, os));
         }
         Some((ArgType::Long, long, Some(arg))) => {
-            vec.push(Arg::Long(long, os));
+            vec.push(Arg::Long(long, true, os));
             vec.push(arg);
         }
         _ => {
