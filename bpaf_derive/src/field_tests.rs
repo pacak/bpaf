@@ -515,3 +515,42 @@ fn hide_and_group_help() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn any_field_1() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(any)]
+        /// help
+        field: OsString
+    };
+    let output = quote! {
+        ::bpaf::any("ARG").help("help")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn any_field_2() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO"))]
+        /// help
+        String
+    };
+    let output = quote! {
+        ::bpaf::any("FOO").help("help").string()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn any_field_3() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO"))]
+        /// help
+        Vec<String>
+    };
+    let output = quote! {
+        ::bpaf::any("FOO").help("help").string().many()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}

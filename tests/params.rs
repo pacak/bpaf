@@ -3,7 +3,7 @@ use bpaf::*;
 #[test]
 fn get_any_simple() {
     let a = short('a').switch();
-    let b = any("REST").help("any help").str();
+    let b = any("REST").help("any help").string();
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(Args::from(&["-a", "-b"])).unwrap().1;
@@ -19,7 +19,7 @@ fn get_any_simple() {
 #[test]
 fn get_any_many() {
     let a = short('a').switch();
-    let b = any("REST").help("any help").str().many();
+    let b = any("REST").help("any help").string().many();
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(Args::from(&["-a", "-b"])).unwrap();
@@ -34,7 +34,7 @@ fn get_any_many() {
 
 #[test]
 fn get_any_many2() {
-    let parser = any("REST").str().many().to_options();
+    let parser = any("REST").string().many().to_options();
 
     let r = parser.run_inner(Args::from(&["-vvv"])).unwrap();
     assert_eq!(r[0], "-vvv");

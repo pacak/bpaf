@@ -1285,6 +1285,12 @@ pub struct GetAny<T> {
     help: Option<String>,
 }
 
+/// Take next unconsumed item on the command line as raw [`OsString`]
+///
+/// `any` behaves similar to [`positional`] so you should be using it near the right most end of
+/// the consumer struct.
+///
+#[doc = include_str!("docs/any.md")]
 pub fn any(metavar: &'static str) -> GetAny<OsString> {
     GetAny {
         ty: PhantomData,
@@ -1295,7 +1301,7 @@ pub fn any(metavar: &'static str) -> GetAny<OsString> {
 }
 
 impl<T> GetAny<T> {
-    pub fn str(self) -> GetAny<String> {
+    pub fn string(self) -> GetAny<String> {
         GetAny {
             ty: PhantomData,
             metavar: self.metavar,
@@ -1342,18 +1348,12 @@ impl<T> GetAny<T> {
                 Ok(os)
             }
 
-            Arg::Word(_) => todo!(),
-            Arg::PosWord(_) => todo!(),
+            Arg::Word(w) | Arg::PosWord(w) => {
+                let os = w.clone();
+                args.remove(ix);
+                Ok(os)
+            }
         }
-
-        /*
-        //        let os = item.as_os().to_owned();
-        //        args.remove(ix);
-                if os.is_empty() {
-                    todo!("explain error here");
-                } else {
-                    Ok(os)
-                }*/
     }
 }
 
