@@ -71,10 +71,9 @@ impl Arg {
     }
 }*/
 
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) -> bool {
+pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
     if *pos_only {
-        vec.push(Arg::PosWord(os));
-        return false;
+        return vec.push(Arg::PosWord(os));
     }
 
     match split_os_argument(&os) {
@@ -92,27 +91,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) ->
             match prev {
                 Some(p) => vec.push(Arg::Short(p, os)),
                 None => {
-                    // -fbar gets stored as
-                    // ambiguity [f,b,a,r]
-                    // short 'f'  ""
-                    // short 'b'  ""
-                    // short 'a'  ""
-                    // short 'r'  ""
-                    // short 'f'  "-fbar" <- note second f
-                    // word "bar"
-                    // and everything except for the ambiguity itself is pre-removed
-                    let head = ambig[0];
-                    let tail = ambig[1..].to_vec();
-                    vec.push(Arg::Ambiguity(ambig, os.clone()));
-
-                    vec.push(Arg::Short(head, os.clone()));
-                    for t in tail {
-                        vec.push(Arg::Short(t, OsString::new()));
-                    }
-                    vec.push(Arg::Short(head, os));
-                    let w = short[head.len_utf8()..].to_string();
-                    vec.push(Arg::Word(OsString::from(w)));
-                    return true;
+                    vec.push(Arg::Ambiguity(ambig, os));
                 }
             }
         }
@@ -143,7 +122,6 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) ->
             }
         }
     }
-    false
 }
 
 #[derive(Eq, PartialEq, Debug)]

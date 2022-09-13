@@ -293,27 +293,20 @@ impl Args {
             .filter_map(Arg::and_os_string)
             .filter_map(pair_to_os_string);
 
-        let arg;
-        let lit;
-        if self.ambig > 0 {
-            todo!()
-        } else {
-            // try get a current item to complete - must be non-virtual right most one
-            // value must be present here, and can fail only for non-utf8 values
-            // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-            (arg, lit) = items
-                .next()
-                .ok_or_else(|| Error::Stdout("\n".to_string()))?;
-        }
+        // try get a current item to complete - must be non-virtual right most one
+        // value must be present here, and can fail only for non-utf8 values
+        // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
+        let (arg, lit) = items
+            .next()
+            .ok_or_else(|| Error::Stdout("\n".to_string()))?;
 
-        let pos_only = items.any(|(_arg, lit)| lit == "--");
+        let pos_only = items.clone().any(|i| matches!(i.0, Arg::PosWord(_)));
 
-        if let Arg::Short(..) = arg {
-            if lit.chars().count() > 2 {
-                // don't bother trying to expand -vvvv for now:
-                // -vvv<TAB> => -vvv _
-                return Err(Error::Stdout(format!("{}\n", lit)));
-            }
+        // bail out on unresolved ambiguities
+        if let Arg::Ambiguity(..) = arg {
+            // don't bother trying to expand -vvvv for now:
+            // -vvv<TAB> => -vvv _
+            return Err(Error::Stdout(format!("{}\n", lit)));
         }
 
         let res = comp.complete(lit, arg.is_word(), pos_only)?;

@@ -16,6 +16,5 @@ fn ambiguity() {
         .run_inner(Args::from(&["-aaaaaa"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "");
-    todo!();
+    assert_eq!(r, "Parser supports -a as both option and option-argument, try to split -aaaaaa into individual options (-a -a ..) or use -a=aaaaa syntax to disambiguate");
 }

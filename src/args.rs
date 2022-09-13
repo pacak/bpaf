@@ -103,16 +103,9 @@ mod inner {
             let mut del = Vec::new();
             for x in xs {
                 let prev_pos_only = pos_only;
-                if push_vec(&mut vec, x.clone(), &mut pos_only) {
-                    for (ix, arg) in vec.iter().enumerate().rev() {
-                        // mark objects following the Ambiguity as removed
-                        // until Ambiguity is resolved
-                        if matches!(arg, Arg::Ambiguity(..)) {
-                            ambig += 1;
-                            break;
-                        }
-                        del.push(ix);
-                    }
+                push_vec(&mut vec, x.clone(), &mut pos_only);
+                if matches!(vec.last(), Some(Arg::Ambiguity(..))) {
+                    ambig += 1;
                 }
                 if !prev_pos_only && pos_only {
                     // keep "--" in the argument list but mark it as removed
@@ -214,8 +207,17 @@ mod inner {
             flags: &[char],
             args: &[char],
         ) -> Result<(), ParseFailure> {
-            for (ix, arg) in self.items.iter().enumerate() {
-                if let Arg::Ambiguity(items, os) = &arg {
+            let mut pos = 0;
+
+            // can't iterate over items since it might change in process
+            loop {
+                if self.ambig == 0 || pos == self.items.len() {
+                    return Ok(());
+                }
+                // look for ambiguities, resolve or skip them. resolving involves recreating
+                // `items` and `removed`
+
+                if let Arg::Ambiguity(items, os) = &self.items[pos] {
                     let flag_ok = items.iter().all(|i| flags.contains(i));
                     let arg_ok = args.contains(&items[0]);
 
@@ -236,25 +238,38 @@ mod inner {
                             return Err(ParseFailure::Stderr(msg));
                         }
                         (true, false) => {
-                            self.removed[ix] = true;
-                            for i in 0..items.len() {
-                                self.removed[ix + i + 1] = false;
+                            // disambiguate as multiple flags
+                            let mut new_items = self.items.to_vec();
+                            new_items.remove(pos);
+                            self.removed.remove(pos);
+                            for short in items.iter().rev() {
+                                // inefficient but ambiguities shouldn't supposed to happen
+                                new_items.insert(pos, Arg::Short(*short, OsString::new()));
+                                self.removed.insert(pos, false);
                             }
+                            new_items[pos] = Arg::Short(items[0], os.clone());
                             self.remaining += items.len() - 1;
+                            self.items = Rc::from(new_items);
                             self.ambig -= 1;
                         }
                         (false, true) => {
-                            self.removed[ix] = true;
-                            self.removed[ix + items.len() + 1] = false;
-                            self.removed[ix + items.len() + 2] = false;
+                            // disambiguate as a single option-argument
+                            let mut new_items = self.items.to_vec();
+                            new_items[pos] = Arg::Short(items[0], os.clone());
+                            let word = os.to_str().unwrap()[1 + items[0].len_utf8()..].to_string();
+                            new_items.insert(pos + 1, Arg::Word(OsString::from(word)));
+                            self.items = Rc::from(new_items);
+                            self.removed.insert(pos, false);
+
                             self.remaining += 1; // removed Ambiguity, added short and word
                             self.ambig -= 1;
                         }
                         (false, false) => {}
                     }
                 }
+                pos += 1;
+                continue;
             }
-            Ok(())
         }
     }
 
@@ -523,7 +538,7 @@ mod tests {
     }
 
     #[test]
-    fn abiguity_towards_flag() {
+    fn ambiguity_towards_flag() {
         let mut a = Args::from(&["-abc"]);
         a.disambiguate(&['a', 'b', 'c'], &[]).unwrap();
         assert!(a.take_flag(&short('a')));
@@ -532,7 +547,7 @@ mod tests {
     }
 
     #[test]
-    fn abiguity_towards_argument() {
+    fn ambiguity_towards_argument() {
         let mut a = Args::from(&["-abc"]);
         a.disambiguate(&[], &['a']).unwrap();
         let r = a.take_arg(&short('a')).unwrap().unwrap();
@@ -540,7 +555,7 @@ mod tests {
     }
 
     #[test]
-    fn abiguity_towards_error() {
+    fn ambiguity_towards_error() {
         let mut a = Args::from(&["-abc"]);
         let msg = a
             .disambiguate(&['a', 'b', 'c'], &['a'])
@@ -550,7 +565,8 @@ mod tests {
     }
 
     #[test]
-    fn abiguity_towards_default() {
+    fn ambiguity_towards_default() {
+        // AKA unresolved
         let a = Args::from(&["-abc"]);
         let is_ambig = matches!(a.peek(), Some(Arg::Ambiguity(_, _)));
         assert!(is_ambig);

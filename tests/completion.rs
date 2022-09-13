@@ -9,7 +9,14 @@ fn static_complete_test_1() {
     let c = long("calculator")
         .help("calculator expression")
         .argument("EXPR");
+
     let parser = construct!(a, b, bb, c).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-vvvv"]).set_comp(1))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-vvvv\n");
 
     let r = parser
         .run_inner(Args::from(&["--"]).set_comp(1))
@@ -24,12 +31,6 @@ fn static_complete_test_1() {
 --calculator\tcalculator expression
 "
     );
-
-    let r = parser
-        .run_inner(Args::from(&["-vvvv"]).set_comp(1))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "-vvvv\n");
 
     let r = parser
         .run_inner(Args::from(&["-v"]).set_comp(1))
