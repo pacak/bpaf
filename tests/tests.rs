@@ -1544,13 +1544,10 @@ fn reject_fbar() {
         .run_inner(Args::from(&["-fbar", "baz"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
+    assert_eq!(r, "No such command: `baz`, did you mean `-f`?");
 
-    let r = parser
-        .run_inner(Args::from(&["-fbar"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "`-fbar` is not accepted, try using it as `-f=bar`");
+    let r = parser.run_inner(Args::from(&["-fbar"])).unwrap();
+    assert_eq!(r, "bar");
 }
 
 #[test]
