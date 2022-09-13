@@ -33,17 +33,9 @@ impl Arg {
     }
 }
 
-pub(crate) fn word_arg(os: OsString, pos_only: bool) -> Arg {
-    if pos_only {
-        Arg::PosWord(os)
-    } else {
-        Arg::Word(os)
-    }
-}
-
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
     if *pos_only {
-        return vec.push(word_arg(os, true));
+        return vec.push(Arg::PosWord(os));
     }
 
     match split_os_argument(&os) {
@@ -195,7 +187,10 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             return None;
         }
         let name = str_from_vec(name)?;
-        let word = word_arg(os_from_vec(items.collect()), false);
+        let word = {
+            let os = os_from_vec(items.collect());
+            Arg::Word(os)
+        };
         Some((ty, name, Some(word)))
     }
     #[cfg(not(any(unix, windows)))]
