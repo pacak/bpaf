@@ -55,11 +55,7 @@
 use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
-use crate::{
-    args::{Arg, Word},
-    item::ShortLong,
-    Item, Meta,
-};
+use crate::{args::Arg, item::ShortLong, Item, Meta};
 
 /// A named thing used to create [`flag`](Named::flag), [`switch`](Named::switch) or
 /// [`argument`](Named::argument)
@@ -576,7 +572,11 @@ impl Named {
     #[must_use]
     /// See [`Named`] for more details
     pub fn argument(self, metavar: &'static str) -> impl Parser<String> {
-        build_argument(self, metavar).parse(|x| x.utf8.ok_or("not utf8")) // TODO - provide a better diagnostic
+        build_argument(self, metavar).parse(|x| match x.to_str() {
+            Some(s) => Ok(s.to_owned()),
+            None => Err(format!("Not a valid utf8: {}", x.to_string_lossy())),
+        })
+        //                ok_or("not utf8")) // TODO - pro/vide a better diagnostic
     }
 
     /// Named argument in OS specific encoding
@@ -609,14 +609,14 @@ impl Named {
     #[must_use]
     /// See [`Named`] for more details
     pub fn argument_os(self, metavar: &'static str) -> impl Parser<OsString> {
-        build_argument(self, metavar).map(|x| x.os)
+        build_argument(self, metavar)
     }
 
     pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
         match arg {
             Arg::Short(s, _) => self.short.contains(s),
             Arg::Long(l, _) => self.long.contains(&l.as_str()),
-            Arg::Word(_) => false,
+            Arg::Word(_) | Arg::PosWord(_) => false,
         }
     }
 }
@@ -1023,7 +1023,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     }
 }
 
-fn build_argument(named: Named, metavar: &'static str) -> impl Parser<Word> {
+fn build_argument(named: Named, metavar: &'static str) -> BuildArgument {
     if !named.env.is_empty() {
         // mostly cosmetic reasons
         assert!(
@@ -1051,8 +1051,8 @@ impl BuildArgument {
     }
 }
 
-impl Parser<Word> for BuildArgument {
-    fn eval(&self, args: &mut Args) -> Result<Word, Error> {
+impl Parser<OsString> for BuildArgument {
+    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_arg(&self.named) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -1071,7 +1071,7 @@ impl Parser<Word> for BuildArgument {
                 args.push_argument(&self.named, self.metavar);
                 if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
                     args.current = None;
-                    Ok(crate::args::word(val, false))
+                    Ok(val)
                 } else {
                     Err(Error::Missing(vec![self.item()]))
                 }
@@ -1210,10 +1210,10 @@ fn parse_word(
     strict: bool,
     metavar: &'static str,
     help: &Option<String>,
-) -> Result<Word, Error> {
+) -> Result<OsString, Error> {
     match args.take_positional_word()? {
-        Some(word) => {
-            if strict && !word.pos_only {
+        Some((is_strict, word)) => {
+            if strict && !is_strict {
                 #[cfg(feature = "autocomplete")]
                 args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
@@ -1222,7 +1222,6 @@ fn parse_word(
                     metavar,
                 )));
             }
-
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.no_pos_ahead {
                 args.push_metadata(metavar, help, false);
@@ -1250,7 +1249,7 @@ fn parse_word(
 impl Parser<OsString> for Positional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         let res = parse_word(args, self.strict, self.metavar, &self.help)?;
-        Ok(res.os)
+        Ok(res)
     }
 
     fn meta(&self) -> Meta {
@@ -1261,8 +1260,8 @@ impl Parser<OsString> for Positional<OsString> {
 impl Parser<String> for Positional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         let res = parse_word(args, self.strict, self.metavar, &self.help)?;
-        match res.utf8 {
-            Some(ok) => Ok(ok),
+        match res.to_str() {
+            Some(ok) => Ok(ok.to_owned()),
             None => Err(Error::Stderr(format!(
                 "<{}> is not a valid utf",
                 self.metavar

@@ -14,7 +14,7 @@ fn get_any_simple() {
 
     //let r = parser.run_inner(Args::from(&["-b=foo", "-a"])).unwrap().1;
     //assert_eq!(r, "-b=foo");
-    todo!("{:?}", Args::from(&["-b=foo", "-a"]));
+    //    todo!("{:?}", Args::from(&["-b=foo", "-a"]));
 }
 
 #[test]

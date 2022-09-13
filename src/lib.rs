@@ -323,6 +323,7 @@
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
+mod arg;
 mod args;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;

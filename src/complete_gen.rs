@@ -133,7 +133,7 @@ impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
             Arg::Short(_, _) | Arg::Long(_, _) => false,
-            Arg::Word(_) => true,
+            Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
 }
@@ -269,7 +269,7 @@ impl Arg {
                 }
             }
             Arg::Long(_, s) => Some((self, s)),
-            Arg::Word(w) => Some((self, &w.os)),
+            Arg::Word(w) | Arg::PosWord(w) => Some((self, &w)),
         }
     }
 }
