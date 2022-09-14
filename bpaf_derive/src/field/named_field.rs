@@ -361,9 +361,8 @@ impl Field {
                 if self.consumer.is_none() {
                     self.consumer = Some(ConsumerAttr::ReqFlag(parse_quote!(())));
                     return Ok(());
-                } else {
-                    self.ty.clone()
                 }
+                self.ty.clone()
             }
         };
 

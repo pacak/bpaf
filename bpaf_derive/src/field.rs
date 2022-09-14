@@ -37,7 +37,7 @@ enum ConsumerAttr {
     Switch,
     Any(LitStr),
     Flag(Box<Expr>, Box<Expr>),
-    ReqFlag(Expr),
+    ReqFlag(Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
