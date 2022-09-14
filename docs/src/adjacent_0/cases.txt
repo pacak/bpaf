@@ -2,12 +2,12 @@
 ? important, switch `-s` can go on either side of it
 > -s -m 10 20 3.1415
 OK
-Options { switch: true, multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }] }
+Options { multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }], switch: true }
 
 ? parser accepts multiple groups of `-m` - they must not interleave
 > -s -m 10 20 3.1415 -m 1 2 0.0
 OK
-Options { switch: true, multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }, Multi { m: (), val_1: 1, val_2: 2, val_3: 0.0 }] }
+Options { multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }, Multi { m: (), val_1: 1, val_2: 2, val_3: 0.0 }], switch: true }
 
 ? `-s` can't go in the middle
 > -m 10 20 -s 3.1415

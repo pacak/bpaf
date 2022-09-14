@@ -617,3 +617,28 @@ fn fallback_for_struct() {
     };
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
+
+#[test]
+fn adjacent_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(adjacent)]
+        struct Opts {
+            a: String,
+            b: String,
+        }
+    };
+
+    let expected = quote! {
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let a = ::bpaf::short('a').argument("ARG");
+                let b = ::bpaf::short('b').argument("ARG");
+                ::bpaf::construct!(Opts { a, b })
+            }.adjacent()
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}

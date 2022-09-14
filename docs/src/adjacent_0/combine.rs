@@ -4,8 +4,8 @@ use bpaf::*;
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Options {
-    switch: bool,
     multi: Vec<Multi>,
+    switch: bool,
 }
 
 //

@@ -521,6 +521,7 @@ impl Named {
     /// Similar to [`flag`](Named::flag) takes no option arguments, but will only
     /// succeed if user specifies it on a command line.
     /// Not very useful by itself and works best in combination with other parsers.
+    ///
     /// ## Using `req_flag` to implement 3-state options.
     ///
     /// In derive mode `bpaf` would transform field-less enum variants into `req_flag`
