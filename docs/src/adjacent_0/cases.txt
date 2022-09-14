@@ -1,0 +1,15 @@
+? short flag `-m` takes 3 positional arguments: two integers and one floating point, order is
+? important, switch `-s` can go on either side of it
+> -s -m 10 20 3.1415
+OK
+Options { switch: true, multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }] }
+
+? parser accepts multiple groups of `-m` - they must not interleave
+> -s -m 10 20 3.1415 -m 1 2 0.0
+OK
+Options { switch: true, multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }, Multi { m: (), val_1: 1, val_2: 2, val_3: 0.0 }] }
+
+? `-s` can't go in the middle
+> -m 10 20 -s 3.1415
+Stderr
+-m is not expected in this context

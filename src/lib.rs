@@ -1542,12 +1542,54 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // {{{ adjacent
+    /// Automagically restrict the inner parser scope to accept adjacent values only
+    ///
+    /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,
+    /// multi-value arguments, option-structs to name a few. If you want to run a parser on a
+    /// sequential subset of arguments - `adjacent` might be able to help you. Check the examples
+    /// for better intuition.
+    ///
+    /// # Multi-value arguments
+    ///
+    /// Parsing things like `--foo ARG1 ARG2 ARG3`
+    #[doc = include_str!("docs/adjacent_0.md")]
+    ///
+    /// # Structure groups
+    ///
+    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+    #[doc = include_str!("docs/adjacent_1.md")]
+    ///
+    /// # Chaining commands
+    ///
+    /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
+    ///
+    #[doc = include_str!("docs/adjacent_2.md")]
+    ///
+    /// # Start and end markers
+    ///
+    /// Parsing things like `find . --exec foo {} -bar ; --more`
+    ///
+    #[doc = include_str!("docs/adjacent_3.md")]
+    ///
+    /// # Performance and other considerations
+    ///
+    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It is
+    /// best not to have complex inter-fields verification since they might trip up the detection
+    /// logic: instead of destricting let's say sum of two fields to be 5 or greater *inside* the
+    /// `adjacent` parser, you can restrict it outside, once `adjacent` done the parsing.
+    ///
+    /// `adjacent` is defined on a trait for better discoverability, it doesn't make much sense to
+    /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
+    /// several fields.
+    #[must_use]
     fn adjacent(self) -> ParseAdjacent<Self>
     where
         Self: Sized + Parser<T>,
     {
         ParseAdjacent { inner: self }
     }
+    // }}}
 
     // consume
     // {{{ to_options

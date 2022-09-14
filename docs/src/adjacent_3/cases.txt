@@ -1,0 +1,4 @@
+? description
+> --exec foo --bar ; -s
+OK
+expected output
