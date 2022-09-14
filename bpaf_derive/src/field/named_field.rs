@@ -292,7 +292,8 @@ impl Field {
                 ConsumerAttr::Arg(_)
                 | ConsumerAttr::ArgOs(_)
                 | ConsumerAttr::Switch
-                | ConsumerAttr::Flag(_, _) => {}
+                | ConsumerAttr::Flag(_, _)
+                | ConsumerAttr::ReqFlag(_) => {}
             }
         }
 
@@ -356,6 +357,14 @@ impl Field {
                 return Ok(());
             }
             Shape::Direct(ty) => ty,
+            Shape::Unit => {
+                if self.consumer.is_none() {
+                    self.consumer = Some(ConsumerAttr::ReqFlag(parse_quote!(())));
+                    return Ok(());
+                } else {
+                    self.ty.clone()
+                }
+            }
         };
 
         let arg = LitStr::new("ARG", ty.span());
@@ -365,7 +374,8 @@ impl Field {
                 ConsumerAttr::Arg(_)
                 | ConsumerAttr::ArgOs(_)
                 | ConsumerAttr::Switch
-                | ConsumerAttr::Flag(_, _) => {
+                | ConsumerAttr::Flag(_, _)
+                | ConsumerAttr::ReqFlag(_) => {
                     if self.naming.is_empty() {
                         return Err(syn::Error::new(
                             self.ty.span(),

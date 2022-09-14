@@ -531,7 +531,8 @@ impl Named {
     /// enum. To better convey the meaning you might want to use a combination of
     /// `skip` and `fallback` annotations, see examples.
     ///
-    ///
+    /// Additionally `()` fields are parsed as `req_flag` by `bpaf_derive`, see
+    /// [`adjacent`](Parser::adjacent) for more details.
     /// See [`Named`] for more details
     #[doc = include_str!("docs/req_flag.md")]
     #[must_use]

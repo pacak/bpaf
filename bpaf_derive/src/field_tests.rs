@@ -554,3 +554,15 @@ fn any_field_3() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn unit_fields_are_required() {
+    let input: NamedField = parse_quote! {
+        /// help
+        name: ()
+    };
+    let output = quote! {
+        ::bpaf::long("name").help("help").req_flag(())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}

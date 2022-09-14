@@ -37,6 +37,7 @@ enum ConsumerAttr {
     Switch,
     Any(LitStr),
     Flag(Box<Expr>, Box<Expr>),
+    ReqFlag(Expr),
 }
 
 #[derive(Debug, Clone)]
@@ -123,6 +124,7 @@ enum Shape {
     Optional(Type),
     Multiple(Type),
     Bool,
+    Unit,
     Direct(Type),
 }
 
@@ -144,6 +146,12 @@ fn split_type(ty: &Type) -> Shape {
     }
 
     fn try_split_type(ty: &Type) -> Option<Shape> {
+        if let Type::Tuple(syn::TypeTuple { elems, .. }) = ty {
+            if elems.is_empty() {
+                return Some(Shape::Unit);
+            }
+        }
+
         let last = match ty {
             Type::Path(p) => p.path.segments.last()?,
             _ => return None,
@@ -241,6 +249,7 @@ impl ToTokens for ConsumerAttr {
             ConsumerAttr::Switch => quote!(switch()),
             ConsumerAttr::Any(arg) => quote!(any(#arg)),
             ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
+            ConsumerAttr::ReqFlag(a) => quote!(req_flag(#a)),
         }
         .to_tokens(tokens);
     }
