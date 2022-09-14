@@ -350,9 +350,9 @@ use std::marker::PhantomData;
 pub use structs::PCon;
 
 use structs::{
-    ParseAdjacent, ParseCatch, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr,
-    ParseGroupHelp, ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse,
-    ParsePure, ParseSome, ParseWith,
+    ParseAdjacent, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
+    ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -742,7 +742,10 @@ pub trait Parser<T> {
     where
         Self: Sized,
     {
-        ParseMany { inner: self }
+        ParseMany {
+            inner: self,
+            catch: false,
+        }
     }
     // }}}
 
@@ -796,6 +799,7 @@ pub trait Parser<T> {
         ParseSome {
             inner: self,
             message,
+            catch: false,
         }
     }
     // }}}
@@ -854,7 +858,10 @@ pub trait Parser<T> {
     where
         Self: Sized + Parser<T>,
     {
-        ParseOptional { inner: self }
+        ParseOptional {
+            inner: self,
+            catch: false,
+        }
     }
     // }}}
 
@@ -1493,26 +1500,6 @@ pub trait Parser<T> {
         Self: Sized + Parser<T>,
     {
         ParseComp { inner: self, op }
-    }
-    // }}}
-
-    // {{{ catch
-    #[must_use]
-    /// Handle parse failures
-    ///
-    /// Can be useful to decide to skip parsing of some items on a command line
-    /// When parser succeeds - `catch` would consume items and return the value
-    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed
-    /// values and return None.
-    ///
-    /// Parser transformed with `catch` needs to return `Option<T>` already, so most
-    /// likely you will be using `catch` in combination with [`optional`](Parser::optional).
-    #[doc = include_str!("docs/catch.md")]
-    fn catch(self) -> ParseCatch<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseCatch { inner: self }
     }
     // }}}
 

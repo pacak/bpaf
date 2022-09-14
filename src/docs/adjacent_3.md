@@ -13,7 +13,7 @@ pub struct Options {
 
 fn exec() -> impl Parser<Vec<OsString>> {
     let start = long("exec").req_flag(());
-    let body = any("EXEC").guard(|s| s != ";", "end marker").many();
+    let body = any("EXEC").guard(|s| s != ";", "end marker").many().catch();
     let end = any("TAIL").guard(|s| s == ";", "end marker");
     construct!(start, body, end).adjacent().map(|x| x.1)
 }
@@ -30,10 +30,11 @@ pub fn options() -> OptionParser<Options> {
 <summary>Examples</summary>
 
 
-description
+You can have as many items between `--exec` and `;` as you want, they all will be captured
+inside the exec vector. Extra options can go either before or after the block.
 ```console
 % app --exec foo --bar ; -s
-expected output
+Options { switch: true, exec: ["foo", "--bar"] }
 ```
 
 </details>

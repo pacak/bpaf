@@ -61,6 +61,7 @@ where
 pub struct ParseSome<P> {
     pub(crate) inner: P,
     pub(crate) message: &'static str,
+    pub(crate) catch: bool,
 }
 
 impl<T, P> Parser<Vec<T>> for ParseSome<P>
@@ -71,7 +72,7 @@ where
         let mut res = Vec::new();
         let mut len = args.len();
 
-        while let Some(val) = parse_option(&self.inner, args)? {
+        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
             if args.len() < len {
                 len = args.len();
                 res.push(val);
@@ -345,6 +346,7 @@ where
 /// [`optional`](Parser::optional).
 pub struct ParseOptional<P> {
     pub(crate) inner: P,
+    pub(crate) catch: bool,
 }
 
 impl<T, P> Parser<Option<T>> for ParseOptional<P>
@@ -352,7 +354,7 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        parse_option(&self.inner, args)
+        parse_option(&self.inner, args, self.catch)
     }
 
     fn meta(&self) -> Meta {
@@ -360,6 +362,54 @@ where
     }
 }
 
+impl<P> ParseOptional<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` would consume items and return the value
+    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed
+    /// values and return None.
+    ///
+    /// Parser transformed with `catch` needs to return `Option<T>` already, so most
+    /// likely you will be using `catch` in combination with [`optional`](Parser::optional).
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
+}
+
+/*
+pub struct ParseOptionalCatch<P> {
+    pub(crate) inner: P,
+}
+
+impl<T, P> Parser<Option<T>> for ParseOptionalCatch<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
+        let mut orig_args = args.clone();
+        match parse_option(&self.inner, args) {
+            Ok(res) => Ok(res),
+            Err(Error::Stderr(_) | Error::Missing(_)) => {
+                std::mem::swap(args, &mut orig_args);
+                #[cfg(feature = "autocomplete")]
+                if orig_args.comp.is_some() {
+                    std::mem::swap(&mut args.comp, &mut orig_args.comp);
+                }
+                Ok(None)
+            }
+            Err(err @ Error::Stdout(..)) => Err(err),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Optional(Box::new(self.inner.meta()))
+    }
+}
+*/
 /// Parser that uses [`FromStr`] instance of a type, created with [`from_str`](Parser::from_str).
 pub struct ParseFromStr<P, R> {
     pub(crate) inner: P,
@@ -389,37 +439,17 @@ where
 /// [`many`](Parser::many).
 pub struct ParseMany<P> {
     pub(crate) inner: P,
-}
-pub struct ParseCatch<P> {
-    pub(crate) inner: P,
+    pub(crate) catch: bool,
 }
 
-impl<P, T> Parser<Option<T>> for ParseCatch<P>
-where
-    P: Parser<Option<T>>,
-{
-    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        let mut orig_args = args.clone();
-        match self.inner.eval(args) {
-            Ok(res) => Ok(res),
-            Err(Error::Stderr(_) | Error::Missing(_)) => {
-                std::mem::swap(args, &mut orig_args);
-                #[cfg(feature = "autocomplete")]
-                if orig_args.comp.is_some() {
-                    std::mem::swap(&mut args.comp, &mut orig_args.comp);
-                }
-                Ok(None)
-            }
-            Err(err @ Error::Stdout(..)) => Err(err),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.inner.meta()
+impl<P> ParseMany<P> {
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
     }
 }
 
-fn parse_option<P, T>(parser: &P, args: &mut Args) -> Result<Option<T>, Error>
+fn parse_option<P, T>(parser: &P, args: &mut Args, catch: bool) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
@@ -435,7 +465,8 @@ where
             }
 
             match err {
-                Error::Stdout(_) | Error::Stderr(_) => Err(err),
+                Error::Stderr(_) if catch => Ok(None),
+                Error::Stderr(_) | Error::Stdout(_) => Err(err),
                 Error::Missing(_) => Ok(None),
             }
         }
@@ -449,7 +480,7 @@ where
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
-        while let Some(val) = parse_option(&self.inner, args)? {
+        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
             if args.len() < len {
                 len = args.len();
                 res.push(val);
