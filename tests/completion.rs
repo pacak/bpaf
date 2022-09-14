@@ -848,8 +848,8 @@ fn test_zsh_comp<T: std::fmt::Debug>(
     assert_eq!(actual_len, expected_len);
 }
 
-/*
 #[test]
+#[should_panic(expected = "Parser supports ")]
 fn ambiguity() {
     #[derive(Debug, Clone)]
     enum A {
@@ -862,8 +862,7 @@ fn ambiguity() {
 
     let parser = construct!([a0, a1]).to_options();
     test_zsh_comp(&parser, &["-aaa"], &[["-aaa", "", "", ""]]);
-    todo!();
-}*/
+}
 
 #[test]
 fn zsh_style_completion_visible() {

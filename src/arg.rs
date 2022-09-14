@@ -61,14 +61,6 @@ impl std::fmt::Display for Arg {
         }
     }
 }
-/*
-impl Arg {
-    pub(crate) fn as_os(&self) -> &OsStr {
-        match self {
-            Arg::Short(_, os) | Arg::Long(_, os) | Arg::Word(os) | Arg::PosWord(os) => os.as_ref(),
-        }
-    }
-}*/
 
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
     if *pos_only {
