@@ -1,7 +1,6 @@
-//!
-use std::{marker::PhantomData, str::FromStr};
-
+//! Structures that implement different methods on [`Parser`] trait
 use crate::{info::Error, Args, Meta, Parser};
+use std::{marker::PhantomData, str::FromStr};
 
 #[cfg(feature = "autocomplete")]
 use crate::CompleteDecor;
@@ -56,12 +55,30 @@ where
     }
 }
 
-/// Parser that applies inner parser multiple times and collects results into Vec, inner parser must
-/// succeed at least once, created with [`Parser::some`].
+/// Apply inner parser several times and collect results into `Vec`, created with
+/// [`some`](Parser::some), requires for at least one item to be available to succeed.
+/// Implements [`catch`](ParseMany::catch)
 pub struct ParseSome<P> {
     pub(crate) inner: P,
     pub(crate) message: &'static str,
     pub(crate) catch: bool,
+}
+
+impl<P> ParseSome<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
 }
 
 impl<T, P> Parser<Vec<T>> for ParseSome<P>
@@ -342,8 +359,9 @@ where
     }
 }
 
-/// Parser that returns results of inner parser wrapped into [`Option`], created with
-/// [`optional`](Parser::optional).
+/// Apply inner parser, return a value in `Some` if items requested by it are all present, restore
+/// and return `None` if any are missing. Created with [`optional`](Parser::optional). Implements
+/// [`catch`](ParseOptional::catch)
 pub struct ParseOptional<P> {
     pub(crate) inner: P,
     pub(crate) catch: bool,
@@ -367,12 +385,11 @@ impl<P> ParseOptional<P> {
     /// Handle parse failures
     ///
     /// Can be useful to decide to skip parsing of some items on a command line
-    /// When parser succeeds - `catch` would consume items and return the value
-    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed
-    /// values and return None.
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
     ///
-    /// Parser transformed with `catch` needs to return `Option<T>` already, so most
-    /// likely you will be using `catch` in combination with [`optional`](Parser::optional).
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
     #[doc = include_str!("docs/catch.md")]
     pub fn catch(mut self) -> Self {
         self.catch = true;
@@ -380,36 +397,6 @@ impl<P> ParseOptional<P> {
     }
 }
 
-/*
-pub struct ParseOptionalCatch<P> {
-    pub(crate) inner: P,
-}
-
-impl<T, P> Parser<Option<T>> for ParseOptionalCatch<P>
-where
-    P: Parser<T>,
-{
-    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        let mut orig_args = args.clone();
-        match parse_option(&self.inner, args) {
-            Ok(res) => Ok(res),
-            Err(Error::Stderr(_) | Error::Missing(_)) => {
-                std::mem::swap(args, &mut orig_args);
-                #[cfg(feature = "autocomplete")]
-                if orig_args.comp.is_some() {
-                    std::mem::swap(&mut args.comp, &mut orig_args.comp);
-                }
-                Ok(None)
-            }
-            Err(err @ Error::Stdout(..)) => Err(err),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        Meta::Optional(Box::new(self.inner.meta()))
-    }
-}
-*/
 /// Parser that uses [`FromStr`] instance of a type, created with [`from_str`](Parser::from_str).
 pub struct ParseFromStr<P, R> {
     pub(crate) inner: P,
@@ -435,14 +422,24 @@ where
     }
 }
 
-/// Parser that applies inner parser multiple times and collects results into [`Vec`], created with
-/// [`many`](Parser::many).
+/// Apply inner parser several times and collect results into `Vec`, created with
+/// [`many`](Parser::many), implements [`catch`](ParseMany::catch).
 pub struct ParseMany<P> {
     pub(crate) inner: P,
     pub(crate) catch: bool,
 }
 
 impl<P> ParseMany<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self

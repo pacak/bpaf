@@ -351,8 +351,7 @@ pub use structs::PCon;
 
 use structs::{
     ParseAdjacent, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseGuard, ParseHide, ParseMap, ParseOrElse, ParsePure, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -362,6 +361,7 @@ use structs::{ParseComp, ParseCompStyle};
 pub use crate::args::Args;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
+pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
 
 #[doc(inline)]
 pub use crate::params::{
@@ -1564,7 +1564,7 @@ pub trait Parser<T> {
     /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It is
     /// best not to have complex inter-fields verification since they might trip up the detection
     /// logic: instead of destricting let's say sum of two fields to be 5 or greater *inside* the
-    /// `adjacent` parser, you can restrict it outside, once `adjacent` done the parsing.
+    /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
     ///
     /// `adjacent` is defined on a trait for better discoverability, it doesn't make much sense to
     /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing

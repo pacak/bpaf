@@ -1290,6 +1290,8 @@ pub struct GetAny<T> {
 /// the consumer struct.
 ///
 #[doc = include_str!("docs/any.md")]
+///
+/// See [`adjacent`](Parser::adjacent) for more examples
 #[must_use]
 pub fn any(metavar: &'static str) -> GetAny<OsString> {
     GetAny {
