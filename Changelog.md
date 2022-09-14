@@ -1,5 +1,10 @@
 # Change Log
 ## bpaf [0.5.8] - unreleased
+- internal refactors
+- documentation refactor: examples with input/output
+- any - to capture anything
+- adjacent restriction
+- catch inside ParseOption, ParseMany and ParseSome
 - usage line refactor, cosmetic mostly
 - include \n in --version, cosmetic
 
