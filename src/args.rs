@@ -7,6 +7,7 @@ use crate::{Error, Named};
 mod inner {
     use std::{
         ffi::{OsStr, OsString},
+        ops::Range,
         rc::Rc,
     };
 
@@ -198,6 +199,78 @@ mod inner {
         pub fn set_comp(mut self, rev: usize) -> Self {
             self.comp = Some(crate::complete_gen::Complete::new(rev));
             self
+        }
+
+        /// restrict `guess` to the first adjacent block of consumed elements
+        ///
+        /// returns true when either
+        /// - it improved starting point
+        /// - it improved ending point and there are gaps past it
+        pub(crate) fn refine_range(&self, args: &Args, guess: &mut Range<usize>) -> bool {
+            // start is not at the right place, adjust that and retry the parsing
+            if self.removed[guess.start] == args.removed[guess.start] {
+                for (offset, (this, orig)) in self.removed[guess.start..]
+                    .iter()
+                    .zip(args.removed[guess.start..].iter())
+                    .enumerate()
+                {
+                    let ix = offset + guess.start;
+                    if !orig && *this {
+                        guess.start = ix;
+                        return true;
+                    }
+                }
+            }
+
+            // at this point start is at the right place, we need to set the end to the first
+            // match - point where adjacent parser stopped consuming items
+            let old_end = guess.end;
+            for (offset, (this, orig)) in self.removed[guess.start..]
+                .iter()
+                .zip(args.removed[guess.start..].iter())
+                .enumerate()
+            {
+                let ix = offset + guess.start;
+                if !this && !orig {
+                    guess.end = ix;
+                    break;
+                }
+            }
+
+            // no improvements to the end
+            if old_end == guess.end {
+                return false;
+            }
+
+            // at this point check if there are any consumed items past the new end, if there are -
+            // need to rerun the parser
+            for (this, orig) in self.removed[guess.end..old_end]
+                .iter()
+                .zip(args.removed[guess.end..old_end].iter())
+            {
+                if *this && !orig {
+                    return true;
+                }
+            }
+            // otherwise refining is done
+            false
+        }
+
+        /// Mark everything outside of `range` as removed
+        pub(crate) fn restrict_to_range(&mut self, range: &Range<usize>) {
+            for (ix, removed) in self.removed.iter_mut().enumerate() {
+                if !range.contains(&ix) {
+                    *removed = true;
+                }
+            }
+        }
+
+        /// take removals from args, mark everything inside range as removed
+        pub(crate) fn transplant_usage(&mut self, args: &mut Args, range: Range<usize>) {
+            std::mem::swap(&mut self.removed, &mut args.removed);
+            for i in range {
+                self.removed[i] = true;
+            }
         }
 
         #[inline(never)]

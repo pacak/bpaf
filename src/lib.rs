@@ -350,9 +350,9 @@ use std::marker::PhantomData;
 pub use structs::PCon;
 
 use structs::{
-    ParseCatch, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseAdjacent, ParseCatch, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr,
+    ParseGroupHelp, ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse,
+    ParsePure, ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1496,6 +1496,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // {{{ catch
     #[must_use]
     /// Handle parse failures
     ///
@@ -1513,7 +1514,9 @@ pub trait Parser<T> {
     {
         ParseCatch { inner: self }
     }
+    // }}}
 
+    // {{{ complete_style
     /// Add extra annotations to completion information
     ///
     /// Not all information is gets supported by all the shells
@@ -1536,6 +1539,14 @@ pub trait Parser<T> {
         Self: Sized + Parser<T>,
     {
         ParseCompStyle { inner: self, style }
+    }
+    // }}}
+
+    fn adjacent(self) -> ParseAdjacent<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseAdjacent { inner: self }
     }
 
     // consume

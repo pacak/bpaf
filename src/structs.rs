@@ -634,3 +634,31 @@ fn extend_with_args_style(
         }
     }
 }
+
+pub struct ParseAdjacent<P> {
+    pub(crate) inner: P,
+}
+impl<P, T> Parser<T> for ParseAdjacent<P>
+where
+    P: Parser<T> + Sized,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let mut guess = 0..args.items.len();
+        let mut scratch = args.clone();
+        let mut res = self.inner.eval(&mut scratch);
+        let mut refined = true;
+        while refined {
+            refined = scratch.refine_range(args, &mut guess);
+            scratch = args.clone();
+            scratch.restrict_to_range(&guess);
+            res = self.inner.eval(&mut scratch);
+        }
+        scratch.transplant_usage(args, guess);
+        std::mem::swap(args, &mut scratch);
+        res
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
