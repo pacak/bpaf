@@ -576,10 +576,12 @@ impl Named {
     }
 
     #[track_caller]
-    pub(crate) fn matches_arg(&self, arg: &Arg) -> bool {
+    /// `adjacent` requires for the argument to be present in the same word as the flag:
+    /// `-f bar` - no, `-fbar` or `-f=bar` - yes.
+    pub(crate) fn matches_arg(&self, arg: &Arg, adjacent: bool) -> bool {
         match arg {
-            Arg::Short(s, _, _) => self.short.contains(s),
-            Arg::Long(l, _, _) => self.long.contains(&l.as_str()),
+            Arg::Short(s, is_adj, _) => self.short.contains(s) && (!adjacent || *is_adj),
+            Arg::Long(l, is_adj, _) => self.long.contains(&l.as_str()) && (!adjacent || *is_adj),
             Arg::Word(_) | Arg::PosWord(_) | Arg::Ambiguity(..) => false,
         }
     }
@@ -882,11 +884,11 @@ impl<T> Command<T> {
     }
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> impl Parser<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> ParseFlag<T>
 where
     T: Clone + 'static,
 {
-    BuildFlagParser {
+    ParseFlag {
         present,
         absent,
         named,
@@ -894,13 +896,13 @@ where
 }
 
 #[derive(Clone)]
-struct BuildFlagParser<T> {
+struct ParseFlag<T> {
     present: T,
     absent: Option<T>,
     named: Named,
 }
 
-impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
+impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
@@ -936,6 +938,7 @@ fn build_argument(named: Named, metavar: &'static str) -> ParseArgument<String> 
         named,
         metavar,
         ty: PhantomData,
+        adjacent: false,
     }
 }
 
@@ -944,6 +947,7 @@ pub struct ParseArgument<T> {
     ty: PhantomData<T>,
     named: Named,
     metavar: &'static str,
+    adjacent: bool,
 }
 
 impl<T> ParseArgument<T> {
@@ -962,11 +966,17 @@ impl<T> ParseArgument<T> {
             ty: PhantomData,
             named: self.named,
             metavar: self.metavar,
+            adjacent: self.adjacent,
         }
     }
 
+    pub fn adjacent(mut self) -> Self {
+        self.adjacent = true;
+        self
+    }
+
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
-        match args.take_arg(&self.named) {
+        match args.take_arg(&self.named, self.adjacent) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {

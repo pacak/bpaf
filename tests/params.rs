@@ -39,3 +39,28 @@ fn get_any_many2() {
     let r = parser.run_inner(Args::from(&["-vvv"])).unwrap();
     assert_eq!(r[0], "-vvv");
 }
+
+#[test]
+fn get_any_magic() {
+    let parser = short('b')
+        .argument("anana")
+        .adjacent()
+        .guard(|b| b == "anana", "not anana")
+        .optional()
+        .catch()
+        .map(|b| b.is_some())
+        .to_options();
+
+    // -b anana - is not a -banana
+    let r = parser
+        .run_inner(Args::from(&["-b", "anana"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "-b is not expected in this context");
+
+    // close enough :)
+    assert!(parser.run_inner(Args::from(&["-b=anana"])).unwrap());
+
+    assert!(parser.run_inner(Args::from(&["-banana"])).unwrap());
+    assert!(!parser.run_inner(Args::from(&[])).unwrap());
+}

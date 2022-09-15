@@ -1,5 +1,6 @@
 # Change Log
 ## bpaf [0.6.0] - unreleased
+- replaced `positional_os()` and `argument_os()` with `positional().os()`, `argument().os()`
 - internal refactors
 - documentation refactor: examples with input/output
 - any - to capture anything

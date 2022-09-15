@@ -207,6 +207,10 @@ mod inner {
         /// - it improved starting point
         /// - it improved ending point and there are gaps past it
         pub(crate) fn refine_range(&self, args: &Args, guess: &mut Range<usize>) -> bool {
+            // nothing to refine
+            if self.removed.is_empty() {
+                return false;
+            }
             // start is not at the right place, adjust that and retry the parsing
             if self.removed[guess.start] == args.removed[guess.start] {
                 for (offset, (this, orig)) in self.removed[guess.start..]
@@ -382,7 +386,10 @@ impl Args {
     ///
     /// Returns false if value isn't present
     pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
-        if let Some((ix, _)) = self.items_iter().find(|arg| named.matches_arg(arg.1)) {
+        if let Some((ix, _)) = self
+            .items_iter()
+            .find(|arg| named.matches_arg(arg.1, false))
+        {
             self.remove(ix);
             true
         } else {
@@ -394,11 +401,19 @@ impl Args {
     ///
     /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
-    pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<OsString>, Error> {
-        let (key_ix, arg) = match self.items_iter().find(|arg| named.matches_arg(arg.1)) {
+    pub(crate) fn take_arg(
+        &mut self,
+        named: &Named,
+        adjacent: bool,
+    ) -> Result<Option<OsString>, Error> {
+        let (key_ix, arg) = match self
+            .items_iter()
+            .find(|arg| named.matches_arg(arg.1, adjacent))
+        {
             Some(v) => v,
             None => return Ok(None),
         };
+
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
@@ -478,7 +493,7 @@ mod tests {
     #[test]
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -507,7 +522,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -515,7 +530,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
+        let s = a.take_arg(&long("speed"), true).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -523,7 +538,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -531,7 +546,15 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
+        assert_eq!(s, "-12");
+        assert!(a.is_empty());
+    }
+
+    #[test]
+    fn short_arg_with_equality_and_minus_is_adjacent() {
+        let mut a = Args::from(&["-s=-12"]);
+        let s = a.take_arg(&short('s'), true).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -539,7 +562,7 @@ mod tests {
     #[test]
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -566,7 +589,7 @@ mod tests {
     fn command_with_flags() {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "v");
         assert!(a.is_empty());
     }
@@ -601,7 +624,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash3() {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
-        let w = a.take_arg(&short('v')).unwrap().unwrap();
+        let w = a.take_arg(&short('v'), false).unwrap().unwrap();
         assert_eq!(w, "12");
         let w = a.take_positional_word().unwrap().unwrap();
         assert_eq!(w.1, "-x");
@@ -621,7 +644,7 @@ mod tests {
     fn ambiguity_towards_argument() {
         let mut a = Args::from(&["-abc"]);
         a.disambiguate(&[], &['a']).unwrap();
-        let r = a.take_arg(&short('a')).unwrap().unwrap();
+        let r = a.take_arg(&short('a'), false).unwrap().unwrap();
         assert_eq!(r, "bc");
     }
 
