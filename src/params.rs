@@ -1279,14 +1279,14 @@ impl Parser<String> for Positional<String> {
     }
 }
 
-pub struct GetAny<T> {
+pub struct ParseAny<T> {
     ty: PhantomData<T>,
     metavar: &'static str,
     strict: bool,
     help: Option<String>,
 }
 
-/// Take next unconsumed item on the command line as raw [`OsString`]
+/// Take next unconsumed item on the command line as raw [`String`] or [`OsString`]
 ///
 /// `any` behaves similar to [`positional`] so you should be using it near the right most end of
 /// the consumer struct.
@@ -1295,8 +1295,8 @@ pub struct GetAny<T> {
 ///
 /// See [`adjacent`](Parser::adjacent) for more examples
 #[must_use]
-pub fn any(metavar: &'static str) -> GetAny<OsString> {
-    GetAny {
+pub fn any(metavar: &'static str) -> ParseAny<String> {
+    ParseAny {
         ty: PhantomData,
         metavar,
         strict: false,
@@ -1304,9 +1304,9 @@ pub fn any(metavar: &'static str) -> GetAny<OsString> {
     }
 }
 
-impl<T> GetAny<T> {
-    pub fn string(self) -> GetAny<String> {
-        GetAny {
+impl<T> ParseAny<T> {
+    pub fn os(self) -> ParseAny<OsString> {
+        ParseAny {
             ty: PhantomData,
             metavar: self.metavar,
             help: self.help,
@@ -1361,7 +1361,7 @@ impl<T> GetAny<T> {
     }
 }
 
-impl Parser<String> for GetAny<String> {
+impl Parser<String> for ParseAny<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         let os = self.next_os_string(args)?;
         match os.to_str() {
@@ -1379,7 +1379,7 @@ impl Parser<String> for GetAny<String> {
     }
 }
 
-impl Parser<OsString> for GetAny<OsString> {
+impl Parser<OsString> for ParseAny<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         self.next_os_string(args)
     }

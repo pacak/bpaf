@@ -24,6 +24,7 @@ pub struct Field {
     name: Option<Ident>,
     postpr: Vec<PostprAttr>,
     help: Option<String>,
+    os: bool,
 }
 
 fn check_stage(prev: &mut usize, new: usize, keyword: &Ident) -> Result<()> {
@@ -109,6 +110,7 @@ impl Field {
             consumer: None,
             postpr: Vec::new(),
             help: None,
+            os: false,
         };
         let mut help = Vec::new();
 
@@ -222,6 +224,8 @@ impl Field {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
                             .push(PostprAttr::Parse(span, parse_ident(input)?));
+                    } else if keyword == "os" {
+                        res.os = true;
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
@@ -397,13 +401,13 @@ impl Field {
         if derive_postpr {
             let string = parse_quote!(String);
             if let Some(ConsumerAttr::Any(_)) = &self.consumer {
-                if !is_os {
+                if is_os || self.os {
                     self.postpr
-                        .insert(0, PostprAttr::Tokens(ty.span(), quote!(string())));
+                        .insert(0, PostprAttr::Tokens(ty.span(), quote!(os())));
                 }
                 if !is_os && ty != string {
                     self.postpr
-                        .insert(1, PostprAttr::FromStr(ty.span(), Box::new(ty)));
+                        .insert(0, PostprAttr::FromStr(ty.span(), Box::new(ty)));
                 }
                 return Ok(());
             }

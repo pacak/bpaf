@@ -16,7 +16,7 @@ pub fn options() -> OptionParser<Options> {
         .long("turbo")
         .help("Engage the turbo mode")
         .switch();
-    let rest = any("REST").many();
+    let rest = any("REST").os().many();
     construct!(Options { turbo, rest }).to_options()
 }
 ```
@@ -35,7 +35,7 @@ pub struct Options {
     #[bpaf(short, long)]
     /// Engage the turbo mode
     turbo: bool,
-    #[bpaf(any("REST"))]
+    #[bpaf(any("REST"), os)]
     rest: Vec<OsString>,
 }
 ```

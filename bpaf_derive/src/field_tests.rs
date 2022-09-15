@@ -524,7 +524,7 @@ fn any_field_1() {
         field: OsString
     };
     let output = quote! {
-        ::bpaf::any("ARG").help("help")
+        ::bpaf::any("ARG").help("help").os()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -537,7 +537,7 @@ fn any_field_2() {
         String
     };
     let output = quote! {
-        ::bpaf::any("FOO").help("help").string()
+        ::bpaf::any("FOO").help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -550,7 +550,20 @@ fn any_field_3() {
         Vec<String>
     };
     let output = quote! {
-        ::bpaf::any("FOO").help("help").string().many()
+        ::bpaf::any("FOO").help("help").many()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn any_field_4() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO"), os)]
+        /// help
+        Vec<OsString>
+    };
+    let output = quote! {
+        ::bpaf::any("FOO").help("help").os().many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

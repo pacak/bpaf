@@ -15,6 +15,6 @@ pub fn options() -> OptionParser<Options> {
         .long("turbo")
         .help("Engage the turbo mode")
         .switch();
-    let rest = any("REST").many();
+    let rest = any("REST").os().many();
     construct!(Options { turbo, rest }).to_options()
 }
