@@ -209,8 +209,8 @@
 //! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
 //! should put the argument one first.
 //!
-//! You must place [`positional`] and [`positional_os`] items at the end of a structure
-//! in derive API or consume them as last arguments in derive API.
+//! You must place [`positional`] items at the end of a structure in derive API or consume them
+//! as last arguments in derive API.
 
 //! # Dynamic shell completion
 //!
@@ -350,7 +350,7 @@ pub mod parsers {
     //!
     //! In most cases you won't be using those names directly, they are only listed here to provide
     //! access to documentation for member functions
-    pub use crate::params::{Command, Named, Positional};
+    pub use crate::params::{Command, Named, ParsePositional};
     pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
 }
 
@@ -369,7 +369,7 @@ pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
-pub use crate::params::{any, command, env, long, positional, positional_os, short};
+pub use crate::params::{any, command, env, long, positional, short};
 
 #[cfg(doc)]
 pub(self) use crate::parsers::Named;

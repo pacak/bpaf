@@ -227,7 +227,7 @@ fn check_many_files_implicit() {
         files: Vec<std::path::PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument_os("ARG").map(std::path::PathBuf::from).many()
+        ::bpaf::long("files").argument("ARG").os().map(std::path::PathBuf::from).many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -238,7 +238,7 @@ fn check_option_file_implicit() {
         files: Option<PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument_os("ARG").map(PathBuf::from).optional()
+        ::bpaf::long("files").argument("ARG").os().map(PathBuf::from).optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

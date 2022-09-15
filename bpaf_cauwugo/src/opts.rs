@@ -1,6 +1,6 @@
 use std::{ffi::OsString, sync::Mutex};
 
-use bpaf::{positional, positional_os, Bpaf, CompleteDecor, Parser};
+use bpaf::{positional, Bpaf, CompleteDecor, Parser};
 use cargo_metadata::{CargoOpt, Metadata, MetadataCommand};
 use once_cell::sync::Lazy;
 
@@ -195,7 +195,8 @@ fn remember_release(release: bool) -> bool {
 }
 
 fn child_process_args() -> impl Parser<Vec<OsString>> {
-    positional_os("CHILD_ARG")
+    positional("CHILD_ARG")
+        .os()
         .strict()
         .many()
         .complete(complete_binary_args)

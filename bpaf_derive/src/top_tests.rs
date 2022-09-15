@@ -199,7 +199,7 @@ fn unnamed_struct() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").help("help").map(PathBuf::from);
+                let f0 = ::bpaf::positional("ARG").help("help").os().map(PathBuf::from);
                 ::bpaf::construct!(Opt(f0))
             }
             .to_options()
@@ -222,7 +222,7 @@ fn unnamed_enum() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                let f0 = ::bpaf::positional("ARG").os().map(PathBuf::from);
                 let f1 = ::bpaf::positional("ARG").from_str::<usize>();
                 ::bpaf::construct!(Opt1::Con1(f0, f1))
             }
@@ -303,7 +303,7 @@ fn help_generation() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                let f0 = ::bpaf::positional("ARG").os().map(PathBuf::from);
                 ::bpaf::construct!(Opt(f0))
             }
             .to_options()
@@ -407,7 +407,7 @@ fn version_with_commands_with_cargo_helper() {
 fn named_to_positional_with_metavar() {
     let top: Top = parse_quote! {
         struct Options {
-            #[bpaf(positional_os("PATH"))]
+            #[bpaf(positional("PATH"), os)]
             path: PathBuf,
         }
 
@@ -418,7 +418,7 @@ fn named_to_positional_with_metavar() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
+                let path = ::bpaf::positional("PATH").os().map(PathBuf::from);
                 ::bpaf::construct!(Options { path })
             }
         }
@@ -430,7 +430,7 @@ fn named_to_positional_with_metavar() {
 fn named_to_positional_without_metavar() {
     let top: Top = parse_quote! {
         struct Options {
-            #[bpaf(positional_os)]
+            #[bpaf(positional, os)]
             path: PathBuf,
         }
 
@@ -441,7 +441,7 @@ fn named_to_positional_without_metavar() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::positional("ARG").os().map(PathBuf::from);
                 ::bpaf::construct!(Options { path })
             }
         }
@@ -462,7 +462,7 @@ fn comp_visibility_struct() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument("ARG").os().map(PathBuf::from);
                 :: bpaf :: construct ! (Options { path })
             }.complete_style(x)
         }
@@ -485,7 +485,7 @@ fn comp_visibility_enum() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument("ARG").os().map(PathBuf::from);
                 :: bpaf :: construct ! (Foo::Bar { path })
             }
             .complete_style(x)
@@ -509,7 +509,7 @@ fn private_visibility() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument("ARG").os().map(PathBuf::from);
                 ::bpaf::construct!(Options { path })
             }
         }

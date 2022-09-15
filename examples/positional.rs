@@ -15,7 +15,7 @@ fn main() {
         .argument("VAL")
         .from_str::<u32>()
         .fallback(42);
-    let files = positional_os("FILE").map(PathBuf::from).many();
+    let files = positional("FILE").os().map(PathBuf::from).many();
     let opts = construct!(Options { value, files }).to_options().run();
 
     println!("{:#?}", opts);

@@ -700,7 +700,7 @@ fn arg_bench() {
         .guard(|n: &u32| *n > 0, "Width must be positive")
         .fallback(10);
 
-    let input = positional_os("INPUT").map(PathBuf::from).many();
+    let input = positional("INPUT").os().map(PathBuf::from).many();
 
     let parser = construct!(AppArgs {
         number,

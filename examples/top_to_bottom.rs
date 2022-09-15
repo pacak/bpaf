@@ -61,7 +61,8 @@ fn output() -> impl Parser<PathBuf> {
     short('o')
         .long("output")
         .help("output file")
-        .argument_os("OUTPUT")
+        .argument("OUTPUT")
+        .os()
         .map(PathBuf::from)
 }
 
@@ -74,7 +75,8 @@ fn files_to_process() -> impl Parser<Vec<PathBuf>> {
     short('f')
         .long("file")
         .help("File to process")
-        .argument_os("FILE")
+        .argument("FILE")
+        .os()
         .map(PathBuf::from)
         .many()
 }

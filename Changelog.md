@@ -1,5 +1,5 @@
 # Change Log
-## bpaf [0.5.8] - unreleased
+## bpaf [0.6.0] - unreleased
 - internal refactors
 - documentation refactor: examples with input/output
 - any - to capture anything

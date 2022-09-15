@@ -56,7 +56,6 @@ use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{args::Arg, item::ShortLong, Item, Meta};
-
 /// A named thing used to create [`flag`](Named::flag), [`switch`](Named::switch) or
 /// [`argument`](Named::argument)
 ///
@@ -85,15 +84,15 @@ use crate::{args::Arg, item::ShortLong, Item, Meta};
 /// - [`argument`](Named::argument) - a short or long `flag` followed by either a space or `=` and
 /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
 /// literal can't start with `-` unless separated from the flag with `=` and should be valid
-/// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you can use
-/// [`argument_os`](Named::argument_os).
+/// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you need to add `.os()`
+/// modifier to the end: [`os`](ParseArgument::os).
 ///
 /// ```console
 /// $ app -o file.txt
 /// ```
 ///
 /// - [`positional`] - an arbitrary utf8 string literal (that can't start with `-`) passed on a
-/// command line, there's also [`positional_os`] variant that deals with `OsString` named. Usually
+/// command line, you can also add `.os()` to consume `OsString`. Usually
 /// represents input files such as `cat file.txt`, but can serve other purposes.
 ///
 /// ```console
@@ -547,7 +546,6 @@ impl Named {
     /// Named argument in utf8 (String) encoding
     ///
     /// Argument must contain only valid utf8 characters.
-    /// For OS specific encoding see [`argument_os`][Named::argument_os].
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -561,9 +559,8 @@ impl Named {
     ///
     /// # Derive usage
     ///
-    /// `bpaf_derive` would automatically pick between `argument` and
-    /// [`argument_os`](Named::argument_os) depending on
-    /// a field type but you can specify it manually to override the metavar value
+    /// `bpaf_derive` would automatically pick `argument` and add `os` when needed
+    ///  depending on a field type but you can specify it manually to override the metavar value
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
@@ -574,44 +571,7 @@ impl Named {
     /// ```
     #[must_use]
     /// See [`Named`] for more details
-    pub fn argument(self, metavar: &'static str) -> impl Parser<String> {
-        build_argument(self, metavar).parse(|x| match x.to_str() {
-            Some(s) => Ok(s.to_owned()),
-            None => Err(format!("Not a valid utf8: {}", x.to_string_lossy())),
-        })
-        //                ok_or("not utf8")) // TODO - pro/vide a better diagnostic
-    }
-
-    /// Named argument in OS specific encoding
-    ///
-    /// If you prefer to panic on non utf8 encoding see [`argument`][Named::argument].
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_osstring() -> impl Parser<std::ffi::OsString> {
-    ///     short('n')
-    ///         .long("name")
-    ///         .argument_os("NAME")
-    /// }
-    /// ```
-    ///
-    ///
-    /// # Derive usage
-    /// `bpaf_derive` would automatically pick between [`argument`](Named::argument) and
-    /// `argument_os` depending on
-    /// a field type but you can specify it manually to override the metavar value
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short('n'), argument_os("NAME"))]
-    ///     name: std::ffi::OsString,
-    /// }
-    /// ```
-    #[must_use]
-    /// See [`Named`] for more details
-    pub fn argument_os(self, metavar: &'static str) -> impl Parser<OsString> {
+    pub fn argument(self, metavar: &'static str) -> ParseArgument<String> {
         build_argument(self, metavar)
     }
 
@@ -667,7 +627,7 @@ impl Named {
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options(String);
 /// ```
-/// `positional` and `positional_os` annotations also accept an optional metavar name
+/// `positional` also accept an optional metavar name
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -677,71 +637,8 @@ impl Named {
 ///     input: String,
 /// }
 /// ```
-///
-/// See also [`positional_os`] - a simiar function
 #[must_use]
-pub fn positional(metavar: &'static str) -> Positional<String> {
-    build_positional(metavar)
-}
-
-/// Positional argument in OS specific encoding
-///
-/// For named flags and arguments ordering generally doesn't matter: most programs would
-/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
-/// `cat hello world` and `cat world hello` would display contents of the same two files but in
-/// different order.
-///
-/// # Important restriction
-/// To parse positional arguments from a command line you should place parsers for all your
-/// named values before parsers for positional items and commands. In derive API fields parsed as
-/// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
-///
-/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
-///
-/// For example for non positional `non_pos` and positional `pos` parsers
-/// ```rust
-/// # use bpaf::*;
-/// # let non_pos = || short('n').switch();
-/// # let pos = ||positional("POS");
-/// let valid = construct!(non_pos(), pos());
-/// let invalid = construct!(pos(), non_pos());
-/// ```
-///
-/// **`bpaf` panics during help generation unless if this restriction holds**
-///
-/// # Combinatoric usage
-/// ```rust
-/// # use bpaf::*;
-/// fn input() -> impl Parser<std::ffi::OsString> {
-///     positional_os("INPUT")
-/// }
-/// ```
-
-/// # Derive usage
-///
-/// `bpaf_derive` converts fields in tuple-like structures into positional items and automatically
-/// uses `positional_os` for `OsString` and `PathBuf`
-///
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct Options(std::ffi::OsString);
-/// ```
-/// `positional` and `positional_os` annotations also accept an optional metavar name
-///
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct Options {
-///     #[bpaf(positional_os("INPUT"))]
-///     input: std::path::PathBuf,
-/// }
-/// ```
-///
-/// See also [`positional_os`] - a simiar function
-#[must_use]
-pub fn positional_os(metavar: &'static str) -> Positional<OsString> {
+pub fn positional(metavar: &'static str) -> ParsePositional<String> {
     build_positional(metavar)
 }
 
@@ -1027,7 +924,7 @@ impl<T: Clone + 'static> Parser<T> for BuildFlagParser<T> {
     }
 }
 
-fn build_argument(named: Named, metavar: &'static str) -> BuildArgument {
+fn build_argument(named: Named, metavar: &'static str) -> ParseArgument<String> {
     if !named.env.is_empty() {
         // mostly cosmetic reasons
         assert!(
@@ -1035,16 +932,21 @@ fn build_argument(named: Named, metavar: &'static str) -> BuildArgument {
             "env fallback can only be used if name is present"
         );
     }
-    BuildArgument { named, metavar }
+    ParseArgument {
+        named,
+        metavar,
+        ty: PhantomData,
+    }
 }
 
 #[derive(Clone)]
-struct BuildArgument {
+pub struct ParseArgument<T> {
+    ty: PhantomData<T>,
     named: Named,
     metavar: &'static str,
 }
 
-impl BuildArgument {
+impl<T> ParseArgument<T> {
     fn item(&self) -> Item {
         Item::Argument {
             name: ShortLong::from(&self.named),
@@ -1054,10 +956,16 @@ impl BuildArgument {
             shorts: self.named.short.clone(),
         }
     }
-}
 
-impl Parser<OsString> for BuildArgument {
-    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
+    pub fn os(self) -> ParseArgument<OsString> {
+        ParseArgument {
+            ty: PhantomData,
+            named: self.named,
+            metavar: self.metavar,
+        }
+    }
+
+    fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
         match args.take_arg(&self.named) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -1083,14 +991,37 @@ impl Parser<OsString> for BuildArgument {
             }
         }
     }
+}
+
+impl Parser<OsString> for ParseArgument<OsString> {
+    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
+        self.take_argument(args)
+    }
 
     fn meta(&self) -> Meta {
         Meta::Item(self.item())
     }
 }
 
-fn build_positional<T>(metavar: &'static str) -> Positional<T> {
-    Positional {
+impl Parser<String> for ParseArgument<String> {
+    fn eval(&self, args: &mut Args) -> Result<String, Error> {
+        let os = self.take_argument(args)?;
+        match os.to_str() {
+            Some(s) => Ok(s.to_owned()),
+            None => Err(Error::Stderr(format!(
+                "{} is not a valid utf8",
+                os.to_string_lossy()
+            ))),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Item(self.item())
+    }
+}
+
+fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
+    ParsePositional {
         metavar,
         help: None,
         result_type: PhantomData,
@@ -1098,19 +1029,19 @@ fn build_positional<T>(metavar: &'static str) -> Positional<T> {
     }
 }
 
-/// Parse a positional item, created with [`positional`] and [`positional_os`]
+/// Parse a positional item, created with [`positional`]
 ///
-/// You can add extra information to positional parsers with [`help`](Positional::help) and
-/// [`strict`](Positional::strict) on this struct.
+/// You can add extra information to positional parsers with [`help`](Positional::help), [`os`]
+/// and(Positional::os) and [`strict`](Positional::strict) on this struct.
 #[derive(Clone)]
-pub struct Positional<T> {
+pub struct ParsePositional<T> {
     metavar: &'static str,
     help: Option<String>,
     result_type: PhantomData<T>,
     strict: bool,
 }
 
-impl<T> Positional<T> {
+impl<T> ParsePositional<T> {
     /// Add a help message to a [`positional`]/[`positional_os`] parser
     ///
     /// # Combinatoric usage
@@ -1185,7 +1116,8 @@ impl<T> Positional<T> {
     /// ```rust
     /// # use bpaf::*;
     /// fn options() -> impl Parser<Vec<std::ffi::OsString>> {
-    ///     positional_os("OPTS")
+    ///     positional("OPTS")
+    ///         .os()
     ///         .strict()
     ///         .many()
     /// }
@@ -1197,6 +1129,15 @@ impl<T> Positional<T> {
     pub fn strict(mut self) -> Self {
         self.strict = true;
         self
+    }
+
+    pub fn os(self) -> ParsePositional<OsString> {
+        ParsePositional {
+            metavar: self.metavar,
+            help: self.help,
+            result_type: PhantomData,
+            strict: self.strict,
+        }
     }
 
     fn meta(&self) -> Meta {
@@ -1251,7 +1192,7 @@ fn parse_word(
     }
 }
 
-impl Parser<OsString> for Positional<OsString> {
+impl Parser<OsString> for ParsePositional<OsString> {
     fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
         let res = parse_word(args, self.strict, self.metavar, &self.help)?;
         Ok(res)
@@ -1262,7 +1203,7 @@ impl Parser<OsString> for Positional<OsString> {
     }
 }
 
-impl Parser<String> for Positional<String> {
+impl Parser<String> for ParsePositional<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         let res = parse_word(args, self.strict, self.metavar, &self.help)?;
         match res.to_str() {

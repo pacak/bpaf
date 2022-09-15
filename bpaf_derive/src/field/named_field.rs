@@ -164,15 +164,9 @@ impl Field {
                     } else if keyword == "argument" {
                         check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Arg(parse_optional_arg(input)?));
-                    } else if keyword == "argument_os" {
-                        check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::ArgOs(parse_optional_arg(input)?));
                     } else if keyword == "positional" {
                         check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Pos(parse_optional_arg(input)?));
-                    } else if keyword == "positional_os" {
-                        check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::PosOs(parse_optional_arg(input)?));
                     } else if keyword == "any" {
                         check_stage(&mut stage, 2, &keyword)?;
                         let arg = parse_optional_arg(input)?;
@@ -204,6 +198,8 @@ impl Field {
 
                     //
                     // postpr
+                    } else if keyword == "os" {
+                        res.os = true;
                     } else if keyword == "guard" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let _ = parenthesized!(content in input);
@@ -224,8 +220,6 @@ impl Field {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
                             .push(PostprAttr::Parse(span, parse_ident(input)?));
-                    } else if keyword == "os" {
-                        res.os = true;
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
@@ -292,9 +286,8 @@ impl Field {
         // Do we even need to derive the name here?
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Any(_) | ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => return,
+                ConsumerAttr::Any(_) | ConsumerAttr::Pos(_) => return,
                 ConsumerAttr::Arg(_)
-                | ConsumerAttr::ArgOs(_)
                 | ConsumerAttr::Switch
                 | ConsumerAttr::Flag(_, _)
                 | ConsumerAttr::ReqFlag(_) => {}
@@ -375,7 +368,6 @@ impl Field {
         match &self.consumer {
             Some(cons) => match cons {
                 ConsumerAttr::Arg(_)
-                | ConsumerAttr::ArgOs(_)
                 | ConsumerAttr::Switch
                 | ConsumerAttr::Flag(_, _)
                 | ConsumerAttr::ReqFlag(_) => {
@@ -386,42 +378,30 @@ impl Field {
                         ));
                     }
                 }
-                ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) | ConsumerAttr::Any(_) => {}
+                ConsumerAttr::Pos(_) | ConsumerAttr::Any(_) => {}
             },
             None => {
-                self.consumer = Some(match (is_os, self.naming.is_empty()) {
-                    (true, true) => ConsumerAttr::PosOs(arg),
-                    (true, false) => ConsumerAttr::ArgOs(arg),
-                    (false, true) => ConsumerAttr::Pos(arg),
-                    (false, false) => ConsumerAttr::Arg(arg),
-                });
+                if self.naming.is_empty() {
+                    self.consumer = Some(ConsumerAttr::Pos(arg));
+                } else {
+                    self.consumer = Some(ConsumerAttr::Arg(arg));
+                }
             }
         }
 
         if derive_postpr {
-            let string = parse_quote!(String);
-            if let Some(ConsumerAttr::Any(_)) = &self.consumer {
-                if is_os || self.os {
+            if is_os || self.os {
+                self.postpr
+                    .insert(0, PostprAttr::Tokens(ty.span(), quote!(os())));
+                if ty != parse_quote!(OsString) {
                     self.postpr
-                        .insert(0, PostprAttr::Tokens(ty.span(), quote!(os())));
+                        .insert(1, PostprAttr::Tokens(ty.span(), quote!(map(#ty::from))));
                 }
-                if !is_os && ty != string {
-                    self.postpr
-                        .insert(0, PostprAttr::FromStr(ty.span(), Box::new(ty)));
-                }
-                return Ok(());
             }
-
-            self.postpr.insert(
-                0,
-                if is_os {
-                    PostprAttr::Tokens(ty.span(), quote!(map(#ty::from)))
-                } else if ty != string {
-                    PostprAttr::FromStr(ty.span(), Box::new(ty))
-                } else {
-                    return Ok(());
-                },
-            );
+            if !is_os && ty != parse_quote!(String) {
+                self.postpr
+                    .insert(0, PostprAttr::FromStr(ty.span(), Box::new(ty)));
+            }
         }
 
         Ok(())

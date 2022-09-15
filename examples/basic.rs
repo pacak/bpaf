@@ -42,7 +42,8 @@ fn main() {
     let output = short('o')
         .long("output")
         .help("output file")
-        .argument_os("OUTPUT")
+        .argument("OUTPUT")
+        .os()
         .map(PathBuf::from);
 
     // no magical name transmogrifications in combinatoric API
@@ -52,7 +53,8 @@ fn main() {
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
-        .argument_os("FILE")
+        .argument("FILE")
+        .os()
         .map(PathBuf::from);
     let files_to_process = file_to_proces.many();
 

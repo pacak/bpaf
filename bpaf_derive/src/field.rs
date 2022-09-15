@@ -31,9 +31,7 @@ pub enum Name {
 #[derive(Debug, Clone)]
 enum ConsumerAttr {
     Arg(LitStr),
-    ArgOs(LitStr),
     Pos(LitStr),
-    PosOs(LitStr),
     Switch,
     Any(LitStr),
     Flag(Box<Expr>, Box<Expr>),
@@ -243,9 +241,7 @@ impl ToTokens for ConsumerAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             ConsumerAttr::Arg(arg) => quote!(argument(#arg)),
-            ConsumerAttr::ArgOs(arg) => quote!(argument_os(#arg)),
             ConsumerAttr::Pos(arg) => quote!(positional(#arg)),
-            ConsumerAttr::PosOs(arg) => quote!(positional_os(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
             ConsumerAttr::Any(arg) => quote!(any(#arg)),
             ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
