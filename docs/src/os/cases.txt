@@ -1,0 +1,9 @@
+? adding .os() at the end allows to consume `OsString` encoded items
+> --arg arg pos
+OK
+Options { arg: "arg", pos: Some("pos") }
+
+? other modifiers still work:
+> --arg string
+OK
+Options { arg: "string", pos: None }

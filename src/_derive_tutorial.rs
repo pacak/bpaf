@@ -187,7 +187,8 @@
 //!
 //!      + `bpaf_derive` handles `bool` fields with [`switch`](Named::switch),
 //!      [`OsString`](std::ffi::OsString) and [`PathBuf`](std::path::PathBuf) with
-//!      either [`positional_os`] or [`argument_os`](Named::argument_os).
+//!      a combo of [`positional`] or [`argument`](Named::argument) and
+//!      [`os`](ParsePositional::os) / [`os`](ParseArgument::os) respectively.
 //!
 //!      + `bpaf_derive` consumes everything else as [`String`] with [`positional`] and
 //!      [`argument`](Named::argument) and transforms it into a concrete type using
@@ -282,4 +283,4 @@
 //! 7. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
 #[cfg(doc)]
-use crate::{parsers::*, *};
+use crate::{params::*, parsers::*, *};

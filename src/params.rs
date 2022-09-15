@@ -942,6 +942,10 @@ fn build_argument(named: Named, metavar: &'static str) -> ParseArgument<String> 
     }
 }
 
+/// Parser for a named argument, created with [`argument`](Named::argument).
+///
+/// By default [`ParseArgument`] would parse a utf8 encoded option into a [`String`], with methods on
+/// this builder you can adjust some of the functionality
 #[derive(Clone)]
 pub struct ParseArgument<T> {
     ty: PhantomData<T>,
@@ -951,16 +955,11 @@ pub struct ParseArgument<T> {
 }
 
 impl<T> ParseArgument<T> {
-    fn item(&self) -> Item {
-        Item::Argument {
-            name: ShortLong::from(&self.named),
-            metavar: self.metavar,
-            env: self.named.env.first().copied(),
-            help: self.named.help.clone(),
-            shorts: self.named.short.clone(),
-        }
-    }
-
+    /// Parse [`OsString`] instead of [`String`]
+    ///
+    /// Derive version automatically inserts `os` where appropriate but you can also
+    /// insert it explicitly inside the postprocessing stage
+    #[doc = include_str!("docs/os.md")]
     pub fn os(self) -> ParseArgument<OsString> {
         ParseArgument {
             ty: PhantomData,
@@ -970,9 +969,28 @@ impl<T> ParseArgument<T> {
         }
     }
 
+    /// Restrict parsed arguments to have both flag and a value in the same word:
+    ///
+    /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
+    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](Parser::adjacent),
+    /// just plays a similar role.
+    ///
+    /// Should allow to parse some of the more unusual things
+    ///
+    #[doc = include_str!("docs/pos_adjacent.md")]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
         self
+    }
+
+    fn item(&self) -> Item {
+        Item::Argument {
+            name: ShortLong::from(&self.named),
+            metavar: self.metavar,
+            env: self.named.env.first().copied(),
+            help: self.named.help.clone(),
+            shorts: self.named.short.clone(),
+        }
     }
 
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
@@ -1041,8 +1059,8 @@ fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
 
 /// Parse a positional item, created with [`positional`]
 ///
-/// You can add extra information to positional parsers with [`help`](Positional::help), [`os`]
-/// and(Positional::os) and [`strict`](Positional::strict) on this struct.
+/// You can add extra information to positional parsers with [`help`](Self::help),
+/// [`os`](Self::os) and [`strict`](Self::strict) on this struct.
 #[derive(Clone)]
 pub struct ParsePositional<T> {
     metavar: &'static str,
@@ -1052,7 +1070,7 @@ pub struct ParsePositional<T> {
 }
 
 impl<T> ParsePositional<T> {
-    /// Add a help message to a [`positional`]/[`positional_os`] parser
+    /// Add a help message to a [`positional`] parser
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -1141,6 +1159,11 @@ impl<T> ParsePositional<T> {
         self
     }
 
+    /// Parse [`OsString`] instead of [`String`]
+    ///
+    /// Derive version automatically inserts `os` where appropriate but you can also
+    /// insert it explicitly inside the postprocessing stage
+    #[doc = include_str!("docs/os.md")]
     pub fn os(self) -> ParsePositional<OsString> {
         ParsePositional {
             metavar: self.metavar,

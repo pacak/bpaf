@@ -19,6 +19,7 @@
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+// - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
@@ -319,6 +320,8 @@
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
+#[cfg(feature = "extradocs")]
+mod _flow;
 mod arg;
 mod args;
 #[cfg(feature = "autocomplete")]
@@ -350,7 +353,7 @@ pub mod parsers {
     //!
     //! In most cases you won't be using those names directly, they are only listed here to provide
     //! access to documentation for member functions
-    pub use crate::params::{Command, Named, ParsePositional};
+    pub use crate::params::{Command, Named, ParseArgument, ParsePositional};
     pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
 }
 
@@ -554,14 +557,14 @@ macro_rules! construct {
 #[cfg(not(feature = "autocomplete"))]
 /// to avoid extra parsing when autocomplete feature is off
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)*]) => {{
+    ($ty:tt [$($fields:tt)+]) => {{
         use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
-            $(let $fields = $fields.eval(args)?;)*
+            $(let $fields = $fields.eval(args)?;)+
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)*]))
+                ($crate::construct!(@make $ty [$($fields)+]))
         };
         $crate::PCon { inner, meta }
     }};
@@ -572,20 +575,20 @@ macro_rules! __cons_prepare {
 #[cfg(feature = "autocomplete")]
 /// for completion bpaf needs to observe all the failures in a branch
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)*]) => {{
+    ($ty:tt [$($fields:tt)+]) => {{
         use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = if args.is_comp() {
                 $fields.eval(args)
             } else {
                 Ok($fields.eval(args)?)
-            };)*
-            $(let $fields = $fields?;)*
+            };)+
+            $(let $fields = $fields?;)+
 
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)*]))
+                ($crate::construct!(@make $ty [$($fields)+]))
         };
         $crate::PCon { inner, meta }
     }};
@@ -1564,6 +1567,15 @@ pub trait Parser<T> {
     /// Parsing things like `find . --exec foo {} -bar ; --more`
     ///
     #[doc = include_str!("docs/adjacent_3.md")]
+    ///
+    /// # Multi-value arguments with optional flags
+    ///
+    /// Parsing things like `--foo ARG1 --flag --inner ARG2`
+    ///
+    /// So you can parse things while parsing things. Not sure why you might need this, but you can
+    /// :)
+    ///
+    #[doc = include_str!("docs/adjacent_4.md")]
     ///
     /// # Performance and other considerations
     ///
