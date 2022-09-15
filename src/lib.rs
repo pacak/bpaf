@@ -209,10 +209,6 @@
 //! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
 //! should put the argument one first.
 //!
-//! `bpaf` doesn't support short flag names followed by immediate values: while this `-fbar` could
-//! mean `-f` followed by a parameter `"bar"` - this isn't supported. `bpaf` supports only
-//! `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
-//!
 //! You must place [`positional`] and [`positional_os`] items at the end of a structure
 //! in derive API or consume them as last arguments in derive API.
 
@@ -349,9 +345,19 @@ use std::marker::PhantomData;
 #[doc(hidden)]
 pub use structs::PCon;
 
+pub mod parsers {
+    //! This module exposes parsers that can be configured further with builder pattern
+    //!
+    //! In most cases you won't be using those names directly, they are only listed here to provide
+    //! access to documentation for member functions
+    pub use crate::params::{Command, Named, Positional};
+    pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
+}
+
 use structs::{
     ParseAdjacent, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMap, ParseOrElse, ParsePure, ParseWith,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
+    ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -361,12 +367,12 @@ use structs::{ParseComp, ParseCompStyle};
 pub use crate::args::Args;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
-pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
 
 #[doc(inline)]
-pub use crate::params::{
-    any, command, env, long, positional, positional_os, short, Command, Named, Positional,
-};
+pub use crate::params::{any, command, env, long, positional, positional_os, short};
+
+#[cfg(doc)]
+pub(self) use crate::parsers::Named;
 
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]

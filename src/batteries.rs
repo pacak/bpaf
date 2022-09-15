@@ -1,4 +1,4 @@
-//! # Batteries included
+//! # Batteries included - helpful parsers that use only public API
 //!
 //! `bpaf` comes with a few extra functions that use only public API in their implementation. You
 //! might find them useful either for your code or as an inspiration source
@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, short, Named, Parser};
+use crate::{construct, parsers::Named, short, Parser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///

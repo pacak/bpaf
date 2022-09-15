@@ -1,4 +1,4 @@
-use crate::{Meta, Named};
+use crate::{parsers::Named, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]

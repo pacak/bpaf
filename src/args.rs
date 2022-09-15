@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{Error, Named};
+use crate::{parsers::Named, Error};
 
 /// Hides [`Args`] internal implementation
 mod inner {

@@ -59,5 +59,5 @@
 //!
 //! 6. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
-#[allow(unused_imports)]
-use crate::*;
+#[cfg(doc)]
+use crate::{parsers::*, *};

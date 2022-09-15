@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use crate::{
     args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
-    Command, Meta, ParseFailure, Parser,
+    parsers::Command, Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation

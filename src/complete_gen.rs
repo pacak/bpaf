@@ -14,7 +14,7 @@
 //
 // complete short names to long names if possible
 
-use crate::{args::Arg, item::ShortLong, Args, CompleteDecor, Error, Named};
+use crate::{args::Arg, item::ShortLong, parsers::Named, Args, CompleteDecor, Error};
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
