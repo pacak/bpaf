@@ -43,7 +43,7 @@ fn get_any_many2() {
 #[test]
 fn get_any_magic() {
     let parser = short('b')
-        .argument("anana")
+        .argument::<String>("anana")
         .adjacent()
         .guard(|b| b == "anana", "not anana")
         .optional()

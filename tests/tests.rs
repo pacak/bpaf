@@ -1,6 +1,5 @@
 #![allow(deprecated)]
 use bpaf::*;
-use std::str::FromStr;
 
 #[test]
 fn construct_with_fn() {
@@ -247,10 +246,7 @@ Available options:
 
 #[test]
 fn default_arguments() {
-    let a = short('a')
-        .argument("ARG")
-        .parse(|s| i32::from_str(&s))
-        .fallback(42);
+    let a = short('a').argument::<i32>("ARG").fallback(42);
     let decorated = a.to_options();
 
     let help = decorated
@@ -283,10 +279,7 @@ Available options:
 
 #[test]
 fn parse_errors() {
-    let decorated = short('a')
-        .argument("ARG")
-        .parse(|s| i32::from_str(&s))
-        .to_options();
+    let decorated = short('a').argument::<i32>("ARG").to_options();
 
     let err = decorated
         .run_inner(Args::from(&["-a", "123x"]))
@@ -312,7 +305,7 @@ fn parse_errors() {
 
 #[test]
 fn custom_usage() {
-    let a = short('a').long("long").argument("ARG");
+    let a = short('a').long("long").argument::<String>("ARG");
     let parser = a.to_options().usage("Usage: -a <ARG> or --long <ARG>");
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -330,12 +323,24 @@ Available options:
 
 #[test]
 fn long_usage_string() {
-    let a = short('a').long("a-very-long-flag-with").argument("ARG");
-    let b = short('b').long("b-very-long-flag-with").argument("ARG");
-    let c = short('c').long("c-very-long-flag-with").argument("ARG");
-    let d = short('d').long("d-very-long-flag-with").argument("ARG");
-    let e = short('e').long("e-very-long-flag-with").argument("ARG");
-    let f = short('f').long("f-very-long-flag-with").argument("ARG");
+    let a = short('a')
+        .long("a-very-long-flag-with")
+        .argument::<String>("ARG");
+    let b = short('b')
+        .long("b-very-long-flag-with")
+        .argument::<String>("ARG");
+    let c = short('c')
+        .long("c-very-long-flag-with")
+        .argument::<String>("ARG");
+    let d = short('d')
+        .long("d-very-long-flag-with")
+        .argument::<String>("ARG");
+    let e = short('e')
+        .long("e-very-long-flag-with")
+        .argument::<String>("ARG");
+    let f = short('f')
+        .long("f-very-long-flag-with")
+        .argument::<String>("ARG");
 
     let parser = construct!(a, b, c, d, e, f).to_options();
 
@@ -792,7 +797,7 @@ fn env_variable() {
     let parser = long("key")
         .env(name)
         .help("use this secret key\ntwo lines")
-        .argument("KEY")
+        .argument::<String>("KEY")
         .to_options();
 
     let help = parser
@@ -938,11 +943,14 @@ Available options:
 #[test]
 fn help_for_options() {
     let a = short('a').help("help for\na").switch();
-    let b = short('c').env("BbBbB").help("help for\nb").argument("B");
+    let b = short('c')
+        .env("BbBbB")
+        .help("help for\nb")
+        .argument::<String>("B");
     let c = long("bbbbb")
         .env("ccccCCccc")
         .help("help for\nccc")
-        .argument("CCC");
+        .argument::<String>("CCC");
     let parser = construct!(a, b, c).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -1184,7 +1192,7 @@ fn did_you_mean_req_flag() {
 
 #[test]
 fn did_you_mean_argument() {
-    let parser = long("flag").argument("VAL").to_options();
+    let parser = long("flag").argument::<String>("VAL").to_options();
 
     let res = parser
         .run_inner(Args::from(&["--fla"]))
@@ -1305,7 +1313,7 @@ fn did_you_mean_two_or_arguments() {
 
 #[test]
 fn cargo_show_asm_issue_guard() {
-    let target_dir = short('t').argument("T").guard(|_| false, "nope");
+    let target_dir = short('t').argument::<String>("T").guard(|_| false, "nope");
     let verbosity = short('v').switch();
     let inner = construct!(target_dir, verbosity);
     let parser = cargo_helper("asm", inner).to_options();
@@ -1346,7 +1354,7 @@ fn cargo_show_asm_issue_from_str() {
 #[test]
 fn cargo_show_asm_issue_parse() {
     let target_dir = short('t')
-        .argument("T")
+        .argument::<String>("T")
         .parse::<_, (), String>(|_| Err("nope".to_string()));
 
     let verbosity = short('v').switch();
@@ -1495,7 +1503,7 @@ fn command_with_req_parameters() {
 
 #[test]
 fn suggestion_for_equals_1() {
-    let parser = short('p').long("par").argument("P").to_options();
+    let parser = short('p').long("par").argument::<String>("P").to_options();
 
     let r = parser
         .run_inner(Args::from(&["-p", "--bar"]))
@@ -1538,7 +1546,7 @@ fn double_dash_is_pos_only_just_once() {
 
 #[test]
 fn reject_fbar() {
-    let parser = short('f').argument("F").to_options();
+    let parser = short('f').argument::<String>("F").to_options();
 
     let r = parser
         .run_inner(Args::from(&["-fbar", "baz"]))

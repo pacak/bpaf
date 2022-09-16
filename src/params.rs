@@ -55,7 +55,7 @@
 use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
-use crate::{args::Arg, item::ShortLong, Item, Meta};
+use crate::{args::Arg, from_os_str::FromOsStr, item::ShortLong, Item, Meta};
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
 ///
@@ -571,7 +571,10 @@ impl NamedArg {
     /// ```
     #[must_use]
     /// See [`NamedArg`] for more details
-    pub fn argument(self, metavar: &'static str) -> ParseArgument<String> {
+    pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
+    where
+        T: FromOsStr,
+    {
         build_argument(self, metavar)
     }
 
@@ -926,7 +929,7 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
     }
 }
 
-fn build_argument(named: NamedArg, metavar: &'static str) -> ParseArgument<String> {
+fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T> {
     if !named.env.is_empty() {
         // mostly cosmetic reasons
         assert!(
@@ -955,20 +958,6 @@ pub struct ParseArgument<T> {
 }
 
 impl<T> ParseArgument<T> {
-    /// Parse [`OsString`] instead of [`String`]
-    ///
-    /// Derive version automatically inserts `os` where appropriate but you can also
-    /// insert it explicitly inside the postprocessing stage
-    #[doc = include_str!("docs/os.md")]
-    pub fn os(self) -> ParseArgument<OsString> {
-        ParseArgument {
-            ty: PhantomData,
-            named: self.named,
-            metavar: self.metavar,
-            adjacent: self.adjacent,
-        }
-    }
-
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
     /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
@@ -1021,9 +1010,16 @@ impl<T> ParseArgument<T> {
     }
 }
 
-impl Parser<OsString> for ParseArgument<OsString> {
-    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        self.take_argument(args)
+impl<T> Parser<T> for ParseArgument<T>
+where
+    T: FromOsStr,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let os = self.take_argument(args)?;
+        match T::from_os_str(os) {
+            Ok(ok) => Ok(ok),
+            Err(err) => Err(Error::Stderr(err)),
+        }
     }
 
     fn meta(&self) -> Meta {
@@ -1031,6 +1027,7 @@ impl Parser<OsString> for ParseArgument<OsString> {
     }
 }
 
+/*
 impl Parser<String> for ParseArgument<String> {
     fn eval(&self, args: &mut Args) -> Result<String, Error> {
         let os = self.take_argument(args)?;
@@ -1046,7 +1043,7 @@ impl Parser<String> for ParseArgument<String> {
     fn meta(&self) -> Meta {
         Meta::Item(self.item())
     }
-}
+}*/
 
 fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
     ParsePositional {

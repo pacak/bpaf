@@ -8,7 +8,7 @@ fn static_complete_test_1() {
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
-        .argument("EXPR");
+        .argument::<String>("EXPR");
 
     let parser = construct!(a, b, bb, c).to_options();
 
@@ -84,7 +84,10 @@ fn static_complete_test_1() {
 
 #[test]
 fn long_and_short_arguments() {
-    let parser = short('p').long("potato").argument("POTATO").to_options();
+    let parser = short('p')
+        .long("potato")
+        .argument::<String>("POTATO")
+        .to_options();
 
     let r = parser
         .run_inner(Args::from(&["-p"]).set_comp(1))
@@ -108,12 +111,12 @@ fn long_and_short_arguments() {
 #[test]
 fn short_command_alias() {
     let a = long("potato")
-        .argument("A")
+        .argument::<String>("A")
         .to_options()
         .command("cmd_a")
         .short('a');
     let b = long("potato")
-        .argument("A")
+        .argument::<String>("A")
         .to_options()
         .command("cmd_b")
         .short('b');
@@ -158,18 +161,18 @@ fn single_command_completes_to_full() {
 #[test]
 fn static_complete_test_2() {
     let a = long("potato")
-        .argument("SHAPE")
+        .argument::<String>("SHAPE")
         .to_options()
         .command("check")
         .short('c')
         .help("check packages");
     let b = long("megapotato")
-        .argument("MEGA")
+        .argument::<String>("MEGA")
         .to_options()
         .command("clean")
         .help("clean target dir");
     let c = long("makan")
-        .argument("BKT")
+        .argument::<String>("BKT")
         .to_options()
         .command("build")
         .short('b')
@@ -235,10 +238,10 @@ build\tbuild project
 
 #[test]
 fn static_complete_test_3() {
-    let a = long("potato").help("po").argument("P");
-    let b = long("banana").help("ba").argument("B");
+    let a = long("potato").help("po").argument::<String>("P");
+    let b = long("banana").help("ba").argument::<String>("B");
     let ab = construct!(a, b);
-    let c = long("durian").argument("D");
+    let c = long("durian").argument::<String>("D");
     let parser = construct!(ab, c).to_options();
 
     let r = parser
@@ -268,8 +271,8 @@ fn static_complete_test_3() {
 
 #[test]
 fn static_complete_test_4() {
-    let a = short('a').argument("A");
-    let b = short('b').argument("B");
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -305,10 +308,10 @@ fn static_complete_test_4() {
 
 #[test]
 fn static_complete_test_5() {
-    let a = short('a').argument("A");
-    let b = short('b').argument("B");
-    let c = short('c').argument("C");
-    let d = short('d').argument("D");
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
+    let c = short('c').argument::<String>("C");
+    let d = short('d').argument::<String>("D");
     let ab = construct!(a, b);
     let cd = construct!(c, d);
     let parser = construct!(ab, cd).to_options();
@@ -352,8 +355,8 @@ fn static_complete_test_5() {
 
 #[test]
 fn static_complete_test_6() {
-    let a = short('a').argument("A").optional();
-    let b = short('b').argument("B").many();
+    let a = short('a').argument::<String>("A").optional();
+    let b = short('b').argument::<String>("B").many();
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -515,7 +518,7 @@ fn dynamic_complete_test_1() {
 
 #[test]
 fn dynamic_complete_test_2() {
-    let parser = short('a').argument("ARG").to_options();
+    let parser = short('a').argument::<String>("ARG").to_options();
 
     // we don't know how to complete "b", compgen in bash returns an empty line, so should we
     let r = parser
@@ -758,7 +761,7 @@ fn should_be_able_to_suggest_double_dash() {
     fn c_b(_input: &String) -> Vec<(String, Option<String>)> {
         vec![("--".to_string(), None)]
     }
-    let a = long("arg").argument("ARG").optional();
+    let a = long("arg").argument::<String>("ARG").optional();
     let b = positional("B").complete(c_b);
     let parser = construct!(a, b).to_options();
 
@@ -869,8 +872,8 @@ fn zsh_style_completion_visible() {
     let a = short('a')
         .long("argument")
         .help("this is an argument")
-        .argument("ARG");
-    let b = short('b').argument("BANANA");
+        .argument::<String>("ARG");
+    let b = short('b').argument::<String>("BANANA");
     let parser = construct!(a, b)
         .complete_style(CompleteDecor::VisibleGroup("items"))
         .to_options();
@@ -895,8 +898,8 @@ fn zsh_style_completion_hidden() {
     let a = short('a')
         .long("argument")
         .help("this is an argument")
-        .argument("ARG");
-    let b = short('b').argument("BANANA");
+        .argument::<String>("ARG");
+    let b = short('b').argument::<String>("BANANA");
     let parser = construct!(a, b)
         .complete_style(CompleteDecor::HiddenGroup("items"))
         .to_options();
@@ -925,14 +928,17 @@ fn zsh_many_positionals() {
 
 #[test]
 fn zsh_help_single_line_only() {
-    let parser = short('a').help("hello\nworld").argument("X").to_options();
+    let parser = short('a')
+        .help("hello\nworld")
+        .argument::<String>("X")
+        .to_options();
     test_zsh_comp(&parser, &[""], &[["-a", "-a <X>    hello", "", ""]]);
 }
 
 #[test]
 fn bash_help_single_line_only() {
-    let a = short('a').help("hello\nworld").argument("X");
-    let b = short('b').help("hello\nworld").argument("X");
+    let a = short('a').help("hello\nworld").argument::<String>("X");
+    let b = short('b').help("hello\nworld").argument::<String>("X");
     let parser = construct!(a, b).to_options();
 
     let r = parser

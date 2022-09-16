@@ -380,6 +380,7 @@ pub(self) use crate::parsers::NamedArg;
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
+mod from_os_str;
 
 /// Compose several parsers to produce a single result
 ///

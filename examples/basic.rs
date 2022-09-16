@@ -42,9 +42,7 @@ fn main() {
     let output = short('o')
         .long("output")
         .help("output file")
-        .argument("OUTPUT")
-        .os()
-        .map(PathBuf::from);
+        .argument::<PathBuf>("OUTPUT");
 
     // no magical name transmogrifications in combinatoric API
     let nb_cars = short('n').long("nb-cars").argument("N").from_str();
@@ -53,9 +51,7 @@ fn main() {
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
-        .argument("FILE")
-        .os()
-        .map(PathBuf::from);
+        .argument::<PathBuf>("FILE");
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.

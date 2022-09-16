@@ -17,8 +17,8 @@ fn assert_usage<T: std::fmt::Debug>(parser: OptionParser<T>, expected: &str) {
 
 #[test]
 fn optional_group_meta() {
-    let a = short('a').argument("A");
-    let b = short('b').argument("B");
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).optional().to_options();
 
     assert_usage(parser, "[-a A -b B]");
@@ -26,8 +26,8 @@ fn optional_group_meta() {
 
 #[test]
 fn sensors_meta() {
-    let a = short('a').argument("A");
-    let b = short('b').argument("B");
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).many().to_options();
 
     assert_usage(parser, "(-a A -b B)...");
@@ -69,8 +69,8 @@ fn single_fallback_req_select() {
 
 #[test]
 fn optional_argument_select() {
-    let a = short('a').argument("A");
-    let b = short('b').argument("B");
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
     let parser = construct!([a, b]).optional().to_options();
 
     assert_usage(parser, "[-a A | -b B]");

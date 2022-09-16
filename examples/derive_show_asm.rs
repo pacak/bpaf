@@ -51,9 +51,7 @@ fn verbosity() -> impl Parser<usize> {
 fn parse_manifest_path() -> impl Parser<PathBuf> {
     long("manifest-path")
         .help("Path to Cargo.toml")
-        .argument("PATH")
-        .os()
-        .map(PathBuf::from)
+        .argument::<PathBuf>("PATH")
         .parse(|p| {
             if p.is_absolute() {
                 Ok(p)
