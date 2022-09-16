@@ -5,8 +5,8 @@
 //! ## Flag
 //!
 //! A simple no-argument command line option that takes no extra parameters, when decoded produces
-//! a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`Named::flag`] and
-//! [`Named::req_flag`]. `bpaf` parses flag into a fixed value known at a compile time.
+//! a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`NamedArg::flag`] and
+//! [`NamedArg::req_flag`]. `bpaf` parses flag into a fixed value known at a compile time.
 //!
 //! For example `--help` and `-q` are long and short flags accepted by `cargo`
 //! ```txt
@@ -15,7 +15,7 @@
 //!
 //! ## Switch
 //!
-//! A special case of a flag that gets decoded into a `bool`, see [`Named::switch`].
+//! A special case of a flag that gets decoded into a `bool`, see [`NamedArg::switch`].
 //!
 //! It's possible to represent flags `--help` and `-q` as booleans, `true` for present and `false`
 //! for absent.
@@ -26,7 +26,7 @@
 //! ## Argument
 //!
 //! A command line option with a name that also takes a value. Can have a short (`-f value`) or a
-//! long (`--flag value`) name, see [`Named::argument`].
+//! long (`--flag value`) name, see [`NamedArg::argument`].
 //!
 //! For example `rustc` takes a long argument `--explain` with a value containing error code:
 //! ```txt
@@ -56,16 +56,16 @@ use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{args::Arg, item::ShortLong, Item, Meta};
-/// A named thing used to create [`flag`](Named::flag), [`switch`](Named::switch) or
-/// [`argument`](Named::argument)
+/// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
+/// [`argument`](NamedArg::argument)
 ///
 /// Create it with [`short`] or [`long`].
 ///
 /// # Ways to consume data
 /// `bpaf` supports several different ways user can specify values on a command line:
 ///
-/// - [`flag`](Named::flag) - a string that consists of two dashes (`--flag`) and a name and a single
-/// dash and a single character (`-f`) - [`long`](Named::long) and [`short`](Named::short) name respectively.
+/// - [`flag`](NamedArg::flag) - a string that consists of two dashes (`--flag`) and a name and a single
+/// dash and a single character (`-f`) - [`long`](NamedArg::long) and [`short`](NamedArg::short) name respectively.
 /// Depending on it present or absent from the command line
 /// primitive flag parser takes one of two values. User can combine several short flags in a single
 /// invocation: `-a -b -c` is the same as `-abc`.
@@ -74,14 +74,14 @@ use crate::{args::Arg, item::ShortLong, Item, Meta};
 /// $ app -a -bc
 /// ```
 ///
-/// - [`switch`](Named::switch) - similar to `flag`, but instead of custom values `bpaf` uses `bool`.
+/// - [`switch`](NamedArg::switch) - similar to `flag`, but instead of custom values `bpaf` uses `bool`.
 /// `switch` mostly serves as a convenient alias to `.flag(true, false)`
 ///
 /// ```console
 /// $ app -a -bc
 /// ```
 ///
-/// - [`argument`](Named::argument) - a short or long `flag` followed by either a space or `=` and
+/// - [`argument`](NamedArg::argument) - a short or long `flag` followed by either a space or `=` and
 /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
 /// literal can't start with `-` unless separated from the flag with `=` and should be valid
 /// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you need to add `.os()`
@@ -121,9 +121,9 @@ use crate::{args::Arg, item::ShortLong, Item, Meta};
 ///
 /// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (short and long)
 /// and multiple hidden short and long aliases if needed. It's also possible to consume items from
-/// environment variables using [`env`](Named::env). You usually start with [`short`] or [`long`]
-/// function, then apply [`short`](Named::short) / [`long`](Named::long) / [`env`](Named::env) /
-/// [`help`](Named::help) repeatedly to build a desired set of names then transform it into
+/// environment variables using [`env`](NamedArg::env). You usually start with [`short`] or [`long`]
+/// function, then apply [`short`](NamedArg::short) / [`long`](NamedArg::long) / [`env`](NamedArg::env) /
+/// [`help`](NamedArg::help) repeatedly to build a desired set of names then transform it into
 /// a parser using `flag`, `switch` or `positional`.
 ///
 /// ```rust
@@ -206,14 +206,14 @@ use crate::{args::Arg, item::ShortLong, Item, Meta};
 ///    <skip>
 /// ```
 #[derive(Clone, Debug)]
-pub struct Named {
+pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
     pub(crate) help: Option<String>,
 }
 
-impl Named {
+impl NamedArg {
     pub(crate) fn flag_item(&self) -> Item {
         Item::Flag {
             name: ShortLong::from(self),
@@ -237,10 +237,10 @@ impl Named {
 ///         .switch()
 /// }
 /// ```
-/// See [`Named`] for more details
+/// See [`NamedArg`] for more details
 #[must_use]
-pub fn short(short: char) -> Named {
-    Named {
+pub fn short(short: char) -> NamedArg {
+    NamedArg {
         short: vec![short],
         env: Vec::new(),
         long: Vec::new(),
@@ -262,10 +262,10 @@ pub fn short(short: char) -> Named {
 ///         .switch()
 /// }
 /// ```
-/// See [`Named`] for more details
+/// See [`NamedArg`] for more details
 #[must_use]
-pub fn long(long: &'static str) -> Named {
-    Named {
+pub fn long(long: &'static str) -> NamedArg {
+    NamedArg {
         short: Vec::new(),
         long: vec![long],
         env: Vec::new(),
@@ -279,7 +279,7 @@ pub fn long(long: &'static str) -> Named {
 ///
 /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
 ///
-/// For [`flag`](Named::flag) and [`switch`](Named::switch) environment variable being present
+/// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
 /// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
 /// variables:
 ///
@@ -327,10 +327,10 @@ pub fn long(long: &'static str) -> Named {
 /// $ KEY=TOP_SECRET app --key SECRET
 /// // "SECRET" - argument takes a priority
 /// ```
-/// See [`Named`] for more details
+/// See [`NamedArg`] for more details
 #[must_use]
-pub fn env(variable: &'static str) -> Named {
-    Named {
+pub fn env(variable: &'static str) -> NamedArg {
+    NamedArg {
         short: Vec::new(),
         long: Vec::new(),
         help: None,
@@ -338,7 +338,7 @@ pub fn env(variable: &'static str) -> Named {
     }
 }
 
-impl Named {
+impl NamedArg {
     /// Add a short name to a flag/switch/argument
     ///
     /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
@@ -353,7 +353,7 @@ impl Named {
     ///         .switch()
     /// }
     /// ```
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
@@ -374,7 +374,7 @@ impl Named {
     ///         .switch()
     /// }
     /// ```
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
@@ -396,7 +396,7 @@ impl Named {
     ///         .argument("KEY")
     /// }
     /// ```
-    /// See [`Named`] and [`env`](env()) for more details and examples
+    /// See [`NamedArg`] and [`env`](env()) for more details and examples
     #[must_use]
     pub fn env(mut self, variable: &'static str) -> Self {
         self.env.push(variable);
@@ -435,7 +435,7 @@ impl Named {
     /// }
     /// ```
     #[must_use]
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<String>,
@@ -457,7 +457,7 @@ impl Named {
     /// }
     /// ```
     #[must_use]
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     pub fn switch(self) -> impl Parser<bool> {
         build_flag_parser(true, Some(false), self)
     }
@@ -507,7 +507,7 @@ impl Named {
     /// ```
     ///
     #[must_use]
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
     where
         T: Clone + 'static,
@@ -517,7 +517,7 @@ impl Named {
 
     /// Required flag with custom value
     ///
-    /// Similar to [`flag`](Named::flag) takes no option arguments, but will only
+    /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but will only
     /// succeed if user specifies it on a command line.
     /// Not very useful by itself and works best in combination with other parsers.
     ///
@@ -533,7 +533,7 @@ impl Named {
     ///
     /// Additionally `()` fields are parsed as `req_flag` by `bpaf_derive`, see
     /// [`adjacent`](Parser::adjacent) for more details.
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     #[doc = include_str!("docs/req_flag.md")]
     #[must_use]
     pub fn req_flag<T>(self, present: T) -> impl Parser<T>
@@ -570,7 +570,7 @@ impl Named {
     /// }
     /// ```
     #[must_use]
-    /// See [`Named`] for more details
+    /// See [`NamedArg`] for more details
     pub fn argument(self, metavar: &'static str) -> ParseArgument<String> {
         build_argument(self, metavar)
     }
@@ -673,9 +673,9 @@ pub fn positional(metavar: &'static str) -> ParsePositional<String> {
 ///
 /// # Combinatoric use
 ///
-/// Structure [`Command`] you get by calling this method is a builder that allows to add additional
-/// aliases with [`short`](Command::short), [`long`](Command::long) (only first short and first
-/// long names are visible to `--help`) and override [`help`](Command::help). Without help override
+/// Structure [`ParseCommand`] you get by calling this method is a builder that allows to add additional
+/// aliases with [`short`](ParseCommand::short), [`long`](ParseCommand::long) (only first short and first
+/// long names are visible to `--help`) and override [`help`](ParseCommand::help). Without help override
 /// bpaf would use first line from the description
 /// ```rust
 /// # use bpaf::*;
@@ -736,11 +736,11 @@ pub fn positional(metavar: &'static str) -> ParsePositional<String> {
 /// ```
 ///
 #[must_use]
-pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> Command<T>
+pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
 where
     T: 'static,
 {
-    Command {
+    ParseCommand {
         longs: vec![name],
         shorts: Vec::new(),
         help: subparser.short_descr().map(Into::into),
@@ -750,15 +750,15 @@ where
 
 /// Builder structure for the [`command`]
 ///
-/// Created with [`command`], implements parser for the inner structure, gives access to [`help`](Command::help).
-pub struct Command<T> {
+/// Created with [`command`], implements parser for the inner structure, gives access to [`help`](ParseCommand::help).
+pub struct ParseCommand<T> {
     longs: Vec<&'static str>,
     shorts: Vec<char>,
     help: Option<String>,
     subparser: OptionParser<T>,
 }
 
-impl<P> Command<P> {
+impl<P> ParseCommand<P> {
     /// Add a brief description to a command
     ///
     /// `bpaf` uses this description along with the command name
@@ -816,7 +816,7 @@ impl<P> Command<P> {
 
     /// Add a custom short alias for a command
     ///
-    /// Behavior is similar to [`short`](Named::short), only first short name is visible.
+    /// Behavior is similar to [`short`](NamedArg::short), only first short name is visible.
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.shorts.push(short);
@@ -825,7 +825,7 @@ impl<P> Command<P> {
 
     /// Add a custom hidden long alias for a command
     ///
-    /// Behavior is similar to [`long`](Named::long), but since you had to specify the first long
+    /// Behavior is similar to [`long`](NamedArg::long), but since you had to specify the first long
     /// name when making the command - this one becomes a hidden alias.
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
@@ -834,7 +834,7 @@ impl<P> Command<P> {
     }
 }
 
-impl<T> Parser<T> for Command<T> {
+impl<T> Parser<T> for ParseCommand<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // used to avoid allocations for short names
         let mut tmp = String::new();
@@ -873,7 +873,7 @@ impl<T> Parser<T> for Command<T> {
     }
 }
 
-impl<T> Command<T> {
+impl<T> ParseCommand<T> {
     fn item(&self) -> Item {
         Item::Command {
             name: self.longs[0],
@@ -884,7 +884,7 @@ impl<T> Command<T> {
     }
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> ParseFlag<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: NamedArg) -> ParseFlag<T>
 where
     T: Clone + 'static,
 {
@@ -899,7 +899,7 @@ where
 struct ParseFlag<T> {
     present: T,
     absent: Option<T>,
-    named: Named,
+    named: NamedArg,
 }
 
 impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
@@ -926,7 +926,7 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
     }
 }
 
-fn build_argument(named: Named, metavar: &'static str) -> ParseArgument<String> {
+fn build_argument(named: NamedArg, metavar: &'static str) -> ParseArgument<String> {
     if !named.env.is_empty() {
         // mostly cosmetic reasons
         assert!(
@@ -942,14 +942,14 @@ fn build_argument(named: Named, metavar: &'static str) -> ParseArgument<String> 
     }
 }
 
-/// Parser for a named argument, created with [`argument`](Named::argument).
+/// Parser for a named argument, created with [`argument`](NamedArg::argument).
 ///
 /// By default [`ParseArgument`] would parse a utf8 encoded option into a [`String`], with methods on
 /// this builder you can adjust some of the functionality
 #[derive(Clone)]
 pub struct ParseArgument<T> {
     ty: PhantomData<T>,
-    named: Named,
+    named: NamedArg,
     metavar: &'static str,
     adjacent: bool,
 }
@@ -1099,7 +1099,7 @@ impl<T> ParsePositional<T> {
     ///     String,
     /// );
     /// ```
-    /// See also [`Named::help`]
+    /// See also [`NamedArg::help`]
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where

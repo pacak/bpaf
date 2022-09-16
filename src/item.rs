@@ -1,4 +1,4 @@
-use crate::{parsers::Named, Meta};
+use crate::{parsers::NamedArg, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -36,8 +36,8 @@ pub enum ShortLong {
     ShortLong(char, &'static str),
 }
 
-impl From<&Named> for ShortLong {
-    fn from(named: &Named) -> Self {
+impl From<&NamedArg> for ShortLong {
+    fn from(named: &NamedArg) -> Self {
         match (named.short.is_empty(), named.long.is_empty()) {
             (true, true) => unreachable!("Named should have either short or long name"),
             (true, false) => Self::Long(named.long[0]),

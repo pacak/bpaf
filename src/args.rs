@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{parsers::Named, Error};
+use crate::{parsers::NamedArg, Error};
 
 /// Hides [`Args`] internal implementation
 mod inner {
@@ -385,7 +385,7 @@ impl Args {
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
-    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
+    pub(crate) fn take_flag(&mut self, named: &NamedArg) -> bool {
         if let Some((ix, _)) = self
             .items_iter()
             .find(|arg| named.matches_arg(arg.1, false))
@@ -403,7 +403,7 @@ impl Args {
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg(
         &mut self,
-        named: &Named,
+        named: &NamedArg,
         adjacent: bool,
     ) -> Result<Option<OsString>, Error> {
         let (key_ix, arg) = match self

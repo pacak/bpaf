@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use crate::{
     args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
-    parsers::Command, Meta, ParseFailure, Parser,
+    parsers::ParseCommand, Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -554,7 +554,7 @@ impl<T> OptionParser<T> {
     ///
     /// This is identical to [`command`](crate::params::command)
     #[must_use]
-    pub fn command(self, name: &'static str) -> Command<T>
+    pub fn command(self, name: &'static str) -> ParseCommand<T>
     where
         T: 'static,
     {

@@ -14,7 +14,7 @@
 //
 // complete short names to long names if possible
 
-use crate::{args::Arg, item::ShortLong, parsers::Named, Args, CompleteDecor, Error};
+use crate::{args::Arg, item::ShortLong, parsers::NamedArg, Args, CompleteDecor, Error};
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
@@ -35,7 +35,7 @@ impl Complete {
 
 impl Args {
     /// Add a new completion hint for flag, if needed
-    pub(crate) fn push_flag(&mut self, named: &Named) {
+    pub(crate) fn push_flag(&mut self, named: &NamedArg) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
@@ -50,7 +50,7 @@ impl Args {
     }
 
     /// Add a new completion hint for an argument, if needed
-    pub(crate) fn push_argument(&mut self, named: &Named, metavar: &'static str) {
+    pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {

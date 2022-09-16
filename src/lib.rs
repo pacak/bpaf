@@ -207,7 +207,7 @@
 //! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
 //! alternatives inside the macro: parser that consumes the left most available argument on a
 //! command line wins, if this is the same - left most parser wins. So to parse a parameter
-//! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
+//! `--test` that can be both [`switch`](NamedArg::switch) and [`argument`](NamedArg::argument) you
 //! should put the argument one first.
 //!
 //! You must place [`positional`] items at the end of a structure in derive API or consume them
@@ -222,7 +222,7 @@
 //!    ```toml
 //!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
 //!    ```
-//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
+//! 2. Decorate [`argument`](NamedArg::argument) and [`positional`] parsers with
 //!    [`complete`](Parser::complete) to autocomplete argument values
 //!
 //! 3. Depending on your shell generate appropriate completion file and place it to whereever your
@@ -353,7 +353,7 @@ pub mod parsers {
     //!
     //! In most cases you won't be using those names directly, they are only listed here to provide
     //! access to documentation for member functions
-    pub use crate::params::{Command, Named, ParseArgument, ParsePositional};
+    pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
     pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
 }
 
@@ -375,7 +375,7 @@ pub use crate::meta::Meta;
 pub use crate::params::{any, command, env, long, positional, short};
 
 #[cfg(doc)]
-pub(self) use crate::parsers::Named;
+pub(self) use crate::parsers::NamedArg;
 
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
@@ -1443,13 +1443,13 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for shell. Completer places generated input
     /// in place of metavar placeholders, so running `completer` on something that doesn't have a
-    /// [`positional`] or an [`argument`](Named::argument) (or their `_os` variants) doesn't make
+    /// [`positional`] or an [`argument`](NamedArg::argument) (or their `_os` variants) doesn't make
     /// much sense.
     ///
     /// Takes a function as a parameter that tries to complete partial input to a full one with
     /// optional description. `bpaf` would substitute current positional item or an argument an empty
     /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
-    /// right after [`argument`](Named::argument) or [`positional`], but this isn't enforced.
+    /// right after [`argument`](NamedArg::argument) or [`positional`], but this isn't enforced.
     ///
     /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
     /// print completions to console and for non-string values it's not possible (accurately).

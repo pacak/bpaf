@@ -24,7 +24,7 @@
 //!
 //! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
 //! 1. [`construct!`] - what combinations are
-//! 2. [`Named`], [`positional`] and [`command`] - on consuming data
+//! 2. [`NamedArg`], [`positional`] and [`command`] - on consuming data
 //! 3. [`Parser`] - on transforming the data
 //! 4. [`OptionParser`] - on running the result
 
@@ -164,8 +164,8 @@
 //!      }
 //!      ```
 //!
-//!    - `consumer` section corresponds to [`argument`](Named::argument), [`positional`],
-//!      [`flag`](Named::flag), [`switch`](Named::switch) and similar.
+//!    - `consumer` section corresponds to [`argument`](NamedArg::argument), [`positional`],
+//!      [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) and similar.
 //!
 //!      + With no consumer annotations tuple structs (`struct Config(String)`) are usually parsed
 //!      as positional items, but it's possible to override it by giving it a name:
@@ -185,13 +185,13 @@
 //!      that can consume possibly one or many items with [`optional`](Parser::optional)
 //!      and [`many`](Parser::many) respectively, see `postprocessing` for more details.
 //!
-//!      + `bpaf_derive` handles `bool` fields with [`switch`](Named::switch),
+//!      + `bpaf_derive` handles `bool` fields with [`switch`](NamedArg::switch),
 //!      [`OsString`](std::ffi::OsString) and [`PathBuf`](std::path::PathBuf) with
-//!      a combo of [`positional`] or [`argument`](Named::argument) and
+//!      a combo of [`positional`] or [`argument`](NamedArg::argument) and
 //!      [`os`](ParsePositional::os) / [`os`](ParseArgument::os) respectively.
 //!
 //!      + `bpaf_derive` consumes everything else as [`String`] with [`positional`] and
-//!      [`argument`](Named::argument) and transforms it into a concrete type using
+//!      [`argument`](NamedArg::argument) and transforms it into a concrete type using
 //!      [`FromStr`](std::str::FromStr) instance.
 //!      See documentation for corresponding consumers for more details.
 //!
@@ -246,7 +246,7 @@
 //!      ```
 //!
 //!    - field-less enum variants obey slightly different set of rules, see
-//!    [`req_flag`](Named::req_flag) for more details.
+//!    [`req_flag`](NamedArg::req_flag) for more details.
 //!
 //!    - any constructor in `enum` can have `skip` annotation - `bpaf_derive`
 //!      would ignore them when generating code:
