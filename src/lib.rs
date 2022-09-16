@@ -346,7 +346,7 @@ pub use crate::info::Error;
 use crate::item::Item;
 use std::marker::PhantomData;
 #[doc(hidden)]
-pub use structs::PCon;
+pub use structs::{ParseBox, ParseCon};
 
 pub mod parsers {
     //! This module exposes parsers that can be configured further with builder pattern
@@ -458,6 +458,13 @@ pub use bpaf_derive::Bpaf;
 ///     let b = short('b').argument("n").from_str::<u32>();
 ///     construct!(a(), b)
 /// }
+///
+/// // You can create boxed version of parsers so the type will be the same for as long
+/// // as return type is the same - can be useful for all sort of dynamic parsers
+/// fn boxed() -> impl Parser<u32> {
+///     let a = short('a').argument('n').from_str::<u32>();
+///     construct!(a)
+/// }
 /// ```
 ///
 /// Parallel composition picks one of several available parsers (result types must match) and returns a
@@ -512,13 +519,13 @@ macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
     ($ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
     (:: $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [:: $ns $(:: $con)*]] [] $($tokens)*) }};
+
     // construct!(Enum::Cons ( a, b, c ))
     ($ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
     (:: $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [:: $ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!( a, b, c )
-    ($first:ident , $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first , $($tokens)*) }};
-    ($first:ident (), $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first (), $($tokens)*) }};
+    ($first:ident $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
 
     // construct![a, b, c]
     ([$first:ident $($tokens:tt)*]) => {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
@@ -557,7 +564,9 @@ macro_rules! construct {
 #[cfg(not(feature = "autocomplete"))]
 /// to avoid extra parsing when autocomplete feature is off
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)+]) => {{
+    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+
+    ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
@@ -566,7 +575,7 @@ macro_rules! __cons_prepare {
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)+]))
         };
-        $crate::PCon { inner, meta }
+        $crate::ParseCon { inner, meta }
     }};
 }
 
@@ -575,7 +584,9 @@ macro_rules! __cons_prepare {
 #[cfg(feature = "autocomplete")]
 /// for completion bpaf needs to observe all the failures in a branch
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)+]) => {{
+    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+
+    ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
@@ -590,7 +601,7 @@ macro_rules! __cons_prepare {
             ::std::result::Result::Ok::<_, $crate::Error>
                 ($crate::construct!(@make $ty [$($fields)+]))
         };
-        $crate::PCon { inner, meta }
+        $crate::ParseCon { inner, meta }
     }};
 }
 
@@ -1587,6 +1598,10 @@ pub trait Parser<T> {
     /// `adjacent` is defined on a trait for better discoverability, it doesn't make much sense to
     /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
     /// several fields.
+    ///
+    /// There's also similar method [`adjacent`](ParseArgument) that allows to restrict argument
+    /// parser to work only for arguments where both key and a value are in the same shell word:
+    /// `-f=bar` or `-fbar`, but not `-f bar`.
     #[must_use]
     fn adjacent(self) -> ParseAdjacent<Self>
     where

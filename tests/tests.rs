@@ -1585,3 +1585,31 @@ fn catch_works() {
     let r = parser.run_inner(Args::from(&["-a", "x1"])).unwrap();
     assert_eq!(r, Some(A::Str("x1".to_owned())));
 }
+
+#[test]
+fn sneaky_command() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Cmd {
+        A(bool),
+        B(bool),
+    }
+    let cmd = short('f')
+        .switch()
+        .to_options()
+        .command("hello")
+        .map(Cmd::A);
+    let b = short('f').switch().map(Cmd::B);
+
+    let sneaky = true;
+
+    let maybe_cmd = if sneaky {
+        construct!(cmd)
+    } else {
+        let nope = fail("no sneaky");
+        construct!(nope)
+    };
+    let parser = construct!([maybe_cmd, b]).to_options();
+
+    let r = parser.run_inner(Args::from(&["hello"])).unwrap();
+    assert_eq!(r, Cmd::A(false));
+}

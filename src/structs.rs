@@ -546,14 +546,14 @@ where
 }
 
 /// Create parser from a function, [`construct!`](crate::construct!) uses it internally
-pub struct PCon<P> {
+pub struct ParseCon<P> {
     /// inner parser closure
     pub inner: P,
     /// metas for inner parsers
     pub meta: Meta,
 }
 
-impl<T, P> Parser<T> for PCon<P>
+impl<T, P> Parser<T> for ParseCon<P>
 where
     P: Fn(&mut Args) -> Result<T, Error>,
 {
@@ -686,6 +686,19 @@ where
         res
     }
 
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+pub struct ParseBox<T> {
+    pub inner: Box<dyn Parser<T>>,
+}
+
+impl<T> Parser<T> for ParseBox<T> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
+    }
     fn meta(&self) -> Meta {
         self.inner.meta()
     }
