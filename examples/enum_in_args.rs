@@ -1,7 +1,6 @@
 //! parsing argument value into enum. You can use crate `strum`'s `EnumString` for this purposes as well
 //!
 use bpaf::*;
-use std::str::FromStr;
 
 #[derive(Debug, Clone)]
 enum Baz {
@@ -10,10 +9,14 @@ enum Baz {
     FooBar,
 }
 
-impl FromStr for Baz {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+impl FromOsStr for Baz {
+    fn from_os_str(s: std::ffi::OsString) -> Result<Self, String>
+    where
+        Self: Sized,
+    {
+        let s = s
+            .to_str()
+            .ok_or_else(|| format!("{} is not a valid utf8", s.to_string_lossy()))?;
         match s {
             "foo" => Ok(Baz::Foo),
             "bar" => Ok(Baz::Bar),
@@ -26,8 +29,7 @@ fn main() {
     let opt = long("baz")
         .short('b')
         .help("choose between foo, bar or foobar")
-        .argument("CMD")
-        .from_str::<Baz>()
+        .argument::<Baz>("CMD")
         .to_options()
         .run();
 

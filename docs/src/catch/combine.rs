@@ -8,7 +8,7 @@ pub struct Options {
     feature: Option<String>,
 }
 pub fn options() -> OptionParser<Options> {
-    let version = positional("VERS").from_str::<usize>().optional().catch();
-    let feature = positional("FEAT").optional();
+    let version = positional::<usize>("VERS").optional().catch();
+    let feature = positional::<String>("FEAT").optional();
     construct!(Options { version, feature }).to_options()
 }

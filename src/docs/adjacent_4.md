@@ -22,8 +22,8 @@ struct Multi {
 /// You can mix all sorts of things inside the adjacent group
 fn multi() -> impl Parser<Multi> {
     let m = short('m').req_flag(());
-    let pos = positional("POS").from_str::<usize>();
-    let arg = long("arg").argument("ARG").from_str::<usize>().optional();
+    let pos = positional::<usize>("POS");
+    let arg = long("arg").argument::<usize>("ARG").optional();
     let flag = long("flag").switch();
     construct!(Multi { m, arg, flag, pos }).adjacent()
 }

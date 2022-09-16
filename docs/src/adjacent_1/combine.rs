@@ -20,8 +20,8 @@ struct Rect {
 
 fn multi() -> impl Parser<Rect> {
     let item = long("rect").req_flag(());
-    let width = long("width").argument("PX").from_str::<usize>();
-    let height = long("height").argument("PX").from_str::<usize>();
+    let width = long("width").argument::<usize>("PX");
+    let height = long("height").argument::<usize>("PX");
     let painted = long("painted").switch();
     construct!(Rect {
         item,

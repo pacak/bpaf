@@ -20,9 +20,9 @@ struct Multi {
 
 fn multi() -> impl Parser<Multi> {
     let m = short('m').req_flag(());
-    let val_1 = positional("V1").from_str::<usize>();
-    let val_2 = positional("V2").from_str::<usize>();
-    let val_3 = positional("V3").from_str::<f64>();
+    let val_1 = positional::<usize>("V1");
+    let val_2 = positional::<usize>("V2");
+    let val_3 = positional::<f64>("V3");
     construct!(Multi {
         m,
         val_1,

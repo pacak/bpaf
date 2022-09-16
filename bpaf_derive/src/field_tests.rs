@@ -54,7 +54,7 @@ fn implicit_parser() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").help("help").argument("ARG").from_str::<usize>()
+        ::bpaf::long("number").help("help").argument::<usize>("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -66,7 +66,7 @@ fn short_long() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::short('n').long("number").argument("ARG").from_str::<usize>()
+        ::bpaf::short('n').long("number").argument::<usize>("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -78,7 +78,7 @@ fn derive_fallback() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument("ARG").from_str::<f64>().fallback(3.1415)
+        ::bpaf::long("number").argument::<f64>("ARG").fallback(3.1415)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -90,7 +90,7 @@ fn derive_fallback_with() {
         number: f64
     };
     let output = quote! {
-        ::bpaf::long("number").argument("ARG").from_str::<f64>().fallback_with(external)
+        ::bpaf::long("number").argument::<f64>("ARG").fallback_with(external)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -140,7 +140,7 @@ fn derive_field_guard() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, "msg")
+        ::bpaf::long("number").argument::<usize>("ARG").guard(positive, "msg")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -152,7 +152,7 @@ fn derive_field_guard_const() {
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").argument("ARG").from_str::<usize>().guard(positive, MSG)
+        ::bpaf::long("number").argument::<usize>("ARG").guard(positive, MSG)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -177,11 +177,11 @@ fn derive_help() {
 #[test]
 fn map_requires_explicit_parser() {
     let input: NamedField = parse_quote! {
-        #[bpaf(argument("NUM"), from_str(usize), map(double))]
+        #[bpaf(argument::<usize>("NUM"), map(double))]
         number: usize
     };
     let output = quote! {
-        ::bpaf::long("number").argument("NUM").from_str::<usize>().map(double)
+        ::bpaf::long("number").argument::<usize>("NUM").map(double)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -204,7 +204,7 @@ fn check_guard() {
     };
 
     let output = quote! {
-        ::bpaf::positional("ARG").from_str::<usize>().guard(odd, "must be odd")
+        ::bpaf::positional::<usize>("ARG").guard(odd, "must be odd")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -216,7 +216,7 @@ fn check_fallback() {
         speed: f64
     };
     let output = quote! {
-        ::bpaf::long("speed").argument("SPEED").from_str::<f64>().fallback(42.0)
+        ::bpaf::long("speed").argument::<f64>("SPEED").fallback(42.0)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -227,7 +227,7 @@ fn check_many_files_implicit() {
         files: Vec<std::path::PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument("ARG").os().map(std::path::PathBuf::from).many()
+        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -238,7 +238,7 @@ fn check_option_file_implicit() {
         files: Option<PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument("ARG").os().map(PathBuf::from).optional()
+        ::bpaf::long("files").argument::<PathBuf>("ARG").optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -250,7 +250,7 @@ fn check_guard_fallback() {
         num: u32
     };
     let output = quote! {
-        ::bpaf::long("num").argument("ARG").from_str::<u32>().guard(positive, "must be positive").fallback(1)
+        ::bpaf::long("num").argument::<u32>("ARG").guard(positive, "must be positive").fallback(1)
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -322,7 +322,7 @@ fn optional_field_is_sane() {
         name: Option<String>
     };
     let output = quote! {
-        ::bpaf::long("name").argument("ARG").optional()
+        ::bpaf::long("name").argument::<String>("ARG").optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -333,7 +333,7 @@ fn vec_field_is_sane() {
         names: Vec<String>
     };
     let output = quote! {
-        ::bpaf::long("names").argument("ARG").many()
+        ::bpaf::long("names").argument::<String>("ARG").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -345,7 +345,7 @@ fn positional_named_fields() {
         name: String
     };
     let output = quote! {
-        ::bpaf::positional("ARG")
+        ::bpaf::positional::<String>("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -359,8 +359,7 @@ fn optional_named_pathed() {
     let output = quote! {
         ::bpaf::long("config")
             .short('c')
-            .argument("ARG")
-            .from_str::<aws::Location>()
+            .argument::<aws::Location>("ARG")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -375,8 +374,7 @@ fn optional_unnamed_pathed() {
     let output = quote! {
         ::bpaf::long("config")
             .short('c')
-            .argument("ARG")
-            .from_str::<aws::Location>()
+            .argument::<aws::Location>("ARG")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -390,8 +388,7 @@ fn optional_argument_with_name() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument("N")
-            .from_str::<u64>()
+            .argument::<u64>("N")
             .optional()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -405,8 +402,7 @@ fn optional_argument_with_name_complete() {
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument("N")
-            .from_str::<u64>()
+            .argument::<u64>("N")
             .optional()
             .complete(magic)
     };
@@ -416,13 +412,12 @@ fn optional_argument_with_name_complete() {
 #[test]
 fn some_arguments() {
     let input: NamedField = parse_quote! {
-        #[bpaf(argument("N"), from_str(u32), some("need params"))]
+        #[bpaf(argument("N"), some("need params"))]
         config: Vec<u32>
     };
     let output = quote! {
         ::bpaf::long("config")
-            .argument("N")
-            .from_str::<u32>()
+            .argument::<u32>("N")
             .some("need params")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -431,14 +426,13 @@ fn some_arguments() {
 #[test]
 fn env_argument() {
     let input: NamedField = parse_quote! {
-        #[bpaf(env(sim::DB), argument("N"), from_str(u32), some("need params"))]
+        #[bpaf(env(sim::DB), argument("N"), some("need params"))]
         config: Vec<u32>
     };
     let output = quote! {
         ::bpaf::long("config")
             .env(sim::DB)
-            .argument("N")
-            .from_str::<u32>()
+            .argument::<u32>("N")
             .some("need params")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
@@ -480,7 +474,6 @@ fn explicit_flag_argument_1() {
 }
 
 #[test]
-#[should_panic]
 fn explicit_flag_argument_2() {
     let input: NamedField = parse_quote! {
         #[bpaf(flag(True, False))]
@@ -524,7 +517,7 @@ fn any_field_1() {
         field: OsString
     };
     let output = quote! {
-        ::bpaf::any("ARG").help("help").os()
+        ::bpaf::any::<OsString>("ARG").help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -537,7 +530,7 @@ fn any_field_2() {
         String
     };
     let output = quote! {
-        ::bpaf::any("FOO").help("help")
+        ::bpaf::any::<String>("FOO").help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -550,7 +543,7 @@ fn any_field_3() {
         Vec<String>
     };
     let output = quote! {
-        ::bpaf::any("FOO").help("help").many()
+        ::bpaf::any::<String>("FOO").help("help").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -558,12 +551,12 @@ fn any_field_3() {
 #[test]
 fn any_field_4() {
     let input: UnnamedField = parse_quote! {
-        #[bpaf(any("FOO"), os)]
+        #[bpaf(any("FOO"))]
         /// help
         Vec<OsString>
     };
     let output = quote! {
-        ::bpaf::any("FOO").help("help").os().many()
+        ::bpaf::any::<OsString>("FOO").help("help").many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

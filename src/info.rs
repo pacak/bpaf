@@ -170,7 +170,7 @@ impl<T> OptionParser<T> {
     /// fn positional_argument() {
     /// # */
     ///     let parser =
-    ///         positional("FILE")
+    ///         positional::<String>("FILE")
     ///             .help("File to process")
     ///             .to_options();
     ///

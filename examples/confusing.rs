@@ -37,7 +37,7 @@ fn main() {
     let simple_parser = pure(PreCommand::Simple).to_options();
     let simple = command("simple", simple_parser);
 
-    let complex1_parser = positional("ARG").from_str::<i32>();
+    let complex1_parser = positional::<i32>("ARG");
     let complex1 = command(
         "complex1",
         construct!(PreCommand::Complex1(complex1_parser))
@@ -45,7 +45,7 @@ fn main() {
             .descr("This is complex command 1"),
     );
 
-    let complex2_parser = positional("ARG").from_str::<i16>();
+    let complex2_parser = positional::<i16>("ARG");
     let complex2 = command(
         "complex1",
         construct!(PreCommand::Complex2(complex2_parser))

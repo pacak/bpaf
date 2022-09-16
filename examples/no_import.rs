@@ -16,12 +16,10 @@ fn main() {
 
     // an argument, parsed and with default value
     let speed = bpaf::Parser::fallback(
-        bpaf::Parser::from_str::<f64>(
-            bpaf::short('s')
-                .long("speed")
-                .help("Set speed")
-                .argument("SPEED"),
-        ),
+        bpaf::short('s')
+            .long("speed")
+            .help("Set speed")
+            .argument("SPEED"),
         42.0,
     );
 

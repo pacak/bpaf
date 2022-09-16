@@ -114,9 +114,7 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
     let style = construct!([zsh, bash, fish, elvish]);
     let dump = construct!(CompOptions::Dump { style });
 
-    let revision = long("bpaf-complete-rev")
-        .argument("REV")
-        .from_str::<usize>();
+    let revision = long("bpaf-complete-rev").argument::<usize>("REV");
     let complete = construct!(CompOptions::Complete { revision });
 
     construct!([complete, dump]).to_options()

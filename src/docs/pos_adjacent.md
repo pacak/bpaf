@@ -13,7 +13,7 @@ pub struct Options {
 // accepts `-banana`, note a single dash
 fn banana() -> impl Parser<bool> {
     short('b')
-        .argument("anana")
+        .argument::<std::ffi::OsString>("anana")
         .adjacent()
         .guard(|b| b == "anana", "not anana")
         .optional()

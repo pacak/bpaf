@@ -12,12 +12,11 @@ pub struct Options {
 
 fn exec() -> impl Parser<Vec<OsString>> {
     let start = long("exec").req_flag(());
-    let body = any("EXEC")
-        .os()
+    let body = any::<OsString>("EXEC")
         .guard(|s| s != ";", "end marker")
         .many()
         .catch();
-    let end = any("TAIL").guard(|s| s == ";", "end marker");
+    let end = any::<OsString>("TAIL").guard(|s| s == ";", "end marker");
     construct!(start, body, end).adjacent().map(|x| x.1)
 }
 

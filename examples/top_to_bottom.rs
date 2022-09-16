@@ -65,7 +65,7 @@ fn output() -> impl Parser<PathBuf> {
 
 // no magical name transmogrifications.
 fn nb_cars() -> impl Parser<u32> {
-    short('n').long("nb-cars").argument("N").from_str()
+    short('n').long("nb-cars").argument("N")
 }
 
 fn files_to_process() -> impl Parser<Vec<PathBuf>> {

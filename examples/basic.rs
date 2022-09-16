@@ -36,7 +36,6 @@ fn main() {
         .long("speed")
         .help("Set speed")
         .argument("SPEED")
-        .from_str()
         .fallback(42.0);
 
     let output = short('o')
@@ -45,7 +44,7 @@ fn main() {
         .argument::<PathBuf>("OUTPUT");
 
     // no magical name transmogrifications in combinatoric API
-    let nb_cars = short('n').long("nb-cars").argument("N").from_str();
+    let nb_cars = short('n').long("nb-cars").argument("N");
 
     // a parser that consumes one argument
     let file_to_proces = short('f')

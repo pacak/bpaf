@@ -405,7 +405,7 @@ fn static_complete_test_6() {
 #[test]
 fn static_complete_test_7() {
     let a = short('a').help("switch").switch();
-    let b = positional("FILE").help("File to use");
+    let b = positional::<String>("FILE").help("File to use");
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -457,7 +457,9 @@ fn static_complete_test_8() {
 
 #[test]
 fn just_positional() {
-    let parser = positional("FILE").help("File to use").to_options();
+    let parser = positional::<String>("FILE")
+        .help("File to use")
+        .to_options();
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(1))
@@ -648,7 +650,7 @@ fn only_positionals_after_double_dash() {
     let a = short('a').switch();
     let b = short('b').switch();
     let c = short('c').switch();
-    let d = positional("D");
+    let d = positional::<String>("D");
     let parser = construct!(a, b, c, d).to_options();
 
     let r = parser
@@ -678,7 +680,7 @@ fn only_positionals_after_double_dash() {
 
 #[test]
 fn many_does_not_duplicate_metadata() {
-    let parser = positional("D").many().to_options();
+    let parser = positional::<String>("D").many().to_options();
     let r = parser
         .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
@@ -688,7 +690,7 @@ fn many_does_not_duplicate_metadata() {
 
 #[test]
 fn some_does_not_duplicate_metadata() {
-    let parser = positional("D").some("").to_options();
+    let parser = positional::<String>("D").some("").to_options();
     let r = parser
         .run_inner(Args::from(&["xxx"]).set_comp(1))
         .unwrap_err()
@@ -699,7 +701,7 @@ fn some_does_not_duplicate_metadata() {
 #[test]
 fn only_positionals_after_positionals() {
     let a = short('a').switch();
-    let d = positional("D").many();
+    let d = positional::<String>("D").many();
     let parser = construct!(a, d).to_options();
 
     let r = parser
@@ -781,7 +783,7 @@ fn should_be_able_to_suggest_double_dash() {
 #[test]
 fn suggest_double_dash_automatically_for_strictly_positional() {
     let a = short('a').switch();
-    let b = positional("B").strict();
+    let b = positional::<String>("B").strict();
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -921,7 +923,7 @@ fn zsh_style_completion_hidden() {
 
 #[test]
 fn zsh_many_positionals() {
-    let parser = positional("POS").many().to_options();
+    let parser = positional::<String>("POS").many().to_options();
     test_zsh_comp(&parser, &[""], &[["<POS>", "<POS>", "", ""]]);
     test_zsh_comp(&parser, &["p"], &[["p", "p", "", ""]]);
 }

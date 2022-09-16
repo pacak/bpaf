@@ -2,8 +2,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parenthesized, parse, parse_quote, Attribute, Expr, Ident, LitChar, LitStr, PathArguments,
-    Result, Token, Type, Visibility,
+    parenthesized, parse, Attribute, Expr, Ident, LitChar, LitStr, PathArguments, Result, Token,
+    Type, Visibility,
 };
 
 use crate::utils::to_kebab_case;
@@ -30,17 +30,16 @@ pub enum Name {
 
 #[derive(Debug, Clone)]
 enum ConsumerAttr {
-    Arg(LitStr),
-    Pos(LitStr),
+    Any(LitStr, Option<Box<Type>>),
+    Arg(LitStr, Option<Box<Type>>),
+    Pos(LitStr, Option<Box<Type>>),
     Switch,
-    Any(LitStr),
     Flag(Box<Expr>, Box<Expr>),
     ReqFlag(Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
-    FromStr(Span, Box<Type>),
     Guard(Span, Ident, Box<Expr>),
     Many(Span, Option<LitStr>),
     Map(Span, Ident),
@@ -61,7 +60,6 @@ impl PostprAttr {
     const fn can_derive(&self) -> bool {
         match self {
             PostprAttr::Many(..)
-            | PostprAttr::FromStr(..)
             | PostprAttr::Map(..)
             | PostprAttr::Tokens(..)
             | PostprAttr::Optional(..)
@@ -78,8 +76,7 @@ impl PostprAttr {
 
     fn span(&self) -> Span {
         match self {
-            PostprAttr::FromStr(span, _)
-            | PostprAttr::Guard(span, _, _)
+            PostprAttr::Guard(span, _, _)
             | PostprAttr::Many(span, _)
             | PostprAttr::Map(span, _)
             | PostprAttr::Optional(span)
@@ -167,13 +164,6 @@ fn split_type(ty: &Type) -> Shape {
     try_split_type(ty).unwrap_or_else(|| Shape::Direct(ty.clone()))
 }
 
-fn is_os_str_ty(ty: &Type) -> bool {
-    ty == &parse_quote!(PathBuf)
-        || ty == &parse_quote!(OsString)
-        || ty == &parse_quote!(std::path::PathBuf)
-        || ty == &parse_quote!(std::ffi::OsString)
-}
-
 impl Field {
     pub fn parse_unnamed(input: parse::ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
@@ -208,7 +198,6 @@ pub fn as_long_name(value: &Ident) -> LitStr {
 impl ToTokens for PostprAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            PostprAttr::FromStr(_span, ty) => quote!(from_str::<#ty>()),
             PostprAttr::Guard(_span, f, m) => quote!(guard(#f, #m)),
             PostprAttr::Many(_span, None) => quote!(many()),
             PostprAttr::Many(_span, Some(m)) => quote!(some(#m)),
@@ -240,10 +229,13 @@ impl ToTokens for Name {
 impl ToTokens for ConsumerAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            ConsumerAttr::Arg(arg) => quote!(argument(#arg)),
-            ConsumerAttr::Pos(arg) => quote!(positional(#arg)),
+            ConsumerAttr::Arg(arg, Some(ty)) => quote!(argument::<#ty>(#arg)),
+            ConsumerAttr::Pos(arg, Some(ty)) => quote!(positional::<#ty>(#arg)),
+            ConsumerAttr::Any(arg, Some(ty)) => quote!(any::<#ty>(#arg)),
+            ConsumerAttr::Arg(arg, None) => quote!(argument(#arg)),
+            ConsumerAttr::Pos(arg, None) => quote!(positional(#arg)),
+            ConsumerAttr::Any(arg, None) => quote!(any(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
-            ConsumerAttr::Any(arg) => quote!(any(#arg)),
             ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
             ConsumerAttr::ReqFlag(a) => quote!(req_flag(#a)),
         }

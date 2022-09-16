@@ -1,6 +1,6 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{info::Error, Args, Meta, Parser};
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
 use crate::CompleteDecor;
@@ -394,31 +394,6 @@ impl<P> ParseOptional<P> {
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
-    }
-}
-
-/// Parser that uses [`FromStr`] instance of a type, created with [`from_str`](Parser::from_str).
-pub struct ParseFromStr<P, R> {
-    pub(crate) inner: P,
-    pub(crate) ty: PhantomData<R>,
-}
-
-impl<E, P, T> Parser<T> for ParseFromStr<P, T>
-where
-    P: Parser<String>,
-    T: FromStr<Err = E>,
-    E: ToString,
-{
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let s = self.inner.eval(args)?;
-        match T::from_str(&s) {
-            Ok(ok) => Ok(ok),
-            Err(e) => Err(args.word_parse_error(&e.to_string())),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.inner.meta()
     }
 }
 

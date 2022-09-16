@@ -12,10 +12,9 @@ struct Options {
 fn main() {
     let value = long("value")
         .help("Mysterious value")
-        .argument("VAL")
-        .from_str::<u32>()
+        .argument::<u32>("VAL")
         .fallback(42);
-    let files = positional("FILE").os().map(PathBuf::from).many();
+    let files = positional::<PathBuf>("FILE").many();
     let opts = construct!(Options { value, files }).to_options().run();
 
     println!("{:#?}", opts);

@@ -10,6 +10,6 @@ pub struct Options {
     #[bpaf(short, long)]
     /// Engage the turbo mode
     turbo: bool,
-    #[bpaf(any("REST"), os)]
+    #[bpaf(any("REST"))]
     rest: Vec<OsString>,
 }

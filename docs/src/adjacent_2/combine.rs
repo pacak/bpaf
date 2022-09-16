@@ -18,7 +18,7 @@ enum Cmd {
 }
 
 fn cmd() -> impl Parser<Cmd> {
-    let eat = positional("FOOD")
+    let eat = positional::<String>("FOOD")
         .to_options()
         .command("eat")
         .adjacent()
@@ -32,8 +32,7 @@ fn cmd() -> impl Parser<Cmd> {
         .map(Cmd::Drink);
 
     let sleep = long("time")
-        .argument("HOURS")
-        .from_str::<usize>()
+        .argument::<usize>("HOURS")
         .to_options()
         .command("sleep")
         .adjacent()

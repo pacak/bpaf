@@ -10,8 +10,8 @@ use syn::{
 use crate::utils::{to_kebab_case, LineIter};
 
 use super::{
-    as_long_name, as_short_name, is_os_str_ty, parse_optional_arg, split_type, ConsumerAttr, Doc,
-    Name, PostprAttr, Shape,
+    as_long_name, as_short_name, parse_optional_arg, split_type, ConsumerAttr, Doc, Name,
+    PostprAttr, Shape,
 };
 
 #[derive(Debug, Clone)]
@@ -24,7 +24,6 @@ pub struct Field {
     name: Option<Ident>,
     postpr: Vec<PostprAttr>,
     help: Option<String>,
-    os: bool,
 }
 
 fn check_stage(prev: &mut usize, new: usize, keyword: &Ident) -> Result<()> {
@@ -110,7 +109,6 @@ impl Field {
             consumer: None,
             postpr: Vec::new(),
             help: None,
-            os: false,
         };
         let mut help = Vec::new();
 
@@ -163,14 +161,48 @@ impl Field {
                     // consumer
                     } else if keyword == "argument" {
                         check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::Arg(parse_optional_arg(input)?));
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+                        let arg = parse_optional_arg(input)?;
+                        res.consumer = Some(ConsumerAttr::Arg(arg, ty));
                     } else if keyword == "positional" {
                         check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::Pos(parse_optional_arg(input)?));
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+                        let arg = parse_optional_arg(input)?;
+
+                        res.consumer = Some(ConsumerAttr::Pos(arg, ty));
                     } else if keyword == "any" {
                         check_stage(&mut stage, 2, &keyword)?;
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+
                         let arg = parse_optional_arg(input)?;
-                        res.consumer = Some(ConsumerAttr::Any(arg));
+                        res.consumer = Some(ConsumerAttr::Any(arg, ty));
                     } else if keyword == "switch" {
                         check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Switch);
@@ -198,8 +230,6 @@ impl Field {
 
                     //
                     // postpr
-                    } else if keyword == "os" {
-                        res.os = true;
                     } else if keyword == "guard" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let _ = parenthesized!(content in input);
@@ -223,11 +253,6 @@ impl Field {
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
-                    } else if keyword == "from_str" {
-                        check_stage(&mut stage, 4, &keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let ty = content.parse::<Type>()?;
-                        res.postpr.push(PostprAttr::FromStr(span, Box::new(ty)));
                     } else if keyword == "complete" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let f = parse_ident(input)?;
@@ -286,8 +311,8 @@ impl Field {
         // Do we even need to derive the name here?
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Any(_) | ConsumerAttr::Pos(_) => return,
-                ConsumerAttr::Arg(_)
+                ConsumerAttr::Any(_, _) | ConsumerAttr::Pos(_, _) => return,
+                ConsumerAttr::Arg(_, _)
                 | ConsumerAttr::Switch
                 | ConsumerAttr::Flag(_, _)
                 | ConsumerAttr::ReqFlag(_) => {}
@@ -363,11 +388,24 @@ impl Field {
             }
         };
 
-        let arg = LitStr::new("ARG", ty.span());
-        let is_os = is_os_str_ty(&ty);
+        if let Some(cons) = &self.consumer {
+            match cons {
+                ConsumerAttr::Any(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Any(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                ConsumerAttr::Arg(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Arg(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                ConsumerAttr::Pos(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Pos(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                _ => {}
+            }
+        }
+
         match &self.consumer {
             Some(cons) => match cons {
-                ConsumerAttr::Arg(_)
+                ConsumerAttr::Arg(..)
                 | ConsumerAttr::Switch
                 | ConsumerAttr::Flag(_, _)
                 | ConsumerAttr::ReqFlag(_) => {
@@ -378,29 +416,15 @@ impl Field {
                         ));
                     }
                 }
-                ConsumerAttr::Pos(_) | ConsumerAttr::Any(_) => {}
+                ConsumerAttr::Pos(..) | ConsumerAttr::Any(..) => {}
             },
             None => {
+                let arg = LitStr::new("ARG", ty.span());
                 if self.naming.is_empty() {
-                    self.consumer = Some(ConsumerAttr::Pos(arg));
+                    self.consumer = Some(ConsumerAttr::Pos(arg, Some(Box::new(ty))));
                 } else {
-                    self.consumer = Some(ConsumerAttr::Arg(arg));
+                    self.consumer = Some(ConsumerAttr::Arg(arg, Some(Box::new(ty))));
                 }
-            }
-        }
-
-        if derive_postpr {
-            if is_os || self.os {
-                self.postpr
-                    .insert(0, PostprAttr::Tokens(ty.span(), quote!(os())));
-                if ty != parse_quote!(OsString) {
-                    self.postpr
-                        .insert(1, PostprAttr::Tokens(ty.span(), quote!(map(#ty::from))));
-                }
-            }
-            if !is_os && ty != parse_quote!(String) {
-                self.postpr
-                    .insert(0, PostprAttr::FromStr(ty.span(), Box::new(ty)));
             }
         }
 

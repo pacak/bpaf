@@ -21,34 +21,23 @@ fn main() {
     // parsers for speeds. Both speeds are converted to the same units
     let mph = long("mph")
         .help("speed in MPH")
-        .argument("SPEED")
-        .from_str::<f64>()
+        .argument::<f64>("SPEED")
         .map(|x| x * 1.6);
-    let kph = long("kph")
-        .help("Speed in KPH")
-        .argument("SPEED")
-        .from_str::<f64>();
+    let kph = long("kph").help("Speed in KPH").argument("SPEED");
 
     // speed is either kph or mph, conversion to mph is handled by the parser
     let speed = construct!([mph, kph]);
 
     // parsers for distances, both are converted to the same units
-    let km = long("km")
-        .help("Distance in KM")
-        .argument("KMs")
-        .from_str::<f64>();
+    let km = long("km").help("Distance in KM").argument("KMs");
     let mi = long("mi")
         .help("distance in miles")
-        .argument("MILES")
-        .from_str::<f64>()
+        .argument::<f64>("MILES")
         .map(|x| x * 1.6);
     let dist = construct!([mi, km]);
 
     // time, presumably in seconds
-    let time = long("time")
-        .help("Travel time in hours")
-        .argument("TIME")
-        .from_str::<f64>();
+    let time = long("time").help("Travel time in hours").argument("TIME");
 
     // parsed time is trivially converted to time segment
     let segment_time = time.map(Segment::Time);

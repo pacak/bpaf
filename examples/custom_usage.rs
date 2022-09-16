@@ -12,14 +12,12 @@ fn opts() -> Opts {
     let speed = short('k')
         .long("speed")
         .help("speed in km/h")
-        .argument("SPEED")
-        .from_str::<u32>();
+        .argument("SPEED");
 
     let distance = short('d')
         .long("distance")
         .help("distance in km")
-        .argument("DISTANCE")
-        .from_str::<u32>();
+        .argument("DISTANCE");
 
     (construct!(Opts { speed, distance }))
         .to_options()

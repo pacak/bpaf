@@ -609,7 +609,7 @@ impl NamedArg {
 /// ```rust
 /// # use bpaf::*;
 /// # let non_pos = || short('n').switch();
-/// # let pos = ||positional("POS");
+/// # let pos = ||positional::<String>("POS");
 /// let valid = construct!(non_pos(), pos());
 /// let invalid = construct!(pos(), non_pos());
 /// ```
@@ -643,7 +643,7 @@ impl NamedArg {
 /// }
 /// ```
 #[must_use]
-pub fn positional(metavar: &'static str) -> ParsePositional<String> {
+pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
 }
 
@@ -1018,7 +1018,7 @@ where
         let os = self.take_argument(args)?;
         match T::from_os_str(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error::Stderr(err)),
+            Err(err) => Err(args.word_parse_error(&err)),
         }
     }
 
@@ -1026,24 +1026,6 @@ where
         Meta::Item(self.item())
     }
 }
-
-/*
-impl Parser<String> for ParseArgument<String> {
-    fn eval(&self, args: &mut Args) -> Result<String, Error> {
-        let os = self.take_argument(args)?;
-        match os.to_str() {
-            Some(s) => Ok(s.to_owned()),
-            None => Err(Error::Stderr(format!(
-                "{} is not a valid utf8",
-                os.to_string_lossy()
-            ))),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        Meta::Item(self.item())
-    }
-}*/
 
 fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
     ParsePositional {
@@ -1141,8 +1123,7 @@ impl<T> ParsePositional<T> {
     /// ```rust
     /// # use bpaf::*;
     /// fn options() -> impl Parser<Vec<std::ffi::OsString>> {
-    ///     positional("OPTS")
-    ///         .os()
+    ///     positional::<std::ffi::OsString>("OPTS")
     ///         .strict()
     ///         .many()
     /// }
@@ -1154,20 +1135,6 @@ impl<T> ParsePositional<T> {
     pub fn strict(mut self) -> Self {
         self.strict = true;
         self
-    }
-
-    /// Parse [`OsString`] instead of [`String`]
-    ///
-    /// Derive version automatically inserts `os` where appropriate but you can also
-    /// insert it explicitly inside the postprocessing stage
-    #[doc = include_str!("docs/os.md")]
-    pub fn os(self) -> ParsePositional<OsString> {
-        ParsePositional {
-            metavar: self.metavar,
-            help: self.help,
-            result_type: PhantomData,
-            strict: self.strict,
-        }
     }
 
     fn meta(&self) -> Meta {
@@ -1222,26 +1189,15 @@ fn parse_word(
     }
 }
 
-impl Parser<OsString> for ParsePositional<OsString> {
-    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
-        Ok(res)
-    }
-
-    fn meta(&self) -> Meta {
-        self.meta()
-    }
-}
-
-impl Parser<String> for ParsePositional<String> {
-    fn eval(&self, args: &mut Args) -> Result<String, Error> {
-        let res = parse_word(args, self.strict, self.metavar, &self.help)?;
-        match res.to_str() {
-            Some(ok) => Ok(ok.to_owned()),
-            None => Err(Error::Stderr(format!(
-                "<{}> is not a valid utf",
-                self.metavar
-            ))),
+impl<T> Parser<T> for ParsePositional<T>
+where
+    T: FromOsStr,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let os = parse_word(args, self.strict, self.metavar, &self.help)?;
+        match T::from_os_str(os) {
+            Ok(ok) => Ok(ok),
+            Err(err) => Err(args.word_parse_error(&err)),
         }
     }
 
@@ -1266,7 +1222,7 @@ pub struct ParseAny<T> {
 ///
 /// See [`adjacent`](Parser::adjacent) for more examples
 #[must_use]
-pub fn any(metavar: &'static str) -> ParseAny<String> {
+pub fn any<T>(metavar: &'static str) -> ParseAny<T> {
     ParseAny {
         ty: PhantomData,
         metavar,
@@ -1276,14 +1232,6 @@ pub fn any(metavar: &'static str) -> ParseAny<String> {
 }
 
 impl<T> ParseAny<T> {
-    pub fn os(self) -> ParseAny<OsString> {
-        ParseAny {
-            ty: PhantomData,
-            metavar: self.metavar,
-            help: self.help,
-            strict: self.strict,
-        }
-    }
     pub fn help<M: Into<String>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
         self
@@ -1332,27 +1280,16 @@ impl<T> ParseAny<T> {
     }
 }
 
-impl Parser<String> for ParseAny<String> {
-    fn eval(&self, args: &mut Args) -> Result<String, Error> {
+impl<T> Parser<T> for ParseAny<T>
+where
+    T: FromOsStr,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let os = self.next_os_string(args)?;
-        match os.to_str() {
-            Some(s) => Ok(s.to_owned()),
-            None => Err(Error::Stderr(format!(
-                "Can't consume {} as String: {} contains non-utf8 characters",
-                self.item(),
-                os.to_string_lossy(),
-            ))),
+        match T::from_os_str(os) {
+            Ok(ok) => Ok(ok),
+            Err(err) => Err(args.word_parse_error(&err)), // Error::Stderr(err)),
         }
-    }
-
-    fn meta(&self) -> Meta {
-        self.meta()
-    }
-}
-
-impl Parser<OsString> for ParseAny<OsString> {
-    fn eval(&self, args: &mut Args) -> Result<OsString, Error> {
-        self.next_os_string(args)
     }
 
     fn meta(&self) -> Meta {

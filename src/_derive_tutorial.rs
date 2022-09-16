@@ -229,8 +229,7 @@
 //!    - `postprocessing` - various methods from [`Parser`] trait, order matters, most of them are
 //!      taken literal, see documentation for the trait for more details. `bpaf_derive` automatically
 //!      uses [`many`](Parser::many) and [`optional`](Parser::optional) to handle `Vec<T>` and
-//!      `Option<T>` fields respectively and inserts [`from_str`](Parser::from_str) for any field
-//!      it doesn't know how to pricess.
+//!      `Option<T>` fields respectively.
 //!
 //!      Any operation that can change the type (such as [`parse`](Parser::parse) or [`map`](Parser::map))
 //!      for disables this logic for the field and also requires to specify the consumer:
@@ -238,9 +237,7 @@
 //!      # use bpaf::*;
 //!      #[derive(Debug, Clone, Bpaf)]
 //!      struct Options {
-//!          // #[bpaf(argument("NUM"), many)] - fails due to type mismatch
-//!          // #[bpaf(from_str(u32), many)] - fails due to missing consumer
-//!          #[bpaf(argument("NUM"), from_str(u32), many)]
+//!          #[bpaf(argument::<u32>("NUM"), many)]
 //!          numbers: Vec<u32>
 //!      }
 //!      ```
