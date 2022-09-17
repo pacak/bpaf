@@ -1,0 +1,39 @@
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  check:
+    name: Check and Lint
+    runs-on: ubuntu-latest
+    concurrency: ci-${{ github.ref }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Build docs
+        run: cargo doc --all-features --no-deps
+
+      - name: Make a new repo with generated docs
+        run: |
+          cd target/docs
+          git init
+          git add -A
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git commit -m 'deploy'
+
+      - name: Deploy docs to gh-pages
+        uses: ad-m/github-push-action@v0.5.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          branch: gh-pages
+          force: true
+          directory: target/docs
