@@ -28,6 +28,7 @@ jobs:
           git add -A
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
+          git config --global --add safe.directory /github/workspace/target/doc
           git commit -m 'deploy'
 
       - name: Deploy docs to gh-pages
