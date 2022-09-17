@@ -1,10 +1,18 @@
+#[cfg(doc)]
+use crate::{any, positional, NamedArg};
 use std::{
     ffi::{OsStr, OsString},
     path::PathBuf,
     str::FromStr,
 };
 
+/// Like [`FromStr`] but parses [`OsString`] instead
+///
+/// `bpaf` implements it for most of the things supported by [`FromStr`]. you can implement it for
+/// your types to be able to use them in turbofish for [`positional`],
+/// [`argument`](NamedArg::argument) and [`any`]
 pub trait FromOsStr {
+    /// Parse [`OsString`] or fail
     fn from_os_str(s: OsString) -> Result<Self, String>
     where
         Self: Sized;

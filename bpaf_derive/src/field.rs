@@ -48,9 +48,6 @@ enum PostprAttr {
     Fallback(Span, Box<Expr>),
     FallbackWith(Span, Box<Expr>),
     Complete(Span, Ident),
-    // used for deriving stuff to express map to convert
-    // from OsString to PathBuf... I wonder.
-    Tokens(Span, TokenStream),
     Hide(Span),
     GroupHelp(Span, Box<Expr>),
     Catch(Span),
@@ -61,7 +58,6 @@ impl PostprAttr {
         match self {
             PostprAttr::Many(..)
             | PostprAttr::Map(..)
-            | PostprAttr::Tokens(..)
             | PostprAttr::Optional(..)
             | PostprAttr::Parse(..) => false,
             PostprAttr::Guard(..)
@@ -84,7 +80,6 @@ impl PostprAttr {
             | PostprAttr::Fallback(span, _)
             | PostprAttr::FallbackWith(span, _)
             | PostprAttr::Complete(span, _)
-            | PostprAttr::Tokens(span, _)
             | PostprAttr::Hide(span)
             | PostprAttr::Catch(span)
             | PostprAttr::GroupHelp(span, _) => *span,
@@ -206,7 +201,6 @@ impl ToTokens for PostprAttr {
             PostprAttr::Parse(_span, f) => quote!(parse(#f)),
             PostprAttr::Fallback(_span, v) => quote!(fallback(#v)),
             PostprAttr::FallbackWith(_span, v) => quote!(fallback_with(#v)),
-            PostprAttr::Tokens(_span, t) => quote!(#t),
             PostprAttr::Hide(_span) => quote!(hide()),
             PostprAttr::Catch(_span) => quote!(catch()),
             PostprAttr::Complete(_span, f) => quote!(complete(#f)),

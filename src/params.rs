@@ -84,8 +84,7 @@ use crate::{args::Arg, from_os_str::FromOsStr, item::ShortLong, Item, Meta};
 /// - [`argument`](NamedArg::argument) - a short or long `flag` followed by either a space or `=` and
 /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
 /// literal can't start with `-` unless separated from the flag with `=` and should be valid
-/// utf8 only. To consume [`OsString`](std::ffi::OsString) encoded values you need to add `.os()`
-/// modifier to the end: [`os`](ParseArgument::os).
+/// utf8 only.
 ///
 /// ```console
 /// $ app -o file.txt
@@ -1038,8 +1037,8 @@ fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
 
 /// Parse a positional item, created with [`positional`]
 ///
-/// You can add extra information to positional parsers with [`help`](Self::help),
-/// [`os`](Self::os) and [`strict`](Self::strict) on this struct.
+/// You can add extra information to positional parsers with [`help`](Self::help)
+/// and [`strict`](Self::strict) on this struct.
 #[derive(Clone)]
 pub struct ParsePositional<T> {
     metavar: &'static str,

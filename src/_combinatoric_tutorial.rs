@@ -40,7 +40,7 @@
 //!    one or more objects implementing trait [`Parser`], such as `impl Parser<String>`.
 //!
 //! 2. If you need additional parsing and validation you can use trait [`Parser`]: [`map`](Parser::map),
-//!    [`parse`](Parser::parse), [`guard`](Parser::guard), [`from_str`](Parser::from_str).
+//!    [`parse`](Parser::parse), [`guard`](Parser::guard).
 //!
 //!    You can change type or shape of contained or shape with [`many`](Parser::many),
 //!    [`some`](Parser::some), [`optional`](Parser::optional) and add a fallback values with

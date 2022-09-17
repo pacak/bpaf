@@ -346,9 +346,9 @@ pub mod parsers {
     //! This module exposes parsers that can be configured further with builder pattern
     //!
     //! In most cases you won't be using those names directly, they are only listed here to provide
-    //! access to documentation for member functions
+    //! access to documentation
     pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
-    pub use crate::structs::{ParseMany, ParseOptional, ParseSome};
+    pub use crate::structs::{ParseBox, ParseMany, ParseOptional, ParseSome};
 }
 
 use structs::{
@@ -1520,7 +1520,7 @@ pub trait Parser<T> {
     /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
     /// several fields.
     ///
-    /// There's also similar method [`adjacent`](ParseArgument) that allows to restrict argument
+    /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
     /// `-f=bar` or `-fbar`, but not `-f bar`.
     #[must_use]

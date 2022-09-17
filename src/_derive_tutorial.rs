@@ -186,14 +186,9 @@
 //!      and [`many`](Parser::many) respectively, see `postprocessing` for more details.
 //!
 //!      + `bpaf_derive` handles `bool` fields with [`switch`](NamedArg::switch),
-//!      [`OsString`](std::ffi::OsString) and [`PathBuf`](std::path::PathBuf) with
-//!      a combo of [`positional`] or [`argument`](NamedArg::argument) and
-//!      [`os`](ParsePositional::os) / [`os`](ParseArgument::os) respectively.
-//!
-//!      + `bpaf_derive` consumes everything else as [`String`] with [`positional`] and
-//!      [`argument`](NamedArg::argument) and transforms it into a concrete type using
-//!      [`FromStr`](std::str::FromStr) instance.
-//!      See documentation for corresponding consumers for more details.
+//!      `()` with [`req_flag`](NamedArg::req_flag) and anything else with [`FromOsStr`]
+//!      trait. See documentation for [`argument`](NamedArg::argument) and [`positional]`
+//!      for more details.
 //!
 //!    - If `external` is present - it usually serves function of `naming` and `consumer`, allowing
 //!      more for `postprocessing` annotations after it. Takes an optional parameter - a function

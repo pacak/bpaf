@@ -666,7 +666,15 @@ where
     }
 }
 
+/// Create boxed parser
+///
+/// Boxed parser does not expose internal representation in it's type and allows to return
+/// different parsers in different conditional branches
+///
+/// You can create it with a single argument `construct` macro:
+#[doc = include_str!("docs/boxed.md")]
 pub struct ParseBox<T> {
+    /// Boxed inner parser
     pub inner: Box<dyn Parser<T>>,
 }
 
