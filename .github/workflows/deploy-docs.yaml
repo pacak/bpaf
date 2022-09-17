@@ -19,11 +19,11 @@ jobs:
           toolchain: stable
 
       - name: Build docs
-        run: cargo doc --all-features --no-dep
+        run: cargo doc --all-features --no-deps
 
       - name: Make a new repo with generated docs
         run: |
-          cd target/docs
+          cd target/doc
           git init
           git add -A
           git config --local user.email "action@github.com"
