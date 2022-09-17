@@ -11,7 +11,7 @@ pub struct Options {
     #[bpaf(external(parse_manifest_path))]
     pub manifest_path: PathBuf,
     /// Custom target directory for generated artifacts
-    #[bpaf(argument_os("DIR"))]
+    #[bpaf(argument("DIR"))]
     pub target_dir: Option<PathBuf>,
     /// Package to use if ambigous
     #[bpaf(long, short, argument("SPEC"))]
@@ -51,8 +51,7 @@ fn verbosity() -> impl Parser<usize> {
 fn parse_manifest_path() -> impl Parser<PathBuf> {
     long("manifest-path")
         .help("Path to Cargo.toml")
-        .argument_os("PATH")
-        .map(PathBuf::from)
+        .argument::<PathBuf>("PATH")
         .parse(|p| {
             if p.is_absolute() {
                 Ok(p)

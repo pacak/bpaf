@@ -38,12 +38,12 @@ enum ParserKind {
 
 #[derive(Debug)]
 enum BParser {
-    Command(CommandAttr, Box<OParser>),
+    Command(CommandAttr, Box<OParser>, bool),
     CargoHelper(LitStr, Box<BParser>),
     CompStyle(Box<Expr>, Box<BParser>),
-    Constructor(ConstrName, Fields),
+    Constructor(ConstrName, Fields, bool),
     Singleton(Box<ReqFlag>),
-    Fold(Vec<BParser>),
+    Fold(Vec<BParser>, Option<Expr>),
 }
 
 #[derive(Debug)]
@@ -132,6 +132,7 @@ pub struct Inner {
     pub envs: Vec<Expr>,
     pub is_hidden: bool,
     pub is_default: bool,
+    pub skip: bool,
 }
 
 impl Inner {
@@ -144,6 +145,7 @@ impl Inner {
             envs: Vec::new(),
             is_hidden: false,
             is_default: false,
+            skip: false,
         };
         for attr in attrs {
             if attr.path.is_ident("doc") {
@@ -187,6 +189,8 @@ impl Inner {
                         res.is_hidden = true;
                     } else if keyword == "default" {
                         res.is_default = true;
+                    } else if keyword == "skip" {
+                        res.skip = true;
                     } else {
                         return Err(input_copy.error("Not a valid inner attribute"));
                     }
@@ -215,6 +219,8 @@ struct Outer {
     decor: Decor,
     longs: Vec<LitStr>,
     shorts: Vec<LitChar>,
+    fallback: Option<Expr>,
+    adjacent: bool,
 }
 
 impl Outer {
@@ -228,6 +234,8 @@ impl Outer {
             decor: Decor::default(),
             longs: Vec::new(),
             shorts: Vec::new(),
+            fallback: None,
+            adjacent: false,
         };
 
         let mut help = Vec::new();
@@ -263,6 +271,8 @@ impl Outer {
                         let ver = parse_opt_arg::<Expr>(input)?
                             .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION")));
                         res.version = Some(Box::new(ver));
+                    } else if keyword == "adjacent" {
+                        res.adjacent = true;
                     } else if keyword == "command" {
                         let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&outer_ty.to_string());
@@ -283,6 +293,9 @@ impl Outer {
                         res.longs.push(lit);
                     } else if keyword == "private" {
                         res.vis = Visibility::Inherited;
+                    } else if keyword == "fallback" {
+                        let fallback = parse_expr(input)?;
+                        res.fallback = Some(fallback);
                     } else {
                         return Err(input_copy.error("Unexpected attribute"));
                     }
@@ -347,7 +360,7 @@ fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
                 inner: Box::new(inner),
             };
 
-            let cmd = BParser::Command(cmd_attr, Box::new(oparser));
+            let cmd = BParser::Command(cmd_attr, Box::new(oparser), outer.adjacent);
             ParserKind::BParser(cmd)
         }
     }
@@ -367,8 +380,9 @@ impl Top {
         let constr = ConstrName {
             namespace: None,
             constr: outer_ty.clone(),
+            fallback: outer.fallback.clone(),
         };
-        let inner = BParser::Constructor(constr, fields);
+        let inner = BParser::Constructor(constr, fields, outer.adjacent);
         Ok(Top {
             name: outer
                 .generate
@@ -399,28 +413,31 @@ impl Top {
             let constr = ConstrName {
                 namespace: Some(outer_ty.clone()),
                 constr: inner_ty,
+                fallback: None,
             };
 
             let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
                 let fields = Fields::parse(&enum_contents)?;
-                BParser::Constructor(constr, fields)
+                BParser::Constructor(constr, fields, outer.adjacent)
             } else if let Some(_cmd) = &inner.command {
-                BParser::Constructor(constr, Fields::NoFields)
+                BParser::Constructor(constr, Fields::NoFields, false)
             } else {
                 let req_flag = ReqFlag::make(constr, inner.clone());
                 BParser::Singleton(Box::new(req_flag))
             };
 
-            if let Some(cmd_arg) = inner.command {
-                let decor = Decor::new(&inner.help, None);
-                let oparser = OParser {
-                    inner: Box::new(branch),
-                    decor,
-                };
-                let branch = BParser::Command(cmd_arg, Box::new(oparser));
-                branches.push(branch);
-            } else {
-                branches.push(branch);
+            if !inner.skip {
+                if let Some(cmd_arg) = inner.command {
+                    let decor = Decor::new(&inner.help, None);
+                    let oparser = OParser {
+                        inner: Box::new(branch),
+                        decor,
+                    };
+                    let branch = BParser::Command(cmd_arg, Box::new(oparser), outer.adjacent);
+                    branches.push(branch);
+                } else {
+                    branches.push(branch);
+                }
             }
 
             if !enum_contents.is_empty() {
@@ -431,7 +448,7 @@ impl Top {
         let inner = match branches.len() {
             0 => todo!(),
             1 => branches.remove(0),
-            _ => BParser::Fold(branches),
+            _ => BParser::Fold(branches, outer.fallback.clone()),
         };
 
         Ok(Top {
@@ -488,7 +505,7 @@ impl ToTokens for OParser {
 impl ToTokens for BParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            BParser::Command(cmd_attr, oparser) => {
+            BParser::Command(cmd_attr, oparser, adj) => {
                 let cmd_name = &cmd_attr.name;
                 let mut names = quote!();
                 for short in &cmd_attr.shorts {
@@ -510,23 +527,36 @@ impl ToTokens for BParser {
                     })
                 }
                 .to_tokens(tokens);
+
+                if *adj {
+                    quote!(.adjacent()).to_tokens(tokens);
+                }
             }
             BParser::CargoHelper(name, inner) => quote!({
                 ::bpaf::cargo_helper(#name, #inner)
             })
             .to_tokens(tokens),
-            BParser::Constructor(con, Fields::NoFields) => {
+            BParser::Constructor(con, Fields::NoFields, _adj) => {
                 quote!(::bpaf::pure(#con)).to_tokens(tokens);
+                if let Some(fallback) = &con.fallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
+                }
             }
-            BParser::Constructor(con, bra) => {
+            BParser::Constructor(con, bra, adj) => {
                 let parse_decls = bra.parser_decls();
                 quote!({
                     #(#parse_decls)*
                     ::bpaf::construct!(#con #bra)
                 })
                 .to_tokens(tokens);
+                if *adj {
+                    quote!(.adjacent()).to_tokens(tokens);
+                }
+                if let Some(fallback) = &con.fallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
+                }
             }
-            BParser::Fold(xs) => {
+            BParser::Fold(xs, mfallback) => {
                 if xs.len() == 1 {
                     xs[0].to_tokens(tokens);
                 } else {
@@ -541,6 +571,9 @@ impl ToTokens for BParser {
                         ::bpaf::construct!([#(#names),*])
                     })
                     .to_tokens(tokens);
+                }
+                if let Some(fallback) = mfallback {
+                    quote!(.fallback(#fallback)).to_tokens(tokens);
                 }
             }
             BParser::Singleton(field) => field.to_tokens(tokens),

@@ -1,4 +1,4 @@
-use crate::{Meta, Named};
+use crate::{parsers::NamedArg, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -16,10 +16,12 @@ pub enum Item {
     },
     Flag {
         name: ShortLong,
+        shorts: Vec<char>,
         help: Option<String>,
     },
     Argument {
         name: ShortLong,
+        shorts: Vec<char>,
         metavar: &'static str,
         env: Option<&'static str>,
         help: Option<String>,
@@ -34,8 +36,8 @@ pub enum ShortLong {
     ShortLong(char, &'static str),
 }
 
-impl From<&Named> for ShortLong {
-    fn from(named: &Named) -> Self {
+impl From<&NamedArg> for ShortLong {
+    fn from(named: &NamedArg) -> Self {
         match (named.short.is_empty(), named.long.is_empty()) {
             (true, true) => unreachable!("Named should have either short or long name"),
             (true, false) => Self::Long(named.long[0]),
@@ -57,12 +59,17 @@ impl std::fmt::Display for Item {
                 strict: _,
             } => write!(f, "<{}>", metavar),
             Item::Command { .. } => write!(f, "COMMAND ..."),
-            Item::Flag { name, help: _ } => write!(f, "{}", name),
+            Item::Flag {
+                name,
+                help: _,
+                shorts: _,
+            } => write!(f, "{}", name),
             Item::Argument {
                 name,
                 metavar,
                 help: _,
                 env: _,
+                shorts: _,
             } => write!(f, "{} {}", name, metavar),
         }
     }

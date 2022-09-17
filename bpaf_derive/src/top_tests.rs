@@ -161,7 +161,7 @@ fn enum_command() {
             {
                 let alt0 = {
                     let inner_cmd = {
-                        let field = ::bpaf::long("field").argument("ARG").from_str::<usize>();
+                        let field = ::bpaf::long("field").argument::<usize>("ARG");
                         ::bpaf::construct!(Opt::Foo { field })
                     }
                     .to_options()
@@ -199,7 +199,7 @@ fn unnamed_struct() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").help("help").map(PathBuf::from);
+                let f0 = ::bpaf::positional::<PathBuf>("ARG").help("help");
                 ::bpaf::construct!(Opt(f0))
             }
             .to_options()
@@ -222,8 +222,8 @@ fn unnamed_enum() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
-                let f1 = ::bpaf::positional("ARG").from_str::<usize>();
+                let f0 = ::bpaf::positional::<PathBuf>("ARG");
+                let f1 = ::bpaf::positional::<usize>("ARG");
                 ::bpaf::construct!(Opt1::Con1(f0, f1))
             }
             .to_options()
@@ -261,11 +261,11 @@ fn enum_to_flag_and_switches() {
                 let alt1 = ::bpaf::short('p').req_flag(Opt::Pff);
                 let alt2 = ::bpaf::long("bar-foo").req_flag(Opt::BarFoo);
                 let alt3 = {
-                    let f0 = ::bpaf::long("bazz").argument("ARG");
+                    let f0 = ::bpaf::long("bazz").argument::<String>("ARG");
                     ::bpaf::construct!(Opt::Baz(f0))
                 };
                 let alt4 = {
-                    let strange = ::bpaf::long("strange").argument("ARG");
+                    let strange = ::bpaf::long("strange").argument::<String>("ARG");
                     ::bpaf::construct!(Opt::Strange { strange })
                 };
                 let alt5 = {
@@ -303,7 +303,7 @@ fn help_generation() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let f0 = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                let f0 = ::bpaf::positional::<PathBuf>("ARG");
                 ::bpaf::construct!(Opt(f0))
             }
             .to_options()
@@ -407,7 +407,7 @@ fn version_with_commands_with_cargo_helper() {
 fn named_to_positional_with_metavar() {
     let top: Top = parse_quote! {
         struct Options {
-            #[bpaf(positional_os("PATH"))]
+            #[bpaf(positional("PATH"))]
             path: PathBuf,
         }
 
@@ -418,7 +418,7 @@ fn named_to_positional_with_metavar() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::positional_os("PATH").map(PathBuf::from);
+                let path = ::bpaf::positional::<PathBuf>("PATH");
                 ::bpaf::construct!(Options { path })
             }
         }
@@ -430,7 +430,7 @@ fn named_to_positional_with_metavar() {
 fn named_to_positional_without_metavar() {
     let top: Top = parse_quote! {
         struct Options {
-            #[bpaf(positional_os)]
+            #[bpaf(positional)]
             path: PathBuf,
         }
 
@@ -441,7 +441,7 @@ fn named_to_positional_without_metavar() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::positional_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::positional::<PathBuf>("ARG");
                 ::bpaf::construct!(Options { path })
             }
         }
@@ -462,7 +462,7 @@ fn comp_visibility_struct() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument::<PathBuf>("ARG");
                 :: bpaf :: construct ! (Options { path })
             }.complete_style(x)
         }
@@ -485,7 +485,7 @@ fn comp_visibility_enum() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument::<PathBuf>("ARG");
                 :: bpaf :: construct ! (Foo::Bar { path })
             }
             .complete_style(x)
@@ -509,7 +509,7 @@ fn private_visibility() {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
-                let path = ::bpaf::long("path").argument_os("ARG").map(PathBuf::from);
+                let path = ::bpaf::long("path").argument::<PathBuf>("ARG");
                 ::bpaf::construct!(Options { path })
             }
         }
@@ -566,4 +566,79 @@ fn enum_singleton_unk() {
             Y
         }
     };
+}
+
+#[test]
+fn fallback_for_enum() {
+    let top: Top = parse_quote! {
+        #[bpaf(fallback(Decision::No))]
+        enum Decision {
+            Yes,
+            No,
+            #[bpaf(skip)]
+            Undecided,
+        }
+    };
+
+    let expected = quote! {
+        fn decision() -> impl ::bpaf::Parser<Decision> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("yes").req_flag(Decision::Yes);
+                let alt1 = ::bpaf::long("no").req_flag(Decision::No);
+                ::bpaf::construct!([alt0, alt1])
+            }
+            .fallback(Decision::No)
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn fallback_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(fallback(Value { count: 10 }))]
+        struct Value {
+            count: usize,
+        }
+    };
+
+    let expected = quote! {
+        fn value() -> impl ::bpaf::Parser<Value> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let count = ::bpaf::long("count").argument::<usize>("ARG");
+                ::bpaf::construct!(Value { count })
+            }
+            .fallback(Value { count: 10 })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn adjacent_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(adjacent)]
+        struct Opts {
+            a: String,
+            b: String,
+        }
+    };
+
+    let expected = quote! {
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let a = ::bpaf::short('a').argument::<String>("ARG");
+                let b = ::bpaf::short('b').argument::<String>("ARG");
+                ::bpaf::construct!(Opts { a, b })
+            }.adjacent()
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }

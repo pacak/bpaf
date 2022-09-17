@@ -1,7 +1,27 @@
 # Change Log
-## bpaf [0.5.8] - unreleased
+## bpaf [0.6.0] - unreleased
+- replaced `positional_os()` and `argument_os()` with `positional().os()`, `argument().os()`
+- internal refactors
+- documentation refactor: examples with input/output
+- any - to capture anything
+- adjacent restriction
+- catch inside ParseOption, ParseMany and ParseSome
 - usage line refactor, cosmetic mostly
 - include \n in --version, cosmetic
+
+Migration guide:
+1. replace `positional_os("FOO")` with `positional("FOO").os()` or use `positional` in derive API
+2. replace `argument_os("FOO")` with `argument("FOO").os()` or use `argument` in derive API
+// 3. replace `impl Parser<T>` with `impl Parse<T>`
+// 4. replace `OptionParser<T>` with `Parser<T>`
+
+First two items are mostly to avoid combinatorial explosion
+
+You shouldn't be using those names directly, but there are some structure renames:
+1. `Positional` -> `ParsePositional`
+2. `BuildArgument` -> ParseArgument`
+3. `Command` -> `ParseCommand`
+
 
 ## bpaf [0.5.7] - 2022-09-04
 - bugfix with zsh autocomplete #46

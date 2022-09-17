@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use crate::{
     args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
-    Command, Meta, ParseFailure, Parser,
+    parsers::ParseCommand, Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -170,7 +170,7 @@ impl<T> OptionParser<T> {
     /// fn positional_argument() {
     /// # */
     ///     let parser =
-    ///         positional("FILE")
+    ///         positional::<String>("FILE")
     ///             .help("File to process")
     ///             .to_options();
     ///
@@ -210,6 +210,12 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
+        let mut avail_flags = Vec::new();
+        let mut avail_args = Vec::new();
+        self.inner
+            .meta()
+            .collect_shorts(&mut avail_flags, &mut avail_args);
+        args.disambiguate(&avail_flags, &avail_args)?;
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
@@ -548,7 +554,7 @@ impl<T> OptionParser<T> {
     ///
     /// This is identical to [`command`](crate::params::command)
     #[must_use]
-    pub fn command(self, name: &'static str) -> Command<T>
+    pub fn command(self, name: &'static str) -> ParseCommand<T>
     where
         T: 'static,
     {

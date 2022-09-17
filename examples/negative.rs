@@ -3,7 +3,7 @@
 use bpaf::*;
 
 fn main() {
-    let age = long("age").argument("AGE").from_str::<i64>();
+    let age = long("age").argument::<i64>("AGE");
     let msg = "\
 To pass a value that starts with a dash requres one one of two special syntaxes:
 

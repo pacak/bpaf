@@ -3,7 +3,7 @@ use bpaf::*;
 #[should_panic(expected = "bpaf usage BUG: all positional and command items")]
 #[test]
 fn positional_before_argument() {
-    let a = positional("a");
+    let a = positional::<String>("a");
     let b = short('b').switch();
     construct!(a, b).to_options().check_invariants(false)
 }
@@ -19,7 +19,7 @@ fn command_before_argument() {
 #[should_panic(expected = "bpaf usage BUG: all positional and command items")]
 #[test]
 fn positional_before_argument_nested() {
-    let a = positional("a");
+    let a = positional::<String>("a");
     let b = short('b').switch();
     construct!(a, b)
         .to_options()

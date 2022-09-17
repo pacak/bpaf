@@ -36,24 +36,21 @@ fn main() {
         .long("speed")
         .help("Set speed")
         .argument("SPEED")
-        .from_str()
         .fallback(42.0);
 
     let output = short('o')
         .long("output")
         .help("output file")
-        .argument_os("OUTPUT")
-        .map(PathBuf::from);
+        .argument::<PathBuf>("OUTPUT");
 
     // no magical name transmogrifications in combinatoric API
-    let nb_cars = short('n').long("nb-cars").argument("N").from_str();
+    let nb_cars = short('n').long("nb-cars").argument("N");
 
     // a parser that consumes one argument
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
-        .argument_os("FILE")
-        .map(PathBuf::from);
+        .argument::<PathBuf>("FILE");
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.

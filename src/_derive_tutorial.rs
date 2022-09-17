@@ -24,7 +24,7 @@
 //!
 //! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
 //! 1. [`construct!`] - what combinations are
-//! 2. [`Named`], [`positional`] and [`command`] - on consuming data
+//! 2. [`NamedArg`], [`positional`] and [`command`] - on consuming data
 //! 3. [`Parser`] - on transforming the data
 //! 4. [`OptionParser`] - on running the result
 
@@ -164,8 +164,8 @@
 //!      }
 //!      ```
 //!
-//!    - `consumer` section corresponds to [`argument`](Named::argument), [`positional`],
-//!      [`flag`](Named::flag), [`switch`](Named::switch) and similar.
+//!    - `consumer` section corresponds to [`argument`](NamedArg::argument), [`positional`],
+//!      [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) and similar.
 //!
 //!      + With no consumer annotations tuple structs (`struct Config(String)`) are usually parsed
 //!      as positional items, but it's possible to override it by giving it a name:
@@ -185,14 +185,10 @@
 //!      that can consume possibly one or many items with [`optional`](Parser::optional)
 //!      and [`many`](Parser::many) respectively, see `postprocessing` for more details.
 //!
-//!      + `bpaf_derive` handles `bool` fields with [`switch`](Named::switch),
-//!      [`OsString`](std::ffi::OsString) and [`PathBuf`](std::path::PathBuf) with
-//!      either [`positional_os`] or [`argument_os`](Named::argument_os).
-//!
-//!      + `bpaf_derive` consumes everything else as [`String`] with [`positional`] and
-//!      [`argument`](Named::argument) and transforms it into a concrete type using
-//!      [`FromStr`](std::str::FromStr) instance.
-//!      See documentation for corresponding consumers for more details.
+//!      + `bpaf_derive` handles `bool` fields with [`switch`](NamedArg::switch),
+//!      `()` with [`req_flag`](NamedArg::req_flag) and anything else with [`FromOsStr`]
+//!      trait. See documentation for [`argument`](NamedArg::argument) and [`positional]`
+//!      for more details.
 //!
 //!    - If `external` is present - it usually serves function of `naming` and `consumer`, allowing
 //!      more for `postprocessing` annotations after it. Takes an optional parameter - a function
@@ -228,8 +224,7 @@
 //!    - `postprocessing` - various methods from [`Parser`] trait, order matters, most of them are
 //!      taken literal, see documentation for the trait for more details. `bpaf_derive` automatically
 //!      uses [`many`](Parser::many) and [`optional`](Parser::optional) to handle `Vec<T>` and
-//!      `Option<T>` fields respectively and inserts [`from_str`](Parser::from_str) for any field
-//!      it doesn't know how to pricess.
+//!      `Option<T>` fields respectively.
 //!
 //!      Any operation that can change the type (such as [`parse`](Parser::parse) or [`map`](Parser::map))
 //!      for disables this logic for the field and also requires to specify the consumer:
@@ -237,16 +232,27 @@
 //!      # use bpaf::*;
 //!      #[derive(Debug, Clone, Bpaf)]
 //!      struct Options {
-//!          // #[bpaf(argument("NUM"), many)] - fails due to type mismatch
-//!          // #[bpaf(from_str(u32), many)] - fails due to missing consumer
-//!          #[bpaf(argument("NUM"), from_str(u32), many)]
+//!          #[bpaf(argument::<u32>("NUM"), many)]
 //!          numbers: Vec<u32>
 //!      }
 //!      ```
 //!
 //!    - field-less enum variants obey slightly different set of rules, see
-//!    [`req_flag`](Named::req_flag) for more details.
+//!    [`req_flag`](NamedArg::req_flag) for more details.
 //!
+//!    - any constructor in `enum` can have `skip` annotation - `bpaf_derive`
+//!      would ignore them when generating code:
+//!      ```rust
+//!      # use bpaf::*;
+//!      #[derive(Debug, Clone, Bpaf)]
+//!      enum Decision {
+//!          Yes,
+//!          No,
+//!          #[bpaf(skip)]
+//!          Maybe
+//!      }
+//!
+//!      ```
 //!
 //! 6. Add documentation for help messages.
 //!    `bpaf_derive` generates help messages from doc comments, it skips single empty lines and stops
@@ -268,5 +274,5 @@
 //!
 //! 7. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
-#[allow(unused_imports)]
-use crate::*;
+#[cfg(doc)]
+use crate::{params::*, parsers::*, *};

@@ -10,8 +10,8 @@ use syn::{
 use crate::utils::{to_kebab_case, LineIter};
 
 use super::{
-    as_long_name, as_short_name, is_os_str_ty, parse_optional_arg, split_type, ConsumerAttr, Doc,
-    Name, PostprAttr, Shape,
+    as_long_name, as_short_name, parse_optional_arg, split_type, ConsumerAttr, Doc, Name,
+    PostprAttr, Shape,
 };
 
 #[derive(Debug, Clone)]
@@ -98,6 +98,7 @@ impl Field {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     pub fn make(ty: Type, name: Option<Ident>, attrs: Vec<Attribute>) -> Result<Self> {
         let mut res = Field {
             ty,
@@ -116,6 +117,7 @@ impl Field {
             if attr.path.is_ident("doc") {
                 help.push(parse2::<Doc>(attr.tokens)?.0);
             } else if attr.path.is_ident("bpaf") {
+                #[allow(clippy::cognitive_complexity)]
                 attr.parse_args_with(|input: ParseStream| loop {
                     if input.is_empty() {
                         break Ok(());
@@ -159,16 +161,48 @@ impl Field {
                     // consumer
                     } else if keyword == "argument" {
                         check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::Arg(parse_optional_arg(input)?));
-                    } else if keyword == "argument_os" {
-                        check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::ArgOs(parse_optional_arg(input)?));
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+                        let arg = parse_optional_arg(input)?;
+                        res.consumer = Some(ConsumerAttr::Arg(arg, ty));
                     } else if keyword == "positional" {
                         check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::Pos(parse_optional_arg(input)?));
-                    } else if keyword == "positional_os" {
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+                        let arg = parse_optional_arg(input)?;
+
+                        res.consumer = Some(ConsumerAttr::Pos(arg, ty));
+                    } else if keyword == "any" {
                         check_stage(&mut stage, 2, &keyword)?;
-                        res.consumer = Some(ConsumerAttr::PosOs(parse_optional_arg(input)?));
+                        let ty = if input.peek(token::Colon) {
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Colon>()?;
+                            input.parse::<token::Lt>()?;
+                            let ty = input.parse::<Type>()?;
+                            input.parse::<token::Gt>()?;
+                            Some(Box::new(ty))
+                        } else {
+                            None
+                        };
+
+                        let arg = parse_optional_arg(input)?;
+                        res.consumer = Some(ConsumerAttr::Any(arg, ty));
                     } else if keyword == "switch" {
                         check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Switch);
@@ -219,11 +253,6 @@ impl Field {
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
-                    } else if keyword == "from_str" {
-                        check_stage(&mut stage, 4, &keyword)?;
-                        let _ = parenthesized!(content in input);
-                        let ty = content.parse::<Type>()?;
-                        res.postpr.push(PostprAttr::FromStr(span, Box::new(ty)));
                     } else if keyword == "complete" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let f = parse_ident(input)?;
@@ -282,11 +311,11 @@ impl Field {
         // Do we even need to derive the name here?
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => return,
-                ConsumerAttr::Arg(_)
-                | ConsumerAttr::ArgOs(_)
+                ConsumerAttr::Any(_, _) | ConsumerAttr::Pos(_, _) => return,
+                ConsumerAttr::Arg(_, _)
                 | ConsumerAttr::Switch
-                | ConsumerAttr::Flag(_, _) => {}
+                | ConsumerAttr::Flag(_, _)
+                | ConsumerAttr::ReqFlag(_) => {}
             }
         }
 
@@ -350,16 +379,36 @@ impl Field {
                 return Ok(());
             }
             Shape::Direct(ty) => ty,
+            Shape::Unit => {
+                if self.consumer.is_none() {
+                    self.consumer = Some(ConsumerAttr::ReqFlag(parse_quote!(())));
+                    return Ok(());
+                }
+                self.ty.clone()
+            }
         };
 
-        let arg = LitStr::new("ARG", ty.span());
-        let is_os = is_os_str_ty(&ty);
+        if let Some(cons) = &self.consumer {
+            match cons {
+                ConsumerAttr::Any(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Any(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                ConsumerAttr::Arg(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Arg(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                ConsumerAttr::Pos(l, None) => {
+                    self.consumer = Some(ConsumerAttr::Pos(l.clone(), Some(Box::new(ty.clone()))))
+                }
+                _ => {}
+            }
+        }
+
         match &self.consumer {
             Some(cons) => match cons {
-                ConsumerAttr::Arg(_)
-                | ConsumerAttr::ArgOs(_)
+                ConsumerAttr::Arg(..)
                 | ConsumerAttr::Switch
-                | ConsumerAttr::Flag(_, _) => {
+                | ConsumerAttr::Flag(_, _)
+                | ConsumerAttr::ReqFlag(_) => {
                     if self.naming.is_empty() {
                         return Err(syn::Error::new(
                             self.ty.span(),
@@ -367,29 +416,16 @@ impl Field {
                         ));
                     }
                 }
-                ConsumerAttr::Pos(_) | ConsumerAttr::PosOs(_) => {}
+                ConsumerAttr::Pos(..) | ConsumerAttr::Any(..) => {}
             },
             None => {
-                self.consumer = Some(match (is_os, self.naming.is_empty()) {
-                    (true, true) => ConsumerAttr::PosOs(arg),
-                    (true, false) => ConsumerAttr::ArgOs(arg),
-                    (false, true) => ConsumerAttr::Pos(arg),
-                    (false, false) => ConsumerAttr::Arg(arg),
-                });
-            }
-        }
-
-        if derive_postpr {
-            self.postpr.insert(
-                0,
-                if is_os {
-                    PostprAttr::Tokens(ty.span(), quote!(map(#ty::from)))
-                } else if ty != parse_quote!(String) {
-                    PostprAttr::FromStr(ty.span(), Box::new(ty))
+                let arg = LitStr::new("ARG", ty.span());
+                if self.naming.is_empty() {
+                    self.consumer = Some(ConsumerAttr::Pos(arg, Some(Box::new(ty))));
                 } else {
-                    return Ok(());
-                },
-            );
+                    self.consumer = Some(ConsumerAttr::Arg(arg, Some(Box::new(ty))));
+                }
+            }
         }
 
         Ok(())

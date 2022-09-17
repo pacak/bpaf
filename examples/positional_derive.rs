@@ -10,7 +10,7 @@ struct Options {
     /// Mysterious value
     #[bpaf(argument("VAL"), fallback(42))]
     value: u32,
-    #[bpaf(positional_os("FILE"))]
+    #[bpaf(positional("FILE"))]
     files: Vec<PathBuf>,
 }
 

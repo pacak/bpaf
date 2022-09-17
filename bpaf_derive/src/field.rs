@@ -2,8 +2,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parenthesized, parse, parse_quote, Attribute, Expr, Ident, LitChar, LitStr, PathArguments,
-    Result, Token, Type, Visibility,
+    parenthesized, parse, Attribute, Expr, Ident, LitChar, LitStr, PathArguments, Result, Token,
+    Type, Visibility,
 };
 
 use crate::utils::to_kebab_case;
@@ -12,6 +12,7 @@ use crate::utils::to_kebab_case;
 pub struct ConstrName {
     pub namespace: Option<Ident>,
     pub constr: Ident,
+    pub fallback: Option<Expr>,
 }
 
 mod named_field;
@@ -29,17 +30,16 @@ pub enum Name {
 
 #[derive(Debug, Clone)]
 enum ConsumerAttr {
-    Arg(LitStr),
-    ArgOs(LitStr),
-    Pos(LitStr),
-    PosOs(LitStr),
+    Any(LitStr, Option<Box<Type>>),
+    Arg(LitStr, Option<Box<Type>>),
+    Pos(LitStr, Option<Box<Type>>),
     Switch,
     Flag(Box<Expr>, Box<Expr>),
+    ReqFlag(Box<Expr>),
 }
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
-    FromStr(Span, Box<Type>),
     Guard(Span, Ident, Box<Expr>),
     Many(Span, Option<LitStr>),
     Map(Span, Ident),
@@ -48,9 +48,6 @@ enum PostprAttr {
     Fallback(Span, Box<Expr>),
     FallbackWith(Span, Box<Expr>),
     Complete(Span, Ident),
-    // used for deriving stuff to express map to convert
-    // from OsString to PathBuf... I wonder.
-    Tokens(Span, TokenStream),
     Hide(Span),
     GroupHelp(Span, Box<Expr>),
     Catch(Span),
@@ -60,9 +57,7 @@ impl PostprAttr {
     const fn can_derive(&self) -> bool {
         match self {
             PostprAttr::Many(..)
-            | PostprAttr::FromStr(..)
             | PostprAttr::Map(..)
-            | PostprAttr::Tokens(..)
             | PostprAttr::Optional(..)
             | PostprAttr::Parse(..) => false,
             PostprAttr::Guard(..)
@@ -77,8 +72,7 @@ impl PostprAttr {
 
     fn span(&self) -> Span {
         match self {
-            PostprAttr::FromStr(span, _)
-            | PostprAttr::Guard(span, _, _)
+            PostprAttr::Guard(span, _, _)
             | PostprAttr::Many(span, _)
             | PostprAttr::Map(span, _)
             | PostprAttr::Optional(span)
@@ -86,7 +80,6 @@ impl PostprAttr {
             | PostprAttr::Fallback(span, _)
             | PostprAttr::FallbackWith(span, _)
             | PostprAttr::Complete(span, _)
-            | PostprAttr::Tokens(span, _)
             | PostprAttr::Hide(span)
             | PostprAttr::Catch(span)
             | PostprAttr::GroupHelp(span, _) => *span,
@@ -121,6 +114,7 @@ enum Shape {
     Optional(Type),
     Multiple(Type),
     Bool,
+    Unit,
     Direct(Type),
 }
 
@@ -142,6 +136,12 @@ fn split_type(ty: &Type) -> Shape {
     }
 
     fn try_split_type(ty: &Type) -> Option<Shape> {
+        if let Type::Tuple(syn::TypeTuple { elems, .. }) = ty {
+            if elems.is_empty() {
+                return Some(Shape::Unit);
+            }
+        }
+
         let last = match ty {
             Type::Path(p) => p.path.segments.last()?,
             _ => return None,
@@ -157,13 +157,6 @@ fn split_type(ty: &Type) -> Shape {
         }
     }
     try_split_type(ty).unwrap_or_else(|| Shape::Direct(ty.clone()))
-}
-
-fn is_os_str_ty(ty: &Type) -> bool {
-    ty == &parse_quote!(PathBuf)
-        || ty == &parse_quote!(OsString)
-        || ty == &parse_quote!(std::path::PathBuf)
-        || ty == &parse_quote!(std::ffi::OsString)
 }
 
 impl Field {
@@ -200,7 +193,6 @@ pub fn as_long_name(value: &Ident) -> LitStr {
 impl ToTokens for PostprAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            PostprAttr::FromStr(_span, ty) => quote!(from_str::<#ty>()),
             PostprAttr::Guard(_span, f, m) => quote!(guard(#f, #m)),
             PostprAttr::Many(_span, None) => quote!(many()),
             PostprAttr::Many(_span, Some(m)) => quote!(some(#m)),
@@ -209,7 +201,6 @@ impl ToTokens for PostprAttr {
             PostprAttr::Parse(_span, f) => quote!(parse(#f)),
             PostprAttr::Fallback(_span, v) => quote!(fallback(#v)),
             PostprAttr::FallbackWith(_span, v) => quote!(fallback_with(#v)),
-            PostprAttr::Tokens(_span, t) => quote!(#t),
             PostprAttr::Hide(_span) => quote!(hide()),
             PostprAttr::Catch(_span) => quote!(catch()),
             PostprAttr::Complete(_span, f) => quote!(complete(#f)),
@@ -232,12 +223,15 @@ impl ToTokens for Name {
 impl ToTokens for ConsumerAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            ConsumerAttr::Arg(arg) => quote!(argument(#arg)),
-            ConsumerAttr::ArgOs(arg) => quote!(argument_os(#arg)),
-            ConsumerAttr::Pos(arg) => quote!(positional(#arg)),
-            ConsumerAttr::PosOs(arg) => quote!(positional_os(#arg)),
+            ConsumerAttr::Arg(arg, Some(ty)) => quote!(argument::<#ty>(#arg)),
+            ConsumerAttr::Pos(arg, Some(ty)) => quote!(positional::<#ty>(#arg)),
+            ConsumerAttr::Any(arg, Some(ty)) => quote!(any::<#ty>(#arg)),
+            ConsumerAttr::Arg(arg, None) => quote!(argument(#arg)),
+            ConsumerAttr::Pos(arg, None) => quote!(positional(#arg)),
+            ConsumerAttr::Any(arg, None) => quote!(any(#arg)),
             ConsumerAttr::Switch => quote!(switch()),
             ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
+            ConsumerAttr::ReqFlag(a) => quote!(req_flag(#a)),
         }
         .to_tokens(tokens);
     }

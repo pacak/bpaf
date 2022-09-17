@@ -92,12 +92,14 @@ fn ins(expected: I, actual: I, variants: &mut Vec<(usize, String)>) {
 
 fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
     let actual: I = match arg {
-        Arg::Short(s, _) => I::ShortFlag(*s),
-        Arg::Long(s, _) => I::LongFlag(s.as_str()),
-        Arg::Word(w) => match &w.utf8 {
-            Some(s) => I::LongCmd(s.as_str()),
+        Arg::Short(s, _, _) => I::ShortFlag(*s),
+        Arg::Long(s, _, _) => I::LongFlag(s.as_str()),
+        Arg::Word(w) | Arg::PosWord(w) => match &w.to_str() {
+            Some(s) => I::LongCmd(s),
             None => return,
         },
+        // should not be reachable
+        Arg::Ambiguity(_, _) => return,
     };
     match item {
         Item::Positional { .. } => {}

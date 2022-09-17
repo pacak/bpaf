@@ -5,7 +5,7 @@ fn decorations() {
     let p = short('p')
         .long("parser")
         .env("BPAF_VARIABLE")
-        .argument("ARG")
+        .argument::<String>("ARG")
         .to_options()
         .descr("descr\ndescr")
         .header("header\nheader")

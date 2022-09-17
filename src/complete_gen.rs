@@ -14,7 +14,7 @@
 //
 // complete short names to long names if possible
 
-use crate::{args::Arg, item::ShortLong, Args, CompleteDecor, Error, Named};
+use crate::{args::Arg, item::ShortLong, parsers::NamedArg, Args, CompleteDecor, Error};
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
@@ -35,7 +35,7 @@ impl Complete {
 
 impl Args {
     /// Add a new completion hint for flag, if needed
-    pub(crate) fn push_flag(&mut self, named: &Named) {
+    pub(crate) fn push_flag(&mut self, named: &NamedArg) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
@@ -50,7 +50,7 @@ impl Args {
     }
 
     /// Add a new completion hint for an argument, if needed
-    pub(crate) fn push_argument(&mut self, named: &Named, metavar: &'static str) {
+    pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
         if let Some(comp) = &mut self.comp {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {
@@ -132,8 +132,8 @@ impl Args {
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
-            Arg::Short(_, _) | Arg::Long(_, _) => false,
-            Arg::Word(_) => true,
+            Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(_, _) => false,
+            Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
 }
@@ -261,15 +261,16 @@ struct ShowComp<'a> {
 impl Arg {
     fn and_os_string(&self) -> Option<(&Self, &OsStr)> {
         match self {
-            Arg::Short(_, s) => {
+            Arg::Short(_, _, s) => {
                 if s.is_empty() {
                     None
                 } else {
                     Some((self, s))
                 }
             }
-            Arg::Long(_, s) => Some((self, s)),
-            Arg::Word(w) => Some((self, &w.os)),
+            Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) | Arg::Ambiguity(_, s) => {
+                Some((self, s))
+            }
         }
     }
 }
@@ -299,17 +300,13 @@ impl Args {
             .next()
             .ok_or_else(|| Error::Stdout("\n".to_string()))?;
 
-        // also if lit is to the _right_ of double dash - it can be positional only - so meta or
-        // value
+        let pos_only = items.clone().any(|i| matches!(i.0, Arg::PosWord(_)));
 
-        let pos_only = items.any(|(_arg, lit)| lit == "--");
-
-        if let Arg::Short(..) = arg {
-            if lit.chars().count() > 2 {
-                // don't bother trying to expand -vvvv for now:
-                // -vvv<TAB> => -vvv _
-                return Err(Error::Stdout(format!("{}\n", lit)));
-            }
+        // bail out on unresolved ambiguities
+        if let Arg::Ambiguity(..) = arg {
+            // don't bother trying to expand -vvvv for now:
+            // -vvv<TAB> => -vvv _
+            return Err(Error::Stdout(format!("{}\n", lit)));
         }
 
         let res = comp.complete(lit, arg.is_word(), pos_only)?;

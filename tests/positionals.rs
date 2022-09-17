@@ -2,8 +2,8 @@ use bpaf::*;
 
 #[test]
 fn positional_with_help() {
-    let user = positional("USER").help("github user\nin two lines");
-    let api = positional("API_KEY").help("api key to use");
+    let user = positional::<String>("USER").help("github user\nin two lines");
+    let api = positional::<String>("API_KEY").help("api key to use");
     let parser = construct!(user, api).to_options();
 
     let help = parser
@@ -26,8 +26,8 @@ Available options:
 
 #[test]
 fn help_for_positional() {
-    let c = positional("C").help("help for\nc");
-    let d = positional("DDD").help("help for\nddd");
+    let c = positional::<String>("C").help("help for\nc");
+    let d = positional::<String>("DDD").help("help for\nddd");
     let parser = construct!(c, d).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -51,14 +51,14 @@ Available options:
 
 #[test]
 fn dash_is_positional() {
-    let a = positional("FILE");
+    let a = positional::<String>("FILE");
     let parser = a.to_options();
     assert_eq!("-", parser.run_inner(Args::from(&["-"])).unwrap());
 }
 
 #[test]
 fn helpful_error_message() {
-    let parser = positional("FOO")
+    let parser = positional::<String>("FOO")
         .some("You need to specify at least one FOO")
         .to_options();
 
@@ -71,7 +71,7 @@ fn helpful_error_message() {
 
 #[test]
 fn positional_argument() {
-    let p = positional("FILE").group_help("File to process");
+    let p = positional::<String>("FILE").group_help("File to process");
     let parser = p.to_options();
 
     let help = parser
@@ -90,7 +90,7 @@ Available options:
 #[test]
 #[should_panic(expected = "bpaf usage BUG: all positional")]
 fn positional_help_complain_1() {
-    let a = positional("a");
+    let a = positional::<String>("a");
     let b = short('b').switch();
     let parser = construct!(a, b).to_options();
 
@@ -103,7 +103,7 @@ fn positional_help_complain_1() {
 #[test]
 #[should_panic(expected = "bpaf usage BUG: all positional")]
 fn positional_help_complain_2() {
-    let a = positional("a");
+    let a = positional::<String>("a");
     let b = short('b').switch();
     let ba = construct!(b, a);
     let c = short('c').switch();
@@ -118,8 +118,8 @@ fn positional_help_complain_2() {
 #[test]
 #[should_panic(expected = "bpaf usage BUG: all positional")]
 fn positional_help_complain_3() {
-    let a = positional("a");
-    let b = short('b').argument("B");
+    let a = positional::<String>("a");
+    let b = short('b').argument::<String>("B");
     let ba = construct!([b, a]);
     let c = short('c').switch();
     let parser = construct!(ba, c).to_options();
@@ -132,7 +132,7 @@ fn positional_help_complain_3() {
 
 #[test]
 fn positional_help_complain_4() {
-    let a = positional("a");
+    let a = positional::<String>("a");
     let b = short('b').argument("B");
     let parser = construct!([b, a]).to_options();
 
@@ -144,7 +144,7 @@ fn positional_help_complain_4() {
 
 #[test]
 fn strictly_positional() {
-    let parser = positional("A").strict().to_options();
+    let parser = positional::<String>("A").strict().to_options();
 
     let r = parser
         .run_inner(Args::from(&["--help"]))

@@ -1,22 +1,19 @@
-use crate::{Error, Named};
 use std::ffi::OsString;
 
-/// Contains [`OsString`] with its [`String`] equivalent if encoding is utf8
-#[derive(Debug, Clone, Eq, PartialEq, Default)]
-pub(crate) struct Word {
-    pub utf8: Option<String>,
-    pub os: OsString,
-    pub pos_only: bool,
-}
+pub(crate) use crate::arg::*;
+use crate::{parsers::NamedArg, Error};
 
 /// Hides [`Args`] internal implementation
 mod inner {
     use std::{
         ffi::{OsStr, OsString},
+        ops::Range,
         rc::Rc,
     };
 
-    use super::{push_vec, Arg, Word};
+    use crate::ParseFailure;
+
+    use super::{push_vec, Arg};
     /// All currently present command line parameters, use it for unit tests and manual parsing
     ///
     /// The easiest way to create `Args` is by using it's `From` instance.
@@ -73,6 +70,9 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         pub(crate) comp: Option<crate::complete_gen::Complete>,
+
+        /// how many Ambiguities are there
+        pub(crate) ambig: usize,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -99,18 +99,23 @@ mod inner {
         fn from(xs: &[OsString]) -> Self {
             let mut pos_only = false;
             let mut vec = Vec::with_capacity(xs.len());
+            let mut ambig = 0;
 
-            let mut del = None;
+            let mut del = Vec::new();
             for x in xs {
+                let prev_pos_only = pos_only;
                 push_vec(&mut vec, x.clone(), &mut pos_only);
-                if del.is_none() && pos_only {
+                if matches!(vec.last(), Some(Arg::Ambiguity(..))) {
+                    ambig += 1;
+                }
+                if !prev_pos_only && pos_only {
                     // keep "--" in the argument list but mark it as removed
                     // completer uses it to deal with "--" inputs
-                    del = Some(vec.len() - 1);
+                    del.push(vec.len() - 1);
                 }
             }
-            let mut args = Args::args_from(vec);
-            if let Some(ix) = del {
+            let mut args = Args::args_from(vec, ambig);
+            for ix in del {
                 args.remove(ix);
             }
             args
@@ -118,7 +123,7 @@ mod inner {
     }
 
     impl Args {
-        pub(crate) fn args_from(vec: Vec<Arg>) -> Self {
+        pub(crate) fn args_from(vec: Vec<Arg>, ambig: usize) -> Self {
             Args {
                 removed: vec![false; vec.len()],
                 remaining: vec.len(),
@@ -131,6 +136,7 @@ mod inner {
                 comp: None,
                 #[cfg(feature = "autocomplete")]
                 no_pos_ahead: false,
+                ambig,
             }
         }
     }
@@ -163,11 +169,11 @@ mod inner {
             self.remaining
         }
 
-        pub(crate) fn current_word(&self) -> Option<&Word> {
+        pub(crate) fn current_word(&self) -> Option<&OsStr> {
             let ix = self.current?;
             match &self.items[ix] {
-                Arg::Short(_, _) | Arg::Long(_, _) => None,
-                Arg::Word(w) => Some(w),
+                Arg::Word(w) | Arg::PosWord(w) => Some(w),
+                Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(..) => None,
             }
         }
 
@@ -194,6 +200,152 @@ mod inner {
             self.comp = Some(crate::complete_gen::Complete::new(rev));
             self
         }
+
+        /// restrict `guess` to the first adjacent block of consumed elements
+        ///
+        /// returns true when either
+        /// - it improved starting point
+        /// - it improved ending point and there are gaps past it
+        pub(crate) fn refine_range(&self, args: &Args, guess: &mut Range<usize>) -> bool {
+            // nothing to refine
+            if self.removed.is_empty() {
+                return false;
+            }
+            // start is not at the right place, adjust that and retry the parsing
+            if self.removed[guess.start] == args.removed[guess.start] {
+                for (offset, (this, orig)) in self.removed[guess.start..]
+                    .iter()
+                    .zip(args.removed[guess.start..].iter())
+                    .enumerate()
+                {
+                    let ix = offset + guess.start;
+                    if !orig && *this {
+                        guess.start = ix;
+                        return true;
+                    }
+                }
+            }
+
+            // at this point start is at the right place, we need to set the end to the first
+            // match - point where adjacent parser stopped consuming items
+            let old_end = guess.end;
+            for (offset, (this, orig)) in self.removed[guess.start..]
+                .iter()
+                .zip(args.removed[guess.start..].iter())
+                .enumerate()
+            {
+                let ix = offset + guess.start;
+                if !this && !orig {
+                    guess.end = ix;
+                    break;
+                }
+            }
+
+            // no improvements to the end
+            if old_end == guess.end {
+                return false;
+            }
+
+            // at this point check if there are any consumed items past the new end, if there are -
+            // need to rerun the parser
+            for (this, orig) in self.removed[guess.end..old_end]
+                .iter()
+                .zip(args.removed[guess.end..old_end].iter())
+            {
+                if *this && !orig {
+                    return true;
+                }
+            }
+            // otherwise refining is done
+            false
+        }
+
+        /// Mark everything outside of `range` as removed
+        pub(crate) fn restrict_to_range(&mut self, range: &Range<usize>) {
+            for (ix, removed) in self.removed.iter_mut().enumerate() {
+                if !range.contains(&ix) {
+                    *removed = true;
+                }
+            }
+        }
+
+        /// take removals from args, mark everything inside range as removed
+        pub(crate) fn transplant_usage(&mut self, args: &mut Args, range: Range<usize>) {
+            std::mem::swap(&mut self.removed, &mut args.removed);
+            for i in range {
+                self.removed[i] = true;
+            }
+        }
+
+        #[inline(never)]
+        pub(crate) fn disambiguate(
+            &mut self,
+            flags: &[char],
+            args: &[char],
+        ) -> Result<(), ParseFailure> {
+            let mut pos = 0;
+
+            // can't iterate over items since it might change in process
+            loop {
+                if self.ambig == 0 || pos == self.items.len() {
+                    return Ok(());
+                }
+                // look for ambiguities, resolve or skip them. resolving involves recreating
+                // `items` and `removed`
+
+                if let Arg::Ambiguity(items, os) = &self.items[pos] {
+                    let flag_ok = items.iter().all(|i| flags.contains(i));
+                    let arg_ok = args.contains(&items[0]);
+
+                    match (flag_ok, arg_ok) {
+                        (true, true) => {
+                            let s = os.to_str().unwrap();
+                            let msg = format!(
+                                "Parser supports -{} as both option and option-argument, \
+                                          try to split {} into individual options (-{} -{} ..) \
+                                          or use -{}={} syntax to disambiguate",
+                                items[0],
+                                s,
+                                items[0],
+                                items[1],
+                                items[0],
+                                &s[1 + items[0].len_utf8()..]
+                            );
+                            return Err(ParseFailure::Stderr(msg));
+                        }
+                        (true, false) => {
+                            // disambiguate as multiple flags
+                            let mut new_items = self.items.to_vec();
+                            new_items.remove(pos);
+                            self.removed.remove(pos);
+                            for short in items.iter().rev() {
+                                // inefficient but ambiguities shouldn't supposed to happen
+                                new_items.insert(pos, Arg::Short(*short, false, OsString::new()));
+                                self.removed.insert(pos, false);
+                            }
+                            new_items[pos] = Arg::Short(items[0], false, os.clone());
+                            self.remaining += items.len() - 1;
+                            self.items = Rc::from(new_items);
+                            self.ambig -= 1;
+                        }
+                        (false, true) => {
+                            // disambiguate as a single option-argument
+                            let mut new_items = self.items.to_vec();
+                            new_items[pos] = Arg::Short(items[0], true, os.clone());
+                            let word = os.to_str().unwrap()[1 + items[0].len_utf8()..].to_string();
+                            new_items.insert(pos + 1, Arg::Word(OsString::from(word)));
+                            self.items = Rc::from(new_items);
+                            self.removed.insert(pos, false);
+
+                            self.remaining += 1; // removed Ambiguity, added short and word
+                            self.ambig -= 1;
+                        }
+                        (false, false) => {}
+                    }
+                }
+                pos += 1;
+            }
+        }
     }
 
     impl<'a> Iterator for ArgsIter<'a> {
@@ -212,270 +364,6 @@ mod inner {
 }
 pub use inner::*;
 
-/// Preprocessed command line argument
-///
-/// [`OsString`] in Short/Long correspond to orignal command line item used for errors
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) enum Arg {
-    /// short flag
-    Short(char, OsString),
-    /// long flag
-    Long(String, OsString),
-    /// separate word that can be command, positional or an argument to a flag
-    Word(Word),
-}
-
-impl std::fmt::Display for Arg {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Arg::Short(s, _) => write!(f, "-{}", s),
-            Arg::Long(l, _) => write!(f, "--{}", l),
-            Arg::Word(w) => match &w.utf8 {
-                Some(s) => write!(f, "{}", s),
-                None => Err(std::fmt::Error),
-            },
-        }
-    }
-}
-
-#[inline(never)]
-pub(crate) fn word(os: OsString, pos_only: bool) -> Word {
-    Word {
-        utf8: os.to_str().map(String::from),
-        os,
-        pos_only,
-    }
-}
-
-pub(crate) fn word_arg(os: OsString, pos_only: bool) -> Arg {
-    Arg::Word(word(os, pos_only))
-}
-
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, mut os: OsString, pos_only: &mut bool) {
-    if *pos_only {
-        return vec.push(word_arg(os, true));
-    }
-
-    match split_os_argument(&os) {
-        Some((ArgType::Short, short, None)) => {
-            for f in short.chars() {
-                vec.push(Arg::Short(f, os));
-                os = OsString::new();
-            }
-        }
-        Some((ArgType::Short, short, Some(arg))) => {
-            assert_eq!(
-                short.len(),
-                1,
-                "short flag with an argument must have only one key"
-            );
-            let key = short.chars().next().unwrap();
-            vec.push(Arg::Short(key, os));
-            vec.push(arg);
-        }
-        Some((ArgType::Long, long, None)) => {
-            vec.push(Arg::Long(long, os));
-        }
-        Some((ArgType::Long, long, Some(arg))) => {
-            vec.push(Arg::Long(long, os));
-            vec.push(arg);
-        }
-        _ => match os.to_str() {
-            Some(utf8) => {
-                *pos_only = utf8 == "--";
-                vec.push(Arg::Word(Word {
-                    utf8: Some(utf8.to_string()),
-                    pos_only: false,
-                    os,
-                }));
-            }
-            None => vec.push(Arg::Word(Word {
-                utf8: None,
-                os,
-
-                pos_only: false,
-            })),
-        },
-    }
-}
-
-#[derive(Eq, PartialEq, Debug)]
-pub(crate) enum ArgType {
-    Short,
-    Long,
-}
-
-/// split [`OsString`] into argument specific bits
-///
-/// takes a possibly non-utf8 string looking like "--name=value" and splits it into bits:
-/// "--" - type, "name" - name, must be representable as utf8, "=" - optional, "value" - flag
-///
-/// dashes and equals sign are low codepoint values and - can look for them literally in a string.
-/// This probably means not supporting dashes with diacritics, but that's okay
-///
-/// name must be valid utf8 after conversion and must not include `=`
-///
-/// argument is optional and can be non valid utf8.
-///
-/// The idea is to split the [`OsString`] into opaque parts by looking only at the parts simple parts
-/// and let stdlib to handle the decoding of those parts.
-///
-/// performance wise this (at least on unix) works some small number percentage slower than the
-/// previous version
-///
-///
-/// on supporting -fbar
-/// - ideally bpaf wants to support any utf8 character (here `f`) which requires detecting one
-///   out of bytes on unix and utf16 codepoints on windows
-/// - bpaf needs to store ambigous combo of -f=bar and -f -b -a -r until user consumes -f either as
-///   a flag or as an argument and drop -b, -a and -r if it was an argument.
-/// - bpaf wants to prevent users from using parsers for -b, -a or -r before parser for -f
-///
-/// Conclusion: possible in theory but adds too much complexity for the value it offers.
-pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, String, Option<Arg>)> {
-    #[cfg(any(unix, windows))]
-    {
-        // OsString are sequences of smaller smaller elements - bytes in unix and
-        // possibly invalid utf16 items on windows
-        #[cfg(unix)]
-        type Elt = u8;
-        #[cfg(windows)]
-        type Elt = u16;
-
-        // reuse allocation on unix, don't reuse allocations on windows
-        // either case - pack a vector of elements back into OsString
-        fn os_from_vec(vec: Vec<Elt>) -> OsString {
-            #[cfg(unix)]
-            {
-                <OsString as std::os::unix::ffi::OsStringExt>::from_vec(vec)
-            }
-            #[cfg(windows)]
-            {
-                <OsString as std::os::windows::ffi::OsStringExt>::from_wide(&vec)
-            }
-        }
-
-        // try to decode elements into a String
-        fn str_from_vec(vec: Vec<Elt>) -> Option<String> {
-            Some(os_from_vec(vec).to_str()?.to_owned())
-        }
-
-        // but in either case dashes and equals are just literal values just with different width
-        const DASH: Elt = b'-' as Elt;
-        const EQUALS: Elt = b'=' as Elt;
-
-        // preallocate something to store the name. oversized but avoids extra allocations/copying
-        let mut name = Vec::with_capacity(input.len());
-
-        let mut items;
-        #[cfg(unix)]
-        {
-            items = std::os::unix::ffi::OsStrExt::as_bytes(input)
-                .iter()
-                .copied();
-        }
-        #[cfg(windows)]
-        {
-            items = std::os::windows::ffi::OsStrExt::encode_wide(input);
-        }
-
-        // first item must be dash, otherwise it's positional or a flag value
-        if items.next()? != DASH {
-            return None;
-        }
-
-        // second item may or may not be, but should be present
-        let ty;
-        match items.next()? {
-            DASH => ty = ArgType::Long,
-            val => {
-                ty = ArgType::Short;
-                name.push(val);
-            }
-        }
-
-        // keep collecting until = or the end of the input
-        loop {
-            match items.next() {
-                Some(EQUALS) => break,
-                Some(val) => name.push(val),
-                None => {
-                    if name.is_empty() {
-                        return None;
-                    }
-                    return Some((ty, str_from_vec(name)?, None));
-                }
-            }
-        }
-
-        // name must be present
-        if name.is_empty() {
-            return None;
-        }
-        let name = str_from_vec(name)?;
-        let word = word_arg(os_from_vec(items.collect()), false);
-        Some((ty, name, Some(word)))
-    }
-    #[cfg(not(any(unix, windows)))]
-    {
-        split_os_argument_fallback(input)
-    }
-}
-
-/// similar to [`split_os_argument`] but only works for utf8 values, used as a fallback function
-/// on non
-#[cfg(any(all(not(windows), not(unix)), test))]
-pub(crate) fn split_os_argument_fallback(
-    input: &std::ffi::OsStr,
-) -> Option<(ArgType, String, Option<Arg>)> {
-    // fallback supports only valid utf8 os strings, matches old behavior
-    let string = input.to_str()?;
-
-    let mut chars = string.chars();
-    let mut name = String::with_capacity(string.len());
-
-    // first character must be dash, otherwise it's positional or a flag value
-    if chars.next()? != '-' {
-        return None;
-    }
-
-    // second character may or may not be
-    let ty;
-    match chars.next()? {
-        '-' => ty = ArgType::Long,
-        val => {
-            ty = ArgType::Short;
-            name.push(val);
-        }
-    }
-
-    // collect the argument's name up to '=' or until the end
-    // if it's a flag
-    loop {
-        match chars.next() {
-            Some('=') => break,
-            Some(val) => name.push(val),
-            None => {
-                if name.is_empty() {
-                    return None;
-                }
-                return Some((ty, name, None));
-            }
-        }
-    }
-    if name.is_empty() {
-        return None;
-    }
-
-    let utf8 = chars.collect::<String>();
-    let word = Word {
-        os: OsString::from(utf8.clone()),
-        utf8: Some(utf8),
-        pos_only: false,
-    };
-    Some((ty, name, Some(Arg::Word(word))))
-}
-
 impl Args {
     #[inline(never)]
     #[cfg(feature = "autocomplete")]
@@ -487,20 +375,21 @@ impl Args {
 
     pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
         self.tainted = true;
-        Error::Stderr(
-            if let Some(Word { utf8: Some(w), .. }) = self.current_word() {
-                format!("Couldn't parse {:?}: {}", w, error)
-            } else {
-                format!("Couldn't parse: {}", error)
-            },
-        )
+        Error::Stderr(if let Some(os) = self.current_word() {
+            format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
+        } else {
+            format!("Couldn't parse: {}", error)
+        })
     }
 
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
-    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
-        if let Some((ix, _)) = self.items_iter().find(|arg| named.matches_arg(arg.1)) {
+    pub(crate) fn take_flag(&mut self, named: &NamedArg) -> bool {
+        if let Some((ix, _)) = self
+            .items_iter()
+            .find(|arg| named.matches_arg(arg.1, false))
+        {
             self.remove(ix);
             true
         } else {
@@ -512,16 +401,24 @@ impl Args {
     ///
     /// Returns Ok(None) if flag isn't present
     /// Returns Err if flag is present but value is either missing or strange.
-    pub(crate) fn take_arg(&mut self, named: &Named) -> Result<Option<Word>, Error> {
-        let (key_ix, arg) = match self.items_iter().find(|arg| named.matches_arg(arg.1)) {
+    pub(crate) fn take_arg(
+        &mut self,
+        named: &NamedArg,
+        adjacent: bool,
+    ) -> Result<Option<OsString>, Error> {
+        let (key_ix, arg) = match self
+            .items_iter()
+            .find(|arg| named.matches_arg(arg.1, adjacent))
+        {
             Some(v) => v,
             None => return Ok(None),
         };
+
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            Some(Arg::Short(_, os) | Arg::Long(_, os)) => {
-                let msg = if let (Arg::Short(s, fos), true) = (&arg, os.is_empty()) {
+            Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
+                let msg = if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
                     let fos = fos.to_string_lossy();
                     let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
                     format!(
@@ -547,13 +444,19 @@ impl Args {
     ///
     /// returns Ok(None) if input is empty
     /// returns Err if first positional argument is a flag
-    pub(crate) fn take_positional_word(&mut self) -> Result<Option<Word>, Error> {
+    pub(crate) fn take_positional_word(&mut self) -> Result<Option<(bool, OsString)>, Error> {
         match self.items_iter().next() {
+            Some((ix, Arg::PosWord(w))) => {
+                let w = w.clone();
+                self.current = Some(ix);
+                self.remove(ix);
+                Ok(Some((true, w)))
+            }
             Some((ix, Arg::Word(w))) => {
                 let w = w.clone();
                 self.current = Some(ix);
                 self.remove(ix);
-                Ok(Some(w))
+                Ok(Some((false, w)))
             }
             Some((_, arg)) => Err(Error::Stderr(format!("Expected an argument, got {}", arg))),
             None => Ok(None),
@@ -563,7 +466,7 @@ impl Args {
     /// take a static string argument from the first present argument
     pub(crate) fn take_cmd(&mut self, word: &str) -> bool {
         if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
-            if w.utf8.as_ref().map_or(false, |ww| ww == word) {
+            if w == word {
                 self.remove(ix);
                 return true;
             }
@@ -590,8 +493,8 @@ mod tests {
     #[test]
     fn long_arg() {
         let mut a = Args::from(&["--speed", "12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "12");
+        let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
+        assert_eq!(s, "12");
         assert!(a.is_empty());
     }
     #[test]
@@ -601,13 +504,14 @@ mod tests {
         assert!(flag);
         assert!(!a.is_empty());
         let s = a.take_positional_word().unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "12");
+        assert_eq!(s.1, "12");
         assert!(a.is_empty());
     }
 
     #[test]
     fn multiple_short_flags() {
         let mut a = Args::from(&["-vvv"]);
+        a.disambiguate(&['v'], &[]).unwrap();
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
@@ -618,40 +522,48 @@ mod tests {
     #[test]
     fn long_arg_with_equality() {
         let mut a = Args::from(&["--speed=12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "12");
+        let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
+        assert_eq!(s, "12");
         assert!(a.is_empty());
     }
 
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = Args::from(&["--speed=-12"]);
-        let s = a.take_arg(&long("speed")).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "-12");
+        let s = a.take_arg(&long("speed"), true).unwrap().unwrap();
+        assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
 
     #[test]
     fn short_arg_with_equality() {
         let mut a = Args::from(&["-s=12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "12");
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
+        assert_eq!(s, "12");
         assert!(a.is_empty());
     }
 
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = Args::from(&["-s=-12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "-12");
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
+        assert_eq!(s, "-12");
+        assert!(a.is_empty());
+    }
+
+    #[test]
+    fn short_arg_with_equality_and_minus_is_adjacent() {
+        let mut a = Args::from(&["-s=-12"]);
+        let s = a.take_arg(&short('s'), true).unwrap().unwrap();
+        assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
 
     #[test]
     fn short_arg_without_equality() {
         let mut a = Args::from(&["-s", "12"]);
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "12");
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
+        assert_eq!(s, "12");
         assert!(a.is_empty());
     }
 
@@ -677,8 +589,8 @@ mod tests {
     fn command_with_flags() {
         let mut a = Args::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
-        let s = a.take_arg(&short('s')).unwrap().unwrap();
-        assert_eq!(s.utf8.unwrap(), "v");
+        let s = a.take_arg(&short('s'), false).unwrap().unwrap();
+        assert_eq!(s, "v");
         assert!(a.is_empty());
     }
 
@@ -687,26 +599,70 @@ mod tests {
         let mut a = Args::from(&["cmd", "pos"]);
         assert!(a.take_cmd("cmd"));
         let w = a.take_positional_word().unwrap().unwrap();
-        assert_eq!(w.utf8.unwrap(), "pos");
+        assert_eq!(w.1, "pos");
         assert!(a.is_empty());
     }
 
     #[test]
-    fn positionals_after_double_dash() {
+    fn positionals_after_double_dash1() {
         let mut a = Args::from(&["-v", "--", "-x"]);
         assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word().unwrap().unwrap();
-        assert_eq!(w.utf8.unwrap(), "-x");
+        assert_eq!(w.1, "-x");
         assert!(a.is_empty());
     }
 
     #[test]
     fn positionals_after_double_dash2() {
-        let mut a = Args::from(&["-v", "12", "--", "-x"]);
-        let w = a.take_arg(&short('v')).unwrap().unwrap();
-        assert_eq!(w.utf8.unwrap(), "12");
+        let mut a = Args::from(&["-v", "--", "-x"]);
+        assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word().unwrap().unwrap();
-        assert_eq!(w.utf8.unwrap(), "-x");
+        assert_eq!(w.1, "-x");
         assert!(a.is_empty());
+    }
+
+    #[test]
+    fn positionals_after_double_dash3() {
+        let mut a = Args::from(&["-v", "12", "--", "-x"]);
+        let w = a.take_arg(&short('v'), false).unwrap().unwrap();
+        assert_eq!(w, "12");
+        let w = a.take_positional_word().unwrap().unwrap();
+        assert_eq!(w.1, "-x");
+        assert!(a.is_empty());
+    }
+
+    #[test]
+    fn ambiguity_towards_flag() {
+        let mut a = Args::from(&["-abc"]);
+        a.disambiguate(&['a', 'b', 'c'], &[]).unwrap();
+        assert!(a.take_flag(&short('a')));
+        assert!(a.take_flag(&short('b')));
+        assert!(a.take_flag(&short('c')));
+    }
+
+    #[test]
+    fn ambiguity_towards_argument() {
+        let mut a = Args::from(&["-abc"]);
+        a.disambiguate(&[], &['a']).unwrap();
+        let r = a.take_arg(&short('a'), false).unwrap().unwrap();
+        assert_eq!(r, "bc");
+    }
+
+    #[test]
+    fn ambiguity_towards_error() {
+        let mut a = Args::from(&["-abc"]);
+        let msg = a
+            .disambiguate(&['a', 'b', 'c'], &['a'])
+            .unwrap_err()
+            .unwrap_stderr();
+        assert_eq!(msg, "Parser supports -a as both option and option-argument, try to split -abc into individual options (-a -b ..) or use -a=bc syntax to disambiguate");
+    }
+
+    #[test]
+    fn ambiguity_towards_default() {
+        // AKA unresolved
+        let a = Args::from(&["-abc"]);
+        let is_ambig = matches!(a.peek(), Some(Arg::Ambiguity(_, _)));
+        assert!(is_ambig);
     }
 }

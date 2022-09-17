@@ -52,8 +52,7 @@ fn speed() -> impl Parser<f64> {
     short('s')
         .long("speed")
         .help("Set speed")
-        .argument("SPEED")
-        .from_str()
+        .argument::<f64>("SPEED")
         .fallback(42.0)
 }
 
@@ -61,20 +60,18 @@ fn output() -> impl Parser<PathBuf> {
     short('o')
         .long("output")
         .help("output file")
-        .argument_os("OUTPUT")
-        .map(PathBuf::from)
+        .argument::<PathBuf>("OUTPUT")
 }
 
 // no magical name transmogrifications.
 fn nb_cars() -> impl Parser<u32> {
-    short('n').long("nb-cars").argument("N").from_str()
+    short('n').long("nb-cars").argument("N")
 }
 
 fn files_to_process() -> impl Parser<Vec<PathBuf>> {
     short('f')
         .long("file")
         .help("File to process")
-        .argument_os("FILE")
-        .map(PathBuf::from)
+        .argument::<PathBuf>("FILE")
         .many()
 }

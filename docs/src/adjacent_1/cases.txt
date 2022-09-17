@@ -1,0 +1,14 @@
+? Order of items within the rectangle is not significant and you can have several of them
+> --rect --width 10 --height 10 --rect --height 10 --width 10
+OK
+Options { switch: false, multi: [Rect { item: (), width: 10, height: 10, painted: false }, Rect { item: (), width: 10, height: 10, painted: false }] }
+
+? You can have optional values that belong to the group inside and outer flags in the middle
+> --rect --width 10 --painted --height 10 -s --rect --height 10 --width 10
+OK
+Options { switch: true, multi: [Rect { item: (), width: 10, height: 10, painted: true }, Rect { item: (), width: 10, height: 10, painted: false }] }
+
+? But with `adjacent` they cannot interleave
+> --rect --rect --width 10 --painted --height 10 --height 10 --width 10
+Stderr
+--rect is not expected in this context

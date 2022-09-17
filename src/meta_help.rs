@@ -79,7 +79,11 @@ impl<'a> HelpItems<'a> {
                     help: help.as_deref(),
                 });
             }
-            crate::item::Item::Flag { name, help } => self.flgs.push(HelpItem::Flag {
+            crate::item::Item::Flag {
+                name,
+                help,
+                shorts: _,
+            } => self.flgs.push(HelpItem::Flag {
                 name: ShortLongHelp(*name),
                 help: help.as_deref(),
             }),
@@ -88,6 +92,7 @@ impl<'a> HelpItems<'a> {
                 metavar,
                 env,
                 help,
+                shorts: _,
             } => self.flgs.push(HelpItem::Argument {
                 name: ShortLongHelp(*name),
                 metavar,
@@ -253,7 +258,11 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 short: *short,
                 help: help.as_deref(),
             },
-            crate::item::Item::Flag { name, help } => Self::Flag {
+            crate::item::Item::Flag {
+                name,
+                help,
+                shorts: _,
+            } => Self::Flag {
                 name: ShortLongHelp(*name),
                 help: help.as_deref(),
             },
@@ -262,6 +271,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 metavar,
                 env,
                 help,
+                shorts: _,
             } => Self::Argument {
                 name: ShortLongHelp(*name),
                 metavar,

@@ -37,10 +37,8 @@ fn opts() -> Opts {
     let name = long("sensor-name").argument("NAME");
 
     // from_str needs to be replaced with `parse` that can deal with hex digits
-    let bus_id = long("sensor-i2c-bus").argument("BUS").from_str::<usize>();
-    let address = long("sensor-i2c-address")
-        .argument("ADDRESS")
-        .from_str::<usize>();
+    let bus_id = long("sensor-i2c-bus").argument::<usize>("BUS");
+    let address = long("sensor-i2c-address").argument::<usize>("ADDRESS");
     let sensors = construct!(Sensor {
         sensor,
         device,
@@ -48,6 +46,7 @@ fn opts() -> Opts {
         bus_id,
         address
     })
+    .adjacent()
     .many();
     construct!(Opts { sensors }).to_options().run()
 }

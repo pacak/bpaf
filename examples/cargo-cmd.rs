@@ -15,11 +15,14 @@ struct Opts {
 
 fn main() {
     // defining a parser in a usual way
-    let width = short('w').argument("WIDTH").from_str().fallback(10);
-    let height = short('h').argument("HEIGHT").from_str().fallback(10);
+    let width = short('w').argument::<usize>("WIDTH").fallback(10);
+    let height = short('h').argument::<usize>("HEIGHT").fallback(10);
     let parser = construct!(Opts { width, height });
 
-    let cmd = positional("").guard(|s| s == "cmd", "").optional().hide();
+    let cmd = positional::<String>("")
+        .guard(|s| s == "cmd", "")
+        .optional()
+        .hide();
     let combined_parser = construct!(cmd, parser).map(|x| x.1);
 
     let opts = combined_parser.to_options().run();

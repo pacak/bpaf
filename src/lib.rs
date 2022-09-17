@@ -19,6 +19,7 @@
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+// - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
@@ -97,13 +98,11 @@
 //!     // primitive parsers
 //!     let speed = long("speed")
 //!         .help("Speed in KPG")
-//!         .argument("SPEED")
-//!         .from_str::<f64>();
+//!         .argument::<f64>("SPEED");
 //!
 //!     let distance = long("distance")
 //!         .help("Distance in miles")
-//!         .argument("DIST")
-//!         .from_str::<f64>();
+//!         .argument::<f64>("DIST");
 //!
 //!     // parser containing information about both speed and distance
 //!     let parser = construct!(SpeedAndDistance { speed, distance });
@@ -136,8 +135,7 @@
 //! fn speed() -> impl Parser<f64> {
 //!     long("speed")
 //!         .help("Speed in KPH")
-//!         .argument("SPEED")
-//!         .from_str::<f64>()
+//!         .argument::<f64>("SPEED")
 //! }
 //!
 //! // this parser accepts multiple `--speed` flags from a command line when used,
@@ -162,10 +160,7 @@
 //! fn speed() -> impl Parser<Speed> {
 //!     long("speed")
 //!         .help("Speed in KPH")
-//!         .argument("SPEED")
-//!         // After this point the type is `impl Parser<String>`
-//!         .from_str::<f64>()
-//!         // `from_str` uses FromStr trait to transform contained value into `f64`
+//!         .argument::<f64>("SPEED")
 //!
 //!         // You can perform additional validation with `parse` and `guard` functions
 //!         // in as many steps as required.
@@ -206,15 +201,11 @@
 //! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
 //! alternatives inside the macro: parser that consumes the left most available argument on a
 //! command line wins, if this is the same - left most parser wins. So to parse a parameter
-//! `--test` that can be both [`switch`](Named::switch) and [`argument`](Named::argument) you
+//! `--test` that can be both [`switch`](NamedArg::switch) and [`argument`](NamedArg::argument) you
 //! should put the argument one first.
 //!
-//! `bpaf` doesn't support short flag names followed by immediate values: while this `-fbar` could
-//! mean `-f` followed by a parameter `"bar"` - this isn't supported. `bpaf` supports only
-//! `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
-//!
-//! You must place [`positional`] and [`positional_os`] items at the end of a structure
-//! in derive API or consume them as last arguments in derive API.
+//! You must place [`positional`] items at the end of a structure in derive API or consume them
+//! as last arguments in derive API.
 
 //! # Dynamic shell completion
 //!
@@ -225,7 +216,7 @@
 //!    ```toml
 //!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
 //!    ```
-//! 2. Decorate [`argument`](Named::argument) and [`positional`] parsers with
+//! 2. Decorate [`argument`](NamedArg::argument) and [`positional`] parsers with
 //!    [`complete`](Parser::complete) to autocomplete argument values
 //!
 //! 3. Depending on your shell generate appropriate completion file and place it to whereever your
@@ -323,6 +314,9 @@
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
+#[cfg(feature = "extradocs")]
+mod _flow;
+mod arg;
 mod args;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
@@ -346,12 +340,20 @@ pub use crate::info::Error;
 use crate::item::Item;
 use std::marker::PhantomData;
 #[doc(hidden)]
-pub use structs::PCon;
+pub use structs::{ParseBox, ParseCon};
+
+pub mod parsers {
+    //! This module exposes parsers that can be configured further with builder pattern
+    //!
+    //! In most cases you won't be using those names directly, they are only listed here to provide
+    //! access to documentation
+    pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
+    pub use crate::structs::{ParseBox, ParseMany, ParseOptional, ParseSome};
+}
 
 use structs::{
-    ParseCatch, ParseFail, ParseFallback, ParseFallbackWith, ParseFromStr, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseAdjacent, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard,
+    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -363,13 +365,16 @@ pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
-pub use crate::params::{
-    command, env, long, positional, positional_os, short, Command, Named, Positional,
-};
+pub use crate::params::{any, command, env, long, positional, short};
+
+#[cfg(doc)]
+pub(self) use crate::parsers::NamedArg;
 
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
+mod from_os_str;
+pub use from_os_str::*;
 
 /// Compose several parsers to produce a single result
 ///
@@ -428,25 +433,32 @@ pub use bpaf_derive::Bpaf;
 /// // You can share parameters across multiple construct invocations
 /// // if defined as functions
 /// fn a() -> impl Parser<u32> {
-///     short('a').argument("N").from_str::<u32>()
+///     short('a').argument::<u32>("N")
 /// }
 ///
 /// // You can construct structs or enums with unnamed fields
 /// fn res() -> impl Parser<Res> {
-///     let b = short('b').argument("n").from_str::<u32>();
+///     let b = short('b').argument::<u32>("n");
 ///     construct!(Res ( a(), b ))
 /// }
 ///
 /// // You can construct structs or enums with named fields
 /// fn ult() -> impl Parser<Ul> {
-///     let b = short('b').argument("n").from_str::<u32>();
+///     let b = short('b').argument::<u32>("n");
 ///     construct!(Ul::T { a(), b })
 /// }
 ///
 /// // You can also construct simple tuples
 /// fn tuple() -> impl Parser<(u32, u32)> {
-///     let b = short('b').argument("n").from_str::<u32>();
+///     let b = short('b').argument::<u32>("n");
 ///     construct!(a(), b)
+/// }
+///
+/// // You can create boxed version of parsers so the type will be the same for as long
+/// // as return type is the same - can be useful for all sort of dynamic parsers
+/// fn boxed() -> impl Parser<u32> {
+///     let a = short('a').argument::<u32>("n");
+///     construct!(a)
 /// }
 /// ```
 ///
@@ -457,11 +469,11 @@ pub use bpaf_derive::Bpaf;
 /// ```rust
 /// # use bpaf::*;
 /// fn b() -> impl Parser<u32> {
-///     short('b').argument("NUM").from_str::<u32>()
+///     short('b').argument::<u32>("NUM")
 /// }
 ///
 /// fn a_or_b() -> impl Parser<u32> {
-///     let a = short('a').argument("NUM").from_str::<u32>();
+///     let a = short('a').argument::<u32>("NUM");
 ///     // equivalent way of writing this would be `a.or_else(b())`
 ///     construct!([a, b()])
 /// }
@@ -502,13 +514,13 @@ macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
     ($ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
     (:: $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [:: $ns $(:: $con)*]] [] $($tokens)*) }};
+
     // construct!(Enum::Cons ( a, b, c ))
     ($ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
     (:: $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [:: $ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!( a, b, c )
-    ($first:ident , $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first , $($tokens)*) }};
-    ($first:ident (), $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first (), $($tokens)*) }};
+    ($first:ident $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
 
     // construct![a, b, c]
     ([$first:ident $($tokens:tt)*]) => {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
@@ -547,16 +559,18 @@ macro_rules! construct {
 #[cfg(not(feature = "autocomplete"))]
 /// to avoid extra parsing when autocomplete feature is off
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)*]) => {{
+    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+
+    ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
-            $(let $fields = $fields.eval(args)?;)*
+            $(let $fields = $fields.eval(args)?;)+
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)*]))
+                ($crate::construct!(@make $ty [$($fields)+]))
         };
-        $crate::PCon { inner, meta }
+        $crate::ParseCon { inner, meta }
     }};
 }
 
@@ -565,22 +579,24 @@ macro_rules! __cons_prepare {
 #[cfg(feature = "autocomplete")]
 /// for completion bpaf needs to observe all the failures in a branch
 macro_rules! __cons_prepare {
-    ($ty:tt [$($fields:tt)*]) => {{
+    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+
+    ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),* ]);
+        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
         let inner = move |args: &mut $crate::Args| {
             $(let $fields = if args.is_comp() {
                 $fields.eval(args)
             } else {
                 Ok($fields.eval(args)?)
-            };)*
-            $(let $fields = $fields?;)*
+            };)+
+            $(let $fields = $fields?;)+
 
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)*]))
+                ($crate::construct!(@make $ty [$($fields)+]))
         };
-        $crate::PCon { inner, meta }
+        $crate::ParseCon { inner, meta }
     }};
 }
 
@@ -622,13 +638,11 @@ macro_rules! __cons_prepare {
 ///     let invalid_area = "Area of a rectangle must not exceed 200 units square";
 ///     let width = long("width")
 ///         .help("Width of the rectangle")
-///         .argument("PX")
-///         .from_str::<u32>()
+///         .argument::<u32>("PX")
 ///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
 ///     let height = long("height")
 ///         .help("Height of the rectangle")
-///         .argument("PX")
-///         .from_str::<u32>()
+///         .argument::<u32>("PX")
 ///         .guard(|&x| 1 <= x && x <= 10, invalid_size);
 ///     construct!(Rectangle { width, height })
 ///         .guard(|&r| r.width * r.height <= 400, invalid_area)
@@ -648,14 +662,14 @@ macro_rules! __cons_prepare {
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options {
-///     // no annotation at all - `bpaf_derive` inserts implicit `argument` and `from_str`
+///     // no annotation at all - `bpaf_derive` inserts implicit `argument` and gets the right type
 ///     number_1: u32,
 ///
 ///     // fallback isn't changing the type so `bpaf_derive` still handles it
 ///     #[bpaf(fallback(42))]
 ///     number_2: u32,
 ///
-///     // `bpaf_derive` inserts implicit `argument`, `optional` and `from_str`
+///     // `bpaf_derive` inserts implicit `argument`, `optional` and the right type
 ///     number_3: Option<u32>,
 ///
 ///     // fails to compile: you need to specify a consumer, `argument` or `argument_os`
@@ -667,7 +681,7 @@ macro_rules! __cons_prepare {
 ///     // number_5: Option<u32>,
 ///
 ///     // explicit consumer and a full postprocessing chain
-///     #[bpaf(argument("N"), from_str(u32), optional)]
+///     #[bpaf(argument::<u32>("N"), optional)]
 ///     number_6: Option<u32>,
 /// }
 /// ```
@@ -699,8 +713,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn numbers() -> impl Parser<Vec<u32>> {
     ///     short('n')
-    ///         .argument("NUM")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("NUM")
     ///         .many()
     /// }
     /// ```
@@ -717,12 +730,12 @@ pub trait Parser<T> {
     /// ```
     /// But it's also possible to specify it explicitly, both cases renerate the same code.
     /// Note, since using `many` resets the postprocessing chain - you also need to specify
-    /// [`from_str`](Parser::from_str)
+    /// `argument`'s turbofish.
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), from_str(u32), many)]
+    ///     #[bpaf(short, argument::<u32>("NUM"), many)]
     ///     numbers: Vec<u32>
     /// }
     /// ```
@@ -741,7 +754,10 @@ pub trait Parser<T> {
     where
         Self: Sized,
     {
-        ParseMany { inner: self }
+        ParseMany {
+            inner: self,
+            catch: false,
+        }
     }
     // }}}
 
@@ -757,20 +773,19 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// let numbers
     ///     = short('n')
-    ///     .argument("NUM")
-    ///     .from_str::<u32>()
+    ///     .argument::<u32>("NUM")
     ///     .some("Need at least one number");
     /// # drop(numbers);
     /// ```
     ///
     /// # Derive usage
-    /// Since using `some` resets the postprocessing chain - you also need to specify
-    /// [`from_str`](Parser::from_str) or similar, depending on your type
+    /// Since using `some` resets the postprocessing chain - you also might need to specify
+    /// the type in turbofish:
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), from_str(u32), some("Need at least one number"))]
+    ///     #[bpaf(short, argument::<u32>("NUM"), some("Need at least one number"))]
     ///     numbers: Vec<u32>
     /// }
     /// ```
@@ -795,6 +810,7 @@ pub trait Parser<T> {
         ParseSome {
             inner: self,
             message,
+            catch: false,
         }
     }
     // }}}
@@ -810,8 +826,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn number() -> impl Parser<Option<u32>> {
     ///     short('n')
-    ///         .argument("NUM")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("NUM")
     ///         .optional()
     /// }
     /// ```
@@ -829,14 +844,13 @@ pub trait Parser<T> {
     /// }
     /// ```
     ///
-    /// But it's also possible to specify it explicitly, in which case you need to specify
-    /// a full postprocessing chain which starts from [`from_str`](Parser::from_str) in this
+    /// But it's also possible to specify it explicitly
     /// example.
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///    #[bpaf(short, argument("NUM"), from_str(u32), optional)]
+    ///    #[bpaf(short, argument::<u32>("NUM"), optional)]
     ///    number: Option<u32>
     /// }
     /// ```
@@ -853,7 +867,10 @@ pub trait Parser<T> {
     where
         Self: Sized + Parser<T>,
     {
-        ParseOptional { inner: self }
+        ParseOptional {
+            inner: self,
+            catch: false,
+        }
     }
     // }}}
 
@@ -861,12 +878,12 @@ pub trait Parser<T> {
     // {{{ parse
     /// Apply a failing transformation to a contained value
     ///
-    /// This is a most general of transforming parsers and you can express remaining ones
-    /// terms of it: [`map`](Parser::map), [`from_str`](Parser::from_str) and
-    /// [`guard`](Parser::guard).
+    /// This is a most general of transforming parsers and you can express
+    /// [`map`](Parser::map) and [`guard`](Parser::guard) in terms of it.
     ///
-    /// Examples given here are a bit artificail, to parse a value from string you should use
-    /// [`from_str`](Parser::from_str).
+    /// Examples given here are a bit artificail, to parse a value from string you can specify
+    /// the type directly in `argument`'s turbofish
+    ///
     ///
     /// # Combinatoric usage:
     /// ```rust
@@ -874,7 +891,7 @@ pub trait Parser<T> {
     /// # use std::str::FromStr;
     /// fn number() -> impl Parser<u32> {
     ///     short('n')
-    ///         .argument("NUM")
+    ///         .argument::<String>("NUM")
     ///         .parse(|s| u32::from_str(&s))
     /// }
     /// ```
@@ -891,7 +908,7 @@ pub trait Parser<T> {
     ///
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), parse(read_number))]
+    ///     #[bpaf(short, argument::<String>("NUM"), parse(read_number))]
     ///     number: u32
     /// }
     /// ```
@@ -930,8 +947,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn number() -> impl Parser<u32> {
     ///     short('n')
-    ///         .argument("NUM")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("NUM")
     ///         .map(|v| v * 2)
     /// }
     /// ```
@@ -945,7 +961,7 @@ pub trait Parser<T> {
     ///
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), from_str(u32), map(double))]
+    ///     #[bpaf(short, argument::<u32>("NUM"), map(double))]
     ///     number: u32,
     /// }
     /// ```
@@ -969,67 +985,6 @@ pub trait Parser<T> {
     }
     // }}}
 
-    // {{{ from_str
-    /// Parse stored [`String`] using [`FromStr`](std::str::FromStr) instance
-    ///
-    /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn speed() -> impl Parser<f64> {
-    ///     short('s')
-    ///         .argument("SPEED")
-    ///         .from_str::<f64>()
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    /// By default `bpaf_derive` would use [`from_str`](Parser::from_str) for any time it's not
-    /// familiar with so you don't need to specify anything
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument("SPEED"))]
-    ///     speed: f64
-    /// }
-    /// ```
-    ///
-    /// But it's also possible to specify it explicitly
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument("SPEED"), from_str(f64))]
-    ///     speed: f64
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -s pi
-    /// // fails with "Couldn't parse "pi": invalid float literal"
-    /// $ app -s 3.1415
-    /// // Version: 3.1415
-    /// ```
-    ///
-    /// # See also
-    /// Other parsing and restricting methods include [`parse`](Parser::parse) and
-    /// [`guard`](Parser). For transformations that can't fail you can use [`map`](Parser::map).
-    #[must_use]
-    #[allow(clippy::wrong_self_convention)]
-    fn from_str<R>(self) -> ParseFromStr<Self, R>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseFromStr {
-            inner: self,
-            ty: PhantomData,
-        }
-    }
-    // }}}
-
     // {{{ guard
     /// Validate or fail with a message
     ///
@@ -1041,8 +996,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn number() -> impl Parser<u32> {
     ///     short('n')
-    ///         .argument("NUM")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("NUM")
     ///         .guard(|n| *n <= 10, "Values greater than 10 are only available in the DLC pack!")
     /// }
     /// ```
@@ -1099,8 +1053,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn number() -> impl Parser<u32> {
     ///     short('n')
-    ///         .argument("NUM")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("NUM")
     ///         .fallback(42)
     /// }
     /// ```
@@ -1113,7 +1066,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Options {
-    ///    #[bpaf(short, argument("NUM"), from_str(u32), fallback(42))]
+    ///    #[bpaf(short, argument("NUM"), fallback(42))]
     ///    number: u32
     /// }
     /// ```
@@ -1131,6 +1084,7 @@ pub trait Parser<T> {
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
     /// comes from a failing computation such as reading a file.
+    /// TODO: document top level fallback for derive
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
@@ -1220,11 +1174,11 @@ pub trait Parser<T> {
     /// ```rust
     /// # use bpaf::*;
     /// fn a() -> impl Parser<u32> {
-    ///     short('a').argument("NUM").from_str::<u32>()
+    ///     short('a').argument::<u32>("NUM")
     /// }
     ///
     /// fn b() -> impl Parser<u32> {
-    ///     short('b').argument("NUM").from_str::<u32>()
+    ///     short('b').argument::<u32>("NUM")
     /// }
     ///
     /// fn a_or_b_comb() -> impl Parser<u32> {
@@ -1312,13 +1266,11 @@ pub trait Parser<T> {
     /// /// would contain only `-H`
     /// fn rectangle() -> impl Parser<(u32, u32)> {
     ///     let width = short('W')
-    ///         .argument("PX")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("PX")
     ///         .fallback(10)
     ///         .hide();
     ///     let height = short('H')
-    ///         .argument("PX")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("PX")
     ///         .fallback(10)
     ///         .hide();
     ///     construct!(width, height)
@@ -1339,9 +1291,9 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
     /// struct Rectangle {
-    ///     #[bpaf(short('W'), argument("PX"), from_str(u32), fallback(10), hide)]
+    ///     #[bpaf(short('W'), argument("PX"), fallback(10), hide)]
     ///     width: u32,
-    ///     #[bpaf(short('H'), argument("PX"), from_str(u32))]
+    ///     #[bpaf(short('H'), argument("PX"))]
     ///     height: u32,
     /// }
     /// ```
@@ -1374,11 +1326,9 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn rectangle() -> impl Parser<(u32, u32)> {
     ///     let width = short('w')
-    ///         .argument("PX")
-    ///         .from_str::<u32>();
+    ///         .argument::<u32>("PX");
     ///     let height = short('h')
-    ///         .argument("PX")
-    ///         .from_str::<u32>();
+    ///         .argument::<u32>("PX");
     ///     construct!(width, height)
     ///         .group_help("Takes a rectangle")
     /// }
@@ -1425,13 +1375,13 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for shell. Completer places generated input
     /// in place of metavar placeholders, so running `completer` on something that doesn't have a
-    /// [`positional`] or an [`argument`](Named::argument) (or their `_os` variants) doesn't make
+    /// [`positional`] or an [`argument`](NamedArg::argument) (or their `_os` variants) doesn't make
     /// much sense.
     ///
     /// Takes a function as a parameter that tries to complete partial input to a full one with
     /// optional description. `bpaf` would substitute current positional item or an argument an empty
     /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
-    /// right after [`argument`](Named::argument) or [`positional`], but this isn't enforced.
+    /// right after [`argument`](NamedArg::argument) or [`positional`], but this isn't enforced.
     ///
     /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
     /// print completions to console and for non-string values it's not possible (accurately).
@@ -1494,24 +1444,7 @@ pub trait Parser<T> {
     }
     // }}}
 
-    #[must_use]
-    /// Handle parse failures
-    ///
-    /// Can be useful to decide to skip parsing of some items on a command line
-    /// When parser succeeds - `catch` would consume items and return the value
-    /// in wrapped `Some`, if it fails - `catch` would restore all the consumed
-    /// values and return None.
-    ///
-    /// Parser transformed with `catch` needs to return `Option<T>` already, so most
-    /// likely you will be using `catch` in combination with [`optional`](Parser::optional).
-    #[doc = include_str!("docs/catch.md")]
-    fn catch(self) -> ParseCatch<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseCatch { inner: self }
-    }
-
+    // {{{ complete_style
     /// Add extra annotations to completion information
     ///
     /// Not all information is gets supported by all the shells
@@ -1535,6 +1468,69 @@ pub trait Parser<T> {
     {
         ParseCompStyle { inner: self, style }
     }
+    // }}}
+
+    // {{{ adjacent
+    /// Automagically restrict the inner parser scope to accept adjacent values only
+    ///
+    /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,
+    /// multi-value arguments, option-structs to name a few. If you want to run a parser on a
+    /// sequential subset of arguments - `adjacent` might be able to help you. Check the examples
+    /// for better intuition.
+    ///
+    /// # Multi-value arguments
+    ///
+    /// Parsing things like `--foo ARG1 ARG2 ARG3`
+    #[doc = include_str!("docs/adjacent_0.md")]
+    ///
+    /// # Structure groups
+    ///
+    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+    #[doc = include_str!("docs/adjacent_1.md")]
+    ///
+    /// # Chaining commands
+    ///
+    /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
+    ///
+    #[doc = include_str!("docs/adjacent_2.md")]
+    ///
+    /// # Start and end markers
+    ///
+    /// Parsing things like `find . --exec foo {} -bar ; --more`
+    ///
+    #[doc = include_str!("docs/adjacent_3.md")]
+    ///
+    /// # Multi-value arguments with optional flags
+    ///
+    /// Parsing things like `--foo ARG1 --flag --inner ARG2`
+    ///
+    /// So you can parse things while parsing things. Not sure why you might need this, but you can
+    /// :)
+    ///
+    #[doc = include_str!("docs/adjacent_4.md")]
+    ///
+    /// # Performance and other considerations
+    ///
+    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It is
+    /// best not to have complex inter-fields verification since they might trip up the detection
+    /// logic: instead of destricting let's say sum of two fields to be 5 or greater *inside* the
+    /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
+    ///
+    /// `adjacent` is defined on a trait for better discoverability, it doesn't make much sense to
+    /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
+    /// several fields.
+    ///
+    /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
+    /// parser to work only for arguments where both key and a value are in the same shell word:
+    /// `-f=bar` or `-fbar`, but not `-f bar`.
+    #[must_use]
+    fn adjacent(self) -> ParseAdjacent<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseAdjacent { inner: self }
+    }
+    // }}}
 
     // consume
     // {{{ to_options
@@ -1545,8 +1541,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn parser() -> impl Parser<u32> {
     ///     short('i')
-    ///         .argument("ARG")
-    ///         .from_str::<u32>()
+    ///         .argument::<u32>("ARG")
     /// }
     ///
     /// fn option_parser() -> OptionParser<u32> {
@@ -1703,6 +1698,7 @@ impl ParseFailure {
     ///
     /// Panics if failure contains `stdout`
     #[allow(clippy::must_use_candidate)]
+    #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
             Self::Stderr(err) => err,
@@ -1718,6 +1714,7 @@ impl ParseFailure {
     ///
     /// Panics if failure contains `stderr`
     #[allow(clippy::must_use_candidate)]
+    #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
             Self::Stdout(err) => err,
@@ -1739,8 +1736,8 @@ impl ParseFailure {
 /// ```rust
 /// # use bpaf::*;
 /// fn options() -> OptionParser<(u32, u32)> {
-///     let width = short('w').argument("PX").from_str::<u32>();
-///     let height = short('h').argument("PX").from_str::<u32>();
+///     let width = short('w').argument::<u32>("PX");
+///     let height = short('h').argument::<u32>("PX");
 ///     let parser = construct!(width, height);
 ///     cargo_helper("cmd", parser).to_options()
 /// }
@@ -1780,8 +1777,13 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let eat_command =
-        positional("").parse(move |s| if cmd == s { Ok(()) } else { Err(String::new()) });
+    let eat_command = positional::<std::ffi::OsString>("").parse(move |s| {
+        if cmd == s {
+            Ok(())
+        } else {
+            Err(String::new())
+        }
+    });
     let ignore_non_command = pure(());
     let skip = construct!([eat_command, ignore_non_command]).hide();
     construct!(skip, parser).map(|x| x.1)

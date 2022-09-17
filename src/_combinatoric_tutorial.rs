@@ -1,7 +1,7 @@
 //! # Using the library in combinatoric style
 
 //! # About examples
-//! Examples tend to omit [`help`](Named::help), you should try to specify them whenever possible.
+//! Examples tend to omit [`help`](NamedArg::help), you should try to specify them whenever possible.
 //!
 //! Most of the examples stop at defining the [`Parser`], to be able to run them you need to
 //! convert your `Parser` into [`OptionParser`] with [`Parser::to_options`].
@@ -22,25 +22,25 @@
 
 //! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
 //! 1. [`construct!`] - what combinations are and how you should read the examples
-//! 2. [`Named`], [`positional`] and [`command`] - on consuming data
+//! 2. [`NamedArg`], [`positional`] and [`command`] - on consuming data
 //! 3. [`Parser`] - on transforming the data
 //! 4. [`OptionParser`] - on running the result
 
 //! # Getting started
 
 //! 1. Define primitive field parsers using builder pattern starting with [`short`], [`long`],
-//! [`command`] or [`positional`], add more information using [`help`](Named), [`env`](Named::env) and
+//! [`command`] or [`positional`], add more information using [`help`](NamedArg::help), [`env`](NamedArg::env) and
 //! other member functions.
 //!
 //!    For some constructors you end up with parser objects right away,
-//!    some require finalization with [`argument`](Named::argument), [`flag`](Named::flag)
-//!    or [`switch`](Named::switch).
+//!    some require finalization with [`argument`](NamedArg::argument), [`flag`](NamedArg::flag)
+//!    or [`switch`](NamedArg::switch).
 //!
 //!    At the end of this step you'll get one or more parser
 //!    one or more objects implementing trait [`Parser`], such as `impl Parser<String>`.
 //!
 //! 2. If you need additional parsing and validation you can use trait [`Parser`]: [`map`](Parser::map),
-//!    [`parse`](Parser::parse), [`guard`](Parser::guard), [`from_str`](Parser::from_str).
+//!    [`parse`](Parser::parse), [`guard`](Parser::guard).
 //!
 //!    You can change type or shape of contained or shape with [`many`](Parser::many),
 //!    [`some`](Parser::some), [`optional`](Parser::optional) and add a fallback values with
@@ -59,5 +59,5 @@
 //!
 //! 6. Add [`check_invariants`](OptionParser::check_invariants) to your test code.
 
-#[allow(unused_imports)]
-use crate::*;
+#[cfg(doc)]
+use crate::{parsers::*, *};

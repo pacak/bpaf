@@ -1,7 +1,6 @@
-//!
-use std::{marker::PhantomData, str::FromStr};
-
+//! Structures that implement different methods on [`Parser`] trait
 use crate::{info::Error, Args, Meta, Parser};
+use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
 use crate::CompleteDecor;
@@ -56,11 +55,30 @@ where
     }
 }
 
-/// Parser that applies inner parser multiple times and collects results into Vec, inner parser must
-/// succeed at least once, created with [`Parser::some`].
+/// Apply inner parser several times and collect results into `Vec`, created with
+/// [`some`](Parser::some), requires for at least one item to be available to succeed.
+/// Implements [`catch`](ParseMany::catch)
 pub struct ParseSome<P> {
     pub(crate) inner: P,
     pub(crate) message: &'static str,
+    pub(crate) catch: bool,
+}
+
+impl<P> ParseSome<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
 }
 
 impl<T, P> Parser<Vec<T>> for ParseSome<P>
@@ -71,7 +89,7 @@ where
         let mut res = Vec::new();
         let mut len = args.len();
 
-        while let Some(val) = parse_option(&self.inner, args)? {
+        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
             if args.len() < len {
                 len = args.len();
                 res.push(val);
@@ -341,10 +359,12 @@ where
     }
 }
 
-/// Parser that returns results of inner parser wrapped into [`Option`], created with
-/// [`optional`](Parser::optional).
+/// Apply inner parser, return a value in `Some` if items requested by it are all present, restore
+/// and return `None` if any are missing. Created with [`optional`](Parser::optional). Implements
+/// [`catch`](ParseOptional::catch)
 pub struct ParseOptional<P> {
     pub(crate) inner: P,
+    pub(crate) catch: bool,
 }
 
 impl<T, P> Parser<Option<T>> for ParseOptional<P>
@@ -352,7 +372,7 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        parse_option(&self.inner, args)
+        parse_option(&self.inner, args, self.catch)
     }
 
     fn meta(&self) -> Meta {
@@ -360,66 +380,48 @@ where
     }
 }
 
-/// Parser that uses [`FromStr`] instance of a type, created with [`from_str`](Parser::from_str).
-pub struct ParseFromStr<P, R> {
-    pub(crate) inner: P,
-    pub(crate) ty: PhantomData<R>,
-}
-
-impl<E, P, T> Parser<T> for ParseFromStr<P, T>
-where
-    P: Parser<String>,
-    T: FromStr<Err = E>,
-    E: ToString,
-{
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let s = self.inner.eval(args)?;
-        match T::from_str(&s) {
-            Ok(ok) => Ok(ok),
-            Err(e) => Err(args.word_parse_error(&e.to_string())),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.inner.meta()
+impl<P> ParseOptional<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
     }
 }
 
-/// Parser that applies inner parser multiple times and collects results into [`Vec`], created with
-/// [`many`](Parser::many).
+/// Apply inner parser several times and collect results into `Vec`, created with
+/// [`many`](Parser::many), implements [`catch`](ParseMany::catch).
 pub struct ParseMany<P> {
     pub(crate) inner: P,
-}
-pub struct ParseCatch<P> {
-    pub(crate) inner: P,
+    pub(crate) catch: bool,
 }
 
-impl<P, T> Parser<Option<T>> for ParseCatch<P>
-where
-    P: Parser<Option<T>>,
-{
-    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
-        let mut orig_args = args.clone();
-        match self.inner.eval(args) {
-            Ok(res) => Ok(res),
-            Err(Error::Stderr(_) | Error::Missing(_)) => {
-                std::mem::swap(args, &mut orig_args);
-                #[cfg(feature = "autocomplete")]
-                if orig_args.comp.is_some() {
-                    std::mem::swap(&mut args.comp, &mut orig_args.comp);
-                }
-                Ok(None)
-            }
-            Err(err @ Error::Stdout(..)) => Err(err),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        self.inner.meta()
+impl<P> ParseMany<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
     }
 }
 
-fn parse_option<P, T>(parser: &P, args: &mut Args) -> Result<Option<T>, Error>
+fn parse_option<P, T>(parser: &P, args: &mut Args, catch: bool) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
@@ -435,7 +437,8 @@ where
             }
 
             match err {
-                Error::Stdout(_) | Error::Stderr(_) => Err(err),
+                Error::Stderr(_) if catch => Ok(None),
+                Error::Stderr(_) | Error::Stdout(_) => Err(err),
                 Error::Missing(_) => Ok(None),
             }
         }
@@ -449,7 +452,7 @@ where
     fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
-        while let Some(val) = parse_option(&self.inner, args)? {
+        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
             if args.len() < len {
                 len = args.len();
                 res.push(val);
@@ -518,14 +521,14 @@ where
 }
 
 /// Create parser from a function, [`construct!`](crate::construct!) uses it internally
-pub struct PCon<P> {
+pub struct ParseCon<P> {
     /// inner parser closure
     pub inner: P,
     /// metas for inner parsers
     pub meta: Meta,
 }
 
-impl<T, P> Parser<T> for PCon<P>
+impl<T, P> Parser<T> for ParseCon<P>
 where
     P: Fn(&mut Args) -> Result<T, Error>,
 {
@@ -632,5 +635,54 @@ fn extend_with_args_style(
             item.set_decor(style);
             comp.comps.push(item);
         }
+    }
+}
+
+pub struct ParseAdjacent<P> {
+    pub(crate) inner: P,
+}
+impl<P, T> Parser<T> for ParseAdjacent<P>
+where
+    P: Parser<T> + Sized,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        let mut guess = 0..args.items.len();
+        let mut scratch = args.clone();
+        let mut res = self.inner.eval(&mut scratch);
+        let mut refined = true;
+        while refined {
+            refined = scratch.refine_range(args, &mut guess);
+            scratch = args.clone();
+            scratch.restrict_to_range(&guess);
+            res = self.inner.eval(&mut scratch);
+        }
+        scratch.transplant_usage(args, guess);
+        std::mem::swap(args, &mut scratch);
+        res
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+/// Create boxed parser
+///
+/// Boxed parser does not expose internal representation in it's type and allows to return
+/// different parsers in different conditional branches
+///
+/// You can create it with a single argument `construct` macro:
+#[doc = include_str!("docs/boxed.md")]
+pub struct ParseBox<T> {
+    /// Boxed inner parser
+    pub inner: Box<dyn Parser<T>>,
+}
+
+impl<T> Parser<T> for ParseBox<T> {
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
+    }
+    fn meta(&self) -> Meta {
+        self.inner.meta()
     }
 }

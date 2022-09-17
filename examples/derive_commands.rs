@@ -31,13 +31,13 @@ pub enum Action {
 }
 
 fn feature_if() -> impl Parser<Option<String>> {
-    positional("FEATURE")
+    positional::<String>("FEATURE")
         .guard(move |s| !is_version(s), "")
         .optional()
 }
 
 fn version_if() -> impl Parser<Option<String>> {
-    positional("VERSION")
+    positional::<String>("VERSION")
         .guard(move |s| is_version(s), "")
         .optional()
 }
