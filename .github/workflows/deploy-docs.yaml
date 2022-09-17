@@ -5,7 +5,7 @@ on:
 
 jobs:
   check:
-    name: Check and Lint
+    name: Deploy master docs to github pages
     runs-on: ubuntu-latest
     concurrency: ci-${{ github.ref }}
 
@@ -19,7 +19,7 @@ jobs:
           toolchain: stable
 
       - name: Build docs
-        run: cargo doc --all-features --no-deps
+        run: cargo doc --all-features --no-dep
 
       - name: Make a new repo with generated docs
         run: |
@@ -36,4 +36,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
           force: true
-          directory: target/docs
+          directory: target/doc
