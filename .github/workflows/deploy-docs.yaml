@@ -31,10 +31,9 @@ jobs:
           git commit -m 'deploy'
 
       - name: Deploy docs to gh-pages
-        uses: ad-m/github-push-action@v0.5.0
+        uses: ad-m/github-push-action@master
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           branch: gh-pages
           force: true
           directory: target/doc
-        run: git config --global --add safe.directory /github/workspace/target/doc
