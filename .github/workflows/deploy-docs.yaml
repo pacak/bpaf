@@ -23,7 +23,7 @@ jobs:
 
       - name: Make a new repo with generated docs
         run: |
-          git config --global --add safe.directory /github/workspace/target/doc
+          chown -R "$USER" target/doc
           cd target/doc
           git init
           git add -A
