@@ -195,8 +195,7 @@ fn remember_release(release: bool) -> bool {
 }
 
 fn child_process_args() -> impl Parser<Vec<OsString>> {
-    positional("CHILD_ARG")
-        .os()
+    positional::<OsString>("CHILD_ARG")
         .strict()
         .many()
         .complete(complete_binary_args)
