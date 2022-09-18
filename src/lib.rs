@@ -414,6 +414,9 @@ pub use from_os_str::*;
 /// // parallel composition, tries all parsers, picks succeeding left most one:
 /// construct!([a, b, c]);
 /// # }
+///
+/// // defining primitive parsers inside construct macro :)
+/// construct!(a(short('a').switch()), b(long("arg").argument::<usize>("ARG")));
 /// ```
 ///
 /// # Combinatoric usage
@@ -424,6 +427,10 @@ pub use from_os_str::*;
 /// struct/enum names and parser names present in scope. In examples below `a` corresponds to a
 /// function and `b` corresponds to a variable name. Note parens in `a()`, you must to use them to
 /// indicate function parsers.
+///
+/// Inside the parens you can put a whole expression to use instead of
+/// having to define them in advance: `a(positional("POS"))`. Probably a good idea to use this
+/// approach only for simple parsers.
 ///
 /// ```rust
 /// # use bpaf::*;
@@ -459,6 +466,21 @@ pub use from_os_str::*;
 /// fn boxed() -> impl Parser<u32> {
 ///     let a = short('a').argument::<u32>("n");
 ///     construct!(a)
+/// }
+///
+/// // In addition to having primitives defined before using them - you can also define
+/// // them directly inside construct macro. Probably only a good idea if you have only simple
+/// // components
+/// struct Options {
+///     arg: u32,
+///     switch: bool,
+/// }
+///
+/// fn coyoda() -> impl Parser<Options> {
+///     construct!(Options {
+///         arg(short('a').argument("ARG")),
+///         switch(short('s').switch())
+///     })
 /// }
 /// ```
 ///
@@ -523,19 +545,16 @@ macro_rules! construct {
     // construct![a, b, c]
     ([$first:ident $($tokens:tt)*]) => {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
 
-    (@prepare $ty:tt [$($fields:tt)*] $field:ident (), $($rest:tt)*) => {{
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident () $(, $($rest:tt)*)? ) => {{
         let $field = $field();
-        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($($rest)*)?)
     }};
-    (@prepare $ty:tt [$($fields:tt)*] $field:ident () $($rest:tt)*) => {{
-        let $field = $field();
-        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident ($expr:expr) $(, $($rest:tt)*)?) => {{
+        let $field = $expr;
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($($rest)*)?)
     }};
-    (@prepare $ty:tt [$($fields:tt)*] $field:ident, $($rest:tt)*) => {{
-        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
-    }};
-    (@prepare $ty:tt [$($fields:tt)*] $field:ident $($rest:tt)*) => {{
-        $crate::construct!(@prepare $ty [$($fields)* $field] $($rest)*)
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident $(, $($rest:tt)*)? ) => {{
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($($rest)* )?)
     }};
 
     (@prepare [alt] [$first:ident $($fields:ident)*]) => {

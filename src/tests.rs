@@ -92,3 +92,15 @@ fn different_methods_of_args_cration_are_identical() {
     assert_eq!(args1, args3);
     assert_eq!(args1, args4);
 }
+
+#[test]
+fn de_yoda() {
+    use bpaf::*;
+    let parser = construct!(a(short('a').switch()), b(short('b').switch())).to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, (false, false));
+
+    let r = parser.run_inner(Args::from(&["-a", "-b"])).unwrap();
+    assert_eq!(r, (true, true));
+}
