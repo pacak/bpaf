@@ -67,7 +67,15 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
         return vec.push(Arg::PosWord(os));
     }
 
-    match split_os_argument(&os) {
+    let val = split_os_argument(&os);
+    #[cfg(test)]
+    {
+        if os.to_str().is_some() {
+            let fallback = split_os_argument_fallback(&os);
+            assert_eq!(val, fallback, "while parsing {:?}", os);
+        }
+    }
+    match val {
         // -f and -fbar
         Some((ArgType::Short, short, None)) => {
             let mut chars = short.chars();
