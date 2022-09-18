@@ -3,7 +3,7 @@
 //! # About examples
 //!
 //! Most of the examples omit adding doc comments to the fields, to keep things clearer, you should do
-//! that when possible for better end user experience. Don't forget to add `[bpaf(options)] for a top level
+//! that when possible for better end user experience. Don't forget to add `[bpaf(options)]` for a top level
 //! structure that defines the option parser itself.
 //!
 //! ```rust

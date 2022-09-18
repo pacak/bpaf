@@ -186,5 +186,4 @@ fn no_actual_arguments_also_works() {
 
     let x = pure(true).meta();
     assert_eq!("no parameters expected", x.to_string());
-    //    assert_eq!(pure(true).meta());
 }
