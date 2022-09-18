@@ -219,10 +219,6 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
             }
         }
 
-        // name must be present
-        if name.is_empty() {
-            return None;
-        }
         let name = str_from_vec(name)?;
         let word = {
             let os = os_from_vec(items.collect());
@@ -276,9 +272,6 @@ pub(crate) fn split_os_argument_fallback(
                 return Some((ty, name, None));
             }
         }
-    }
-    if name.is_empty() {
-        return None;
     }
 
     Some((
