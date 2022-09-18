@@ -98,7 +98,7 @@ fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
             Some(s) => I::LongCmd(s),
             None => return,
         },
-        // should not be reachable
+        // shouldn't be reachable
         Arg::Ambiguity(_, _) => return,
     };
     match item {

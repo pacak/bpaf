@@ -668,7 +668,7 @@ where
 
 /// Create boxed parser
 ///
-/// Boxed parser does not expose internal representation in it's type and allows to return
+/// Boxed parser doesn't expose internal representation in it's type and allows to return
 /// different parsers in different conditional branches
 ///
 /// You can create it with a single argument `construct` macro:

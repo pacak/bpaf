@@ -3,9 +3,8 @@
 //! # About examples
 //!
 //! Most of the examples omit adding doc comments to the fields, to keep things clearer, you should do
-//! that when possible for better enduser experience. Similarly examples define [`Parser`] instead
-//! of [`OptionParser`] - to be able to run them you need to use `[bpaf(options)]` annotations on
-//! the most outer structure.
+//! that when possible for better end user experience. Don't forget to add `[bpaf(options)] for a top level
+//! structure that defines the option parser itself.
 //!
 //! ```rust
 //! # use bpaf::*;
@@ -121,6 +120,11 @@
 //!      }
 //!      ```
 //!
+//!      - ### Fallback value if all parser fails: `fallback`
+//!
+//!      You can add a fallback value to use if all the values required are missing.
+//!      See [`req_flag`](NamedArg::req_flag) examples.
+//!
 //! 5. Add annotations to individual fields. Structure for annotation for individual fields
 //!    is similar to how you would write the same code with combinatoric API with exception
 //!    of `external` and usually looks something like this:
@@ -165,15 +169,14 @@
 //!      ```
 //!
 //!    - `consumer` section corresponds to [`argument`](NamedArg::argument), [`positional`],
-//!      [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) and similar.
+//!      [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) and [`any`].
 //!
-//!      + With no consumer annotations tuple structs (`struct Config(String)`) are usually parsed
+//!      + With no consumer annotations `bpaf_derive` parses tuple structs (`struct Config(String)`)
 //!      as positional items, but it's possible to override it by giving it a name:
 //!
 //!      ```rust
 //!      # use bpaf::*;
 //!      # use std::path::PathBuf;
-//!
 //!      #[derive(Debug, Clone, Bpaf)]
 //!      struct Opt(PathBuf); // stays positional
 //!
@@ -181,13 +184,12 @@
 //!      struct Config(#[bpaf(long("input"))] PathBuf); // turns into a named argument
 //!      ```
 //!
-//!      + `bpaf_derive` handles fields of type `Option<Foo>` and `Vec<Foo>` with something
-//!      that can consume possibly one or many items with [`optional`](Parser::optional)
-//!      and [`many`](Parser::many) respectively, see `postprocessing` for more details.
+//!      + `bpaf_derive` handles fields of type `Option<Foo>` with [`optional`](Parser::optional)
+//!      and `Vec<Foo>` with [`many`](Parser::many), see `postprocessing` for more details.
 //!
 //!      + `bpaf_derive` handles `bool` fields with [`switch`](NamedArg::switch),
 //!      `()` with [`req_flag`](NamedArg::req_flag) and anything else with [`FromOsStr`]
-//!      trait. See documentation for [`argument`](NamedArg::argument) and [`positional]`
+//!      trait. See documentation for [`argument`](NamedArg::argument) and [`positional`]
 //!      for more details.
 //!
 //!    - If `external` is present - it usually serves function of `naming` and `consumer`, allowing

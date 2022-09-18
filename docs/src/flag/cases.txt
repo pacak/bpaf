@@ -1,0 +1,10 @@
+? Presense of a long name is decoded into `Yes`
+> --decision
+OK
+Options { decision: Yes }
+
+? Absense is `No`
+>
+OK
+Options { decision: No }
+

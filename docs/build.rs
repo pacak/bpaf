@@ -135,6 +135,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_r, "#[rustfmt::skip]")?;
         writeln!(t_r, "#[test]\nfn combine_works() {{")?;
         writeln!(t_r, "    use bpaf::*;")?;
+        writeln!(t_r, "    std::env::set_var(\"USER1\", \"pacak\");")?;
         writeln!(t_r, "    let options = combine::options();")?;
         write_cases(&mut t_r, &cases)?;
         writeln!(t_r, "}}")?;
@@ -145,6 +146,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_r, "#[rustfmt::skip]")?;
         writeln!(t_r, "#[test]\nfn derive_works() {{")?;
         writeln!(t_r, "    use bpaf::*;")?;
+        writeln!(t_r, "    std::env::set_var(\"USER1\", \"pacak\");")?;
         writeln!(t_r, "    let options = derive::options();")?;
         write_cases(&mut t_r, &cases)?;
         writeln!(t_r, "}}")?;

@@ -328,7 +328,7 @@ mod meta;
 mod meta_help;
 mod meta_usage;
 mod meta_youmean;
-mod params;
+pub mod params;
 mod structs;
 #[cfg(test)]
 mod tests;
@@ -512,12 +512,10 @@ pub use from_os_str::*;
 #[macro_export]
 macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
-    ($ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
-    (:: $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [:: $ns $(:: $con)*]] [] $($tokens)*) }};
+    ($(::)? $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) => {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!(Enum::Cons ( a, b, c ))
-    ($ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
-    (:: $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [:: $ns $(:: $con)*]] [] $($tokens)*) }};
+    ($(::)? $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) => {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!( a, b, c )
     ($first:ident $($tokens:tt)*) => {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
