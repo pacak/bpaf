@@ -1,0 +1,25 @@
+? Names for arguments could be short or long, and they can be parsed as mutiple different
+? types, this example uses `isize` and `u64`
+> --value 50 -s=18446744073709551615
+OK
+Options { value: 50, shorty: 18446744073709551615 }
+
+? Value can be separated from the flag by space, `=` or for short ones - be immediately adjacent
+> --value=1 -s42
+OK
+Options { value: 1, shorty: 42 }
+
+? You can apply fallback and other transformation
+> -s0
+OK
+Options { value: 100, shorty: 0 }
+
+? But if there's no fallback - the value is required
+> --value 1
+Stderr
+Expected -s ARG, pass --help for usage information
+
+? Argument is required
+> -s
+Stderr
+-s requires an argument

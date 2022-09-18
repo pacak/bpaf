@@ -1,0 +1,26 @@
+? Positionals are consumed left to right, one at a time, no skipping unless the value is optional
+> main.rs
+OK
+Options { file: "main.rs", name: None }
+
+? Both positionals are present
+> main.rs hello
+OK
+Options { file: "main.rs", name: Some("hello") }
+
+? Only `name` is optional in this example, not specifying `file` is a failure
+>
+Stderr
+Expected <FILE>, pass --help for usage information
+
+? And usage information
+> --help
+Stdout
+Usage: <FILE> [<NAME>]
+
+Available positional items:
+    <FILE>  File to use
+    <NAME>  Name to look for
+
+Available options:
+    -h, --help  Prints help information

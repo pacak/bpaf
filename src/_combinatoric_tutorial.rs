@@ -29,8 +29,8 @@
 //! # Getting started
 
 //! 1. Define primitive field parsers using builder pattern starting with [`short`], [`long`],
-//! [`command`] or [`positional`], add more information using [`help`](NamedArg::help), [`env`](NamedArg::env) and
-//! other member functions.
+//! [`command`], [`positional`] or [`any`], add more information using [`help`](NamedArg::help),
+//! [`env`](NamedArg::env) and other member functions.
 //!
 //!    For some constructors you end up with parser objects right away,
 //!    some require finalization with [`argument`](NamedArg::argument), [`flag`](NamedArg::flag)

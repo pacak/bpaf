@@ -46,7 +46,8 @@ pub struct Options {
 
 
 Capture `--turbo` flag for internal use and return everything else as is so it can be passed
-to some other program
+to some other program. Anything except for `--turbo` here and in following examples is
+consumed by `any`
 ```console
 % app --turbo git commit -m "hello world"
 Options { turbo: true, rest: ["git", "commit", "-m", "hello world"] }

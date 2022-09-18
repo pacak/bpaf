@@ -211,7 +211,7 @@ mod inner {
             if self.removed.is_empty() {
                 return false;
             }
-            // start is not at the right place, adjust that and retry the parsing
+            // start isn't at the right place, adjust that and retry the parsing
             if self.removed[guess.start] == args.removed[guess.start] {
                 for (offset, (this, orig)) in self.removed[guess.start..]
                     .iter()
@@ -226,7 +226,7 @@ mod inner {
                 }
             }
 
-            // at this point start is at the right place, we need to set the end to the first
+            // at this point start is at the right place, next bpaf needs to set the end to the first
             // match - point where adjacent parser stopped consuming items
             let old_end = guess.end;
             for (offset, (this, orig)) in self.removed[guess.start..]
@@ -256,7 +256,7 @@ mod inner {
                     return true;
                 }
             }
-            // otherwise refining is done
+            // otherwise refining - done
             false
         }
 

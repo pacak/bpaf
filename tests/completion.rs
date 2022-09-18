@@ -522,7 +522,7 @@ fn dynamic_complete_test_1() {
 fn dynamic_complete_test_2() {
     let parser = short('a').argument::<String>("ARG").to_options();
 
-    // we don't know how to complete "b", compgen in bash returns an empty line, so should we
+    // don't know how to complete "b", compgen in bash returns an empty line, so should bpaf
     let r = parser
         .run_inner(Args::from(&["-a", "b"]).set_comp(1))
         .unwrap_err()

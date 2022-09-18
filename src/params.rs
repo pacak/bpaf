@@ -1,56 +1,62 @@
-//! Primitives to define parsers
+//! Tools to define primitive parsers
 //!
-//! # Terminology
+//! # Ways to consume data
 //!
 //! ## Flag
 //!
-//! A simple no-argument command line option that takes no extra parameters, when decoded produces
-//! a fixed value. Can have a short (`-f`) or a long (`--flag`) name, see [`NamedArg::flag`] and
-//! [`NamedArg::req_flag`]. `bpaf` parses flag into a fixed value known at a compile time.
+//! - [`flag`](NamedArg::flag) - a string that consists of two dashes (`--flag`) and a name and a single
+//! dash and a single character (`-f`) created with [`long`](NamedArg::long) and [`short`](NamedArg::short)
+//! respectively. Depending if this name is present or absent on the command line
+//! primitive flag parser produces one of two values. User can combine several short flags in a single
+//! invocation: `-a -b -c` is the same as `-abc`.
 //!
-//! For example `--help` and `-q` are long and short flags accepted by `cargo`
-//! ```txt
-//! % cargo --help -q
-//! ```
+#![doc = include_str!("docs/flag.md")]
+//!
+//! ## Required flag
+//!
+//! Similar to `flag`, but instead of falling back to the second value required flag parser would
+//! fail. Mostly useful in combination with other parsers, created with [`NamedArg::req_flag`].
+//!
+#![doc = include_str!("docs/req_flag.md")]
 //!
 //! ## Switch
 //!
-//! A special case of a flag that gets decoded into a `bool`, see [`NamedArg::switch`].
+//! A special case of a flag that gets decoded into a `bool`, mostly serves as a convenient
+//! shortcut to `.flag(true, false)`. Created with [`NamedArg::switch`].
 //!
-//! It's possible to represent flags `--help` and `-q` as booleans, `true` for present and `false`
-//! for absent.
-//! ```txt
-//! % cargo --help -q
-//! ```
+#![doc = include_str!("docs/switch.md")]
 //!
 //! ## Argument
 //!
-//! A command line option with a name that also takes a value. Can have a short (`-f value`) or a
-//! long (`--flag value`) name, see [`NamedArg::argument`].
+//! A short or long `flag` followed by either a space or `=` and
+//! then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
+//! literal can't start with `-` unless separated from the flag with `=`. For short flags value
+//! can follow immediately: `-fbar`.
 //!
-//! For example `rustc` takes a long argument `--explain` with a value containing error code:
-//! ```txt
-//! % rustc --explain E0571
-//! ```
+#![doc = include_str!("docs/argument.md")]
 //!
 //! ## Positional
 //!
-//! A positional command with no additonal name, for example in `vim main.rs` `main.rs`
-//! is a positional argument. See [`positional`].
+//! A positional argument with no additonal name, for example in `vim main.rs` `main.rs`
+//! is a positional argument. Can't start with `-`, created with [`positional`].
 //!
-//! For example `rustc` takes input as positional argument:
-//! ```txt
-//! % rustc hello.rs
-//! ```
+#![doc = include_str!("docs/positional.md")]
+//!
+//! ## Any
+//!
+//! Also a positional argument with no additional name, but unlike [`positional`] itself, [`any`]
+//! isn't restricted to positional looking structure and would consume any items as they appear on
+//! a command line. Can be useful to collect anything unused to pass to other applications.
+//!
+#![doc = include_str!("docs/any.md")]
 //!
 //! ## Command
 //!
-//! A command defines a starting point for an independent subparser. See [`command`].
+//! A command defines a starting point for an independent subparser. Name must be a valid utf8
+//! string. For example `cargo build` invokes command `"build"` and after `"build"` `cargo`
+//! starts accepting values it won't accept otherwise
 //!
-//! For example `cargo` contains a command `check` that accepts `--workspace` switch.
-//! ```txt
-//! % cargo check --workspace
-//! ```
+#![doc = include_str!("docs/command.md")]
 //!
 use std::{ffi::OsString, marker::PhantomData};
 
@@ -59,91 +65,12 @@ use crate::{args::Arg, from_os_str::FromOsStr, item::ShortLong, Item, Meta};
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
 ///
-/// Create it with [`short`] or [`long`].
-///
-/// # Ways to consume data
-/// `bpaf` supports several different ways user can specify values on a command line:
-///
-/// - [`flag`](NamedArg::flag) - a string that consists of two dashes (`--flag`) and a name and a single
-/// dash and a single character (`-f`) - [`long`](NamedArg::long) and [`short`](NamedArg::short) name respectively.
-/// Depending on it present or absent from the command line
-/// primitive flag parser takes one of two values. User can combine several short flags in a single
-/// invocation: `-a -b -c` is the same as `-abc`.
-///
-/// ```console
-/// $ app -a -bc
-/// ```
-///
-/// - [`switch`](NamedArg::switch) - similar to `flag`, but instead of custom values `bpaf` uses `bool`.
-/// `switch` mostly serves as a convenient alias to `.flag(true, false)`
-///
-/// ```console
-/// $ app -a -bc
-/// ```
-///
-/// - [`argument`](NamedArg::argument) - a short or long `flag` followed by either a space or `=` and
-/// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
-/// literal can't start with `-` unless separated from the flag with `=` and should be valid
-/// utf8 only.
-///
-/// ```console
-/// $ app -o file.txt
-/// ```
-///
-/// - [`positional`] - an arbitrary utf8 string literal (that can't start with `-`) passed on a
-/// command line, you can also add `.os()` to consume `OsString`. Usually
-/// represents input files such as `cat file.txt`, but can serve other purposes.
-///
-/// ```console
-/// $ cat file.txt
-/// ```
-///
-/// - [`command`] - a fixed utf8 string literal that starts a separate subparser that only
-/// gets executed when command name is present. For example `cargo build` invokes
-/// command `"build"` and after `"build"` `cargo` starts accepting values it won't accept otherwise
-///
-/// ```console
-/// $ cargo build --out-dir my_target
-/// // works since command "build" supports --out-dir argument
-/// $ cargo check --out-dir my_target
-/// // fails since --out-dir isn't a valid argument for command "check"
-/// ```
-///
-/// As most of the other parsers `bpaf` treats anything to the right of `--` symbol as positional
-/// arguments regardless their names:
-///
-/// ```console
-/// $ app -o file.txt -- --those --are --positional --items
-/// ```
-///
-/// # Combinatoric usage
-///
-/// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (short and long)
+/// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (one short and one long)
 /// and multiple hidden short and long aliases if needed. It's also possible to consume items from
 /// environment variables using [`env`](NamedArg::env). You usually start with [`short`] or [`long`]
 /// function, then apply [`short`](NamedArg::short) / [`long`](NamedArg::long) / [`env`](NamedArg::env) /
 /// [`help`](NamedArg::help) repeatedly to build a desired set of names then transform it into
 /// a parser using `flag`, `switch` or `positional`.
-///
-/// ```rust
-/// # use bpaf::*;
-/// fn an_item() -> impl Parser<String> {
-///     short('i')
-///         .long("item")
-///         .long("also-item") // but hidden
-///         .env("ITEM")
-///         .help("A string used by this example")
-///         .argument("ITEM")
-/// }
-/// ```
-/// # Example
-/// ```console
-/// $ app --help
-///     <skip>
-///     -i --item <ITEM>  [env:ITEM: N/A]
-///                       A string used by this example
-///     <skip>
-/// ```
 ///
 /// # Derive usage
 ///
@@ -224,19 +151,10 @@ impl NamedArg {
 
 /// A flag/switch/argument that has a short name
 ///
-/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first of each `short` and `long` as
+/// hidden aliases.
 ///
-/// ```rust
-/// # use bpaf::*;
-/// fn parse_bool() -> impl Parser<bool> {
-///     short('f')
-///         .short('F')
-///         .long("flag")
-///         .help("a flag that does a thing")
-///         .switch()
-/// }
-/// ```
-/// See [`NamedArg`] for more details
+#[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
 pub fn short(short: char) -> NamedArg {
     NamedArg {
@@ -249,19 +167,10 @@ pub fn short(short: char) -> NamedArg {
 
 /// A flag/switch/argument that has a long name
 ///
-/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
+/// You can specify it multiple times, `bpaf` would use items past the first of each `short` and `long` as
+/// hidden aliases.
 ///
-/// ```rust
-/// # use bpaf::*;
-/// fn parse_bool() -> impl Parser<bool> {
-///     short('f')
-///         .long("flag")
-///         .long("Flag")
-///         .help("a flag that does a thing")
-///         .switch()
-/// }
-/// ```
-/// See [`NamedArg`] for more details
+#[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
 pub fn long(long: &'static str) -> NamedArg {
     NamedArg {
@@ -286,47 +195,9 @@ pub fn long(long: &'static str) -> NamedArg {
 /// $ NO_COLOR=1 app --do-something
 /// ```
 ///
-/// # Combinatoric usage
-/// **You must specify either short or long key if you start the chain from `env`.**
+/// **For combinatoric usage you must specify either short or long key if you start the chain from `env`.**
 ///
-/// ```rust
-/// # use bpaf::*;
-/// fn parse_string() -> impl Parser<String> {
-///     short('k')
-///         .long("key")
-///         .env("API_KEY")
-///         .help("Use this API key to access the API")
-///         .argument("KEY")
-/// }
-/// ```
-///
-/// # Derive usage
-/// `enum` annotation takes a string literal or an expression of type `&'static str`.
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct Options {
-///     /// Use this API key to access the API
-///     #[bpaf(short, long, env("API_KEY"))]
-///     key: String,
-/// }
-/// ```
-///
-/// # Example
-/// ```console
-/// $ app --help
-///     --key <KEY>  [env:ACCESS_KEY: N/A]
-///                  access key to use
-/// $ app
-/// // fails due to missing --key argument
-/// $ app --key SECRET
-/// // "SECRET"
-/// $ KEY=TOP_SECRET app
-/// // "TOP_SECRET"
-/// $ KEY=TOP_SECRET app --key SECRET
-/// // "SECRET" - argument takes a priority
-/// ```
-/// See [`NamedArg`] for more details
+#[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
 pub fn env(variable: &'static str) -> NamedArg {
     NamedArg {
@@ -340,19 +211,7 @@ pub fn env(variable: &'static str) -> NamedArg {
 impl NamedArg {
     /// Add a short name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_bool() -> impl Parser<bool> {
-    ///     short('f')
-    ///         .short('F')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .switch()
-    /// }
-    /// ```
-    /// See [`NamedArg`] for more details
+    #[doc = include_str!("docs/short_long_env.md")]
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
@@ -361,19 +220,7 @@ impl NamedArg {
 
     /// Add a long name to a flag/switch/argument
     ///
-    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_bool() -> impl Parser<bool> {
-    ///     short('f')
-    ///         .long("flag")
-    ///         .long("Flag")
-    ///         .help("a flag that does a thing")
-    ///         .switch()
-    /// }
-    /// ```
-    /// See [`NamedArg`] for more details
+    #[doc = include_str!("docs/short_long_env.md")]
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
@@ -383,19 +230,17 @@ impl NamedArg {
     /// Environment variable fallback
     ///
     /// If named value isn't present - try to fallback to this environment variable.
+    ///
     /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_string() -> impl Parser<String> {
-    ///     short('k')
-    ///         .long("key")
-    ///         .env("API_KEY")
-    ///         .help("Use this API key to access the API")
-    ///         .argument("KEY")
-    /// }
+    /// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
+    /// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
+    /// variables:
+    ///
+    /// ```console
+    /// $ NO_COLOR=1 app --do-something
     /// ```
-    /// See [`NamedArg`] and [`env`](env()) for more details and examples
+    #[doc = include_str!("docs/short_long_env.md")]
     #[must_use]
     pub fn env(mut self, variable: &'static str) -> Self {
         self.env.push(variable);
@@ -445,16 +290,10 @@ impl NamedArg {
 
     /// Simple boolean flag
     ///
-    /// Parser produces `true` if flag is present in a command line or `false` otherwise
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_bool() -> impl Parser<bool> {
-    ///     short('f')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .switch()
-    /// }
-    /// ```
+    /// A special case of a [`flag`](NamedArg::flag) that gets decoded into a `bool`, mostly serves as a convenient
+    /// shortcut to `.flag(true, false)`.
+    ///
+    #[doc = include_str!("docs/switch.md")]
     #[must_use]
     /// See [`NamedArg`] for more details
     pub fn switch(self) -> impl Parser<bool> {
@@ -463,50 +302,11 @@ impl NamedArg {
 
     /// Flag with custom present/absent values
     ///
-    /// # Combinatoric usage
-    /// Parser produces `present` if flag is present in a command line or `absent` otherwise
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Clone)]
-    /// enum Flag {
-    ///     Absent,
-    ///     Present,
-    /// }
-    /// fn parse_flag() -> impl Parser<Flag> {
-    ///     short('f')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .flag(Flag::Present, Flag::Absent)
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// Currently available only with `external` annotation
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone)]
-    /// enum Flag {
-    ///     Absent,
-    ///     Present,
-    /// }
-    ///
-    /// fn flag() -> impl Parser<Flag> {
-    ///     short('f')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .flag(Flag::Present, Flag::Absent)
-    /// }
-    ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(external)]
-    ///     pub flag: Flag,
-    /// }
-    /// ```
+    /// More generic version of [`switch`](NamedArg::switch) that uses arbitrary type instead of
+    /// [`bool`].
+    #[doc = include_str!("docs/flag.md")]
     ///
     #[must_use]
-    /// See [`NamedArg`] for more details
     pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
     where
         T: Clone + 'static,
@@ -516,7 +316,7 @@ impl NamedArg {
 
     /// Required flag with custom value
     ///
-    /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but will only
+    /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but would only
     /// succeed if user specifies it on a command line.
     /// Not very useful by itself and works best in combination with other parsers.
     ///
@@ -530,7 +330,7 @@ impl NamedArg {
     /// enum. To better convey the meaning you might want to use a combination of
     /// `skip` and `fallback` annotations, see examples.
     ///
-    /// Additionally `()` fields are parsed as `req_flag` by `bpaf_derive`, see
+    /// Additionally `bpaf_derive` handles `()` fields as `req_flag` see
     /// [`adjacent`](Parser::adjacent) for more details.
     /// See [`NamedArg`] for more details
     #[doc = include_str!("docs/req_flag.md")]
@@ -542,34 +342,14 @@ impl NamedArg {
         build_flag_parser(present, None, self)
     }
 
-    /// Named argument in utf8 (String) encoding
+    /// Argument
     ///
-    /// Argument must contain only valid utf8 characters.
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_string() -> impl Parser<String> {
-    ///     short('n')
-    ///         .long("name")
-    ///         .argument("NAME")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// `bpaf_derive` would automatically pick `argument` and add `os` when needed
-    ///  depending on a field type but you can specify it manually to override the metavar value
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short('n'), argument("NAME"))]
-    ///     name: String,
-    /// }
-    /// ```
+    /// A short (`-a`) or long (`--name`) name followed by  either a space or `=` and
+    /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
+    /// literal can't start with `-` unless separated from the flag with `=`. For short flags value
+    /// can follow immediately: `-fbar`.
+    #[doc = include_str!("docs/argument.md")]
     #[must_use]
-    /// See [`NamedArg`] for more details
     pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
     where
         T: FromOsStr,
@@ -615,32 +395,7 @@ impl NamedArg {
 ///
 /// **`bpaf` panics during help generation unless if this restriction holds**
 ///
-/// # Combinatoric usage
-/// ```rust
-/// # use bpaf::*;
-/// fn input() -> impl Parser<String> {
-///     positional("INPUT")
-/// }
-/// ```
-///
-/// # Derive usage
-///
-/// `bpaf_derive` converts fields in tuple-like structures into positional items
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct Options(String);
-/// ```
-/// `positional` also accept an optional metavar name
-///
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// struct Options {
-///     #[bpaf(positional("INPUT"))]
-///     input: String,
-/// }
-/// ```
+#[doc = include_str!("docs/positional.md")]
 #[must_use]
 pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
@@ -673,69 +428,7 @@ pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
 ///
 /// **`bpaf` panics during help generation unless if this restriction holds**
 ///
-/// # Combinatoric use
-///
-/// Structure [`ParseCommand`] you get by calling this method is a builder that allows to add additional
-/// aliases with [`short`](ParseCommand::short), [`long`](ParseCommand::long) (only first short and first
-/// long names are visible to `--help`) and override [`help`](ParseCommand::help). Without help override
-/// bpaf would use first line from the description
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone)]
-/// enum Cmd {
-///     Check {
-///         workspace: bool,
-///     }
-/// };
-///
-/// // First of all you need an inner parser
-/// fn check_workspace() -> OptionParser<Cmd> {
-///     // Define a parser to use in a subcommand in a usual way.
-///     // This parser accepts a single --workspace switch
-///     let workspace = long("workspace")
-///         .help("Check all packages in the workspace")
-///         .switch();
-///
-///     // and attach some meta information to it in a usual way
-///     construct!(Cmd::Check { workspace })
-///         .to_options()
-///         // description to use for command's help
-///         .descr("Check a package for errors")
-/// }
-///
-/// // Convert subparser into a parser.
-/// fn check_workspace_command() -> impl Parser<Cmd> {
-///     command("check", check_workspace())
-///         // help to use to list the command
-///         .help("Check a package command")
-/// }
-/// ```
-///
-/// # Derive usage
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Clone, Debug, Bpaf)]
-/// enum Cmd {
-///     #[bpaf(command)]
-///     /// Check a package command
-///     Check {
-///         /// Check all the packages in the workspace
-///         workspace: bool
-///     }
-/// }
-/// ```
-///
-/// # Example
-/// ```console
-/// $ app --help
-/// // displays global help, not listed in this example
-/// $ app check --help
-/// // displays help for check: "Check a package command"
-/// $ app check
-/// // Cmd::Check(CheckWorkspace(false))
-/// $ app check --workspace
-/// // Cmd::Check(CheckWorkspace(true))
-/// ```
+#[doc = include_str!("docs/command.md")]
 ///
 #[must_use]
 pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
@@ -945,9 +638,6 @@ fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T>
 }
 
 /// Parser for a named argument, created with [`argument`](NamedArg::argument).
-///
-/// By default [`ParseArgument`] would parse a utf8 encoded option into a [`String`], with methods on
-/// this builder you can adjust some of the functionality
 #[derive(Clone)]
 pub struct ParseArgument<T> {
     ty: PhantomData<T>,
@@ -1105,11 +795,11 @@ impl<T> ParsePositional<T> {
     ///
     /// `bpaf` allows to require user to pass `--` for positional items with `strict` annotation.
     /// `bpaf` would display such positional elements differently in usage line as well. If your
-    /// application requires several different strict positional elements - it's better to place
+    /// app requires several different strict positional elements - it's better to place
     /// this annotation only to the first one.
     ///
     /// # Example
-    /// Usage line for a cargo-run like app that takes an application and possibly many strictly
+    /// Usage line for a cargo-run like app that takes an app and possibly many strictly
     /// positional child arguments can look like this:
     /// ```console
     /// $ app --help
@@ -1205,6 +895,7 @@ where
     }
 }
 
+/// Parse the next available item on a command line with no restrictions, created with [`any`].
 pub struct ParseAny<T> {
     ty: PhantomData<T>,
     metavar: &'static str,
@@ -1231,6 +922,8 @@ pub fn any<T>(metavar: &'static str) -> ParseAny<T> {
 }
 
 impl<T> ParseAny<T> {
+    /// Add a help message to [`any`] parser.
+    #[doc = include_str!("docs/any.md")]
     pub fn help<M: Into<String>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
         self

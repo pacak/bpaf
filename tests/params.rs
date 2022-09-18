@@ -53,7 +53,7 @@ fn get_any_magic() {
         .map(|b| b.is_some())
         .to_options();
 
-    // -b anana - is not a -banana
+    // -b anana - isn't a -banana
     let r = parser
         .run_inner(Args::from(&["-b", "anana"]))
         .unwrap_err()

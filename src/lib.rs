@@ -328,7 +328,7 @@ mod meta;
 mod meta_help;
 mod meta_usage;
 mod meta_youmean;
-mod params;
+pub mod params;
 mod structs;
 #[cfg(test)]
 mod tests;
