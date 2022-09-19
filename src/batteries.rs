@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, parsers::NamedArg, short, Parser};
+use crate::{construct, parsers::NamedArg, positional, short, Parser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///
@@ -134,4 +134,34 @@ pub fn toggle_flag<T: Copy + 'static>(
     let a = a.req_flag(val_a);
     let b = b.req_flag(val_b);
     construct!([a, b]).many().map(|xs| xs.into_iter().last())
+}
+
+/// Strip a command name if present at the front when used as a `cargo` command
+///
+/// When implementing a cargo subcommand parser needs to be able to skip the first argument which
+/// is always the same as the executable name without `cargo-` prefix. For example if executable name is
+/// `cargo-cmd` so first argument would be `cmd`. `cargo_helper` helps to support both invocations:
+/// with name present when used via cargo and without it when used locally.
+///
+/// You can read the code of this functions as this approximate sequence of statements:
+/// 1. Want to parse a word
+/// 2. Word must match a given string literal
+/// 3. It's okay if it's missing
+/// 4. It's also okay when it's not matching expectations, don't consume it in this case
+/// 5. And don't show anything to the user in `--help` or completion
+/// 6. Parse this word and then everything else as a tuple, return that second item.
+///
+#[doc = include_str!("docs/cargo_helper.md")]
+///
+#[must_use]
+pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
+where
+    P: Parser<T>,
+{
+    let skip = positional::<String>("cmd")
+        .guard(move |s| s == cmd, "")
+        .optional()
+        .catch()
+        .hide();
+    construct!(skip, parser).map(|x| x.1)
 }

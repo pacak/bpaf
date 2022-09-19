@@ -1,0 +1,25 @@
+? Let's say the goal is to parse an argument and a switch:
+> --argument 15
+OK
+Options { argument: 15, switch: false }
+
+? But when used as a `cargo` subcommand, cargo will also pass the command name, this example
+? uses _wrong_ subcommand name to bypass the helper and show how it would look without it
+> wrong --argument 15
+Stderr
+No such command: `wrong`, did you mean `-s`?
+
+? When used with the right command - helper simply consumes it
+> pretty --argument 42 -s
+OK
+Options { argument: 42, switch: true }
+
+? And it doesn't show up in `--help` so not to confuse users
+> --help
+Stdout
+Usage: --argument ARG [-s]
+
+Available options:
+        --argument <ARG>  An argument
+    -s                    A switch
+    -h, --help            Prints help information
