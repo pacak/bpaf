@@ -1,6 +1,6 @@
-//! How to append a prefix or suffix to the help message generated.
+//! `--help` output customizations
 //!
-//! You can also override usage line if you don't like the generated one
+//! help header, help footer, a short description and a custom usage line
 use bpaf::*;
 
 fn main() {
@@ -8,10 +8,10 @@ fn main() {
         .help("Release the dragon")
         .switch()
         .to_options()
-        // help metadata
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
+        .usage("You can call it with following flags: {usage}")
         .run();
 
     println!("{:?}", opt);
