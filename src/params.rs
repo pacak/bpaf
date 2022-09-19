@@ -656,6 +656,7 @@ impl<T> ParseArgument<T> {
     /// Should allow to parse some of the more unusual things
     ///
     #[doc = include_str!("docs/pos_adjacent.md")]
+    #[must_use]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
         self
@@ -924,6 +925,7 @@ pub fn any<T>(metavar: &'static str) -> ParseAny<T> {
 impl<T> ParseAny<T> {
     /// Add a help message to [`any`] parser.
     #[doc = include_str!("docs/any.md")]
+    #[must_use]
     pub fn help<M: Into<String>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
         self

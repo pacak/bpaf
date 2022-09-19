@@ -13,6 +13,9 @@ use std::{
 /// [`argument`](NamedArg::argument) and [`any`]
 pub trait FromOsStr {
     /// Parse [`OsString`] or fail
+    ///
+    /// # Errors
+    /// Returns error message along with a lossy representation of the original string on failure
     fn from_os_str(s: OsString) -> Result<Self, String>
     where
         Self: Sized;
@@ -79,6 +82,10 @@ from_os_str!(std::num::NonZeroU8);
 from_os_str!(std::num::NonZeroUsize);
 
 #[inline(never)]
+/// Try to use `&OsStr` as `&str`
+///
+/// # Errors
+/// Returns error message along with a lossy representation of the original string on failure
 fn as_str(os: &OsStr) -> Result<&str, String> {
     match os.to_str() {
         Some(s) => Ok(s),

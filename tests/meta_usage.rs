@@ -164,6 +164,26 @@ fn required_or_many() {
     let d = short('d').req_flag(());
     let ab = construct!(a, b);
     let cd = construct!(c, d);
-    let parser = construct!([ab, cd]).many().to_options();
+    let e = pure(((), ()));
+    let f = pure(((), ()));
+    let ef = construct!([e, f]);
+    let parser = construct!([ab, cd, ef]).many().to_options();
     assert_usage(parser, "(-a -b | -c -d)...");
+}
+
+#[test]
+fn no_actual_arguments_also_works() {
+    let parser = pure(true).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(
+        r,
+        "\nAvailable options:\n    -h, --help  Prints help information\n"
+    );
+
+    let x = pure(true).meta();
+    assert_eq!("no parameters expected", x.to_string());
 }

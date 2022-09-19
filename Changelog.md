@@ -1,21 +1,20 @@
 # Change Log
 ## bpaf [0.6.0] - unreleased
-- replaced `positional_os()` and `argument_os()` with `positional().os()`, `argument().os()`
+- removed `positional_os()` and `argument_os()`
+- removed `from_str`
 - internal refactors
 - documentation refactor: examples with input/output
-- any - to capture anything
-- adjacent restriction
-- catch inside ParseOption, ParseMany and ParseSome
+- `any` - a positional way to capture anything
+- `adjacent` restriction
+- `catch` inside `ParseOption`, `ParseMany` and `ParseSome`
 - usage line refactor, cosmetic mostly
 - include \n in --version, cosmetic
 
 Migration guide:
-1. replace `positional_os("FOO")` with `positional("FOO").os()` or use `positional` in derive API
-2. replace `argument_os("FOO")` with `argument("FOO").os()` or use `argument` in derive API
-// 3. replace `impl Parser<T>` with `impl Parse<T>`
-// 4. replace `OptionParser<T>` with `Parser<T>`
-
-First two items are mostly to avoid combinatorial explosion
+1. replace `positional_os("FOO")` with `positional::<Type>("FOO")` or use `positional` in derive API
+2. replace `argument_os("FOO")` with `argument::<Type>("FOO")` or use `argument` in derive API
+3. replace any uses of `from_str::<T>` with turbofish on the nearest `positional` or
+   `argument`. You can use `map` to apply `FromStr` parser if `String` gets created inside your parsers
 
 You shouldn't be using those names directly, but there are some structure renames:
 1. `Positional` -> `ParsePositional`

@@ -66,3 +66,14 @@ fn get_any_magic() {
     assert!(parser.run_inner(Args::from(&["-banana"])).unwrap());
     assert!(!parser.run_inner(Args::from(&[])).unwrap());
 }
+
+#[test]
+fn from_str_works_with_parse() {
+    use std::str::FromStr;
+    let parser = positional::<String>("A")
+        .parse(|s| usize::from_str(&s))
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&["42"])).unwrap();
+    assert_eq!(r, 42);
+}

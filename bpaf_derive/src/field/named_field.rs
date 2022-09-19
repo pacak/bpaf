@@ -391,13 +391,13 @@ impl Field {
         if let Some(cons) = &self.consumer {
             match cons {
                 ConsumerAttr::Any(l, None) => {
-                    self.consumer = Some(ConsumerAttr::Any(l.clone(), Some(Box::new(ty.clone()))))
+                    self.consumer = Some(ConsumerAttr::Any(l.clone(), Some(Box::new(ty.clone()))));
                 }
                 ConsumerAttr::Arg(l, None) => {
-                    self.consumer = Some(ConsumerAttr::Arg(l.clone(), Some(Box::new(ty.clone()))))
+                    self.consumer = Some(ConsumerAttr::Arg(l.clone(), Some(Box::new(ty.clone()))));
                 }
                 ConsumerAttr::Pos(l, None) => {
-                    self.consumer = Some(ConsumerAttr::Pos(l.clone(), Some(Box::new(ty.clone()))))
+                    self.consumer = Some(ConsumerAttr::Pos(l.clone(), Some(Box::new(ty.clone()))));
                 }
                 _ => {}
             }
