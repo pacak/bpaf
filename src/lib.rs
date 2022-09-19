@@ -318,6 +318,8 @@ pub mod _derive_tutorial;
 mod _flow;
 mod arg;
 mod args;
+#[cfg(feature = "batteries")]
+pub mod batteries;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
@@ -332,8 +334,6 @@ pub mod params;
 mod structs;
 #[cfg(test)]
 mod tests;
-
-pub mod batteries;
 
 #[doc(hidden)]
 pub use crate::info::Error;
@@ -1753,64 +1753,18 @@ impl ParseFailure {
 
 /// Strip a command name if present at the front when used as a `cargo` command
 ///
-/// When implementing a cargo subcommand parser needs to be able to skip the first argument which
-/// is always the same as the executable name without `cargo-` prefix. For example if executable name is
-/// `cargo-cmd` so first argument would be `cmd`. `cargo_helper` helps to support both invocations:
-/// with name present when used via cargo and without it when used locally.
-///
-/// # Combinatoric usage
-/// ```rust
-/// # use bpaf::*;
-/// fn options() -> OptionParser<(u32, u32)> {
-///     let width = short('w').argument::<u32>("PX");
-///     let height = short('h').argument::<u32>("PX");
-///     let parser = construct!(width, height);
-///     cargo_helper("cmd", parser).to_options()
-/// }
-/// ```
-///
-/// # Derive usage
-///
-/// If you pass a cargo command name as a parameter to `options` annotation `bpaf_derive` would generate `cargo_helper`.
-/// ```no_run
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// #[bpaf(options("cmd"))]
-/// struct Options {
-///     #[bpaf(short, argument("PX"))]
-///     width: u32,
-///     #[bpaf(short, argument("PX"))]
-///     height: u32,
-/// }
-///
-/// fn main() {
-///    println!("{:?}", options().run());
-/// }
-///
-/// ```
-///
-/// # Example
-///
-/// ```console
-/// $ cargo cmd -w 3 -h 5
-/// (3, 5)
-/// $ cargo run --bin cargo-cmd -- -w 3 -h 5
-/// (3, 5)
-/// ```
+/// See batteries::cargo_helper
 #[must_use]
+#[doc(hidden)]
 pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
 where
     T: 'static,
     P: Parser<T>,
 {
-    let eat_command = positional::<std::ffi::OsString>("").parse(move |s| {
-        if cmd == s {
-            Ok(())
-        } else {
-            Err(String::new())
-        }
-    });
-    let ignore_non_command = pure(());
-    let skip = construct!([eat_command, ignore_non_command]).hide();
+    let skip = positional::<String>("cmd")
+        .guard(move |s| s == cmd, "")
+        .optional()
+        .catch()
+        .hide();
     construct!(skip, parser).map(|x| x.1)
 }
