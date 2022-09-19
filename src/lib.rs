@@ -28,7 +28,7 @@
 //! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 //! ```toml
 //! [dependencies]
-//! bpaf = { version = "0.5", features = ["derive"] }
+//! bpaf = { version = "0.6", features = ["derive"] }
 //! ```
 //!
 //! 2. Define a structure containing command line attributes and run generated function
@@ -80,7 +80,7 @@
 //! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 //! ```toml
 //! [dependencies]
-//! bpaf = "0.5"
+//! bpaf = "0.6"
 //! ```
 //!
 //! 2. Declare parsers for components, combine them and run it
@@ -214,7 +214,7 @@
 //!
 //! 1. Enable `autocomplete` feature:
 //!    ```toml
-//!    bpaf = { version = "0.5.5", features = ["autocomplete"] }
+//!    bpaf = { version = "0.6.0", features = ["autocomplete"] }
 //!    ```
 //! 2. Decorate [`argument`](NamedArg::argument) and [`positional`] parsers with
 //!    [`complete`](Parser::complete) to autocomplete argument values
