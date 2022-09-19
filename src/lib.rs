@@ -1610,6 +1610,15 @@ pub trait Parser<T> {
         }
     }
     // }}}
+
+    #[doc(hidden)]
+    #[deprecated = "You should finalize the parser first: see Parser::to_options"]
+    fn run(self) -> T
+    where
+        Self: Sized + Parser<T> + 'static,
+    {
+        self.to_options().run()
+    }
 }
 
 #[non_exhaustive]
