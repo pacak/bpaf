@@ -790,7 +790,7 @@ impl<T> ParsePositional<T> {
     /// But in some cases it might be useful to have a stricter separation between
     /// positonal items and flags, such as passing arguments to a subprocess:
     /// ```console
-    /// $ cargo run --example simple -- --help
+    /// $ cargo run --example basic -- --help
     /// ```
     /// here `cargo` takes a `--help` as a positional item and passes it to the example
     ///
