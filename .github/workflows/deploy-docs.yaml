@@ -24,6 +24,7 @@ jobs:
       - name: Make a new repo with generated docs
         run: |
           cd target/doc
+          touch .nojekyll
           git init
           git add -A
           git config --local user.email "action@github.com"
