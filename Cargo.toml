@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.5.7"
+version = "0.6.0"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -14,7 +14,7 @@ exclude = [".github/workflows", "tarp.sh"]
 
 
 [dependencies]
-bpaf_derive = { path = "./bpaf_derive", version = "0.2.2", optional = true }
+bpaf_derive = { path = "./bpaf_derive", version = "0.3.0", optional = true }
 
 [dev-dependencies]
 bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
