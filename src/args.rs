@@ -275,7 +275,7 @@ mod inner {
 
         /// Copy a range of removals from args to self
         pub(crate) fn copy_usage_from(&mut self, args: &Args, range: Range<usize>) {
-            self.removed[range.start..range.end].copy_from_slice(&args.removed[range])
+            self.removed[range.start..range.end].copy_from_slice(&args.removed[range]);
         }
 
         #[inline(never)]
