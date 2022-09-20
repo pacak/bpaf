@@ -907,7 +907,8 @@ pub struct ParseAny<T> {
 /// Take next unconsumed item on the command line as raw [`String`] or [`OsString`]
 ///
 /// `any` behaves similar to [`positional`] so you should be using it near the right most end of
-/// the consumer struct.
+/// the consumer struct. Note, consuming "anything" will also consume `--help` unless restricted
+/// with `guard`
 ///
 #[doc = include_str!("docs/any.md")]
 ///

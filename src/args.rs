@@ -260,6 +260,10 @@ mod inner {
             false
         }
 
+        pub(crate) fn ranges(&self) -> ArgRangesIter {
+            ArgRangesIter { args: self, cur: 0 }
+        }
+
         /// Mark everything outside of `range` as removed
         pub(crate) fn restrict_to_range(&mut self, range: &Range<usize>) {
             for (ix, removed) in self.removed.iter_mut().enumerate() {
@@ -269,12 +273,9 @@ mod inner {
             }
         }
 
-        /// take removals from args, mark everything inside range as removed
-        pub(crate) fn transplant_usage(&mut self, args: &mut Args, range: Range<usize>) {
-            std::mem::swap(&mut self.removed, &mut args.removed);
-            for i in range {
-                self.removed[i] = true;
-            }
+        /// Copy a range of removals from args to self
+        pub(crate) fn copy_usage_from(&mut self, args: &Args, range: Range<usize>) {
+            self.removed[range.start..range.end].copy_from_slice(&args.removed[range])
         }
 
         #[inline(never)]
@@ -344,6 +345,29 @@ mod inner {
                     }
                 }
                 pos += 1;
+            }
+        }
+    }
+
+    pub(crate) struct ArgRangesIter<'a> {
+        args: &'a Args,
+        cur: usize,
+    }
+    impl<'a> Iterator for ArgRangesIter<'a> {
+        type Item = (usize, Args);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            loop {
+                let cur = self.cur;
+                self.cur += 1;
+
+                if *self.args.removed.get(cur)? {
+                    continue;
+                }
+
+                let mut args = self.args.clone();
+                args.restrict_to_range(&(cur..usize::MAX));
+                return Some((cur, args));
             }
         }
     }

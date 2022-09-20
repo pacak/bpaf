@@ -1,26 +1,39 @@
 # Change Log
 ## bpaf [0.6.0] - unreleased
-- removed `positional_os()` and `argument_os()`
-- removed `from_str`
-- internal refactors
-- documentation refactor: examples with input/output
-- `any` - a positional way to capture anything
-- `adjacent` restriction
-- `catch` inside `ParseOption`, `ParseMany` and `ParseSome`
-- usage line refactor, cosmetic mostly
-- include \n in --version, cosmetic
+# What's new in 0.6.0
+- `adjacent` restriction to parse things in a tighter context
+- `catch` for `many`, `some` and `optional` to handle parse errors
+- `any` positional like, to consume pretty much anything from a command line
+- improved documentation with more detailed examples
+- cosmetic improvements
+- a sneaky reminder to use `to_options` on `Parser` before trying to run it
+- a way to make boxed parsers with single item `construct!` macro for making dynamic parsers
+- a horrible way to reduce Yoda-talk coding by placing primitive definitions inside the `construct!` macro
 
-Migration guide:
-1. replace `positional_os("FOO")` with `positional::<Type>("FOO")` or use `positional` in derive API
-2. replace `argument_os("FOO")` with `argument::<Type>("FOO")` or use `argument` in derive API
-3. replace any uses of `from_str::<T>` with turbofish on the nearest `positional` or
-   `argument`. You can use `map` to apply `FromStr` parser if `String` gets created inside your parsers
+With new additions you should be able to parse pretty much anything and then some more :)
 
-You shouldn't be using those names directly, but there are some structure renames:
-1. `Positional` -> `ParsePositional`
-2. `BuildArgument` -> ParseArgument`
-3. `Command` -> `ParseCommand`
+# Migration guide 0.5.x -> 0.6.x
 
+1. Replace any uses of `positional_os` and `argument_os` with `positional` and `argument` plus turbofish:
+    ```diff
+    -let file = positional_os("FILE").help("File to use").map(PathBuf::from);
+    +let file = positional::<PathBuf>("FILE").help("File to use");
+    ```
+2. Replace any uses of `from_str` with either turbofish on the consumer or with `parse`, if `String` is generated inside the parser:
+    ```diff
+    -let number = short('n').argument("N").from_str::<usize>();
+    +let number = short('n').argument::<usize>("N");
+    ```
+    You can still use it for your own types if you implement `FromOsStr`, alternatively `parse` still works:
+    ```diff
+    -let my = long("my-type").argument("MAGIC").from_str::<MyType>();
+    +let my = long("my-type").argument::<String>("MAGIC").parse(|s| MyType::from_str(s));
+    ```
+3. You shouldn't be using those names directly in your code, but there are some renames
+    - `Positional` -> `ParsePositional`
+    - `BuildArgument` -> `ParseArgument`
+    - `Command` -> `ParseCommand`
+    - `Named` -> `NamedArg`
 
 ## bpaf [0.5.7] - 2022-09-04
 - bugfix with zsh autocomplete #46

@@ -14,3 +14,15 @@ Options { turbo: false, rest: ["git", "commit", "-m", "hello world"] }
 > git commit -m="hello world" --turbo
 OK
 Options { turbo: true, rest: ["git", "commit", "-m=hello world"] }
+
+? You can keep `--help` working, but you need to add extra `guard` for that
+> --turbo --help
+Stdout
+Usage: [-t] <REST>...
+
+Available positional items:
+    <REST>  app will pass anything unused to a child process
+
+Available options:
+    -t, --turbo  Engage the turbo mode
+    -h, --help   Prints help information

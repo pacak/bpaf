@@ -15,6 +15,9 @@ pub fn options() -> OptionParser<Options> {
         .long("turbo")
         .help("Engage the turbo mode")
         .switch();
-    let rest = any::<OsString>("REST").many();
+    let rest = any::<OsString>("REST")
+        .help("app will pass anything unused to a child process")
+        .guard(|x| x != "--help", "keep help")
+        .many();
     construct!(Options { turbo, rest }).to_options()
 }
