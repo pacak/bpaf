@@ -656,7 +656,13 @@ where
             scratch.restrict_to_range(&guess);
             res = self.inner.eval(&mut scratch);
         }
-        scratch.transplant_usage(args, guess);
+
+        if guess.start > 0 {
+            scratch.copy_usage_from(args, 0..guess.start);
+        }
+        if guess.end < args.items.len() {
+            scratch.copy_usage_from(args, guess.end..args.items.len());
+        }
         std::mem::swap(args, &mut scratch);
         res
     }
@@ -682,6 +688,39 @@ impl<T> Parser<T> for ParseBox<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         self.inner.eval(args)
     }
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+/// Parse anywhere
+///
+/// Most generic escape hatch available, in combination with [`any`] allows to parse anything
+/// anywhere, works by repeatedly trying to run the inner parser on each subsequent context.
+/// Can be expensive performance wise especially if parser contains complex logic.
+///
+#[doc = include_str!("docs/anywhere.md")]
+pub struct ParseAnywhere<P> {
+    pub(crate) inner: P,
+}
+
+impl<P, T> Parser<T> for ParseAnywhere<P>
+where
+    P: Parser<T> + Sized,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        for (start, mut this_arg) in args.ranges() {
+            if let Ok(ok) = self.inner.eval(&mut this_arg) {
+                if start > 0 {
+                    this_arg.copy_usage_from(args, 0..start);
+                }
+                std::mem::swap(&mut this_arg, args);
+                return Ok(ok);
+            }
+        }
+        Err(Error::Missing(vec![]))
+    }
+
     fn meta(&self) -> Meta {
         self.inner.meta()
     }

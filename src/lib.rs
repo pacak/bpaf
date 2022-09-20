@@ -352,8 +352,9 @@ pub mod parsers {
 }
 
 use structs::{
-    ParseAdjacent, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard,
-    ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome, ParseWith,
+    ParseAdjacent, ParseAnywhere, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
+    ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1548,6 +1549,21 @@ pub trait Parser<T> {
         ParseAdjacent { inner: self }
     }
     // }}}
+
+    /// Parse anywhere
+    ///
+    /// Most generic escape hatch available, in combination with [`any`] allows to parse anything
+    /// anywhere, works by repeatedly trying to run the inner parser on each subsequent context.
+    /// Can be expensive performance wise especially if parser contains complex logic.
+    ///
+    #[doc = include_str!("docs/anywhere.md")]
+    #[must_use]
+    fn anywhere(self) -> ParseAnywhere<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseAnywhere { inner: self }
+    }
 
     // consume
     // {{{ to_options
