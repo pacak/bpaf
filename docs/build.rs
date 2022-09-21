@@ -124,11 +124,20 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
     let path = path.as_ref();
     let combine = path.join("combine.rs").exists();
     let derive = path.join("derive.rs").exists();
+    let example_file = path.join("example.rs");
+    let example = if example_file.exists() {
+        Some(std::fs::read_to_string(example_file).unwrap())
+    } else {
+        None
+    };
 
     let cases = parse_test_cases(path.join("cases.txt"))?;
-    assert!(combine || derive);
+    assert!(combine || derive || example.is_some(), "for {:?}", path);
 
+    // runner file
     let mut t_r = String::new();
+    // documentation file
+    let mut t_d = String::new();
 
     if combine {
         writeln!(t_r, "mod combine;\n")?;
@@ -139,22 +148,7 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_r, "    let options = combine::options();")?;
         write_cases(&mut t_r, &cases)?;
         writeln!(t_r, "}}")?;
-    }
 
-    if derive {
-        writeln!(t_r, "mod derive;\n")?;
-        writeln!(t_r, "#[rustfmt::skip]")?;
-        writeln!(t_r, "#[test]\nfn derive_works() {{")?;
-        writeln!(t_r, "    use bpaf::*;")?;
-        writeln!(t_r, "    std::env::set_var(\"USER1\", \"pacak\");")?;
-        writeln!(t_r, "    let options = derive::options();")?;
-        write_cases(&mut t_r, &cases)?;
-        writeln!(t_r, "}}")?;
-    }
-
-    let mut t_d = String::new();
-
-    if combine {
         writeln!(t_d, "<details>")?;
         writeln!(t_d, "<summary>Combinatoric usage</summary>")?;
         writeln!(t_d)?;
@@ -166,6 +160,15 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
     }
 
     if derive {
+        writeln!(t_r, "mod derive;\n")?;
+        writeln!(t_r, "#[rustfmt::skip]")?;
+        writeln!(t_r, "#[test]\nfn derive_works() {{")?;
+        writeln!(t_r, "    use bpaf::*;")?;
+        writeln!(t_r, "    std::env::set_var(\"USER1\", \"pacak\");")?;
+        writeln!(t_r, "    let options = derive::options();")?;
+        write_cases(&mut t_r, &cases)?;
+        writeln!(t_r, "}}")?;
+
         writeln!(t_d, "<details>")?;
         writeln!(t_d, "<summary>Derive usage</summary>")?;
         writeln!(t_d)?;
@@ -174,6 +177,24 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_d, "```")?;
         writeln!(t_d)?;
         writeln!(t_d, "</details>")?;
+    }
+
+    if let Some(ex) = &example {
+        writeln!(t_r, "#![allow(dead_code)]")?;
+        writeln!(t_r, "#[rustfmt::skip]")?;
+        writeln!(t_r, "mod example {{\n")?;
+        writeln!(t_r, "{}", ex)?;
+        writeln!(t_r, "}}")?;
+        writeln!(t_r, "#[rustfmt::skip]")?;
+        writeln!(t_r, "#[test]\nfn example_works() {{")?;
+        writeln!(t_r, "    use bpaf::*;")?;
+        writeln!(t_r, "    let options = example::options();")?;
+        write_cases(&mut t_r, &cases)?;
+        writeln!(t_r, "}}")?;
+
+        writeln!(t_d, "```no_run")?;
+        writeln!(t_d, "{}", ex)?;
+        writeln!(t_d, "```")?;
     }
 
     writeln!(t_d, "<details>")?;
@@ -240,11 +261,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             file.file_name().to_str().unwrap()
         ));
 
-        let (example, docs) = import_example(file.path())?;
+        let (runner, docs) = import_example(file.path())?;
 
         let mut name = PathBuf::from(&"src").join(file.file_name());
         name.set_extension("rs");
-        write_updated(example, name)?;
+        write_updated(runner, name)?;
 
         let mut name = PathBuf::from("../src/docs").join(file.file_name());
         name.set_extension("md");
