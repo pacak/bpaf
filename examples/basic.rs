@@ -14,7 +14,7 @@ struct Out {
     files_to_process: Vec<PathBuf>,
 }
 
-fn main() {
+fn opts() -> OptionParser<Out> {
     // A flag, true if used in the command line. Can be required, this one is optional
 
     let debug = short('d') // start with a short name
@@ -56,7 +56,7 @@ fn main() {
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.
-    let opt = construct!(Out {
+    construct!(Out {
         debug,
         verbose,
         speed,
@@ -66,7 +66,9 @@ fn main() {
     })
     .to_options()
     .descr("This is a description")
-    .run();
+}
 
-    println!("{:#?}", opt);
+fn main() {
+    let opts = opts().run();
+    println!("{:#?}", opts);
 }

@@ -19,6 +19,7 @@
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
+//! - [Some very unusual cases](crate::_unusual)
 // - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
@@ -316,6 +317,8 @@ pub mod _combinatoric_tutorial;
 pub mod _derive_tutorial;
 #[cfg(feature = "extradocs")]
 mod _flow;
+#[cfg(feature = "extradocs")]
+pub mod _unusual;
 mod arg;
 mod args;
 #[cfg(feature = "batteries")]
