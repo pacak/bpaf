@@ -365,6 +365,7 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
+pub use crate::from_os_str::{FromOsStr, FromUtf8};
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
@@ -621,6 +622,9 @@ macro_rules! __cons_prepare {
     }};
 }
 
+#[cfg(doc)]
+use std::str::FromStr;
+
 /// Simple or composed argument parser
 ///
 /// # Overview
@@ -636,7 +640,7 @@ macro_rules! __cons_prepare {
 /// Values inside can be of any type for as long as they implement `Debug`, `Clone` and
 /// there's no lifetimes other than static.
 ///
-/// When consuming the values you can jump straight to a value that implements either [`FromOsString`] or
+/// When consuming the values you can jump straight to a value that implements either [`FromOsStr`] or
 /// [`FromStr`] trait then transform into something that your program would actually use. Alternatively
 /// you can consume either `String` or `OsString` and parse that by hand. It's better to perform
 /// as much parsing and validation inside the `Parser` as possible so the program itself gets
