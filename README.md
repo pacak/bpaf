@@ -14,8 +14,9 @@ Lightweight and flexible command line argument parser with derive and combinator
 
  - [Derive tutorial][__link0]
  - [Combinatoric tutorial][__link1]
- - [Batteries included][__link2]
- - [Q&A][__link3]
+ - [Some very unusual cases][__link2]
+ - [Batteries included][__link3]
+ - [Q&A][__link4]
 
 
 ## Quick start, derive edition
@@ -25,7 +26,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 
 ```toml
 [dependencies]
-bpaf = { version = "0.5", features = ["derive"] }
+bpaf = { version = "0.6", features = ["derive"] }
 ```
 
  2. Define a structure containing command line attributes and run generated function
@@ -45,7 +46,7 @@ struct SpeedAndDistance {
 }
 
 fn main() {
-    // #[derive(Bpaf) generates function speed_and_distance
+    // #[derive(Bpaf)] generates `speed_and_distance` function
     let opts = speed_and_distance().run();
     println!("Options: {:?}", opts);
 }
@@ -84,7 +85,7 @@ Version: 0.5.0 (taken from Cargo.toml by default)
 
 ```toml
 [dependencies]
-bpaf = "0.5"
+bpaf = "0.6"
 ```
 
  2. Declare parsers for components, combine them and run it
@@ -104,13 +105,11 @@ fn main() {
     // primitive parsers
     let speed = long("speed")
         .help("Speed in KPG")
-        .argument("SPEED")
-        .from_str::<f64>();
+        .argument::<f64>("SPEED");
 
     let distance = long("distance")
         .help("Distance in miles")
-        .argument("DIST")
-        .from_str::<f64>();
+        .argument::<f64>("DIST");
 
     // parser containing information about both speed and distance
     let parser = construct!(SpeedAndDistance { speed, distance });
@@ -126,7 +125,7 @@ fn main() {
 }
 ```
 
- 3. Try to run it, output should be similar to derive edition
+ 3. Try to run it, output should be similar to derive version
 
 
 ## Design goals: flexibility, reusability, correctness
@@ -135,22 +134,21 @@ Library allows to consume command line arguments by building up parsers for indi
 
 
 ```rust
-// a regular function that doesn't depend on anything, you can export it
+// a regular function that doesn't depend on any context, you can export it
 // and share across subcommands and binaries
 fn speed() -> impl Parser<f64> {
     long("speed")
         .help("Speed in KPH")
-        .argument("SPEED")
-        .from_str::<f64>()
+        .argument::<f64>("SPEED")
 }
 
 // this parser accepts multiple `--speed` flags from a command line when used,
-// collecting them into a vector
+// collecting results into a vector
 fn multiple_args() -> impl Parser<Vec<f64>> {
     speed().many()
 }
 
-// this parser checks if `--speed` is present and uses value of 42 if it's not
+// this parser checks if `--speed` is present and uses value of 42.0 if it's not
 fn with_fallback() -> impl Parser<f64> {
     speed().fallback(42.0)
 }
@@ -165,10 +163,7 @@ struct Speed(f64);
 fn speed() -> impl Parser<Speed> {
     long("speed")
         .help("Speed in KPH")
-        .argument("SPEED")
-        // After this point the type is `impl Parser<String>`
-        .from_str::<f64>()
-        // `from_str` uses FromStr trait to transform contained value into `f64`
+        .argument::<f64>("SPEED")
 
         // You can perform additional validation with `parse` and `guard` functions
         // in as many steps as required.
@@ -181,7 +176,7 @@ fn speed() -> impl Parser<Speed> {
 }
 ```
 
-Library follows parse, don’t validate approach to validation when possible. Usually you parse your values just once and get the results as a rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
+Library follows **parse, don’t validate** approach to validation when possible. Usually you parse your values just once and get the results as a rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
 
 ## Design goals: restrictions
@@ -200,13 +195,11 @@ But not this one:
 > Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it’s `'file'` program also requires `-f` attribute with the filename
 > 
 > 
-This set of restrictions allows to extract information about the structure of the computations to generate help and overall results in less confusing enduser experience
+This set of restrictions allows `bpaf` to extract information about the structure of the computations to generate help, dynamic completion and overall results in less confusing enduser experience
 
-`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link4]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link5] and [`argument`][__link6] you should put the argument one first.
+`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link5]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link6] and [`argument`][__link7] you should put the argument one first.
 
-`bpaf` doesn’t support short flag names followed by immediate values: while this `-fbar` could mean `-f` followed by a parameter `"bar"` - this isn’t supported. `bpaf` supports only `-f val` and `-f=val` forms for short flags, and only `-f=-val` if value starts with `-`.
-
-You must place [`positional`][__link7] and [`positional_os`][__link8] items at the end of a structure in derive API or consume them as last arguments in derive API.
+You must place [`positional`][__link8] items at the end of a structure in derive API or consume them as last arguments in derive API.
 
 
 ## Dynamic shell completion
@@ -217,7 +210,7 @@ You must place [`positional`][__link7] and [`positional_os`][__link8] items at t
 	
 	
 	```toml
-	bpaf = { version = "0.5.5", features = ["autocomplete"] }
+	bpaf = { version = "0.6.0", features = ["autocomplete"] }
 	```
 	
 	
@@ -312,7 +305,7 @@ Usage --user <ARG>
 
 ## Cargo features
 
- - `derive`: adds a dependency on [`bpaf_derive`][__link14] crate and reexport `Bpaf` derive macro. You need to enable it to use derive API. Disabled by default.
+ - `derive`: adds a dependency on `bpaf_derive` crate and reexport `Bpaf` derive macro. You need to enable it to use derive API. Disabled by default.
 	
 	
  - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
@@ -326,18 +319,17 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG8Yk6tpPTRS2G-pflOrhCn1EGyn11z3zENIkG6A8mBNsl5uGYWSCgmRicGFmZTAuNS42gmticGFmX2Rlcml2ZWUwLjIuMQ
- [__link0]: https://docs.rs/bpaf/0.5.6/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.5.6/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::positional
- [__link11]: https://docs.rs/bpaf/0.5.6/bpaf/?search=bpaf::Parser::complete
- [__link13]: https://docs.rs/bpaf/0.5.6/bpaf/?search=info::OptionParser::run_inner
- [__link14]: https://crates.io/crates/bpaf_derive/0.2.1
- [__link2]: https://docs.rs/bpaf/0.5.6/bpaf/?search=batteries
- [__link3]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link4]: https://docs.rs/bpaf/0.5.6/bpaf/?search=bpaf::Parser::fallback
- [__link5]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::Named::switch
- [__link6]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::Named::argument
- [__link7]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::positional
- [__link8]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::positional_os
- [__link9]: https://docs.rs/bpaf/0.5.6/bpaf/?search=params::Named::argument
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGw52TMFIEQ0AG46Pg8Mnw4vqGw_DNHCWbX04G8RrPk7U2y7jYWSBgmRicGFmZTAuNi4w
+ [__link0]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.6.0/bpaf/?search=params::positional
+ [__link11]: https://docs.rs/bpaf/0.6.0/bpaf/?search=bpaf::Parser::complete
+ [__link13]: https://docs.rs/bpaf/0.6.0/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_unusual
+ [__link3]: https://docs.rs/bpaf/0.6.0/bpaf/?search=batteries
+ [__link4]: https://github.com/pacak/bpaf/discussions/categories/q-a
+ [__link5]: https://docs.rs/bpaf/0.6.0/bpaf/?search=bpaf::Parser::fallback
+ [__link6]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::switch
+ [__link7]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::argument
+ [__link8]: https://docs.rs/bpaf/0.6.0/bpaf/?search=params::positional
+ [__link9]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::argument
