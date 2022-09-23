@@ -19,3 +19,56 @@ pub mod dd {}
 ///
 #[doc = include_str!("docs/xorg.md")]
 pub mod xorg {}
+
+/// ## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
+///
+/// Unlike `click`, `bpaf` allows commands to be nested as well for as long as the paring is not
+/// ambiguous
+#[doc = include_str!("docs/adjacent_2.md")]
+pub mod chaining {}
+
+/// ## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+#[doc = include_str!("docs/adjacent_0.md")]
+pub mod multi_value {}
+
+/// ## Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+///
+/// Groups of options that can be specified multiple times. All such groups should be kept without
+/// overwriting previous one.
+///
+///```console
+/// $ prometheus_sensors_exporter \
+///     \
+///     `# 2 physical sensors located on physycial different i2c bus or address` \
+///     --sensor \
+///         --sensor-device=tmp102 \
+///         --sensor-name="temperature_tmp102_outdoor" \
+///         --sensor-i2c-bus=0 \
+///         --sensor-i2c-address=0x48 \
+///     --sensor \
+///         --sensor-device=tmp102 \
+///         --sensor-name="temperature_tmp102_indoor" \
+///         --sensor-i2c-bus=1 \
+///         --sensor-i2c-address=0x49 \
+///```
+#[doc = include_str!("docs/adjacent_1.md")]
+pub mod struct_group {}
+
+/// # Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
+///
+/// So you can parse things while parsing things. Not sure why you might need this, but you can
+/// :)
+///
+#[doc = include_str!("docs/adjacent_4.md")]
+pub mod multi_value_plus {}
+
+/// # Skipping optional positional items if parsing or validation fails
+///
+#[doc = include_str!("docs/numeric_prefix.md")]
+///
+/// [`cargo_helper`] also implements similar behavior, but hides and ignores the consumed
+/// positional item instead
+#[doc = include_str!("docs/cargo_helper.md")]
+pub mod optional_pos {}
+#[cfg(doc)]
+use crate::batteries::cargo_helper;
