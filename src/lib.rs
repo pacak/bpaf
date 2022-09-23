@@ -899,12 +899,21 @@ pub trait Parser<T> {
     // {{{ parse
     /// Apply a failing transformation to a contained value
     ///
+    /// Transformation preserves present/absent state of the value: to parse an optional value you
+    /// can either first try to `parse` it and then mark as [`optional`](Parser::optional) or first
+    /// deal with the optionality and then parse a value wrapped in [`Option`]. In most cases
+    /// former approach is more concise.
+    ///
+    /// Similarly it is possible to parse multiple items with [`many`](Parser::many) or
+    /// [`some`](Parser::some) by either parsing a single item first and then turning it into a [`Vec`]
+    /// or collecting them into a [`Vec`] first and then parsing the whole vector. Former approach
+    /// is more concise.
+    ///
     /// This is a most general of transforming parsers and you can express
     /// [`map`](Parser::map) and [`guard`](Parser::guard) in terms of it.
     ///
     /// Examples given here are a bit artificail, to parse a value from string you can specify
     /// the type directly in `argument`'s turbofish
-    ///
     ///
     /// # Combinatoric usage:
     /// ```rust
