@@ -9,7 +9,7 @@ fn ambiguity() {
     }
 
     let a0 = short('a').switch().many().map(A::V);
-    let a1 = short('a').argument("AAAAAA").map(A::W);
+    let a1 = short('a').argument::<String>("AAAAAA").map(A::W);
     let parser = construct!([a0, a1]).to_options();
 
     let r = parser

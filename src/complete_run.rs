@@ -74,7 +74,7 @@ function _bpaf_dynamic_completion
     end
 end
 
-complete --no-files --command {} --arguments '(_bpaf_dynamic_completion)'",
+complete --no-files --command {name} --arguments '(_bpaf_dynamic_completion)'",
         name = name,
         rev = 1,
     );

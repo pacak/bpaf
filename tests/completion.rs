@@ -485,7 +485,10 @@ fn dynamic_complete_test_1() {
             .collect::<Vec<_>>()
     }
 
-    let parser = short('a').argument("ARG").complete(completer).to_options();
+    let parser = short('a')
+        .argument::<String>("ARG")
+        .complete(completer)
+        .to_options();
 
     let r = parser
         .run_inner(Args::from(&["-a", "b"]).set_comp(1))
@@ -546,7 +549,7 @@ fn dynamic_complete_test_3() {
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
-        .argument("EXPR")
+        .argument::<String>("EXPR")
         .complete(complete_calculator);
     let parser = construct!(a, b, bb, c).to_options();
 
@@ -569,7 +572,7 @@ fn dynamic_complete_test_4() {
     }
 
     let parser = long("name")
-        .argument("NAME")
+        .argument::<String>("NAME")
         .complete(complete_calculator)
         .to_options();
 
@@ -631,7 +634,7 @@ fn csample_mystery() {
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
-        .argument("EXPR")
+        .argument::<String>("EXPR")
         .complete(complete_calculator);
     let parser = construct!(a, b, bb, c)
         .to_options()
@@ -721,8 +724,8 @@ fn positionals_complete_in_order() {
         vec![("b".to_string(), None)]
     }
 
-    let a = positional("A").complete(c_a);
-    let b = positional("B").complete(c_b);
+    let a = positional::<String>("A").complete(c_a);
+    let b = positional::<String>("B").complete(c_b);
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -747,8 +750,8 @@ fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
         vec![("b".to_string(), None)]
     }
 
-    let a = short('a').argument("A").complete(c_a);
-    let b = positional("B").complete(c_b);
+    let a = short('a').argument::<String>("A").complete(c_a);
+    let b = positional::<String>("B").complete(c_b);
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -764,7 +767,7 @@ fn should_be_able_to_suggest_double_dash() {
         vec![("--".to_string(), None)]
     }
     let a = long("arg").argument::<String>("ARG").optional();
-    let b = positional("B").complete(c_b);
+    let b = positional::<String>("B").complete(c_b);
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -863,7 +866,7 @@ fn ambiguity() {
     }
 
     let a0 = short('a').switch().many().map(A::V);
-    let a1 = short('a').argument("AAAAAA").map(A::W);
+    let a1 = short('a').argument::<String>("AAAAAA").map(A::W);
 
     let parser = construct!([a0, a1]).to_options();
     test_zsh_comp(&parser, &["-aaa"], &[["-aaa", "", "", ""]]);
@@ -1022,7 +1025,10 @@ fn zsh_complete_info() {
     fn foo(_input: &String) -> Vec<(&'static str, Option<&'static str>)> {
         vec![("hello", Some("word")), ("sample", None)]
     }
-    let parser = short('a').argument("X").complete(foo).to_options();
+    let parser = short('a')
+        .argument::<String>("X")
+        .complete(foo)
+        .to_options();
 
     test_zsh_comp(&parser, &[""], &[["-a", "-a <X>", "", ""]]);
 

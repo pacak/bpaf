@@ -30,7 +30,7 @@ pub fn options() -> OptionParser<Options> {
         .short('u')
         .env("USER1")
         .help("Custom user name")
-        .argument("USER");
+        .argument::<String>("USER");
 
     construct!(Options {
         switch,

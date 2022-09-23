@@ -62,6 +62,10 @@ use std::{ffi::OsString, marker::PhantomData};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{args::Arg, from_os_str::FromOsStr, item::ShortLong, Item, Meta};
+
+#[cfg(doc)]
+use crate::from_os_str::FromUtf8;
+
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
 ///
@@ -348,6 +352,15 @@ impl NamedArg {
     /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
     /// literal can't start with `-` unless separated from the flag with `=`. For short flags value
     /// can follow immediately: `-fbar`.
+    ///
+    /// When using combinatoring API you must specify the type with turbofish, for parsing types
+    /// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn parse_arg() -> impl Parser<usize> {
+    ///     short('a').argument::<usize>("ARG")
+    /// }
+    /// ```
     #[doc = include_str!("docs/argument.md")]
     #[must_use]
     pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
@@ -375,6 +388,15 @@ impl NamedArg {
 /// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
 /// `cat hello world` and `cat world hello` would display contents of the same two files but in
 /// different order.
+///
+/// When using combinatoring API you must specify the type with turbofish, for parsing types
+/// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+/// ```no_run
+/// # use bpaf::*;
+/// fn parse_pos() -> impl Parser<usize> {
+///     positional::<usize>("POS")
+/// }
+/// ```
 ///
 /// # Important restriction
 /// To parse positional arguments from a command line you should place parsers for all your
@@ -700,11 +722,11 @@ impl<T> ParseArgument<T> {
     }
 }
 
-impl<T> Parser<T> for ParseArgument<T>
+impl<O, T> Parser<O> for ParseArgument<T>
 where
-    T: FromOsStr,
+    T: FromOsStr<Out = O>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<O, Error> {
         let os = self.take_argument(args)?;
         match T::from_os_str(os) {
             Ok(ok) => Ok(ok),
@@ -745,7 +767,7 @@ impl<T> ParsePositional<T> {
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_name() -> impl Parser<String> {
-    ///     positional("NAME")
+    ///     positional::<String>("NAME")
     ///         .help("a flag that does a thing")
     /// }
     /// ```
@@ -879,11 +901,11 @@ fn parse_word(
     }
 }
 
-impl<T> Parser<T> for ParsePositional<T>
+impl<O, T> Parser<O> for ParsePositional<T>
 where
-    T: FromOsStr,
+    T: FromOsStr<Out = O>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<O, Error> {
         let os = parse_word(args, self.strict, self.metavar, &self.help)?;
         match T::from_os_str(os) {
             Ok(ok) => Ok(ok),
@@ -907,8 +929,18 @@ pub struct ParseAny<T> {
 /// Take next unconsumed item on the command line as raw [`String`] or [`OsString`]
 ///
 /// `any` behaves similar to [`positional`] so you should be using it near the right most end of
-/// the consumer struct. Note, consuming "anything" will also consume `--help` unless restricted
+/// the consumer struct. Note, consuming "anything" also consumes `--help` unless restricted
 /// with `guard`
+///
+/// When using combinatoring API you must specify the type with turbofish, for parsing types
+/// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+/// ```no_run
+/// # use bpaf::*;
+/// # use std::ffi::OsString;
+/// fn parse_any() -> impl Parser<OsString> {
+///     any::<OsString>("ANYTHING")
+/// }
+/// ```
 ///
 #[doc = include_str!("docs/any.md")]
 ///
@@ -975,11 +1007,11 @@ impl<T> ParseAny<T> {
     }
 }
 
-impl<T> Parser<T> for ParseAny<T>
+impl<T, O> Parser<O> for ParseAny<T>
 where
-    T: FromOsStr,
+    T: FromOsStr<Out = O>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut Args) -> Result<O, Error> {
         let os = self.next_os_string(args)?;
         match T::from_os_str(os) {
             Ok(ok) => Ok(ok),

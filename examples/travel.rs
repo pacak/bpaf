@@ -23,13 +23,13 @@ fn main() {
         .help("speed in MPH")
         .argument::<f64>("SPEED")
         .map(|x| x * 1.6);
-    let kph = long("kph").help("Speed in KPH").argument("SPEED");
+    let kph = long("kph").help("Speed in KPH").argument::<f64>("SPEED");
 
     // speed is either kph or mph, conversion to mph is handled by the parser
     let speed = construct!([mph, kph]);
 
     // parsers for distances, both are converted to the same units
-    let km = long("km").help("Distance in KM").argument("KMs");
+    let km = long("km").help("Distance in KM").argument::<f64>("KMs");
     let mi = long("mi")
         .help("distance in miles")
         .argument::<f64>("MILES")
@@ -37,7 +37,9 @@ fn main() {
     let dist = construct!([mi, km]);
 
     // time, presumably in seconds
-    let time = long("time").help("Travel time in hours").argument("TIME");
+    let time = long("time")
+        .help("Travel time in hours")
+        .argument::<f64>("TIME");
 
     // parsed time is trivially converted to time segment
     let segment_time = time.map(Segment::Time);

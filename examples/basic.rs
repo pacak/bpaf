@@ -42,17 +42,17 @@ fn opts() -> OptionParser<Out> {
     let output = short('o')
         .long("output")
         .help("output file")
-        .argument("OUTPUT"); // but it's optional when rustc can derive it
+        .argument::<PathBuf>("OUTPUT"); // but it's optional when rustc can derive it
 
     // no magical name transmogrifications in combinatoric API,
-    let nb_cars = short('n').long("nb-cars").argument("N");
+    let nb_cars = short('n').long("nb-cars").argument::<u32>("N");
 
     // a parser that consumes one argument
     // you can build the inner parser in one go or as multiple steps giving each step a name
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
-        .argument("FILE");
+        .argument::<PathBuf>("FILE");
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.

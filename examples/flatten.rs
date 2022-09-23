@@ -23,8 +23,8 @@ struct DaemonOpts {
 
 fn main() {
     let verbose = short('v').help("switch verbosity on").switch();
-    let user = short('u').help("daemon user").argument("USER");
-    let group = short('g').help("daemon group").argument("GROUP");
+    let user = short('u').help("daemon user").argument::<String>("USER");
+    let group = short('g').help("daemon group").argument::<String>("GROUP");
     let daemon_opts = construct!(DaemonOpts { user, group });
     let opt = construct!(Cmdline {
         verbose,

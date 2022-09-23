@@ -133,7 +133,7 @@ fn positional_help_complain_3() {
 #[test]
 fn positional_help_complain_4() {
     let a = positional::<String>("a");
-    let b = short('b').argument("B");
+    let b = short('b').argument::<String>("B");
     let parser = construct!([b, a]).to_options();
 
     parser
