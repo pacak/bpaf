@@ -482,7 +482,7 @@ pub use from_os_str::*;
 ///
 /// fn coyoda() -> impl Parser<Options> {
 ///     construct!(Options {
-///         arg(short('a').argument("ARG")),
+///         arg(short('a').argument::<u32>("ARG")),
 ///         switch(short('s').switch())
 ///     })
 /// }
@@ -1125,7 +1125,7 @@ pub trait Parser<T> {
     /// # use bpaf::*;
     /// fn username() -> impl Parser<String> {
     ///     long("user")
-    ///         .argument("USER")
+    ///         .argument::<String>("USER")
     ///         .fallback_with::<_, Box<dyn std::error::Error>>(||{
     ///             let output = std::process::Command::new("whoami")
     ///                 .stdout(std::process::Stdio::piped())
@@ -1431,7 +1431,7 @@ pub trait Parser<T> {
     ///     short('n')
     ///         .long("name")
     ///         .help("Specify character's name")
-    ///         .argument("Name")
+    ///         .argument::<String>("Name")
     ///         .complete(completer)
     /// }
     /// ```

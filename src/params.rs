@@ -767,7 +767,7 @@ impl<T> ParsePositional<T> {
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_name() -> impl Parser<String> {
-    ///     positional("NAME")
+    ///     positional::<String>("NAME")
     ///         .help("a flag that does a thing")
     /// }
     /// ```
