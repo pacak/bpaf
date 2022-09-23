@@ -143,7 +143,7 @@ pub fn toggle_flag<T: Copy + 'static>(
 /// `cargo-cmd` so first argument would be `cmd`. `cargo_helper` helps to support both invocations:
 /// with name present when used via cargo and without it when used locally.
 ///
-/// You can read the code of this functions as this approximate sequence of statements:
+/// You can read the code of this function as this approximate sequence of statements:
 /// 1. Want to parse a word
 /// 2. Word must match a given string literal
 /// 3. It's okay if it's missing

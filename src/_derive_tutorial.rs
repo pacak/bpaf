@@ -3,7 +3,7 @@
 //! # About examples
 //!
 //! Most of the examples omit adding doc comments to the fields, to keep things clearer, you should do
-//! that when possible for better end user experience. Don't forget to add `[bpaf(options)]` for a top level
+//! that when possible for better end user experience. Don't forget to add `#[bpaf(options)]` for a top level
 //! structure that defines the option parser itself.
 //!
 //! ```rust
@@ -65,7 +65,7 @@
 //!      ```rust
 //!      # use bpaf::*;
 //!      #[derive(Debug, Clone, Bpaf)]
-//!      #[bpaf(private)] // config() is now private
+//!      #[bpaf(private)] // config() is now module private
 //!      pub struct Config {
 //!          pub flag: bool
 //!      }
@@ -120,7 +120,7 @@
 //!      }
 //!      ```
 //!
-//!      - ### Fallback value if all parser fails: `fallback`
+//!      - ### Fallback value if all parsers fails: `fallback`
 //!
 //!      You can add a fallback value to use if all the values required are missing.
 //!      See [`req_flag`](NamedArg::req_flag) examples.
@@ -278,3 +278,6 @@
 
 #[cfg(doc)]
 use crate::{params::*, parsers::*, *};
+
+#[cfg(all(doc, feature = "batteries"))]
+use crate::batteries::cargo_helper;

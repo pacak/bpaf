@@ -47,7 +47,7 @@
 //! }
 //!
 //! fn main() {
-//!     // #[derive(Bpaf) generates function speed_and_distance
+//!     // #[derive(Bpaf)] generates `speed_and_distance` function
 //!     let opts = speed_and_distance().run();
 //!     println!("Options: {:?}", opts);
 //! }
@@ -119,7 +119,7 @@
 //! }
 //! ```
 //!
-//! 3. Try to run it, output should be similar to derive edition
+//! 3. Try to run it, output should be similar to derive version
 
 //! # Design goals: flexibility, reusability, correctness
 
@@ -131,7 +131,7 @@
 
 //! ```rust
 //! # use bpaf::*;
-//! // a regular function that doesn't depend on anything, you can export it
+//! // a regular function that doesn't depend on any context, you can export it
 //! // and share across subcommands and binaries
 //! fn speed() -> impl Parser<f64> {
 //!     long("speed")
@@ -140,12 +140,12 @@
 //! }
 //!
 //! // this parser accepts multiple `--speed` flags from a command line when used,
-//! // collecting them into a vector
+//! // collecting results into a vector
 //! fn multiple_args() -> impl Parser<Vec<f64>> {
 //!     speed().many()
 //! }
 //!
-//! // this parser checks if `--speed` is present and uses value of 42 if it's not
+//! // this parser checks if `--speed` is present and uses value of 42.0 if it's not
 //! fn with_fallback() -> impl Parser<f64> {
 //!     speed().fallback(42.0)
 //! }
@@ -174,7 +174,7 @@
 //! }
 //! ```
 //!
-//! Library follows parse, don’t validate approach to validation when possible. Usually you parse
+//! Library follows **parse, don’t validate** approach to validation when possible. Usually you parse
 //! your values just once and get the results as a rust struct/enum with strict types rather than a
 //! stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
@@ -194,8 +194,8 @@
 //! > Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it's `'file'`
 //! > program also requires `-f` attribute with the filename
 //!
-//! This set of restrictions allows to extract information about the structure of the computations
-//! to generate help and overall results in less confusing enduser experience
+//! This set of restrictions allows `bpaf` to extract information about the structure of the computations
+//! to generate help, dynamic completion and overall results in less confusing enduser experience
 //!
 //! `bpaf` performs no parameter names validation, in fact having multiple parameters
 //! with the same name is fine and you can combine them as alternatives and performs no fallback
@@ -300,7 +300,7 @@
 
 //! # Cargo features
 //!
-//! - `derive`: adds a dependency on [`bpaf_derive`] crate and reexport `Bpaf` derive macro. You
+//! - `derive`: adds a dependency on `bpaf_derive` crate and reexport `Bpaf` derive macro. You
 //!   need to enable it to use derive API. Disabled by default.
 //!
 //! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
@@ -365,6 +365,7 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
+pub use crate::from_os_str::{FromOsStr, FromUtf8};
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
@@ -433,7 +434,7 @@ pub use from_os_str::*;
 /// indicate function parsers.
 ///
 /// Inside the parens you can put a whole expression to use instead of
-/// having to define them in advance: `a(positional("POS"))`. Probably a good idea to use this
+/// having to define them in advance: `a(positional::<String>("POS"))`. Probably a good idea to use this
 /// approach only for simple parsers.
 ///
 /// ```rust
@@ -527,7 +528,7 @@ pub use from_os_str::*;
 ///     D { d: u32 },
 /// }
 ///
-/// // here user needs to pass either both -a AND -b or both -c and -d
+/// // here user needs to pass either both -a AND -b or both -c AND -d
 /// #[derive(Debug, Clone, Bpaf)]
 /// enum Ult {
 ///     AB { a: u32, b: u32 },
@@ -621,6 +622,9 @@ macro_rules! __cons_prepare {
     }};
 }
 
+#[cfg(doc)]
+use std::str::FromStr;
+
 /// Simple or composed argument parser
 ///
 /// # Overview
@@ -636,8 +640,9 @@ macro_rules! __cons_prepare {
 /// Values inside can be of any type for as long as they implement `Debug`, `Clone` and
 /// there's no lifetimes other than static.
 ///
-/// When consuming the values you usually start with `Parser<String>` or `Parser<OsString>` which
-/// you then transform into something that your program would actually use. it's better to perform
+/// When consuming the values you can jump straight to a value that implements either [`FromOsStr`] or
+/// [`FromStr`] trait then transform into something that your program would actually use. Alternatively
+/// you can consume either `String` or `OsString` and parse that by hand. It's better to perform
 /// as much parsing and validation inside the `Parser` as possible so the program itself gets
 /// strictly typed and correct value while user gets immediate feedback on what's wrong with the
 /// arguments they pass.
@@ -727,6 +732,10 @@ pub trait Parser<T> {
     // {{{ many
     /// Consume zero or more items from a command line and collect them into [`Vec`]
     ///
+    /// `many` preserves any parsing falures and propagates them outwards, with extra
+    /// [`catch`](ParseMany::catch) statement you can instead stop at the first value
+    /// that failed to parse and ignore it and all the subsequent ones.
+    ///
     /// `many` only collects elements that only consume something from the argument list.
     ///
     /// # Combinatoric usage:
@@ -787,6 +796,10 @@ pub trait Parser<T> {
     ///
     /// Takes a string used as an error message if there's no specified parameters
     ///
+    /// `some` preserves any parsing falures and propagates them outwards, with extra
+    /// [`catch`](ParseSome::catch) statement you can instead stop at the first value
+    /// that failed to parse and ignore it and all the subsequent ones.
+    ///
     /// `some` only collects elements that only consume something from the argument list.
     ///
     /// # Combinatoric usage:
@@ -839,8 +852,9 @@ pub trait Parser<T> {
     // {{{ optional
     /// Turn a required argument into optional one
     ///
-    /// `optional` converts any failure caused by missing items into is `None` and passes
-    /// the remaining parsing failures untouched.
+    /// `optional` converts any missing items into is `None` and passes the remaining parsing
+    /// failures untouched. With extra [`catch`](ParseOptional::catch) statement you can handle
+    /// those failures too.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -1033,7 +1047,7 @@ pub trait Parser<T> {
     ///
     /// # Derive usage
     /// Unlike combinator counterpart, derive variant of `guard` takes a function name instead
-    /// of a closure, mostly to keep thing clean. Second argument can be either a string literal
+    /// of a closure, mostly to keep things clean. Second argument can be either a string literal
     /// or a constant name for a static [`str`].
     ///
     /// ```rust
@@ -1114,7 +1128,6 @@ pub trait Parser<T> {
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
     /// comes from a failing computation such as reading a file.
-    /// TODO: document top level fallback for derive
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
