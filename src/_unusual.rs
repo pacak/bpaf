@@ -65,10 +65,13 @@ pub mod multi_value_plus {}
 /// # Skipping optional positional items if parsing or validation fails
 ///
 #[doc = include_str!("docs/numeric_prefix.md")]
-///
-/// [`cargo_helper`] also implements similar behavior, but hides and ignores the consumed
-/// positional item instead
-#[doc = include_str!("docs/cargo_helper.md")]
 pub mod optional_pos {}
-#[cfg(doc)]
+#[cfg(feature = "batteries")]
+/// # Implementing cargo commands
+///
+/// With [`cargo_helper`] you can use your application as cargo command
+#[doc = include_str!("docs/cargo_helper.md")]
+pub mod cargohelper {}
+
+#[cfg(all(doc, feature = "batteries"))]
 use crate::batteries::cargo_helper;
