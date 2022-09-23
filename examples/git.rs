@@ -4,6 +4,8 @@
 //! Note, this "fetch" command uses fallback to inner description to get the help message, "add"
 //! uses explicit override with the same value.
 
+use std::path::PathBuf;
+
 use bpaf::*;
 
 #[allow(dead_code)]
@@ -17,14 +19,14 @@ enum Opt {
     Add {
         interactive: bool,
         all: bool,
-        files: Vec<String>,
+        files: Vec<PathBuf>,
     },
 }
 
 fn main() {
     let dry_run = long("dry_run").switch();
     let all = long("all").switch();
-    let repository = positional("SRC").fallback("origin".to_string());
+    let repository = positional::<String>("SRC").fallback("origin".to_string());
     let fetch = construct!(Opt::Fetch {
         dry_run,
         all,
@@ -37,7 +39,7 @@ fn main() {
 
     let interactive = short('i').switch();
     let all = long("all").switch();
-    let files = positional("FILE").many();
+    let files = positional::<PathBuf>("FILE").many();
     let add = construct!(Opt::Add {
         interactive,
         all,

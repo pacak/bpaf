@@ -30,7 +30,7 @@ enum PreCommand {
 fn main() {
     let token = long("token")
         .help("Token used for complex commands")
-        .argument("TOKEN")
+        .argument::<String>("TOKEN")
         .optional();
 
     // start with defining 3 commands: simple, complex1 and complex2

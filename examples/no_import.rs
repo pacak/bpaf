@@ -19,7 +19,7 @@ fn main() {
         bpaf::short('s')
             .long("speed")
             .help("Set speed")
-            .argument("SPEED"),
+            .argument::<f64>("SPEED"),
         42.0,
     );
 

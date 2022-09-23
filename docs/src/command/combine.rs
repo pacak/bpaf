@@ -20,7 +20,7 @@ fn cmd() -> impl Parser<Cmd> {
     let flag = long("flag")
         .help("This flag is specific to command")
         .switch();
-    let arg = long("arg").argument("ARG");
+    let arg = long("arg").argument::<usize>("ARG");
     construct!(Cmd { flag, arg })
         .to_options()
         .descr("Command to do something")

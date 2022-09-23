@@ -33,8 +33,8 @@ struct Opts {
 
 fn opts() -> Opts {
     let sensor = long("sensor").req_flag(());
-    let device = long("sensor-device").argument("DEVICE");
-    let name = long("sensor-name").argument("NAME");
+    let device = long("sensor-device").argument::<String>("DEVICE");
+    let name = long("sensor-name").argument::<String>("NAME");
 
     // from_str needs to be replaced with `parse` that can deal with hex digits
     let bus_id = long("sensor-i2c-bus").argument::<usize>("BUS");

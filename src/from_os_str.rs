@@ -2,29 +2,63 @@
 use crate::{any, positional, NamedArg};
 use std::{
     ffi::{OsStr, OsString},
+    marker::PhantomData,
     path::PathBuf,
     str::FromStr,
 };
 
 /// Like [`FromStr`] but parses [`OsString`] instead
 ///
-/// `bpaf` implements it for most of the things supported by [`FromStr`]. you can implement it for
-/// your types to be able to use them in turbofish for [`positional`],
-/// [`argument`](NamedArg::argument) and [`any`]
+/// `bpaf` implements it for most of the things in std lib supported by [`FromStr`]. you can implement it for
+/// your types to be able to use them in turbofish directly for [`positional`],
+/// [`argument`](NamedArg::argument) and [`any`].
+///
+/// Alternatively you can use [`FromUtf8`] type tag to parse any type that implements [`FromStr`]
+#[doc = include_str!("docs/positional.md")]
+///
 pub trait FromOsStr {
+    /// Mostly a hack to allow parsing types that implement inside [`FromStr`] but aren't
+    /// contained inside stdlib, see [`FromUtf8`].
+    type Out;
+
     /// Parse [`OsString`] or fail
     ///
     /// # Errors
     /// Returns error message along with a lossy representation of the original string on failure
-    fn from_os_str(s: OsString) -> Result<Self, String>
+    fn from_os_str(s: OsString) -> Result<Self::Out, String>
     where
         Self: Sized;
+}
+
+/// A tag datatype that allows to use [`FromStr`] trait inside [`FromOsStr`].
+///
+/// See [`FromOsStr`] for more details
+pub struct FromUtf8<T>(PhantomData<T>);
+
+impl<T> FromOsStr for FromUtf8<T>
+where
+    T: FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    type Out = T;
+
+    fn from_os_str(os: OsString) -> Result<Self::Out, String>
+    where
+        Self: Sized,
+    {
+        let s = as_str(&os)?;
+        match T::from_str(s) {
+            Ok(t) => Ok(t),
+            Err(err) => Err(err.to_string()),
+        }
+    }
 }
 
 macro_rules! from_os_str {
     ($ty:ty) => {
         impl FromOsStr for $ty {
-            fn from_os_str(s: OsString) -> Result<Self, String> {
+            type Out = Self;
+            fn from_os_str(s: OsString) -> Result<Self::Out, String> {
                 match <$ty as FromStr>::from_str(as_str(&s)?) {
                     Ok(ok) => Ok(ok),
                     Err(err) => Err(err.to_string()),
@@ -35,12 +69,14 @@ macro_rules! from_os_str {
 }
 
 impl FromOsStr for OsString {
-    fn from_os_str(s: OsString) -> Result<Self, String> {
+    type Out = Self;
+    fn from_os_str(s: OsString) -> Result<Self::Out, String> {
         Ok(s)
     }
 }
 impl FromOsStr for PathBuf {
-    fn from_os_str(s: OsString) -> Result<Self, String> {
+    type Out = Self;
+    fn from_os_str(s: OsString) -> Result<Self::Out, String> {
         Ok(Self::from(s))
     }
 }

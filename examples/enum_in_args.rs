@@ -10,6 +10,7 @@ enum Baz {
 }
 
 impl FromOsStr for Baz {
+    type Out = Self;
     fn from_os_str(s: std::ffi::OsString) -> Result<Self, String>
     where
         Self: Sized,

@@ -15,7 +15,7 @@ fn main() {
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
-        .argument("EXPR")
+        .argument::<String>("EXPR")
         .complete(complete_calculator);
     let parser = construct!(a, b, bb, c)
         .to_options()

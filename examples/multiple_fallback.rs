@@ -26,12 +26,12 @@ pub fn main() {
     let field1 = long("field1")
         .env("FIELD1")
         .help("Field 1")
-        .argument("ARG")
+        .argument::<u32>("ARG")
         .fallback(DEFAULT_CONFIG.field1);
     let field2 = long("field2")
         .env("FIELD2")
         .help("Field 2")
-        .argument("ARG")
+        .argument::<u64>("ARG")
         .fallback(DEFAULT_CONFIG.field2);
 
     let opts = construct!(Config { field1, field2 }).to_options().run();

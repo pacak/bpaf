@@ -544,6 +544,8 @@ Available options:
 }
 
 mod git {
+    use std::path::PathBuf;
+
     use super::*;
 
     #[derive(Debug, Clone)]
@@ -557,14 +559,14 @@ mod git {
         Add {
             interactive: bool,
             all: bool,
-            files: Vec<String>,
+            files: Vec<PathBuf>,
         },
     }
 
     fn setup() -> OptionParser<Opt> {
         let dry_run = long("dry_run").switch();
         let all = long("all").switch();
-        let repository = positional("SRC").fallback("origin".to_string());
+        let repository = positional::<String>("SRC").fallback("origin".to_string());
         let fetch = construct!(Opt::Fetch {
             dry_run,
             all,
@@ -577,7 +579,7 @@ mod git {
 
         let interactive = short('i').switch();
         let all = long("all").switch();
-        let files = positional("FILE").many();
+        let files = positional::<PathBuf>("FILE").many();
         let add = construct!(Opt::Add {
             interactive,
             all,
@@ -693,13 +695,13 @@ fn arg_bench() {
 
     let opt_number = long("opt-number")
         .help("Sets an optional number")
-        .argument("opt-number")
+        .argument::<u32>("opt-number")
         .optional();
 
     let width = long("width")
         .help("Sets width")
-        .argument("width")
-        .guard(|n: &u32| *n > 0, "Width must be positive")
+        .argument::<u32>("width")
+        .guard(|n| *n > 0, "Width must be positive")
         .fallback(10);
 
     let input = positional::<PathBuf>("INPUT").many();
@@ -1121,7 +1123,7 @@ fn failure_is_not_stupid_2() {
 
 #[test]
 fn no_fallback_out_of_command_parser() {
-    let alt1 = positional("NAME").to_options().command("cmd");
+    let alt1 = positional::<String>("NAME").to_options().command("cmd");
     let alt2 = pure(String::new());
     let parser = construct!([alt1, alt2]).to_options();
 
@@ -1473,7 +1475,7 @@ fn parse_many_errors_flag() {
 
 #[test]
 fn command_with_req_parameters() {
-    let p = positional("X")
+    let p = positional::<String>("X")
         .to_options()
         .command("cmd")
         .fallback(String::new())
@@ -1568,7 +1570,11 @@ fn catch_works() {
         .map(A::Num)
         .optional()
         .catch();
-    let a_s = short('a').argument("A").map(A::Str).hide().optional();
+    let a_s = short('a')
+        .argument::<String>("A")
+        .map(A::Str)
+        .hide()
+        .optional();
     let parser = construct!([a_n, a_s]).to_options();
 
     let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();

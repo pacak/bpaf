@@ -11,8 +11,14 @@ pub enum Command {
 }
 
 pub fn options() -> OptionParser<Command> {
-    let a = positional("A").map(Command::A).to_options().command("a");
-    let b = positional("B").map(Command::B).to_options().command("b");
+    let a = positional::<String>("A")
+        .map(Command::A)
+        .to_options()
+        .command("a");
+    let b = positional::<String>("B")
+        .map(Command::B)
+        .to_options()
+        .command("b");
     let sneaky = false;
     let a = if sneaky {
         construct!(a)
