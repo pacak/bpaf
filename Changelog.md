@@ -1,5 +1,5 @@
 # Change Log
-## bpaf [0.6.0] - unreleased
+## bpaf [0.6.0] - 2022-09-22
 # What's new in 0.6.0
 - `adjacent` restriction to parse things in a tighter context
 - `catch` for `many`, `some` and `optional` to handle parse errors
@@ -7,6 +7,7 @@
 - improved documentation with more detailed examples
 - cosmetic improvements
 - a sneaky reminder to use `to_options` on `Parser` before trying to run it
+- removed OsString specific `positional_os` and `argument_os`
 - a way to make boxed parsers with single item `construct!` macro for making dynamic parsers
 - a horrible way to reduce Yoda-talk coding by placing primitive definitions inside the `construct!` macro
 
