@@ -244,7 +244,7 @@ fn parse_ws_binary(name: String) -> Result<Exec<'static>, String> {
 }
 
 fn pick_binary() -> impl Parser<Exec<'static>> {
-    positional("BIN")
+    positional::<String>("BIN")
         .help("binary or executable name available in a workspace")
         .complete(complete_ws_binary)
         .complete_style(CompleteDecor::VisibleGroup("== Workspace binaries"))
