@@ -936,6 +936,7 @@ pub struct ParseAny<T> {
 /// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
 /// ```no_run
 /// # use bpaf::*;
+/// # use std::ffi::OsString;
 /// fn parse_any() -> impl Parser<OsString> {
 ///     any::<OsString>("ANYTHING")
 /// }
