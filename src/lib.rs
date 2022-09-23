@@ -346,9 +346,9 @@ use std::marker::PhantomData;
 pub use structs::{ParseBox, ParseCon};
 
 pub mod parsers {
-    //! This module exposes parsers that can be configured further with builder pattern
+    //! This module exposes parsers that accept further configuration with builder pattern
     //!
-    //! In most cases you won't be using those names directly, they are only listed here to provide
+    //! In most cases you won't be using those names directly, they're only listed here to provide
     //! access to documentation
     pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
     pub use crate::structs::{ParseBox, ParseMany, ParseOptional, ParseSome};
@@ -465,7 +465,7 @@ pub use from_os_str::*;
 ///     construct!(a(), b)
 /// }
 ///
-/// // You can create boxed version of parsers so the type will be the same for as long
+/// // You can create boxed version of parsers so the type matches as long
 /// // as return type is the same - can be useful for all sort of dynamic parsers
 /// fn boxed() -> impl Parser<u32> {
 ///     let a = short('a').argument::<u32>("n");
@@ -1532,12 +1532,12 @@ pub trait Parser<T> {
     ///
     /// # Performance and other considerations
     ///
-    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It is
+    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It's
     /// best not to have complex inter-fields verification since they might trip up the detection
-    /// logic: instead of destricting let's say sum of two fields to be 5 or greater *inside* the
+    /// logic: instead of destricting, for example "sum of two fields to be 5 or greater" *inside* the
     /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
     ///
-    /// `adjacent` is defined on a trait for better discoverability, it doesn't make much sense to
+    /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
     /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
     /// several fields.
     ///
