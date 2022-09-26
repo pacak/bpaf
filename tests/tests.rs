@@ -1611,3 +1611,20 @@ fn sneaky_command() {
     let r = parser.run_inner(Args::from(&["hello"])).unwrap();
     assert_eq!(r, Cmd::A(false));
 }
+
+#[test]
+fn default_for_many() {
+    let parser = positional::<String>("ROOTS")
+        .many()
+        .map(|items| {
+            if items.is_empty() {
+                vec![String::from(".")]
+            } else {
+                items
+            }
+        })
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, vec![String::from(".")]);
+}
