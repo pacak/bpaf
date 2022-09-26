@@ -482,6 +482,25 @@ impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
     }
 }
 
+pub struct ParsePureWith<T, F, E>(pub(crate) F)
+where
+    F: Fn() -> Result<T, E>,
+    E: ToString;
+impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
+    for ParsePureWith<T, F, E>
+{
+    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
+        match (self.0)() {
+            Ok(ok) => Ok(ok),
+            Err(e) => Err(Error::Stderr(e.to_string())),
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Skip
+    }
+}
+
 /// Parser that fails without consuming any input, created with [`fail`](crate::fail).
 pub struct ParseFail<T> {
     pub(crate) field1: &'static str,
