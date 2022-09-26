@@ -62,7 +62,12 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                         usage_meta
                     );
                     *is_pos |= this_pos;
+
+                    if let UsageMeta::Or(_) = &usage_meta {
+                        Some(UsageMeta::Required(Box::new(usage_meta)))
+                    } else {
                     Some(usage_meta)
+                    }
                 })
                 .collect::<Vec<_>>();
             match items.len() {

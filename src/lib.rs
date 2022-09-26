@@ -1728,7 +1728,7 @@ pub fn pure<T>(val: T) -> ParsePure<T> {
 /// # use bpaf::*;
 /// fn pair() -> impl Parser<bool> {
 ///     let a = long("flag-a").switch();
-///     let b = pure_with::<_, _, String>(|| {/* search for history file and try to fish out the last used value ...*/ false});
+///     let b = pure_with::<_, _, String>(|| {/* search for history file and try to fish out the last used value ...*/ Ok(false)});
 ///     construct!([a, b])
 /// }
 /// ```

@@ -1613,6 +1613,23 @@ fn sneaky_command() {
 }
 
 #[test]
+fn default_for_many() {
+    let parser = positional::<String>("ROOTS")
+        .many()
+        .map(|items| {
+            if items.is_empty() {
+                vec![String::from(".")]
+            } else {
+                items
+            }
+        })
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, vec![String::from(".")]);
+}
+
+#[test]
 fn default_value_using_pure_with_ok() {
     // ~ this is a bit artifactial (we'd use fallback_with instead actually), but it demonstrates the concept
     let a = short('t').argument::<u32>("N");

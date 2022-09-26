@@ -187,3 +187,39 @@ fn no_actual_arguments_also_works() {
     let x = pure(true).meta();
     assert_eq!("no parameters expected", x.to_string());
 }
+
+#[test]
+fn a_or_b() {
+    let a = short('a').long("aaa").argument::<String>("A");
+    let b = short('b').long("bbb").argument::<String>("B");
+    let parser = construct!([a, b]).to_options();
+    assert_usage(parser, "(-a A | -b B)");
+}
+
+#[test]
+fn a_or_b_and_c() {
+    let a = short('a').long("aaa").argument::<String>("A");
+    let b = short('b').long("bbb").argument::<String>("B");
+    let ab = construct!([a, b]);
+    let c = positional::<String>("C");
+    let parser = construct!(ab, c).to_options();
+    assert_usage(parser, "(-a A | -b B) <C>");
+}
+
+#[test]
+fn a_or_b_opt() {
+    let a = short('a').long("aaa").argument::<String>("A");
+    let b = short('b').long("bbb").argument::<String>("B");
+    let parser = construct!([a, b]).optional().to_options();
+    assert_usage(parser, "[-a A | -b B]");
+}
+
+#[test]
+fn a_or_b_opt_and_c() {
+    let a = short('a').long("aaa").argument::<String>("A");
+    let b = short('b').long("bbb").argument::<String>("B");
+    let ab = construct!([a, b]).optional();
+    let c = positional::<String>("C");
+    let parser = construct!(ab, c).to_options();
+    assert_usage(parser, "[-a A | -b B] <C>");
+}
