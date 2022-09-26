@@ -1,4 +1,9 @@
 # Change Log
+
+## bpaf [0.6.1] - unreleased
+- cosmetic improvements
+- completion info in sensors example
+
 ## bpaf [0.6.0] - 2022-09-22
 # What's new in 0.6.0
 - `adjacent` restriction to parse things in a tighter context
