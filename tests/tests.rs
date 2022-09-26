@@ -1647,7 +1647,7 @@ fn default_value_using_pure_with_ok() {
 #[test]
 fn default_value_using_pure_with_err() {
     let a = short('t').argument::<u32>("N");
-    let b = pure_with::<u32, _, _>(|| Err(String::from("some-err")));
+    let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
 
     let opts = construct!([a, b]).to_options();
     let r = opts.run_inner(Args::from(&[]));
@@ -1658,7 +1658,7 @@ fn default_value_using_pure_with_err() {
 #[test]
 fn default_value_using_pure_with_ok_for_some() {
     let user_seeds = positional::<u32>("SEED").some("at least one required");
-    let last_seeds = pure_with::<Vec<u32>, _, &'static str>(|| {
+    let last_seeds = pure_with::<_, _, String>(|| {
         // ~ trying to lookup the last used seeds
         Ok(vec![3, 5, 7, 11])
     });
@@ -1674,7 +1674,7 @@ fn default_value_using_pure_with_ok_for_some() {
 #[test]
 fn default_value_using_pure_with_err_for_some() {
     let user_seeds = positional::<u32>("SEED").some("at least one required");
-    let last_seeds = pure_with::<Vec<u32>, _, &'static str>(|| {
+    let last_seeds = pure_with(|| {
         // ~ trying to lookup the last used seeds but we're failing
         Err("oh, no!")
     });
