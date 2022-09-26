@@ -31,9 +31,32 @@ struct Opts {
     sensors: Vec<Sensor>,
 }
 
+// generates completion suggestions
+fn sensor_device_comp(input: &String) -> Vec<(String, Option<String>)> {
+    [
+        ("temp100", "Main temperature sensor"),
+        ("temp101", "Output temperature sensor"),
+        ("tank01", "Temperature in a storage tank 1"),
+        ("tank02", "Temperature in a storage tank 2"),
+        ("tank03", "Temperature in a storage tank 3"),
+        ("outdoor", "Outdoor temperature sensor"),
+    ]
+    .iter()
+    .filter_map(|(name, descr)| {
+        if name.starts_with(input) {
+            Some((name.to_string(), Some(descr.to_string())))
+        } else {
+            None
+        }
+    })
+    .collect::<Vec<_>>()
+}
+
 fn opts() -> Opts {
     let sensor = long("sensor").req_flag(());
-    let device = long("sensor-device").argument::<String>("DEVICE");
+    let device = long("sensor-device")
+        .argument::<String>("DEVICE")
+        .complete(sensor_device_comp);
     let name = long("sensor-name").argument::<String>("NAME");
 
     // from_str needs to be replaced with `parse` that can deal with hex digits
