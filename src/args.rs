@@ -195,6 +195,10 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// enable completions with custom output revision style
+        ///
+        ///
+        /// # Panics
+        /// Contains some assertions which shouldn't trigger in normal operation
         #[must_use]
         pub fn set_comp(mut self, rev: usize) -> Self {
             // last item on a command line is "--" it might be both double dash indicator
@@ -206,7 +210,7 @@ mod inner {
                     self.removed[o] = false;
                     self.remaining += 1;
                     if let Arg::PosWord(w) = &self.items[o] {
-                        assert_eq!(w, "--")
+                        assert_eq!(w, "--");
                     } else {
                         panic!("Last item is strange {:?}, this is a bug", self);
                     }

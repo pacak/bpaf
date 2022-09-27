@@ -2,6 +2,12 @@
 name = "bpaf_cauwugo"
 version = "0.1.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+categories = ["command-line-interface", "command-line-utilities"]
+repository = "https://github.com/pacak/bpaf"
+keywords = ["cargo", "cargo-frontend", "cli", "completion", "dynamic-completion"]
+readme = "README.md"
+description = "A cargo frontend with dynamic completion"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
