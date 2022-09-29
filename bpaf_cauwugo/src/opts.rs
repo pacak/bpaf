@@ -25,10 +25,10 @@ pub enum Cauwugo {
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options, version)]
-///       _~^~^~_
-///   \) / >   < \ (/   run cargo commands with the power of dynamic completion
-///     '_   ω   _'
-///    /  '-----' /
+/// |      _~^~^~_
+/// |  \) / >   < \ (/   run cargo commands with the power of dynamic completion
+/// |    '_   ω   _'
+/// |   /  '-----' /
 pub struct CauwugoOpts {
     /// Cauwugo will print underlying cargo command before proceeding
     pub bpaf_verbose: bool,
