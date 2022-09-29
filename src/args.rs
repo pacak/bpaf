@@ -195,8 +195,27 @@ mod inner {
 
         #[cfg(feature = "autocomplete")]
         /// enable completions with custom output revision style
+        ///
+        ///
+        /// # Panics
+        /// Contains some assertions which shouldn't trigger in normal operation
         #[must_use]
         pub fn set_comp(mut self, rev: usize) -> Self {
+            // last item on a command line is "--" it might be both double dash indicator
+            // "the rest are strictly positionals" but it can also be part of the long name
+            // restore it so completion logic is more internally consistent
+            if !self.removed.is_empty() {
+                let o = self.removed.len() - 1;
+                if self.removed[o] {
+                    self.removed[o] = false;
+                    self.remaining += 1;
+                    if let Arg::PosWord(w) = &self.items[o] {
+                        assert_eq!(w, "--");
+                    } else {
+                        panic!("Last item is strange {:?}, this is a bug", self);
+                    }
+                }
+            }
             self.comp = Some(crate::complete_gen::Complete::new(rev));
             self
         }

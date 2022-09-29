@@ -49,3 +49,6 @@ required-features = ["autocomplete"]
 
 [workspace]
 members = [".", "./bpaf_derive", "./bpaf_cauwugo", "docs"]
+
+[workspace.metadata.cauwugo]
+bpaf = true

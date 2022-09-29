@@ -474,20 +474,26 @@ fn just_positional() {
     assert_eq!(r, "xxx\n");
 }
 
+fn test_completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    let mut vec = test_completer_descr(input);
+    vec.iter_mut().for_each(|i| i.1 = None);
+    vec
+}
+
+fn test_completer_descr(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    let items = ["alpha", "beta", "banana", "cat", "durian"];
+    items
+        .iter()
+        .filter(|item| item.starts_with(input))
+        .map(|item| (*item, Some(*item)))
+        .collect::<Vec<_>>()
+}
+
 #[test]
 fn dynamic_complete_test_1() {
-    fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-        let items = ["alpha", "beta", "banana", "cat", "durian"];
-        items
-            .iter()
-            .filter(|item| item.starts_with(input))
-            .map(|item| (*item, None))
-            .collect::<Vec<_>>()
-    }
-
     let parser = short('a')
         .argument::<String>("ARG")
-        .complete(completer)
+        .complete(test_completer)
         .to_options();
 
     let r = parser
@@ -535,22 +541,13 @@ fn dynamic_complete_test_2() {
 
 #[test]
 fn dynamic_complete_test_3() {
-    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-        let items = ["alpha", "beta", "banana", "cat", "durian"];
-        items
-            .iter()
-            .filter(|item| item.starts_with(input))
-            .map(|item| (*item, None))
-            .collect::<Vec<_>>()
-    }
-
     let a = short('a').long("avocado").help("Use avocado").switch();
     let b = short('b').long("banana").help("Use banana").switch();
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
         .argument::<String>("EXPR")
-        .complete(complete_calculator);
+        .complete(test_completer);
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
@@ -562,18 +559,9 @@ fn dynamic_complete_test_3() {
 
 #[test]
 fn dynamic_complete_test_4() {
-    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-        let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
-        names
-            .iter()
-            .filter(|item| item.starts_with(input))
-            .map(|item| (*item, Some(*item)))
-            .collect::<Vec<_>>()
-    }
-
     let parser = long("name")
         .argument::<String>("NAME")
-        .complete(complete_calculator)
+        .complete(test_completer_descr)
         .to_options();
 
     let r = parser
@@ -582,14 +570,14 @@ fn dynamic_complete_test_4() {
         .unwrap_stdout();
     assert_eq!(
         r,
-        "Yuri\tYuri\nLupusregina\tLupusregina\nSolution\tSolution\nShizu\tShizu\nEntoma\tEntoma\n"
+        "alpha\talpha\nbeta\tbeta\nbanana\tbanana\ncat\tcat\ndurian\tdurian\n"
     );
 
     let r = parser
-        .run_inner(Args::from(&["--name", "L"]).set_comp(1))
+        .run_inner(Args::from(&["--name", "a"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "Lupusregina\n");
+    assert_eq!(r, "alpha\n");
 }
 
 #[test]
@@ -620,22 +608,13 @@ fn static_with_fallback_and_hide() {
 
 #[test]
 fn csample_mystery() {
-    fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-        let items = ["alpha", "beta", "banana", "cat", "durian"];
-        items
-            .iter()
-            .filter(|item| item.starts_with(input))
-            .map(|item| (*item, None))
-            .collect::<Vec<_>>()
-    }
-
     let a = short('a').long("avocado").help("Use avocado").switch();
     let b = short('b').long("banana").help("Use banana").switch();
     let bb = long("bananananana").help("I'm Batman").switch();
     let c = long("calculator")
         .help("calculator expression")
         .argument::<String>("EXPR")
-        .complete(complete_calculator);
+        .complete(test_completer);
     let parser = construct!(a, b, bb, c)
         .to_options()
         .descr("Dynamic autocomplete example")
@@ -853,7 +832,7 @@ fn test_zsh_comp<T: std::fmt::Debug>(
         assert_eq!(&actual_words, expected, "on line {}", ix)
     }
 
-    assert_eq!(actual_len, expected_len);
+    assert_eq!(actual_len, expected_len, "<- actual, expected lengths ->");
 }
 
 #[test]
@@ -1041,4 +1020,18 @@ fn zsh_complete_info() {
             ["sample", "sample", "", ""],
         ],
     );
+}
+
+#[test]
+fn double_dash_as_positional() {
+    let parser = positional::<String>("P")
+        .help("Help")
+        .complete(test_completer)
+        .to_options();
+
+    test_zsh_comp(&parser, &["-"], &[]);
+    println!("\n\n");
+    test_zsh_comp(&parser, &["--"], &[]);
+    test_zsh_comp(&parser, &["a"], &[["alpha", "alpha", "", ""]]);
+    test_zsh_comp(&parser, &["x"], &[]);
 }
