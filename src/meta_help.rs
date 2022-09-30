@@ -6,7 +6,7 @@ use crate::{
     Meta,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
 pub(crate) enum HelpItem<'a> {
     Decor {
         help: &'a str,
@@ -44,10 +44,15 @@ pub(crate) struct HelpItems<'a> {
 impl HelpItem<'_> {
     pub fn is_decor(&self) -> bool {
         match self {
-            HelpItem::Decor { .. } => true,
+            HelpItem::Decor { .. } | HelpItem::BlankDecor => true,
             _ => false,
         }
     }
+}
+
+fn dedup(items: &mut Vec<HelpItem>) {
+    let mut cur = std::collections::BTreeSet::new();
+    items.retain(move |i| i.is_decor() || cur.insert(*i));
 }
 
 impl<'a> HelpItems<'a> {
@@ -141,7 +146,7 @@ impl<'a> HelpItems<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
 pub(crate) struct ShortLongHelp(ShortLong);
 
 impl ShortLongHelp {
@@ -344,6 +349,9 @@ pub(crate) fn render_help(
     let mut items = HelpItems::default();
     items.classify(parser_meta);
     items.classify(help_meta);
+    dedup(&mut items.psns);
+    dedup(&mut items.flgs);
+    dedup(&mut items.cmds);
     if !items.psns.is_empty() {
         let max_width = items
             .psns
