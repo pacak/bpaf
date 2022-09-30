@@ -1,5 +1,33 @@
 # Dynamic completion enhanced cargo
 
+An alternative cargo frontend that implements dynamic shell completion for usual cargo
+commands, their options including argument values, test names and, if enabled, options
+used by the executables in your workspace/package (see `cauwugo run` for more details).
+
+## Installation
+
+```console
+$ cargo install bpaf-cauwugo
+```
+
+To enable the completions you need to configure them in your shell first - this needs to be
+done only once, pick one for your shell and place it whereever your shell expects it:
+
+```console
+$ cauwugo --bpaf-complete-style-bash
+$ cauwugo --bpaf-complete-style-zsh
+$ cauwugo --bpaf-complete-style-fish
+$ cauwugo --bpaf-complete-style-elvish
+```
+
+And if you are using [`bpaf`](https://crates.io/crates/bpaf) with `autocomplete` feature
+you can enable completion passthough for your workspace/package.
+
+```toml
+[workspace.metadata.cauwugo]
+bpaf = true
+```
+
 ## Completions supported by `cargo` itself
 
 Command line completion is a common feature implemented in shells or other places of text mode
@@ -103,6 +131,13 @@ test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; fini
 ```
 
 ## `cauwugo run`
+
+**For argument completion to be available you need to use bpaf with `autocomplete` feature and enable passthough**
+
+```toml
+[workspace.metadata.cauwugo]
+bpaf = true # use true if all the executables/examples use bpaf or a list of packages if only some are
+```
 
 Completes a usual set of runnable item names plus target, but also supports completion
 passthough to runnable items themselves, so if crates in your workspace use `bpaf` with dynamic
