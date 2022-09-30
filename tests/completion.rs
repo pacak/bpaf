@@ -1052,3 +1052,12 @@ fn strict_positional_completion() {
         ],
     );
 }
+
+#[test]
+#[ignore]
+fn avoid_inserting_metavars() {
+    let parser = short('a').argument::<String>("A").to_options();
+
+    test_zsh_comp(&parser, &["-a", ""], &[["-a", "-a <A>", "", ""]]);
+    test_zsh_comp(&parser, &[""], &[["-a", "-a <A>", "", ""]]);
+}
