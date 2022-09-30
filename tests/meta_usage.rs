@@ -223,3 +223,16 @@ fn a_or_b_opt_and_c() {
     let parser = construct!(ab, c).to_options();
     assert_usage(parser, "[-a A | -b B] <C>");
 }
+
+#[test]
+fn positionals_in_branches_are_okay() {
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
+    let c = positional::<String>("C");
+    let d = positional::<String>("D");
+
+    let ac = construct!(a, c);
+    let bd = construct!(b, d);
+    let parser = construct!([ac, bd]).to_options();
+    assert_usage(parser, "(-a A <C> | -b B <D>)");
+}
