@@ -88,10 +88,10 @@ parser accepts multiple groups of `-m` - they must not interleave
 Options { multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }, Multi { m: (), val_1: 1, val_2: 2, val_3: 0.0 }], switch: true }
 ```
 
-`-s` can't go in the middle
+`-s` can't go in the middle as the parser expects the second item
 ```console
 % app -m 10 20 -s 3.1415
--m is not expected in this context
+Expected <V3>, pass --help for usage information
 ```
 
 </details>
