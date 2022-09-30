@@ -4,6 +4,8 @@ use std::process::Command;
 fn main() -> std::io::Result<()> {
     if let Some(first) = std::env::args_os().nth(1) {
         let supported = first == "--help"
+            || first == "--version"
+            || first == "-V"
             || first == "add"
             || first == "build"
             || first == "check"
