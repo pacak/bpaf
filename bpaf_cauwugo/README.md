@@ -164,3 +164,10 @@ Both here and in `cauwugo test` `cauwugo` compiles tests and examples and asks t
 possible values directly. You don't need to configure anything else other than completion
 configuration for `cauwugo` itself to use this functionality. This probably won't work if you
 are doing crosscompilation
+
+
+## Unknown commands passthough
+
+Any other command `cauwugo` can't recognize - it will pass to `cargo` directly so if you have
+`cargo-show-asm` installed and `cargo asm --lib foo` works then `cauwugo asm --lib foo` will
+work as well.
