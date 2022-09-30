@@ -40,10 +40,20 @@ pub enum Source {
         #[bpaf(long, argument("TAG"))]
         /// Git reference to download the crate from
         rev: Option<String>,
+
+        /// Package name
+        #[bpaf(positional("DEP"))]
+        // we can go to the URL and check what the names are available there...
+        name: Option<String>,
     },
     Local {
         /// Filesystem path to local crate to add
         path: PathBuf,
+
+        /// Package name
+        #[bpaf(positional("DEP"))]
+        // and ask cargo for names available there...
+        name: Option<String>,
     },
     Crates {
         /// Package registry to use instead of crates.io
@@ -97,14 +107,17 @@ impl Add {
                 branch,
                 tag,
                 rev,
+                name,
             } => {
                 pass_req_arg!(cmd, git, "--git");
                 pass_arg!(cmd, branch, "--branch");
                 pass_arg!(cmd, tag, "--tag");
                 pass_arg!(cmd, rev, "--rev");
+                pass_pos!(cmd, name);
             }
-            Source::Local { path } => {
+            Source::Local { path, name } => {
                 pass_req_arg!(cmd, path, "--path");
+                pass_pos!(cmd, name);
             }
             Source::Crates { registry, name } => {
                 cmd.arg(name);
