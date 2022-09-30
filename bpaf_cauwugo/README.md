@@ -7,7 +7,7 @@ used by the executables in your workspace/package (see `cauwugo run` for more de
 ## Installation
 
 ```console
-$ cargo install bpaf-cauwugo
+$ cargo install bpaf_cauwugo
 ```
 
 To enable the completions you need to configure them in your shell first - this needs to be
