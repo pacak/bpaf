@@ -9,17 +9,27 @@ pub struct Add {
     #[bpaf(external)]
     pub package: Option<&'static str>,
 
-    /// Add as dev dependency
-    pub dev: bool,
-
-    /// Add as build dependency
-    pub build: bool,
+    #[bpaf(external)]
+    pub dest: Dest,
 
     /// Don't actually write the manifest
     pub dry_run: bool,
 
     #[bpaf(external)]
     pub source: Source,
+}
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(fallback(Dest::Normal))]
+pub enum Dest {
+    /// Add as dev dependency
+    Dev,
+
+    /// Add as build dependency
+    Build,
+
+    #[bpaf(hide)]
+    Normal,
 }
 
 #[derive(Debug, Clone, Bpaf)]
@@ -98,9 +108,16 @@ impl Add {
     pub fn pass_to_cmd(&self, cmd: &mut Command) {
         cmd.arg("add");
         pass_arg!(cmd, self.package, "--package");
-        pass_flag!(cmd, self.dev, "--dev");
+        match self.dest {
+            Dest::Dev => {
+                cmd.arg("--dev");
+            }
+            Dest::Build => {
+                cmd.arg("--build");
+            }
+            Dest::Normal => {}
+        }
         pass_flag!(cmd, self.dry_run, "--dry-run");
-        pass_flag!(cmd, self.build, "--build");
         match &self.source {
             Source::Git {
                 git,
