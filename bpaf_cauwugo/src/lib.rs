@@ -14,6 +14,14 @@ macro_rules! pass_arg {
     };
 }
 
+macro_rules! pass_pos {
+    ($cmd:ident, $field:expr) => {
+        for v in $field {
+            $cmd.arg(v);
+        }
+    };
+}
+
 macro_rules! pass_req_arg {
     ($cmd:ident, $field:expr, $value:literal) => {
         $cmd.arg($value).arg($field);

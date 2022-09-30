@@ -79,10 +79,13 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
 
         Meta::Or(xs) => {
             let mut saw_command = false;
+            let mut any_pos = false;
             let mut items = xs
                 .iter()
                 .filter_map(|x| {
-                    let usage_meta = collect_usage_meta(x, is_pos)?;
+                    let mut top_pos = *is_pos;
+                    let usage_meta = collect_usage_meta(x, &mut top_pos)?;
+                    any_pos |= top_pos;
                     if let UsageMeta::Command = &usage_meta {
                         if saw_command {
                             None
@@ -95,7 +98,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                     }
                 })
                 .collect::<Vec<_>>();
-
+            *is_pos |= any_pos;
             match items.len() {
                 0 => return None,
                 1 => items.remove(0),

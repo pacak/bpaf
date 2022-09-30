@@ -9,14 +9,27 @@ pub struct Add {
     #[bpaf(external)]
     pub package: Option<&'static str>,
 
-    /// Add as dev dependency
-    pub dev: bool,
+    #[bpaf(external)]
+    pub dest: Dest,
 
-    /// Add as build dependency
-    pub build: bool,
+    /// Don't actually write the manifest
+    pub dry_run: bool,
 
     #[bpaf(external)]
     pub source: Source,
+}
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(fallback(Dest::Normal))]
+pub enum Dest {
+    /// Add as dev dependency
+    Dev,
+
+    /// Add as build dependency
+    Build,
+
+    #[bpaf(hide)]
+    Normal,
 }
 
 #[derive(Debug, Clone, Bpaf)]
@@ -34,13 +47,23 @@ pub enum Source {
         /// Git tag to download the crate from
         tag: Option<String>,
 
-        #[bpaf(long, argument("TAG"))]
+        #[bpaf(long, argument("REV"))]
         /// Git reference to download the crate from
         rev: Option<String>,
+
+        /// Package name
+        #[bpaf(positional("DEP"))]
+        // we can go to the URL and check what the names are available there...
+        name: Option<String>,
     },
     Local {
         /// Filesystem path to local crate to add
         path: PathBuf,
+
+        /// Package name
+        #[bpaf(positional("DEP"))]
+        // and ask cargo for names available there...
+        name: Option<String>,
     },
     Crates {
         /// Package registry to use instead of crates.io
@@ -85,22 +108,33 @@ impl Add {
     pub fn pass_to_cmd(&self, cmd: &mut Command) {
         cmd.arg("add");
         pass_arg!(cmd, self.package, "--package");
-        pass_flag!(cmd, self.dev, "--dev");
-        pass_flag!(cmd, self.build, "--build");
+        match self.dest {
+            Dest::Dev => {
+                cmd.arg("--dev");
+            }
+            Dest::Build => {
+                cmd.arg("--build");
+            }
+            Dest::Normal => {}
+        }
+        pass_flag!(cmd, self.dry_run, "--dry-run");
         match &self.source {
             Source::Git {
                 git,
                 branch,
                 tag,
                 rev,
+                name,
             } => {
                 pass_req_arg!(cmd, git, "--git");
                 pass_arg!(cmd, branch, "--branch");
                 pass_arg!(cmd, tag, "--tag");
                 pass_arg!(cmd, rev, "--rev");
+                pass_pos!(cmd, name);
             }
-            Source::Local { path } => {
+            Source::Local { path, name } => {
                 pass_req_arg!(cmd, path, "--path");
+                pass_pos!(cmd, name);
             }
             Source::Crates { registry, name } => {
                 cmd.arg(name);

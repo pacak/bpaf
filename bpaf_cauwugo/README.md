@@ -37,7 +37,7 @@ continuations is mostly fixed, but can include things like file names or parts o
 dynamic completions set of possible continuations is computed on runtime by a shell function or
 a program.
 
-Cargo comes with static completion for `zsh` you can find its contents by typing
+Cargo comes with a completion file for `zsh` you can find its contents by typing
 ```console
 % cat "$(rustc --print sysroot)"/share/zsh/site-functions/_cargo
 ```
