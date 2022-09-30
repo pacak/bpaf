@@ -15,6 +15,9 @@ pub struct Add {
     /// Add as build dependency
     pub build: bool,
 
+    /// Don't actually write the manifest
+    pub dry_run: bool,
+
     #[bpaf(external)]
     pub source: Source,
 }
@@ -86,6 +89,7 @@ impl Add {
         cmd.arg("add");
         pass_arg!(cmd, self.package, "--package");
         pass_flag!(cmd, self.dev, "--dev");
+        pass_flag!(cmd, self.dry_run, "--dry-run");
         pass_flag!(cmd, self.build, "--build");
         match &self.source {
             Source::Git {
