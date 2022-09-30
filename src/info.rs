@@ -596,6 +596,7 @@ fn report_missing_items(err: Error) -> Error {
 
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
     if fresh {
+        println!("Checking\n{:#?}", meta);
         to_usage_meta(meta);
     }
     match meta {
