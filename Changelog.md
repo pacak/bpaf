@@ -1,10 +1,11 @@
 # Change Log
 
-## bpaf [0.6.1] - unreleased
+## bpaf [0.6.1] - 2022-09-30
 - cosmetic improvements
 - completion info in sensors example
 - better errors in partially consumed optional items
 - better handling of -- during autcomplete
+- initial release of bpaf_cauwugo
 
 ## bpaf [0.6.0] - 2022-09-22
 # What's new in 0.6.0

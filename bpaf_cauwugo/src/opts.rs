@@ -144,3 +144,8 @@ fn parse_exec_target(
             )
         })
 }
+
+#[test]
+fn options_are_sane() {
+    cauwugo_opts().check_invariants(true);
+}
