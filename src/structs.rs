@@ -439,7 +439,13 @@ where
             match err {
                 Error::Stderr(_) if catch => Ok(None),
                 Error::Stderr(_) | Error::Stdout(_) => Err(err),
-                Error::Missing(_) => Ok(None),
+                Error::Missing(_) => {
+                    if args.len() == orig_args.len() {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                }
             }
         }
     }

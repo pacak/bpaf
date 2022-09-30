@@ -60,7 +60,7 @@ Options { switch: true, multi: [Rect { item: (), width: 10, height: 10, painted:
 But with `adjacent` they cannot interleave
 ```console
 % app --rect --rect --width 10 --painted --height 10 --height 10 --width 10
---rect is not expected in this context
+Expected --width PX, pass --help for usage information
 ```
 
 </details>
