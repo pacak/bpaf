@@ -1030,8 +1030,25 @@ fn double_dash_as_positional() {
         .to_options();
 
     test_zsh_comp(&parser, &["-"], &[]);
-    println!("\n\n");
     test_zsh_comp(&parser, &["--"], &[]);
     test_zsh_comp(&parser, &["a"], &[["alpha", "alpha", "", ""]]);
     test_zsh_comp(&parser, &["x"], &[]);
+}
+
+#[test]
+fn strict_positional_completion() {
+    let a = long("arg").switch();
+    let p = positional::<String>("S")
+        .strict()
+        .complete(|_| vec![("--hello".to_owned(), None)]);
+    let parser = construct!(a, p).to_options();
+
+    test_zsh_comp(
+        &parser,
+        &["--"],
+        &[
+            ["--arg", "--arg", "", ""],
+            ["--", "--    -- Positional only items", "", ""],
+        ],
+    );
 }

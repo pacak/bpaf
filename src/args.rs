@@ -209,8 +209,12 @@ mod inner {
                 if self.removed[o] {
                     self.removed[o] = false;
                     self.remaining += 1;
+                    let mut items = self.items.to_vec();
+
                     if let Arg::PosWord(w) = &self.items[o] {
                         assert_eq!(w, "--");
+                        items[o] = Arg::Word(w.clone());
+                        self.items = Rc::from(items);
                     } else {
                         panic!("Last item is strange {:?}, this is a bug", self);
                     }

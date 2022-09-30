@@ -3,6 +3,8 @@
 ## bpaf [0.6.1] - unreleased
 - cosmetic improvements
 - completion info in sensors example
+- better errors in partially consumed optional items
+- better handling of -- during autcomplete
 
 ## bpaf [0.6.0] - 2022-09-22
 # What's new in 0.6.0
