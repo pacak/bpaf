@@ -37,7 +37,7 @@ pub enum Source {
         /// Git tag to download the crate from
         tag: Option<String>,
 
-        #[bpaf(long, argument("TAG"))]
+        #[bpaf(long, argument("REV"))]
         /// Git reference to download the crate from
         rev: Option<String>,
 
