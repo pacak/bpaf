@@ -135,7 +135,7 @@ pub fn parse_specific() -> impl Parser<Test> {
 
 pub fn parse_test() -> impl Parser<Test> {
     let general = parse_test_general().map(Test::All);
-    construct!([parse_specific(), general])
+    construct!([general, parse_specific()])
         .to_options()
         .descr("Execute unit and integration tests")
         .command("test")
