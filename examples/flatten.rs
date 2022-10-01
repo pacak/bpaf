@@ -1,5 +1,5 @@
 //! All the flags don't have to live in the same structure, this example uses non derive version.
-//! with derive API you would use `extern` annotation
+//! with derive API you would use `external` annotation
 
 use bpaf::*;
 
