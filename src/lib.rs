@@ -356,8 +356,8 @@ pub mod parsers {
 
 use structs::{
     ParseAdjacent, ParseAnywhere, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParseSome,
-    ParseWith,
+    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure,
+    ParsePureWith, ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1714,6 +1714,30 @@ pub enum CompleteDecor {
 #[must_use]
 pub fn pure<T>(val: T) -> ParsePure<T> {
     ParsePure(val)
+}
+
+///
+/// Wrap a lazily calculated value into a `Parser`
+///
+/// This parser represents an equivalent to [`pure`] with the function of [`Parser::fallback_with`].
+/// It produces `T`  by invoking the provided callback without consuming anything from the command
+/// line, can be useful with [`construct!`]. As with any parsers `T` should be `Clone` and `Debug`.
+///
+/// # Combinatoric usage
+/// ```rust
+/// # use bpaf::*;
+/// fn pair() -> impl Parser<bool> {
+///     let a = long("flag-a").switch();
+///     let b = pure_with::<_, _, String>(|| {/* search for history file and try to fish out the last used value ...*/ Ok(false)});
+///     construct!([a, b])
+/// }
+/// ```
+pub fn pure_with<T, F, E>(val: F) -> ParsePureWith<T, F, E>
+where
+    F: Fn() -> Result<T, E>,
+    E: ToString,
+{
+    ParsePureWith(val)
 }
 
 /// Fail with a fixed error message
