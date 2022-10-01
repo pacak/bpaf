@@ -335,7 +335,11 @@ pub(crate) fn render_help(
     let auto = parser_meta.as_usage_meta().map(|u| u.to_string());
     if let Some(custom_usage) = info.usage {
         match auto {
-            Some(auto_usage) => write!(res, "{}\n", custom_usage.replace("{usage}", &auto_usage)),
+            Some(auto_usage) => write!(
+                res,
+                "{}\n",
+                custom_usage.replacen("{usage}", &auto_usage, 1)
+            ),
             None => write!(res, "{}\n", custom_usage),
         }?;
     } else if let Some(usage) = auto {
@@ -360,7 +364,7 @@ pub(crate) fn render_help(
             .max()
             .unwrap_or(0);
         write!(res, "\nAvailable positional items:\n")?;
-        for i in items.psns {
+        for i in &items.psns {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
@@ -373,7 +377,7 @@ pub(crate) fn render_help(
             .max()
             .unwrap_or(0);
         write!(res, "\nAvailable options:\n")?;
-        for i in items.flgs {
+        for i in &items.flgs {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
@@ -386,7 +390,7 @@ pub(crate) fn render_help(
             .map(HelpItem::full_width)
             .max()
             .unwrap_or(0);
-        for i in items.cmds {
+        for i in &items.cmds {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
