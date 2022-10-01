@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.6.2] - unreleased
+- cosmetic improvements
+- pure_with implementation
+  thanks to @xitep
+
 ## bpaf [0.6.1] - 2022-09-30
 - cosmetic improvements
 - completion info in sensors example
