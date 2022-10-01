@@ -1702,6 +1702,11 @@ pub enum CompleteDecor {
 /// This parser produces `T` without consuming anything from the command line, can be useful
 /// with [`construct!`]. As with any parsers `T` should be `Clone` and `Debug`.
 ///
+/// Both `pure` and [`pure_with`] are designed to put values into structures, to generate fallback
+/// you should be using [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with).
+///
+/// See also [`pure_with`] for a pure computation that can fail.
+///
 /// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
@@ -1716,19 +1721,27 @@ pub fn pure<T>(val: T) -> ParsePure<T> {
     ParsePure(val)
 }
 
+/// Wrap a calculated value into a `Parser`
 ///
-/// Wrap a lazily calculated value into a `Parser`
-///
-/// This parser represents an equivalent to [`pure`] with the function of [`Parser::fallback_with`].
-/// It produces `T`  by invoking the provided callback without consuming anything from the command
+/// This parser represents a possibly failing equivalent to [`pure`].
+/// It produces `T` by invoking the provided callback without consuming anything from the command
 /// line, can be useful with [`construct!`]. As with any parsers `T` should be `Clone` and `Debug`.
 ///
+/// Both [`pure`] and `pure_with` are designed to put values into structures, to generate fallback
+/// you should be using [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with).
+///
+/// See also [`pure`] for a pure computation that can't fail.
+
 /// # Combinatoric usage
 /// ```rust
 /// # use bpaf::*;
 /// fn pair() -> impl Parser<bool> {
 ///     let a = long("flag-a").switch();
-///     let b = pure_with::<_, _, String>(|| {/* search for history file and try to fish out the last used value ...*/ Ok(false)});
+///     let b = pure_with::<_, _, String>(|| {
+///         // search for history file and try to fish out the last used value ...
+///         // if this computation fails - user will see it
+///         Ok(false)
+///     });
 ///     construct!([a, b])
 /// }
 /// ```
