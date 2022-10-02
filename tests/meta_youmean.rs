@@ -24,3 +24,20 @@ fn ambiguity() {
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `-b`, did you mean `-a`?");
 }
+
+#[test]
+fn short_cmd() {
+    let parser = long("alpha")
+        .req_flag(())
+        .to_options()
+        .command("beta")
+        .short('b')
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["c"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(r, "No such command: `c`, did you mean `b`?");
+}
