@@ -278,6 +278,8 @@
 
 #[cfg(doc)]
 use crate::{params::*, parsers::*, *};
+#[cfg(doc)]
+use std::{ffi::OsString, path::PathBuf};
 
 #[cfg(all(doc, feature = "batteries"))]
 use crate::batteries::cargo_helper;
