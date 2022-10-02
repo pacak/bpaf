@@ -188,9 +188,9 @@
 //!      and `Vec<Foo>` with [`many`](Parser::many), see `postprocessing` for more details.
 //!
 //!      + `bpaf_derive` handles `bool` fields with [`switch`](NamedArg::switch),
-//!      `()` with [`req_flag`](NamedArg::req_flag) and anything else with [`FromOsStr`]
-//!      trait. See documentation for [`argument`](NamedArg::argument) and [`positional`]
-//!      for more details.
+//!      `()` with [`req_flag`](NamedArg::req_flag), [`OsString`] and [`PathBuf`] are parsed from
+//!      `OsString` and anything else with [`FromStr`] trait. See documentation for
+//!      [`argument`](NamedArg::argument) and [`positional`] for more details.
 //!
 //!    - If `external` is present - it usually serves function of `naming` and `consumer`, allowing
 //!      more for `postprocessing` annotations after it. Takes an optional parameter - a function

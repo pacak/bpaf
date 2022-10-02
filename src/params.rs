@@ -63,9 +63,6 @@ use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 use super::{parse_os_str, Args, Error, OptionParser, Parser};
 use crate::{args::Arg, item::ShortLong, Item, Meta};
 
-#[cfg(doc)]
-use crate::from_os_str::FromUtf8;
-
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
 ///
@@ -353,8 +350,9 @@ impl NamedArg {
     /// literal can't start with `-` unless separated from the flag with `=`. For short flags value
     /// can follow immediately: `-fbar`.
     ///
-    /// When using combinatoring API you must specify the type with turbofish, for parsing types
-    /// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+    /// When using combinatoring API you can specify the type with turbofish, for parsing types
+    /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
+    /// it by hands.
     /// ```rust
     /// # use bpaf::*;
     /// fn parse_arg() -> impl Parser<usize> {
@@ -389,8 +387,9 @@ impl NamedArg {
 /// `cat hello world` and `cat world hello` would display contents of the same two files but in
 /// different order.
 ///
-/// When using combinatoring API you must specify the type with turbofish, for parsing types
-/// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+/// When using combinatoring API you can specify the type with turbofish, for parsing types
+/// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
+/// it by hands.
 /// ```no_run
 /// # use bpaf::*;
 /// fn parse_pos() -> impl Parser<usize> {
@@ -932,10 +931,12 @@ pub struct ParseAny<T> {
 ///
 /// `any` behaves similar to [`positional`] so you should be using it near the right most end of
 /// the consumer struct. Note, consuming "anything" also consumes `--help` unless restricted
-/// with `guard`
+/// with `guard`. It's better stick to `positional` unless you are trying to consume raw options
+/// to pass to some other process or do some special handling.
 ///
-/// When using combinatoring API you must specify the type with turbofish, for parsing types
-/// that don't implement [`FromOsStr`] you can use [`FromUtf8`] helper tag.
+/// When using combinatoring API you can specify the type with turbofish, for parsing types
+/// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
+/// it by hands. For `any` you would usually consume it either as a `String` or `OsString`.
 /// ```no_run
 /// # use bpaf::*;
 /// # use std::ffi::OsString;

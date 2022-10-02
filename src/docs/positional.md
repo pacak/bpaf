@@ -12,7 +12,7 @@ pub struct Options {
     name: Option<String>,
 }
 
-/// A custom datatype that doesn't implement [`FromOsStr`] but implements [`FromStr`]
+/// A custom datatype that implements [`FromStr`]
 #[derive(Debug, Clone, Copy)]
 enum Coin {
     Heads,
@@ -34,7 +34,7 @@ pub fn options() -> OptionParser<Options> {
     // sometimes you can get away with not specifying type in positional's turbofish
     let coin = long("coin")
         .help("Coin toss results")
-        .argument::<FromUtf8<Coin>>("COIN")
+        .argument::<Coin>("COIN")
         .fallback(Coin::Heads);
     let name = positional::<String>("NAME")
         .help("Name to look for")
@@ -55,7 +55,7 @@ pub fn options() -> OptionParser<Options> {
 #[bpaf(options)]
 pub struct Options {
     /// Coin toss results
-    #[bpaf(argument::<FromUtf8<Coin>>("COIN"), fallback(Coin::Heads))]
+    #[bpaf(argument("COIN"), fallback(Coin::Heads))]
     coin: Coin,
 
     /// File to use
@@ -66,7 +66,7 @@ pub struct Options {
     name: Option<String>,
 }
 
-/// A custom datatype that doesn't implement [`FromOsStr`] but implements [`FromStr`]
+/// A custom datatype that implements [`FromStr`]
 #[derive(Debug, Clone, Copy)]
 enum Coin {
     Heads,
@@ -101,8 +101,7 @@ Both positionals are present
 Options { coin: Heads, file: "main.rs", name: Some("hello") }
 ```
 
-To parse items without having to write `FromOsStr` instance you can use `FromUtf8` helper
-type?
+You can consume items of any type that implements `FromStr`.
 ```console
 % app main.rs --coin tails
 Options { coin: Tails, file: "main.rs", name: None }
