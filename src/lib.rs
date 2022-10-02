@@ -365,7 +365,7 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
-pub use crate::from_os_str::{FromOsStr, FromUtf8};
+pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
