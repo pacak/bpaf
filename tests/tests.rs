@@ -245,6 +245,43 @@ Available options:
 }
 
 #[test]
+fn fallback_with_ok() {
+    let parser = short('a')
+        .argument("ARG")
+        .fallback_with::<_, &str>(|| Ok(10u32))
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, 10);
+}
+
+#[test]
+fn fallback_with_err() {
+    let parser = short('a')
+        .argument::<u32>("ARG")
+        .fallback_with::<_, &str>(|| Err("nope"))
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "x"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+
+    let r = parser
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "nope");
+}
+
+#[test]
 fn default_arguments() {
     let a = short('a').argument::<i32>("ARG").fallback(42);
     let decorated = a.to_options();
@@ -1627,4 +1664,54 @@ fn default_for_many() {
 
     let r = parser.run_inner(Args::from(&[])).unwrap();
     assert_eq!(r, vec![String::from(".")]);
+}
+
+#[test]
+fn parse_option_catch() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    enum A {
+        U32(u32),
+        S(String),
+    }
+    let a1 = short('a').argument("N").map(A::U32).optional().catch();
+    let a2 = short('a').argument("S").map(A::S).optional().catch();
+    let parser = construct!([a1, a2]).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    assert_eq!(r, Some(A::U32(10)));
+
+    let r = parser.run_inner(Args::from(&["-a", "x"])).unwrap();
+    assert_eq!(r, Some(A::S("x".to_string())));
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, None);
+}
+
+#[test]
+fn parse_some_catch() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    enum A {
+        U32(u32),
+        S(String),
+    }
+    let a1 = short('a')
+        .argument("N")
+        .map(A::U32)
+        .some("A")
+        .catch()
+        .hide();
+    let a2 = short('a').argument("S").map(A::S).some("A").catch().hide();
+    let parser = construct!([a1, a2]).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    assert_eq!(r, vec![A::U32(10)]);
+
+    let r = parser.run_inner(Args::from(&["-a", "x"])).unwrap();
+    assert_eq!(r, vec![A::S("x".to_string())]);
+
+    let r = parser
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "A");
 }
