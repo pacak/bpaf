@@ -20,6 +20,7 @@
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
 //! - [Some very unusual cases](crate::_unusual)
+//! - [Applicative functors? What is it all about](crate::_applicative)
 // - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
@@ -311,6 +312,8 @@
 //!
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 
+#[cfg(feature = "extradocs")]
+pub mod _applicative;
 #[cfg(feature = "extradocs")]
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
