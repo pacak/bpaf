@@ -1,9 +1,22 @@
 # Change Log
 
-## bpaf [0.6.2] - unreleased
+## bpaf [0.7.0] - unreleased
 - cosmetic improvements
 - pure_with implementation
   thanks to @xitep
+- FromOsStr is replaced with magical uses of Any trait
+
+# Migration guide 0.6.x -> 0.7.x
+1. Remove FromUtf8 annotations if you have any
+   ```diff
+   -let coin = short('c').argument::<FromUtf8<Coin>>("COIN");
+   +let coin = short('c').argument::<Coin>("COIN");
+   ```
+   In many cases rustc should be able to derive what the type
+2. Replace FromOsStr implementations for your types with FromStr
+   if you have any. If your type requires parsing OsString directly
+   you can perform it in two steps - consuming OsString + parsing it
+   with `Parser::parse`
 
 ## bpaf [0.6.1] - 2022-09-30
 - cosmetic improvements

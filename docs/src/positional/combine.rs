@@ -11,7 +11,7 @@ pub struct Options {
     name: Option<String>,
 }
 
-/// A custom datatype that doesn't implement [`FromOsStr`] but implements [`FromStr`]
+/// A custom datatype that implements [`FromStr`]
 #[derive(Debug, Clone, Copy)]
 enum Coin {
     Heads,
@@ -33,7 +33,7 @@ pub fn options() -> OptionParser<Options> {
     // sometimes you can get away with not specifying type in positional's turbofish
     let coin = long("coin")
         .help("Coin toss results")
-        .argument::<FromUtf8<Coin>>("COIN")
+        .argument::<Coin>("COIN")
         .fallback(Coin::Heads);
     let name = positional::<String>("NAME")
         .help("Name to look for")

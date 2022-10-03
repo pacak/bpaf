@@ -8,8 +8,7 @@ Options { coin: Heads, file: "main.rs", name: None }
 OK
 Options { coin: Heads, file: "main.rs", name: Some("hello") }
 
-? To parse items without having to write `FromOsStr` instance you can use `FromUtf8` helper
-? type?
+? You can consume items of any type that implements `FromStr`.
 > main.rs --coin tails
 OK
 Options { coin: Tails, file: "main.rs", name: None }

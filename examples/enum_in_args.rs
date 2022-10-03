@@ -1,5 +1,7 @@
 //! parsing argument value into enum. You can use crate `strum`'s `EnumString` for this purposes as well
 //!
+use std::str::FromStr;
+
 use bpaf::*;
 
 #[derive(Debug, Clone)]
@@ -9,15 +11,12 @@ enum Baz {
     FooBar,
 }
 
-impl FromOsStr for Baz {
-    type Out = Self;
-    fn from_os_str(s: std::ffi::OsString) -> Result<Self, String>
+impl FromStr for Baz {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, String>
     where
         Self: Sized,
     {
-        let s = s
-            .to_str()
-            .ok_or_else(|| format!("{} is not a valid utf8", s.to_string_lossy()))?;
         match s {
             "foo" => Ok(Baz::Foo),
             "bar" => Ok(Baz::Bar),

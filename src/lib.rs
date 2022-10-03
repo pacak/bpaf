@@ -20,6 +20,7 @@
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
 //! - [Some very unusual cases](crate::_unusual)
+//! - [Applicative functors? What is it all about](crate::_applicative)
 // - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
@@ -312,6 +313,8 @@
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 
 #[cfg(feature = "extradocs")]
+pub mod _applicative;
+#[cfg(feature = "extradocs")]
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
@@ -365,7 +368,7 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
-pub use crate::from_os_str::{FromOsStr, FromUtf8};
+pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
@@ -640,7 +643,7 @@ use std::str::FromStr;
 /// Values inside can be of any type for as long as they implement `Debug`, `Clone` and
 /// there's no lifetimes other than static.
 ///
-/// When consuming the values you can jump straight to a value that implements either [`FromOsStr`] or
+/// When consuming the values you can jump straight to a value that implements
 /// [`FromStr`] trait then transform into something that your program would actually use. Alternatively
 /// you can consume either `String` or `OsString` and parse that by hand. It's better to perform
 /// as much parsing and validation inside the `Parser` as possible so the program itself gets

@@ -48,7 +48,6 @@ impl From<&NamedArg> for ShortLong {
 }
 
 /// {} renders a version for short usage string
-/// {:#} renders a full width version for --help body and complete, this version
 /// supports padding of the help by some max width
 impl std::fmt::Display for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

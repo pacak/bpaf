@@ -6,8 +6,7 @@ use crate::{
 
 pub(crate) fn should_suggest(err: &Error) -> bool {
     match err {
-        Error::Stdout(_) => false,
-        Error::Stderr(_) => true,
+        Error::Stdout(_) | Error::Stderr(_) => true,
         Error::Missing(xs) => {
             let mut hi = crate::meta_help::HelpItems::default();
             for x in xs.iter() {

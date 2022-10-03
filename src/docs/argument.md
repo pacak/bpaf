@@ -12,9 +12,11 @@ pub struct Options {
 
 pub fn options() -> OptionParser<Options> {
     let value = long("value").argument::<isize>("ARG").fallback(100);
-    // You can use FromUtf8 type tag to parse things that only implement `FromStr`, but not `FromOsStr`
-    // `u64` implements both and only used as an example
-    let shorty = short('s').argument::<FromUtf8<u64>>("ARG");
+    // in many cases rustc is able to deduct exact type for the argument
+    // you are trying to consume, alternatively you can always specify it
+    // with turbofish to `argument:`
+    // let shorty = short('s').argument::<u64>("ARG");
+    let shorty = short('s').argument("ARG");
     construct!(Options { value, shorty }).to_options()
 }
 ```
@@ -31,9 +33,11 @@ pub fn options() -> OptionParser<Options> {
 pub struct Options {
     #[bpaf(fallback(100))]
     value: isize,
-    // You can use FromUtf8 type tag to parse things that only implement FromStr, but not FromOsStr
-    // `u64` implements both and only used as an example
-    #[bpaf(short, argument::<FromUtf8<u64>>("ARG"))]
+    // in many cases rustc is able to deduct exact type for the argument
+    // you are trying to consume, alternatively you can always specify it
+    // with turbofish to `argument:`
+    // #[bpaf(short, argument::<u64>("ARG"))]
+    #[bpaf(short, argument("ARG"))]
     shorty: u64,
 }
 ```

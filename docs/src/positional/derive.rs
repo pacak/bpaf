@@ -8,7 +8,7 @@ use bpaf::*;
 #[bpaf(options)]
 pub struct Options {
     /// Coin toss results
-    #[bpaf(argument::<FromUtf8<Coin>>("COIN"), fallback(Coin::Heads))]
+    #[bpaf(argument("COIN"), fallback(Coin::Heads))]
     coin: Coin,
 
     /// File to use
@@ -19,7 +19,7 @@ pub struct Options {
     name: Option<String>,
 }
 
-/// A custom datatype that doesn't implement [`FromOsStr`] but implements [`FromStr`]
+/// A custom datatype that implements [`FromStr`]
 #[derive(Debug, Clone, Copy)]
 enum Coin {
     Heads,
