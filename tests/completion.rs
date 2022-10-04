@@ -837,7 +837,7 @@ fn test_zsh_comp<T: std::fmt::Debug>(
 
 #[test]
 #[should_panic(expected = "Parser supports ")]
-fn ambiguity() {
+fn ambiguity_no_resolve() {
     #[derive(Debug, Clone)]
     enum A {
         V(Vec<bool>),
@@ -849,6 +849,26 @@ fn ambiguity() {
 
     let parser = construct!([a0, a1]).to_options();
     test_zsh_comp(&parser, &["-aaa"], &[["-aaa", "", "", ""]]);
+}
+
+#[test]
+fn ambiguity_to_flags() {
+    let parser = short('a').switch().many().to_options();
+
+    // TODO - this should probably suggest "-aaa" and exit
+    test_zsh_comp(&parser, &["-aaa"], &[]);
+}
+
+#[test]
+fn ambiguity_to_arg() {
+    let parser = short('a').argument::<String>("AAAAAA").to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-aaa"]).set_comp(1))
+        .unwrap_err()
+        .unwrap_stdout();
+    // TODO - this should probably suggest "-aaa" and exit
+    assert_eq!(r, "aa\n");
 }
 
 #[test]

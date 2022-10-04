@@ -309,20 +309,28 @@ mod inner {
         ) -> Result<(), ParseFailure> {
             let mut pos = 0;
 
+            if self.ambig == 0 {
+                return Ok(());
+            }
+
+            let mut new_items = self.items.to_vec();
+
             // can't iterate over items since it might change in process
             loop {
                 if self.ambig == 0 || pos == self.items.len() {
-                    return Ok(());
+                    break;
                 }
                 // look for ambiguities, resolve or skip them. resolving involves recreating
                 // `items` and `removed`
 
-                if let Arg::Ambiguity(items, os) = &self.items[pos] {
+                if let Arg::Ambiguity(items, os) = &mut new_items[pos] {
                     let flag_ok = items.iter().all(|i| flags.contains(i));
                     let arg_ok = args.contains(&items[0]);
+                    self.ambig -= 1;
 
                     match (flag_ok, arg_ok) {
                         (true, true) => {
+                            // give up and exit
                             let s = os.to_str().unwrap();
                             let msg = format!(
                                 "Parser supports -{} as both option and option-argument, \
@@ -338,8 +346,10 @@ mod inner {
                             return Err(ParseFailure::Stderr(msg));
                         }
                         (true, false) => {
-                            // disambiguate as multiple flags
-                            let mut new_items = self.items.to_vec();
+                            // disambiguate as multiple short flags
+                            let items = std::mem::take(items);
+                            let os = std::mem::take(os);
+
                             new_items.remove(pos);
                             self.removed.remove(pos);
                             for short in items.iter().rev() {
@@ -347,28 +357,33 @@ mod inner {
                                 new_items.insert(pos, Arg::Short(*short, false, OsString::new()));
                                 self.removed.insert(pos, false);
                             }
-                            new_items[pos] = Arg::Short(items[0], false, os.clone());
+                            // items[0] is written twice - in a loop above without `os` and right here,
+                            // with `os` present
+                            new_items[pos] = Arg::Short(items[0], false, os);
+
                             self.remaining += items.len() - 1;
-                            self.items = Rc::from(new_items);
-                            self.ambig -= 1;
                         }
                         (false, true) => {
                             // disambiguate as a single option-argument
-                            let mut new_items = self.items.to_vec();
-                            new_items[pos] = Arg::Short(items[0], true, os.clone());
-                            let word = os.to_str().unwrap()[1 + items[0].len_utf8()..].to_string();
-                            new_items.insert(pos + 1, Arg::Word(OsString::from(word)));
-                            self.items = Rc::from(new_items);
+                            let word = Arg::Word(OsString::from(
+                                &os.to_str().unwrap()[1 + items[0].len_utf8()..],
+                            ));
+                            new_items[pos] = Arg::Short(items[0], true, std::mem::take(os));
+                            new_items.insert(pos + 1, word);
                             self.removed.insert(pos, false);
 
                             self.remaining += 1; // removed Ambiguity, added short and word
-                            self.ambig -= 1;
                         }
-                        (false, false) => {}
+                        (false, false) => {
+                            // can't parse it as neither flag or argument, give up.
+                            // ambiguity will stay and will be reported around meta_youmean
+                        }
                     }
                 }
                 pos += 1;
             }
+            self.items = Rc::from(new_items);
+            Ok(())
         }
     }
 
