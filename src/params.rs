@@ -866,38 +866,35 @@ fn parse_word(
     metavar: &'static str,
     help: &Option<String>,
 ) -> Result<OsString, Error> {
-    match args.take_positional_word()? {
-        Some((is_strict, word)) => {
-            if strict && !is_strict {
-                #[cfg(feature = "autocomplete")]
-                args.push_value("--", &Some("-- Positional only items".to_owned()), false);
-
-                return Err(Error::Stderr(format!(
-                    "Expected <{}> to be on the right side of --",
-                    metavar,
-                )));
-            }
+    if let Some((is_strict, word)) = args.take_positional_word()? {
+        if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
-            if args.touching_last_remove() && !args.no_pos_ahead {
-                args.push_metadata(metavar, help, false);
-                args.no_pos_ahead = true;
-            }
-            Ok(word)
-        }
-        None => {
-            #[cfg(feature = "autocomplete")]
-            if !args.no_pos_ahead {
-                args.push_metadata(metavar, help, false);
-                args.no_pos_ahead = true;
-            }
+            args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            let item = Item::Positional {
+            return Err(Error::Stderr(format!(
+                "Expected <{}> to be on the right side of --",
                 metavar,
-                help: help.clone(),
-                strict,
-            };
-            Err(Error::Missing(vec![item]))
+            )));
         }
+        #[cfg(feature = "autocomplete")]
+        if args.touching_last_remove() && !args.no_pos_ahead {
+            args.push_metadata(metavar, help, false);
+            args.no_pos_ahead = true;
+        }
+        Ok(word)
+    } else {
+        #[cfg(feature = "autocomplete")]
+        if !args.no_pos_ahead {
+            args.push_metadata(metavar, help, false);
+            args.no_pos_ahead = true;
+        }
+
+        let item = Item::Positional {
+            metavar,
+            help: help.clone(),
+            strict,
+        };
+        Err(Error::Missing(vec![item]))
     }
 }
 
