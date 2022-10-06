@@ -308,8 +308,6 @@ impl Outer {
         if let Some(OuterKind::Command(cmd)) = &mut res.kind {
             cmd.shorts.append(&mut res.shorts);
             cmd.longs.append(&mut res.longs);
-        } else if !(res.shorts.is_empty() && res.longs.is_empty()) {
-            todo!()
         }
 
         res.decor = Decor::new(&help, res.version.take());
@@ -446,7 +444,12 @@ impl Top {
         }
 
         let inner = match branches.len() {
-            0 => todo!(),
+            0 => {
+                return Err(syn::Error::new(
+                    outer_ty.span(),
+                    "Can't construct a parser from empty enum",
+                ))
+            }
             1 => branches.remove(0),
             _ => BParser::Fold(branches, outer.fallback.clone()),
         };
@@ -634,7 +637,7 @@ impl Fields {
         }
     }
 
-    const fn struct_definition_followed_by_semi(&self) -> bool {
+    fn struct_definition_followed_by_semi(&self) -> bool {
         match self {
             Fields::Named(_) | Fields::NoFields => false,
             Fields::Unnamed(_) => true,

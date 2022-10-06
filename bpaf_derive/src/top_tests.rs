@@ -141,6 +141,41 @@ fn struct_command() {
 }
 
 #[test]
+fn struct_command_short() {
+    let input: Top = parse_quote! {
+        /// those are options
+        #[bpaf(command, short('x'))]
+        struct O{}
+    };
+
+    let expected = quote! {
+        fn o() -> impl ::bpaf::Parser<O> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let inner_cmd =
+                    { ::bpaf::construct!(O{}) }
+                    .to_options()
+                    .descr("those are options")
+                ;
+                ::bpaf::command("o", inner_cmd)
+                    .help("those are options")
+                    .short('x')
+            }
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[should_panic(expected = "Can't construct a parser from empty enum")]
+#[test]
+fn empty_enum() {
+    let _: Top = parse_quote! {
+        enum Opt { }
+    };
+}
+
+#[test]
 fn enum_command() {
     let input: Top = parse_quote! {
         /// those are options

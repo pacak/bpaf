@@ -44,7 +44,7 @@ pub fn to_kebab_case(input: &str) -> String {
 pub fn to_custom_case(input: &str, sep: char) -> String {
     let mut res = String::with_capacity(input.len() * 2);
     for c in input.chars() {
-        if ('A'..='Z').contains(&c) {
+        if c >= 'A' && c <= 'Z' {
             if !res.is_empty() {
                 res.push(sep);
             }
