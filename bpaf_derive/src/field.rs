@@ -54,7 +54,7 @@ enum PostprAttr {
 }
 
 impl PostprAttr {
-    const fn can_derive(&self) -> bool {
+    fn can_derive(&self) -> bool {
         match self {
             PostprAttr::Many(..)
             | PostprAttr::Map(..)
@@ -102,8 +102,8 @@ impl Parse for Doc {
     fn parse(input: parse::ParseStream) -> Result<Self> {
         input.parse::<Token![=]>()?;
         let mut s = input.parse::<LitStr>()?.value();
-        if let Some(rest) = s.strip_prefix(' ') {
-            s = rest.to_string();
+        if s.starts_with(' ') {
+            s = s[1..].to_string();
         }
         Ok(Doc(s))
     }

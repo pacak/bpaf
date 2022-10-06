@@ -185,12 +185,11 @@ impl std::fmt::Display for HelpItem<'_> {
                 let width = f.width().unwrap();
                 if let Some(env) = env {
                     let pad = width - self.full_width();
-                    let val = match std::env::var(env) {
-                        Ok(val) => format!(" = {:?}", val),
-                        Err(std::env::VarError::NotPresent) => ": N/A".to_string(),
-                        Err(std::env::VarError::NotUnicode(_)) => {
-                            ": current value is not utf8".to_string()
-                        }
+
+                    let m_os = std::env::var_os(env);
+                    let val = match &m_os {
+                        Some(s) => std::borrow::Cow::from(format!(" = {:?}", s.to_string_lossy())),
+                        None => std::borrow::Cow::Borrowed(": N/A"),
                     };
                     let next_pad = 4 + self.full_width();
                     write!(f, "{:pad$}  [env:{}{}]", "", env, val, pad = pad,)?;
@@ -200,7 +199,7 @@ impl std::fmt::Display for HelpItem<'_> {
                 }
                 Ok(())
             }
-            HelpItem::Decor { help } => return write!(f, "  {}", help),
+            HelpItem::Decor { help } => write!(f, "  {}", help),
             HelpItem::BlankDecor => Ok(()),
             HelpItem::Positional {
                 metavar,
@@ -310,8 +309,7 @@ impl HelpItem<'_> {
 
     fn help(&self) -> Option<&str> {
         match self {
-            HelpItem::Decor { help } => Some(help),
-            HelpItem::BlankDecor => None,
+            HelpItem::Decor { .. } | HelpItem::BlankDecor => None,
             HelpItem::Command { help, .. }
             | HelpItem::Flag { help, .. }
             | HelpItem::Argument { help, .. }

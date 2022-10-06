@@ -1,6 +1,12 @@
-#![doc = include_str!("../README.md")]
+//! # Derive macro for bpaf command line parser
+//!
+//! For documentation refer to `bpaf` library docs: <https://docs.rs/bpaf/latest/bpaf/>
+
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::single_match_else)]
 use quote::ToTokens;
 use syn::parse_macro_input;
+extern crate proc_macro;
 
 mod field;
 #[cfg(test)]

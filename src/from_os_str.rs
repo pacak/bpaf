@@ -1,13 +1,15 @@
-use std::{ffi::OsString, path::PathBuf, str::FromStr};
+use std::{
+    any::{Any, TypeId},
+    ffi::OsString,
+    path::PathBuf,
+    str::FromStr,
+};
 
 pub(crate) fn parse_os_str<T>(os: OsString) -> Result<T, String>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    use std::any::Any;
-    use std::any::*;
-
     if TypeId::of::<T>() == TypeId::of::<OsString>() {
         let anybox: Box<dyn Any> = Box::new(os);
         Ok(*(anybox.downcast::<T>().unwrap()))
