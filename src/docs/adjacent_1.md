@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -42,7 +42,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Order of items within the rectangle is not significant and you can have several of them

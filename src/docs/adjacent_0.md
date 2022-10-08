@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -42,7 +42,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Derive usage</summary>
+<summary style="display: list-item;">Derive usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -72,7 +72,7 @@ struct Multi {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 short flag `-m` takes 3 positional arguments: two integers and one floating point, order is

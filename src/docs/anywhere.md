@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -49,7 +49,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 This example shows how to parse some very unusual options, same style as used by Xorg

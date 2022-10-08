@@ -150,7 +150,10 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_r, "}}")?;
 
         writeln!(t_d, "<details>")?;
-        writeln!(t_d, "<summary>Combinatoric usage</summary>")?;
+        writeln!(
+            t_d,
+            "<summary style=\"display: list-item;\">Combinatoric usage</summary>"
+        )?;
         writeln!(t_d)?;
         writeln!(t_d, "```no_run")?;
         include_file(&mut t_d, path.join("combine.rs"))?;
@@ -170,7 +173,10 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
         writeln!(t_r, "}}")?;
 
         writeln!(t_d, "<details>")?;
-        writeln!(t_d, "<summary>Derive usage</summary>")?;
+        writeln!(
+            t_d,
+            "<summary style=\"display: list-item;\">Derive usage</summary>"
+        )?;
         writeln!(t_d)?;
         writeln!(t_d, "```no_run")?;
         include_file(&mut t_d, path.join("derive.rs"))?;
@@ -198,7 +204,10 @@ fn import_example<P: AsRef<Path>>(path: P) -> Result<(String, String), Box<dyn E
     }
 
     writeln!(t_d, "<details>")?;
-    writeln!(t_d, "<summary>Examples</summary>")?;
+    writeln!(
+        t_d,
+        "<summary style=\"display: list-item;\">Examples</summary>"
+    )?;
     writeln!(t_d)?;
     for sample in &cases {
         writeln!(t_d, "\n{}", sample.descr.trim())?;

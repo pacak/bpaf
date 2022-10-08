@@ -111,7 +111,7 @@ fn main() {
 
 ```
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Usually `find` takes a path where to look, the rest is optional

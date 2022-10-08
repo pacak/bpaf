@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -51,7 +51,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 You can chain one or more commands, commands can be arbitrarily nested too

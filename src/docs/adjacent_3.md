@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use std::ffi::OsString;
@@ -30,7 +30,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 You can have as many items between `--exec` and `;` as you want, they all will be captured

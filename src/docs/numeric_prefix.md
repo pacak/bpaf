@@ -24,7 +24,7 @@ fn main() {
 
 ```
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 If `bpaf` can parse first positional argument as number - it becomes a numeric prefix
