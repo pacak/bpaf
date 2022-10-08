@@ -228,8 +228,7 @@ impl<T> OptionParser<T> {
     }
 
     /// Run subparser, implementation detail
-    #[doc(hidden)]
-    pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
+    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
         let res = self.inner.eval(args);
         if let Err(Error::Stdout(_)) = &res {
@@ -279,12 +278,12 @@ impl<T> OptionParser<T> {
 
         Err(report_missing_items(err))
     }
+
     /// Get first line of description if Available
     ///
     /// Used internally to avoid duplicating description for [`command`].
-    #[doc(hidden)]
     #[must_use]
-    pub fn short_descr(&self) -> Option<&'static str> {
+    pub(crate) fn short_descr(&self) -> Option<&'static str> {
         self.info.descr.and_then(|descr| descr.lines().next())
     }
 
