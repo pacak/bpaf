@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Terminate and print this to stdout
     Stdout(String),
@@ -624,13 +624,11 @@ impl Parser<ExtraParams> for ParseExtraParams {
         if let Ok(ok) = ParseExtraParams::help().eval(args) {
             return Ok(ok);
         }
-        let not_ok = Error::Stderr(String::from("Not a version or help flag"));
-        let ver = self.version.ok_or_else(|| not_ok.clone())?;
 
-        if let Ok(ok) = Self::ver(ver).eval(args) {
-            return Ok(ok);
+        match self.version {
+            Some(ver) => Self::ver(ver).eval(args),
+            None => Err(Error::Stderr(String::from("Not a version or help flag"))),
         }
-        Err(not_ok)
     }
 
     fn meta(&self) -> Meta {
