@@ -311,6 +311,15 @@
 //! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
 //!
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
+//!
+//! - `bright-color`, `dull-color`: use more colors when printing `--help` and such. Enabling
+//!   either color feature adds some extra dependencies and might raise MRSV. If you are planning
+//!   to use this feature in a published app - it's best to expose them as feature flags:
+//!   ```toml
+//!   [features]
+//!   bright-color = ["bpaf/bright-color"]
+//!   dull-color = ["bpaf/dull-color"]
+//!   ```
 
 #[macro_use]
 #[cfg(feature = "color")]
@@ -396,7 +405,6 @@ pub(self) use crate::parsers::NamedArg;
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
 mod from_os_str;
-pub use from_os_str::*;
 
 /// Compose several parsers to produce a single result
 ///

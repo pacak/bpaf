@@ -15,8 +15,9 @@ Lightweight and flexible command line argument parser with derive and combinator
  - [Derive tutorial][__link0]
  - [Combinatoric tutorial][__link1]
  - [Some very unusual cases][__link2]
- - [Batteries included][__link3]
- - [Q&A][__link4]
+ - [Applicative functors? What is it all about][__link3]
+ - [Batteries included][__link4]
+ - [Q&A][__link5]
 
 
 ## Quick start, derive edition
@@ -197,9 +198,9 @@ But not this one:
 > 
 This set of restrictions allows `bpaf` to extract information about the structure of the computations to generate help, dynamic completion and overall results in less confusing enduser experience
 
-`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link5]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link6] and [`argument`][__link7] you should put the argument one first.
+`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link6]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link7] and [`argument`][__link8] you should put the argument one first.
 
-You must place [`positional`][__link8] items at the end of a structure in derive API or consume them as last arguments in derive API.
+You must place [`positional`][__link9] items at the end of a structure in derive API or consume them as last arguments in derive API.
 
 
 ## Dynamic shell completion
@@ -214,7 +215,7 @@ You must place [`positional`][__link8] items at the end of a structure in derive
 	```
 	
 	
- 1. Decorate [`argument`][__link9] and [`positional`][__link10] parsers with [`complete`][__link11] to autocomplete argument values
+ 1. Decorate [`argument`][__link10] and [`positional`][__link11] parsers with [`complete`][__link12] to autocomplete argument values
 	
 	
  1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
@@ -277,7 +278,7 @@ $ cargo run --example example_name
 
 ## Testing your own parsers
 
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link13]
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link14]
 
 
 ```rust
@@ -317,19 +318,30 @@ Usage --user <ARG>
  - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 	
 	
+ - `bright-color`, `dull-color`: use more colors when printing `--help` and such. Enabling either color feature adds some extra dependencies and might raise MRSV. If you are planning to use this feature in a published app - it’s best to expose them as feature flags:
+	
+	
+	```toml
+	[features]
+	bright-color = ["bpaf/bright-color"]
+	dull-color = ["bpaf/dull-color"]
+	```
+	
+	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGw52TMFIEQ0AG46Pg8Mnw4vqGw_DNHCWbX04G8RrPk7U2y7jYWSBgmRicGFmZTAuNi4w
- [__link0]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.6.0/bpaf/?search=params::positional
- [__link11]: https://docs.rs/bpaf/0.6.0/bpaf/?search=bpaf::Parser::complete
- [__link13]: https://docs.rs/bpaf/0.6.0/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.6.0/bpaf/?search=_unusual
- [__link3]: https://docs.rs/bpaf/0.6.0/bpaf/?search=batteries
- [__link4]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link5]: https://docs.rs/bpaf/0.6.0/bpaf/?search=bpaf::Parser::fallback
- [__link6]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::switch
- [__link7]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::argument
- [__link8]: https://docs.rs/bpaf/0.6.0/bpaf/?search=params::positional
- [__link9]: https://docs.rs/bpaf/0.6.0/bpaf/?search=parsers::NamedArg::argument
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG2QV09F__ZfbG2mHV-IJTiKrG00wy0_0pJVAG_GeoKpmAnK1YWSBgmRicGFmZTAuNy4w
+ [__link0]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
+ [__link11]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
+ [__link12]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::complete
+ [__link14]: https://docs.rs/bpaf/0.7.0/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_unusual
+ [__link3]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_applicative
+ [__link4]: https://docs.rs/bpaf/0.7.0/bpaf/?search=batteries
+ [__link5]: https://github.com/pacak/bpaf/discussions/categories/q-a
+ [__link6]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::fallback
+ [__link7]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::switch
+ [__link8]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
+ [__link9]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
