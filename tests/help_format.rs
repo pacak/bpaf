@@ -2,6 +2,7 @@ use bpaf::*;
 
 #[test]
 fn decorations() {
+    set_override(false);
     let p = short('p')
         .long("parser")
         .env("BPAF_VARIABLE")

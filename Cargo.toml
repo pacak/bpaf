@@ -15,6 +15,7 @@ exclude = [".github/workflows", "tarp.sh"]
 
 [dependencies]
 bpaf_derive = { path = "./bpaf_derive", version = "=0.3.1", optional = true }
+owo-colors = { version = "3.5.0", features = ["supports-colors"], optional = true }
 
 [dev-dependencies]
 bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
@@ -30,6 +31,9 @@ derive = ["bpaf_derive"]
 extradocs = []
 batteries = []
 autocomplete = []
+color = ["owo-colors"]
+bright-color = ["color"]
+dull-color = ["color"]
 
 [[test]]
 name = "completion"

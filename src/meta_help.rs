@@ -172,15 +172,15 @@ impl ShortLongHelp {
     }
 }
 
-struct Long(&'static str);
-impl std::fmt::Display for Long {
+pub(crate) struct Long<'a>(pub(crate) &'a str);
+impl std::fmt::Display for Long<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("--")?;
         f.write_str(self.0)
     }
 }
 
-struct Short(char);
+pub(crate) struct Short(pub(crate) char);
 impl std::fmt::Display for Short {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Write;
@@ -192,9 +192,11 @@ impl std::fmt::Display for Short {
 impl std::fmt::Display for ShortLongHelp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            ShortLong::Short(short) => write!(f, "{}", Short(short)),
-            ShortLong::Long(long) => write!(f, "    {}", Long(long)),
-            ShortLong::ShortLong(short, long) => write!(f, "{}, {}", Short(short), Long(long)),
+            ShortLong::Short(short) => write!(f, "{}", w_flag!(Short(short))),
+            ShortLong::Long(long) => write!(f, "    {}", w_flag!(Long(long))),
+            ShortLong::ShortLong(short, long) => {
+                write!(f, "{}, {}", w_flag!(Short(short)), w_flag!(Long(long)))
+            }
         }
     }
 }
@@ -210,7 +212,7 @@ impl std::fmt::Display for HelpItem<'_> {
                 help,
                 env,
             } => {
-                write!(f, "    {} {}", name, metavar)?;
+                write!(f, "    {} {}", name, w_flag!(metavar))?;
 
                 let width = f.width().unwrap();
                 if let Some(env) = env {
@@ -237,9 +239,9 @@ impl std::fmt::Display for HelpItem<'_> {
                 strict,
             } => {
                 if *strict {
-                    write!(f, "    -- {}", metavar)
+                    write!(f, "    -- {}", w_flag!(metavar))
                 } else {
-                    write!(f, "    {}", metavar)
+                    write!(f, "    {}", w_flag!(metavar))
                 }
             }
             HelpItem::Command {
@@ -247,8 +249,8 @@ impl std::fmt::Display for HelpItem<'_> {
                 help: _,
                 short,
             } => match short {
-                Some(s) => write!(f, "    {}, {}", name, s),
-                None => write!(f, "    {}", name),
+                Some(s) => write!(f, "    {}, {}", w_flag!(name), w_flag!(s)),
+                None => write!(f, "    {}", w_flag!(name)),
             },
         }?;
 
@@ -391,7 +393,7 @@ pub(crate) fn render_help(
             .map(HelpItem::full_width)
             .max()
             .unwrap_or(0);
-        write!(res, "\nAvailable positional items:\n")?;
+        w_section!(res, "\nAvailable positional items:\n")?;
         for i in &items.psns {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
@@ -404,14 +406,14 @@ pub(crate) fn render_help(
             .map(HelpItem::full_width)
             .max()
             .unwrap_or(0);
-        write!(res, "\nAvailable options:\n")?;
+        w_section!(res, "\nAvailable options:\n")?;
         for i in &items.flgs {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
 
     if !items.cmds.is_empty() {
-        write!(res, "\nAvailable commands:\n")?;
+        w_section!(res, "\nAvailable commands:\n")?;
         let max_width = items
             .cmds
             .iter()
