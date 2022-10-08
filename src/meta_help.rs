@@ -6,6 +6,19 @@ use crate::{
     Meta,
 };
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub(crate) struct Metavar(&'static str);
+
+impl std::fmt::Display for Metavar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        f.write_char('<')?;
+        f.write_str(self.0)?;
+        f.write_char('>')
+    }
+}
+
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
 pub(crate) enum HelpItem<'a> {
     Decor {
@@ -14,7 +27,7 @@ pub(crate) enum HelpItem<'a> {
     BlankDecor,
     Positional {
         strict: bool,
-        metavar: &'static str,
+        metavar: Metavar,
         help: Option<&'a str>,
     },
     Command {
@@ -28,7 +41,7 @@ pub(crate) enum HelpItem<'a> {
     },
     Argument {
         name: ShortLongHelp,
-        metavar: &'static str,
+        metavar: Metavar,
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
@@ -66,7 +79,7 @@ impl<'a> HelpItems<'a> {
             } => {
                 if help.is_some() {
                     self.psns.push(HelpItem::Positional {
-                        metavar,
+                        metavar: Metavar(metavar),
                         help: help.as_deref(),
                         strict: *strict,
                     });
@@ -100,7 +113,7 @@ impl<'a> HelpItems<'a> {
                 shorts: _,
             } => self.flgs.push(HelpItem::Argument {
                 name: ShortLongHelp(*name),
-                metavar,
+                metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
             }),
@@ -159,12 +172,29 @@ impl ShortLongHelp {
     }
 }
 
+struct Long(&'static str);
+impl std::fmt::Display for Long {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("--")?;
+        f.write_str(self.0)
+    }
+}
+
+struct Short(char);
+impl std::fmt::Display for Short {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        f.write_char('-')?;
+        f.write_char(self.0)
+    }
+}
+
 impl std::fmt::Display for ShortLongHelp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            ShortLong::Short(short) => write!(f, "-{}", short),
-            ShortLong::Long(long) => write!(f, "    --{}", long),
-            ShortLong::ShortLong(short, long) => write!(f, "-{}, --{}", short, long),
+            ShortLong::Short(short) => write!(f, "{}", Short(short)),
+            ShortLong::Long(long) => write!(f, "    {}", Long(long)),
+            ShortLong::ShortLong(short, long) => write!(f, "{}, {}", Short(short), Long(long)),
         }
     }
 }
@@ -180,7 +210,7 @@ impl std::fmt::Display for HelpItem<'_> {
                 help,
                 env,
             } => {
-                write!(f, "    {} <{}>", name, metavar)?;
+                write!(f, "    {} {}", name, metavar)?;
 
                 let width = f.width().unwrap();
                 if let Some(env) = env {
@@ -207,9 +237,9 @@ impl std::fmt::Display for HelpItem<'_> {
                 strict,
             } => {
                 if *strict {
-                    write!(f, "    -- <{}>", metavar)
+                    write!(f, "    -- {}", metavar)
                 } else {
-                    write!(f, "    <{}>", metavar)
+                    write!(f, "    {}", metavar)
                 }
             }
             HelpItem::Command {
@@ -248,7 +278,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 help,
                 strict,
             } => Self::Positional {
-                metavar,
+                metavar: Metavar(metavar),
                 strict: *strict,
                 help: help.as_deref(),
             },
@@ -278,7 +308,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 shorts: _,
             } => Self::Argument {
                 name: ShortLongHelp(*name),
-                metavar,
+                metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
             },
@@ -294,8 +324,8 @@ impl HelpItem<'_> {
         match self {
             HelpItem::Decor { .. } | HelpItem::BlankDecor { .. } => 0,
             HelpItem::Flag { name, .. } => name.full_width(),
-            HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
-            HelpItem::Positional { metavar, .. } => metavar.len() + 2,
+            HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.0.len() + 3,
+            HelpItem::Positional { metavar, .. } => metavar.0.len() + 2,
             HelpItem::Command {
                 name, short: None, ..
             } => name.len(),
