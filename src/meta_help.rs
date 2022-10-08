@@ -173,14 +173,14 @@ impl std::fmt::Display for ShortLongHelp {
 impl std::fmt::Display for HelpItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HelpItem::Flag { name, help: _ } => write!(f, "    {:#}", name),
+            HelpItem::Flag { name, help: _ } => write!(f, "    {}", name),
             HelpItem::Argument {
                 name,
                 metavar,
                 help,
                 env,
             } => {
-                write!(f, "    {:#} <{}>", name, metavar)?;
+                write!(f, "    {} <{}>", name, metavar)?;
 
                 let width = f.width().unwrap();
                 if let Some(env) = env {
