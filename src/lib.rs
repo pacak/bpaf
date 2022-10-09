@@ -762,45 +762,10 @@ pub trait Parser<T> {
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
     /// `many` only collects elements that only consume something from the argument list.
+    /// For derive usage `bpaf_derive` would insert implicit `many` when resulting type is a
+    /// vector.
     ///
-    /// # Combinatoric usage:
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn numbers() -> impl Parser<Vec<u32>> {
-    ///     short('n')
-    ///         .argument::<u32>("NUM")
-    ///         .many()
-    /// }
-    /// ```
-    ///
-    /// # Derive usage:
-    /// `bpaf` would insert implicit `many` when resulting type is a vector
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument("NUM"))]
-    ///     numbers: Vec<u32>
-    /// }
-    /// ```
-    /// But it's also possible to specify it explicitly, both cases renerate the same code.
-    /// Note, since using `many` resets the postprocessing chain - you also need to specify
-    /// `argument`'s turbofish.
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument::<u32>("NUM"), many)]
-    ///     numbers: Vec<u32>
-    /// }
-    /// ```
-    ///
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -n 1 -n 2 -n 3
-    /// // [1, 2, 3]
-    /// ```
+    #[doc = include_str!("docs/many.md")]
     ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
@@ -827,36 +792,7 @@ pub trait Parser<T> {
     ///
     /// `some` only collects elements that only consume something from the argument list.
     ///
-    /// # Combinatoric usage:
-    /// ```rust
-    /// # use bpaf::*;
-    /// let numbers
-    ///     = short('n')
-    ///     .argument::<u32>("NUM")
-    ///     .some("Need at least one number");
-    /// # drop(numbers);
-    /// ```
-    ///
-    /// # Derive usage
-    /// Since using `some` resets the postprocessing chain - you also might need to specify
-    /// the type in turbofish:
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument::<u32>("NUM"), some("Need at least one number"))]
-    ///     numbers: Vec<u32>
-    /// }
-    /// ```
-    ///
-    ///
-    /// # Example
-    /// ```console
-    /// $ app
-    /// // fails with "Need at least one number"
-    /// $ app -n 1 -n 2 -n 3
-    /// // [1, 2, 3]
-    /// ```
+    #[doc = include_str!("docs/some.md")]
     ///
     /// # See also
     /// [`many`](Parser::many) also collects results to a vector but succeeds with
