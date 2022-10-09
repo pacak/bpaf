@@ -1,6 +1,7 @@
 use crate::{
     args::Arg,
     item::{Item, ShortLong},
+    meta_help::{Long, Short},
     Args, Error, Meta,
 };
 
@@ -61,10 +62,10 @@ enum I<'a> {
 impl std::fmt::Debug for I<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ShortFlag(s) => write!(f, "flag: `-{}`", s),
-            Self::LongFlag(s) => write!(f, "flag: `--{}`", s),
-            Self::ShortCmd(s) => write!(f, "command alias: `{}`", s),
-            Self::LongCmd(s) => write!(f, "command: `{}`", s),
+            Self::ShortFlag(s) => write!(f, "flag: `{}`", w_err!(Short(*s))),
+            Self::LongFlag(s) => write!(f, "flag: `{}`", w_err!(Long(s))),
+            Self::ShortCmd(s) => write!(f, "command alias: `{}`", w_err!(s)),
+            Self::LongCmd(s) => write!(f, "command: `{}`", w_err!(s)),
         }
     }
 }
@@ -85,7 +86,11 @@ impl std::fmt::Display for I<'_> {
 fn ins(expected: I, actual: I, variants: &mut Vec<(usize, String)>) {
     variants.push((
         levenshtein(&expected.to_string(), &actual.to_string()),
-        format!("No such {:?}, did you mean `{}`?", actual, expected),
+        format!(
+            "No such {:?}, did you mean `{}`?",
+            actual,
+            w_flag!(expected)
+        ),
     ));
 }
 
@@ -127,7 +132,10 @@ fn inner(arg: &Arg, meta: &Meta, variants: &mut Vec<(usize, String)>) {
             }
         }
         Meta::Item(item) => inner_item(arg, item, variants),
-        Meta::Optional(meta) | Meta::Many(meta) | Meta::Decorated(meta, _) => {
+        Meta::HideUsage(meta)
+        | Meta::Optional(meta)
+        | Meta::Many(meta)
+        | Meta::Decorated(meta, _) => {
             inner(arg, meta, variants);
         }
         Meta::Skip => {}

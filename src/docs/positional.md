@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use std::{path::PathBuf, str::FromStr};
@@ -45,7 +45,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Derive usage</summary>
+<summary style="display: list-item;">Derive usage</summary>
 
 ```no_run
 # use std::{path::PathBuf, str::FromStr};
@@ -86,7 +86,7 @@ impl FromStr for Coin {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Positionals are consumed left to right, one at a time, no skipping unless the value is optional

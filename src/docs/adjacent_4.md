@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -37,7 +37,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Let's start simple - a single flag accepts a bunch of stuff, and eveything is present

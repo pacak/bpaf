@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -23,7 +23,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Derive usage</summary>
+<summary style="display: list-item;">Derive usage</summary>
 
 ```no_run
 # use bpaf::*;
@@ -44,7 +44,7 @@ pub struct Options {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Names for arguments could be short or long, and they can be parsed as mutiple different

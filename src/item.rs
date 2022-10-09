@@ -56,7 +56,7 @@ impl std::fmt::Display for Item {
                 metavar,
                 help: _,
                 strict: _,
-            } => write!(f, "<{}>", metavar),
+            } => metavar.fmt(f),
             Item::Command { .. } => write!(f, "COMMAND ..."),
             Item::Flag {
                 name,

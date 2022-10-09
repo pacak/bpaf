@@ -311,6 +311,29 @@
 //! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
 //!
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
+//!
+//! - `bright-color`, `dull-color`: use more colors when printing `--help` and such. Enabling
+//!   either color feature adds some extra dependencies and might raise MRSV. If you are planning
+//!   to use this feature in a published app - it's best to expose them as feature flags:
+//!   ```toml
+//!   [features]
+//!   bright-color = ["bpaf/bright-color"]
+//!   dull-color = ["bpaf/dull-color"]
+//!   ```
+
+#[macro_use]
+#[cfg(feature = "color")]
+mod color;
+
+#[macro_use]
+#[cfg(not(feature = "color"))]
+mod no_color;
+
+#[cfg(feature = "color")]
+pub use color::set_override;
+
+#[cfg(not(feature = "color"))]
+pub use no_color::set_override;
 
 #[cfg(feature = "extradocs")]
 pub mod _applicative;
@@ -359,8 +382,8 @@ pub mod parsers {
 
 use structs::{
     ParseAdjacent, ParseAnywhere, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure,
-    ParsePureWith, ParseSome, ParseWith,
+    ParseGuard, ParseHide, ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse,
+    ParsePure, ParsePureWith, ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -382,7 +405,6 @@ pub(self) use crate::parsers::NamedArg;
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
 mod from_os_str;
-pub use from_os_str::*;
 
 /// Compose several parsers to produce a single result
 ///
@@ -1360,6 +1382,21 @@ pub trait Parser<T> {
         ParseHide { inner: self }
     }
     // }}}
+
+    /// Ignore this parser when generating usage line
+    ///
+    /// Parsers hidden from usage will still show up in available arguments list. Best used on
+    /// optional things that augment main application functionality but not define it. You might
+    /// use custom usage to indicate that some options are hidden
+    ///
+    #[doc = include_str!("docs/hide_usage.md")]
+    #[must_use]
+    fn hide_usage(self) -> ParseHideUsage<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseHideUsage { inner: self }
+    }
 
     // {{{ group_help
     /// Attach help message to a complex parser

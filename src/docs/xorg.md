@@ -77,7 +77,7 @@ fn main() {
 
 ```
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 `xorg` takes parameters in a few different ways, notably as a long name starting with plus or

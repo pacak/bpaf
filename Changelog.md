@@ -5,6 +5,8 @@
 - pure_with implementation
   thanks to @xitep
 - FromOsStr is replaced with magical uses of Any trait
+- hide_usage
+- bright-color and dull-color features
 
 # Migration guide 0.6.x -> 0.7.x
 1. Remove FromUtf8 annotations if you have any

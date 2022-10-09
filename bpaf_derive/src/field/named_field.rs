@@ -270,6 +270,9 @@ impl Field {
                     } else if keyword == "hide" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Hide(span));
+                    } else if keyword == "hide_usage" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        res.postpr.push(PostprAttr::HideUsage(span));
                     } else if keyword == "catch" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Catch(span));

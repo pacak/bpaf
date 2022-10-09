@@ -49,6 +49,7 @@ enum PostprAttr {
     FallbackWith(Span, Box<Expr>),
     Complete(Span, Ident),
     Hide(Span),
+    HideUsage(Span),
     GroupHelp(Span, Box<Expr>),
     Catch(Span),
 }
@@ -65,6 +66,7 @@ impl PostprAttr {
             | PostprAttr::FallbackWith(..)
             | PostprAttr::Complete(..)
             | PostprAttr::Hide(..)
+            | PostprAttr::HideUsage(..)
             | PostprAttr::Catch(..)
             | PostprAttr::GroupHelp(..) => true,
         }
@@ -81,6 +83,7 @@ impl PostprAttr {
             | PostprAttr::FallbackWith(span, _)
             | PostprAttr::Complete(span, _)
             | PostprAttr::Hide(span)
+            | PostprAttr::HideUsage(span)
             | PostprAttr::Catch(span)
             | PostprAttr::GroupHelp(span, _) => *span,
         }
@@ -202,6 +205,7 @@ impl ToTokens for PostprAttr {
             PostprAttr::Fallback(_span, v) => quote!(fallback(#v)),
             PostprAttr::FallbackWith(_span, v) => quote!(fallback_with(#v)),
             PostprAttr::Hide(_span) => quote!(hide()),
+            PostprAttr::HideUsage(_span) => quote!(hide_usage()),
             PostprAttr::Catch(_span) => quote!(catch()),
             PostprAttr::Complete(_span, f) => quote!(complete(#f)),
             PostprAttr::GroupHelp(_span, m) => quote!(group_help(#m)),

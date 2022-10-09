@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub enum Error {
     /// Terminate and print this to stdout
     Stdout(String),
@@ -228,8 +228,7 @@ impl<T> OptionParser<T> {
     }
 
     /// Run subparser, implementation detail
-    #[doc(hidden)]
-    pub fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
+    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
         let depth = args.depth;
         let res = self.inner.eval(args);
         if let Err(Error::Stdout(_)) = &res {
@@ -279,12 +278,12 @@ impl<T> OptionParser<T> {
 
         Err(report_missing_items(err))
     }
+
     /// Get first line of description if Available
     ///
     /// Used internally to avoid duplicating description for [`command`].
-    #[doc(hidden)]
     #[must_use]
-    pub fn short_descr(&self) -> Option<&'static str> {
+    pub(crate) fn short_descr(&self) -> Option<&'static str> {
         self.info.descr.and_then(|descr| descr.lines().next())
     }
 
@@ -605,7 +604,7 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
                 perform_invariant_check(i, false);
             }
         }
-        Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
+        Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
             perform_invariant_check(x, false);
         }
         Meta::Item(i) => match i {
@@ -625,13 +624,11 @@ impl Parser<ExtraParams> for ParseExtraParams {
         if let Ok(ok) = ParseExtraParams::help().eval(args) {
             return Ok(ok);
         }
-        let not_ok = Error::Stderr(String::from("Not a version or help flag"));
-        let ver = self.version.ok_or_else(|| not_ok.clone())?;
 
-        if let Ok(ok) = Self::ver(ver).eval(args) {
-            return Ok(ok);
+        match self.version {
+            Some(ver) => Self::ver(ver).eval(args),
+            None => Err(Error::Stderr(String::from("Not a version or help flag"))),
         }
-        Err(not_ok)
     }
 
     fn meta(&self) -> Meta {

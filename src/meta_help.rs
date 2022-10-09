@@ -6,6 +6,19 @@ use crate::{
     Meta,
 };
 
+#[doc(hidden)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
+pub(crate) struct Metavar(&'static str);
+
+impl std::fmt::Display for Metavar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        f.write_char('<')?;
+        f.write_str(self.0)?;
+        f.write_char('>')
+    }
+}
+
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
 pub(crate) enum HelpItem<'a> {
     Decor {
@@ -14,7 +27,7 @@ pub(crate) enum HelpItem<'a> {
     BlankDecor,
     Positional {
         strict: bool,
-        metavar: &'static str,
+        metavar: Metavar,
         help: Option<&'a str>,
     },
     Command {
@@ -28,7 +41,7 @@ pub(crate) enum HelpItem<'a> {
     },
     Argument {
         name: ShortLongHelp,
-        metavar: &'static str,
+        metavar: Metavar,
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
@@ -66,7 +79,7 @@ impl<'a> HelpItems<'a> {
             } => {
                 if help.is_some() {
                     self.psns.push(HelpItem::Positional {
-                        metavar,
+                        metavar: Metavar(metavar),
                         help: help.as_deref(),
                         strict: *strict,
                     });
@@ -100,7 +113,7 @@ impl<'a> HelpItems<'a> {
                 shorts: _,
             } => self.flgs.push(HelpItem::Argument {
                 name: ShortLongHelp(*name),
-                metavar,
+                metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
             }),
@@ -114,7 +127,7 @@ impl<'a> HelpItems<'a> {
                     self.classify(x);
                 }
             }
-            Meta::Optional(x) | Meta::Many(x) => self.classify(x),
+            Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) => self.classify(x),
             Meta::Item(item) => self.classify_item(item),
 
             Meta::Decorated(m, help) => {
@@ -159,12 +172,31 @@ impl ShortLongHelp {
     }
 }
 
+pub(crate) struct Long<'a>(pub(crate) &'a str);
+impl std::fmt::Display for Long<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("--")?;
+        f.write_str(self.0)
+    }
+}
+
+pub(crate) struct Short(pub(crate) char);
+impl std::fmt::Display for Short {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        f.write_char('-')?;
+        f.write_char(self.0)
+    }
+}
+
 impl std::fmt::Display for ShortLongHelp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.0 {
-            ShortLong::Short(short) => write!(f, "-{}", short),
-            ShortLong::Long(long) => write!(f, "    --{}", long),
-            ShortLong::ShortLong(short, long) => write!(f, "-{}, --{}", short, long),
+            ShortLong::Short(short) => write!(f, "{}", w_flag!(Short(short))),
+            ShortLong::Long(long) => write!(f, "    {}", w_flag!(Long(long))),
+            ShortLong::ShortLong(short, long) => {
+                write!(f, "{}, {}", w_flag!(Short(short)), w_flag!(Long(long)))
+            }
         }
     }
 }
@@ -173,14 +205,14 @@ impl std::fmt::Display for ShortLongHelp {
 impl std::fmt::Display for HelpItem<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            HelpItem::Flag { name, help: _ } => write!(f, "    {:#}", name),
+            HelpItem::Flag { name, help: _ } => write!(f, "    {}", name),
             HelpItem::Argument {
                 name,
                 metavar,
                 help,
                 env,
             } => {
-                write!(f, "    {:#} <{}>", name, metavar)?;
+                write!(f, "    {} {}", name, w_flag!(metavar))?;
 
                 let width = f.width().unwrap();
                 if let Some(env) = env {
@@ -207,9 +239,9 @@ impl std::fmt::Display for HelpItem<'_> {
                 strict,
             } => {
                 if *strict {
-                    write!(f, "    -- <{}>", metavar)
+                    write!(f, "    -- {}", w_flag!(metavar))
                 } else {
-                    write!(f, "    <{}>", metavar)
+                    write!(f, "    {}", w_flag!(metavar))
                 }
             }
             HelpItem::Command {
@@ -217,8 +249,8 @@ impl std::fmt::Display for HelpItem<'_> {
                 help: _,
                 short,
             } => match short {
-                Some(s) => write!(f, "    {}, {}", name, s),
-                None => write!(f, "    {}", name),
+                Some(s) => write!(f, "    {}, {}", w_flag!(name), w_flag!(s)),
+                None => write!(f, "    {}", w_flag!(name)),
             },
         }?;
 
@@ -248,7 +280,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 help,
                 strict,
             } => Self::Positional {
-                metavar,
+                metavar: Metavar(metavar),
                 strict: *strict,
                 help: help.as_deref(),
             },
@@ -278,7 +310,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 shorts: _,
             } => Self::Argument {
                 name: ShortLongHelp(*name),
-                metavar,
+                metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
             },
@@ -294,8 +326,8 @@ impl HelpItem<'_> {
         match self {
             HelpItem::Decor { .. } | HelpItem::BlankDecor { .. } => 0,
             HelpItem::Flag { name, .. } => name.full_width(),
-            HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.len() + 3,
-            HelpItem::Positional { metavar, .. } => metavar.len() + 2,
+            HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.0.len() + 3,
+            HelpItem::Positional { metavar, .. } => metavar.0.len() + 2,
             HelpItem::Command {
                 name, short: None, ..
             } => name.len(),
@@ -361,7 +393,7 @@ pub(crate) fn render_help(
             .map(HelpItem::full_width)
             .max()
             .unwrap_or(0);
-        write!(res, "\nAvailable positional items:\n")?;
+        w_section!(res, "\nAvailable positional items:\n")?;
         for i in &items.psns {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
@@ -374,14 +406,14 @@ pub(crate) fn render_help(
             .map(HelpItem::full_width)
             .max()
             .unwrap_or(0);
-        write!(res, "\nAvailable options:\n")?;
+        w_section!(res, "\nAvailable options:\n")?;
         for i in &items.flgs {
             write!(res, "{:padding$}\n", i, padding = max_width)?;
         }
     }
 
     if !items.cmds.is_empty() {
-        write!(res, "\nAvailable commands:\n")?;
+        w_section!(res, "\nAvailable commands:\n")?;
         let max_width = items
             .cmds
             .iter()

@@ -140,6 +140,25 @@ where
     }
 }
 
+/// Parser that hides inner parser from usage line
+///
+/// Otherwise the behavior is unchanged
+pub struct ParseHideUsage<P> {
+    pub(crate) inner: P,
+}
+impl<T, P> Parser<T> for ParseHideUsage<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::HideUsage(Box::new(self.inner.meta()))
+    }
+}
+
 /// Parser that tries to either of two parsers and uses one that succeeeds, created with
 /// [`Parser::or_else`].
 pub struct ParseOrElse<A, B> {

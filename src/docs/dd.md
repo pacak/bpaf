@@ -64,7 +64,7 @@ fn main() {
 
 ```
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 `dd` takes parameters in `name=value` shape

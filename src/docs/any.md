@@ -1,5 +1,5 @@
 <details>
-<summary>Combinatoric usage</summary>
+<summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
 # use std::ffi::OsString;
@@ -26,7 +26,7 @@ pub fn options() -> OptionParser<Options> {
 
 </details>
 <details>
-<summary>Derive usage</summary>
+<summary style="display: list-item;">Derive usage</summary>
 
 ```no_run
 # use std::ffi::OsString;
@@ -50,7 +50,7 @@ fn not_help(s: &OsString) -> bool {
 
 </details>
 <details>
-<summary>Examples</summary>
+<summary style="display: list-item;">Examples</summary>
 
 
 Capture `--turbo` flag for internal use and return everything else as is so it can be passed

@@ -13,6 +13,7 @@ pub enum Meta {
     Many(Box<Meta>),
     Decorated(Box<Meta>, &'static str),
     Skip,
+    HideUsage(Box<Meta>),
 }
 
 impl std::fmt::Display for Meta {
@@ -51,6 +52,7 @@ impl Meta {
         to_usage_meta(self)
     }
 
+    /// collect different kinds of short names for disambiguation
     pub(crate) fn collect_shorts(&self, flags: &mut Vec<char>, args: &mut Vec<char>) {
         match self {
             Meta::And(xs) | Meta::Or(xs) => {
@@ -63,7 +65,7 @@ impl Meta {
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::Argument { shorts, .. } => args.extend(shorts),
             },
-            Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
+            Meta::HideUsage(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
                 m.collect_shorts(flags, args);
             }
             Meta::Skip => {}
