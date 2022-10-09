@@ -572,3 +572,15 @@ fn unit_fields_are_required() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn hide_usage() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(hide_usage)]
+        field: u32
+    };
+    let output = quote! {
+        ::bpaf::long("field").argument::<u32>("ARG").hide_usage()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}

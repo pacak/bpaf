@@ -60,8 +60,8 @@
 //!
 use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
-use super::{parse_os_str, Args, Error, OptionParser, Parser};
-use crate::{args::Arg, item::ShortLong, Item, Meta};
+use super::{Args, Error, OptionParser, Parser};
+use crate::{args::Arg, from_os_str::parse_os_str, item::ShortLong, Item, Meta};
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)

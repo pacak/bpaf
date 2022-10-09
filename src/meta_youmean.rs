@@ -132,7 +132,10 @@ fn inner(arg: &Arg, meta: &Meta, variants: &mut Vec<(usize, String)>) {
             }
         }
         Meta::Item(item) => inner_item(arg, item, variants),
-        Meta::Optional(meta) | Meta::Many(meta) | Meta::Decorated(meta, _) => {
+        Meta::HideUsage(meta)
+        | Meta::Optional(meta)
+        | Meta::Many(meta)
+        | Meta::Decorated(meta, _) => {
             inner(arg, meta, variants);
         }
         Meta::Skip => {}

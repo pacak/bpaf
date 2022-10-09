@@ -382,8 +382,8 @@ pub mod parsers {
 
 use structs::{
     ParseAdjacent, ParseAnywhere, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure,
-    ParsePureWith, ParseSome, ParseWith,
+    ParseGuard, ParseHide, ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse,
+    ParsePure, ParsePureWith, ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1382,6 +1382,21 @@ pub trait Parser<T> {
         ParseHide { inner: self }
     }
     // }}}
+
+    /// Ignore this parser when generating usage line
+    ///
+    /// Parsers hidden from usage will still show up in available arguments list. Best used on
+    /// optional things that augment main application functionality but not define it. You might
+    /// use custom usage to indicate that some options are hidden
+    ///
+    #[doc = include_str!("docs/hide_usage.md")]
+    #[must_use]
+    fn hide_usage(self) -> ParseHideUsage<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseHideUsage { inner: self }
+    }
 
     // {{{ group_help
     /// Attach help message to a complex parser

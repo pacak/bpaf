@@ -127,7 +127,7 @@ impl<'a> HelpItems<'a> {
                     self.classify(x);
                 }
             }
-            Meta::Optional(x) | Meta::Many(x) => self.classify(x),
+            Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) => self.classify(x),
             Meta::Item(item) => self.classify_item(item),
 
             Meta::Decorated(m, help) => {
