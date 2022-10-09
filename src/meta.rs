@@ -52,6 +52,7 @@ impl Meta {
         to_usage_meta(self)
     }
 
+    /// collect different kinds of short names for disambiguation
     pub(crate) fn collect_shorts(&self, flags: &mut Vec<char>, args: &mut Vec<char>) {
         match self {
             Meta::And(xs) | Meta::Or(xs) => {
