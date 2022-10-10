@@ -584,3 +584,17 @@ fn hide_usage() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn argument_with_manual_parse() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument::<String>("N"), parse(twice_the_num))]
+        number: u32
+    };
+    let output = quote! {
+        ::bpaf::long("number")
+            .argument::<String>("N")
+            .parse(twice_the_num)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}

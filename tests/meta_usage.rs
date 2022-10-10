@@ -34,6 +34,31 @@ fn sensors_meta() {
 }
 
 #[test]
+fn many_arg() {
+    let parser = short('a').argument::<String>("A").many().to_options();
+    assert_usage(parser, "-a A...");
+}
+
+#[test]
+fn some_arg() {
+    let parser = short('a').argument::<String>("A").some("ARG").to_options();
+    assert_usage(parser, "-a A...");
+}
+
+#[test]
+fn many_switch() {
+    let parser = short('a').switch().many().to_options();
+    assert_usage(parser, "[-a]...");
+}
+
+#[test]
+fn some_switch() {
+    let parser = short('a').switch().some("ARG").to_options();
+    // TODO - not ideal, should be -a... or (-a)...
+    assert_usage(parser, "[-a]...");
+}
+
+#[test]
 fn optional_req_select() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());

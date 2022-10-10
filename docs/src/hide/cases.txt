@@ -1,0 +1,13 @@
+? `hide` doesn't change the parsing behavior in any way
+> --argument 32
+OK
+Options { argument: 32, switch: false }
+
+? It hides the inner parser from any help or autocompletion logic
+> --help
+Stdout
+Usage: [--argument ARG]
+
+Available options:
+        --argument <ARG>  important argument
+    -h, --help            Prints help information

@@ -1,0 +1,26 @@
+? Missing arguments are turned into None
+>
+OK
+Options { version: None, feature: None }
+
+? Present values are Some
+? [`optional`](Parser::optional)
+> --version 10
+OK
+Options { version: Some(10), feature: None }
+
+? You can specify both
+> --version 10 --feature feat
+OK
+Options { version: Some(10), feature: Some("feat") }
+
+
+? bpaf encases optional arguments in usage with []
+> --help
+Stdout
+Usage: [--version VERS] [--feature FEAT]
+
+Available options:
+        --version <VERS>
+        --feature <FEAT>
+    -h, --help            Prints help information
