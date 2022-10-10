@@ -1101,44 +1101,8 @@ pub trait Parser<T> {
     /// `bpaf` inserts the group help message before the block with all the fields
     /// from the inner parser and an empty line after the block.
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn rectangle() -> impl Parser<(u32, u32)> {
-    ///     let width = short('w')
-    ///         .argument::<u32>("PX");
-    ///     let height = short('h')
-    ///         .argument::<u32>("PX");
-    ///     construct!(width, height)
-    ///         .group_help("Takes a rectangle")
-    /// }
-    /// ```
-    /// # Example
-    /// ```console
-    /// $ app --help
-    /// <skip>
-    ///             Takes a rectangle
-    ///    -w <PX>  Width of the rectangle
-    ///    -h <PX>  Height of the rectangle
+    #[doc = include_str!("docs/group_help.md")]
     ///
-    /// <skip>
-    /// ```
-    ///
-    /// # Derive usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Rectangle {
-    ///     width: u32,
-    ///     height: u32,
-    /// }
-    ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(external, group_help("Takes a rectangle"))]
-    ///     rectangle: Rectangle
-    /// }
-    /// ```
     fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
