@@ -935,38 +935,7 @@ pub trait Parser<T> {
     ///
     /// Parser would still fail if value is present but failure comes from some transformation
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn number() -> impl Parser<u32> {
-    ///     short('n')
-    ///         .argument::<u32>("NUM")
-    ///         .fallback(42)
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    /// Expression in parens should have the right type, this example uses `u32` literal,
-    /// but it can also be your own type if that's what you are parsing, it can also be a function
-    /// call.
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///    #[bpaf(short, argument("NUM"), fallback(42))]
-    ///    number: u32
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -n 100
-    /// // 10
-    /// $ app
-    /// // 42
-    /// $ app -n pi
-    /// // fails with "Couldn't parse "pi": invalid numeric literal"
-    /// ```
+    #[doc = include_str!("docs/fallback.md")]
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
