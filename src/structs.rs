@@ -32,7 +32,7 @@ where
     }
 
     fn meta(&self) -> Meta {
-        self.inner.meta()
+        Meta::Optional(Box::new(self.inner.meta()))
     }
 }
 

@@ -954,53 +954,10 @@ pub trait Parser<T> {
     ///
     /// Would still fail if value is present but failure comes from some earlier transformation
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn username() -> impl Parser<String> {
-    ///     long("user")
-    ///         .argument::<String>("USER")
-    ///         .fallback_with::<_, Box<dyn std::error::Error>>(||{
-    ///             let output = std::process::Command::new("whoami")
-    ///                 .stdout(std::process::Stdio::piped())
-    ///                 .spawn()?
-    ///                 .wait_with_output()?
-    ///                 .stdout;
-    ///             Ok(std::str::from_utf8(&output)?.to_owned())
-    ///         })
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn get_current_user() -> Result<String, Box<dyn std::error::Error>> {
-    ///     let output = std::process::Command::new("whoami")
-    ///         .stdout(std::process::Stdio::piped())
-    ///         .spawn()?
-    ///         .wait_with_output()?
-    ///         .stdout;
-    ///     Ok(std::str::from_utf8(&output)?.to_owned())
-    /// }
-    ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(long, argument("USER"), fallback_with(get_current_user))]
-    ///     user: String,
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app --user bobert
-    /// // "bobert"
-    /// $ app
-    /// // "pacak"
-    /// ```
+    #[doc = include_str!("docs/fallback_with.md")]
     ///
     /// # See also
-    /// [`fallback`](Parser::fallback) implements similar logic expect that failures
-    /// aren't expected.
+    /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
     where
