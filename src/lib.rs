@@ -909,44 +909,12 @@ pub trait Parser<T> {
     ///
     /// If value doesn't satisfy the constraint - parser fails with the specified error message.
     ///
-    /// # Combinatoric usage
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn number() -> impl Parser<u32> {
-    ///     short('n')
-    ///         .argument::<u32>("NUM")
-    ///         .guard(|n| *n <= 10, "Values greater than 10 are only available in the DLC pack!")
-    /// }
-    /// ```
-    ///
     /// # Derive usage
-    /// Unlike combinator counterpart, derive variant of `guard` takes a function name instead
-    /// of a closure, mostly to keep things clean. Second argument can be either a string literal
-    /// or a constant name for a static [`str`].
+    /// Derive variant of `guard` takes a function name instead of a closure, mostly to keep things
+    /// clean. Second argument can be either a string literal or a constant name for a static [`str`].
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn dlc_check(number: &u32) -> bool {
-    ///     *number <= 10
-    /// }
+    #[doc = include_str!("docs/guard.md")]
     ///
-    /// const DLC_NEEDED: &str = "Values greater than 10 are only available in the DLC pack!";
-    ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument("NUM"), guard(dlc_check, DLC_NEEDED))]
-    ///     number: u32,
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -n 100
-    /// // fails with "Values greater than 10 are only available in the DLC pack!"
-    /// $ app -n 5
-    /// // 5
-    /// ```
     #[must_use]
     fn guard<F>(self, check: F, message: &'static str) -> ParseGuard<Self, F>
     where
