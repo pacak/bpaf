@@ -817,47 +817,15 @@ pub trait Parser<T> {
     /// failures untouched. With extra [`catch`](ParseOptional::catch) statement you can handle
     /// those failures too.
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn number() -> impl Parser<Option<u32>> {
-    ///     short('n')
-    ///         .argument::<u32>("NUM")
-    ///         .optional()
-    /// }
-    /// ```
-    ///
     /// # Derive usage
     ///
     /// By default `bpaf_derive` would automatically use optional for fields of type `Option<T>`,
-    /// for as long as it's not prevented from doing so by present postprocessing options
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///    #[bpaf(short, argument("NUM"))]
-    ///    number: Option<u32>
-    /// }
+    /// for as long as it's not prevented from doing so by present postprocessing options.
+    /// But it's also possible to specify it explicitly.
     /// ```
     ///
-    /// But it's also possible to specify it explicitly
-    /// example.
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///    #[bpaf(short, argument::<u32>("NUM"), optional)]
-    ///    number: Option<u32>
-    /// }
-    /// ```
+    #[doc = include_str!("docs/optional.md")]
     ///
-    /// # Example
-    /// ```console
-    /// $ app
-    /// // None
-    /// $ app -n 42
-    /// // Some(42)
-    /// ```
     #[must_use]
     fn optional(self) -> ParseOptional<Self>
     where
