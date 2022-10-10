@@ -2,7 +2,7 @@
 <summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
-use bpaf::*;
+# use bpaf::*;
 # #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Options {
@@ -28,7 +28,7 @@ pub fn options() -> OptionParser<Options> {
 <summary style="display: list-item;">Derive usage</summary>
 
 ```no_run
-use bpaf::*;
+# use bpaf::*;
 # #[allow(dead_code)]
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]

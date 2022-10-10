@@ -2,7 +2,7 @@
 <summary style="display: list-item;">Combinatoric usage</summary>
 
 ```no_run
-use bpaf::*;
+# use bpaf::*;
 # #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct Options {
