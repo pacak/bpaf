@@ -822,7 +822,6 @@ pub trait Parser<T> {
     /// By default `bpaf_derive` would automatically use optional for fields of type `Option<T>`,
     /// for as long as it's not prevented from doing so by present postprocessing options.
     /// But it's also possible to specify it explicitly.
-    /// ```
     ///
     #[doc = include_str!("docs/optional.md")]
     ///
@@ -855,44 +854,14 @@ pub trait Parser<T> {
     /// This is a most general of transforming parsers and you can express
     /// [`map`](Parser::map) and [`guard`](Parser::guard) in terms of it.
     ///
-    /// Examples given here are a bit artificail, to parse a value from string you can specify
-    /// the type directly in `argument`'s turbofish
+    /// Examples are a bit artificail, to parse a value from string you can specify
+    /// the type directly in `argument`'s turbofish and then apply `map`.
     ///
-    /// # Combinatoric usage:
-    /// ```rust
-    /// # use bpaf::*;
-    /// # use std::str::FromStr;
-    /// fn number() -> impl Parser<u32> {
-    ///     short('n')
-    ///         .argument::<String>("NUM")
-    ///         .parse(|s| u32::from_str(&s))
-    /// }
-    /// ```
     /// # Derive usage:
     /// `parse` takes a single parameter: function name to call. Function type should match
     /// parameter `F` used by `parse` in combinatoric API.
-    /// ```rust
-    /// # use bpaf::*;
-    /// # use std::str::FromStr;
-    /// # use std::num::ParseIntError;
-    /// fn read_number(s: String) -> Result<u32, ParseIntError> {
-    ///     u32::from_str(&s)
-    /// }
     ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument::<String>("NUM"), parse(read_number))]
-    ///     number: u32
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -n 12
-    /// // 12
-    /// # app -n pi
-    /// // fails with "Couldn't parse "pi": invalid numeric literal"
-    /// ```
+    #[doc = include_str!("docs/parse.md")]
     ///
     fn parse<F, R, E>(self, f: F) -> ParseWith<T, Self, F, E, R>
     where
