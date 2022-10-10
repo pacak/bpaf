@@ -1070,55 +1070,8 @@ pub trait Parser<T> {
     /// Best used for optional parsers or parsers with a defined fallback, usually for implementing
     /// backward compatibility or hidden aliases
     ///
-    /// # Combinatoric usage
+    #[doc = include_str!("docs/hide.md")]
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// /// bpaf would accept both `-W` and `-H` flags, but the help message
-    /// /// would contain only `-H`
-    /// fn rectangle() -> impl Parser<(u32, u32)> {
-    ///     let width = short('W')
-    ///         .argument::<u32>("PX")
-    ///         .fallback(10)
-    ///         .hide();
-    ///     let height = short('H')
-    ///         .argument::<u32>("PX")
-    ///         .fallback(10)
-    ///         .hide();
-    ///     construct!(width, height)
-    /// }
-    /// ```
-    /// # Example
-    /// ```console
-    /// $ app -W 12 -H 15
-    /// // (12, 15)
-    /// $ app -H 333
-    /// // (10, 333)
-    /// $ app --help
-    /// // contains -H but not -W
-    /// ```
-    ///
-    /// # Derive usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Rectangle {
-    ///     #[bpaf(short('W'), argument("PX"), fallback(10), hide)]
-    ///     width: u32,
-    ///     #[bpaf(short('H'), argument("PX"))]
-    ///     height: u32,
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -W 12 -H 15
-    /// // Rectangle { width: 12, height: 15 }
-    /// $ app -H 333
-    /// // Rectangle { width: 10, height: 333 }
-    /// $ app --help
-    /// // contains -H but not -W
-    /// ```
     fn hide(self) -> ParseHide<Self>
     where
         Self: Sized + Parser<T>,
