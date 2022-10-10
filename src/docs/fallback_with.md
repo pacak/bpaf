@@ -63,7 +63,7 @@ Parsing errors are preserved and preserved to user
 Couldn't parse "ten": invalid digit found in string
 ```
 
-bpaf encases parsers with fallback value in usage with []
+`bpaf` encases parsers with fallback value in usage with `[]`
 ```console
 % app --help
 Usage: [--version VERS]
