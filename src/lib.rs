@@ -884,35 +884,12 @@ pub trait Parser<T> {
     ///
     /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn number() -> impl Parser<u32> {
-    ///     short('n')
-    ///         .argument::<u32>("NUM")
-    ///         .map(|v| v * 2)
-    /// }
-    /// ```
+    /// # Derive usage:
+    /// `map` takes a single parameter: function name to call. Function type should match
+    /// parameter `F` used by `map` in combinatoric API.
     ///
-    /// # Derive usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn double(num: u32) -> u32 {
-    ///     num * 2
-    /// }
+    #[doc = include_str!("docs/map.md")]
     ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(short, argument::<u32>("NUM"), map(double))]
-    ///     number: u32,
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app -n 21
-    /// // 42
-    /// ```
     fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
     where
         Self: Sized + Parser<T>,
