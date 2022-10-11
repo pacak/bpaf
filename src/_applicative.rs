@@ -69,7 +69,7 @@
 
 //! ## Applicative Functors
 //!
-//! `map` in `Functor` is limited to a single *value in a context*, `Applicativ Functor` extends it
+//! `map` in `Functor` is limited to a single *value in a context*, `Applicative Functor` extends it
 //! to operations combining multiple values, closest Rust analogy would be doing computations on
 //! `Option` or `Result` using only `?` and `Some`/`Ok` but without making any decisions that would
 //! change the shape of the output based on input values after they been extracted with `?`.
@@ -130,8 +130,28 @@
 //! datatypes: `struct` for product types and `enum` for sum types. To give an example -
 //! `cargo-show-asm` asks user to specify what to output - Intel or AT&T asm, LLVM or Rust's MIR
 //! and opts to represent it as one of four flags: `--intel`, `--att`, `--llvm` and `--mir`. While
-//! each flag can be though of a boolean value - present/absent - consuming it as an enum with four
-//! possible values is much more convenient compared to tuple with all the possible combinations.
+//! each flag can be though of a boolean value - present/absent - consuming it as an `enum` with four
+//! possible values is much more convenient compared to a struct-like thing that can have any
+//! combination of the flags inside:
+//!
+//! ```no_check
+//! /// Format selection as enum - program needs to deal with just one format
+//! enum Format {
+//!     Intel,
+//!     Att,
+//!     Llvm,
+//!     Mir
+//! }
+//!
+//! /// Format selection as enum - can represent any possible combination of formats
+//! struct Formats {
+//!     intel: bool,
+//!     att: bool,
+//!     llvm: bool,
+//!     mir: bool,
+//! }
+//! ```
+//!
 //! `Applicative` interface gives just enough power to compose simple parsers as an arbitrary tree
 //! ready for consumption.
 //!

@@ -3,8 +3,8 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
-    parenthesized, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr, Result,
-    Token, Type,
+    parenthesized, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr, Path,
+    PathArguments, PathSegment, Result, Token, Type,
 };
 
 use crate::utils::{to_kebab_case, LineIter};
@@ -20,7 +20,7 @@ pub struct Field {
     naming: Vec<Name>,
     env: Option<Box<Expr>>,
     consumer: Option<ConsumerAttr>,
-    external: Option<Ident>,
+    external: Option<Path>,
     name: Option<Ident>,
     postpr: Vec<PostprAttr>,
     help: Option<String>,
@@ -81,6 +81,11 @@ pub fn parse_lit_str(input: ParseStream) -> Result<LitStr> {
 
 #[inline(never)]
 pub fn parse_ident(input: ParseStream) -> Result<Ident> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+pub fn parse_path(input: ParseStream) -> Result<Path> {
     parse_arg(input)
 }
 
@@ -219,9 +224,9 @@ impl Field {
                         check_stage(&mut stage, 3, &keyword)?;
 
                         if input.peek(token::Paren) {
-                            res.external = Some(parse_ident(input)?);
-                        } else if res.name.is_some() {
-                            res.external = res.name.clone();
+                            res.external = Some(parse_path(input)?);
+                        } else if let Some(name) = &res.name {
+                            res.external = Some(ident_to_path(name.clone()));
                         } else {
                             break Err(
                                 input_copy.error("unnamed fields needs to have a name specified")
@@ -233,7 +238,7 @@ impl Field {
                     } else if keyword == "guard" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let _ = parenthesized!(content in input);
-                        let guard_fn = content.parse::<Ident>()?;
+                        let guard_fn = content.parse::<Path>()?;
                         let _ = content.parse::<Token![,]>()?;
                         let msg = content.parse::<Expr>()?;
                         res.postpr
@@ -248,14 +253,13 @@ impl Field {
                             .push(PostprAttr::FallbackWith(span, Box::new(parse_expr(input)?)));
                     } else if keyword == "parse" {
                         check_stage(&mut stage, 4, &keyword)?;
-                        res.postpr
-                            .push(PostprAttr::Parse(span, parse_ident(input)?));
+                        res.postpr.push(PostprAttr::Parse(span, parse_path(input)?));
                     } else if keyword == "map" {
                         check_stage(&mut stage, 4, &keyword)?;
-                        res.postpr.push(PostprAttr::Map(span, parse_ident(input)?));
+                        res.postpr.push(PostprAttr::Map(span, parse_path(input)?));
                     } else if keyword == "complete" {
                         check_stage(&mut stage, 4, &keyword)?;
-                        let f = parse_ident(input)?;
+                        let f = parse_path(input)?;
                         res.postpr.push(PostprAttr::Complete(span, f));
                     } else if keyword == "many" {
                         check_stage(&mut stage, 4, &keyword)?;
@@ -466,5 +470,17 @@ impl ToTokens for Field {
         for postpr in &self.postpr {
             quote!(.#postpr).to_tokens(tokens);
         }
+    }
+}
+
+fn ident_to_path(ident: Ident) -> Path {
+    Path {
+        leading_colon: None,
+        segments: vec![PathSegment {
+            ident,
+            arguments: PathArguments::None,
+        }]
+        .into_iter()
+        .collect(),
     }
 }

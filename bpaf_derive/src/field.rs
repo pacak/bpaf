@@ -2,8 +2,8 @@ use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::{
-    parenthesized, parse, Attribute, Expr, Ident, LitChar, LitStr, PathArguments, Result, Token,
-    Type, Visibility,
+    parenthesized, parse, Attribute, Expr, Ident, LitChar, LitStr, Path, PathArguments, Result,
+    Token, Type, Visibility,
 };
 
 use crate::utils::to_kebab_case;
@@ -40,14 +40,14 @@ enum ConsumerAttr {
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
-    Guard(Span, Ident, Box<Expr>),
+    Guard(Span, Path, Box<Expr>),
     Many(Span, Option<LitStr>),
-    Map(Span, Ident),
+    Map(Span, Path),
     Optional(Span),
-    Parse(Span, Ident),
+    Parse(Span, Path),
     Fallback(Span, Box<Expr>),
     FallbackWith(Span, Box<Expr>),
-    Complete(Span, Ident),
+    Complete(Span, Path),
     Hide(Span),
     HideUsage(Span),
     GroupHelp(Span, Box<Expr>),

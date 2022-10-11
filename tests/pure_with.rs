@@ -2,7 +2,8 @@ use bpaf::*;
 
 #[test]
 fn default_value_using_pure_with_ok() {
-    // ~ this is a bit artifactial (we'd use fallback_with instead actually), but it demonstrates the concept
+    // ~ this is a bit artifactial (it's better to use fallback_with instead actually),
+    // but this example demonstrates the concept
     let a = short('t').argument::<u32>("N");
     let b = pure_with::<_, _, String>(|| Ok(42u32));
 
@@ -46,7 +47,7 @@ fn default_value_using_pure_with_ok_for_some() {
 fn default_value_using_pure_with_err_for_some() {
     let user_seeds = positional::<u32>("SEED").some("at least one required");
     let last_seeds = pure_with(|| {
-        // ~ trying to lookup the last used seeds but we're failing
+        // ~ trying to lookup the last used seeds but failing - parser fails, fallback works
         Err("oh, no!")
     });
     let default_seeds = pure(vec![1, 2]);

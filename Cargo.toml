@@ -31,7 +31,7 @@ derive = ["bpaf_derive"]
 extradocs = []
 batteries = []
 autocomplete = []
-color = ["owo-colors"]
+color = ["owo-colors"] # used internally to switch between different code generation
 bright-color = ["color"]
 dull-color = ["color"]
 

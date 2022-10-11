@@ -1,12 +1,14 @@
 # Change Log
 
-## bpaf [0.7.0] - unreleased
+## bpaf [0.7.0] - 2022-10-11
+- `pure_with` implementation
+   thanks to @xitep
+- `FromOsStr` is replaced with magical uses of `Any` trait
+- `hide_usage`
+- `bright-color` and `dull-color` features
+- accept fully qualified names in more places in `bpaf_derive`
 - cosmetic improvements
-- pure_with implementation
-  thanks to @xitep
-- FromOsStr is replaced with magical uses of Any trait
-- hide_usage
-- bright-color and dull-color features
+- documentation improvements
 
 # Migration guide 0.6.x -> 0.7.x
 1. Remove FromUtf8 annotations if you have any
@@ -15,17 +17,19 @@
    +let coin = short('c').argument::<Coin>("COIN");
    ```
    In many cases rustc should be able to derive what the type
-2. Replace FromOsStr implementations for your types with FromStr
-   if you have any. If your type requires parsing OsString directly
-   you can perform it in two steps - consuming OsString + parsing it
+2. Replace `FromOsStr` implementations for your types with `FromStr`
+   if you have any. If your type requires parsing `OsString` directly
+   you can perform it in two steps - consuming `OsString` + parsing it
    with `Parser::parse`
+3. If you want to provide your users with colored output - expose
+   `bright-color` and/or `dull-color` features
 
 ## bpaf [0.6.1] - 2022-09-30
 - cosmetic improvements
-- completion info in sensors example
+- completion info in `sensors` example
 - better errors in partially consumed optional items
 - better handling of -- during autcomplete
-- initial release of bpaf_cauwugo
+- initial release of `bpaf_cauwugo`
 
 ## bpaf [0.6.0] - 2022-09-22
 # What's new in 0.6.0
