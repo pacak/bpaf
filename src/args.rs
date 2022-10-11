@@ -187,6 +187,8 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
+        /// Check if parser performs autocompletion
+        ///
         /// used by construct macro
         #[must_use]
         pub fn is_comp(&self) -> bool {

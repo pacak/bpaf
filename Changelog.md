@@ -7,6 +7,7 @@
 - FromOsStr is replaced with magical uses of Any trait
 - hide_usage
 - bright-color and dull-color features
+- doc improvements
 
 # Migration guide 0.6.x -> 0.7.x
 1. Remove FromUtf8 annotations if you have any
@@ -19,6 +20,8 @@
    if you have any. If your type requires parsing OsString directly
    you can perform it in two steps - consuming OsString + parsing it
    with `Parser::parse`
+3. If you want to proveide your users with colored output - expose
+   `bright-color` and/or `dull-color` featuers
 
 ## bpaf [0.6.1] - 2022-09-30
 - cosmetic improvements

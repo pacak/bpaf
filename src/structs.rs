@@ -142,7 +142,7 @@ where
 
 /// Parser that hides inner parser from usage line
 ///
-/// Otherwise the behavior is unchanged
+/// No other changes to the inner parser
 pub struct ParseHideUsage<P> {
     pub(crate) inner: P,
 }

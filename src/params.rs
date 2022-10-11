@@ -926,6 +926,9 @@ pub struct ParseAny<T> {
 
 /// Take next unconsumed item on the command line as raw [`String`] or [`OsString`]
 ///
+/// **`any` is designed to consume items that don't fit into usual `flag`/`switch`/`positional`
+/// /`argument`/`command` classification**
+///
 /// `any` behaves similar to [`positional`] so you should be using it near the right most end of
 /// the consumer struct. Note, consuming "anything" also consumes `--help` unless restricted
 /// with `guard`. It's better stick to `positional` unless you are trying to consume raw options

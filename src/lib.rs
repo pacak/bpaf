@@ -10,8 +10,8 @@
 //! at once. Both APIs provide access to mostly the same features, some things are more convenient
 //! to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility
 //! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
-//! possible APIs share the same keywords and overall structure. Documentation for combinatoric API
-//! also explains how to perform the same action in derive style.
+//! possible APIs share the same keywords and overall structure. Documentation is shared and
+//! contains examples for both combinatoric and derive style.
 //!
 //! `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
@@ -25,111 +25,145 @@
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
-//! # Quick start, derive edition
+//! # Quick start - combinatoric and derive APIs
+//!
+//! <details>
+//! <summary style="display: list-item;">Derive style API, click to expand</summary>
 //!
 //! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
-//! ```toml
-//! [dependencies]
-//! bpaf = { version = "0.6", features = ["derive"] }
-//! ```
+//!    ```toml
+//!    [dependencies]
+//!    bpaf = { version = "0.7", features = ["derive"] }
+//!    ```
 //!
 //! 2. Define a structure containing command line attributes and run generated function
-//! ```no_run
-//! use bpaf::Bpaf;
+//!    ```no_run
+//!    use bpaf::Bpaf;
 //!
-//! #[derive(Clone, Debug, Bpaf)]
-//! #[bpaf(options, version)]
-//! /// Accept speed and distance, print them
-//! struct SpeedAndDistance {
-//!     /// Speed in KPH
-//!     speed: f64,
-//!     /// Distance in miles
-//!     distance: f64,
-//! }
+//!    #[derive(Clone, Debug, Bpaf)]
+//!    #[bpaf(options, version)]
+//!    /// Accept speed and distance, print them
+//!    struct SpeedAndDistance {
+//!        /// Speed in KPH
+//!        speed: f64,
+//!        /// Distance in miles
+//!        distance: f64,
+//!    }
 //!
-//! fn main() {
-//!     // #[derive(Bpaf)] generates `speed_and_distance` function
-//!     let opts = speed_and_distance().run();
-//!     println!("Options: {:?}", opts);
-//! }
-//! ```
+//!    fn main() {
+//!        // #[derive(Bpaf)] generates `speed_and_distance` function
+//!        let opts = speed_and_distance().run();
+//!        println!("Options: {:?}", opts);
+//!    }
+//!    ```
 //!
 //! 3. Try to run the app
-//! ```console
-//! % very_basic --help
-//! Accept speed and distance, print them
+//!    ```console
+//!    % very_basic --help
+//!    Accept speed and distance, print them
 //!
-//! Usage: --speed ARG --distance ARG
+//!    Usage: --speed ARG --distance ARG
 //!
-//! Available options:
-//!         --speed <ARG>     Speed in KPH
-//!         --distance <ARG>  Distance in miles
-//!     -h, --help            Prints help information
-//!     -V, --version         Prints version information
+//!    Available options:
+//!            --speed <ARG>     Speed in KPH
+//!            --distance <ARG>  Distance in miles
+//!        -h, --help            Prints help information
+//!        -V, --version         Prints version information
 //!
-//! % very_basic --speed 100
-//! Expected --distance ARG, pass --help for usage information
+//!    % very_basic --speed 100
+//!    Expected --distance ARG, pass --help for usage information
 //!
-//! % very_basic --speed 100 --distance 500
-//! Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+//!    % very_basic --speed 100 --distance 500
+//!    Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
 //!
-//! % very_basic --version
-//! Version: 0.5.0 (taken from Cargo.toml by default)
-//!```
-
-//! # Quick start, combinatoric edition
+//!    % very_basic --version
+//!    Version: 0.5.0 (taken from Cargo.toml by default)
+//!    ```
+//! 4. You can check the [derive tutorial](crate::_derive_tutorial) for more detailed information.
+//!
+//! </details>
+//!
+//! <details>
+//! <summary style="display: list-item;">Combinatoric style API, click to expand</summary>
 //!
 //! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
-//! ```toml
-//! [dependencies]
-//! bpaf = "0.6"
-//! ```
+//!    ```toml
+//!    [dependencies]
+//!    bpaf = "0.7"
+//!    ```
 //!
 //! 2. Declare parsers for components, combine them and run it
-//! ```no_run
-//! use bpaf::{construct, long, Parser};
-//! #[derive(Clone, Debug)]
-//! struct SpeedAndDistance {
-//!     /// Dpeed in KPH
-//!     speed: f64,
-//!     /// Distance in miles
-//!     distance: f64,
-//! }
+//!    ```no_run
+//!    use bpaf::{construct, long, Parser};
+//!    #[derive(Clone, Debug)]
+//!    struct SpeedAndDistance {
+//!        /// Dpeed in KPH
+//!        speed: f64,
+//!        /// Distance in miles
+//!        distance: f64,
+//!    }
 //!
-//! fn main() {
-//!     // primitive parsers
-//!     let speed = long("speed")
-//!         .help("Speed in KPG")
-//!         .argument::<f64>("SPEED");
+//!    fn main() {
+//!        // primitive parsers
+//!        let speed = long("speed")
+//!            .help("Speed in KPG")
+//!            .argument::<f64>("SPEED");
 //!
-//!     let distance = long("distance")
-//!         .help("Distance in miles")
-//!         .argument::<f64>("DIST");
+//!        let distance = long("distance")
+//!            .help("Distance in miles")
+//!            .argument::<f64>("DIST");
 //!
-//!     // parser containing information about both speed and distance
-//!     let parser = construct!(SpeedAndDistance { speed, distance });
+//!        // parser containing information about both speed and distance
+//!        let parser = construct!(SpeedAndDistance { speed, distance });
 //!
-//!     // option parser with metainformation attached
-//!     let speed_and_distance
-//!         = parser
-//!         .to_options()
-//!         .descr("Accept speed and distance, print them");
+//!        // option parser with metainformation attached
+//!        let speed_and_distance
+//!            = parser
+//!            .to_options()
+//!            .descr("Accept speed and distance, print them");
 //!
-//!     let opts = speed_and_distance.run();
-//!     println!("Options: {:?}", opts);
-//! }
-//! ```
+//!        let opts = speed_and_distance.run();
+//!        println!("Options: {:?}", opts);
+//!    }
+//!    ```
 //!
-//! 3. Try to run it, output should be similar to derive version
-
+//! 3. Try to run the app
+//!
+//!    ```console
+//!    % very_basic --help
+//!    Accept speed and distance, print them
+//!
+//!    Usage: --speed ARG --distance ARG
+//!
+//!    Available options:
+//!            --speed <ARG>     Speed in KPH
+//!            --distance <ARG>  Distance in miles
+//!        -h, --help            Prints help information
+//!        -V, --version         Prints version information
+//!
+//!    % very_basic --speed 100
+//!    Expected --distance ARG, pass --help for usage information
+//!
+//!    % very_basic --speed 100 --distance 500
+//!    Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+//!
+//!    % very_basic --version
+//!    Version: 0.5.0 (taken from Cargo.toml by default)
+//!    ```
+//!
+//! 4. You can check the [combinatoric tutorial](crate::_combinatoric_tutorial) for more detailed information.
+//!
+//!
+//! </details>
+//!
 //! # Design goals: flexibility, reusability, correctness
-
+//!
 //! Library allows to consume command line arguments by building up parsers for individual
 //! arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
 //! For example it's possible to take a parser that requires a single floating point number and
 //! transform it to a parser that takes several of them or takes it optionally so different
 //! subcommands or binaries can share a lot of the code:
-
+//!
 //! ```rust
 //! # use bpaf::*;
 //! // a regular function that doesn't depend on any context, you can export it
@@ -176,14 +210,16 @@
 //! ```
 //!
 //! Library follows **parse, don’t validate** approach to validation when possible. Usually you parse
-//! your values just once and get the results as a rust struct/enum with strict types rather than a
+//! your values just once and get the results as a Rust struct/enum with strict types rather than a
 //! stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
 //! # Design goals: restrictions
 //!
 //! The main restricting library sets is that you can't use parsed values (but not the fact that
 //! parser succeeded or failed) to decide how to parse subsequent values. In other words parsers
-//! don't have the monadic strength, only the applicative one.
+//! don't have the monadic strength, only the applicative one - for more detailed explanation see
+//! [Applicative functors? What is it all about](crate::_applicative).
+//!
 //!
 //! To give an example, you can implement this description:
 //!
@@ -216,7 +252,7 @@
 //!
 //! 1. Enable `autocomplete` feature:
 //!    ```toml
-//!    bpaf = { version = "0.6.0", features = ["autocomplete"] }
+//!    bpaf = { version = "0.7", features = ["autocomplete"] }
 //!    ```
 //! 2. Decorate [`argument`](NamedArg::argument) and [`positional`] parsers with
 //!    [`complete`](Parser::complete) to autocomplete argument values
@@ -261,7 +297,7 @@
 
 //! # More examples
 //!
-//! You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
+//! You can find a more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
 //!
 //!
 //! They're usually documented or at least contain an explanation to important bits and you can see
@@ -320,6 +356,7 @@
 //!   bright-color = ["bpaf/bright-color"]
 //!   dull-color = ["bpaf/dull-color"]
 //!   ```
+//!   Disabled by default.
 
 #[macro_use]
 #[cfg(feature = "color")]
@@ -330,9 +367,11 @@ mod color;
 mod no_color;
 
 #[cfg(feature = "color")]
+#[doc(hidden)]
 pub use color::set_override;
 
 #[cfg(not(feature = "color"))]
+#[doc(hidden)]
 pub use no_color::set_override;
 
 #[cfg(feature = "extradocs")]
@@ -441,12 +480,18 @@ mod from_os_str;
 /// # }
 ///
 /// # { let a = short('a').switch(); let b = short('b').switch(); let c = short('c').switch();
-/// // parallel composition, tries all parsers, picks succeeding left most one:
+/// // parallel composition, tries all parsers, picks one that consumes the left most value,
+/// // or if they consume the same (or not at all) - the left most in a list
 /// construct!([a, b, c]);
 /// # }
 ///
 /// // defining primitive parsers inside construct macro :)
 /// construct!(a(short('a').switch()), b(long("arg").argument::<usize>("ARG")));
+///
+/// # { let a = short('a').switch();
+/// // defining a boxed parser
+/// construct!(a);
+/// # }
 /// ```
 ///
 /// # Combinatoric usage
