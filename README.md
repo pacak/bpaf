@@ -5,7 +5,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 
 ## Derive and combinatoric API
 
-`bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation for combinatoric API also explains how to perform the same action in derive style.
+`bpaf` supports both combinatoric and derive APIs and it’s possible to mix and match both APIs at once. Both APIs provide access to mostly the same features, some things are more convenient to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility and reducing boilerplate structs). In most cases using just one would suffice. Whenever possible APIs share the same keywords and overall structure. Documentation is shared and contains examples for both combinatoric and derive style.
 
 `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
@@ -20,114 +20,154 @@ Lightweight and flexible command line argument parser with derive and combinator
  - [Q&A][__link5]
 
 
-## Quick start, derive edition
+## Quick start - combinatoric and derive APIs
 
+<details>
+<summary style="display: list-item;">Derive style API, click to expand</summary>
  1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+	
+	
+	```toml
+	[dependencies]
+	bpaf = { version = "0.7", features = ["derive"] }
+	```
+	
+	
+ 1. Define a structure containing command line attributes and run generated function
+	
+	
+	```rust
+	use bpaf::Bpaf;
+	
+	#[derive(Clone, Debug, Bpaf)]
+	#[bpaf(options, version)]
+	/// Accept speed and distance, print them
+	struct SpeedAndDistance {
+	    /// Speed in KPH
+	    speed: f64,
+	    /// Distance in miles
+	    distance: f64,
+	}
+	
+	fn main() {
+	    // #[derive(Bpaf)] generates `speed_and_distance` function
+	    let opts = speed_and_distance().run();
+	    println!("Options: {:?}", opts);
+	}
+	```
+	
+	
+ 1. Try to run the app
+	
+	
+	```console
+	% very_basic --help
+	Accept speed and distance, print them
+	
+	Usage: --speed ARG --distance ARG
+	
+	Available options:
+	        --speed <ARG>     Speed in KPH
+	        --distance <ARG>  Distance in miles
+	    -h, --help            Prints help information
+	    -V, --version         Prints version information
+	
+	% very_basic --speed 100
+	Expected --distance ARG, pass --help for usage information
+	
+	% very_basic --speed 100 --distance 500
+	Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+	
+	% very_basic --version
+	Version: 0.5.0 (taken from Cargo.toml by default)
+	```
+	
+	
+ 1. You can check the [derive tutorial][__link6] for more detailed information.
+	
+	
 
-
-```toml
-[dependencies]
-bpaf = { version = "0.6", features = ["derive"] }
-```
-
- 2. Define a structure containing command line attributes and run generated function
-
-
-```rust
-use bpaf::Bpaf;
-
-#[derive(Clone, Debug, Bpaf)]
-#[bpaf(options, version)]
-/// Accept speed and distance, print them
-struct SpeedAndDistance {
-    /// Speed in KPH
-    speed: f64,
-    /// Distance in miles
-    distance: f64,
-}
-
-fn main() {
-    // #[derive(Bpaf)] generates `speed_and_distance` function
-    let opts = speed_and_distance().run();
-    println!("Options: {:?}", opts);
-}
-```
-
- 3. Try to run the app
-
-
-```console
-% very_basic --help
-Accept speed and distance, print them
-
-Usage: --speed ARG --distance ARG
-
-Available options:
-        --speed <ARG>     Speed in KPH
-        --distance <ARG>  Distance in miles
-    -h, --help            Prints help information
-    -V, --version         Prints version information
-
-% very_basic --speed 100
-Expected --distance ARG, pass --help for usage information
-
-% very_basic --speed 100 --distance 500
-Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
-
-% very_basic --version
-Version: 0.5.0 (taken from Cargo.toml by default)
-```
-
-
-## Quick start, combinatoric edition
-
+</details>
+<details>
+<summary style="display: list-item;">Combinatoric style API, click to expand</summary>
  1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+	
+	
+	```toml
+	[dependencies]
+	bpaf = "0.7"
+	```
+	
+	
+ 1. Declare parsers for components, combine them and run it
+	
+	
+	```rust
+	use bpaf::{construct, long, Parser};
+	#[derive(Clone, Debug)]
+	struct SpeedAndDistance {
+	    /// Dpeed in KPH
+	    speed: f64,
+	    /// Distance in miles
+	    distance: f64,
+	}
+	
+	fn main() {
+	    // primitive parsers
+	    let speed = long("speed")
+	        .help("Speed in KPG")
+	        .argument::<f64>("SPEED");
+	
+	    let distance = long("distance")
+	        .help("Distance in miles")
+	        .argument::<f64>("DIST");
+	
+	    // parser containing information about both speed and distance
+	    let parser = construct!(SpeedAndDistance { speed, distance });
+	
+	    // option parser with metainformation attached
+	    let speed_and_distance
+	        = parser
+	        .to_options()
+	        .descr("Accept speed and distance, print them");
+	
+	    let opts = speed_and_distance.run();
+	    println!("Options: {:?}", opts);
+	}
+	```
+	
+	
+ 1. Try to run the app
+	
+	
+	```console
+	% very_basic --help
+	Accept speed and distance, print them
+	
+	Usage: --speed ARG --distance ARG
+	
+	Available options:
+	        --speed <ARG>     Speed in KPH
+	        --distance <ARG>  Distance in miles
+	    -h, --help            Prints help information
+	    -V, --version         Prints version information
+	
+	% very_basic --speed 100
+	Expected --distance ARG, pass --help for usage information
+	
+	% very_basic --speed 100 --distance 500
+	Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
+	
+	% very_basic --version
+	Version: 0.5.0 (taken from Cargo.toml by default)
+	```
+	
+	
+ 1. You can check the [combinatoric tutorial][__link7] for more detailed information.
+	
+	
 
-
-```toml
-[dependencies]
-bpaf = "0.6"
-```
-
- 2. Declare parsers for components, combine them and run it
-
-
-```rust
-use bpaf::{construct, long, Parser};
-#[derive(Clone, Debug)]
-struct SpeedAndDistance {
-    /// Dpeed in KPH
-    speed: f64,
-    /// Distance in miles
-    distance: f64,
-}
-
-fn main() {
-    // primitive parsers
-    let speed = long("speed")
-        .help("Speed in KPG")
-        .argument::<f64>("SPEED");
-
-    let distance = long("distance")
-        .help("Distance in miles")
-        .argument::<f64>("DIST");
-
-    // parser containing information about both speed and distance
-    let parser = construct!(SpeedAndDistance { speed, distance });
-
-    // option parser with metainformation attached
-    let speed_and_distance
-        = parser
-        .to_options()
-        .descr("Accept speed and distance, print them");
-
-    let opts = speed_and_distance.run();
-    println!("Options: {:?}", opts);
-}
-```
-
- 3. Try to run it, output should be similar to derive version
-
+</details>
 
 ## Design goals: flexibility, reusability, correctness
 
@@ -177,12 +217,12 @@ fn speed() -> impl Parser<Speed> {
 }
 ```
 
-Library follows **parse, don’t validate** approach to validation when possible. Usually you parse your values just once and get the results as a rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
+Library follows **parse, don’t validate** approach to validation when possible. Usually you parse your values just once and get the results as a Rust struct/enum with strict types rather than a stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
 
 
 ## Design goals: restrictions
 
-The main restricting library sets is that you can’t use parsed values (but not the fact that parser succeeded or failed) to decide how to parse subsequent values. In other words parsers don’t have the monadic strength, only the applicative one.
+The main restricting library sets is that you can’t use parsed values (but not the fact that parser succeeded or failed) to decide how to parse subsequent values. In other words parsers don’t have the monadic strength, only the applicative one - for more detailed explanation see [Applicative functors? What is it all about][__link8].
 
 To give an example, you can implement this description:
 
@@ -198,9 +238,9 @@ But not this one:
 > 
 This set of restrictions allows `bpaf` to extract information about the structure of the computations to generate help, dynamic completion and overall results in less confusing enduser experience
 
-`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link6]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link7] and [`argument`][__link8] you should put the argument one first.
+`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link9]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link10] and [`argument`][__link11] you should put the argument one first.
 
-You must place [`positional`][__link9] items at the end of a structure in derive API or consume them as last arguments in derive API.
+You must place [`positional`][__link12] items at the end of a structure in derive API or consume them as last arguments in derive API.
 
 
 ## Dynamic shell completion
@@ -211,11 +251,11 @@ You must place [`positional`][__link9] items at the end of a structure in derive
 	
 	
 	```toml
-	bpaf = { version = "0.6.0", features = ["autocomplete"] }
+	bpaf = { version = "0.7", features = ["autocomplete"] }
 	```
 	
 	
- 1. Decorate [`argument`][__link10] and [`positional`][__link11] parsers with [`complete`][__link12] to autocomplete argument values
+ 1. Decorate [`argument`][__link13] and [`positional`][__link14] parsers with [`complete`][__link15] to autocomplete argument values
 	
 	
  1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
@@ -266,7 +306,7 @@ Library aims to optimize for flexibility, reusability and compilation time over 
 
 ## More examples
 
-You can find a bunch more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
+You can find a more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
 
 They’re usually documented or at least contain an explanation to important bits and you can see how they work by cloning the repo and running
 
@@ -278,7 +318,7 @@ $ cargo run --example example_name
 
 ## Testing your own parsers
 
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link14]
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link17]
 
 
 ```rust
@@ -327,21 +367,26 @@ Usage --user <ARG>
 	dull-color = ["bpaf/dull-color"]
 	```
 	
+	Disabled by default.
+	
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG2QV09F__ZfbG2mHV-IJTiKrG00wy0_0pJVAG_GeoKpmAnK1YWSBgmRicGFmZTAuNi4x
- [__link0]: https://docs.rs/bpaf/0.6.1/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.6.1/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.6.1/bpaf/?search=parsers::NamedArg::argument
- [__link11]: https://docs.rs/bpaf/0.6.1/bpaf/?search=params::positional
- [__link12]: https://docs.rs/bpaf/0.6.1/bpaf/?search=bpaf::Parser::complete
- [__link14]: https://docs.rs/bpaf/0.6.1/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.6.1/bpaf/?search=_unusual
- [__link3]: https://docs.rs/bpaf/0.6.1/bpaf/?search=_applicative
- [__link4]: https://docs.rs/bpaf/0.6.1/bpaf/?search=batteries
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG-IPQtuM4VUFG47iETJwkSENG_GD7ukhn-KMG38J41C6yQn3YWSBgmRicGFmZTAuNy4w
+ [__link0]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::switch
+ [__link11]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
+ [__link12]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
+ [__link13]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
+ [__link14]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
+ [__link15]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::complete
+ [__link17]: https://docs.rs/bpaf/0.7.0/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_unusual
+ [__link3]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_applicative
+ [__link4]: https://docs.rs/bpaf/0.7.0/bpaf/?search=batteries
  [__link5]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link6]: https://docs.rs/bpaf/0.6.1/bpaf/?search=bpaf::Parser::fallback
- [__link7]: https://docs.rs/bpaf/0.6.1/bpaf/?search=parsers::NamedArg::switch
- [__link8]: https://docs.rs/bpaf/0.6.1/bpaf/?search=parsers::NamedArg::argument
- [__link9]: https://docs.rs/bpaf/0.6.1/bpaf/?search=params::positional
+ [__link6]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_derive_tutorial
+ [__link7]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_combinatoric_tutorial
+ [__link8]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_applicative
+ [__link9]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::fallback
