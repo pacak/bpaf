@@ -143,7 +143,7 @@
 //!     Mir
 //! }
 //!
-//! /// Format selection as enum - can represent any possible combination of formats
+//! /// Format selection as struct - can represent any possible combination of formats
 //! struct Formats {
 //!     intel: bool,
 //!     att: bool,
