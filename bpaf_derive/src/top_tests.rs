@@ -677,3 +677,22 @@ fn adjacent_for_struct() {
 
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
+
+#[test]
+fn no_fields_declaration() {
+    let top: Top = parse_quote! {
+        struct Opts {}
+    };
+
+    let expected = quote! {
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                ::bpaf::construct!(Opts {})
+            }
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
