@@ -638,7 +638,7 @@ macro_rules! construct {
     };
 
     (@prepare $ty:tt [$($fields:tt)*]) => {
-        $crate::__cons_prepare!($ty [$($fields)*])
+        $crate::__cons_prepare!($ty [ $($fields)* ])
     };
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
@@ -651,6 +651,9 @@ macro_rules! construct {
 #[cfg(not(feature = "autocomplete"))]
 /// to avoid extra parsing when autocomplete feature is off
 macro_rules! __cons_prepare {
+    ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
+    ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
+
     ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
 
     ($ty:tt [$($fields:ident)+]) => {{
@@ -671,6 +674,9 @@ macro_rules! __cons_prepare {
 #[cfg(feature = "autocomplete")]
 /// for completion bpaf needs to observe all the failures in a branch
 macro_rules! __cons_prepare {
+    ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
+    ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
+
     ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
 
     ($ty:tt [$($fields:ident)+]) => {{
