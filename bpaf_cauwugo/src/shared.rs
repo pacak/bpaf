@@ -31,6 +31,16 @@ pub struct CargoOpts {
     /// Number of parallel jobs, defaults to # of CPUs
     pub jobs: Option<usize>,
 
+    #[bpaf(short('F'), long)]
+    /// Space or comma separated list of features to activate
+    pub features: Vec<String>,
+
+    /// Do not activate the `default` feature
+    pub no_default_features: bool,
+
+    /// Activate all available features
+    pub all_features: bool,
+
     #[bpaf(argument("TRIPLE"), complete(complete_available_target), optional)]
     /// Build for the target triple
     pub target: Option<String>,
@@ -43,7 +53,10 @@ impl CargoOpts {
         pass_flag!(cmd, self.frozen, "--frozen");
         pass_flag!(cmd, self.locked, "--locked");
         pass_flag!(cmd, self.offline, "--offline");
+        pass_flag!(cmd, self.no_default_features, "--no_default_features");
+        pass_flag!(cmd, self.all_features, "--all-features");
         pass_arg!(cmd, self.jobs.map(|j| j.to_string()), "--jobs");
+        pass_arg!(cmd, &self.features, "--features");
     }
 }
 
