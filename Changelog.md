@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.7.1] - 2022-10-15
+- colors similar to cargo'some
+   thanks to @kramer425
+- support for empty structs/enums in `construct!`
+
 ## bpaf [0.7.0] - 2022-10-11
 - `pure_with` implementation
    thanks to @xitep
