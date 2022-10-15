@@ -372,21 +372,21 @@ Usage --user <ARG>
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG-IPQtuM4VUFG47iETJwkSENG_GD7ukhn-KMG38J41C6yQn3YWSBgmRicGFmZTAuNy4w
- [__link0]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::switch
- [__link11]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
- [__link12]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
- [__link13]: https://docs.rs/bpaf/0.7.0/bpaf/?search=parsers::NamedArg::argument
- [__link14]: https://docs.rs/bpaf/0.7.0/bpaf/?search=params::positional
- [__link15]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::complete
- [__link17]: https://docs.rs/bpaf/0.7.0/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_unusual
- [__link3]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_applicative
- [__link4]: https://docs.rs/bpaf/0.7.0/bpaf/?search=batteries
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG-IPQtuM4VUFG47iETJwkSENG_GD7ukhn-KMG38J41C6yQn3YWSBgmRicGFmZTAuNy4x
+ [__link0]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.7.1/bpaf/?search=parsers::NamedArg::switch
+ [__link11]: https://docs.rs/bpaf/0.7.1/bpaf/?search=parsers::NamedArg::argument
+ [__link12]: https://docs.rs/bpaf/0.7.1/bpaf/?search=params::positional
+ [__link13]: https://docs.rs/bpaf/0.7.1/bpaf/?search=parsers::NamedArg::argument
+ [__link14]: https://docs.rs/bpaf/0.7.1/bpaf/?search=params::positional
+ [__link15]: https://docs.rs/bpaf/0.7.1/bpaf/?search=bpaf::Parser::complete
+ [__link17]: https://docs.rs/bpaf/0.7.1/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_unusual
+ [__link3]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_applicative
+ [__link4]: https://docs.rs/bpaf/0.7.1/bpaf/?search=batteries
  [__link5]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link6]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_derive_tutorial
- [__link7]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_combinatoric_tutorial
- [__link8]: https://docs.rs/bpaf/0.7.0/bpaf/?search=_applicative
- [__link9]: https://docs.rs/bpaf/0.7.0/bpaf/?search=bpaf::Parser::fallback
+ [__link6]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_derive_tutorial
+ [__link7]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_combinatoric_tutorial
+ [__link8]: https://docs.rs/bpaf/0.7.1/bpaf/?search=_applicative
+ [__link9]: https://docs.rs/bpaf/0.7.1/bpaf/?search=bpaf::Parser::fallback

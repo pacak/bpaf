@@ -1737,3 +1737,47 @@ fn parse_some_catch() {
         .unwrap_stderr();
     assert_eq!(r, "A");
 }
+
+#[test]
+fn empty_struct() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct Foo {}
+    let parser = construct!(Foo {}).to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, Foo {});
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(
+        r,
+        "
+Available options:
+    -h, --help  Prints help information
+"
+    );
+}
+
+#[test]
+fn empty_tuple() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct Foo();
+    let parser = construct!(Foo()).to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, Foo());
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(
+        r,
+        "
+Available options:
+    -h, --help  Prints help information
+"
+    );
+}
