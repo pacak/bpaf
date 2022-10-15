@@ -7,7 +7,7 @@ macro_rules! w_section {
             ::owo_colors::OwoColorize::if_supports_color(
                 &$pat,
                 ::owo_colors::Stream::Stdout,
-                ::owo_colors::OwoColorize::yellow,
+                |s| ::owo_colors::OwoColorize::style(s, ::owo_colors::Style::new().yellow().bold())
             )
         )
     };
@@ -45,22 +45,18 @@ macro_rules! w_err {
 #[cfg(feature = "bright-color")]
 macro_rules! w_err {
     ($item:expr) => {
-        ::owo_colors::OwoColorize::if_supports_color(
-            &$item,
-            ::owo_colors::Stream::Stdout,
-            ::owo_colors::OwoColorize::red,
-        )
+        ::owo_colors::OwoColorize::if_supports_color(&$item, ::owo_colors::Stream::Stdout, |s| {
+            ::owo_colors::OwoColorize::style(s, ::owo_colors::Style::new().red().bold())
+        })
     };
 }
 
 #[cfg(feature = "bright-color")]
 macro_rules! w_flag {
     ($item:expr) => {
-        ::owo_colors::OwoColorize::if_supports_color(
-            &$item,
-            ::owo_colors::Stream::Stdout,
-            ::owo_colors::OwoColorize::green,
-        )
+        ::owo_colors::OwoColorize::if_supports_color(&$item, ::owo_colors::Stream::Stdout, |s| {
+            ::owo_colors::OwoColorize::style(s, ::owo_colors::Style::new().green().bold())
+        })
     };
 }
 
