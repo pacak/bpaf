@@ -262,3 +262,24 @@ fn positionals_in_branches_are_okay() {
     let parser = construct!([ac, bd]).to_options();
     assert_usage(parser, "(-a A <C> | -b B <D>)");
 }
+
+#[test]
+fn hidden_fallback_branch() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[allow(dead_code)]
+    struct Fallback {
+        #[bpaf(positional("COMMAND"))]
+        name: String,
+    }
+
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options)]
+    #[allow(dead_code)]
+    enum Commands {
+        #[bpaf(command)]
+        Build {},
+        Fallback(#[bpaf(external(fallback), hide)] Fallback),
+    }
+
+    assert_usage(commands(), "COMMAND ...");
+}
