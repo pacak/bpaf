@@ -609,13 +609,13 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // stash old
         let mut comp_items = Vec::new();
-
         args.swap_comps(&mut comp_items);
 
         let res = self.inner.eval(args);
 
         // restore old, now metavars added by inner parser, if any, are in comp_items
         args.swap_comps(&mut comp_items);
+
         if let Some(comp) = &mut args.comp {
             if res.is_err() {
                 comp.comps.extend(comp_items);
@@ -625,6 +625,8 @@ where
 
         let res = res?;
 
+        // completion function generates suggestions based on the parsed inner value, for
+        // that `res` must contain a parsed value
         if let Some(comp) = &mut args.comp {
             for ci in comp_items {
                 if let Some(is_arg) = ci.meta_type() {
@@ -758,6 +760,9 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        #[cfg(feature = "autocomplete")]
+        let mut comp_items = Vec::new();
+
         for (start, mut this_arg) in args.ranges() {
             if let Ok(ok) = self.inner.eval(&mut this_arg) {
                 if start > 0 {
@@ -765,8 +770,14 @@ where
                 }
                 std::mem::swap(&mut this_arg, args);
                 return Ok(ok);
+            } else {
+                #[cfg(feature = "autocomplete")]
+                this_arg.swap_comps(&mut comp_items);
             }
         }
+
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps(&mut comp_items);
         Err(Error::Missing(vec![]))
     }
 
