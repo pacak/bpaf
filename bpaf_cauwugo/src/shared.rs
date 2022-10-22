@@ -68,7 +68,10 @@ impl PackageAndTestables {
         for t in &self.testables {
             t.pass_to_cmd(cmd)
         }
-        pass_arg!(cmd, self.package, "--package");
+        if self.testables.is_empty() {
+            pass_arg!(cmd, self.package, "--package");
+        }
+        pass_arg!(cmd, &self.features, "--feature");
     }
 }
 
