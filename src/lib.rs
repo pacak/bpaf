@@ -774,13 +774,12 @@ use std::str::FromStr;
 ///     // `bpaf_derive` inserts implicit `argument`, `optional` and the right type
 ///     number_3: Option<u32>,
 ///
-///     // fails to compile: you need to specify a consumer, `argument` or `argument_os`
+///     // fails to compile: you need to specify `argument`
 ///     // #[bpaf(optional)]
-///     // number_4: Option<u32>
+///     // number_4: Option<u32>,
 ///
-///     // fails to compile: you also need to specify how to go from String to u32
-///     // #[bpaf(argument("N"), optional)]
-///     // number_5: Option<u32>,
+///     #[bpaf(argument("N"), optional)]
+///     number_5: Option<u32>,
 ///
 ///     // explicit consumer and a full postprocessing chain
 ///     #[bpaf(argument::<u32>("N"), optional)]
@@ -1170,8 +1169,7 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for shell. Completer places generated input
     /// in place of metavar placeholders, so running `completer` on something that doesn't have a
-    /// [`positional`] or an [`argument`](NamedArg::argument) (or their `_os` variants) doesn't make
-    /// much sense.
+    /// [`positional`] or an [`argument`](NamedArg::argument) doesn't make much sense.
     ///
     /// Takes a function as a parameter that tries to complete partial input to a full one with
     /// optional description. `bpaf` would substitute current positional item or an argument an empty

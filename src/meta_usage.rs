@@ -58,7 +58,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                     assert!(!*is_pos || this_pos,
                         "bpaf usage BUG: all positional and command items must be placed in the right \
                         most position of the structure or tuple they are in but {} breaks this rule. \
-                        See bpaf documentation for `positional` and `positional_os` for details.",
+                        See bpaf documentation for `positional` for details.",
                         usage_meta
                     );
                     *is_pos |= this_pos;
