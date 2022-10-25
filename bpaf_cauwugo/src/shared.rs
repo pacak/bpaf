@@ -31,10 +31,6 @@ pub struct CargoOpts {
     /// Number of parallel jobs, defaults to # of CPUs
     pub jobs: Option<usize>,
 
-    #[bpaf(short('F'), long)]
-    /// Space or comma separated list of features to activate
-    pub features: Vec<String>,
-
     /// Do not activate the `default` feature
     pub no_default_features: bool,
 
@@ -56,7 +52,6 @@ impl CargoOpts {
         pass_flag!(cmd, self.no_default_features, "--no_default_features");
         pass_flag!(cmd, self.all_features, "--all-features");
         pass_arg!(cmd, self.jobs.map(|j| j.to_string()), "--jobs");
-        pass_arg!(cmd, &self.features, "--features");
     }
 }
 
@@ -64,6 +59,8 @@ impl CargoOpts {
 pub struct PackageAndTestables {
     pub package: Option<&'static str>,
     pub testables: Vec<Exec>,
+
+    pub features: Vec<String>,
 }
 
 impl PackageAndTestables {
@@ -71,7 +68,10 @@ impl PackageAndTestables {
         for t in &self.testables {
             t.pass_to_cmd(cmd)
         }
-        pass_arg!(cmd, self.package, "--package");
+        if self.testables.is_empty() {
+            pass_arg!(cmd, self.package, "--package");
+        }
+        pass_arg!(cmd, &self.features, "--feature");
     }
 }
 
@@ -97,14 +97,37 @@ pub fn parse_package(help: &'static str) -> impl Parser<Option<&'static str>> {
         .optional()
 }
 
+pub fn parse_features(cur_pkg: Rc<RefCell<Option<&'static str>>>) -> impl Parser<Vec<String>> {
+    short('F')
+        .long("feature")
+        .help("Feature to activate, one at a time")
+        .argument("FEATURES")
+        .many()
+        .complete(move |i| {
+            match cur_pkg
+                .borrow()
+                .and_then(|p| METADATA.packages.iter().find(|pkg| pkg.name == p))
+            {
+                Some(pkg) => suggest_available(i, pkg.features.keys().map(|s| s.as_str())),
+                None => vec![("<FEATURE>".to_owned(), None)],
+            }
+        })
+}
+
 pub fn package_and_testables() -> impl Parser<PackageAndTestables> {
     let cur_pkg = Rc::new(RefCell::new(None));
     let testables = parse_testable(cur_pkg.clone()).many();
+    let features = parse_features(cur_pkg.clone());
     let package = parse_package("Package to check").map(move |p| {
         *cur_pkg.borrow_mut() = p;
         p
     });
-    construct!(PackageAndTestables { package, testables })
+
+    construct!(PackageAndTestables {
+        package,
+        testables,
+        features
+    })
 }
 
 #[allow(clippy::ptr_arg)]

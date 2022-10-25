@@ -25,39 +25,28 @@
 //! assert_eq!(plus_one(absent), None);
 //! ```
 //!
-//! `Vec`, `Result` and other types that implement `map` are `Functor` as well, but `Functor`
+//! `Vec`, `Result` and other types that implement `map` are `Functors` as well, but `Functor`
 //! is not limited just to containers - you don't have to have a value inside to be able to
-//! manipulate it. In fact a regular rust function is also a `Functor` if you squint hard enough:
-//! consider `Reader` that allows you to perform transformations on a *value in a context* `T`
+//! manipulate it. In fact a regular rust function is also a `Functor` if you squint hard enough.
+//! Consider `Reader` that allows you to perform transformations on a *value in a context* `T`
 //! without having any value until it the execution time:
 //!
 //! ```rust
 //! struct Reader<T>(Box<dyn Fn(T) -> T>);
-//!
-//! impl<T> Reader<T> {
+//! impl<T: 'static> Reader<T> {
 //!     /// Initialize an new value in a context
 //!     fn new() -> Self {
 //!         Self(Box::new(|x| x))
 //!     }
 //!
 //!     /// Modify a value in a context
-//!     fn map<F>(self, f: F) -> Self
-//!     where
-//!         F: Fn(T) -> T + 'static,
-//!         T: 'static,
-//!     {
-//!         Self(
-//!             Box::new(move |x| {
-//!                 let inner = &self.0;
-//!                 f(inner(x))
-//!             }),
-//!         )
+//!     fn map<F:  Fn(T) -> T + 'static>(self, f: F) -> Self {
+//!         Self(Box::new(move |x| f((self.0)(x))))
 //!     }
 //!
 //!     /// Apply the changes by giving it the initial value
 //!     fn run(self, input: T) -> T {
-//!         let f = &self.0;
-//!         f(input)
+//!         (self.0)(input)
 //!     }
 //! }
 //!
@@ -66,13 +55,16 @@
 //! let res = val.run(10);
 //! assert_eq!(res, 11);
 //! ```
+//!
+//! Not all the collections are `Functors` - by `Functor` laws mapping the *value in context*
+//! shouldn't change the shape so any collections where shape depends on a value, such as `HashSet`
+//! or `BTreeSet` are out.
 
 //! ## Applicative Functors
 //!
 //! `map` in `Functor` is limited to a single *value in a context*, `Applicative Functor` extends it
 //! to operations combining multiple values, closest Rust analogy would be doing computations on
-//! `Option` or `Result` using only `?` and `Some`/`Ok` but without making any decisions that would
-//! change the shape of the output based on input values after they been extracted with `?`.
+//! `Option` or `Result` using only `?`, having `Some`/`Ok` around the whole expression and not using `return`.
 //! ```rust
 //! fn add_numbers(input_a: Option<u32>, input_b: Option<u32>) -> Option<u32> {
 //!     Some(input_a? + input_b?)
@@ -99,7 +91,7 @@
 //!
 //! So far `Applicative Functors` allow us to create structs containing multiple fields out of
 //! individual parsers for each field. `Alternative` extends `Applicative` with two extra
-//! things: one for choosing a better of two *values in a context* and an idenity element
+//! things: one for combining two *values in a context* into one and and an idenity element
 //! for this operation. In Rust a closest analogy would be `Option::or` and `Option::None`:
 //!
 //! ```rust
@@ -118,11 +110,8 @@
 
 //! ## `Parser` trait and `construct!` macro
 //!
-//! Similarly to `Reader` struct described above parsers don't actually contain any values
-//! but only define a context for them - they contain a computation describing the initial consumer plus
-//! all the transformations and validations layered on top. [`construct!`] macro takes several
-//! parser objects and composes them either according to `Applicative` or `Alternative` functor
-//! laws depending on the usage.
+//! [`Parser`] trait defines a context for values and gives access to `Functor` laws and [`construct!`]
+//! macro allows to compose several values according to `Applicative` and `Alternative` laws.
 
 //! ## So why use `Applicative Functors` then?
 //!
@@ -163,6 +152,29 @@
 //!
 //! So `Applicative Functors` sits right in the middle between what users want to express and
 //! library can consume.
+//!
+//! To recap - all sorts of Functors listed here only define laws to how individual parts are
+//! composed, how values in context can be transformed and how pure values can be turned into a
+//! functor, but not how the values are parsed or how they can be extracted.
+
+//! ## Putting the values into a context
+//!
+//! Similarly to how `Reader` defined above `bpaf`'s `Parsers` don't actually have values inside
+//! until they are executed. Instead starting points ([`flag`](NamedArg::flag), [`positional`],
+//! [`argument`](NamedArg::argument), etc) define what exactly needs to be consumed, various mapping
+//! functions define transformations, [`construct!`] composes them and defines the relative order
+//! values should be consumed. Not everything present inside [`Parser`] can be repesented in terms
+//! of plain applicative functors - specifically [`parse`](Parser::parse) is not and it is best
+//! though of as a function that takes one applicative and gives a different applicative back.
+//! The actual values will show up inside once `bpaf` starts running the [`OptionParser`] with
+//! [`run`](OptionParser::run).
+
+//! ## Taking the results out
+//!
+//! The rest of the execution is relatively simple: getting console arguments from OS, doing the
+//! initial split into short/long flags and standalone words, disambiguating groups of short
+//! options from short options with attached values and applying all the transformations like
+//! `Reader::run` above would do.
 
 #[cfg(doc)]
 use crate::*;

@@ -161,9 +161,16 @@ impl Complete {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CompExtra {
+    /// used by complete_gen to separate commands from each other
     depth: usize,
+
+    /// hidden group, "" if absent
     hidden_group: &'static str,
+
+    /// visible group, "" if absent
     visible_group: &'static str,
+
+    /// custom help message to render, if present
     help: Option<String>,
 }
 
