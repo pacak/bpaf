@@ -434,6 +434,14 @@ impl Args {
         })
     }
 
+    pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
+        Error::Stderr(if let Some(os) = self.current_word() {
+            format!("{:?}: {}", os.to_string_lossy(), error)
+        } else {
+            error.to_owned()
+        })
+    }
+
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present

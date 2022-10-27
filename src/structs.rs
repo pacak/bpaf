@@ -374,7 +374,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(args.word_parse_error(self.message))
+            Err(args.word_validate_error(self.message))
         }
     }
 

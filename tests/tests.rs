@@ -500,31 +500,46 @@ fn from_several_alternatives_pick_more_meaningful() {
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err1, "-b is not expected in this context");
+    assert_eq!(
+        err1,
+        "-b is not expected in this context: -b cannot be used at the same time as -a"
+    );
 
     let err2 = parser
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err2, "-a is not expected in this context");
+    assert_eq!(
+        err2,
+        "-a is not expected in this context: -a cannot be used at the same time as -b"
+    );
 
     let err3 = parser
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err3, "-a is not expected in this context");
+    assert_eq!(
+        err3,
+        "-a is not expected in this context: (-a | -b) cannot be used at the same time as -c"
+    );
 
     let err4 = parser
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err4, "-c is not expected in this context");
+    assert_eq!(
+        err4,
+        "-c is not expected in this context: -c cannot be used at the same time as (-a | -b)"
+    );
 
     let err5 = parser
         .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err5, "-b is not expected in this context");
+    assert_eq!(
+        err5,
+        "-b is not expected in this context: (-a | -b) cannot be used at the same time as -c"
+    );
 }
 
 #[test]
@@ -1342,13 +1357,13 @@ fn did_you_mean_two_or_arguments() {
         .run_inner(Args::from(&["--parameter", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(r, "--flag is not expected in this context: [--flag] cannot be used at the same time as [--parameter]");
 
     let r = parser
         .run_inner(Args::from(&["--flag", "--parameter"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--parameter is not expected in this context");
+    assert_eq!(r, "--parameter is not expected in this context: [--parameter] cannot be used at the same time as [--flag]");
 }
 
 // problematic steps look something like this:
@@ -1371,13 +1386,13 @@ fn cargo_show_asm_issue_guard() {
         .run_inner(Args::from(&["asm", "-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": nope");
+    assert_eq!(res, "\"x\": nope");
 
     let res = parser
         .run_inner(Args::from(&["-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": nope");
+    assert_eq!(res, "\"x\": nope");
 }
 
 #[test]
@@ -1483,13 +1498,13 @@ fn did_you_mean_inside_command() {
         .run_inner(Args::from(&["cmd", "--parameter", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(r, "--flag is not expected in this context: [--flag] cannot be used at the same time as [--parameter]");
 
     let r = parser
         .run_inner(Args::from(&["cmd", "--flag", "--parameter"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--parameter is not expected in this context");
+    assert_eq!(r, "--parameter is not expected in this context: [--parameter] cannot be used at the same time as [--flag]");
 }
 
 #[test]
