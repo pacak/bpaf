@@ -202,8 +202,16 @@ where
             #[cfg(feature = "autocomplete")]
             comp_items,
         )? {
+            if res_b.is_some() {
+                args.conflicts
+                    .insert(args_b.head, (self.this.meta(), self.that.meta()));
+            }
             Ok(res_a.unwrap())
         } else {
+            if res_a.is_some() {
+                args.conflicts
+                    .insert(args_a.head, (self.that.meta(), self.this.meta()));
+            }
             Ok(res_b.unwrap())
         }
     }

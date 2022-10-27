@@ -75,12 +75,16 @@ enum ExtraParams {
 }
 
 fn check_unexpected(args: &Args) -> Result<(), Error> {
-    match args.peek() {
+    match args.items_iter().next() {
         None => Ok(()),
-        Some(item) => Err(Error::Stderr(format!(
-            "{} is not expected in this context",
-            item
-        ))),
+        Some((ix, item)) => {
+            let mut msg = format!("{} is not expected in this context", item);
+            if let Some((acc, rej)) = args.conflicts.get(&ix) {
+                use std::fmt::Write;
+                write!(msg, ": {} cannot be used at the same time as {}", rej, acc)?;
+            }
+            Err(Error::Stderr(msg))
+        }
     }
 }
 

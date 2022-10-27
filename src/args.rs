@@ -6,12 +6,13 @@ use crate::{parsers::NamedArg, Error};
 /// Hides [`Args`] internal implementation
 mod inner {
     use std::{
+        collections::BTreeMap,
         ffi::{OsStr, OsString},
         ops::Range,
         rc::Rc,
     };
 
-    use crate::ParseFailure;
+    use crate::{Meta, ParseFailure};
 
     use super::{push_vec, Arg};
     /// All currently present command line parameters, use it for unit tests and manual parsing
@@ -57,6 +58,10 @@ mod inner {
 
         /// how many Ambiguities are there
         pub(crate) ambig: usize,
+
+        /// set of conflicts - usize contains the offset to the rejected item,
+        /// first Meta contains accepted item, second meta contains rejected item
+        pub(crate) conflicts: BTreeMap<usize, (Meta, Meta)>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -120,6 +125,7 @@ mod inner {
                 #[cfg(feature = "autocomplete")]
                 no_pos_ahead: false,
                 ambig,
+                conflicts: BTreeMap::new(),
             }
         }
     }
