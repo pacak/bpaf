@@ -81,7 +81,7 @@ fn check_unexpected(args: &Args) -> Result<(), Error> {
             let mut msg = format!("{} is not expected in this context", item);
             if let Some((acc, rej)) = args.conflicts.get(&ix) {
                 use std::fmt::Write;
-                write!(msg, ": {} cannot be used at the same time as {}", rej, acc)?;
+                write!(msg, ": {} cannot be used at the same time as {}", rej, acc).unwrap();
             }
             Err(Error::Stderr(msg))
         }
