@@ -53,7 +53,7 @@ Options { number: 5 }
 But fails with the error message on higher values:
 ```console
 % app --number 11
-Couldn't parse "11": Values greater than 10 are only available in the DLC pack!
+"11": Values greater than 10 are only available in the DLC pack!
 ```
 
 But if function inside the parser fails - user will get the error back unless it's handled
