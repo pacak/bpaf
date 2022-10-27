@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.7.2] - 2022-10-27
+- drop tainting logic, should be redundant
+- improve error messages for guard and conflicting branches
+
 ## bpaf [0.7.1] - 2022-10-15
 - colors similar to cargo'some
    thanks to @kramer425

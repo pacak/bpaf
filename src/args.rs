@@ -6,12 +6,13 @@ use crate::{parsers::NamedArg, Error};
 /// Hides [`Args`] internal implementation
 mod inner {
     use std::{
+        collections::BTreeMap,
         ffi::{OsStr, OsString},
         ops::Range,
         rc::Rc,
     };
 
-    use crate::ParseFailure;
+    use crate::{Meta, ParseFailure};
 
     use super::{push_vec, Arg};
     /// All currently present command line parameters, use it for unit tests and manual parsing
@@ -47,22 +48,6 @@ mod inner {
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
 
-        /// setting it to true prevents suggester from replacing the results
-        ///
-        /// assume a parser consumes this:
-        /// ["asm"] -t <NUM>
-        /// and user passes ["asm", "-t", "x"] to it.
-        ///
-        /// problematic steps look something like this:
-        /// - bpaf parses "asm" expected
-        /// - then it consumes "-t x"
-        /// - then fails to parse "x"
-        /// - ParseWith rollbacks the arguments state - "asm" is back
-        /// - suggestion looks for something it can complain at and finds "asm"
-        ///
-        /// parse/guard failures should "taint" the arguments and turn off the suggestion logic
-        pub(crate) tainted: bool,
-
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress
         #[cfg(feature = "autocomplete")]
@@ -73,6 +58,10 @@ mod inner {
 
         /// how many Ambiguities are there
         pub(crate) ambig: usize,
+
+        /// set of conflicts - usize contains the offset to the rejected item,
+        /// first Meta contains accepted item, second meta contains rejected item
+        pub(crate) conflicts: BTreeMap<usize, (Meta, Meta)>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -131,12 +120,12 @@ mod inner {
                 current: None,
                 head: usize::MAX,
                 depth: 0,
-                tainted: false,
                 #[cfg(feature = "autocomplete")]
                 comp: None,
                 #[cfg(feature = "autocomplete")]
                 no_pos_ahead: false,
                 ambig,
+                conflicts: BTreeMap::new(),
             }
         }
     }
@@ -438,11 +427,18 @@ impl Args {
     }
 
     pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        self.tainted = true;
         Error::Stderr(if let Some(os) = self.current_word() {
             format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
         } else {
             format!("Couldn't parse: {}", error)
+        })
+    }
+
+    pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
+        Error::Stderr(if let Some(os) = self.current_word() {
+            format!("{:?}: {}", os.to_string_lossy(), error)
+        } else {
+            error.to_owned()
         })
     }
 

@@ -202,8 +202,16 @@ where
             #[cfg(feature = "autocomplete")]
             comp_items,
         )? {
+            if res_b.is_some() {
+                args.conflicts
+                    .insert(args_b.head, (self.this.meta(), self.that.meta()));
+            }
             Ok(res_a.unwrap())
         } else {
+            if res_a.is_some() {
+                args.conflicts
+                    .insert(args_a.head, (self.that.meta(), self.this.meta()));
+            }
             Ok(res_b.unwrap())
         }
     }
@@ -276,10 +284,7 @@ fn this_or_that_picks_first(
             std::mem::swap(args, args_b);
             Ok(false)
         }
-        (Some(e1), Some(e2)) => {
-            args.tainted |= args_a.tainted | args_b.tainted;
-            Err(e1.combine_with(e2))
-        }
+        (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
     };
 
     #[cfg(feature = "autocomplete")]
@@ -369,7 +374,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(args.word_parse_error(self.message))
+            Err(args.word_validate_error(self.message))
         }
     }
 
