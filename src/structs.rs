@@ -276,10 +276,7 @@ fn this_or_that_picks_first(
             std::mem::swap(args, args_b);
             Ok(false)
         }
-        (Some(e1), Some(e2)) => {
-            args.tainted |= args_a.tainted | args_b.tainted;
-            Err(e1.combine_with(e2))
-        }
+        (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
     };
 
     #[cfg(feature = "autocomplete")]

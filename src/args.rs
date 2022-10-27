@@ -47,22 +47,6 @@ mod inner {
         /// used to pick the parser that consumes the left most item
         pub(crate) head: usize,
 
-        /// setting it to true prevents suggester from replacing the results
-        ///
-        /// assume a parser consumes this:
-        /// ["asm"] -t <NUM>
-        /// and user passes ["asm", "-t", "x"] to it.
-        ///
-        /// problematic steps look something like this:
-        /// - bpaf parses "asm" expected
-        /// - then it consumes "-t x"
-        /// - then fails to parse "x"
-        /// - ParseWith rollbacks the arguments state - "asm" is back
-        /// - suggestion looks for something it can complain at and finds "asm"
-        ///
-        /// parse/guard failures should "taint" the arguments and turn off the suggestion logic
-        pub(crate) tainted: bool,
-
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress
         #[cfg(feature = "autocomplete")]
@@ -131,7 +115,6 @@ mod inner {
                 current: None,
                 head: usize::MAX,
                 depth: 0,
-                tainted: false,
                 #[cfg(feature = "autocomplete")]
                 comp: None,
                 #[cfg(feature = "autocomplete")]
@@ -438,7 +421,6 @@ impl Args {
     }
 
     pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        self.tainted = true;
         Error::Stderr(if let Some(os) = self.current_word() {
             format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
         } else {

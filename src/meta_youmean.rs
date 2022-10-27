@@ -20,10 +20,6 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
 
 /// Looks for potential typos
 pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
-    if args.tainted {
-        return Ok(());
-    }
-
     let arg = match args.peek() {
         Some(arg) => arg,
         None => return Ok(()),
