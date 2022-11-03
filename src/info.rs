@@ -168,7 +168,7 @@ impl<T> OptionParser<T> {
     /// }
     /// ```
     #[must_use]
-    pub fn try_run(self) ->  Result<T, ParseFailure>
+    pub fn try_run(self) -> Result<T, ParseFailure>
     where
         Self: Sized,
     {
@@ -200,7 +200,7 @@ impl<T> OptionParser<T> {
         #[cfg(not(feature = "autocomplete"))]
         let args = Args::from(arg_vec.as_slice());
 
-        match self.run_inner(args);
+        self.run_inner(args)
     }
 
     /// Execute the [`OptionParser`] and produce a values for unit tests or manual processing
