@@ -155,16 +155,19 @@ impl<T> OptionParser<T> {
     /// }
     ///
     /// fn main() {
-    ///     let verbosity: usize =  
+    ///     let verbosity: Option<usize> = match verbosity().try_run() {
+    ///         Ok(v) => Some(v),
     ///         Err(ParseFailure::Stdout(msg)) => {
     ///             print!("{}", msg); // completions are sad otherwise
+    ///             None
     ///         }
     ///         Err(ParseFailure::Stderr(msg)) => {
     ///             eprintln!("{}", msg);
-    ///         };
-    ///     }
+    ///             None
+    ///         }
+    ///     };
     ///
-    ///     # Run cleanup tasks
+    ///     // Run cleanup tasks
     /// }
     /// ```
     #[must_use]
