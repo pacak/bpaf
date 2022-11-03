@@ -124,6 +124,54 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
+        match self.try_run() {
+            Ok(t) => t,
+            Err(ParseFailure::Stdout(msg)) => {
+                print!("{}", msg); // completions are sad otherwise
+                std::process::exit(0);
+            }
+            Err(ParseFailure::Stderr(msg)) => {
+                eprintln!("{}", msg);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    /// Execute the [`OptionParser`], extract a parsed value or return a [`ParseError`]
+    ///
+    /// # Usage
+    /// ```no_run
+    /// # use bpaf::*;
+    /// /// Parses number of repetitions of `-v` on a command line
+    /// fn verbosity() -> OptionParser<usize> {
+    ///     let parser = short('v')
+    ///         .req_flag(())
+    ///         .many()
+    ///         .map(|xs|xs.len());
+    ///
+    ///     parser
+    ///         .to_options()
+    ///         .descr("Takes verbosity flag and does nothing else")
+    /// }
+    ///
+    /// fn main() {
+    ///     let verbosity: usize =  
+    ///         Err(ParseFailure::Stdout(msg)) => {
+    ///             print!("{}", msg); // completions are sad otherwise
+    ///         }
+    ///         Err(ParseFailure::Stderr(msg)) => {
+    ///             eprintln!("{}", msg);
+    ///         };
+    ///     }
+    ///
+    ///     # Run cleanup tasks
+    /// }
+    /// ```
+    #[must_use]
+    pub fn try_run(self) ->  Result<T, ParseFailure>
+    where
+        Self: Sized,
+    {
         let mut arg_vec = Vec::new();
         #[cfg(feature = "autocomplete")]
         let mut complete_vec = Vec::new();
@@ -152,17 +200,7 @@ impl<T> OptionParser<T> {
         #[cfg(not(feature = "autocomplete"))]
         let args = Args::from(arg_vec.as_slice());
 
-        match self.run_inner(args) {
-            Ok(t) => t,
-            Err(ParseFailure::Stdout(msg)) => {
-                print!("{}", msg); // completions are sad otherwise
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(msg)) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
-        }
+        match self.run_inner(args);
     }
 
     /// Execute the [`OptionParser`] and produce a values for unit tests or manual processing
