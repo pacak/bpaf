@@ -137,7 +137,10 @@ impl<T> OptionParser<T> {
         }
     }
 
-    /// Execute the [`OptionParser`], extract a parsed value or return a [`ParseError`]
+    /// Execute the [`OptionParser`], extract a parsed value or return a [`ParseFailure`]
+    ///
+    /// In most cases using [`run`](OptionParser::run) is sufficient, you can use `try_run` if you
+    /// want to control the exit code or you need to perform a custom cleanup.
     ///
     /// # Usage
     /// ```no_run
@@ -170,7 +173,11 @@ impl<T> OptionParser<T> {
     ///     // Run cleanup tasks
     /// }
     /// ```
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// [`ParseFailure`] represents parsing errors, autocomplete results and generated `--help`
+    /// output.
     pub fn try_run(self) -> Result<T, ParseFailure>
     where
         Self: Sized,
