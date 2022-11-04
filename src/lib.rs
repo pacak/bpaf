@@ -1,5 +1,4 @@
 #![warn(missing_docs)]
-#![warn(rustdoc::missing_doc_code_examples)]
 #![allow(clippy::needless_doctest_main)]
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
