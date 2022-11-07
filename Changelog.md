@@ -2,7 +2,8 @@
 
 ## bpaf [0.7.3] - unreleased
 - `try_run`
-  thanks to @ysndr
+   thanks to @ysndr
+- `-Obits=2048` is now parsed as short flag `O` with a value of `bits=2048` instad of crashing
 
 ## bpaf [0.7.2] - 2022-10-27
 - drop tainting logic, should be redundant

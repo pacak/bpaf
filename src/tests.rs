@@ -75,6 +75,15 @@ fn wtf_shenanigans_2() {
 }
 
 #[test]
+fn fallback_with_strange_args() {
+    use crate::args::{split_os_argument, split_os_argument_fallback};
+    let s = std::ffi::OsString::from("-Obits=2048");
+    let r1 = split_os_argument(&s);
+    let r2 = split_os_argument_fallback(&s);
+    assert_eq!(r1, r2);
+}
+
+#[test]
 fn different_methods_of_args_cration_are_identical() {
     use crate::Args;
     use std::ffi::OsString;
