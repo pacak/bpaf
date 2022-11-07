@@ -216,7 +216,17 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
         // keep collecting until = or the end of the input
         loop {
             match items.next() {
-                Some(EQUALS) => break,
+                Some(EQUALS) => {
+                    if ty == ArgType::Short && name.len() > 1 {
+                        let mut body = name.drain(1..).collect::<Vec<_>>();
+                        body.push(EQUALS);
+                        body.extend(items);
+                        name.truncate(1);
+                        let os = Arg::Word(os_from_vec(body));
+                        return Some((ty, str_from_vec(name)?, Some(os)));
+                    }
+                    break;
+                }
                 Some(val) => name.push(val),
                 None => {
                     if name.is_empty() {
@@ -241,7 +251,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
 }
 
 /// similar to [`split_os_argument`] but only works for utf8 values, used as a fallback function
-/// on non
+/// on non windows/unix OSes
 #[cfg(any(all(not(windows), not(unix)), test))]
 pub(crate) fn split_os_argument_fallback(
     input: &std::ffi::OsStr,
@@ -271,7 +281,18 @@ pub(crate) fn split_os_argument_fallback(
     // if it's a flag
     loop {
         match chars.next() {
-            Some('=') => break,
+            Some('=') => {
+                if ty == ArgType::Short && name.len() > 1 {
+                    let mut body = name.drain(1..).collect::<String>();
+                    body.push('=');
+                    body.extend(chars);
+                    name.truncate(1);
+                    let os = Arg::Word(OsString::from(body));
+                    return Some((ty, name, Some(os)));
+                }
+                break;
+            }
+
             Some(val) => name.push(val),
             None => {
                 if name.is_empty() {

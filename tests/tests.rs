@@ -1796,3 +1796,10 @@ Available options:
 "
     );
 }
+
+#[test]
+fn strange_short_option() {
+    let parser = short('O').argument::<String>("ARG").to_options();
+    let r = parser.run_inner(Args::from(&["-Obits=2048"])).unwrap();
+    assert_eq!(r, "bits=2048");
+}
