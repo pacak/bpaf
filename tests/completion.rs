@@ -1081,3 +1081,41 @@ fn avoid_inserting_metavars() {
     test_zsh_comp(&parser, &["-a", ""], &[["-a", "-a <A>", "", ""]]);
     test_zsh_comp(&parser, &[""], &[["-a", "-a <A>", "", ""]]);
 }
+
+#[track_caller]
+fn test_comp_v3<T: std::fmt::Debug>(
+    parser: &OptionParser<T>,
+    args: &[&str],
+    expected: &[&str],
+    rev: usize,
+) {
+    let comps = parser
+        .run_inner(Args::from(args).set_comp(rev))
+        .unwrap_err()
+        .unwrap_stdout();
+    let mut total = 0;
+    for (ix, comp) in comps.lines().enumerate() {
+        total += 1;
+        if let Some(exp) = expected.get(ix) {
+            assert_eq!(*exp, comp);
+        } else {
+            panic!("Got more comps than expected: {:?}", comp);
+        }
+    }
+    assert_eq!(total, expected.len(), "expected more than got");
+}
+
+#[test]
+fn bash_completion() {
+    let parser = short('a')
+        .argument::<String>("FILE")
+        .complete_shell(ShellComp::Dir { mask: None })
+        .to_options();
+
+    test_comp_v3(&parser, &["-a", ""], &["bash\t_filedir -d"], 3);
+    test_comp_v3(&parser, &["-a", ""], &["zsh\t_files -/"], 4);
+
+    // not yet fully supported
+    test_comp_v3(&parser, &["-a", ""], &[], 5);
+    test_comp_v3(&parser, &["-a", ""], &[], 6);
+}

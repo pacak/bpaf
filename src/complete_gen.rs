@@ -14,7 +14,13 @@
 //
 // complete short names to long names if possible
 
-use crate::{args::Arg, item::ShortLong, parsers::NamedArg, Args, CompleteDecor, Error};
+use crate::{
+    args::Arg,
+    complete_shell::{write_shell, Shell},
+    item::ShortLong,
+    parsers::NamedArg,
+    Args, CompleteDecor, Error, ShellComp,
+};
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
@@ -139,6 +145,19 @@ impl Arg {
 }
 
 impl Complete {
+    pub(crate) fn push_shell(&mut self, op: ShellComp, depth: usize, is_arg: bool) {
+        self.comps.push(Comp::Shell {
+            extra: CompExtra {
+                depth,
+                hidden_group: "",
+                visible_group: "",
+                help: None,
+            },
+            script: op,
+            is_arg,
+        });
+    }
+
     pub(crate) fn push_value(
         &mut self,
         body: String,
@@ -206,6 +225,11 @@ pub(crate) enum Comp {
         meta: &'static str,
         is_arg: bool,
     },
+    Shell {
+        extra: CompExtra,
+        script: ShellComp,
+        is_arg: bool,
+    },
 }
 
 impl Comp {
@@ -216,6 +240,7 @@ impl Comp {
             | Comp::Value { extra, .. }
             | Comp::Positional { extra, .. }
             | Comp::Flag { extra, .. }
+            | Comp::Shell { extra, .. }
             | Comp::Argument { extra, .. } => extra.depth,
         }
     }
@@ -228,6 +253,7 @@ impl Comp {
             Comp::Command { .. }
             | Comp::Value { .. }
             | Comp::Flag { .. }
+            | Comp::Shell { .. }
             | Comp::Argument { .. } => None,
             Comp::Positional { is_arg, .. } => Some(*is_arg),
         }
@@ -239,6 +265,7 @@ impl Comp {
             | Comp::Argument { extra, .. }
             | Comp::Command { extra, .. }
             | Comp::Value { extra, .. }
+            | Comp::Shell { extra, .. }
             | Comp::Positional { extra, .. } => extra,
         };
         match style {
@@ -387,6 +414,7 @@ impl Complete {
         pos_only: bool,
     ) -> Result<String, std::fmt::Error> {
         let mut items: Vec<ShowComp> = Vec::new();
+        let mut shell = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut has_values = false;
 
@@ -487,6 +515,10 @@ impl Complete {
                         is_value: false,
                     });
                 }
+                Comp::Shell { script, is_arg, .. } => {
+                    has_values |= is_arg;
+                    shell.push(*script);
+                }
             }
         }
 
@@ -494,8 +526,18 @@ impl Complete {
             items.retain(|i| i.is_value);
         }
         match self.output_rev {
-            1 => render_1(&items),
-            2 => render_2(&items),
+            1 => {
+                assert!(shell.is_empty(), "You need to regenerate your completion scripts");
+                render_1(&items)
+            }
+            2 => {
+                assert!(shell.is_empty(), "You need to regenerate your completion scripts");
+                render_2(&items)
+            }
+            3 => render_3456(&items, Shell::Bash, &shell),
+            4 => render_3456(&items, Shell::Zsh, &shell),
+            5 => render_3456(&items, Shell::Fish,&shell),
+            6 => render_3456(&items, Shell::Elvish, &shell),
             unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
         }
     }
@@ -547,6 +589,45 @@ fn render_2(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
             writeln!(res, "\0{}", item.extra.hidden_group)?;
         }
     }
+    Ok(res)
+}
+
+fn render_3456(
+    items: &[ShowComp],
+    shell: Shell,
+    ops: &[ShellComp],
+) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+    if items.len() == 1 && ops.is_empty() {
+        write!(res, "literal\t{}", items[0].subst)?;
+        return Ok(res);
+    }
+
+    for i in items {
+        write!(res, "literal\t{}\tshow\t{}", i.subst, i.pretty)?;
+        if let Some(h) = &i.extra.help {
+            write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
+        }
+
+        if !i.extra.visible_group.is_empty() {
+            write!(res, "\tvis_group\t{}", i.extra.visible_group)?;
+        }
+
+        if i.extra.hidden_group.is_empty() {
+            if !i.extra.visible_group.is_empty() {
+                write!(res, "\thid_group\t{}", i.extra.visible_group)?;
+            }
+        } else {
+            write!(res, "\thid_group\t{}", i.extra.hidden_group)?;
+        }
+        writeln!(res)?;
+    }
+
+    for op in ops {
+        write_shell(&mut res, shell, *op)?;
+    }
+
     Ok(res)
 }
 

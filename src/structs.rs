@@ -650,6 +650,7 @@ where
         self.inner.meta()
     }
 }
+
 #[cfg(feature = "autocomplete")]
 pub struct ParseCompStyle<P> {
     pub(crate) inner: P,

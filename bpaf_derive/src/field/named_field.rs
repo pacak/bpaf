@@ -261,6 +261,10 @@ impl Field {
                         check_stage(&mut stage, 4, &keyword)?;
                         let f = parse_path(input)?;
                         res.postpr.push(PostprAttr::Complete(span, f));
+                    } else if keyword == "complete_shell" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        let f = parse_expr(input)?;
+                        res.postpr.push(PostprAttr::CompleteShell(span, f));
                     } else if keyword == "many" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Many(span, None));
