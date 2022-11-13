@@ -12,7 +12,7 @@ use crate::utils::to_kebab_case;
 pub struct ConstrName {
     pub namespace: Option<Ident>,
     pub constr: Ident,
-    pub fallback: Option<Expr>,
+    pub fallback: Option<Box<Expr>>,
 }
 
 mod named_field;

@@ -90,8 +90,8 @@ pub fn parse_path(input: ParseStream) -> Result<Path> {
 }
 
 #[inline(never)]
-pub fn parse_expr(input: ParseStream) -> Result<Expr> {
-    parse_arg(input)
+pub fn parse_expr(input: ParseStream) -> Result<Box<Expr>> {
+    Ok(Box::new(parse_arg(input)?))
 }
 
 impl Field {
@@ -161,7 +161,7 @@ impl Field {
                     } else if keyword == "env" {
                         check_stage(&mut stage, 1, &keyword)?;
 
-                        res.env = Some(Box::new(parse_expr(input)?));
+                        res.env = Some(parse_expr(input)?);
                     //
                     // consumer
                     } else if keyword == "argument" {
@@ -246,11 +246,11 @@ impl Field {
                     } else if keyword == "fallback" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
-                            .push(PostprAttr::Fallback(span, Box::new(parse_expr(input)?)));
+                            .push(PostprAttr::Fallback(span, parse_expr(input)?));
                     } else if keyword == "fallback_with" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
-                            .push(PostprAttr::FallbackWith(span, Box::new(parse_expr(input)?)));
+                            .push(PostprAttr::FallbackWith(span, parse_expr(input)?));
                     } else if keyword == "parse" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr.push(PostprAttr::Parse(span, parse_path(input)?));
@@ -283,7 +283,7 @@ impl Field {
                     } else if keyword == "group_help" {
                         check_stage(&mut stage, 4, &keyword)?;
                         let expr = parse_expr(input)?;
-                        res.postpr.push(PostprAttr::GroupHelp(span, Box::new(expr)));
+                        res.postpr.push(PostprAttr::GroupHelp(span, expr));
                     } else {
                         return Err(input_copy.error("Unexpected attribute"));
                     }
