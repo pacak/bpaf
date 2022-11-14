@@ -43,7 +43,7 @@ enum BParser {
     CompStyle(Box<Expr>, Box<BParser>),
     Constructor(ConstrName, Fields, bool),
     Singleton(Box<ReqFlag>),
-    Fold(Vec<BParser>, Option<Expr>),
+    Fold(Vec<BParser>, Option<Box<Expr>>),
 }
 
 #[derive(Debug)]
@@ -184,7 +184,7 @@ impl Inner {
                         res.longs.push(lit);
                     } else if keyword == "env" {
                         let lit = parse_expr(input)?;
-                        res.envs.push(lit);
+                        res.envs.push(*lit);
                     } else if keyword == "hide" {
                         res.is_hidden = true;
                     } else if keyword == "default" {
@@ -214,12 +214,12 @@ struct Outer {
     kind: Option<OuterKind>,
     version: Option<Box<Expr>>,
     vis: Visibility,
-    comp_style: Option<Expr>,
+    comp_style: Option<Box<Expr>>,
     generate: Option<Ident>,
     decor: Decor,
     longs: Vec<LitStr>,
     shorts: Vec<LitChar>,
-    fallback: Option<Expr>,
+    fallback: Option<Box<Expr>>,
     adjacent: bool,
 }
 
@@ -335,7 +335,7 @@ impl Parse for Top {
 
 fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
     let inner = if let Some(comp_style) = outer.comp_style {
-        BParser::CompStyle(Box::new(comp_style), Box::new(inner))
+        BParser::CompStyle(comp_style, Box::new(inner))
     } else {
         inner
     };

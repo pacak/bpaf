@@ -422,6 +422,21 @@ fn optional_argument_with_name_complete() {
 }
 
 #[test]
+fn optional_argument_with_name_shell_complete() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument("N"), complete_shell(magic))]
+        config: Option<u64>
+    };
+    let output = quote! {
+        ::bpaf::long("config")
+            .argument::<u64>("N")
+            .optional()
+            .complete_shell(magic)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn some_arguments() {
     let input: NamedField = parse_quote! {
         #[bpaf(argument("N"), some("need params"))]

@@ -75,7 +75,7 @@ fn wtf_shenanigans_2() {
 }
 
 #[test]
-fn fallback_with_strange_args() {
+fn fallback_with_strange_args_produces_same_results() {
     use crate::args::{split_os_argument, split_os_argument_fallback};
     let s = std::ffi::OsString::from("-Obits=2048");
     let r1 = split_os_argument(&s);

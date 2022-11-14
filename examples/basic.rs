@@ -42,17 +42,21 @@ fn opts() -> OptionParser<Out> {
     let output = short('o')
         .long("output")
         .help("output file")
-        .argument::<PathBuf>("OUTPUT"); // but it's optional when rustc can derive it
+        .argument::<PathBuf>("OUTPUT") // but it's optional when rustc can derive it
+        .complete_shell(ShellComp::File { mask: None });
 
     // no magical name transmogrifications in combinatoric API,
     let nb_cars = short('n').long("nb-cars").argument::<u32>("N");
 
     // a parser that consumes one argument
     // you can build the inner parser in one go or as multiple steps giving each step a name
+    // you can also add some static shell completion functionality
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
-        .argument::<PathBuf>("FILE");
+        .argument::<PathBuf>("FILE")
+        .complete_shell(ShellComp::File { mask: Some("*.rs") });
+
     let files_to_process = file_to_proces.many();
 
     // packing things in a struct assumes parser for each field is in scope.

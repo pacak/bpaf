@@ -1,5 +1,6 @@
 #![warn(missing_docs)]
 #![allow(clippy::needless_doctest_main)]
+#![allow(clippy::redundant_else)] // not useful
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
@@ -391,6 +392,8 @@ pub mod batteries;
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
 mod complete_run;
+#[cfg(feature = "autocomplete")]
+mod complete_shell;
 mod info;
 mod item;
 mod meta;
@@ -409,11 +412,16 @@ use std::marker::PhantomData;
 #[doc(hidden)]
 pub use structs::{ParseBox, ParseCon};
 
+#[cfg(feature = "autocomplete")]
+pub use crate::complete_shell::ShellComp;
+
 pub mod parsers {
     //! This module exposes parsers that accept further configuration with builder pattern
     //!
     //! In most cases you won't be using those names directly, they're only listed here to provide
     //! access to documentation
+    #[cfg(feature = "autocomplete")]
+    pub use crate::complete_shell::ParseCompShell;
     pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
     pub use crate::structs::{ParseBox, ParseMany, ParseOptional, ParseSome};
 }
@@ -1236,6 +1244,58 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // {{{
+    /// Static shell completion
+    ///
+    /// Allows to ask existing shell completion to provide some information such as file or
+    /// directory names or pass though existing shell completion scripts, see
+    /// [`ShellComp`](complete_shell::ShellComp) for accessible functionality
+    ///
+    /// Places function call in place of metavar placeholder, so running `complete_shell` on
+    /// something that doesn't have a [`positional`] or [`argument`](NamedArg::argument) doesn't
+    /// make much sense.
+    ///
+    /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
+    ///
+    /// # Example
+    /// ```console
+    /// $ app --output C<TAB>
+    /// $ app --output Cargo.toml _
+    /// ```
+    ///
+    /// # Combinatoric usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// fn output() -> impl Parser<String> {
+    ///     long("output")
+    ///         .help("Cargo.toml file to use as output")
+    ///         .argument("OUTPUT")
+    ///         .complete_shell(ShellComp::File { mask: Some("*.toml") })
+    /// }
+    /// ```
+    ///
+    /// # Derive usage
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// struct Options {
+    ///     /// Cargo.toml file to use as output
+    ///     #[bpaf(argument("OUTPUT"), complete_shell(ShellComp::File { mask: Some("*.toml") }))]
+    ///     output: String,
+    /// }
+    /// ```
+    #[cfg(feature = "autocomplete")]
+    fn complete_shell(
+        self,
+        op: complete_shell::ShellComp,
+    ) -> crate::complete_shell::ParseCompShell<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        crate::complete_shell::ParseCompShell { inner: self, op }
+    }
+    // }}}
+
     // {{{ complete_style
     /// Add extra annotations to completion information
     ///
@@ -1442,6 +1502,7 @@ pub trait Parser<T> {
 pub enum CompleteDecor {
     /// Group items according to this group
     HiddenGroup(&'static str),
+
     /// Group items according to this group but also show the group name
     VisibleGroup(&'static str),
 }
