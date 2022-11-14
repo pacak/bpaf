@@ -1,9 +1,11 @@
 # Change Log
 
-## bpaf [0.7.3] - unreleased
+## bpaf [0.7.3] - 2022-11-14
 - `try_run`
    thanks to @ysndr
 - `-Obits=2048` is now parsed as short flag `O` with a value of `bits=2048` instad of crashing
+- `complete_shell` - a way to call to static shell completion functions, bash and zsh only for
+  now
 
 ## bpaf [0.7.2] - 2022-10-27
 - drop tainting logic, should be redundant

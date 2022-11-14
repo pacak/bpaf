@@ -50,6 +50,7 @@ fn opts() -> OptionParser<Out> {
 
     // a parser that consumes one argument
     // you can build the inner parser in one go or as multiple steps giving each step a name
+    // you can also add some static shell completion functionality
     let file_to_proces = short('f')
         .long("file")
         .help("File to process")
