@@ -63,8 +63,8 @@ _bpaf_dynamic_completion()
     IFS=$'\\n' BPAF_REPLY=($( \"$1\" --bpaf-complete-rev={rev} \"${{COMP_WORDS[@]:1}}\" ))
     for line in \"${{BPAF_REPLY[@]}}\" ; do
         IFS=$'\\t' parts=( $line )
-        declare -A table;
         if [[ \"${{parts[0]}}\" == \"literal\" ]] ; then
+            declare -A table;
             kw=\"\"
             for part in \"${{parts[@]}}\" ; do
                 if [ -z \"$kw\" ] ; then
@@ -80,7 +80,7 @@ _bpaf_dynamic_completion()
                 COMPREPLY+=(\"${{table[\"literal\"]}}\")
             fi
         elif [[ \"${{parts[0]}}\" == \"bash\" ]] ; then
-            ${{parts[1]}} \"${{parts[@]:2}}\"
+            eval ${{parts[1]}}
         else
             COMPREPLY+=(\"${{parts[0]}}\")
         fi
