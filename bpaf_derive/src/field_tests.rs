@@ -625,3 +625,14 @@ fn argument_with_manual_parse() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn optional_external_strange() {
+    let input: TokenStream = quote! {
+        #[bpaf(optional, external(seed))]
+        number: u32
+    };
+    let msg =
+        "keyword `external` is at stage `external` can't follow previous stage (postprocessing)";
+    field_trans_fail(input, msg);
+}
