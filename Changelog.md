@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.7.4], bpaf_derive [0.3.3] - 2022-11-19
+- bpaf_derive: improve error message
+- bpaf: bugfix for bash static shell completion
+
 ## bpaf [0.7.3] - 2022-11-14
 - `try_run`
    thanks to @ysndr

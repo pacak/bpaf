@@ -32,8 +32,10 @@ fn check_stage(prev: &mut usize, new: usize, keyword: &Ident) -> Result<()> {
         return Err(syn::Error::new(
             keyword.span(),
             format!(
-                "{} is a {} can't follow previous stage ({})",
-                keyword, stages[new], stages[*prev]
+                "keyword `{}` is at stage `{}` can't follow previous stage ({})",
+                keyword,
+                stages[new - 1],
+                stages[*prev - 1]
             ),
         ));
     }
