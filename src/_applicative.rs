@@ -3,6 +3,65 @@
 //! You don't need to read/understand this chapter in order to use the library but it might
 //! help to understand what makes it tick.
 
+//! ## Category theory
+//!
+//! Category theory, also called Abstract Nonsense, is a general theory about mathematical
+//! structures and their relations. *Category* in CT constists of two sorts of abstractions:
+//! *objects* and *morphisms* along with some extra rules:
+//! - objects don't expose any information other than the name and only serve as start and end points for morphisms
+//! - morphisms must compose with associative composition
+//! - there must be an *identity morphism* for every object that maps the object to itself
+//!
+//! A simple example of a category would be a category where objects are Rust types (here: `u8` ..
+//! `u64`) and morphisms are functions between those types (here: `a`, `b` and `c`):
+//!
+//! ```rust
+//! fn a(i: u8) -> u16 {
+//!     3000 + i as u16
+//! }
+//!
+//! fn b(i: u16) -> u32 {
+//!     40000 + i as u32
+//! }
+//!
+//! fn c(i: u32) -> u64 {
+//!     40000 + i as u64
+//! }
+//!
+//! /// Identity morphism
+//! fn id<T>(i: T) -> T {
+//!     i
+//! }
+//!
+//! /// morphism composition:
+//! /// `comp (a, comp(b, c))` gives the same results as `comp(comp(a, b), c)`
+//! fn comp<F, G, A, B, C>(f: F, g: G) -> impl Fn(A) -> C
+//! where
+//!     F: Fn(A) -> B,
+//!     G: Fn(B) -> C,
+//! {
+//!     move |i| g(f(i))
+//! }
+//! ```
+
+//! ## Composition and decomposition
+//!
+//! Decomposition is one of the keys to solving big problems - you break down big problem into a
+//! bunch of small problems, solve them separately and compose back a solution. Decomposition is
+//! not required by computers but makes it easier to think about a problem: magical number for
+//! human short term memory is 7 plus minus 2 objects. Category theory, studies relations and
+//! composition can be a valuable tool: after all decomposition only makes sense when you can
+//! combine components back into a solution. Imperative algorithms that operate in terms of
+//! mutating variables are harder decompose - individual pieces need to be aware of the variables,
+//! functional and declarative approaches make it easier: calculating a sum of all the numbers in a
+//! vector can be decomposed into running an iterator over it and applying `fold` to it: `fold`
+//! doesn't need to know about iteration shape, iterator doesn't need to know about how values are
+//! used.
+//!
+//! In category theory you are not allowed to look inside the objects at all and can distinguish
+//! between them only by means of the composition so as long as implemented API obeys the
+//! restrictions set by category theory - it should be very composable.
+
 //! ## Functors
 //!
 //! Let's start by talking about what a `Functor` is. Wikipedia defines it as a "design pattern
