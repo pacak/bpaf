@@ -1,7 +1,25 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{parsers::NamedArg, Error};
+use crate::{parsers::NamedArg, Error, Meta};
+
+/// Shows which branch of [`ParseOrElse`] parsed the argument
+#[derive(Debug, Clone)]
+pub(crate) enum Conflict {
+    /// Only one branch succeeded
+    Solo(Meta),
+    /// Both branches succeeded, first parser was taken in favor of the second one
+    Conflicts(Meta, Meta),
+}
+
+impl Conflict {
+    pub(crate) fn winner(&self) -> &Meta {
+        match self {
+            Conflict::Solo(s) => s,
+            Conflict::Conflicts(w, _) => w,
+        }
+    }
+}
 
 /// Hides [`Args`] internal implementation
 mod inner {
@@ -12,9 +30,9 @@ mod inner {
         rc::Rc,
     };
 
-    use crate::{Meta, ParseFailure};
+    use crate::ParseFailure;
 
-    use super::{push_vec, Arg};
+    use super::{push_vec, Arg, Conflict};
     /// All currently present command line parameters, use it for unit tests and manual parsing
     ///
     /// The easiest way to create `Args` is by using it's `From` instance.
@@ -61,7 +79,7 @@ mod inner {
 
         /// set of conflicts - usize contains the offset to the rejected item,
         /// first Meta contains accepted item, second meta contains rejected item
-        pub(crate) conflicts: BTreeMap<usize, (Meta, Meta)>,
+        pub(crate) conflicts: BTreeMap<usize, Conflict>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {

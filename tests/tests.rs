@@ -520,7 +520,7 @@ fn from_several_alternatives_pick_more_meaningful() {
         .unwrap_stderr();
     assert_eq!(
         err3,
-        "-a is not expected in this context: (-a | -b) cannot be used at the same time as -c"
+        "-a is not expected in this context: -a cannot be used at the same time as -c"
     );
 
     let err4 = parser
@@ -529,7 +529,7 @@ fn from_several_alternatives_pick_more_meaningful() {
         .unwrap_stderr();
     assert_eq!(
         err4,
-        "-c is not expected in this context: -c cannot be used at the same time as (-a | -b)"
+        "-c is not expected in this context: -c cannot be used at the same time as -a"
     );
 
     let err5 = parser
@@ -538,7 +538,7 @@ fn from_several_alternatives_pick_more_meaningful() {
         .unwrap_stderr();
     assert_eq!(
         err5,
-        "-b is not expected in this context: (-a | -b) cannot be used at the same time as -c"
+        "-b is not expected in this context: -b cannot be used at the same time as -c"
     );
 }
 

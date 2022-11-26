@@ -4,8 +4,13 @@
 use std::marker::PhantomData;
 
 use crate::{
-    args::Args, item::Item, meta_help::render_help, meta_usage::to_usage_meta, params::short,
-    parsers::ParseCommand, Meta, ParseFailure, Parser,
+    args::{Args, Conflict},
+    item::Item,
+    meta_help::render_help,
+    meta_usage::to_usage_meta,
+    params::short,
+    parsers::ParseCommand,
+    Meta, ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -79,7 +84,7 @@ fn check_unexpected(args: &Args) -> Result<(), Error> {
         None => Ok(()),
         Some((ix, item)) => {
             let mut msg = format!("{} is not expected in this context", item);
-            if let Some((acc, rej)) = args.conflicts.get(&ix) {
+            if let Some(Conflict::Conflicts(acc, rej)) = args.conflicts.get(&ix) {
                 use std::fmt::Write;
                 write!(msg, ": {} cannot be used at the same time as {}", rej, acc).unwrap();
             }
