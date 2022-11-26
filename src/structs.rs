@@ -1,5 +1,5 @@
 //! Structures that implement different methods on [`Parser`] trait
-use crate::{info::Error, Args, Meta, Parser};
+use crate::{args::Conflict, info::Error, Args, Meta, Parser};
 use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
@@ -203,14 +203,16 @@ where
             comp_items,
         )? {
             if res_b.is_some() {
-                args.conflicts
-                    .insert(args_b.head, (self.this.meta(), self.that.meta()));
+                remember_conflict(args, self.this.meta(), &mut args_b, self.that.meta());
+            } else {
+                remember_winner(args, self.this.meta());
             }
             Ok(res_a.unwrap())
         } else {
             if res_a.is_some() {
-                args.conflicts
-                    .insert(args_a.head, (self.that.meta(), self.this.meta()));
+                remember_conflict(args, self.that.meta(), &mut args_a, self.this.meta());
+            } else {
+                remember_winner(args, self.that.meta());
             }
             Ok(res_b.unwrap())
         }
@@ -219,6 +221,32 @@ where
     fn meta(&self) -> Meta {
         self.this.meta().or(self.that.meta())
     }
+}
+
+fn remember_winner(args: &mut Args, meta: Meta) {
+    args.conflicts
+        .entry(args.head)
+        .or_insert(Conflict::Solo(meta));
+}
+
+fn remember_conflict(args: &mut Args, winner: Meta, failed: &mut Args, loser: Meta) {
+    let winner = args
+        .conflicts
+        .entry(args.head)
+        .or_insert(Conflict::Solo(winner))
+        .winner()
+        .clone();
+
+    let loser = failed
+        .conflicts
+        .get(&failed.head)
+        .map(Conflict::winner)
+        .cloned()
+        .unwrap_or(loser);
+
+    args.conflicts
+        .entry(failed.head)
+        .or_insert(Conflict::Conflicts(winner, loser));
 }
 
 fn this_or_that_picks_first(

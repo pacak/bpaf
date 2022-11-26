@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.7.5] - unreleased
+- improve error messages when several conflicting options are specified
+- improve category theory docs
+
 ## bpaf [0.7.4], bpaf_derive [0.3.3] - 2022-11-19
 - bpaf_derive: improve error message
 - bpaf: bugfix for bash static shell completion
