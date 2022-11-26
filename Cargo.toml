@@ -22,7 +22,7 @@ bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
 
 
 [package.metadata.docs.rs]
-features = ["derive", "extradocs", "autocomplete"]
+features = ["derive", "extradocs", "autocomplete", "batteries"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples=examples"]
 
 

@@ -344,7 +344,7 @@
 //! enable it for local development unless you want to build your own copy of the documentation
 //! (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 //!
-//! - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
+//! - `batteries`: helpers implemented with public `bpaf` API. Disabled by default.
 //!
 //! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
 //!
