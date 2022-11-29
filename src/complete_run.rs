@@ -23,7 +23,7 @@
 //! Goals: something to allow extending protocol to support custom command like "complete file"
 //!
 //! One item per line, \t separated keys and values:
-//! <KEY>\t<VAL>\t<KEY>\t<VAL>...<KEY>\t<VAL>
+//! KEY \t VAL \t KEY \t VAL ... KEY \t VAL
 //!
 //! For dynamic completion first key is always "literal"
 //! - `"literal"` - literal value to insert

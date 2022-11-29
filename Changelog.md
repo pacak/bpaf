@@ -1,5 +1,9 @@
 # Change Log
 
+
+## bpaf [0.7.6] - 2022-11-29
+- fix docs.rs issues
+
 ## bpaf [0.7.5] - 2022-11-29
 - improve error messages when several conflicting options are specified
 - improve category theory docs
