@@ -1,6 +1,6 @@
 # Change Log
 
-## bpaf [0.7.5] - unreleased
+## bpaf [0.7.5] - 2022-11-29
 - improve error messages when several conflicting options are specified
 - improve category theory docs
 
