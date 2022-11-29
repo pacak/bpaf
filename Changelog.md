@@ -1,8 +1,9 @@
 # Change Log
 
-## bpaf [0.7.5] - unreleased
+## bpaf [0.7.5] - 2022-11-29
 - improve error messages when several conflicting options are specified
 - improve category theory docs
+- improve docs for batteries
 
 ## bpaf [0.7.4], bpaf_derive [0.3.3] - 2022-11-19
 - bpaf_derive: improve error message
