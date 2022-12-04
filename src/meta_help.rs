@@ -1,5 +1,7 @@
 #![allow(clippy::write_with_newline)]
 #![allow(clippy::match_like_matches_macro)]
+use std::collections::BTreeSet;
+
 use crate::{
     info::Info,
     item::{Item, ShortLong},
@@ -7,8 +9,8 @@ use crate::{
 };
 
 #[doc(hidden)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord)]
-pub(crate) struct Metavar(&'static str);
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Metavar(pub(crate) &'static str);
 
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -19,7 +21,7 @@ impl std::fmt::Display for Metavar {
     }
 }
 
-#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum HelpItem<'a> {
     Decor {
         help: &'a str,
@@ -34,6 +36,8 @@ pub(crate) enum HelpItem<'a> {
         name: &'static str,
         short: Option<char>,
         help: Option<&'a str>,
+        meta: &'a Meta,
+        info: &'a Info,
     },
     Flag {
         name: ShortLongHelp,
@@ -49,13 +53,13 @@ pub(crate) enum HelpItem<'a> {
 
 #[derive(Default, Debug)]
 pub(crate) struct HelpItems<'a> {
-    cmds: Vec<HelpItem<'a>>,
+    pub(crate) cmds: Vec<HelpItem<'a>>,
     pub(crate) psns: Vec<HelpItem<'a>>,
     pub(crate) flgs: Vec<HelpItem<'a>>,
 }
 
 impl HelpItem<'_> {
-    pub fn is_decor(&self) -> bool {
+    fn is_decor(&self) -> bool {
         match self {
             HelpItem::Decor { .. } | HelpItem::BlankDecor => true,
             _ => false,
@@ -63,9 +67,11 @@ impl HelpItem<'_> {
     }
 }
 
-fn dedup(items: &mut Vec<HelpItem>) {
-    let mut cur = std::collections::BTreeSet::new();
-    items.retain(move |i| i.is_decor() || cur.insert(*i));
+fn dedup(items: &mut BTreeSet<String>, payload: &mut String, prev: usize) {
+    let new = payload[prev..payload.len()].to_owned();
+    if !items.insert(new) {
+        payload.truncate(prev);
+    }
 }
 
 impl<'a> HelpItems<'a> {
@@ -89,10 +95,14 @@ impl<'a> HelpItems<'a> {
                 name,
                 short,
                 help,
-                meta: _,
+
+                info,
+                meta,
             } => {
                 self.cmds.push(HelpItem::Command {
                     name,
+                    info,
+                    meta,
                     short: *short,
                     help: help.as_deref(),
                 });
@@ -159,8 +169,8 @@ impl<'a> HelpItems<'a> {
     }
 }
 
-#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Copy, Clone)]
-pub(crate) struct ShortLongHelp(ShortLong);
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct ShortLongHelp(pub(crate) ShortLong);
 
 impl ShortLongHelp {
     #[inline]
@@ -248,6 +258,8 @@ impl std::fmt::Display for HelpItem<'_> {
                 name,
                 help: _,
                 short,
+                meta: _,
+                info: _,
             } => match short {
                 Some(s) => write!(f, "    {}, {}", w_flag!(name), w_flag!(s)),
                 None => write!(f, "    {}", w_flag!(name)),
@@ -288,11 +300,14 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 name,
                 short,
                 help,
-                meta: _,
+                meta,
+                info,
             } => Self::Command {
                 name,
                 short: *short,
                 help: help.as_deref(),
+                meta,
+                info,
             },
             crate::item::Item::Flag {
                 name,
@@ -383,9 +398,7 @@ pub(crate) fn render_help(
     let mut items = HelpItems::default();
     items.classify(parser_meta);
     items.classify(help_meta);
-    dedup(&mut items.psns);
-    dedup(&mut items.flgs);
-    dedup(&mut items.cmds);
+    let mut dedup_cache = BTreeSet::new();
     if !items.psns.is_empty() {
         let max_width = items
             .psns
@@ -395,7 +408,9 @@ pub(crate) fn render_help(
             .unwrap_or(0);
         w_section!(res, "\nAvailable positional items:\n")?;
         for i in &items.psns {
+            let len = res.len();
             write!(res, "{:padding$}\n", i, padding = max_width)?;
+            dedup(&mut dedup_cache, &mut res, len);
         }
     }
 
@@ -408,7 +423,9 @@ pub(crate) fn render_help(
             .unwrap_or(0);
         w_section!(res, "\nAvailable options:\n")?;
         for i in &items.flgs {
+            let len = res.len();
             write!(res, "{:padding$}\n", i, padding = max_width)?;
+            dedup(&mut dedup_cache, &mut res, len);
         }
     }
 
@@ -421,7 +438,9 @@ pub(crate) fn render_help(
             .max()
             .unwrap_or(0);
         for i in &items.cmds {
+            let len = res.len();
             write!(res, "{:padding$}\n", i, padding = max_width)?;
+            dedup(&mut dedup_cache, &mut res, len);
         }
     }
     if let Some(t) = info.footer {

@@ -357,6 +357,10 @@
 //!   dull-color = ["bpaf/dull-color"]
 //!   ```
 //!   Disabled by default.
+//!
+//! - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`]. Disabled by default.
+//!
+//!
 
 #[macro_use]
 #[cfg(feature = "color")]
@@ -396,6 +400,8 @@ mod complete_run;
 mod complete_shell;
 mod info;
 mod item;
+#[cfg(feature = "manpage")]
+mod manpage;
 mod meta;
 mod meta_help;
 mod meta_usage;
@@ -414,6 +420,9 @@ pub use structs::{ParseBox, ParseCon};
 
 #[cfg(feature = "autocomplete")]
 pub use crate::complete_shell::ShellComp;
+
+#[cfg(feature = "manpage")]
+pub use manpage::Section;
 
 pub mod parsers {
     //! This module exposes parsers that accept further configuration with builder pattern

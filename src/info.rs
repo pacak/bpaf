@@ -52,7 +52,8 @@ impl Error {
 ///
 /// No longer public, users are only interacting with it via [`OptionParser`]
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Info {
+#[doc(hidden)]
+pub struct Info {
     /// version field, see [`version`][Info::version]
     pub version: Option<&'static str>,
     /// Custom description field, see [`descr`][Info::descr]
