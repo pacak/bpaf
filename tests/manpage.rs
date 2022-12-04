@@ -10,7 +10,14 @@ fn simple_manpage() {
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
-        .as_manpage("simple", Section::General, "Aug 2022", "", "", "");
+        .as_manpage(
+            "simple",
+            Section::General,
+            "Aug 2022",
+            env!("CARGO_PKG_AUTHORS"),
+            env!("CARGO_PKG_HOMEPAGE"),
+            env!("CARGO_PKG_REPOSITORY"),
+        );
 
     let expected = ".ie \\n(.g .ds Aq \\(aq\n.el .ds Aq '\n.TH simple 1 \"Aug 2022\" - \n.SH NAME\n\nsimple \\- I am a program and I do things\n.SH SYNOPSIS\n\n\\fBsimple\\fR [\\-\\fBd\\fR]\n.SH DESCRIPTION\nSometimes they even work.\n.br\n\nBeware `\\-d`, dragons be here\n.br\n\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-d\\fR, \\fB\\-\\-kraken\\fR\nUnleash the kraken\n.SH AUTHORS\nMichael Baykov <manpacket@gmail.com>\n.SH \"REPORTING BUGS\"\nhttps://github.com/pacak/bpaf\n";
     assert_eq!(manpage, expected);
