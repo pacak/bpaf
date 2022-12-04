@@ -237,63 +237,74 @@ impl Line<'_> {
     }
 }
 
-fn flatten_commands<'a>(help: &HelpItem<'a>, path: &str, acc: &mut Vec<(String, HelpItem<'a>)>) {
-    if let HelpItem::Command { name, meta, .. } = help {
-        acc.push((path.to_string(), *help));
-        let mut hi = HelpItems::default();
-        hi.classify(meta);
-        if !hi.cmds.is_empty() {
-            let path = format!("{} {}", path, name);
-            for help_item in &hi.cmds {
-                flatten_commands(help_item, &path, acc);
+fn flatten_commands<'a>(item: &HelpItem<'a>, path: &str, acc: &mut Vec<(String, HelpItem<'a>)>) {
+    match item {
+        HelpItem::Command { name, meta, .. } => {
+            acc.push((path.to_string(), *item));
+            let mut hi = HelpItems::default();
+            hi.classify(meta);
+            if !hi.cmds.is_empty() {
+                let path = format!("{} {}", path, name);
+                for help_item in &hi.cmds {
+                    flatten_commands(help_item, &path, acc);
+                }
             }
         }
+        HelpItem::Decor { .. } => {
+            acc.push(("".to_string(), *item));
+        }
+        _ => {}
     }
 }
 
-fn command_help(manpage: &mut Manpage, help: &HelpItem, path: &str) {
-    if let HelpItem::Command {
-        name,
-        short,
-        help,
-        meta,
-        info,
-    } = help
-    {
-        match short {
-            Some(short) => manpage.subsection(format!("{} {}, {}", path, name, short)),
-            None => manpage.subsection(format!("{} {}", path, name)),
-        };
-        if let Some(help) = help {
-            manpage.text([norm(*help)]);
-        }
-
-        if info.header.is_some() || info.footer.is_some() {
-            manpage.subsection("Description");
-            if let Some(header) = info.header {
-                manpage.text([norm(header), newline()]);
+fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
+    match item {
+        HelpItem::Command {
+            name,
+            short,
+            help,
+            meta,
+            info,
+        } => {
+            match short {
+                Some(short) => manpage.subsection(format!("{} {}, {}", path, name, short)),
+                None => manpage.subsection(format!("{} {}", path, name)),
+            };
+            if let Some(help) = help {
+                manpage.text([norm(*help)]);
             }
 
-            if let Some(footer) = info.footer {
-                manpage.text([norm(footer), newline()]);
-            }
-        }
-        let mut hi = HelpItems::default();
-        hi.classify(meta);
+            if info.header.is_some() || info.footer.is_some() {
+                manpage.subsection("Description");
+                if let Some(header) = info.header {
+                    manpage.text([norm(header), newline()]);
+                }
 
-        if !hi.psns.is_empty() {
-            manpage.subsection("Positional items");
-            for item in &hi.psns {
-                help_item(manpage, *item, None);
+                if let Some(footer) = info.footer {
+                    manpage.text([norm(footer), newline()]);
+                }
             }
-        }
+            let mut hi = HelpItems::default();
+            hi.classify(meta);
 
-        if !hi.flgs.is_empty() {
-            manpage.subsection("Option arguments and flags");
-            for item in &hi.flgs {
-                help_item(manpage, *item, None);
+            if !hi.psns.is_empty() {
+                manpage.subsection("Positional items");
+                for item in &hi.psns {
+                    help_item(manpage, *item, None);
+                }
+            }
+
+            if !hi.flgs.is_empty() {
+                manpage.subsection("Option arguments and flags");
+                for item in &hi.flgs {
+                    help_item(manpage, *item, None);
+                }
             }
         }
+        HelpItem::Decor { help } => {
+            manpage.subsection(*help);
+        }
+        _ => {}
     }
 }
 
