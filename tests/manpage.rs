@@ -10,7 +10,7 @@ fn simple_manpage() {
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
-        .as_manpage("simple", Section::General, "Aug 2022");
+        .as_manpage("simple", Section::General, "Aug 2022", "", "", "");
 
     let expected = ".ie \\n(.g .ds Aq \\(aq\n.el .ds Aq '\n.TH simple 1 \"Aug 2022\" - \n.SH NAME\n\nsimple \\- I am a program and I do things\n.SH SYNOPSIS\n\n\\fBsimple\\fR [\\-\\fBd\\fR]\n.SH DESCRIPTION\nSometimes they even work.\n.br\n\nBeware `\\-d`, dragons be here\n.br\n\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-d\\fR, \\fB\\-\\-kraken\\fR\nUnleash the kraken\n.SH AUTHORS\nMichael Baykov <manpacket@gmail.com>\n.SH \"REPORTING BUGS\"\nhttps://github.com/pacak/bpaf\n";
     assert_eq!(manpage, expected);
@@ -46,7 +46,14 @@ fn nested_command_manpage() {
         .descr("I am a program and I do things 3")
         .header("Sometimes they even work. 3")
         .footer("Beware `-d`, dragons be here 3")
-        .as_manpage("nested", Section::General, "29 Nov 2022");
+        .as_manpage(
+            "nested",
+            Section::General,
+            "29 Nov 2022",
+            env!("CARGO_PKG_AUTHORS"),
+            env!("CARGO_PKG_HOMEPAGE"),
+            env!("CARGO_PKG_REPOSITORY"),
+        );
 
     let expected = ".ie \\n(.g .ds Aq \\(aq\n.el .ds Aq '\n.TH nested 1 \"29 Nov 2022\" - \n.SH NAME\n\nnested \\- I am a program and I do things 3\n.SH SYNOPSIS\n\n\\fBnested\\fR (\\fBCOMMAND\\fR... | \\fIC\\fR | \\-\\fBd\\fR=\\fID\\fR)\n.SH DESCRIPTION\nSometimes they even work. 3\n.br\n\nBeware `\\-d`, dragons be here 3\n.br\n\n.SS \"Positional items\"\n.TP\n\n\\fIC\\fR\nMystery file\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-d\\fR, \\fB\\-\\-ddd\\fR=\\fID\\fR\nmystery arg\n.SS \"List of all the subcommands\"\n.TP\n\n\\fBnested\\fR \\fBcmd\\fR\nI am a program and I do things\n.TP\n\n\\fBnested\\fR \\fBdmc\\fR\nI am a program and I do things 2\n.SH \"SUBCOMMANDS WITH OPTIONS\"\n.SS \"nested cmd\"\nI am a program and I do things\n.SS Description\nSometimes they even work. 1\n.br\n\nBeware `\\-d`, dragons be here 1\n.br\n\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-d\\fR=\\fIy\\fR\ndragon\n.SS \"nested dmc, d\"\nI am a program and I do things 2\n.SS Description\nSometimes they even work. 2\n.br\n\nBeware `\\-d`, dragons be here 2\n.br\n\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-k\\fR=\\fIx\\fR\nkraken\n.SH AUTHORS\nMichael Baykov <manpacket@gmail.com>\n.SH \"REPORTING BUGS\"\nhttps://github.com/pacak/bpaf\n";
     assert_eq!(manpage, expected);
@@ -70,7 +77,14 @@ fn very_nested_command() {
         .descr("lvl 1 description")
         .command("lvl1")
         .to_options()
-        .as_manpage("nested", Section::General, "29 Nov 2022");
+        .as_manpage(
+            "nested",
+            Section::General,
+            "29 Nov 2022",
+            env!("CARGO_PKG_AUTHORS"),
+            env!("CARGO_PKG_HOMEPAGE"),
+            env!("CARGO_PKG_REPOSITORY"),
+        );
 
     let expected = ".ie \\n(.g .ds Aq \\(aq\n.el .ds Aq '\n.TH nested 1 \"29 Nov 2022\" - \n.SH NAME\n\nnested\n.SH SYNOPSIS\n\n\\fBnested\\fR \\fBCOMMAND\\fR...\n.SH DESCRIPTION\n.SS \"List of all the subcommands\"\n.TP\n\n\\fBnested\\fR \\fBlvl1\\fR\nlvl 1 description\n.TP\n\n\\fBnested lvl1\\fR \\fBlvl2\\fR\nlvl 2 description\n.TP\n\n\\fBnested lvl1 lvl2\\fR \\fBlvl3\\fR\nlvl 3 description\n.TP\n\n\\fBnested lvl1 lvl2 lvl3\\fR \\fBlvl4\\fR\nlvl 4 description\n.SH \"SUBCOMMANDS WITH OPTIONS\"\n.SS \"nested lvl1\"\nlvl 1 description\n.SS \"nested lvl1 lvl2\"\nlvl 2 description\n.SS \"nested lvl1 lvl2 lvl3\"\nlvl 3 description\n.SS \"nested lvl1 lvl2 lvl3 lvl4\"\nlvl 4 description\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-k\\fR\nUnleash the Kraken\n.SH AUTHORS\nMichael Baykov <manpacket@gmail.com>\n.SH \"REPORTING BUGS\"\nhttps://github.com/pacak/bpaf\n";
     assert_eq!(manpage, expected);
