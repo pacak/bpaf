@@ -277,14 +277,14 @@ fn command_help(manpage: &mut Manpage, help: &HelpItem, path: &str) {
         if !hi.psns.is_empty() {
             manpage.subsection("Positional items");
             for item in &hi.psns {
-                help_item(manpage, *item, None)
+                help_item(manpage, *item, None);
             }
         }
 
         if !hi.flgs.is_empty() {
             manpage.subsection("Option arguments and flags");
             for item in &hi.flgs {
-                help_item(manpage, *item, None)
+                help_item(manpage, *item, None);
             }
         }
     }
@@ -326,7 +326,6 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 }
             }
         }
-
         HelpItem::Flag { name, help } => {
             manpage.label(|l| {
                 l.shortlong(name);
@@ -396,6 +395,7 @@ impl<T> OptionParser<T> {
     /// ```
     ///
     /// Requires `manpage` feature which is disabled by default.
+    #[must_use]
     pub fn as_manpage(&self, app: &str, section: Section, date: &str) -> String {
         let mut hi = HelpItems::default();
         let meta = self.inner.meta();
@@ -432,14 +432,14 @@ impl<T> OptionParser<T> {
         if !hi.psns.is_empty() {
             manpage.subsection("Positional items");
             for item in &hi.psns {
-                help_item(&mut manpage, *item, None)
+                help_item(&mut manpage, *item, None);
             }
         }
 
         if !hi.flgs.is_empty() {
             manpage.subsection("Option arguments and flags");
             for item in &hi.flgs {
-                help_item(&mut manpage, *item, None)
+                help_item(&mut manpage, *item, None);
             }
         }
 
@@ -450,7 +450,7 @@ impl<T> OptionParser<T> {
                 flatten_commands(item, app, &mut commands);
             }
             for (path, item) in &commands {
-                help_item(&mut manpage, *item, Some(path))
+                help_item(&mut manpage, *item, Some(path));
             }
             manpage.section("SUBCOMMANDS WITH OPTIONS");
 
