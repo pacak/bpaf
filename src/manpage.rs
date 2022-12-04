@@ -409,7 +409,7 @@ impl<T> OptionParser<T> {
         section: Section,
         date: &str,
         authors: &str,
-        homepage:&str,
+        homepage: &str,
         repo: &str,
     ) -> String {
         let mut hi = HelpItems::default();
