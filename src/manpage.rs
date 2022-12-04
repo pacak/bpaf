@@ -189,7 +189,14 @@ impl Line<'_> {
     fn usage(&mut self, usage: &crate::meta_usage::UsageMeta) -> &mut Self {
         use crate::meta_usage::UsageMeta;
         match usage {
-            UsageMeta::And(_) => todo!(),
+            UsageMeta::And(xs) => {
+                for (ix, x) in xs.iter().enumerate() {
+                    if ix > 0 {
+                        self.norm(" ");
+                    };
+                    self.usage(x);
+                }
+            }
             UsageMeta::Or(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix > 0 {
