@@ -1,6 +1,9 @@
 # Change Log
 
 
+## bpaf [0.7.7] - 2022-12-04
+- manpage generation
+
 ## bpaf [0.7.6] - 2022-11-29
 - fix docs.rs issues
 
