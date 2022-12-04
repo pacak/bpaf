@@ -596,6 +596,7 @@ impl<T> ParseCommand<T> {
             short: self.shorts.first().copied(),
             help: self.help.clone(),
             meta: Box::new(self.subparser.inner.meta()),
+            info: Box::new(self.subparser.info.clone()),
         }
     }
 }

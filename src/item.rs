@@ -1,4 +1,4 @@
-use crate::{parsers::NamedArg, Meta};
+use crate::{info::Info, parsers::NamedArg, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -13,6 +13,7 @@ pub enum Item {
         short: Option<char>,
         help: Option<String>,
         meta: Box<Meta>,
+        info: Box<Info>,
     },
     Flag {
         name: ShortLong,
@@ -29,7 +30,7 @@ pub enum Item {
 }
 
 #[doc(hidden)]
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug)]
 pub enum ShortLong {
     Short(char),
     Long(&'static str),

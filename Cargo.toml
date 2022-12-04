@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.7.6"
+version = "0.7.7"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -16,9 +16,10 @@ exclude = [".github/workflows", "tarp.sh"]
 [dependencies]
 bpaf_derive = { path = "./bpaf_derive", version = "=0.3.3", optional = true }
 owo-colors = { version = "3.5.0", features = ["supports-colors"], optional = true }
+roff = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
-bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete"] }
+bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "manpage"] }
 
 
 [package.metadata.docs.rs]
@@ -34,6 +35,7 @@ autocomplete = []
 color = ["owo-colors"] # used internally to switch between different code generation
 bright-color = ["color"]
 dull-color = ["color"]
+manpage = ["roff"]
 
 [[test]]
 name = "completion"
