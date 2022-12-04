@@ -189,7 +189,14 @@ impl Line<'_> {
     fn usage(&mut self, usage: &crate::meta_usage::UsageMeta) -> &mut Self {
         use crate::meta_usage::UsageMeta;
         match usage {
-            UsageMeta::And(_) => todo!(),
+            UsageMeta::And(xs) => {
+                for (ix, x) in xs.iter().enumerate() {
+                    if ix > 0 {
+                        self.norm(" ");
+                    };
+                    self.usage(x);
+                }
+            }
             UsageMeta::Or(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix > 0 {
@@ -396,7 +403,15 @@ impl<T> OptionParser<T> {
     ///
     /// Requires `manpage` feature which is disabled by default.
     #[must_use]
-    pub fn as_manpage(&self, app: &str, section: Section, date: &str) -> String {
+    pub fn as_manpage(
+        &self,
+        app: &str,
+        section: Section,
+        date: &str,
+        authors: &str,
+        homepage: &str,
+        repo: &str,
+    ) -> String {
         let mut hi = HelpItems::default();
         let meta = self.inner.meta();
         hi.classify(&meta);
@@ -460,20 +475,16 @@ impl<T> OptionParser<T> {
         }
 
         // --------------------------------------------------------------
-
-        let authors = env!("CARGO_PKG_AUTHORS").replace(':', ", ");
         if !authors.is_empty() {
             manpage.section("AUTHORS");
             manpage.text([norm(authors)]);
         }
 
-        let homepage = env!("CARGO_PKG_HOMEPAGE");
         if !homepage.is_empty() {
             manpage.section("See also");
             manpage.text([norm(format!("Homepage: {}", homepage))]);
         }
 
-        let repo = env!("CARGO_PKG_REPOSITORY");
         if !repo.is_empty() {
             manpage.section("REPORTING BUGS");
             manpage.text([norm(repo)]);
