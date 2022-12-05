@@ -251,7 +251,7 @@ fn flatten_commands<'a>(item: &HelpItem<'a>, path: &str, acc: &mut Vec<(String, 
             }
         }
         HelpItem::Decor { .. } => {
-            acc.push(("".to_string(), *item));
+            acc.push((String::new(), *item));
         }
         _ => {}
     }
