@@ -351,7 +351,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
             if let Some(help) = help {
                 manpage.text([norm(help)]);
             }
-        } // todo!(),
+        }
         HelpItem::Argument {
             name,
             metavar: mvar,
@@ -368,7 +368,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
             if let Some(help) = help {
                 manpage.text([norm(help)]);
             }
-        } // todo!(),
+        }
     }
 }
 
