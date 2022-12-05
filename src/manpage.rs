@@ -455,31 +455,23 @@ impl<T> OptionParser<T> {
         }
 
         // --------------------------------------------------------------
-        if !hi.psns.is_empty() {
-            manpage.subsection("Positional items");
+        if !hi.flgs.is_empty() || !hi.psns.is_empty() {
+            manpage.section("OPTIONS");
+            for item in &hi.flgs {
+                help_item(&mut manpage, *item, None);
+            }
+
             for item in &hi.psns {
                 help_item(&mut manpage, *item, None);
             }
         }
 
-        if !hi.flgs.is_empty() {
-            manpage.subsection("Option arguments and flags");
-            for item in &hi.flgs {
-                help_item(&mut manpage, *item, None);
-            }
-        }
-
         if !hi.cmds.is_empty() {
-            manpage.subsection("List of all the subcommands");
             let mut commands = Vec::new();
             for item in &hi.cmds {
                 flatten_commands(item, app, &mut commands);
             }
-            for (path, item) in &commands {
-                help_item(&mut manpage, *item, Some(path));
-            }
-            manpage.section("SUBCOMMANDS WITH OPTIONS");
-
+            manpage.section("SUBCOMMANDS");
             for (path, item) in &commands {
                 command_help(&mut manpage, item, path);
             }
