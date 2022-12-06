@@ -121,7 +121,7 @@ for line in \"${{(@)lines}}\" ; do
 
         compadd ${{cmd[@]}} -- $table[literal]
     elif [[ \"${{parts[1]}}\" == \"zsh\" ]] ; then
-        ${{parts[2]}}
+        eval ${{parts[2]}}
     else
         compadd -- \"${{parts[1]}}\"
     fi
