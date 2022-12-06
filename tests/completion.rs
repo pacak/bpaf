@@ -99,7 +99,7 @@ fn long_and_short_arguments() {
         .run_inner(Args::from(&["-p", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<POTATO>\n");
+    assert_eq!(r, "POTATO\n");
 
     let r = parser
         .run_inner(Args::from(&["-p", "x"]).set_comp(1))
@@ -279,7 +279,7 @@ fn static_complete_test_4() {
         .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<A>\n");
+    assert_eq!(r, "A\n");
 
     let r = parser
         .run_inner(Args::from(&["-a"]).set_comp(1))
@@ -326,7 +326,7 @@ fn static_complete_test_5() {
         .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<A>\n");
+    assert_eq!(r, "A\n");
 
     let r = parser
         .run_inner(Args::from(&["-a"]).set_comp(1))
@@ -375,7 +375,7 @@ fn static_complete_test_6() {
         .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<A>\n");
+    assert_eq!(r, "A\n");
 
     let r = parser
         .run_inner(Args::from(&["-a"]).set_comp(1))
@@ -393,7 +393,7 @@ fn static_complete_test_6() {
         .run_inner(Args::from(&["-b", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<B>\n");
+    assert_eq!(r, "B\n");
 
     let r = parser
         .run_inner(Args::from(&["-b", "x", ""]).set_comp(1))
@@ -412,13 +412,13 @@ fn static_complete_test_7() {
         .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a\tswitch\n<FILE>\tFile to use\n");
+    assert_eq!(r, "-a\tswitch\nFILE\tFile to use\n");
 
     let r = parser
         .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<FILE>\n");
+    assert_eq!(r, "FILE\n");
 }
 
 #[test]
@@ -465,7 +465,7 @@ fn just_positional() {
         .run_inner(Args::from(&[""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<FILE>\n");
+    assert_eq!(r, "FILE\n");
 
     let r = parser
         .run_inner(Args::from(&["xxx"]).set_comp(1))
@@ -645,7 +645,7 @@ fn only_positionals_after_double_dash() {
         .run_inner(Args::from(&["-a", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-b\n-c\n<D>\n");
+    assert_eq!(r, "-b\n-c\nD\n");
 
     let r = parser
         .run_inner(Args::from(&["-a", "--"]).set_comp(1))
@@ -657,7 +657,7 @@ fn only_positionals_after_double_dash() {
         .run_inner(Args::from(&["--", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<D>\n");
+    assert_eq!(r, "D\n");
 }
 
 #[test]
@@ -790,7 +790,7 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
         .run_inner(Args::from(&["--", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "<B>\n");
+    assert_eq!(r, "B\n");
 }
 
 #[track_caller]
@@ -888,11 +888,11 @@ fn zsh_style_completion_visible() {
         &[
             [
                 "--argument",
-                "--argument <ARG>    this is an argument",
+                "--argument ARG    this is an argument",
                 "items",
                 "items",
             ],
-            ["-b", "-b <BANANA>", "items", "items"],
+            ["-b", "-b BANANA", "items", "items"],
         ],
     );
 }
@@ -914,11 +914,11 @@ fn zsh_style_completion_hidden() {
         &[
             [
                 "--argument",
-                "--argument <ARG>    this is an argument",
+                "--argument ARG    this is an argument",
                 "",
                 "items",
             ],
-            ["-b", "-b <BANANA>", "", "items"],
+            ["-b", "-b BANANA", "", "items"],
         ],
     );
 }
@@ -926,7 +926,7 @@ fn zsh_style_completion_hidden() {
 #[test]
 fn zsh_many_positionals() {
     let parser = positional::<String>("POS").many().to_options();
-    test_zsh_comp(&parser, &[""], &[["<POS>", "<POS>", "", ""]]);
+    test_zsh_comp(&parser, &[""], &[["POS", "POS", "", ""]]);
     test_zsh_comp(&parser, &["p"], &[["p", "p", "", ""]]);
 }
 
@@ -936,7 +936,7 @@ fn zsh_help_single_line_only() {
         .help("hello\nworld")
         .argument::<String>("X")
         .to_options();
-    test_zsh_comp(&parser, &[""], &[["-a", "-a <X>    hello", "", ""]]);
+    test_zsh_comp(&parser, &[""], &[["-a", "-a X    hello", "", ""]]);
 }
 
 #[test]
@@ -999,13 +999,13 @@ fn derive_decorations() {
             ],
             [
                 "--target",
-                "--target <ARG>    pick target",
+                "--target ARG    pick target",
                 "== Cargo options",
                 "== Cargo options",
             ],
             [
                 "--focus",
-                "--focus <ARG>    pick focus",
+                "--focus ARG    pick focus",
                 "== Application options",
                 "== Application options",
             ],
@@ -1029,9 +1029,9 @@ fn zsh_complete_info() {
         .complete(foo)
         .to_options();
 
-    test_zsh_comp(&parser, &[""], &[["-a", "-a <X>", "", ""]]);
+    test_zsh_comp(&parser, &[""], &[["-a", "-a X", "", ""]]);
 
-    test_zsh_comp(&parser, &["-"], &[["-a", "-a <X>", "", ""]]);
+    test_zsh_comp(&parser, &["-"], &[["-a", "-a X", "", ""]]);
     test_zsh_comp(
         &parser,
         &["-a", ""],
@@ -1078,8 +1078,8 @@ fn strict_positional_completion() {
 fn avoid_inserting_metavars() {
     let parser = short('a').argument::<String>("A").to_options();
 
-    test_zsh_comp(&parser, &["-a", ""], &[["-a", "-a <A>", "", ""]]);
-    test_zsh_comp(&parser, &[""], &[["-a", "-a <A>", "", ""]]);
+    test_zsh_comp(&parser, &["-a", ""], &[["-a", "-a A", "", ""]]);
+    test_zsh_comp(&parser, &[""], &[["-a", "-a A", "", ""]]);
 }
 
 #[track_caller]
