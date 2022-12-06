@@ -460,7 +460,7 @@ impl Complete {
                     }
                     if let Some(long) = arg_matches(arg, *name) {
                         items.push(ShowComp {
-                            pretty: format!("{} <{}>", long, metavar),
+                            pretty: format!("{} {}", long, metavar),
                             subst: long,
                             descr: &extra.help,
                             is_value: false,
@@ -495,7 +495,7 @@ impl Complete {
 
                     // render empty positionals as placeholders
                     let mut subst = if arg.is_empty() {
-                        format!("<{}>", meta)
+                        format!("{}", meta)
                     } else {
                         arg.to_string()
                     };
