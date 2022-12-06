@@ -100,6 +100,7 @@ fn dump_zsh_completer(name: &str) {
 IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
 
 for line in \"${{(@)lines}}\" ; do
+    cmd=()
     IFS=$'\\t' parts=( $(echo \"$line\") )
     if [[ \"${{parts[1]}}\" == \"literal\" ]] ; then
         typeset -A table
