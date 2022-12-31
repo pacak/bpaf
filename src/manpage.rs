@@ -438,7 +438,7 @@ impl<T> OptionParser<T> {
         });
 
         manpage.section("SYNOPSIS");
-        match meta.as_usage_meta() {
+        match meta.to_usage_meta() {
             Some(usage) => manpage.paragraph(|l| {
                 l.bold(app).space().usage(&usage);
             }),

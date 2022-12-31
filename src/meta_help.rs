@@ -397,7 +397,7 @@ pub(crate) fn render_help(
         write!(res, "{}\n\n", t)?;
     }
 
-    let auto = parser_meta.as_usage_meta().map(|u| u.to_string());
+    let auto = parser_meta.to_usage_meta().map(|u| u.to_string());
     if let Some(custom_usage) = info.usage {
         match auto {
             Some(auto_usage) => write!(

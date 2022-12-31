@@ -7,7 +7,6 @@ use crate::{
     args::{Args, Conflict},
     item::Item,
     meta_help::render_help,
-    meta_usage::to_usage_meta,
     params::short,
     parsers::ParseCommand,
     Meta, ParseFailure, Parser,
@@ -654,7 +653,7 @@ fn report_missing_items(err: Error) -> Error {
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
     if fresh {
         println!("Checking\n{:#?}", meta);
-        to_usage_meta(meta);
+        meta.to_usage_meta();
     }
     match meta {
         Meta::And(xs) | Meta::Or(xs) => {
