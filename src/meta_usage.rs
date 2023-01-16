@@ -38,6 +38,7 @@ impl Meta {
         }
     }
 }
+
 /// Transforms `Meta` to [`UsageMeta`]
 ///
 /// return value is None if parser takes no parameters at all

@@ -1,4 +1,30 @@
 use bpaf::*;
+use std::fs::OpenOptions;
+use std::io::{Read, Seek};
+use std::path::{Path, PathBuf};
+/*
+fn write_updated<P: AsRef<Path>>(new_val: &str, path: P) -> std::io::Result<()> {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join(path);
+    let mut file = OpenOptions::new()
+        .write(true)
+        .read(true)
+        .create(true)
+        .open(&path)?;
+    let mut current_val = String::new();
+    file.read_to_string(&mut current_val)?;
+    if current_val != new_val {
+        file.set_len(0)?;
+        file.seek(std::io::SeekFrom::Start(0))?;
+        std::io::Write::write_all(&mut file, new_val.as_bytes())?;
+        panic!(
+            "Please make sure to check rendering of {:?} and commit it to the repo",
+            path
+        );
+    }
+    Ok(())
+}
 
 #[test]
 fn simple_manpage() {
@@ -10,7 +36,7 @@ fn simple_manpage() {
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
-        .as_manpage(
+        .to_manpage(
             "simple",
             Section::General,
             "Aug 2022",
@@ -59,7 +85,7 @@ fn nested_command_manpage() {
         .descr("I am a program and I do things 3")
         .header("Sometimes they even work. 3")
         .footer("Beware `-d`, dragons be here 3")
-        .as_manpage(
+        .to_manpage(
             "nested",
             Section::General,
             "29 Nov 2022",
@@ -90,7 +116,7 @@ fn very_nested_command() {
         .descr("lvl 1 description")
         .command("lvl1")
         .to_options()
-        .as_manpage(
+        .to_manpage(
             "nested",
             Section::General,
             "29 Nov 2022",
@@ -102,3 +128,4 @@ fn very_nested_command() {
     let expected = ".ie \\n(.g .ds Aq \\(aq\n.el .ds Aq '\n.TH nested 1 \"29 Nov 2022\" - \n.SH NAME\n\nnested\n.SH SYNOPSIS\n\n\\fBnested\\fR \\fBCOMMAND\\fR...\n.SH DESCRIPTION\n.SS \"List of all the subcommands\"\n.TP\n\n\\fBnested\\fR \\fBlvl1\\fR\nlvl 1 description\n.TP\n\n\\fBnested lvl1\\fR \\fBlvl2\\fR\nlvl 2 description\n.TP\n\n\\fBnested lvl1 lvl2\\fR \\fBlvl3\\fR\nlvl 3 description\n.TP\n\n\\fBnested lvl1 lvl2 lvl3\\fR \\fBlvl4\\fR\nlvl 4 description\n.SH \"SUBCOMMANDS WITH OPTIONS\"\n.SS \"nested lvl1\"\nlvl 1 description\n.SS \"nested lvl1 lvl2\"\nlvl 2 description\n.SS \"nested lvl1 lvl2 lvl3\"\nlvl 3 description\n.SS \"nested lvl1 lvl2 lvl3 lvl4\"\nlvl 4 description\n.SS \"Option arguments and flags\"\n.TP\n\n\\fB\\-k\\fR\nUnleash the Kraken\n.SH AUTHORS\nMichael Baykov <manpacket@gmail.com>\n.SH \"REPORTING BUGS\"\nhttps://github.com/pacak/bpaf\n";
     assert_eq!(manpage, expected);
 }
+*/

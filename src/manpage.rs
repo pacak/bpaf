@@ -1,3 +1,4 @@
+/*
 use roff::{Inline, Roff};
 
 use crate::{
@@ -9,7 +10,7 @@ use crate::{
 struct Manpage {
     roff: Roff,
 }
-
+*/
 #[derive(Debug, Clone, Copy)]
 /// Manual page section
 pub enum Section<'a> {
@@ -47,7 +48,7 @@ impl Section<'_> {
         }
     }
 }
-
+/*
 impl Manpage {
     /// Create a manpage for application
     ///
@@ -400,6 +401,19 @@ fn newline() -> Inline {
 }
 
 impl<T> OptionParser<T> {
+    #[doc(hidden)]
+    pub fn as_manpage(
+        &self,
+        app: &str,
+        section: Section,
+        date: &str,
+        authors: &str,
+        homepage: &str,
+        repo: &str,
+    ) -> String {
+        self.to_manpage(app, section, date, authors, homepage, repo)
+    }
+
     /// Render `OptionParser` as a [man page](https://en.wikipedia.org/wiki/Man_page)
     ///
     /// - `date` - date to display at the end of te man page, free form
@@ -418,14 +432,14 @@ impl<T> OptionParser<T> {
     ///
     /// #[test]
     /// fn update_test_file() {
-    ///     let manpage = options().as_manpage("sample", Section::General, "May 2020");
+    ///     let manpage = options().to_manpage("sample", Section::General, "May 2020");
     ///     std::fs::write("sample.1", manpage).expect("Unable to save manpage file");
     /// }
     /// ```
     ///
     /// Requires `manpage` feature which is disabled by default.
     #[must_use]
-    pub fn as_manpage(
+    pub fn to_manpage(
         &self,
         app: &str,
         section: Section,
@@ -449,12 +463,30 @@ impl<T> OptionParser<T> {
         });
 
         manpage.section("SYNOPSIS");
+
+        let mut commands = Vec::new();
+        for item in &hi.cmds {
+            flatten_commands(item, app, &mut commands);
+        }
+
         match meta.to_usage_meta() {
             Some(usage) => manpage.paragraph(|l| {
                 l.bold(app).space().usage(&usage);
             }),
             None => manpage.text([bold(app), norm(" takes no parameters")]),
         };
+
+        for (path, item) in &commands {
+            if let HelpItem::Command { name, meta, .. } = &item {
+                manpage.paragraph(|l| {
+                    l.bold(path).norm(" ").bold(*name);
+                    if let Some(usage) = meta.as_usage_meta() {
+                        l.norm(" ").usage(&usage);
+                    }
+                });
+            }
+            //                command_help(&mut manpage, item, path);
+        }
 
         manpage.section("DESCRIPTION");
         if let Some(header) = self.info.header {
@@ -515,3 +547,4 @@ impl<T> OptionParser<T> {
         manpage.render()
     }
 }
+*/

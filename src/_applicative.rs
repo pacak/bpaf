@@ -146,6 +146,9 @@
 //! `bpaf` needs to check items past the first failure point to collect all the possible
 //! completions.
 
+// unit of composition is a single parser
+// add a new abstraction layer, get addition instead of multiplication
+
 //! ## Alternative Functors
 //!
 //! So far `Applicative Functors` allow us to create structs containing multiple fields out of
