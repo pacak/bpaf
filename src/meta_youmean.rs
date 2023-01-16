@@ -13,7 +13,7 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
             for x in xs.iter() {
                 hi.classify_item(x);
             }
-            hi.flgs.is_empty() && hi.psns.is_empty()
+            hi.psns.is_empty()
         }
     }
 }
