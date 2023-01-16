@@ -69,6 +69,13 @@ fn check_to_snake_case() {
     assert_eq!(to_snake_case("FOO"), "f_o_o");
 }
 
+/// Contains a slice of strings that used to represent doc comment lines
+/// And perform following operations:
+///
+/// - adjacent non empty strings are combined: with a single line newline:
+///   ["foo", "bar"] => ["foo\nbar"]
+/// - single empty lines are stripped and used to represent logical blocks:
+///   ["foo", "bar", "", "baz"] => ["foo\nbar", "baz"]
 /// strip single empty lines,
 pub struct LineIter<'a> {
     strings: std::slice::Iter<'a, String>,
