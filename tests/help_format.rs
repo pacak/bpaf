@@ -157,3 +157,41 @@ Available options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn enum_with_docs() {
+    #[derive(Debug, Clone, Bpaf)]
+    /// present
+    ///
+    /// Absent
+    enum Mode {
+        /// help
+        ///
+        /// absent
+        Intel,
+
+        /// help
+        ///
+        /// Hidden
+        Att,
+    }
+
+    let r = mode()
+        .group_help("group help")
+        .to_options()
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: (--intel | --att)
+
+Available options:
+  group help
+        --intel  help
+        --att    help
+
+    -h, --help   Prints help information
+";
+    assert_eq!(r, expected);
+}
