@@ -1,0 +1,23 @@
+.ie \n(.g .ds Aq \(aq
+.el .ds Aq '
+.TH ls 1 1\ Jan\ 2023 rust\ toolbox File\ lister\ 2000
+.SH NAME
+\f(CRls\fP\fR \- List directory contents\fP
+.PP
+.SH DESCRIPTION
+\fRList information about the FILEs (the current directory by default).
+Prints name only unless `\-\-long` is specified
+    Exit status:
+      0: if OK
+      1: if requested FILEs does not exist\fP
+.PP
+.SS Available\ positional\ items
+.TP
+\fIFILE\fP
+\fRuse specific paths instead of current directory\fP
+.PP
+.SS Available\ options
+.TP
+\f(CB\-l\fP\fR, \fP\f(CB\-\-long\fP
+\fRuse a long listing format\fP
+.PP

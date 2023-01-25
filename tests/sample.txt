@@ -1,0 +1,19 @@
+    ls(1)                          File lister 2000                          ls(1)
+
+    Name
+           ls - List directory contents
+
+    Description
+           List  information  about  the FILEs (the current directory by default).
+           Prints name only unless --long is specified
+
+       Available positional items
+           FILE   use specific paths instead of current directory
+
+       Available options
+           -l, --long
+                  use a long listing format
+
+           Exit status: - 0: if OK - 1: if requested FILEs does not exist
+
+    rust toolbox                      1 Jan 2023                             ls(1)

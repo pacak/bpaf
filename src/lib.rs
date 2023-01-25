@@ -460,6 +460,7 @@ pub(self) use crate::parsers::NamedArg;
 pub use bpaf_derive::Bpaf;
 mod from_os_str;
 
+#[cfg(feature = "manpage")]
 pub mod docugen;
 /// Compose several parsers to produce a single result
 ///

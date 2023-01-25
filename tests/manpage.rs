@@ -1,7 +1,67 @@
-use bpaf::*;
+use bpaf::{docugen::roff::semantic::*, docugen::*, *};
+
 use std::fs::OpenOptions;
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
+
+fn switch_parser() -> impl Parser<bool> {
+    short('d').long("dragon").help("Is dragon scary?").switch()
+}
+
+fn argument_parser() -> impl Parser<String> {
+    short('d')
+        .long("dragon")
+        .help("Dragon name")
+        .argument("NAME")
+}
+
+fn command_parser() -> impl Parser<String> {
+    argument_parser().to_options().command("unleash")
+}
+
+#[test]
+fn refer_name_switch() {
+    let mut doc = Semantic::default();
+
+    doc.paragraph(write_with(|doc| {
+        doc.text(text("Prefix "));
+        *doc += names_only(&switch_parser())
+    }));
+
+    let r = doc.render_to_markdown();
+    let expected = "Prefix <tt><b>\\-d</b></tt>, <tt><b>\\-\\-dragon</b></tt>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn refer_name_arg() {
+    let mut doc = Semantic::default();
+
+    doc.paragraph(write_with(|doc| {
+        doc.text(text("Prefix "));
+        *doc += names_only(&argument_parser())
+    }));
+
+    let r = doc.render_to_markdown();
+    let expected =
+        "Prefix <tt><b>\\-d</b></tt>, <tt><b>\\-\\-dragon</b></tt><tt> </tt><tt><i>NAME</i></tt>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn refer_name_command() {
+    let mut doc = Semantic::default();
+
+    doc.paragraph(write_with(|doc| {
+        doc.text(text("Prefix "));
+        *doc += names_only(&command_parser())
+    }));
+
+    let r = doc.render_to_markdown();
+    let expected = "Prefix <tt><b>unleash</b></tt>";
+    assert_eq!(r, expected);
+}
+
 /*
 fn write_updated<P: AsRef<Path>>(new_val: &str, path: P) -> std::io::Result<()> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
