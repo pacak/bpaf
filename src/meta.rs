@@ -1,7 +1,4 @@
-use crate::{
-    item::Item,
-    meta_usage::{to_usage_meta, UsageMeta},
-};
+use crate::item::Item;
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -18,7 +15,7 @@ pub enum Meta {
 
 impl std::fmt::Display for Meta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.as_usage_meta() {
+        match self.to_usage_meta() {
             Some(usage) => usage.fmt(f),
             None => f.write_str("no parameters expected"),
         }
@@ -43,13 +40,6 @@ impl Meta {
             1 => res.remove(0),
             _ => Meta::Or(res),
         }
-    }
-
-    /// Represent [`Meta`] as [`UsageMeta`]
-    ///
-    /// `None` indicates no parameters - usage line isn't shown
-    pub(crate) fn as_usage_meta(&self) -> Option<UsageMeta> {
-        to_usage_meta(self)
     }
 
     /// collect different kinds of short names for disambiguation

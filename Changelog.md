@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.7.8] - Unreleased
+- manpage generation bugfixes,
+  thanks to @ysndr
+- internal cleanups
 
 ## bpaf [0.7.7] - 2022-12-04
 - manpage generation

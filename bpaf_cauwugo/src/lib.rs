@@ -8,6 +8,8 @@ macro_rules! pass_flag {
 
 macro_rules! pass_arg {
     ($cmd:ident, $field:expr, $value:literal) => {
+        // Go home, Clippy, you're drunk.
+        #[allow(for_loops_over_fallibles)]
         for v in $field {
             $cmd.arg($value).arg(v);
         }

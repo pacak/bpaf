@@ -41,7 +41,7 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
         .many()
         .map(|v| v.len() as isize);
 
-    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).max(min).min(max))
+    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).clamp(min, max))
 }
 
 /// `--verbose` and `--quiet` flags with results choosen from a slice of values
