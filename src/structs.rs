@@ -265,7 +265,7 @@ fn this_or_that_picks_first(
             std::mem::swap(args, args_b);
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.comps.extend(comp_stash);
+                comp.extend_comps(comp_stash);
             }
             return match err_b {
                 Some(err) => Err(err),
@@ -277,7 +277,7 @@ fn this_or_that_picks_first(
             std::mem::swap(args, args_a);
             #[cfg(feature = "autocomplete")]
             if let Some(comp) = &mut args.comp {
-                comp.comps.extend(comp_stash);
+                comp.extend_comps(comp_stash);
             }
             return match err_a {
                 Some(err) => Err(err),
@@ -288,8 +288,8 @@ fn this_or_that_picks_first(
 
     #[cfg(feature = "autocomplete")]
     if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
-        comp_stash.extend(a.comps.drain(0..));
-        comp_stash.extend(b.comps.drain(0..));
+        comp_stash.extend(a.drain_comps());
+        comp_stash.extend(b.drain_comps());
     }
 
     // otherwise pick based on the left most or successful one
@@ -317,7 +317,7 @@ fn this_or_that_picks_first(
 
     #[cfg(feature = "autocomplete")]
     if let Some(comp) = &mut args.comp {
-        comp.comps.extend(comp_stash);
+        comp.extend_comps(comp_stash);
     }
 
     res
@@ -646,7 +646,7 @@ where
 
         if let Some(comp) = &mut args.comp {
             if res.is_err() {
-                comp.comps.extend(comp_items);
+                comp.extend_comps(comp_items);
                 return res;
             }
         }
@@ -667,7 +667,7 @@ where
                         );
                     }
                 } else {
-                    comp.comps.push(ci);
+                    comp.push_comp(ci);
                 }
             }
         }
@@ -695,26 +695,12 @@ where
         args.swap_comps(&mut comp_items);
         let res = self.inner.eval(args);
         args.swap_comps(&mut comp_items);
-        extend_with_args_style(args, self.style, &mut comp_items);
+        args.extend_with_style(self.style, &mut comp_items);
         res
     }
 
     fn meta(&self) -> Meta {
         self.inner.meta()
-    }
-}
-
-#[cfg(feature = "autocomplete")]
-fn extend_with_args_style(
-    args: &mut Args,
-    style: CompleteDecor,
-    comps: &mut Vec<crate::complete_gen::Comp>,
-) {
-    if let Some(comp) = &mut args.comp {
-        for mut item in comps.drain(..) {
-            item.set_decor(style);
-            comp.comps.push(item);
-        }
     }
 }
 

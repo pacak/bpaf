@@ -87,7 +87,7 @@ where
                 if let Some(is_arg) = ci.meta_type() {
                     comp.push_shell(self.op, args.depth, is_arg);
                 } else {
-                    comp.comps.push(ci);
+                    comp.push_comp(ci);
                 }
             }
         }

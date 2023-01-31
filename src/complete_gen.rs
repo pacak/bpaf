@@ -26,7 +26,7 @@ use std::ffi::OsStr;
 #[derive(Clone, Debug)]
 pub(crate) struct Complete {
     /// completions accumulated so far
-    pub(crate) comps: Vec<Comp>,
+    comps: Vec<Comp>,
     pub(crate) output_rev: usize,
 }
 
@@ -134,6 +134,15 @@ impl Args {
             });
         }
     }
+
+    pub(crate) fn extend_with_style(&mut self, style: CompleteDecor, comps: &mut Vec<Comp>) {
+        if let Some(comp) = &mut self.comp {
+            for mut item in comps.drain(..) {
+                item.set_decor(style);
+                comp.comps.push(item);
+            }
+        }
+    }
 }
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
@@ -175,6 +184,22 @@ impl Complete {
             },
             is_arg,
         });
+    }
+
+    pub(crate) fn push_comp(&mut self, comp: Comp) {
+        self.comps.push(comp);
+    }
+
+    pub(crate) fn extend_comps(&mut self, comps: Vec<Comp>) {
+        self.comps.extend(comps);
+    }
+
+    pub(crate) fn drain_comps(&mut self) -> std::vec::Drain<Comp> {
+        self.comps.drain(0..)
+    }
+
+    pub(crate) fn swap_comps(&mut self, other: &mut Vec<Comp>) {
+        std::mem::swap(other, &mut self.comps);
     }
 }
 

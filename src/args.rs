@@ -440,7 +440,7 @@ impl Args {
     #[cfg(feature = "autocomplete")]
     pub(crate) fn swap_comps(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
         if let Some(comp) = &mut self.comp {
-            std::mem::swap(comps, &mut comp.comps);
+            comp.swap_comps(comps);
         }
     }
 
