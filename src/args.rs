@@ -394,6 +394,12 @@ mod inner {
             self.items = Rc::from(new_items);
             Ok(())
         }
+
+        #[cfg(feature = "autocomplete")]
+        /// check if bpaf tries to complete last consumed element
+        pub(crate) fn touching_last_remove(&self) -> bool {
+            self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
+        }
     }
 
     pub(crate) struct ArgRangesIter<'a> {
@@ -555,12 +561,6 @@ impl Args {
 
     pub(crate) fn peek(&self) -> Option<&Arg> {
         self.items_iter().next().map(|x| x.1)
-    }
-
-    #[cfg(feature = "autocomplete")]
-    /// check if bpaf tries to complete last consumed element
-    pub(crate) fn touching_last_remove(&self) -> bool {
-        self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
     }
 }
 
