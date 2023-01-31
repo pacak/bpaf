@@ -42,10 +42,11 @@ impl Complete {
 impl Args {
     /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
-        if let Some(comp) = &mut self.comp {
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: named.help.clone(),
@@ -57,10 +58,11 @@ impl Args {
 
     /// Add a new completion hint for an argument, if needed
     pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
-        if let Some(comp) = &mut self.comp {
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: named.help.clone(),
@@ -78,10 +80,11 @@ impl Args {
         help: &Option<String>,
         is_arg: bool,
     ) {
-        if let Some(comp) = &mut self.comp {
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Positional {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -99,10 +102,11 @@ impl Args {
         short: Option<char>,
         help: &Option<String>,
     ) {
-        if let Some(comp) = &mut self.comp {
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Command {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -115,16 +119,17 @@ impl Args {
 
     /// Clear collected completions if enabled
     pub(crate) fn clear_comps(&mut self) {
-        if let Some(comp) = &mut self.comp {
+        if let Some(comp) = self.comp_mut() {
             comp.comps.clear();
         }
     }
 
     pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
-        if let Some(comp) = &mut self.comp {
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Value {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -136,7 +141,7 @@ impl Args {
     }
 
     pub(crate) fn extend_with_style(&mut self, style: CompleteDecor, comps: &mut Vec<Comp>) {
-        if let Some(comp) = &mut self.comp {
+        if let Some(comp) = self.comp_mut() {
             for mut item in comps.drain(..) {
                 item.set_decor(style);
                 comp.comps.push(item);
@@ -345,7 +350,7 @@ impl Args {
     /// `self.comp`, this part goes over collected heads and generates possible completions from
     /// that
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
-        let comp = match &self.comp {
+        let comp = match self.comp_ref() {
             Some(comp) => comp,
             None => return Ok(()),
         };

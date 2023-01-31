@@ -400,6 +400,14 @@ mod inner {
         pub(crate) fn touching_last_remove(&self) -> bool {
             self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
         }
+
+        pub(crate) fn comp_mut(&mut self) -> Option<&mut crate::complete_gen::Complete> {
+            self.comp.as_mut()
+        }
+
+        pub(crate) fn comp_ref(&self) -> Option<&crate::complete_gen::Complete> {
+            self.comp.as_ref()
+        }
     }
 
     pub(crate) struct ArgRangesIter<'a> {
@@ -445,7 +453,7 @@ impl Args {
     #[inline(never)]
     #[cfg(feature = "autocomplete")]
     pub(crate) fn swap_comps(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
-        if let Some(comp) = &mut self.comp {
+        if let Some(comp) = self.comp_mut() {
             comp.swap_comps(comps);
         }
     }

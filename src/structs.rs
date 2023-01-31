@@ -264,7 +264,7 @@ fn this_or_that_picks_first(
         std::cmp::Ordering::Less => {
             std::mem::swap(args, args_b);
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
+            if let Some(comp) = args.comp_mut() {
                 comp.extend_comps(comp_stash);
             }
             return match err_b {
@@ -276,7 +276,7 @@ fn this_or_that_picks_first(
         std::cmp::Ordering::Greater => {
             std::mem::swap(args, args_a);
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
+            if let Some(comp) = args.comp_mut() {
                 comp.extend_comps(comp_stash);
             }
             return match err_a {
@@ -287,7 +287,7 @@ fn this_or_that_picks_first(
     }
 
     #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
+    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
         comp_stash.extend(a.drain_comps());
         comp_stash.extend(b.drain_comps());
     }
@@ -316,7 +316,7 @@ fn this_or_that_picks_first(
     };
 
     #[cfg(feature = "autocomplete")]
-    if let Some(comp) = &mut args.comp {
+    if let Some(comp) = args.comp_mut() {
         comp.extend_comps(comp_stash);
     }
 
@@ -484,7 +484,7 @@ where
             std::mem::swap(args, &mut orig_args);
 
             #[cfg(feature = "autocomplete")]
-            if orig_args.comp.is_some() {
+            if orig_args.comp_mut().is_some() {
                 std::mem::swap(&mut args.comp, &mut orig_args.comp);
             }
 
@@ -644,7 +644,7 @@ where
         // restore old, now metavars added by inner parser, if any, are in comp_items
         args.swap_comps(&mut comp_items);
 
-        if let Some(comp) = &mut args.comp {
+        if let Some(comp) = &mut args.comp_mut() {
             if res.is_err() {
                 comp.extend_comps(comp_items);
                 return res;
@@ -655,14 +655,15 @@ where
 
         // completion function generates suggestions based on the parsed inner value, for
         // that `res` must contain a parsed value
-        if let Some(comp) = &mut args.comp {
+        let depth = args.depth;
+        if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
                 if let Some(is_arg) = ci.meta_type() {
                     for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),
-                            args.depth,
+                            depth,
                             is_arg,
                         );
                     }
