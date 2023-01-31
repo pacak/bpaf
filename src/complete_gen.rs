@@ -314,6 +314,11 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
 }
 
 impl Args {
+    /// Generate completion from collected heads
+    ///
+    /// before calling this method we run parser in "complete" mode and collect live heads inside
+    /// `self.comp`, this part goes over collected heads and generates possible completions from
+    /// that
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
         let comp = match &self.comp {
             Some(comp) => comp,
