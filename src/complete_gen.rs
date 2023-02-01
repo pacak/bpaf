@@ -42,6 +42,9 @@ impl Complete {
 impl Args {
     /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
+        if !self.valid_complete_head() {
+            return;
+        }
         let depth = self.depth;
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Flag {
@@ -58,6 +61,9 @@ impl Args {
 
     /// Add a new completion hint for an argument, if needed
     pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
+        if !self.valid_complete_head() {
+            return;
+        }
         let depth = self.depth;
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Argument {
@@ -80,6 +86,9 @@ impl Args {
         help: &Option<String>,
         is_arg: bool,
     ) {
+        if !self.valid_complete_head() {
+            return;
+        }
         let depth = self.depth;
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Positional {
@@ -102,6 +111,9 @@ impl Args {
         short: Option<char>,
         help: &Option<String>,
     ) {
+        if !self.valid_complete_head() {
+            return;
+        }
         let depth = self.depth;
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Command {
@@ -125,6 +137,9 @@ impl Args {
     }
 
     pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
+        if !self.valid_complete_head() {
+            return;
+        }
         let depth = self.depth;
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Value {
@@ -141,6 +156,9 @@ impl Args {
     }
 
     pub(crate) fn extend_with_style(&mut self, style: CompleteDecor, comps: &mut Vec<Comp>) {
+        if !self.valid_complete_head() {
+            return;
+        }
         if let Some(comp) = self.comp_mut() {
             for mut item in comps.drain(..) {
                 item.set_decor(style);

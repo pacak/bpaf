@@ -72,7 +72,7 @@ mod inner {
         pub(crate) no_pos_ahead: bool,
 
         #[cfg(feature = "autocomplete")]
-        pub(crate) comp: Option<crate::complete_gen::Complete>,
+        comp: Option<crate::complete_gen::Complete>,
 
         /// how many Ambiguities are there
         pub(crate) ambig: usize,
@@ -401,12 +401,30 @@ mod inner {
             self.comp.is_some() && self.items.len() - 1 == self.current.unwrap_or(usize::MAX)
         }
 
+        #[cfg(feature = "autocomplete")]
+        /// Check if current autocomplete head is valid
+        ///
+        /// Parsers preceeding current one must be able to consume all the items on the command
+        /// line: assuming usage line looking like this:
+        ///   ([-a] alpha) | beta
+        /// and user passes "-a <TAB>" we should not suggest "beta"
+        pub(crate) fn valid_complete_head(&self) -> bool {
+            self.len() == 0 || (self.len() == 1 && self.removed.last() == Some(&false))
+        }
+
+        #[cfg(feature = "autocomplete")]
         pub(crate) fn comp_mut(&mut self) -> Option<&mut crate::complete_gen::Complete> {
             self.comp.as_mut()
         }
 
+        #[cfg(feature = "autocomplete")]
         pub(crate) fn comp_ref(&self) -> Option<&crate::complete_gen::Complete> {
             self.comp.as_ref()
+        }
+
+        #[cfg(feature = "autocomplete")]
+        pub(crate) fn swap_comps(&mut self, other: &mut Self) {
+            std::mem::swap(&mut self.comp, &mut other.comp);
         }
     }
 
@@ -452,7 +470,7 @@ pub use inner::*;
 impl Args {
     #[inline(never)]
     #[cfg(feature = "autocomplete")]
-    pub(crate) fn swap_comps(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
+    pub(crate) fn swap_comps_with(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
         if let Some(comp) = self.comp_mut() {
             comp.swap_comps(comps);
         }

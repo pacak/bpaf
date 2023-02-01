@@ -75,12 +75,12 @@ where
 
         // stash old completions
         let mut comp_items = Vec::new();
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         let res = self.inner.eval(args);
 
         // at this point comp_items contains values added by the inner parser
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         let depth = args.depth;
         if let Some(comp) = args.comp_mut() {

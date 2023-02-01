@@ -4,6 +4,7 @@
 - manpage generation bugfixes,
   thanks to @ysndr
 - internal cleanups
+- avoid impossible shell completions
 
 ## bpaf [0.7.7] - 2022-12-04
 - manpage generation

@@ -125,13 +125,13 @@ where
         let mut comps = Vec::new();
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comps);
+        args.swap_comps_with(&mut comps);
 
         #[allow(clippy::let_and_return)]
         let res = self.inner.eval(args);
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comps);
+        args.swap_comps_with(&mut comps);
         res
     }
 
@@ -175,7 +175,7 @@ where
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         // create forks for both branches, go with a successful one.
         // if they both fail - fallback to the original arguments
@@ -374,7 +374,7 @@ where
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(Error::Missing(_)) => {
                 #[cfg(feature = "autocomplete")]
-                std::mem::swap(&mut args.comp, &mut clone.comp);
+                args.swap_comps(&mut clone);
                 Ok(self.value.clone())
             }
         }
@@ -485,7 +485,7 @@ where
 
             #[cfg(feature = "autocomplete")]
             if orig_args.comp_mut().is_some() {
-                std::mem::swap(&mut args.comp, &mut orig_args.comp);
+                args.swap_comps(&mut orig_args);
             }
 
             match err {
@@ -637,12 +637,12 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // stash old
         let mut comp_items = Vec::new();
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         let res = self.inner.eval(args);
 
         // restore old, now metavars added by inner parser, if any, are in comp_items
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         if let Some(comp) = &mut args.comp_mut() {
             if res.is_err() {
@@ -693,9 +693,9 @@ where
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut comp_items = Vec::new();
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
         let res = self.inner.eval(args);
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
         args.extend_with_style(self.style, &mut comp_items);
         res
     }
@@ -788,12 +788,12 @@ where
                 return Ok(ok);
             } else {
                 #[cfg(feature = "autocomplete")]
-                this_arg.swap_comps(&mut comp_items);
+                this_arg.swap_comps_with(&mut comp_items);
             }
         }
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
         Err(Error::Missing(vec![]))
     }
 
