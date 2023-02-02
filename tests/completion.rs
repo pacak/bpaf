@@ -399,7 +399,7 @@ fn static_complete_test_6() {
         .run_inner(Args::from(&["-b", "x", ""]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a\n-b\n");
+    assert_eq!(r, "-b\n");
 }
 
 #[test]
@@ -1118,4 +1118,30 @@ fn bash_completion() {
     // not yet fully supported
     test_comp_v3(&parser, &["-a", ""], &[], 5);
     test_comp_v3(&parser, &["-a", ""], &[], 6);
+}
+
+#[test]
+fn generate_unparseable_items() {
+    let one = pure(()).to_options().command("cone");
+    let two = pure(()).to_options().command("ctwo");
+    let e = short('e').switch();
+
+    let one_e = construct!(e, one).map(|x| x.1);
+    let parser = construct!([one_e, two]).to_options();
+
+    // passing -e restricts branch with cmd_two
+    test_comp_v3(&parser, &["-e", ""], &["literal\tcone"], 4);
+    test_comp_v3(&parser, &["-e", "c"], &["literal\tcone"], 4);
+
+    // expected
+    test_comp_v3(
+        &parser,
+        &[""],
+        &[
+            "literal\t-e\tshow\t-e",
+            "literal\tcone\tshow\tcone",
+            "literal\tctwo\tshow\tctwo",
+        ],
+        4,
+    );
 }

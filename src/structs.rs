@@ -125,13 +125,13 @@ where
         let mut comps = Vec::new();
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comps);
+        args.swap_comps_with(&mut comps);
 
         #[allow(clippy::let_and_return)]
         let res = self.inner.eval(args);
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comps);
+        args.swap_comps_with(&mut comps);
         res
     }
 
@@ -175,7 +175,7 @@ where
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         // create forks for both branches, go with a successful one.
         // if they both fail - fallback to the original arguments
@@ -264,8 +264,8 @@ fn this_or_that_picks_first(
         std::cmp::Ordering::Less => {
             std::mem::swap(args, args_b);
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                comp.comps.extend(comp_stash);
+            if let Some(comp) = args.comp_mut() {
+                comp.extend_comps(comp_stash);
             }
             return match err_b {
                 Some(err) => Err(err),
@@ -276,8 +276,8 @@ fn this_or_that_picks_first(
         std::cmp::Ordering::Greater => {
             std::mem::swap(args, args_a);
             #[cfg(feature = "autocomplete")]
-            if let Some(comp) = &mut args.comp {
-                comp.comps.extend(comp_stash);
+            if let Some(comp) = args.comp_mut() {
+                comp.extend_comps(comp_stash);
             }
             return match err_a {
                 Some(err) => Err(err),
@@ -287,9 +287,9 @@ fn this_or_that_picks_first(
     }
 
     #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (&mut args_a.comp, &mut args_b.comp) {
-        comp_stash.extend(a.comps.drain(0..));
-        comp_stash.extend(b.comps.drain(0..));
+    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
+        comp_stash.extend(a.drain_comps());
+        comp_stash.extend(b.drain_comps());
     }
 
     // otherwise pick based on the left most or successful one
@@ -316,8 +316,8 @@ fn this_or_that_picks_first(
     };
 
     #[cfg(feature = "autocomplete")]
-    if let Some(comp) = &mut args.comp {
-        comp.comps.extend(comp_stash);
+    if let Some(comp) = args.comp_mut() {
+        comp.extend_comps(comp_stash);
     }
 
     res
@@ -374,7 +374,7 @@ where
             e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
             Err(Error::Missing(_)) => {
                 #[cfg(feature = "autocomplete")]
-                std::mem::swap(&mut args.comp, &mut clone.comp);
+                args.swap_comps(&mut clone);
                 Ok(self.value.clone())
             }
         }
@@ -484,8 +484,8 @@ where
             std::mem::swap(args, &mut orig_args);
 
             #[cfg(feature = "autocomplete")]
-            if orig_args.comp.is_some() {
-                std::mem::swap(&mut args.comp, &mut orig_args.comp);
+            if orig_args.comp_mut().is_some() {
+                args.swap_comps(&mut orig_args);
             }
 
             match err {
@@ -637,16 +637,16 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         // stash old
         let mut comp_items = Vec::new();
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
         let res = self.inner.eval(args);
 
         // restore old, now metavars added by inner parser, if any, are in comp_items
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
 
-        if let Some(comp) = &mut args.comp {
+        if let Some(comp) = &mut args.comp_mut() {
             if res.is_err() {
-                comp.comps.extend(comp_items);
+                comp.extend_comps(comp_items);
                 return res;
             }
         }
@@ -655,19 +655,20 @@ where
 
         // completion function generates suggestions based on the parsed inner value, for
         // that `res` must contain a parsed value
-        if let Some(comp) = &mut args.comp {
+        let depth = args.depth;
+        if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
                 if let Some(is_arg) = ci.meta_type() {
                     for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),
-                            args.depth,
+                            depth,
                             is_arg,
                         );
                     }
                 } else {
-                    comp.comps.push(ci);
+                    comp.push_comp(ci);
                 }
             }
         }
@@ -692,29 +693,15 @@ where
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let mut comp_items = Vec::new();
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
         let res = self.inner.eval(args);
-        args.swap_comps(&mut comp_items);
-        extend_with_args_style(args, self.style, &mut comp_items);
+        args.swap_comps_with(&mut comp_items);
+        args.extend_with_style(self.style, &mut comp_items);
         res
     }
 
     fn meta(&self) -> Meta {
         self.inner.meta()
-    }
-}
-
-#[cfg(feature = "autocomplete")]
-fn extend_with_args_style(
-    args: &mut Args,
-    style: CompleteDecor,
-    comps: &mut Vec<crate::complete_gen::Comp>,
-) {
-    if let Some(comp) = &mut args.comp {
-        for mut item in comps.drain(..) {
-            item.set_decor(style);
-            comp.comps.push(item);
-        }
     }
 }
 
@@ -801,12 +788,12 @@ where
                 return Ok(ok);
             } else {
                 #[cfg(feature = "autocomplete")]
-                this_arg.swap_comps(&mut comp_items);
+                this_arg.swap_comps_with(&mut comp_items);
             }
         }
 
         #[cfg(feature = "autocomplete")]
-        args.swap_comps(&mut comp_items);
+        args.swap_comps_with(&mut comp_items);
         Err(Error::Missing(vec![]))
     }
 

@@ -26,7 +26,7 @@ use std::ffi::OsStr;
 #[derive(Clone, Debug)]
 pub(crate) struct Complete {
     /// completions accumulated so far
-    pub(crate) comps: Vec<Comp>,
+    comps: Vec<Comp>,
     pub(crate) output_rev: usize,
 }
 
@@ -42,10 +42,14 @@ impl Complete {
 impl Args {
     /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
-        if let Some(comp) = &mut self.comp {
+        if !self.valid_complete_head() {
+            return;
+        }
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: named.help.clone(),
@@ -57,10 +61,14 @@ impl Args {
 
     /// Add a new completion hint for an argument, if needed
     pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
-        if let Some(comp) = &mut self.comp {
+        if !self.valid_complete_head() {
+            return;
+        }
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: named.help.clone(),
@@ -78,10 +86,14 @@ impl Args {
         help: &Option<String>,
         is_arg: bool,
     ) {
-        if let Some(comp) = &mut self.comp {
+        if !self.valid_complete_head() {
+            return;
+        }
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Positional {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -99,10 +111,14 @@ impl Args {
         short: Option<char>,
         help: &Option<String>,
     ) {
-        if let Some(comp) = &mut self.comp {
+        if !self.valid_complete_head() {
+            return;
+        }
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Command {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -115,16 +131,20 @@ impl Args {
 
     /// Clear collected completions if enabled
     pub(crate) fn clear_comps(&mut self) {
-        if let Some(comp) = &mut self.comp {
+        if let Some(comp) = self.comp_mut() {
             comp.comps.clear();
         }
     }
 
     pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
-        if let Some(comp) = &mut self.comp {
+        if !self.valid_complete_head() {
+            return;
+        }
+        let depth = self.depth;
+        if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Value {
                 extra: CompExtra {
-                    depth: self.depth,
+                    depth,
                     hidden_group: "",
                     visible_group: "",
                     help: help.clone(),
@@ -132,6 +152,18 @@ impl Args {
                 body: body.to_owned(),
                 is_arg,
             });
+        }
+    }
+
+    pub(crate) fn extend_with_style(&mut self, style: CompleteDecor, comps: &mut Vec<Comp>) {
+        if !self.valid_complete_head() {
+            return;
+        }
+        if let Some(comp) = self.comp_mut() {
+            for mut item in comps.drain(..) {
+                item.set_decor(style);
+                comp.comps.push(item);
+            }
         }
     }
 }
@@ -175,6 +207,22 @@ impl Complete {
             },
             is_arg,
         });
+    }
+
+    pub(crate) fn push_comp(&mut self, comp: Comp) {
+        self.comps.push(comp);
+    }
+
+    pub(crate) fn extend_comps(&mut self, comps: Vec<Comp>) {
+        self.comps.extend(comps);
+    }
+
+    pub(crate) fn drain_comps(&mut self) -> std::vec::Drain<Comp> {
+        self.comps.drain(0..)
+    }
+
+    pub(crate) fn swap_comps(&mut self, other: &mut Vec<Comp>) {
+        std::mem::swap(other, &mut self.comps);
     }
 }
 
@@ -314,8 +362,13 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
 }
 
 impl Args {
+    /// Generate completion from collected heads
+    ///
+    /// before calling this method we run parser in "complete" mode and collect live heads inside
+    /// `self.comp`, this part goes over collected heads and generates possible completions from
+    /// that
     pub(crate) fn check_complete(&self) -> Result<(), Error> {
-        let comp = match &self.comp {
+        let comp = match self.comp_ref() {
             Some(comp) => comp,
             None => return Ok(()),
         };
