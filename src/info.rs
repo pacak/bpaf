@@ -592,7 +592,15 @@ impl<T> OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// Not available directly, but you can call `usage` on generated [`OptionParser`].
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, usage("Usage: my_program: {usage}"))]
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
     #[must_use]
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
