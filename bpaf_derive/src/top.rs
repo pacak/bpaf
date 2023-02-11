@@ -58,6 +58,7 @@ struct Decor {
     header: Option<String>,
     footer: Option<String>,
     version: Option<Box<Expr>>,
+    usage: Option<LitStr>,
 }
 
 impl ToTokens for Decor {
@@ -79,6 +80,9 @@ impl ToTokens for Decor {
         }
         if let Some(ver) = &self.version {
             quote!(.version(#ver)).to_tokens(tokens);
+        }
+        if let Some(usage) = &self.usage {
+            quote!(.usage(#usage)).to_tokens(tokens);
         }
     }
 }
@@ -238,6 +242,7 @@ impl Outer {
             adjacent: false,
         };
 
+        let mut usage = None;
         let mut help = Vec::new();
         for attr in attrs {
             if attr.path.is_ident("doc") {
@@ -262,6 +267,10 @@ impl Outer {
                             None
                         };
                         res.kind = Some(OuterKind::Options(lit));
+                    } else if keyword == "usage" {
+                        let content;
+                        let _ = parenthesized!(content in input);
+                        usage = Some(content.parse::<LitStr>()?);
                     } else if keyword == "complete_style" {
                         let style = parse_expr(input)?;
                         res.comp_style = Some(style);
@@ -310,7 +319,7 @@ impl Outer {
             cmd.longs.append(&mut res.longs);
         }
 
-        res.decor = Decor::new(&help, res.version.take());
+        res.decor = Decor::new(&help, res.version.take(), usage);
 
         Ok(res)
     }
@@ -426,7 +435,7 @@ impl Top {
 
             if !inner.skip {
                 if let Some(cmd_arg) = inner.command {
-                    let decor = Decor::new(&inner.help, None);
+                    let decor = Decor::new(&inner.help, None, None);
                     let oparser = OParser {
                         inner: Box::new(branch),
                         decor,
@@ -646,13 +655,14 @@ impl Fields {
 }
 
 impl Decor {
-    fn new(help: &[String], version: Option<Box<Expr>>) -> Self {
+    fn new(help: &[String], version: Option<Box<Expr>>, usage: Option<LitStr>) -> Self {
         let mut iter = LineIter::from(help);
         Decor {
             descr: iter.next(),
             header: iter.next(),
             footer: iter.next(),
             version,
+            usage,
         }
     }
 }

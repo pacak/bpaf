@@ -93,6 +93,28 @@ fn top_struct_options1() {
 }
 
 #[test]
+fn options_with_custom_usage() {
+    let top: Top = parse_quote! {
+        #[bpaf(options, usage("App: {usage}"))]
+        struct Opt {}
+    };
+
+    let expected = quote! {
+        fn opt() -> ::bpaf::OptionParser<Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+                {
+                    ::bpaf::construct!(Opt {})
+                }
+                .to_options()
+                .usage("App: {usage}")
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn struct_options2() {
     let input: Top = parse_quote! {
         #[bpaf(options)]
