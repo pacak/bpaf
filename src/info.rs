@@ -131,14 +131,7 @@ impl<T> OptionParser<T> {
     {
         match self.try_run() {
             Ok(t) => t,
-            Err(ParseFailure::Stdout(msg)) => {
-                print!("{}", msg); // completions are sad otherwise
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(msg)) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
+            Err(err) => std::process::exit(err.exit_code()),
         }
     }
 
