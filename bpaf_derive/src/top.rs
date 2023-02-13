@@ -125,6 +125,7 @@ pub struct CommandAttr {
     name: LitStr,
     shorts: Vec<LitChar>,
     longs: Vec<LitStr>,
+    usage: Option<LitStr>,
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +174,7 @@ impl Inner {
                             name,
                             shorts: Vec::new(),
                             longs: Vec::new(),
+                            usage: None,
                         });
                     } else if keyword == "short" {
                         let lit = parse_opt_arg::<LitChar>(input)?.unwrap_or_else(|| {
@@ -195,6 +197,15 @@ impl Inner {
                         res.is_default = true;
                     } else if keyword == "skip" {
                         res.skip = true;
+                    } else if keyword == "usage" {
+                        if let Some(cmd) = &mut res.command {
+                            let content;
+                            let _ = parenthesized!(content in input);
+                            cmd.usage = Some(content.parse::<LitStr>()?);
+                        } else {
+                            return Err(input_copy
+                                .error("In this context `usage` requires `command` annotation"));
+                        }
                     } else {
                         return Err(input_copy.error("Not a valid inner attribute"));
                     }
@@ -267,10 +278,6 @@ impl Outer {
                             None
                         };
                         res.kind = Some(OuterKind::Options(lit));
-                    } else if keyword == "usage" {
-                        let content;
-                        let _ = parenthesized!(content in input);
-                        usage = Some(content.parse::<LitStr>()?);
                     } else if keyword == "complete_style" {
                         let style = parse_expr(input)?;
                         res.comp_style = Some(style);
@@ -291,7 +298,17 @@ impl Outer {
                             name,
                             shorts: Vec::new(),
                             longs: Vec::new(),
+                            usage: None,
                         }));
+                    } else if keyword == "usage" {
+                        let content;
+                        let _ = parenthesized!(content in input);
+                        let lit = Some(content.parse::<LitStr>()?);
+                        if let Some(OuterKind::Command(cmd)) = &mut res.kind {
+                            cmd.usage = lit;
+                        } else {
+                            usage = lit;
+                        }
                     } else if keyword == "short" {
                         // those are aliaes, no fancy name figuring out logic
                         let lit = parse_lit_char(input)?;
@@ -527,14 +544,18 @@ impl ToTokens for BParser {
                     names = quote!(#names .long(#long));
                 }
 
+                let usage = match &cmd_attr.usage {
+                    Some(usage) => quote!(.usage(#usage)),
+                    None => quote!(),
+                };
                 if let Some(msg) = &oparser.decor.descr {
                     quote!( {
-                        let inner_cmd = #oparser;
+                        let inner_cmd = #oparser #usage;
                         ::bpaf::command(#cmd_name, inner_cmd).help(#msg)#names
                     })
                 } else {
                     quote!({
-                        let inner_cmd = #oparser;
+                        let inner_cmd = #oparser #usage;
                         ::bpaf::command(#cmd_name, inner_cmd)#names
                     })
                 }
