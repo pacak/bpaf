@@ -86,8 +86,8 @@ use crate::{
     meta_usage::UsageMeta,
     *,
 };
-pub use roff;
-pub use roff::semantic::*;
+pub use ::roff;
+use ::roff::*;
 
 /// Help information collected off a parser
 ///
@@ -99,13 +99,13 @@ pub struct HelpInfo {
     name: Option<&'static str>,
 }
 
-impl SemWrite for HelpInfo {
-    fn sem_write(self, to: &mut Semantic) {
+impl Write for HelpInfo {
+    fn write(&self, to: &mut Doc) {
         if let Some(t) = self.info.as_ref().and_then(|i| i.descr) {
             match self.name {
                 Some(name) => {
                     to.section("Name");
-                    to.paragraph([mono(name), text(" - "), text(t)]);
+                    to.paragraph(&[mono(name), text(" - "), text(t)]);
                 }
                 None => {
                     to.section("Summary");
@@ -119,7 +119,7 @@ impl SemWrite for HelpInfo {
             to.paragraph(text(t));
         }
 
-        *to += self.split();
+        to.push(self.split());
 
         if let Some(t) = self.info.as_ref().and_then(|i| i.footer) {
             to.paragraph(text(t));
@@ -130,7 +130,7 @@ impl SemWrite for HelpInfo {
 #[derive(Debug, Clone)]
 /// A set of help items
 ///
-/// Designed mostly to be a named type with [`SemWrite`] implementation
+/// Designed mostly to be a named type with [`Write`] implementation
 pub struct Items<'a>(Vec<HelpItem<'a>>);
 
 impl<'a> Items<'a> {
@@ -156,9 +156,9 @@ pub struct UsageItems<'a> {
     pub commands: Items<'a>,
 }
 
-impl SemWrite for Items<'_> {
-    fn sem_write(self, to: &mut Semantic) {
-        to.definition_list(self.0);
+impl Write for Items<'_> {
+    fn write(&self, to: &mut Doc) {
+        to.dlist(self.0.as_slice());
     }
 }
 
@@ -181,7 +181,7 @@ pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> Help
     }
 }
 
-pub fn usage<P, T>(parser: &P) -> impl SemWrite + '_
+pub fn usage<P, T>(parser: &P) -> impl Write + '_
 where
     P: Parser<T>,
 {
@@ -193,23 +193,23 @@ where
 /// Extract and write comma separated flag or command names
 ///
 /// Use this if you want to refer to some other parser in parts of your documentation
-pub fn names_only<P, T>(parser: &P) -> impl SemWrite + '_
+pub fn names_only<P, T>(parser: &P) -> impl Write + '_
 where
     P: Parser<T>,
 {
-    write_with(|doc| {
+    |doc: &mut Doc| {
         let info = collect_parser_help_info(parser);
         let items = info.split();
         for (ix, item) in items
             .flags
             .0
-            .iter()
-            .chain(items.positionals.0.iter())
-            .chain(items.commands.0.iter())
+            .into_iter()
+            .chain(items.positionals.0.into_iter())
+            .chain(items.commands.0.into_iter())
             .enumerate()
         {
             if ix > 0 {
-                *doc += text(", ");
+                *doc.text(", ");
             }
             match item {
                 HelpItem::Decor { help: _ } | HelpItem::BlankDecor => {}
@@ -217,7 +217,9 @@ where
                     strict: _,
                     metavar,
                     help: _,
-                } => *doc += *metavar,
+                } => {
+                    doc.push(metavar);
+                }
                 HelpItem::Command {
                     name,
                     short: _,
@@ -225,10 +227,10 @@ where
                     meta: _,
                     info: _,
                 } => {
-                    *doc += literal(*name);
+                    doc.literal(name);
                 }
                 HelpItem::Flag { name, help: _ } => {
-                    *doc += name.0;
+                    doc.push(name.0);
                 }
                 HelpItem::Argument {
                     name,
@@ -242,7 +244,7 @@ where
                 }
             }
         }
-    })
+    }
 }
 
 impl HelpInfo {
@@ -261,8 +263,8 @@ impl HelpInfo {
     }
 }
 
-impl SemWrite for UsageItems<'_> {
-    fn sem_write(self, to: &mut Semantic) {
+impl Write for UsageItems<'_> {
+    fn write(self, to: &mut Doc) {
         if !self.positionals.is_empty() {
             to.subsection("Available positional items");
             *to += self.positionals;
@@ -280,84 +282,94 @@ impl SemWrite for UsageItems<'_> {
     }
 }
 
-impl SemWrite for &UsageMeta {
-    fn sem_write(self, to: &mut Semantic) {
+impl Write for &UsageMeta {
+    fn write(&self, doc: &mut Doc) {
         match self {
             UsageMeta::And(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix != 0 {
-                        *to += mono(" ");
+                        doc.mono(" ");
                     }
-                    x.sem_write(to);
+                    x.write(doc);
                 }
             }
             UsageMeta::Or(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix != 0 {
-                        *to += mono(" | ");
+                        doc.mono(" | ");
                     }
-                    x.sem_write(to);
+                    x.write(doc);
                 }
             }
             UsageMeta::Required(req) => {
-                *to += mono("(");
-                req.sem_write(to);
-                *to += mono(")");
+                doc.mono("(");
+                Box::<UsageMeta>::write(doc);
+                doc.mono(")");
             }
             UsageMeta::Optional(opt) => {
-                *to += mono("[");
-                opt.sem_write(to);
-                *to += mono("]");
+                *doc += mono("[");
+                opt.write(doc);
+                *doc += mono("]");
             }
             UsageMeta::Many(_) => todo!(),
             UsageMeta::ShortFlag(f) => {
-                *to += [literal('-'), literal(*f)];
+                *doc += [literal('-'), literal(*f)];
             }
             UsageMeta::ShortArg(f, m) => {
-                *to += [literal('-'), literal(*f), mono('=')];
-                *to += metavar(*m);
+                *doc += [literal('-'), literal(*f), mono('=')];
+                *doc += metavar(*m);
             }
             UsageMeta::LongFlag(f) => {
-                *to += [literal("--"), literal(*f)];
+                *doc += [literal("--"), literal(*f)];
             }
             UsageMeta::LongArg(f, m) => {
-                *to += [literal("--"), literal(*f), mono("="), metavar(m)];
+                *doc += [literal("--"), literal(*f), mono("="), metavar(m)];
             }
             UsageMeta::Pos(m) => {
-                *to += metavar(*m);
+                *doc += metavar(*m);
             }
             UsageMeta::StrictPos(m) => {
-                *to += [mono("-- "), metavar(*m)];
+                *doc += [mono("-- "), metavar(*m)];
             }
 
             UsageMeta::Command => {
-                *to += [literal("COMMAND"), mono(" "), metavar("...")];
+                *doc += [literal("COMMAND"), mono(" "), metavar("...")];
             }
         }
     }
 }
 
-impl SemWrite for ShortLong {
-    fn sem_write(self, to: &mut Semantic) {
+impl Write for ShortLong {
+    fn write(&self, doc: &mut Doc) {
         match self {
-            ShortLong::Short(s) => *to += [literal('-'), literal(s)],
-            ShortLong::Long(l) => *to += [literal("--"), literal(l)],
+            ShortLong::Short(s) => {
+                doc.push(&[
+                    StyledChar(Style::Literal, '-'),
+                    StyledChar(Style::Literal, *s),
+                ]);
+            }
+            ShortLong::Long(l) => {
+                doc.push(&[literal("--"), literal(l)]);
+            }
             ShortLong::ShortLong(s, l) => {
-                *to += [literal('-'), literal(s)];
-                *to += [text(", "), literal("--"), literal(l)];
+                doc.push(&[
+                    StyledChar(Style::Literal, '-'),
+                    StyledChar(Style::Literal, *s),
+                ]);
+                doc.push(&[text(", "), literal("--"), literal(l)]);
             }
         }
     }
 }
 
-impl SemWrite for meta_help::Metavar {
-    fn sem_write(self, to: &mut Semantic) {
-        *to += metavar(self.0);
+impl Write for meta_help::Metavar {
+    fn write(&self, to: &mut Doc) {
+        to.metavar(self.0);
     }
 }
 
-impl SemWrite for HelpItem<'_> {
-    fn sem_write(self, to: &mut Semantic) {
+impl Write for HelpItem<'_> {
+    fn write(&self, to: &mut Doc) {
         match self {
             HelpItem::Decor { help } => {
                 to.item(text(help));
@@ -368,7 +380,7 @@ impl SemWrite for HelpItem<'_> {
                 metavar,
                 help,
             } => {
-                to.term(metavar);
+                to.term(*metavar);
                 if let Some(help) = help {
                     to.item(text(help));
                 }
@@ -381,9 +393,12 @@ impl SemWrite for HelpItem<'_> {
                 info: _,
             } => {
                 match short {
-                    Some(short) => to.term(write_with(|to| {
-                        to.text(literal(short)).text([text(", "), literal(name)]);
-                    })),
+                    Some(short) => to.term(|to: &mut Doc| {
+                        to.push(StyledChar(Style::Literal, *short))
+                            .text(", ")
+                            .literal(name);
+                    }),
+
                     None => to.term(literal(name)),
                 };
                 if let Some(help) = help {

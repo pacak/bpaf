@@ -16,8 +16,8 @@ exclude = [".github/workflows", "tarp.sh"]
 [dependencies]
 bpaf_derive = { path = "./bpaf_derive", version = "=0.3.5", optional = true }
 owo-colors = { version = "3.5.0", features = ["supports-colors"], optional = true }
-#roff = { path = "../roff-rs", version = "0.2.1", optional = true }
-roff = { git = "https://github.com/pacak/semantic", branch = "semantic", optional = true }
+roff = { path = "../roff-rs", version = "0.2.1", optional = true }
+#roff = { git = "https://github.com/pacak/semantic", branch = "semantic", optional = true }
 
 
 [dev-dependencies]
