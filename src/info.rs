@@ -131,14 +131,7 @@ impl<T> OptionParser<T> {
     {
         match self.try_run() {
             Ok(t) => t,
-            Err(ParseFailure::Stdout(msg)) => {
-                print!("{}", msg); // completions are sad otherwise
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(msg)) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
+            Err(err) => std::process::exit(err.exit_code()),
         }
     }
 
@@ -599,7 +592,15 @@ impl<T> OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// Not available directly, but you can call `usage` on generated [`OptionParser`].
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, usage("Usage: my_program: {usage}"))]
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
     #[must_use]
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);

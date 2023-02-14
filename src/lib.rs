@@ -1643,6 +1643,22 @@ impl ParseFailure {
             }
         }
     }
+
+    /// Run an action appropriate to the failure and produce the exit code
+    ///
+    /// Prints a message to `stdout` or `stderr` and returns the exit code
+    pub fn exit_code(self) -> i32 {
+        match self {
+            ParseFailure::Stdout(msg) => {
+                print!("{}", msg); // completions are sad otherwise
+                0
+            }
+            ParseFailure::Stderr(msg) => {
+                eprintln!("{}", msg);
+                1
+            }
+        }
+    }
 }
 
 /// Strip a command name if present at the front when used as a `cargo` command

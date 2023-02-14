@@ -58,6 +58,7 @@ struct Decor {
     header: Option<String>,
     footer: Option<String>,
     version: Option<Box<Expr>>,
+    usage: Option<LitStr>,
 }
 
 impl ToTokens for Decor {
@@ -79,6 +80,9 @@ impl ToTokens for Decor {
         }
         if let Some(ver) = &self.version {
             quote!(.version(#ver)).to_tokens(tokens);
+        }
+        if let Some(usage) = &self.usage {
+            quote!(.usage(#usage)).to_tokens(tokens);
         }
     }
 }
@@ -121,6 +125,7 @@ pub struct CommandAttr {
     name: LitStr,
     shorts: Vec<LitChar>,
     longs: Vec<LitStr>,
+    usage: Option<LitStr>,
 }
 
 #[derive(Debug, Clone)]
@@ -169,6 +174,7 @@ impl Inner {
                             name,
                             shorts: Vec::new(),
                             longs: Vec::new(),
+                            usage: None,
                         });
                     } else if keyword == "short" {
                         let lit = parse_opt_arg::<LitChar>(input)?.unwrap_or_else(|| {
@@ -191,6 +197,15 @@ impl Inner {
                         res.is_default = true;
                     } else if keyword == "skip" {
                         res.skip = true;
+                    } else if keyword == "usage" {
+                        if let Some(cmd) = &mut res.command {
+                            let content;
+                            let _ = parenthesized!(content in input);
+                            cmd.usage = Some(content.parse::<LitStr>()?);
+                        } else {
+                            return Err(input_copy
+                                .error("In this context `usage` requires `command` annotation"));
+                        }
                     } else {
                         return Err(input_copy.error("Not a valid inner attribute"));
                     }
@@ -238,6 +253,7 @@ impl Outer {
             adjacent: false,
         };
 
+        let mut usage = None;
         let mut help = Vec::new();
         for attr in attrs {
             if attr.path.is_ident("doc") {
@@ -282,7 +298,17 @@ impl Outer {
                             name,
                             shorts: Vec::new(),
                             longs: Vec::new(),
+                            usage: None,
                         }));
+                    } else if keyword == "usage" {
+                        let content;
+                        let _ = parenthesized!(content in input);
+                        let lit = Some(content.parse::<LitStr>()?);
+                        if let Some(OuterKind::Command(cmd)) = &mut res.kind {
+                            cmd.usage = lit;
+                        } else {
+                            usage = lit;
+                        }
                     } else if keyword == "short" {
                         // those are aliaes, no fancy name figuring out logic
                         let lit = parse_lit_char(input)?;
@@ -310,7 +336,7 @@ impl Outer {
             cmd.longs.append(&mut res.longs);
         }
 
-        res.decor = Decor::new(&help, res.version.take());
+        res.decor = Decor::new(&help, res.version.take(), usage);
 
         Ok(res)
     }
@@ -426,7 +452,7 @@ impl Top {
 
             if !inner.skip {
                 if let Some(cmd_arg) = inner.command {
-                    let decor = Decor::new(&inner.help, None);
+                    let decor = Decor::new(&inner.help, None, None);
                     let oparser = OParser {
                         inner: Box::new(branch),
                         decor,
@@ -518,14 +544,18 @@ impl ToTokens for BParser {
                     names = quote!(#names .long(#long));
                 }
 
+                let usage = match &cmd_attr.usage {
+                    Some(usage) => quote!(.usage(#usage)),
+                    None => quote!(),
+                };
                 if let Some(msg) = &oparser.decor.descr {
                     quote!( {
-                        let inner_cmd = #oparser;
+                        let inner_cmd = #oparser #usage;
                         ::bpaf::command(#cmd_name, inner_cmd).help(#msg)#names
                     })
                 } else {
                     quote!({
-                        let inner_cmd = #oparser;
+                        let inner_cmd = #oparser #usage;
                         ::bpaf::command(#cmd_name, inner_cmd)#names
                     })
                 }
@@ -646,13 +676,14 @@ impl Fields {
 }
 
 impl Decor {
-    fn new(help: &[String], version: Option<Box<Expr>>) -> Self {
+    fn new(help: &[String], version: Option<Box<Expr>>, usage: Option<LitStr>) -> Self {
         let mut iter = LineIter::from(help);
         Decor {
             descr: iter.next(),
             header: iter.next(),
             footer: iter.next(),
             version,
+            usage,
         }
     }
 }
