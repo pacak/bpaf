@@ -1,14 +1,14 @@
 # Name
 
-<tt>ls</tt> - List directory contents
+<p><tt>ls</tt> - List directory contents</p>
 
 # Description
 
-List information about the FILEs (the current directory by default).
+<p>List information about the FILEs (the current directory by default).
 Prints name only unless `--long` is specified
     Exit status:
       0: if OK
-      1: if requested FILEs does not exist
+      1: if requested FILEs does not exist</p>
 
 ## Available positional items
 

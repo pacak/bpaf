@@ -420,8 +420,8 @@ pub use structs::{ParseBox, ParseCon};
 #[cfg(feature = "autocomplete")]
 pub use crate::complete_shell::ShellComp;
 
-#[cfg(feature = "manpage")]
-pub use manpage::Section;
+//#[cfg(feature = "manpage")]
+//pub use manpage::Section;
 
 pub mod parsers {
     //! This module exposes parsers that accept further configuration with builder pattern

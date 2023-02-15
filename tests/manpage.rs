@@ -1,7 +1,5 @@
-use bpaf::{docugen::roff::semantic::*, docugen::*, *};
+use bpaf::{docugen::*, *};
 
-use std::fs::OpenOptions;
-use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 
 fn switch_parser() -> impl Parser<bool> {
@@ -21,44 +19,48 @@ fn command_parser() -> impl Parser<String> {
 
 #[test]
 fn refer_name_switch() {
-    let mut doc = Semantic::default();
+    let mut doc = Doc::default();
 
-    doc.paragraph(write_with(|doc| {
-        doc.text(text("Prefix "));
-        *doc += names_only(&switch_parser())
-    }));
+    doc.paragraph(|doc: &mut Doc| {
+        doc.text("You can use ")
+            .push(names_only(&switch_parser()))
+            .text(" to unleash the dragon.");
+    });
 
     let r = doc.render_to_markdown();
-    let expected = "Prefix <tt><b>\\-d</b></tt>, <tt><b>\\-\\-dragon</b></tt>";
+
+    let expected =
+        "<p>You can use <tt><b>-d</b></tt>, <tt><b>--dragon</b></tt> to unleash the dragon.</p>";
     assert_eq!(r, expected);
 }
 
 #[test]
 fn refer_name_arg() {
-    let mut doc = Semantic::default();
+    let mut doc = Doc::default();
 
-    doc.paragraph(write_with(|doc| {
-        doc.text(text("Prefix "));
-        *doc += names_only(&argument_parser())
-    }));
+    doc.paragraph(|doc: &mut Doc| {
+        doc.text("You can use ")
+            .push(names_only(&argument_parser()))
+            .text(" to specify dragon's name.");
+    });
 
     let r = doc.render_to_markdown();
-    let expected =
-        "Prefix <tt><b>\\-d</b></tt>, <tt><b>\\-\\-dragon</b></tt><tt> </tt><tt><i>NAME</i></tt>";
+    let expected = "<p>You can use <tt><b>-d</b></tt>, <tt><b>--dragon</b></tt><tt> </tt><tt><i>NAME</i></tt> to specify dragon's name.</p>";
     assert_eq!(r, expected);
 }
 
 #[test]
 fn refer_name_command() {
-    let mut doc = Semantic::default();
+    let mut doc = Doc::default();
 
-    doc.paragraph(write_with(|doc| {
-        doc.text(text("Prefix "));
-        *doc += names_only(&command_parser())
-    }));
+    doc.paragraph(|doc: &mut Doc| {
+        doc.text("You can use ")
+            .push(names_only(&command_parser()))
+            .text(" command too.");
+    });
 
     let r = doc.render_to_markdown();
-    let expected = "Prefix <tt><b>unleash</b></tt>";
+    let expected = "<p>You can use <tt><b>unleash</b></tt> command too.</p>";
     assert_eq!(r, expected);
 }
 

@@ -6,7 +6,7 @@
 //! [`split`](HelpInfo::split) [`HelpInfo`] into smaller bits and compose them with extra text.
 //!
 //! ```rust
-//! # use bpaf::*;
+//! # use bpaf::{*, docugen::*};
 //! # use std::path::PathBuf;
 //! #[derive(Debug, Clone, Bpaf)]
 //! #[bpaf(options)]
@@ -28,16 +28,11 @@
 //!     files: Vec<PathBuf>
 //! }
 //!
-//! use bpaf::docugen::{
-//!     collect_help_info,
-//!     roff::semantic::Semantic,
-//!     roff::write_updated,
-//!     roff::man::{Manpage, Section},
-//! };
+//! use bpaf::docugen::*;
 //!
 //! // generate semantic document
-//! let mut doc = Semantic::default();
-//! doc += collect_help_info(options(), "ls");
+//! let mut doc = Doc::default();
+//! doc.push(collect_help_info(options(), "ls"));
 //!
 //! // render to markdown and save to file
 //! let markdown = doc.render_to_markdown();
@@ -46,9 +41,7 @@
 //! write_updated(path, markdown.as_bytes()).unwrap();
 //!
 //! // render to groff and save to file
-//! let man = Manpage::new("ls", Section::General,
-//!     &["1 Jan 2023", "rust toolbox", "File lister 2000"]);
-//! let groff = doc.render_to_manpage(man);
+//! let groff = doc.render_to_manpage("ls", Section::General, &["1 Jan 2023", "rust toolbox"]);
 //! # let path = PathBuf::from(std::env::var_os("CARGO_MANIFEST_DIR").unwrap()).join("tests").join("sample.1");
 //! # files_updated |=
 //! write_updated(path, groff.as_bytes()).unwrap();
@@ -86,8 +79,7 @@ use crate::{
     meta_usage::UsageMeta,
     *,
 };
-pub use ::roff;
-use ::roff::*;
+pub use ::roff::*;
 
 /// Help information collected off a parser
 ///
@@ -193,6 +185,22 @@ where
 /// Extract and write comma separated flag or command names
 ///
 /// Use this if you want to refer to some other parser in parts of your documentation
+/// ```rust
+/// # use bpaf::{docugen::*, *};
+/// fn switch_parser() -> impl Parser<bool> {
+///     short('d').long("dragon").help("Is dragon scary?").switch()
+/// }
+///
+/// let mut doc = Doc::default();
+/// doc.paragraph(|doc: &mut Doc| {
+///     doc.text("You can use ")
+///         .push(names_only(&switch_parser()))
+///         .text(" to unleash the dragon.");
+///     });
+///
+/// let expected = "<p>You can use <tt><b>-d</b></tt>, <tt><b>--dragon</b></tt> to unleash the dragon.</p>";
+/// assert_eq!(doc.render_to_markdown(), expected);
+/// ```
 pub fn names_only<P, T>(parser: &P) -> impl Write + '_
 where
     P: Parser<T>,
@@ -209,7 +217,7 @@ where
             .enumerate()
         {
             if ix > 0 {
-                *doc.text(", ");
+                doc.text(", ");
             }
             match item {
                 HelpItem::Decor { help: _ } | HelpItem::BlankDecor => {}
@@ -238,9 +246,7 @@ where
                     env: _,
                     help: _,
                 } => {
-                    *doc += name.0;
-                    *doc += mono(" ");
-                    *doc += *metavar;
+                    doc.push(name.0).mono(" ").push(metavar);
                 }
             }
         }
@@ -264,25 +270,25 @@ impl HelpInfo {
 }
 
 impl Write for UsageItems<'_> {
-    fn write(self, to: &mut Doc) {
+    fn write(&self, doc: &mut Doc) {
         if !self.positionals.is_empty() {
-            to.subsection("Available positional items");
-            *to += self.positionals;
+            doc.subsection("Available positional items");
+            self.positionals.write(doc);
         }
 
         if !self.flags.is_empty() {
-            to.subsection("Available options");
-            *to += self.flags;
+            doc.subsection("Available options");
+            self.flags.write(doc);
         }
 
         if !self.commands.is_empty() {
-            to.subsection("Available commands");
-            *to += self.commands;
+            doc.subsection("Available commands");
+            self.commands.write(doc);
         }
     }
 }
 
-impl Write for &UsageMeta {
+impl Write for UsageMeta {
     fn write(&self, doc: &mut Doc) {
         match self {
             UsageMeta::And(xs) => {
@@ -303,37 +309,43 @@ impl Write for &UsageMeta {
             }
             UsageMeta::Required(req) => {
                 doc.mono("(");
-                Box::<UsageMeta>::write(doc);
+                req.write(doc);
                 doc.mono(")");
             }
             UsageMeta::Optional(opt) => {
-                *doc += mono("[");
+                doc.mono("[");
                 opt.write(doc);
-                *doc += mono("]");
+                doc.mono("]");
             }
             UsageMeta::Many(_) => todo!(),
             UsageMeta::ShortFlag(f) => {
-                *doc += [literal('-'), literal(*f)];
+                doc.push(&[
+                    StyledChar(Style::Literal, '-'),
+                    StyledChar(Style::Literal, *f),
+                ]);
             }
             UsageMeta::ShortArg(f, m) => {
-                *doc += [literal('-'), literal(*f), mono('=')];
-                *doc += metavar(*m);
+                doc.push(&[
+                    StyledChar(Style::Literal, '-'),
+                    StyledChar(Style::Literal, *f),
+                ]);
+                doc.mono("=").metavar(*m);
             }
             UsageMeta::LongFlag(f) => {
-                *doc += [literal("--"), literal(*f)];
+                doc.literal("--").literal(*f);
             }
             UsageMeta::LongArg(f, m) => {
-                *doc += [literal("--"), literal(*f), mono("="), metavar(m)];
+                doc.push(&[literal("--"), literal(*f), mono("="), metavar(m)]);
             }
             UsageMeta::Pos(m) => {
-                *doc += metavar(*m);
+                doc.metavar(*m);
             }
             UsageMeta::StrictPos(m) => {
-                *doc += [mono("-- "), metavar(*m)];
+                doc.push(&[mono("-- "), metavar(*m)]);
             }
 
             UsageMeta::Command => {
-                *doc += [literal("COMMAND"), mono(" "), metavar("...")];
+                doc.literal("COMMAND").mono(" ").metavar("...");
             }
         }
     }
@@ -418,9 +430,9 @@ impl Write for HelpItem<'_> {
                 env: _,
                 help,
             } => {
-                to.term(write_with(|to| {
-                    to.text(name.0).text(mono("=")).text(metavar);
-                }));
+                to.term(|to: &mut Doc| {
+                    to.push(name.0).push(mono("=")).push(*metavar);
+                });
 
                 if let Some(help) = help {
                     to.item(text(help));
