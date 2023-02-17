@@ -44,15 +44,16 @@ pub struct Options {
 
 
 Run inner parser as many times as possible collecting all the new results
+First `false` is collected from a switch even if it is not consuming anything
 ```console
 % app --argument 10 --argument 20
-Options { argument: [10, 20], switches: [] }
+Options { argument: [10, 20], switches: [false] }
 ```
 
 If there's no matching parsers - it would produce an empty vector
 ```console
 % app 
-Options { argument: [], switches: [] }
+Options { argument: [], switches: [false] }
 ```
 
 For parsers that can succeed without consuming anything such as `flag` or `switch` - `many`

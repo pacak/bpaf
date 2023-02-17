@@ -9,6 +9,6 @@ pub struct Options {
     #[bpaf(argument("ARG"), some("want at least one argument"))]
     argument: Vec<u32>,
     /// some switch
-    #[bpaf(long("switch"), switch, some("want at least one switch"))]
+    #[bpaf(long("switch"), req_flag(true), some("want at least one switch"))]
     switches: Vec<bool>,
 }

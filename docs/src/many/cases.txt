@@ -1,12 +1,13 @@
 ? Run inner parser as many times as possible collecting all the new results
+? First `false` is collected from a switch even if it is not consuming anything
 > --argument 10 --argument 20
 OK
-Options { argument: [10, 20], switches: [] }
+Options { argument: [10, 20], switches: [false] }
 
 ? If there's no matching parsers - it would produce an empty vector
 >
 OK
-Options { argument: [], switches: [] }
+Options { argument: [], switches: [false] }
 
 ? For parsers that can succeed without consuming anything such as `flag` or `switch` - `many`
 ? only collects values as long as they produce something

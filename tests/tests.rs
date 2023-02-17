@@ -1840,3 +1840,27 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn many_env() {
+    std::env::set_var("USER1", "top s3cr3t");
+    let parser = short('v')
+        .env("USER1")
+        .argument::<String>("USER")
+        .many()
+        .to_options();
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, vec!["top s3cr3t".to_owned()]);
+}
+
+#[test]
+fn some_env() {
+    std::env::set_var("USER1", "top s3cr3t");
+    let parser = short('v')
+        .env("USER1")
+        .argument::<String>("USER")
+        .some("a")
+        .to_options();
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, vec!["top s3cr3t".to_owned()]);
+}

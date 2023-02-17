@@ -1,5 +1,14 @@
 # Change Log
 
+## bpaf [0.8.0], bpaf_derive [0.3.6] - Unreleased
+- `many` and `some` will now collect one result from a parser
+  that does not consume anything from an argument list allowing
+  for easier composition with parsers that consume from both
+  command line and environment variables. If your code depends on
+  the original behavior you should replace non failing parsers under
+  `many` with failing parsers: `req_flag` instead of `switch`.
+- support deriving `req_flag` consumers
+
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`
 - improve error messages when a flag is accepted by a command but not directly
