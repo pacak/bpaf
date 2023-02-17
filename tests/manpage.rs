@@ -1,7 +1,5 @@
 use bpaf::{docugen::*, *};
 
-use std::path::{Path, PathBuf};
-
 fn switch_parser() -> impl Parser<bool> {
     short('d').long("dragon").help("Is dragon scary?").switch()
 }
@@ -14,7 +12,10 @@ fn argument_parser() -> impl Parser<String> {
 }
 
 fn command_parser() -> impl Parser<String> {
-    argument_parser().to_options().command("unleash")
+    argument_parser()
+        .to_options()
+        .command("unleash")
+        .help("unleash the dragon")
 }
 
 #[test]
@@ -68,35 +69,33 @@ fn refer_name_command() {
 fn collect_usage_switch() {
     let mut doc = Doc::default();
 
-    doc.push(usage(&switch_parser()));
+    doc.push(usage(&switch_parser(), SectionName::Never));
     let r = doc.render_to_markdown();
-    let expected = "";
+    let expected = "<dl>\n<dt><tt><b>-d</b></tt>, <tt><b>--dragon</b></tt></dt>\n<dd>Is dragon scary?</dd></dl>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn collect_usage_arg() {
+    let mut doc = Doc::default();
+
+    doc.push(usage(&argument_parser(), SectionName::Never));
+    let r = doc.render_to_markdown();
+    let expected = "<dl>\n<dt><tt><b>-d</b></tt>, <tt><b>--dragon</b></tt><tt>=</tt><tt><i>NAME</i></tt></dt>\n<dd>Dragon name</dd></dl>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn collect_usage_command() {
+    let mut doc = Doc::default();
+
+    doc.push(usage(&command_parser(), SectionName::Never));
+    let r = doc.render_to_markdown();
+    let expected = "<dl>\n<dt><tt><b>unleash</b></tt></dt>\n<dd>unleash the dragon</dd></dl>";
     assert_eq!(r, expected);
 }
 
 /*
-fn write_updated<P: AsRef<Path>>(new_val: &str, path: P) -> std::io::Result<()> {
-    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("tests")
-        .join(path);
-    let mut file = OpenOptions::new()
-        .write(true)
-        .read(true)
-        .create(true)
-        .open(&path)?;
-    let mut current_val = String::new();
-    file.read_to_string(&mut current_val)?;
-    if current_val != new_val {
-        file.set_len(0)?;
-        file.seek(std::io::SeekFrom::Start(0))?;
-        std::io::Write::write_all(&mut file, new_val.as_bytes())?;
-        panic!(
-            "Please make sure to check rendering of {:?} and commit it to the repo",
-            path
-        );
-    }
-    Ok(())
-}
 
 #[test]
 fn simple_manpage() {

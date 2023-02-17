@@ -89,6 +89,7 @@ pub struct HelpInfo {
     meta: Meta,
     info: Option<Info>,
     name: Option<&'static str>,
+    section_names: SectionName,
 }
 
 impl Write for HelpInfo {
@@ -137,9 +138,16 @@ impl<'a> Items<'a> {
     }
 }
 
+/// Should subsection name be printed when rendering the usage?
+///
+/// Subsection - "Available Options", etc.
+#[derive(Debug, Copy, Clone)]
 pub enum SectionName {
+    /// Never print section name
     Never,
+    /// Print section name only when there's multiple populated sections
     Multiple,
+    /// Always print section name
     Always,
 }
 
@@ -152,6 +160,8 @@ pub struct UsageItems<'a> {
     pub positionals: Items<'a>,
     /// Collection of all the commands (`build`)
     pub commands: Items<'a>,
+    /// Should subsection names be printed?
+    pub print_sections: bool,
 }
 
 impl Write for Items<'_> {
@@ -160,7 +170,41 @@ impl Write for Items<'_> {
     }
 }
 
-pub fn collect_parser_help_info<P, T>(parser: &P) -> HelpInfo
+pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> HelpInfo {
+    HelpInfo {
+        meta: parser.inner.meta(),
+        info: Some(parser.info),
+        name: Some(name),
+        section_names: SectionName::Multiple,
+    }
+}
+
+/// Extract and write usage for command line options used by a parser
+///
+/// You can use this function to insert a list of items parser consumes along with help messages
+///
+/// ```rust
+/// # use bpaf::{docugen::*, *};
+/// fn dragon_type() -> impl Parser<bool> {
+///     short('d').long("dragon").help("Is the dragon scary?").switch()
+/// }
+///
+/// let mut doc = Doc::default();
+/// doc.paragraph(|doc: &mut Doc| {
+///     doc.text("You can customize how your dragon looks like with those options:")
+///         .push(usage(&dragon_type(), SectionName::Never));
+///     });
+///
+/// let expected = "<p>You can customize how your dragon looks like with those options:
+///
+/// <dl>
+/// <dt><tt><b>-d</b></tt>, <tt><b>--dragon</b></tt></dt>
+/// <dd>Is the dragon scary?</dd></dl></p>";
+/// assert_eq!(doc.render_to_markdown(), expected);
+/// ```
+///
+/// You can also [`split`](HelpInfo::split) into fields
+pub fn usage<P, T>(parser: &P, section_names: SectionName) -> HelpInfo
 where
     P: Parser<T>,
 {
@@ -168,31 +212,14 @@ where
         meta: parser.meta(),
         info: None,
         name: None,
+        section_names,
     }
-}
-
-pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> HelpInfo {
-    HelpInfo {
-        meta: parser.inner.meta(),
-        info: Some(parser.info),
-        name: Some(name),
-    }
-}
-
-///
-pub fn usage<P, T>(parser: &P) -> impl Write + '_
-where
-    P: Parser<T>,
-{
-    collect_parser_help_info(parser)
-    //    write_with(|doc| {
-    //    })
 }
 
 /// Extract and write comma separated flag or command names
 ///
 /// You can use this function to refer to some parser in your documentation. Using
-/// [`literal`](crate::roff::literal) and similar methods also work but with this function you can
+/// [`literal`](roff::literal) and similar methods also work but with this function you can
 /// ensure that documentation is always up to date.
 /// ```rust
 /// # use bpaf::{docugen::*, *};
@@ -215,7 +242,7 @@ where
     P: Parser<T>,
 {
     |doc: &mut Doc| {
-        let info = collect_parser_help_info(parser);
+        let info = usage(parser, SectionName::Never);
         let items = info.split();
         for (ix, item) in items
             .flags
@@ -270,10 +297,23 @@ impl HelpInfo {
         let mut hi = HelpItems::default();
         hi.classify(&self.meta);
 
+        let mut filled = 0;
+        for s in [&hi.flgs, &hi.psns, &hi.cmds] {
+            if !s.is_empty() {
+                filled += 1;
+            }
+        }
+        let print_sections = match (self.section_names, filled >= 2) {
+            (SectionName::Never, _) => false,
+            (SectionName::Multiple, multiple) => multiple,
+            (SectionName::Always, _) => true,
+        };
+
         UsageItems {
             flags: docugen::Items(hi.flgs),
             positionals: docugen::Items(hi.psns),
             commands: docugen::Items(hi.cmds),
+            print_sections,
         }
     }
 }
@@ -281,17 +321,23 @@ impl HelpInfo {
 impl Write for UsageItems<'_> {
     fn write(&self, doc: &mut Doc) {
         if !self.positionals.is_empty() {
-            doc.subsection("Available positional items");
+            if self.print_sections {
+                doc.subsection("Available positional items");
+            }
             self.positionals.write(doc);
         }
 
         if !self.flags.is_empty() {
-            doc.subsection("Available options");
+            if self.print_sections {
+                doc.subsection("Available options");
+            }
             self.flags.write(doc);
         }
 
         if !self.commands.is_empty() {
-            doc.subsection("Available commands");
+            if self.print_sections {
+                doc.subsection("Available commands");
+            }
             self.commands.write(doc);
         }
     }

@@ -162,15 +162,16 @@ Available options:
 fn enum_with_docs() {
     #[derive(Debug, Clone, Bpaf)]
     /// present
-    ///
     /// Absent
     enum Mode {
         /// help
+        /// present
         ///
         /// absent
         Intel,
 
         /// help
+        /// present
         ///
         /// Hidden
         Att,
