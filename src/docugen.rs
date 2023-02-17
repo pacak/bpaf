@@ -137,6 +137,12 @@ impl<'a> Items<'a> {
     }
 }
 
+pub enum SectionName {
+    Never,
+    Multiple,
+    Always,
+}
+
 /// [`HelpInfo`] [`split`](HelpInfo::split) into flags, positional items and commands
 #[derive(Debug, Clone)]
 pub struct UsageItems<'a> {
@@ -173,6 +179,7 @@ pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> Help
     }
 }
 
+///
 pub fn usage<P, T>(parser: &P) -> impl Write + '_
 where
     P: Parser<T>,
@@ -184,17 +191,19 @@ where
 
 /// Extract and write comma separated flag or command names
 ///
-/// Use this if you want to refer to some other parser in parts of your documentation
+/// You can use this function to refer to some parser in your documentation. Using
+/// [`literal`](crate::roff::literal) and similar methods also work but with this function you can
+/// ensure that documentation is always up to date.
 /// ```rust
 /// # use bpaf::{docugen::*, *};
-/// fn switch_parser() -> impl Parser<bool> {
-///     short('d').long("dragon").help("Is dragon scary?").switch()
+/// fn dragon_type() -> impl Parser<bool> {
+///     short('d').long("dragon").help("Is the dragon scary?").switch()
 /// }
 ///
 /// let mut doc = Doc::default();
 /// doc.paragraph(|doc: &mut Doc| {
 ///     doc.text("You can use ")
-///         .push(names_only(&switch_parser()))
+///         .push(names_only(&dragon_type()))
 ///         .text(" to unleash the dragon.");
 ///     });
 ///

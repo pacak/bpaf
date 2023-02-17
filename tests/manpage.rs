@@ -64,6 +64,16 @@ fn refer_name_command() {
     assert_eq!(r, expected);
 }
 
+#[test]
+fn collect_usage_switch() {
+    let mut doc = Doc::default();
+
+    doc.push(usage(&switch_parser()));
+    let r = doc.render_to_markdown();
+    let expected = "";
+    assert_eq!(r, expected);
+}
+
 /*
 fn write_updated<P: AsRef<Path>>(new_val: &str, path: P) -> std::io::Result<()> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
