@@ -46,7 +46,7 @@ fn refer_name_arg() {
     });
 
     let r = doc.render_to_markdown();
-    let expected = "<p>You can use <tt><b>-d</b></tt>, <tt><b>--dragon</b></tt><tt> </tt><tt><i>NAME</i></tt> to specify dragon's name.</p>";
+    let expected = "<p>You can use <tt><b>-d</b></tt>, <tt><b>--dragon</b> <i>NAME</i></tt> to specify dragon's name.</p>";
     assert_eq!(r, expected);
 }
 
@@ -81,7 +81,7 @@ fn collect_usage_arg() {
 
     doc.push(usage(&argument_parser(), SectionName::Never));
     let r = doc.render_to_markdown();
-    let expected = "<dl>\n<dt><tt><b>-d</b></tt>, <tt><b>--dragon</b></tt><tt>=</tt><tt><i>NAME</i></tt></dt>\n<dd>Dragon name</dd></dl>";
+    let expected = "<dl>\n<dt><tt><b>-d</b></tt>, <tt><b>--dragon</b>=<i>NAME</i></tt></dt>\n<dd>Dragon name</dd></dl>";
     assert_eq!(r, expected);
 }
 
@@ -92,6 +92,28 @@ fn collect_usage_command() {
     doc.push(usage(&command_parser(), SectionName::Never));
     let r = doc.render_to_markdown();
     let expected = "<dl>\n<dt><tt><b>unleash</b></tt></dt>\n<dd>unleash the dragon</dd></dl>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn render_synopsis_arg() {
+    let mut doc = Doc::default();
+    let parser = argument_parser().optional().to_options();
+    doc.section("Synopsis");
+    doc.push(synopsis(&parser));
+    let r = doc.render_to_markdown();
+    let expected = "# Synopsis\n\n<tt>[<b>-d</b>=<i>NAME</i>]</tt>";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn render_synopsis_sw() {
+    let mut doc = Doc::default();
+    let parser = switch_parser().to_options();
+    doc.section("Synopsis");
+    doc.push(synopsis(&parser));
+    let r = doc.render_to_markdown();
+    let expected = "# Synopsis\n\n<tt>[<b>-d</b>]</tt>";
     assert_eq!(r, expected);
 }
 

@@ -179,6 +179,19 @@ pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> Help
     }
 }
 
+/// Extract and write usage synopsis
+///
+
+pub fn synopsis<T>(parser: &OptionParser<T>) -> impl Write + '_ {
+    |doc: &mut Doc| {
+        if let Some(meta) = parser.inner.meta().to_usage_meta() {
+            doc.push(meta);
+        } else {
+            doc.text("Parser takes no parameters");
+        }
+    }
+}
+
 /// Extract and write usage for command line options used by a parser
 ///
 /// You can use this function to insert a list of items parser consumes along with help messages
