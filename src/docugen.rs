@@ -191,7 +191,7 @@ pub fn synopsis<T>(parser: &OptionParser<T>) -> impl Write + '_ {
         }
     }
 }
-
+/*
 // command can be created with #[bpaf(command)] or represented as a top level
 pub fn write_commands<P, T>(parser: &P) -> impl Write
 where
@@ -199,7 +199,8 @@ where
 {
     WriteCommands(parser.meta())
 }
-
+*/
+/*
 #[derive(Debug, Clone)]
 struct WriteCommands(Meta);
 
@@ -219,7 +220,7 @@ impl Write for WriteCommands {
             }
         }
     }
-}
+}*/
 
 /// Extract and write usage for command line options used by a parser
 ///

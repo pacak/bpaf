@@ -117,6 +117,27 @@ fn render_synopsis_sw() {
     assert_eq!(r, expected);
 }
 
+#[test]
+fn render_full_parser() {
+    #[derive(Debug, Clone, Bpaf)]
+    /// Help title
+    ///
+    /// Help header
+    ///
+    /// Help footer
+    ///
+    /// More The rest of the help
+    #[allow(dead_code)]
+    #[bpaf(options)]
+    struct Opts {
+        /// A strange flag
+        /// With short description
+        ///
+        /// And long description
+        flag: bool,
+    }
+}
+
 /*
 
 #[test]
