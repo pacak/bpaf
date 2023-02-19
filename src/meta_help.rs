@@ -180,6 +180,10 @@ impl<'a> HelpItems<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
+/// A variant of [`ShortLong`] with different Display properties
+///
+/// - `ShortLong` is used to display synopsys line and prefers to use short name
+/// - `ShortLongHelp`is used to display help message and tries to keep all the names
 pub(crate) struct ShortLongHelp(pub(crate) ShortLong);
 
 impl ShortLongHelp {
