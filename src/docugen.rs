@@ -192,6 +192,35 @@ pub fn synopsis<T>(parser: &OptionParser<T>) -> impl Write + '_ {
     }
 }
 
+// command can be created with #[bpaf(command)] or represented as a top level
+pub fn write_commands<P, T>(parser: &P) -> impl Write
+where
+    P: Parser<T>,
+{
+    WriteCommands(parser.meta())
+}
+
+#[derive(Debug, Clone)]
+struct WriteCommands(Meta);
+
+impl Write for WriteCommands {
+    fn write(&self, to: &mut Doc) {
+        let mut commands = Vec::new();
+        match &self.0 {
+            Meta::And(_) => todo!(),
+            Meta::Or(xs) => todo!(),
+            Meta::Optional(x) => todo!(),
+            Meta::Item(_) => todo!(),
+            Meta::Many(_) => todo!(),
+            Meta::Decorated(x, _) => (WriteCommands(*x)).write(to),
+            Meta::Skip => {}
+            Meta::HideUsage(x) => {
+                (WriteCommands(x)).write(to);
+            }
+        }
+    }
+}
+
 /// Extract and write usage for command line options used by a parser
 ///
 /// You can use this function to insert a list of items parser consumes along with help messages
