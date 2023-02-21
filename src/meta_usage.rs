@@ -23,14 +23,19 @@ pub(crate) enum UsageMeta {
 // - any meta containing a positional becomes positional itself
 // - positional item must occupy the right most position inside Meta::And
 
-pub(crate) fn to_usage_meta(meta: &Meta) -> Option<UsageMeta> {
-    let mut is_pos = false;
+impl Meta {
+    /// Represent [`Meta`] as [`UsageMeta`]
+    ///
+    /// `None` indicates no parameters - usage line isn't shown
+    pub(crate) fn to_usage_meta(&self) -> Option<UsageMeta> {
+        let mut is_pos = false;
 
-    let usage = collect_usage_meta(meta, &mut is_pos)?;
-    if let UsageMeta::Or(..) = &usage {
-        Some(UsageMeta::Required(Box::new(usage)))
-    } else {
-        Some(usage)
+        let usage = collect_usage_meta(self, &mut is_pos)?;
+        if let UsageMeta::Or(..) = &usage {
+            Some(UsageMeta::Required(Box::new(usage)))
+        } else {
+            Some(usage)
+        }
     }
 }
 /// Transforms `Meta` to [`UsageMeta`]

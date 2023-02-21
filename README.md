@@ -352,7 +352,7 @@ Usage --user <ARG>
  - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to enable it for local development unless you want to build your own copy of the documentation (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
 	
 	
- - `batteries`: helpers implemented with public `bpaf` API. Enabled by default.
+ - `batteries`: helpers implemented with public `bpaf` API. Disabled by default.
 	
 	
  - `autocomplete`: enables support for shell autocompletion. Disabled by default.
@@ -370,23 +370,27 @@ Usage --user <ARG>
 	Disabled by default.
 	
 	
+ - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`][__link20]. Disabled by default.
+	
+	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG-IPQtuM4VUFG47iETJwkSENG_GD7ukhn-KMG38J41C6yQn3YWSBgmRicGFmZTAuNy40
- [__link0]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.7.4/bpaf/?search=parsers::NamedArg::switch
- [__link11]: https://docs.rs/bpaf/0.7.4/bpaf/?search=parsers::NamedArg::argument
- [__link12]: https://docs.rs/bpaf/0.7.4/bpaf/?search=params::positional
- [__link13]: https://docs.rs/bpaf/0.7.4/bpaf/?search=parsers::NamedArg::argument
- [__link14]: https://docs.rs/bpaf/0.7.4/bpaf/?search=params::positional
- [__link15]: https://docs.rs/bpaf/0.7.4/bpaf/?search=bpaf::Parser::complete
- [__link17]: https://docs.rs/bpaf/0.7.4/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_unusual
- [__link3]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_applicative
- [__link4]: https://docs.rs/bpaf/0.7.4/bpaf/?search=batteries
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGwet03UV33_nG7BNDOumJDcWG2J9NgcAg8w5G_uDmsZYklJQYWSBgmRicGFmZTAuNy43
+ [__link0]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::switch
+ [__link11]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::argument
+ [__link12]: https://docs.rs/bpaf/0.7.7/bpaf/?search=params::positional
+ [__link13]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::argument
+ [__link14]: https://docs.rs/bpaf/0.7.7/bpaf/?search=params::positional
+ [__link15]: https://docs.rs/bpaf/0.7.7/bpaf/?search=bpaf::Parser::complete
+ [__link17]: https://docs.rs/bpaf/0.7.7/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_unusual
+ [__link20]: https://docs.rs/bpaf/0.7.7/bpaf/?search=info::OptionParser::as_manpage
+ [__link3]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_applicative
+ [__link4]: https://docs.rs/bpaf/0.7.7/bpaf/?search=batteries
  [__link5]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link6]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_derive_tutorial
- [__link7]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_combinatoric_tutorial
- [__link8]: https://docs.rs/bpaf/0.7.4/bpaf/?search=_applicative
- [__link9]: https://docs.rs/bpaf/0.7.4/bpaf/?search=bpaf::Parser::fallback
+ [__link6]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_derive_tutorial
+ [__link7]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_combinatoric_tutorial
+ [__link8]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_applicative
+ [__link9]: https://docs.rs/bpaf/0.7.7/bpaf/?search=bpaf::Parser::fallback

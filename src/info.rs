@@ -7,7 +7,6 @@ use crate::{
     args::{Args, Conflict},
     item::Item,
     meta_help::render_help,
-    meta_usage::to_usage_meta,
     params::short,
     parsers::ParseCommand,
     Meta, ParseFailure, Parser,
@@ -132,14 +131,7 @@ impl<T> OptionParser<T> {
     {
         match self.try_run() {
             Ok(t) => t,
-            Err(ParseFailure::Stdout(msg)) => {
-                print!("{}", msg); // completions are sad otherwise
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(msg)) => {
-                eprintln!("{}", msg);
-                std::process::exit(1);
-            }
+            Err(err) => std::process::exit(err.exit_code()),
         }
     }
 
@@ -600,7 +592,15 @@ impl<T> OptionParser<T> {
     ///
     /// # Derive usage
     ///
-    /// Not available directly, but you can call `usage` on generated [`OptionParser`].
+    /// ```rust
+    /// # use bpaf::*;
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, usage("Usage: my_program: {usage}"))]
+    /// struct Options {
+    ///     #[bpaf(short)]
+    ///     switch: bool
+    /// }
+    /// ```
     #[must_use]
     pub fn usage(mut self, usage: &'static str) -> Self {
         self.info.usage = Some(usage);
@@ -654,7 +654,7 @@ fn report_missing_items(err: Error) -> Error {
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
     if fresh {
         println!("Checking\n{:#?}", meta);
-        to_usage_meta(meta);
+        meta.to_usage_meta();
     }
     match meta {
         Meta::And(xs) | Meta::Or(xs) => {

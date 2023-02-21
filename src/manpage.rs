@@ -251,7 +251,7 @@ fn flatten_commands<'a>(item: &HelpItem<'a>, path: &str, acc: &mut Vec<(String, 
             }
         }
         HelpItem::Decor { .. } => {
-            acc.push(("".to_string(), *item));
+            acc.push((String::new(), *item));
         }
         _ => {}
     }
@@ -351,7 +351,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
             if let Some(help) = help {
                 manpage.text([norm(help)]);
             }
-        } // todo!(),
+        }
         HelpItem::Argument {
             name,
             metavar: mvar,
@@ -368,7 +368,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
             if let Some(help) = help {
                 manpage.text([norm(help)]);
             }
-        } // todo!(),
+        }
     }
 }
 
@@ -438,7 +438,7 @@ impl<T> OptionParser<T> {
         });
 
         manpage.section("SYNOPSIS");
-        match meta.as_usage_meta() {
+        match meta.to_usage_meta() {
             Some(usage) => manpage.paragraph(|l| {
                 l.bold(app).space().usage(&usage);
             }),

@@ -21,7 +21,6 @@
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
 //! - [Some very unusual cases](crate::_unusual)
 //! - [Applicative functors? What is it all about](crate::_applicative)
-// - [Picking the right words](crate::_flow)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
@@ -384,8 +383,6 @@ pub mod _applicative;
 pub mod _combinatoric_tutorial;
 #[cfg(feature = "extradocs")]
 pub mod _derive_tutorial;
-#[cfg(feature = "extradocs")]
-mod _flow;
 #[cfg(feature = "extradocs")]
 pub mod _unusual;
 mod arg;
@@ -1643,6 +1640,22 @@ impl ParseFailure {
             Self::Stdout(err) => err,
             Self::Stderr(_) => {
                 panic!("not an stdout: {:?}", self)
+            }
+        }
+    }
+
+    /// Run an action appropriate to the failure and produce the exit code
+    ///
+    /// Prints a message to `stdout` or `stderr` and returns the exit code
+    pub fn exit_code(self) -> i32 {
+        match self {
+            ParseFailure::Stdout(msg) => {
+                print!("{}", msg); // completions are sad otherwise
+                0
+            }
+            ParseFailure::Stderr(msg) => {
+                eprintln!("{}", msg);
+                1
             }
         }
     }

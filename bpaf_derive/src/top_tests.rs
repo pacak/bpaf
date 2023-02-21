@@ -93,6 +93,28 @@ fn top_struct_options1() {
 }
 
 #[test]
+fn options_with_custom_usage() {
+    let top: Top = parse_quote! {
+        #[bpaf(options, usage("App: {usage}"))]
+        struct Opt {}
+    };
+
+    let expected = quote! {
+        fn opt() -> ::bpaf::OptionParser<Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+                {
+                    ::bpaf::construct!(Opt {})
+                }
+                .to_options()
+                .usage("App: {usage}")
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn struct_options2() {
     let input: Top = parse_quote! {
         #[bpaf(options)]
@@ -280,7 +302,7 @@ fn enum_to_flag_and_switches() {
             BarFoo,
             Baz(#[bpaf(long("bazz"))] String),
             Strange { strange: String },
-            #[bpaf(command("alpha"))]
+            #[bpaf(command("alpha"), usage("custom"))]
             Alpha,
             #[bpaf(command)]
             Omega,
@@ -304,7 +326,7 @@ fn enum_to_flag_and_switches() {
                     ::bpaf::construct!(Opt::Strange { strange })
                 };
                 let alt5 = {
-                    let inner_cmd = ::bpaf::pure(Opt::Alpha).to_options();
+                    let inner_cmd = ::bpaf::pure(Opt::Alpha).to_options().usage("custom");
                     ::bpaf::command("alpha", inner_cmd)
                 };
                 let alt6 = {

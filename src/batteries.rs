@@ -41,7 +41,7 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
         .many()
         .map(|v| v.len() as isize);
 
-    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).max(min).min(max))
+    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).clamp(min, max))
 }
 
 /// `--verbose` and `--quiet` flags with results choosen from a slice of values
@@ -164,4 +164,30 @@ where
         .catch()
         .hide();
     construct!(skip, parser).map(|x| x.1)
+}
+
+/// Get usage for a parser
+///
+/// In some cases you might want to print usage if user gave no command line options, in this case
+/// you should add an enum variant to a top level enum, make it hidden with `#[bpaf(hide)]`, make
+/// it default for the top level parser with something like `#[bpaf(fallback(Arg::Help))]`.
+///
+/// When handling cases you can do something like this for `Help` variant:
+///
+/// ```ignore
+///     ...
+///     Arg::Help => {
+///         println!("{}", get_usage(parser()));
+///         std::process::exit(0);
+///     }
+///     ...
+/// ```
+pub fn get_usage<T>(parser: crate::OptionParser<T>) -> String
+where
+    T: std::fmt::Debug,
+{
+    parser
+        .run_inner(crate::Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout()
 }

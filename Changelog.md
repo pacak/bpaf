@@ -1,5 +1,14 @@
 # Change Log
 
+## bpaf [0.7.9], bpaf_derive [0.3.4] - 2023-02-14
+- `ParseFailure::exit_code`
+- A way to specify custom usage in derive macro
+
+## bpaf [0.7.8] - 2023-01-01
+- manpage generation bugfixes,
+  thanks to @ysndr
+- internal cleanups
+- avoid impossible shell completions
 
 ## bpaf [0.7.7] - 2022-12-04
 - manpage generation

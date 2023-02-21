@@ -36,7 +36,9 @@ pub(crate) enum HelpItem<'a> {
         name: &'static str,
         short: Option<char>,
         help: Option<&'a str>,
+        #[cfg(feature = "manpage")]
         meta: &'a Meta,
+        #[cfg(feature = "manpage")]
         info: &'a Info,
     },
     Flag {
@@ -96,12 +98,20 @@ impl<'a> HelpItems<'a> {
                 short,
                 help,
 
+                #[cfg(not(feature = "manpage"))]
+                    meta: _,
+                #[cfg(not(feature = "manpage"))]
+                    info: _,
+                #[cfg(feature = "manpage")]
                 info,
+                #[cfg(feature = "manpage")]
                 meta,
             } => {
                 self.cmds.push(HelpItem::Command {
                     name,
+                    #[cfg(feature = "manpage")]
                     info,
+                    #[cfg(feature = "manpage")]
                     meta,
                     short: *short,
                     help: help.as_deref(),
@@ -258,8 +268,10 @@ impl std::fmt::Display for HelpItem<'_> {
                 name,
                 help: _,
                 short,
-                meta: _,
-                info: _,
+                #[cfg(feature = "manpage")]
+                    meta: _,
+                #[cfg(feature = "manpage")]
+                    info: _,
             } => match short {
                 Some(s) => write!(f, "    {}, {}", w_flag!(name), w_flag!(s)),
                 None => write!(f, "    {}", w_flag!(name)),
@@ -300,13 +312,21 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 name,
                 short,
                 help,
+                #[cfg(not(feature = "manpage"))]
+                    meta: _,
+                #[cfg(not(feature = "manpage"))]
+                    info: _,
+                #[cfg(feature = "manpage")]
                 meta,
+                #[cfg(feature = "manpage")]
                 info,
             } => Self::Command {
                 name,
                 short: *short,
                 help: help.as_deref(),
+                #[cfg(feature = "manpage")]
                 meta,
+                #[cfg(feature = "manpage")]
                 info,
             },
             crate::item::Item::Flag {
@@ -377,7 +397,7 @@ pub(crate) fn render_help(
         write!(res, "{}\n\n", t)?;
     }
 
-    let auto = parser_meta.as_usage_meta().map(|u| u.to_string());
+    let auto = parser_meta.to_usage_meta().map(|u| u.to_string());
     if let Some(custom_usage) = info.usage {
         match auto {
             Some(auto_usage) => write!(
