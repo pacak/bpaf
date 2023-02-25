@@ -7,6 +7,9 @@
   command line and environment variables. If your code depends on
   the original behavior you should replace non failing parsers under
   `many` with failing parsers: `req_flag` instead of `switch`.
+- parsing combinators `many`, `some`, `optional` and `anywhere` will
+  now propagate parsing errors outwards, you can regain the old
+  behvior by specifying `catch`
 - support deriving `req_flag` consumers
 
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19

@@ -26,6 +26,7 @@ fn toggle_options(name: &'static str, help: &'static str) -> impl Parser<bool> {
             }
         })
         .anywhere()
+        .catch()
 }
 
 fn extension() -> impl Parser<(String, bool)> {
@@ -50,7 +51,10 @@ fn extension() -> impl Parser<(String, bool)> {
 
     let state = construct!([on, off]);
     let name = positional::<String>("EXT").hide();
-    construct!(state, name).map(|(a, b)| (b, a)).anywhere()
+    construct!(state, name)
+        .map(|(a, b)| (b, a))
+        .anywhere()
+        .catch()
 }
 
 pub fn options() -> OptionParser<Options> {

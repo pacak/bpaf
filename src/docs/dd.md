@@ -27,6 +27,7 @@ where
             Some(body) => T::from_str(body).map_err(|e| e.to_string()),
         })
         .anywhere()
+        .catch()
 }
 
 fn in_file() -> impl Parser<String> {
