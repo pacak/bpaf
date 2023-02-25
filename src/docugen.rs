@@ -191,15 +191,85 @@ pub fn synopsis<T>(parser: &OptionParser<T>) -> impl Write + '_ {
         }
     }
 }
-/*
-// command can be created with #[bpaf(command)] or represented as a top level
-pub fn write_commands<P, T>(parser: &P) -> impl Write
-where
-    P: Parser<T>,
-{
-    WriteCommands(parser.meta())
+
+pub trait HasMeta {
+    fn meta(&self) -> Meta;
 }
-*/
+
+impl<T> HasMeta for OptionParser<T> {
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+/// Extract and write down full description for each first level command in this parser
+///
+/// Does not
+pub fn write_commands<M, W>(parser: &M, prefix: Option<W>, doc: &mut Doc)
+where
+    M: HasMeta,
+    W: Write,
+{
+    let mut hi = HelpItems::default();
+    let meta = parser.meta();
+    hi.classify(&meta);
+
+    for cmd in hi.cmds {
+        if let HelpItem::Command {
+            name,
+            short,
+            help,
+            meta,
+            info,
+        } = cmd
+        {
+            match short {
+                Some(s) => doc.section(&format!("{}, {}", name, s)),
+                None => doc.section(name),
+            };
+
+            if let Some(help) = help {
+                doc.subsection("Description");
+                doc.paragraph(help);
+            }
+
+            doc.subsection("Synopsis");
+            doc.paragraph(|doc: &mut Doc| {
+                if let Some(prefix) = &prefix {
+                    prefix.write(doc);
+                }
+                if let Some(usage) = meta.to_usage_meta() {
+                    doc.literal(name).mono(" ").push(usage);
+                } else {
+                    doc.literal(name);
+                }
+            });
+
+            doc.subsection("Usage");
+            if let Some(descr) = info.descr {
+                doc.paragraph(descr);
+            }
+
+            if let Some(header) = info.header {
+                doc.paragraph(header);
+            }
+
+            doc.push(HelpInfo {
+                meta: meta.clone(),
+                info: None,
+                name: None,
+                section_names: SectionName::Multiple,
+            });
+
+            if let Some(footer) = info.footer {
+                doc.paragraph(footer);
+            }
+        }
+    }
+
+    //    let commands =
+}
+
 /*
 #[derive(Debug, Clone)]
 struct WriteCommands(Meta);

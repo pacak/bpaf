@@ -136,6 +136,50 @@ fn render_full_parser() {
         /// And long description
         flag: bool,
     }
+
+    todo!();
+}
+
+#[test]
+fn render_commands() {
+    #[derive(Debug, Clone, Bpaf)]
+    /// ignored
+    #[allow(dead_code)]
+    enum Cmds {
+        #[bpaf(command)]
+        /// alpha short help
+        ///
+        ///
+        /// alpha long help
+        Alpha,
+        /// beta short help
+        ///
+        ///
+        /// beta long help
+        #[bpaf(command)]
+        Beta {
+            /// epsilon short help
+            ///
+            ///
+            /// epsilon long help
+            epsilon: bool,
+        },
+    }
+
+    let mut doc = Doc::default();
+
+    let parser = cmds();
+    doc.section("--------------------------");
+    doc.push(synopsis(&parser));
+    doc.push(usage(&parser, SectionName::Always));
+    doc.section("--------------------------");
+
+    write_commands(&parser, None::<&str>, &mut doc);
+    let r = doc.render_to_markdown();
+
+    let expected = "";
+    println!("{r}");
+    assert_eq!(r, expected);
 }
 
 /*
