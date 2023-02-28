@@ -1475,6 +1475,19 @@ pub trait Parser<T> {
     {
         self.to_options().run()
     }
+
+    #[doc(hidden)]
+    /// Create a boxed representation for a parser
+    ///
+    ///
+    fn boxed(self) -> ParseBox<T>
+    where
+        Self: Sized + Parser<T> + 'static,
+    {
+        ParseBox {
+            inner: Box::new(self),
+        }
+    }
 }
 
 #[non_exhaustive]
