@@ -10,7 +10,7 @@ use crate::{
 struct Manpage {
     roff: Roff,
 }
-*/
+
 #[derive(Debug, Clone, Copy)]
 /// Manual page section
 pub enum Section<'a> {
@@ -48,7 +48,7 @@ impl Section<'_> {
         }
     }
 }
-/*
+
 impl Manpage {
     /// Create a manpage for application
     ///

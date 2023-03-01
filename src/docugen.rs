@@ -98,7 +98,7 @@ impl Write for HelpInfo {
             match self.name {
                 Some(name) => {
                     to.section("Name");
-                    to.paragraph(&[mono(name), text(" - "), text(t)]);
+                    to.paragraph([mono(name), text(" - "), text(t)]);
                 }
                 None => {
                     to.section("Summary");
@@ -112,7 +112,7 @@ impl Write for HelpInfo {
             to.paragraph(text(t));
         }
 
-        to.push(self.split());
+        to.push(&self.split());
 
         if let Some(t) = self.info.as_ref().and_then(|i| i.footer) {
             to.paragraph(text(t));
@@ -185,7 +185,7 @@ pub fn collect_help_info<T>(parser: OptionParser<T>, name: &'static str) -> Help
 pub fn synopsis<T>(parser: &OptionParser<T>) -> impl Write + '_ {
     |doc: &mut Doc| {
         if let Some(meta) = parser.inner.meta().to_usage_meta() {
-            doc.push(meta);
+            doc.push(&meta);
         } else {
             doc.text("Parser takes no parameters");
         }
@@ -239,7 +239,7 @@ where
                     prefix.write(doc);
                 }
                 if let Some(usage) = meta.to_usage_meta() {
-                    doc.literal(name).mono(" ").push(usage);
+                    doc.literal(name).mono(" ").push(&usage);
                 } else {
                     doc.literal(name);
                 }
@@ -254,7 +254,7 @@ where
                 doc.paragraph(header);
             }
 
-            doc.push(HelpInfo {
+            doc.push(&HelpInfo {
                 meta: meta.clone(),
                 info: None,
                 name: None,
@@ -360,9 +360,9 @@ where
         for (ix, item) in items
             .flags
             .0
-            .into_iter()
-            .chain(items.positionals.0.into_iter())
-            .chain(items.commands.0.into_iter())
+            .iter()
+            .chain(items.positionals.0.iter())
+            .chain(items.commands.0.iter())
             .enumerate()
         {
             if ix > 0 {
@@ -387,7 +387,7 @@ where
                     doc.literal(name);
                 }
                 HelpItem::Flag { name, help: _ } => {
-                    doc.push(name.0);
+                    doc.push(&name.0);
                 }
                 HelpItem::Argument {
                     name,
@@ -395,7 +395,7 @@ where
                     env: _,
                     help: _,
                 } => {
-                    doc.push(name.0).mono(" ").push(metavar);
+                    doc.push(&name.0).mono(" ").push(metavar);
                 }
             }
         }
@@ -574,7 +574,7 @@ impl Write for HelpItem<'_> {
             } => {
                 match short {
                     Some(short) => to.term(|to: &mut Doc| {
-                        to.push(StyledChar(Style::Literal, *short))
+                        to.push(&StyledChar(Style::Literal, *short))
                             .text(", ")
                             .literal(name);
                     }),
@@ -599,7 +599,7 @@ impl Write for HelpItem<'_> {
                 help,
             } => {
                 to.term(|to: &mut Doc| {
-                    to.push(name.0).push(mono("=")).push(*metavar);
+                    to.push(&name.0).push(&mono("=")).push(metavar);
                 });
 
                 if let Some(help) = help {

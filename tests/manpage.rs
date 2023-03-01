@@ -145,6 +145,7 @@ fn render_commands() {
     #[derive(Debug, Clone, Bpaf)]
     /// ignored
     #[allow(dead_code)]
+    #[bpaf(options)]
     enum Cmds {
         #[bpaf(command)]
         /// alpha short help
@@ -170,8 +171,8 @@ fn render_commands() {
 
     let parser = cmds();
     doc.section("--------------------------");
-    doc.push(synopsis(&parser));
-    doc.push(usage(&parser, SectionName::Always));
+    doc.push(&synopsis(&parser));
+    doc.push(&usage(&parser, SectionName::Always));
     doc.section("--------------------------");
 
     write_commands(&parser, None::<&str>, &mut doc);
