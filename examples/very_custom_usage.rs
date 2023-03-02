@@ -20,6 +20,7 @@ enum Opts {
 // defines the parser we are going to use later
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
+#[allow(dead_code)]
 struct Cmd {
     opt: bool,
 }
