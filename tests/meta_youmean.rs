@@ -45,6 +45,29 @@ fn short_cmd() {
 }
 
 #[test]
+fn double_dashes_no_fallback() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options)]
+    enum Opts {
+        Llvm,
+        Att,
+        #[bpaf(hide)]
+        Dummy,
+    }
+
+    let r = opts()
+        .run_inner(Args::from(&["-llvm"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    // TODO: can we point out at -llvm here?
+    assert_eq!(
+        r,
+        "Expected (--llvm | --att), pass --help for usage information"
+    );
+}
+
+#[test]
 fn double_dashes_fallback() {
     #[derive(Debug, Clone, Bpaf)]
     #[bpaf(options, fallback(Opts::Dummy))]
