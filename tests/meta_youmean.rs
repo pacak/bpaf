@@ -43,3 +43,48 @@ fn short_cmd() {
 
     assert_eq!(r, "No such command: `c`, did you mean `b`?");
 }
+
+#[test]
+fn double_dashes_fallback() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options, fallback(Opts::Dummy))]
+    enum Opts {
+        Llvm,
+        Att,
+        Dummy,
+    }
+
+    let r = opts()
+        .run_inner(Args::from(&["-llvm"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+    );
+}
+
+#[test]
+fn double_dash_with_optional_positional() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(fallback(Opts::Dummy))]
+    enum Opts {
+        Llvm,
+        Att,
+        Dummy,
+    }
+
+    let pos = positional::<String>("FILE").optional();
+    let parser = construct!(opts(), pos).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["make", "-llvm"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+    );
+}

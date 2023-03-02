@@ -50,6 +50,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
 enum I<'a> {
     ShortFlag(char),
     LongFlag(&'a str),
+    Ambiguity(&'a str),
     ShortCmd(char),
     LongCmd(&'a str),
 }
@@ -62,6 +63,7 @@ impl std::fmt::Debug for I<'_> {
             Self::LongFlag(s) => write!(f, "flag: `{}`", w_err!(Long(s))),
             Self::ShortCmd(s) => write!(f, "command alias: `{}`", w_err!(s)),
             Self::LongCmd(s) => write!(f, "command: `{}`", w_err!(s)),
+            Self::Ambiguity(s) => write!(f, "flag: {s} (with one dash)"),
         }
     }
 }
@@ -75,6 +77,7 @@ impl std::fmt::Display for I<'_> {
             Self::LongFlag(s) => write!(f, "--{}", s),
             Self::ShortCmd(s) => f.write_char(*s),
             Self::LongCmd(s) => f.write_str(s),
+            Self::Ambiguity(s) => f.write_str(s),
         }
     }
 }
@@ -98,8 +101,13 @@ fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
             Some(s) => I::LongCmd(s),
             None => return,
         },
-        // shouldn't be reachable
-        Arg::Ambiguity(_, _) => return,
+        Arg::Ambiguity(_, os) => {
+            if let Some(s) = os.to_str() {
+                I::Ambiguity(s)
+            } else {
+                return;
+            }
+        }
     };
     match item {
         Item::Positional { .. } => {}
