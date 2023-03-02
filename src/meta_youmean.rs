@@ -34,12 +34,24 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
     }
 
     let mut variants = Vec::new();
-    inner(arg, meta, &mut variants);
+    collect_suggestions(arg, meta, &mut variants, true);
 
     variants.sort_by(|a, b| b.0.cmp(&a.0));
 
-    if let Some((l, best)) = variants.pop() {
-        if l > 0 {
+    if let Some((l, (actual, expected))) = variants.pop() {
+        if let (0, I::Nested(cmd)) = (l, expected) {
+            let best = format!(
+                "{:?} is not valid in this context, did you mean to pass it to command \"{}\"?",
+                actual,
+                w_flag!(cmd),
+            );
+            return Err(Error::Stderr(best));
+        } else if l > 0 {
+            let best = format!(
+                "No such {:?}, did you mean `{}`?",
+                actual,
+                w_flag!(expected)
+            );
             return Err(Error::Stderr(best));
         }
     }
@@ -53,6 +65,7 @@ enum I<'a> {
     Ambiguity(&'a str),
     ShortCmd(char),
     LongCmd(&'a str),
+    Nested(&'a str),
 }
 
 // human readable
@@ -63,7 +76,8 @@ impl std::fmt::Debug for I<'_> {
             Self::LongFlag(s) => write!(f, "flag: `{}`", w_err!(Long(s))),
             Self::ShortCmd(s) => write!(f, "command alias: `{}`", w_err!(s)),
             Self::LongCmd(s) => write!(f, "command: `{}`", w_err!(s)),
-            Self::Ambiguity(s) => write!(f, "flag: {s} (with one dash)"),
+            Self::Ambiguity(s) => write!(f, "flag: {} (with one dash)", w_err!(s)),
+            Self::Nested(s) => write!(f, "command {}", w_err!(s)),
         }
     }
 }
@@ -78,22 +92,24 @@ impl std::fmt::Display for I<'_> {
             Self::ShortCmd(s) => f.write_char(*s),
             Self::LongCmd(s) => f.write_str(s),
             Self::Ambiguity(s) => f.write_str(s),
+            Self::Nested(s) => f.write_str(s),
         }
     }
 }
 
-fn ins(expected: I, actual: I, variants: &mut Vec<(usize, String)>) {
+fn ins<'a>(expected: I<'a>, actual: I<'a>, variants: &mut Vec<(usize, (I<'a>, I<'a>))>) {
     variants.push((
         levenshtein(&expected.to_string(), &actual.to_string()),
-        format!(
-            "No such {:?}, did you mean `{}`?",
-            actual,
-            w_flag!(expected)
-        ),
+        (actual, expected),
     ));
 }
 
-fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
+fn inner_item<'a>(
+    arg: &'a Arg,
+    item: &'a Item,
+    variants: &mut Vec<(usize, (I<'a>, I<'a>))>,
+    at_top_level: bool,
+) {
     let actual: I = match arg {
         Arg::Short(s, _, _) => I::ShortFlag(*s),
         Arg::Long(s, _, _) => I::LongFlag(s.as_str()),
@@ -111,7 +127,16 @@ fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
     };
     match item {
         Item::Positional { .. } => {}
-        Item::Command { name, short, .. } => {
+        Item::Command {
+            name, short, meta, ..
+        } => {
+            if at_top_level {
+                let mut inner = Vec::new();
+                collect_suggestions(arg, meta, &mut inner, false);
+                if let Some((0, _)) = inner.first() {
+                    variants.push((0, (actual, I::Nested(name))));
+                }
+            }
             ins(I::LongCmd(name), actual, variants);
             if let Some(s) = short {
                 ins(I::ShortCmd(*s), actual, variants);
@@ -128,19 +153,24 @@ fn inner_item(arg: &Arg, item: &Item, variants: &mut Vec<(usize, String)>) {
     }
 }
 
-fn inner(arg: &Arg, meta: &Meta, variants: &mut Vec<(usize, String)>) {
+fn collect_suggestions<'a>(
+    arg: &'a Arg,
+    meta: &'a Meta,
+    variants: &mut Vec<(usize, (I<'a>, I<'a>))>,
+    at_top_level: bool,
+) {
     match meta {
         Meta::And(xs) | Meta::Or(xs) => {
             for x in xs {
-                inner(arg, x, variants);
+                collect_suggestions(arg, x, variants, at_top_level);
             }
         }
-        Meta::Item(item) => inner_item(arg, item, variants),
+        Meta::Item(item) => inner_item(arg, item, variants, at_top_level),
         Meta::HideUsage(meta)
         | Meta::Optional(meta)
         | Meta::Many(meta)
         | Meta::Decorated(meta, _) => {
-            inner(arg, meta, variants);
+            collect_suggestions(arg, meta, variants, at_top_level);
         }
         Meta::Skip => {}
     }
