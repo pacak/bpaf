@@ -132,7 +132,11 @@ where
 
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comps);
-        res
+        if let Err(Error::Missing(_)) = res {
+            Err(Error::Missing(Vec::new()))
+        } else {
+            res
+        }
     }
 
     fn meta(&self) -> Meta {
