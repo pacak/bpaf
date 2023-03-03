@@ -380,13 +380,13 @@ impl Field {
                 ty
             }
             Shape::Bool => {
-                if self.naming.is_empty() {
-                    return Err(syn::Error::new(
-                        self.ty.span(),
-                        "Can't derive consumer for unnamed boolean field",
-                    ));
-                }
                 if self.consumer.is_none() {
+                    if self.naming.is_empty() {
+                        return Err(syn::Error::new(
+                            self.ty.span(),
+                            "Can't derive consumer for unnamed boolean field",
+                        ));
+                    }
                     self.consumer = Some(ConsumerAttr::Switch);
                 }
                 return Ok(());

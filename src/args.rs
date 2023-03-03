@@ -409,7 +409,7 @@ mod inner {
         ///   ([-a] alpha) | beta
         /// and user passes "-a <TAB>" we should not suggest "beta"
         pub(crate) fn valid_complete_head(&self) -> bool {
-            self.len() == 0 || (self.len() == 1 && self.removed.last() == Some(&false))
+            self.is_empty() || (self.len() == 1 && self.removed.last() == Some(&false))
         }
 
         #[cfg(feature = "autocomplete")]

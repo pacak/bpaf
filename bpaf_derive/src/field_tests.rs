@@ -636,3 +636,15 @@ fn optional_external_strange() {
         "keyword `external` is at stage `external` can't follow previous stage (postprocessing)";
     field_trans_fail(input, msg);
 }
+
+#[test]
+fn positional_bool() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(positional::<bool>("O_O"))]
+        flag: bool
+    };
+    let output = quote! {
+        ::bpaf::positional::<bool>("O_O")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}

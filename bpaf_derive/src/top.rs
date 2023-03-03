@@ -41,7 +41,13 @@ enum BParser {
     Command(CommandAttr, Box<OParser>, bool),
     CargoHelper(LitStr, Box<BParser>),
     CompStyle(Box<Expr>, Box<BParser>),
-    Constructor(ConstrName, Fields, bool),
+    Constructor {
+        name: ConstrName,
+        fields: Fields,
+        adjacent: bool,
+        anywhere: bool,
+        boxed: bool,
+    },
     Singleton(Box<ReqFlag>),
     Fold(Vec<BParser>, Option<Box<Expr>>),
 }
@@ -236,6 +242,8 @@ struct Outer {
     shorts: Vec<LitChar>,
     fallback: Option<Box<Expr>>,
     adjacent: bool,
+    anywhere: bool,
+    boxed: bool,
 }
 
 impl Outer {
@@ -251,6 +259,8 @@ impl Outer {
             shorts: Vec::new(),
             fallback: None,
             adjacent: false,
+            anywhere: false,
+            boxed: false,
         };
 
         let mut usage = None;
@@ -289,6 +299,10 @@ impl Outer {
                         res.version = Some(Box::new(ver));
                     } else if keyword == "adjacent" {
                         res.adjacent = true;
+                    } else if keyword == "anywhere" {
+                        res.anywhere = true;
+                    } else if keyword == "boxed" {
+                        res.boxed = true;
                     } else if keyword == "command" {
                         let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
                             let n = to_snake_case(&outer_ty.to_string());
@@ -406,7 +420,13 @@ impl Top {
             constr: outer_ty.clone(),
             fallback: outer.fallback.clone(),
         };
-        let inner = BParser::Constructor(constr, fields, outer.adjacent);
+        let inner = BParser::Constructor {
+            name: constr,
+            fields,
+            adjacent: outer.adjacent,
+            anywhere: outer.anywhere,
+            boxed: outer.boxed,
+        };
         Ok(Top {
             name: outer
                 .generate
@@ -442,9 +462,21 @@ impl Top {
 
             let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
                 let fields = Fields::parse(&enum_contents)?;
-                BParser::Constructor(constr, fields, outer.adjacent)
+                BParser::Constructor {
+                    name: constr,
+                    fields,
+                    adjacent: outer.adjacent,
+                    anywhere: outer.anywhere,
+                    boxed: outer.boxed,
+                }
             } else if let Some(_cmd) = &inner.command {
-                BParser::Constructor(constr, Fields::NoFields, false)
+                BParser::Constructor {
+                    name: constr,
+                    fields: Fields::NoFields,
+                    adjacent: outer.adjacent,
+                    anywhere: outer.anywhere,
+                    boxed: outer.boxed,
+                }
             } else {
                 let req_flag = ReqFlag::make(constr, inner.clone());
                 BParser::Singleton(Box::new(req_flag))
@@ -569,24 +601,34 @@ impl ToTokens for BParser {
                 ::bpaf::cargo_helper(#name, #inner)
             })
             .to_tokens(tokens),
-            BParser::Constructor(con, Fields::NoFields, _adj) => {
-                quote!(::bpaf::pure(#con)).to_tokens(tokens);
-                if let Some(fallback) = &con.fallback {
-                    quote!(.fallback(#fallback)).to_tokens(tokens);
+            BParser::Constructor {
+                name,
+                fields,
+                adjacent,
+                anywhere,
+                boxed,
+            } => {
+                if let Fields::NoFields = fields {
+                    quote!(::bpaf::pure(#name)).to_tokens(tokens);
+                } else {
+                    let parse_decls = fields.parser_decls();
+                    quote!({
+                        #(#parse_decls)*
+                        ::bpaf::construct!(#name #fields)
+                    })
+                    .to_tokens(tokens);
                 }
-            }
-            BParser::Constructor(con, bra, adj) => {
-                let parse_decls = bra.parser_decls();
-                quote!({
-                    #(#parse_decls)*
-                    ::bpaf::construct!(#con #bra)
-                })
-                .to_tokens(tokens);
-                if *adj {
+                if *adjacent {
                     quote!(.adjacent()).to_tokens(tokens);
                 }
-                if let Some(fallback) = &con.fallback {
+                if let Some(fallback) = &name.fallback {
                     quote!(.fallback(#fallback)).to_tokens(tokens);
+                }
+                if *anywhere {
+                    quote!(.anywhere()).to_tokens(tokens);
+                }
+                if *boxed {
+                    quote!(.boxed()).to_tokens(tokens);
                 }
             }
             BParser::Fold(xs, mfallback) => {
