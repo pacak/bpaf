@@ -1397,6 +1397,11 @@ pub trait Parser<T> {
     /// Can be expensive performance wise especially if parser contains complex logic.
     ///
     #[doc = include_str!("docs/anywhere.md")]
+    ///
+    /// When using parsers annotated with `anywhere` it's a good idea to place them before other
+    /// parsers so combinations they are looking for are not consumed by simplier parsers.
+    ///
+    #[doc = include_str!("docs/anywhere_1.md")]
     #[must_use]
     fn anywhere(self) -> ParseAnywhere<Self>
     where
