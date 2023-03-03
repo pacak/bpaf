@@ -90,9 +90,7 @@ impl std::fmt::Display for I<'_> {
             Self::ShortFlag(s) => write!(f, "-{}", s),
             Self::LongFlag(s) => write!(f, "--{}", s),
             Self::ShortCmd(s) => f.write_char(*s),
-            Self::LongCmd(s) => f.write_str(s),
-            Self::Ambiguity(s) => f.write_str(s),
-            Self::Nested(s) => f.write_str(s),
+            Self::LongCmd(s) | Self::Ambiguity(s) | Self::Nested(s) => f.write_str(s),
         }
     }
 }
