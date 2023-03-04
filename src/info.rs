@@ -651,6 +651,10 @@ fn report_missing_items(err: Error) -> Error {
     }
 }
 
+/// do a nested invariant check
+
+/// the check itself is performed as part of `to_usage_meta` transformation `fresh` parameter
+/// is used to perform it only once for every command parser encountered
 fn perform_invariant_check(meta: &Meta, fresh: bool) {
     if fresh {
         println!("Checking\n{:#?}", meta);
