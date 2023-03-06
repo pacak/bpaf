@@ -1803,3 +1803,14 @@ fn strange_short_option() {
     let r = parser.run_inner(Args::from(&["-Obits=2048"])).unwrap();
     assert_eq!(r, "bits=2048");
 }
+
+#[test]
+fn optional_bool_states() {
+    let parser = short('a').switch().optional().to_options();
+
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!(r, Some(true));
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, Some(false));
+}
