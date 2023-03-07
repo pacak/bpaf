@@ -196,7 +196,8 @@
 //!      more for `postprocessing` annotations after it. Takes an optional parameter - a function
 //!      name to call, if not present - `bpaf_derive` uses field name for this purpose.
 //!      Functions should return impl [`Parser`] and you can either declare them manually
-//!      or derive with `Bpaf` macro.
+//!      or derive with `Bpaf` macro. `external` fields are going to ignore any doc comments for
+//!      command line interface purposes.
 //!
 //!      ```rust
 //!      # use bpaf::*;
