@@ -384,7 +384,7 @@ impl Field {
                     if self.naming.is_empty() {
                         return Err(syn::Error::new(
                             self.ty.span(),
-                            "Can't derive consumer for unnamed boolean field",
+                            "Can't derive consumer for unnamed boolean field, try adding a #[bpaf(positional)] annotation to it",
                         ));
                     }
                     self.consumer = Some(ConsumerAttr::Switch);
