@@ -404,7 +404,7 @@ Available options:
     -d, --d-very-long-flag-with <ARG>
     -e, --e-very-long-flag-with <ARG>
     -f, --f-very-long-flag-with <ARG>
-    -h, --help                         Prints help information
+    -h, --help            Prints help information
 ";
 
     assert_eq!(expected_help, help);
@@ -841,8 +841,7 @@ this is a test
 Usage: [-a] [-b]
 
 Available options:
-    -a, --AAAAA  two lines
-                 of help
+    -a, --AAAAA  two lines of help
     -b
     -h, --help   Prints help information
 ";
@@ -877,8 +876,7 @@ Usage: --key KEY
 
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY: N/A]
-                     use this secret key
-                     two lines
+                     use this secret key two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -893,8 +891,7 @@ Usage: --key KEY
 
 Available options:
         --key <KEY>  [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
-                     use this secret key
-                     two lines
+                     use this secret key two lines
     -h, --help       Prints help information
 ";
     assert_eq!(expected_help, help);
@@ -1032,14 +1029,11 @@ fn help_for_options() {
 Usage: [-a] -c B --bbbbb CCC
 
 Available options:
-    -a                 help for
-                       a
+    -a                 help for a
     -c <B>             [env:BbBbB: N/A]
-                       help for
-                       b
+                       help for b
         --bbbbb <CCC>  [env:ccccCCccc: N/A]
-                       help for
-                       ccc
+                       help for ccc
     -h, --help         Prints help information
 ";
 
@@ -1067,10 +1061,8 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    thing_d     help for d
-                two lines
-    thing_e, e  help for e
-                two lines
+    thing_d     help for d two lines
+    thing_e, e  help for e two lines
     thing_h
 ";
     assert_eq!(expected_help, help);

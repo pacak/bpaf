@@ -15,8 +15,7 @@ fn positional_with_help() {
 Usage: <USER> <API_KEY>
 
 Available positional items:
-    <USER>     github user
-               in two lines
+    <USER>     github user in two lines
     <API_KEY>  api key to use
 
 Available options:
@@ -40,10 +39,8 @@ fn help_for_positional() {
 Usage: <C> <DDD>
 
 Available positional items:
-    <C>    help for
-           c
-    <DDD>  help for
-           ddd
+    <C>    help for c
+    <DDD>  help for ddd
 
 Available options:
     -h, --help  Prints help information

@@ -1,5 +1,5 @@
 macro_rules! w_section {
-    ($buf:ident, $pat:literal) => {
+    ($buf:ident, $pat:expr) => {
         write!($buf, "{}", &$pat,)
     };
 }

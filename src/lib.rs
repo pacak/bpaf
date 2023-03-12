@@ -389,6 +389,7 @@ mod arg;
 mod args;
 #[cfg(feature = "batteries")]
 pub mod batteries;
+mod buffer;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]

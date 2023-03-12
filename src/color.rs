@@ -1,6 +1,6 @@
 #[cfg(feature = "bright-color")]
 macro_rules! w_section {
-    ($buf:ident, $pat:literal) => {
+    ($buf:ident, $pat:expr) => {
         write!(
             $buf,
             "{}",
@@ -15,7 +15,7 @@ macro_rules! w_section {
 
 #[cfg(not(feature = "bright-color"))]
 macro_rules! w_section {
-    ($buf:ident, $pat:literal) => {
+    ($buf:ident, $pat:expr) => {
         write!(
             $buf,
             "{}",

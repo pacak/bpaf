@@ -312,8 +312,7 @@ impl<T> OptionParser<T> {
                     &self.info,
                     &self.inner.meta(),
                     &self.info.help_parser().meta(),
-                )
-                .expect("Couldn't render help");
+                );
                 return Err(Error::Stdout(msg));
             }
             Ok(ExtraParams::Version(v)) => {
