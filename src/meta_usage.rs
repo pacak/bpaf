@@ -91,6 +91,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                     let mut top_pos = *is_pos;
                     let usage_meta = collect_usage_meta(x, &mut top_pos)?;
                     any_pos |= top_pos;
+                    #[allow(clippy::equatable_if_let)]
                     if let UsageMeta::Command = &usage_meta {
                         if saw_command {
                             None

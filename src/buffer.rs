@@ -102,6 +102,10 @@ pub(crate) struct Checkpoint {
 const MAX_TAB: usize = 24;
 const MAX_WIDTH: usize = 100;
 
+fn padding(f: &mut std::fmt::Formatter<'_>, width: usize) {
+    write!(f, "{:width$}", "", width = width).unwrap();
+}
+
 impl std::fmt::Display for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // byte offset to a start of not consumed portion of a string
@@ -114,11 +118,7 @@ impl std::fmt::Display for Buffer {
         let mut after_tabstop = false;
         let mut immediate_tabstop = false;
 
-        fn padding(f: &mut std::fmt::Formatter<'_>, width: usize) {
-            write!(f, "{:width$}", "", width = width).unwrap()
-        }
-
-        for token in self.tokens.iter() {
+        for token in &self.tokens {
             match *token {
                 Token::Text { bytes, style } => {
                     // no matter what text should stay to the right of this position
