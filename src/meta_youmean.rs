@@ -140,14 +140,16 @@ fn inner_item<'a>(
                 ins(I::ShortCmd(*s), actual, variants);
             }
         }
-        Item::Flag { name, .. } | Item::Argument { name, .. } => match name {
-            ShortLong::Short(s) => ins(I::ShortFlag(*s), actual, variants),
-            ShortLong::Long(l) => ins(I::LongFlag(l), actual, variants),
-            ShortLong::ShortLong(s, l) => {
-                ins(I::ShortFlag(*s), actual, variants);
-                ins(I::LongFlag(l), actual, variants);
+        Item::Flag { name, .. } | Item::Argument { name, .. } | Item::MultiArg { name, .. } => {
+            match name {
+                ShortLong::Short(s) => ins(I::ShortFlag(*s), actual, variants),
+                ShortLong::Long(l) => ins(I::LongFlag(l), actual, variants),
+                ShortLong::ShortLong(s, l) => {
+                    ins(I::ShortFlag(*s), actual, variants);
+                    ins(I::LongFlag(l), actual, variants);
+                }
             }
-        },
+        }
     }
 }
 

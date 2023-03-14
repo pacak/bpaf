@@ -218,13 +218,13 @@ impl Line<'_> {
                 self.norm('-').bold(*name);
             }
             UsageMeta::ShortArg(name, metavar) => {
-                self.norm('-').bold(*name).norm('=').italic(*metavar);
+                self.norm('-').bold(*name).norm('=').italic(metavar);
             }
             UsageMeta::LongFlag(name) => {
                 self.norm("--").bold(*name);
             }
             UsageMeta::LongArg(name, metavar) => {
-                self.norm("--").bold(*name).norm('=').italic(*metavar);
+                self.norm("--").bold(*name).norm('=').italic(metavar);
             }
             UsageMeta::Pos(x) | UsageMeta::StrictPos(x) => {
                 self.metavar(x);
@@ -358,6 +358,21 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 l.shortlong(name).norm("=").metavar(mvar.0);
                 if let Some(env) = env {
                     l.env(env);
+                }
+            });
+
+            if let Some(help) = help {
+                manpage.text([norm(help)]);
+            }
+        }
+        HelpItem::MultiArg { name, help, fields } => {
+            manpage.label(|l| {
+                l.shortlong(name).norm("=");
+                for (ix, (m, _help)) in fields.iter().enumerate() {
+                    if ix > 0 {
+                        l.norm(" ");
+                    }
+                    l.metavar(m);
                 }
             });
 

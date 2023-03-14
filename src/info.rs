@@ -670,7 +670,10 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
         }
         Meta::Item(i) => match i {
             Item::Command { meta, .. } => perform_invariant_check(meta, true),
-            Item::Positional { .. } | Item::Flag { .. } | Item::Argument { .. } => {}
+            Item::Positional { .. }
+            | Item::Flag { .. }
+            | Item::Argument { .. }
+            | Item::MultiArg { .. } => {}
         },
         Meta::Skip => {}
     }

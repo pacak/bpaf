@@ -802,6 +802,41 @@ where
     }
 
     fn meta(&self) -> Meta {
-        self.inner.meta()
+        classify_anywhere(self.inner.meta())
     }
+}
+
+// currently supported anywhere meta patterns:
+// - multi value options consisting of a required option followed by one or more positional items
+
+// anything else is
+fn classify_anywhere(meta: Meta) -> Meta {
+    use crate::item::Item;
+    if let Meta::And(xs) = &meta {
+        let mut fields = Vec::new();
+        let mut iter = xs.iter();
+
+        let (name, shorts, help) = match iter.next() {
+            Some(Meta::Item(Item::Flag { name, shorts, help })) => (name, shorts, help),
+            _ => return meta,
+        };
+
+        while let Some(Meta::Item(Item::Positional {
+            metavar,
+            strict: _,
+            help,
+        })) = iter.next()
+        {
+            fields.push((*metavar, help.clone()));
+        }
+        if iter.next().is_none() {
+            return Meta::Item(Item::MultiArg {
+                name: *name,
+                shorts: shorts.clone(),
+                help: help.clone(),
+                fields,
+            });
+        }
+    }
+    meta
 }

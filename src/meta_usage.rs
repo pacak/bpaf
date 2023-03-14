@@ -11,9 +11,9 @@ pub(crate) enum UsageMeta {
     Optional(Box<Self>),
     Many(Box<Self>),
     ShortFlag(char),
-    ShortArg(char, &'static str),
+    ShortArg(char, String),
     LongFlag(&'static str),
-    LongArg(&'static str, &'static str),
+    LongArg(&'static str, String),
     Pos(&'static str),
     StrictPos(&'static str),
     Command,
@@ -146,10 +146,25 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
             },
             Item::Argument { name, metavar, .. } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
-                    UsageMeta::ShortArg(*s, metavar)
+                    UsageMeta::ShortArg(*s, metavar.to_string())
                 }
-                ShortLong::Long(l) => UsageMeta::LongArg(l, metavar),
+                ShortLong::Long(l) => UsageMeta::LongArg(l, metavar.to_string()),
             },
+            Item::MultiArg { name, fields, .. } => {
+                let mut args = String::new();
+                for (var, _) in fields.iter() {
+                    if !args.is_empty() {
+                        args.push(' ');
+                    }
+                    args.push_str(var);
+                }
+                match name {
+                    ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
+                        UsageMeta::ShortArg(*s, args)
+                    }
+                    ShortLong::Long(l) => UsageMeta::LongArg(l, args),
+                }
+            }
         },
     };
     Some(r)

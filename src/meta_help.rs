@@ -51,6 +51,11 @@ pub(crate) enum HelpItem<'a> {
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
+    MultiArg {
+        name: ShortLong,
+        help: Option<&'a str>,
+        fields: &'a [(&'static str, Option<String>)],
+    },
 }
 
 #[derive(Default, Debug)]
@@ -80,7 +85,7 @@ impl<'a> HelpItems<'a> {
     #[inline(never)]
     pub(crate) fn classify_item(&mut self, item: &'a Item) {
         match item {
-            crate::item::Item::Positional {
+            Item::Positional {
                 metavar,
                 help,
                 strict: _,
@@ -92,7 +97,7 @@ impl<'a> HelpItems<'a> {
                     });
                 }
             }
-            crate::item::Item::Command {
+            Item::Command {
                 name,
                 short,
                 help,
@@ -116,7 +121,7 @@ impl<'a> HelpItems<'a> {
                     help: help.as_deref(),
                 });
             }
-            crate::item::Item::Flag {
+            Item::Flag {
                 name,
                 help,
                 shorts: _,
@@ -124,7 +129,7 @@ impl<'a> HelpItems<'a> {
                 name: *name,
                 help: help.as_deref(),
             }),
-            crate::item::Item::Argument {
+            Item::Argument {
                 name,
                 metavar,
                 env,
@@ -135,6 +140,16 @@ impl<'a> HelpItems<'a> {
                 metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
+            }),
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help,
+                fields,
+            } => self.flgs.push(HelpItem::MultiArg {
+                name: *name,
+                help: help.as_deref(),
+                fields,
             }),
         }
     }
@@ -198,7 +213,7 @@ impl std::fmt::Display for Short {
 impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
     fn from(item: &'a crate::item::Item) -> Self {
         match item {
-            crate::item::Item::Positional {
+            Item::Positional {
                 metavar,
                 help,
                 strict: _,
@@ -206,7 +221,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 metavar: Metavar(metavar),
                 help: help.as_deref(),
             },
-            crate::item::Item::Command {
+            Item::Command {
                 name,
                 short,
                 help,
@@ -227,7 +242,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 #[cfg(feature = "manpage")]
                 info,
             },
-            crate::item::Item::Flag {
+            Item::Flag {
                 name,
                 help,
                 shorts: _,
@@ -235,7 +250,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 name: *name,
                 help: help.as_deref(),
             },
-            crate::item::Item::Argument {
+            Item::Argument {
                 name,
                 metavar,
                 env,
@@ -246,6 +261,16 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
+            },
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help,
+                fields,
+            } => Self::MultiArg {
+                name: *name,
+                help: help.as_deref(),
+                fields,
             },
         }
     }
@@ -325,6 +350,28 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             }
             if let Some(help) = help {
                 buf.write_str(help, Style::Text);
+            }
+        }
+        HelpItem::MultiArg { name, help, fields } => {
+            buf.margin(4);
+            write_shortlong(buf, *name);
+            for (field, _) in fields.iter() {
+                buf.write_str(" ", Style::Label);
+                write_metavar(buf, Metavar(field));
+            }
+
+            if let Some(help) = help {
+                buf.tabstop();
+                buf.write_str(help, Style::Text);
+            }
+            buf.margin(12);
+            for (field, help) in fields.iter() {
+                if let Some(help) = help {
+                    buf.newline();
+                    write_metavar(buf, Metavar(field));
+                    buf.tabstop();
+                    buf.write_str(help, Style::Text);
+                }
             }
         }
     }
