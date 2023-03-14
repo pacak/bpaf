@@ -30,6 +30,9 @@ pub(crate) struct Buffer {
     /// current char and margin are used to calculate tabstop
     current_margin: usize,
     current_char: usize,
+
+    /// Should the help contain full string or only up to the first newline
+    pub(crate) complete: bool,
 }
 
 impl Buffer {
@@ -106,6 +109,13 @@ fn padding(f: &mut std::fmt::Formatter<'_>, width: usize) {
     write!(f, "{:width$}", "", width = width).unwrap();
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Sep {
+    Space,
+    Newline,
+    No,
+}
+
 impl std::fmt::Display for Buffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // byte offset to a start of not consumed portion of a string
@@ -117,6 +127,7 @@ impl std::fmt::Display for Buffer {
         // are we to the right of the tabstop?
         let mut after_tabstop = false;
         let mut immediate_tabstop = false;
+        let mut prev = Sep::No;
 
         for token in &self.tokens {
             match *token {
@@ -134,33 +145,69 @@ impl std::fmt::Display for Buffer {
                         padding(f, 2);
                     }
 
+                    // the idea is to break lines into chunks up to MAX_WIDTH and
+                    // allow parser to have longer names without affecting the layout
+                    // of the whole document:
+                    //
+                    // --very-long-name-goes-here <ARG-IS-LONG-TOO> description starts
+                    //                    here and resumes here, can contain multiple
+                    //                    lines as well - all broken automatically
+                    // -h, --help         Render help
+                    // -v, --version      Show version
+                    //
+                    // app should follow two additional rules:
+                    // - lines that start with a space retain linebreak (and consume the space)
+                    // - double line breaks split help into separate blocks, only first block
+                    //   visible without extra flags
+                    //
+                    //  "--help hello\nworld" => "--help hello world"
+                    //  "--help hello\n world" => "--help hello\nworld"
+                    //  "--help hello\n\nworld" => "--help hello" or "--help hello\nworld"
+
                     // split a string by words, lay them out between min_offset and MAX_WIDTH
-                    for (ix, word) in (&self.payload[byte_offset..byte_offset + bytes])
-                        .split(char::is_whitespace)
-                        .enumerate()
+                    for word in self.payload[byte_offset..byte_offset + bytes]
+                        .split_inclusive(|c| c == ' ' || c == '\n')
                     {
+                        #[allow(clippy::manual_strip)]
+                        let (word, this) = if word.ends_with(' ') {
+                            (&word[..word.len() - 1], Sep::Space)
+                        } else if word.ends_with('\n') {
+                            (&word[..word.len() - 1], Sep::Newline)
+                        } else {
+                            (word, Sep::No)
+                        };
                         let chars = word.chars().count();
 
-                        // overflow?
-                        if line_offset + chars > MAX_WIDTH {
+                        if chars == 0 && prev == Sep::Newline {
+                            if this == Sep::Newline && !self.complete {
+                                return Ok(());
+                            }
                             writeln!(f)?;
+                            prev = Sep::No;
                             line_offset = 0;
-                        } else if ix != 0 {
-                            padding(f, 1);
-                            line_offset += 1;
-                        }
+                        } else {
+                            // overflow?
+                            if line_offset + chars > MAX_WIDTH {
+                                writeln!(f)?;
+                                line_offset = 0;
+                            } else if prev != Sep::No {
+                                padding(f, 1);
+                                line_offset += 1;
+                            }
 
-                        if min_offset > line_offset {
-                            padding(f, min_offset - line_offset);
-                            line_offset = min_offset;
-                        }
+                            if min_offset > line_offset {
+                                padding(f, min_offset - line_offset);
+                                line_offset = min_offset;
+                            }
 
-                        match style {
-                            Style::Text => write!(f, "{}", word),
-                            Style::Section => w_section!(f, word),
-                            Style::Label => write!(f, "{}", w_flag!(word)),
-                        }?;
-                        line_offset += chars;
+                            match style {
+                                Style::Text => write!(f, "{}", word),
+                                Style::Section => w_section!(f, word),
+                                Style::Label => write!(f, "{}", w_flag!(word)),
+                            }?;
+                            line_offset += chars;
+                            prev = this;
+                        }
                     }
                     byte_offset += bytes;
                 }
@@ -178,6 +225,9 @@ impl std::fmt::Display for Buffer {
                     margin = new_margin;
                 }
             }
+        }
+        if prev == Sep::Space {
+            padding(f, 1);
         }
         Ok(())
     }
@@ -304,4 +354,33 @@ fn very_long_tabstop() {
 ";
 
     assert_eq!(m.to_string(), expected);
+}
+
+#[test]
+fn line_breaking_rules() {
+    let mut m = Buffer::default();
+    m.write_str("hello ", Style::Text);
+    assert_eq!(m.to_string(), "hello ");
+
+    let mut m = Buffer::default();
+    m.write_str("hello\n world\n", Style::Text);
+    assert_eq!(m.to_string(), "hello\nworld");
+
+    let mut m = Buffer::default();
+    m.write_str("hello\nworld", Style::Text);
+    assert_eq!(m.to_string(), "hello world");
+
+    let mut m = Buffer::default();
+    m.write_str("hello\nworld\n", Style::Text);
+    assert_eq!(m.to_string(), "hello world");
+
+    let mut m = Buffer::default();
+    m.complete = false;
+    m.write_str("hello\n\nworld", Style::Text);
+    assert_eq!(m.to_string(), "hello");
+
+    let mut m = Buffer::default();
+    m.complete = true;
+    m.write_str("hello\n\nworld", Style::Text);
+    assert_eq!(m.to_string(), "hello\nworld");
 }
