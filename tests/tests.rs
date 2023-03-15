@@ -404,7 +404,7 @@ Available options:
     -d, --d-very-long-flag-with <ARG>
     -e, --e-very-long-flag-with <ARG>
     -f, --f-very-long-flag-with <ARG>
-    -h, --help            Prints help information
+    -h, --help  Prints help information
 ";
 
     assert_eq!(expected_help, help);

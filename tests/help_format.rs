@@ -251,11 +251,11 @@ fn multi_arg_help() {
 Usage: [-v] --flag NAME STATE
 
 Available options:
-    -v, --verbose         verbose
+    -v, --verbose    verbose
         --flag <NAME> <STATE>  flag help
-            <NAME>        pos1 help
-            <STATE>       pos2 help
-    -h, --help            Prints help information
+            <NAME>   pos1 help
+            <STATE>  pos2 help
+    -h, --help       Prints help information
 ";
     assert_eq!(r, expected);
 }

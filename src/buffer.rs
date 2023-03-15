@@ -37,7 +37,10 @@ pub(crate) struct Buffer {
 
 impl Buffer {
     pub(crate) fn tabstop(&mut self) {
-        self.tabstop = MAX_TAB.min(self.tabstop.max(self.current_char));
+        let max = self.tabstop.max(self.current_char);
+        if max <= MAX_TAB {
+            self.tabstop = max;
+        }
         self.tokens.push(Token::TabStop);
     }
 
@@ -348,9 +351,8 @@ fn very_long_tabstop() {
 
     let expected = "\
 --this-is-a-very-long-option <DON'T DO THIS AT HOME>  word and word word and word word and word word
-                          and word word and word word and word word and word word and word word and
-                          word word and word word and word word and word word and word word and word
-                          word and word and word
+  and word word and word word and word word and word word and word word and word word and word word
+  and word word and word word and word word and word word and word and word
 ";
 
     assert_eq!(m.to_string(), expected);
