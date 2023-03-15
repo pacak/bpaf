@@ -54,7 +54,7 @@ impl Meta {
                 Item::Positional { .. } | Item::Command { .. } => {}
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::MultiArg { shorts, .. } | Item::Argument { shorts, .. } => {
-                    args.extend(shorts)
+                    args.extend(shorts);
                 }
             },
             Meta::HideUsage(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {

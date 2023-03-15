@@ -146,9 +146,9 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
             },
             Item::Argument { name, metavar, .. } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
-                    UsageMeta::ShortArg(*s, metavar.to_string())
+                    UsageMeta::ShortArg(*s, (*metavar).to_string())
                 }
-                ShortLong::Long(l) => UsageMeta::LongArg(l, metavar.to_string()),
+                ShortLong::Long(l) => UsageMeta::LongArg(l, (*metavar).to_string()),
             },
             Item::MultiArg { name, fields, .. } => {
                 let mut args = String::new();
