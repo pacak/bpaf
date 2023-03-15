@@ -5,7 +5,7 @@
 - improve error messages when a flag is accepted by a command but not directly
 - allow to derive position bool
 - derive anywhere and boxed
-- better layout for --help messages
+- dynamic layout for --help messages
 
 ## bpaf [0.7.9], bpaf_derive [0.3.4] - 2023-02-14
 - `ParseFailure::exit_code`
