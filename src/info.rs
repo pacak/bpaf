@@ -176,6 +176,7 @@ impl<T> OptionParser<T> {
     ///
     /// [`ParseFailure`] represents parsing errors, autocomplete results and generated `--help`
     /// output.
+    #[deprecated = "You should switch to equivalent parser.run_inner(Args::current_args())"]
     pub fn try_run(self) -> Result<T, ParseFailure>
     where
         Self: Sized,
