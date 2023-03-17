@@ -153,6 +153,43 @@ mod inner {
         cur: usize,
     }
 
+    impl Args {
+        #[inline(never)]
+        /// Get a list of command line arguments from OS
+        pub fn current_args() -> Self {
+            let mut arg_vec = Vec::new();
+            #[cfg(feature = "autocomplete")]
+            let mut complete_vec = Vec::new();
+
+            let mut args = std::env::args_os();
+
+            #[allow(unused_variables)]
+            let name = args.next().expect("no command name from args_os?");
+
+            #[cfg(feature = "autocomplete")]
+            for arg in args {
+                if arg
+                    .to_str()
+                    .map_or(false, |s| s.starts_with("--bpaf-complete-"))
+                {
+                    complete_vec.push(arg);
+                } else {
+                    arg_vec.push(arg);
+                }
+            }
+            #[cfg(not(feature = "autocomplete"))]
+            arg_vec.extend(args);
+
+            #[cfg(feature = "autocomplete")]
+            let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
+
+            #[cfg(not(feature = "autocomplete"))]
+            let args = Self::from(arg_vec.as_slice());
+
+            args
+        }
+    }
+
     impl<'a> Args {
         /// creates iterator over remaining elements
         pub(crate) fn items_iter(&'a self) -> ArgsIter<'a> {
