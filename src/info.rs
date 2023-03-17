@@ -129,7 +129,7 @@ impl<T> OptionParser<T> {
     where
         Self: Sized,
     {
-        match self.try_run() {
+        match self.run_inner(Args::current_args()) {
             Ok(t) => t,
             Err(err) => std::process::exit(err.exit_code()),
         }
