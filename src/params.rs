@@ -574,7 +574,10 @@ impl<T> Parser<T> for ParseCommand<T> {
             args.depth += 1;
             // `or_else` would prefer failures past this point to preceeding levels
             #[allow(clippy::let_and_return)]
-            let res = self.subparser.run_subparser(args);
+            let res = self
+                .subparser
+                .run_subparser(args)
+                .map_err(Error::ParseFailure);
             res
         } else {
             #[cfg(feature = "autocomplete")]
@@ -872,7 +875,7 @@ fn parse_word(
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error::Stderr(format!(
+            return Err(Error::Message(format!(
                 "Expected <{}> to be on the right side of --",
                 metavar,
             )));

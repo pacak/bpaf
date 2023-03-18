@@ -23,10 +23,10 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         match self.inner.eval(args) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
+            e @ Err(Error::Message(_) | Error::ParseFailure(_)) => e,
             Err(Error::Missing(_)) => match (self.fallback)() {
                 Ok(ok) => Ok(ok),
-                Err(e) => Err(Error::Stderr(e.to_string())),
+                Err(e) => Err(Error::Message(e.to_string())),
             },
         }
     }
@@ -99,7 +99,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Stderr(self.message.to_string()))
+            Err(Error::Message(self.message.to_string()))
         } else {
             Ok(res)
         }
@@ -375,7 +375,7 @@ where
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            e @ Err(Error::Stderr(_) | Error::Stdout(_)) => e,
+            e @ Err(Error::Message(_) | Error::ParseFailure(_)) => e,
             Err(Error::Missing(_)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
@@ -493,8 +493,8 @@ where
             }
 
             match err {
-                Error::Stderr(_) if catch => Ok(None),
-                Error::Stderr(_) | Error::Stdout(_) => Err(err),
+                Error::Message(_) if catch => Ok(None),
+                Error::Message(_) | Error::ParseFailure(_) => Err(err),
                 Error::Missing(_) => {
                     if args.len() == orig_args.len() {
                         Ok(None)
@@ -554,7 +554,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Stderr(e.to_string())),
+            Err(e) => Err(Error::Message(e.to_string())),
         }
     }
 
@@ -571,7 +571,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Stderr(self.field1.to_owned()))
+        Err(Error::Message(self.field1.to_owned()))
     }
 
     fn meta(&self) -> Meta {

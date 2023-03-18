@@ -7,7 +7,8 @@ use crate::{
 
 pub(crate) fn should_suggest(err: &Error) -> bool {
     match err {
-        Error::Stdout(_) | Error::Stderr(_) => true,
+        Error::Message(_) => true,
+        Error::ParseFailure(_) => false,
         Error::Missing(xs) => {
             let mut hi = crate::meta_help::HelpItems::default();
             for x in xs.iter() {
@@ -19,10 +20,10 @@ pub(crate) fn should_suggest(err: &Error) -> bool {
 }
 
 /// Looks for potential typos
-pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
+pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
     let arg = match args.peek() {
         Some(arg) => arg,
-        None => return Ok(()),
+        None => return None,
     };
 
     if args.items.iter().filter(|&a| a == arg).count() > 1 {
@@ -30,7 +31,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
         // several of those or parser accepts only limited number of them.
         // Or a different branch handles them. Give up and produce a default
         // "not expected in this context" error
-        return Ok(());
+        return None;
     }
 
     let mut variants = Vec::new();
@@ -45,17 +46,17 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Result<(), Error> {
                 actual,
                 w_flag!(cmd),
             );
-            return Err(Error::Stderr(best));
+            return Some(best);
         } else if l > 0 {
             let best = format!(
                 "No such {:?}, did you mean `{}`?",
                 actual,
                 w_flag!(expected)
             );
-            return Err(Error::Stderr(best));
+            return Some(best);
         }
     }
-    Ok(())
+    None
 }
 
 #[derive(Copy, Clone)]

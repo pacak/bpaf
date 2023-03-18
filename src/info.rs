@@ -15,10 +15,10 @@ use crate::{
 /// Unsuccessful command line parsing outcome, internal representation
 #[derive(Debug)]
 pub enum Error {
-    /// Terminate and print this to stdout
-    Stdout(String),
-    /// Terminate and print this to stderr
-    Stderr(String),
+    /// Parsing failed, it is still possible to improve the error message
+    Message(String),
+    /// Parsing failed and this is the final output
+    ParseFailure(ParseFailure),
     /// Expected one of those values
     ///
     /// Used internally to generate better error messages
@@ -31,12 +31,12 @@ impl Error {
         #[allow(clippy::match_same_arms)]
         match (self, other) {
             // help output takes priority
-            (a @ Error::Stdout(_), _) => a,
-            (_, b @ Error::Stdout(_)) => b,
+            (a @ Error::ParseFailure(_), _) => a,
+            (_, b @ Error::ParseFailure(_)) => b,
 
             // parsing failure takes priority
-            (a @ Error::Stderr(_), _) => a,
-            (_, b @ Error::Stderr(_)) => b,
+            (a @ Error::Message(_), _) => a,
+            (_, b @ Error::Message(_)) => b,
 
             // combine missing elements
             (Error::Missing(mut a), Error::Missing(mut b)) => {
@@ -88,7 +88,7 @@ fn check_unexpected(args: &Args) -> Result<(), Error> {
                 use std::fmt::Write;
                 write!(msg, ": {} cannot be used at the same time as {}", rej, acc).unwrap();
             }
-            Err(Error::Stderr(msg))
+            Err(Error::Message(msg))
         }
     }
 }
@@ -242,24 +242,31 @@ impl<T> OptionParser<T> {
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(err) => match err {
-                Error::Stdout(msg) => Err(ParseFailure::Stdout(msg)),
-                Error::Stderr(msg) => Err(ParseFailure::Stderr(msg)),
-                Error::Missing(_) => unreachable!(),
-            },
+            Err(err) => Err(err),
         }
     }
 
     /// Run subparser, implementation detail
-    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, Error> {
-        let depth = args.depth;
+    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, ParseFailure> {
+        // process should work like this:
+        // - inner parser is evaluated, it returns Error
+        // - if error is finalized (ParseFailure) - it is simply propagated outwards,
+        //   otherwise we are making a few attempts at improving it after dealing with
+        //   autocomplete/help
+        //
+        // - generate autocomplete, if enabled
+        // - produce --help, --version
+        // - Try to improve error message and finalize it otherwise
+        //
+        // outer parser gets value in ParseFailure format
+
         let res = self.inner.eval(args);
-        if let Err(Error::Stdout(_)) = &res {
-            return res;
+        if let Err(Error::ParseFailure(failure)) = res {
+            return Err(failure);
         }
         #[cfg(feature = "autocomplete")]
         if let Some(comp) = args.check_complete() {
-            return Err(Error::Stdout(comp));
+            return Err(ParseFailure::Stdout(comp));
         }
 
         let err = match res {
@@ -270,37 +277,9 @@ impl<T> OptionParser<T> {
                     return Ok(r);
                 }
             }
-
-            // Stderr means nested parser couldn't parse something, store it,
-            // report it if parsing --help and --version also fails
-            Err(Error::Stderr(e)) => Error::Stderr(e),
-
-            // Stdout usually means a happy path such as calling --help or --version on one of
-            // the nested commands
-            Err(Error::Stdout(e)) => return Err(Error::Stdout(e)),
             Err(err) => err,
         };
-
-        match self.info.help_parser().eval(args) {
-            Ok(ExtraParams::Help) => {
-                let msg = render_help(
-                    &self.info,
-                    &self.inner.meta(),
-                    &self.info.help_parser().meta(),
-                );
-                return Err(Error::Stdout(msg));
-            }
-            Ok(ExtraParams::Version(v)) => {
-                return Err(Error::Stdout(format!("Version: {}\n", v)));
-            }
-            Err(_) => {}
-        }
-
-        if crate::meta_youmean::should_suggest(&err) && args.depth == depth {
-            crate::meta_youmean::suggest(args, &self.inner.meta())?;
-        }
-
-        Err(report_missing_items(err))
+        Err(improve_error(args, &self.info, &self.inner.meta(), err))
     }
 
     /// Get first line of description if Available
@@ -615,13 +594,36 @@ impl<T> OptionParser<T> {
     }
 }
 
-fn report_missing_items(err: Error) -> Error {
-    match err {
-        Error::Stdout(_) | Error::Stderr(_) => err,
-        Error::Missing(items) => Error::Stderr(format!(
-            "Expected {}, pass --help for usage information",
-            Meta::Or(items.into_iter().map(Meta::Item).collect::<Vec<_>>())
-        )),
+fn improve_error(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure {
+    match info.help_parser().eval(args) {
+        Ok(ExtraParams::Help) => {
+            let msg = render_help(info, inner, &info.help_parser().meta());
+            return ParseFailure::Stdout(msg);
+        }
+        Ok(ExtraParams::Version(v)) => {
+            return ParseFailure::Stdout(format!("Version: {}\n", v));
+        }
+        Err(_) => {}
+    }
+
+    if crate::meta_youmean::should_suggest(&err) {
+        if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+            return ParseFailure::Stderr(msg);
+        }
+    }
+    ParseFailure::from(err)
+}
+
+impl From<Error> for ParseFailure {
+    fn from(value: Error) -> Self {
+        match value {
+            Error::Message(msg) => ParseFailure::Stderr(msg),
+            Error::ParseFailure(pf) => pf,
+            Error::Missing(items) => ParseFailure::Stderr(format!(
+                "Expected {}, pass --help for usage information",
+                Meta::Or(items.into_iter().map(Meta::Item).collect::<Vec<_>>())
+            )),
+        }
     }
 }
 
@@ -666,7 +668,7 @@ impl Parser<ExtraParams> for ParseExtraParams {
 
         match self.version {
             Some(ver) => Self::ver(ver).eval(args),
-            None => Err(Error::Stderr(String::from("Not a version or help flag"))),
+            None => Err(Error::Message(String::from("Not a version or help flag"))),
         }
     }
 
