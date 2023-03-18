@@ -6,8 +6,6 @@ use std::marker::PhantomData;
 use crate::{
     args::{Args, Conflict},
     item::Item,
-    meta_help::render_help,
-    params::short,
     parsers::ParseCommand,
     Meta, ParseFailure, Parser,
 };
@@ -63,20 +61,6 @@ pub struct Info {
     pub footer: Option<&'static str>,
     /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<&'static str>,
-}
-
-impl Info {
-    fn help_parser(&self) -> impl Parser<ExtraParams> {
-        ParseExtraParams {
-            version: self.version,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-enum ExtraParams {
-    Help,
-    Version(&'static str),
 }
 
 fn check_unexpected(args: &Args) -> Result<(), Error> {
@@ -279,7 +263,12 @@ impl<T> OptionParser<T> {
             }
             Err(err) => err,
         };
-        Err(improve_error(args, &self.info, &self.inner.meta(), err))
+        Err((args.improve_error.0)(
+            args,
+            &self.info,
+            &self.inner.meta(),
+            err,
+        ))
     }
 
     /// Get first line of description if Available
@@ -594,26 +583,6 @@ impl<T> OptionParser<T> {
     }
 }
 
-fn improve_error(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure {
-    match info.help_parser().eval(args) {
-        Ok(ExtraParams::Help) => {
-            let msg = render_help(info, inner, &info.help_parser().meta());
-            return ParseFailure::Stdout(msg);
-        }
-        Ok(ExtraParams::Version(v)) => {
-            return ParseFailure::Stdout(format!("Version: {}\n", v));
-        }
-        Err(_) => {}
-    }
-
-    if crate::meta_youmean::should_suggest(&err) {
-        if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
-            return ParseFailure::Stderr(msg);
-        }
-    }
-    ParseFailure::from(err)
-}
-
 impl From<Error> for ParseFailure {
     fn from(value: Error) -> Self {
         match value {
@@ -653,46 +622,5 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
             | Item::MultiArg { .. } => {}
         },
         Meta::Skip => {}
-    }
-}
-
-struct ParseExtraParams {
-    version: Option<&'static str>,
-}
-
-impl Parser<ExtraParams> for ParseExtraParams {
-    fn eval(&self, args: &mut Args) -> Result<ExtraParams, Error> {
-        if let Ok(ok) = ParseExtraParams::help().eval(args) {
-            return Ok(ok);
-        }
-
-        match self.version {
-            Some(ver) => Self::ver(ver).eval(args),
-            None => Err(Error::Message(String::from("Not a version or help flag"))),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        match self.version {
-            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(ver).meta()]),
-            None => Self::help().meta(),
-        }
-    }
-}
-
-impl ParseExtraParams {
-    #[inline(never)]
-    fn help() -> impl Parser<ExtraParams> {
-        short('h')
-            .long("help")
-            .help("Prints help information")
-            .req_flag(ExtraParams::Help)
-    }
-    #[inline(never)]
-    fn ver(version: &'static str) -> impl Parser<ExtraParams> {
-        short('V')
-            .long("version")
-            .help("Prints version information")
-            .req_flag(ExtraParams::Version(version))
     }
 }

@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{parsers::NamedArg, Error, Meta};
+use crate::{info::Info, parsers::NamedArg, Error, Meta, ParseFailure};
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
 #[derive(Debug, Clone)]
@@ -18,6 +18,17 @@ impl Conflict {
             Conflict::Solo(s) => s,
             Conflict::Conflicts(w, _) => w,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Improve(
+    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
+);
+
+impl std::fmt::Debug for Improve {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Improve").finish()
     }
 }
 
@@ -80,6 +91,9 @@ mod inner {
         /// set of conflicts - usize contains the offset to the rejected item,
         /// first Meta contains accepted item, second meta contains rejected item
         pub(crate) conflicts: BTreeMap<usize, Conflict>,
+
+        /// A way to customize behavior for --help and error handling
+        pub(crate) improve_error: super::Improve,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -144,6 +158,7 @@ mod inner {
                 no_pos_ahead: false,
                 ambig,
                 conflicts: BTreeMap::new(),
+                improve_error: super::Improve(crate::help::improve_error),
             }
         }
     }

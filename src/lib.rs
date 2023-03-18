@@ -396,6 +396,7 @@ mod complete_gen;
 mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
+mod help;
 mod info;
 mod item;
 #[cfg(feature = "manpage")]
