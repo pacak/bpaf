@@ -242,7 +242,7 @@ impl<T> OptionParser<T> {
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),
             Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(err) => match report_missing_items(err) {
+            Err(err) => match err {
                 Error::Stdout(msg) => Err(ParseFailure::Stdout(msg)),
                 Error::Stderr(msg) => Err(ParseFailure::Stderr(msg)),
                 Error::Missing(_) => unreachable!(),
