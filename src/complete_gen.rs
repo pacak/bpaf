@@ -19,7 +19,7 @@ use crate::{
     complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
-    Args, CompleteDecor, Error, ShellComp,
+    Args, CompleteDecor, ShellComp,
 };
 use std::ffi::OsStr;
 
@@ -367,10 +367,10 @@ impl Args {
     /// before calling this method we run parser in "complete" mode and collect live heads inside
     /// `self.comp`, this part goes over collected heads and generates possible completions from
     /// that
-    pub(crate) fn check_complete(&self) -> Result<(), Error> {
+    pub(crate) fn check_complete(&self) -> Option<String> {
         let comp = match self.comp_ref() {
             Some(comp) => comp,
-            None => return Ok(()),
+            None => return None,
         };
 
         let mut items = self
@@ -383,9 +383,10 @@ impl Args {
         // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (arg, lit) = items
-            .next()
-            .ok_or_else(|| Error::Stdout("\n".to_string()))?;
+        let (arg, lit) = match items.next() {
+            Some(a) => a,
+            None => return Some("\n".to_owned()),
+        };
 
         let pos_only = items.clone().any(|i| matches!(i.0, Arg::PosWord(_)));
 
@@ -393,11 +394,13 @@ impl Args {
         if let Arg::Ambiguity(..) = arg {
             // don't bother trying to expand -vvvv for now:
             // -vvv<TAB> => -vvv _
-            return Err(Error::Stdout(format!("{}\n", lit)));
+            return Some(format!("{}\n", lit));
         }
 
-        let res = comp.complete(lit, arg.is_word(), pos_only)?;
-        Err(Error::Stdout(res))
+        let res = comp
+            .complete(lit, arg.is_word(), pos_only)
+            .expect("format error?");
+        Some(res)
     }
 }
 
@@ -682,11 +685,4 @@ fn render_3456(
     }
 
     Ok(res)
-}
-
-// to allow using ? inside check_complete
-impl From<std::fmt::Error> for Error {
-    fn from(_: std::fmt::Error) -> Self {
-        Error::Stderr("Couldn't render completion info".to_string())
-    }
 }

@@ -258,7 +258,9 @@ impl<T> OptionParser<T> {
             return res;
         }
         #[cfg(feature = "autocomplete")]
-        args.check_complete()?;
+        if let Some(comp) = args.check_complete() {
+            return Err(Error::Stdout(comp));
+        }
 
         let err = match res {
             Ok(r) => {
