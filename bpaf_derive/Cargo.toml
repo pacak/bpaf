@@ -1,6 +1,6 @@
 [package]
 name = "bpaf_derive"
-version = "0.3.4"
+version = "0.3.5"
 edition = "2018"
 categories = ["command-line-interface"]
 description = "Derive macros for bpaf Command Line Argument Parser"
@@ -15,6 +15,6 @@ name = "bpaf_derive"
 proc-macro = true
 
 [dependencies]
-syn = { version = "1.0.73", features = ["full", "extra-traits"] }
+syn = { version = "2.0.2", features = ["full", "extra-traits"] }
 proc-macro2 = "1.0.27"
 quote = "1.0.9"

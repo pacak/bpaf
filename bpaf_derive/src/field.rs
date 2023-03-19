@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
+use syn::parse::ParseStream;
 use syn::{
     parenthesized, parse, Attribute, Expr, Ident, LitChar, LitStr, Path, PathArguments, Result,
     Token, Type, Visibility,
@@ -100,18 +100,6 @@ fn parse_optional_arg(input: parse::ParseStream) -> Result<LitStr> {
         content.parse::<LitStr>()
     } else {
         Ok(LitStr::new("ARG", Span::call_site()))
-    }
-}
-
-pub struct Doc(pub String);
-impl Parse for Doc {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        input.parse::<Token![=]>()?;
-        let mut s = input.parse::<LitStr>()?.value();
-        if s.starts_with(' ') {
-            s = s[1..].to_string();
-        }
-        Ok(Doc(s))
     }
 }
 

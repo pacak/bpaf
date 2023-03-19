@@ -3,15 +3,15 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{
-    braced, parenthesized, parse, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar,
-    LitStr, Result, Token, Visibility,
+    braced, parenthesized, parse, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr,
+    Result, Token, Visibility,
 };
 
 use crate::field::{
-    parse_expr, parse_ident, parse_lit_char, parse_lit_str, parse_opt_arg, ConstrName, Doc, Field,
+    parse_expr, parse_ident, parse_lit_char, parse_lit_str, parse_opt_arg, ConstrName, Field,
     ReqFlag,
 };
-use crate::utils::{snake_case_ident, to_snake_case, LineIter};
+use crate::utils::{doc_comment, snake_case_ident, to_snake_case, LineIter};
 
 #[derive(Debug)]
 pub struct Top {
@@ -106,12 +106,11 @@ impl Parse for Fields {
         let content;
         if input.peek(token::Brace) {
             let _ = braced!(content in input);
-            let fields = content.parse_terminated(Field::parse_named)?;
+            let fields = content.parse_terminated(Field::parse_named, token::Comma)?;
             Ok(Fields::Named(fields))
         } else if input.peek(token::Paren) {
             let _ = parenthesized!(content in input);
-            let fields: Punctuated<_, Token![,]> =
-                content.parse_terminated(Field::parse_unnamed)?;
+            let fields = content.parse_terminated(Field::parse_unnamed, token::Comma)?;
             Ok(Fields::Unnamed(fields))
         } else {
             Err(input.error("Expected named or unnamed struct"))
@@ -159,15 +158,15 @@ impl Inner {
             skip: false,
         };
         for attr in attrs {
-            if attr.path.is_ident("doc") {
-                res.help.push(parse2::<Doc>(attr.tokens)?.0);
-            } else if attr.path.is_ident("bpaf") {
+            if attr.path().is_ident("doc") {
+                if let Some(doc) = doc_comment(&attr) {
+                    res.help.push(doc);
+                }
+            } else if attr.path().is_ident("bpaf") {
                 attr.parse_args_with(|input: ParseStream| loop {
                     if input.is_empty() {
                         break Ok(());
                     }
-                    /////
-
                     let input_copy = input.fork();
                     let keyword = input.parse::<Ident>()?;
 
@@ -266,9 +265,11 @@ impl Outer {
         let mut usage = None;
         let mut help = Vec::new();
         for attr in attrs {
-            if attr.path.is_ident("doc") {
-                help.push(parse2::<Doc>(attr.tokens)?.0);
-            } else if attr.path.is_ident("bpaf") {
+            if attr.path().is_ident("doc") {
+                if let Some(doc) = doc_comment(&attr) {
+                    help.push(doc);
+                }
+            } else if attr.path().is_ident("bpaf") {
                 attr.parse_args_with(|input: ParseStream| loop {
                     if input.is_empty() {
                         break Ok(());

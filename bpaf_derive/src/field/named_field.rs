@@ -3,15 +3,15 @@ use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
 use syn::spanned::Spanned;
 use syn::{
-    parenthesized, parse2, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr, Path,
+    parenthesized, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr, Path,
     PathArguments, PathSegment, Result, Token, Type,
 };
 
-use crate::utils::{to_kebab_case, LineIter};
+use crate::utils::{doc_comment, to_kebab_case, LineIter};
 
 use super::{
-    as_long_name, as_short_name, parse_optional_arg, split_type, ConsumerAttr, Doc, Name,
-    PostprAttr, Shape,
+    as_long_name, as_short_name, parse_optional_arg, split_type, ConsumerAttr, Name, PostprAttr,
+    Shape,
 };
 
 #[derive(Debug, Clone)]
@@ -121,9 +121,12 @@ impl Field {
 
         let mut stage = 0;
         for attr in attrs {
-            if attr.path.is_ident("doc") {
-                help.push(parse2::<Doc>(attr.tokens)?.0);
-            } else if attr.path.is_ident("bpaf") {
+            if attr.path().is_ident("doc") {
+                //help.push(attr.parse_args_with(Doc::parse)?.0);
+                if let Some(doc) = doc_comment(&attr) {
+                    help.push(doc);
+                }
+            } else if attr.path().is_ident("bpaf") {
                 #[allow(clippy::cognitive_complexity)]
                 attr.parse_args_with(|input: ParseStream| loop {
                     if input.is_empty() {
