@@ -27,6 +27,12 @@ pub enum Item {
         env: Option<&'static str>,
         help: Option<String>,
     },
+    MultiArg {
+        name: ShortLong,
+        shorts: Vec<char>,
+        help: Option<String>,
+        fields: Vec<(&'static str, Option<String>)>,
+    },
 }
 
 #[doc(hidden)]
@@ -44,42 +50,6 @@ impl From<&NamedArg> for ShortLong {
             (true, false) => Self::Long(named.long[0]),
             (false, true) => Self::Short(named.short[0]),
             (false, false) => Self::ShortLong(named.short[0], named.long[0]),
-        }
-    }
-}
-
-/// {} renders a version for short usage string
-/// supports padding of the help by some max width
-impl std::fmt::Display for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Item::Positional {
-                metavar,
-                help: _,
-                strict: _,
-            } => metavar.fmt(f),
-            Item::Command { .. } => write!(f, "COMMAND ..."),
-            Item::Flag {
-                name,
-                help: _,
-                shorts: _,
-            } => write!(f, "{}", name),
-            Item::Argument {
-                name,
-                metavar,
-                help: _,
-                env: _,
-                shorts: _,
-            } => write!(f, "{} {}", name, metavar),
-        }
-    }
-}
-
-impl std::fmt::Display for ShortLong {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ShortLong::Short(short) | ShortLong::ShortLong(short, _) => write!(f, "-{}", short),
-            ShortLong::Long(long) => write!(f, "--{}", long),
         }
     }
 }

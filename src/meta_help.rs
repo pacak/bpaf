@@ -3,6 +3,7 @@
 use std::collections::BTreeSet;
 
 use crate::{
+    buffer::{Buffer, Checkpoint, Style},
     info::Info,
     item::{Item, ShortLong},
     Meta,
@@ -28,7 +29,6 @@ pub(crate) enum HelpItem<'a> {
     },
     BlankDecor,
     Positional {
-        strict: bool,
         metavar: Metavar,
         help: Option<&'a str>,
     },
@@ -42,14 +42,19 @@ pub(crate) enum HelpItem<'a> {
         info: &'a Info,
     },
     Flag {
-        name: ShortLongHelp,
+        name: ShortLong,
         help: Option<&'a str>,
     },
     Argument {
-        name: ShortLongHelp,
+        name: ShortLong,
         metavar: Metavar,
         env: Option<&'static str>,
         help: Option<&'a str>,
+    },
+    MultiArg {
+        name: ShortLong,
+        help: Option<&'a str>,
+        fields: &'a [(&'static str, Option<String>)],
     },
 }
 
@@ -69,10 +74,10 @@ impl HelpItem<'_> {
     }
 }
 
-fn dedup(items: &mut BTreeSet<String>, payload: &mut String, prev: usize) {
-    let new = payload[prev..payload.len()].to_owned();
+fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
+    let new = buf.content_since(cp).to_owned();
     if !items.insert(new) {
-        payload.truncate(prev);
+        buf.rollback(cp);
     }
 }
 
@@ -80,20 +85,19 @@ impl<'a> HelpItems<'a> {
     #[inline(never)]
     pub(crate) fn classify_item(&mut self, item: &'a Item) {
         match item {
-            crate::item::Item::Positional {
+            Item::Positional {
                 metavar,
                 help,
-                strict,
+                strict: _,
             } => {
                 if help.is_some() {
                     self.psns.push(HelpItem::Positional {
                         metavar: Metavar(metavar),
                         help: help.as_deref(),
-                        strict: *strict,
                     });
                 }
             }
-            crate::item::Item::Command {
+            Item::Command {
                 name,
                 short,
                 help,
@@ -117,25 +121,35 @@ impl<'a> HelpItems<'a> {
                     help: help.as_deref(),
                 });
             }
-            crate::item::Item::Flag {
+            Item::Flag {
                 name,
                 help,
                 shorts: _,
             } => self.flgs.push(HelpItem::Flag {
-                name: ShortLongHelp(*name),
+                name: *name,
                 help: help.as_deref(),
             }),
-            crate::item::Item::Argument {
+            Item::Argument {
                 name,
                 metavar,
                 env,
                 help,
                 shorts: _,
             } => self.flgs.push(HelpItem::Argument {
-                name: ShortLongHelp(*name),
+                name: *name,
                 metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
+            }),
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help,
+                fields,
+            } => self.flgs.push(HelpItem::MultiArg {
+                name: *name,
+                help: help.as_deref(),
+                fields,
             }),
         }
     }
@@ -179,23 +193,6 @@ impl<'a> HelpItems<'a> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-/// A variant of [`ShortLong`] with different Display properties
-///
-/// - `ShortLong` is used to display synopsys line and prefers to use short name
-/// - `ShortLongHelp`is used to display help message and tries to keep all the names
-pub(crate) struct ShortLongHelp(pub(crate) ShortLong);
-
-impl ShortLongHelp {
-    #[inline]
-    fn full_width(&self) -> usize {
-        match self.0 {
-            ShortLong::Short(_) => 2,
-            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => 6 + l.len(),
-        }
-    }
-}
-
 pub(crate) struct Long<'a>(pub(crate) &'a str);
 impl std::fmt::Display for Long<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -213,106 +210,18 @@ impl std::fmt::Display for Short {
     }
 }
 
-impl std::fmt::Display for ShortLongHelp {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.0 {
-            ShortLong::Short(short) => write!(f, "{}", w_flag!(Short(short))),
-            ShortLong::Long(long) => write!(f, "    {}", w_flag!(Long(long))),
-            ShortLong::ShortLong(short, long) => {
-                write!(f, "{}, {}", w_flag!(Short(short)), w_flag!(Long(long)))
-            }
-        }
-    }
-}
-
-/// supports padding of the help by some max width
-impl std::fmt::Display for HelpItem<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            HelpItem::Flag { name, help: _ } => write!(f, "    {}", name),
-            HelpItem::Argument {
-                name,
-                metavar,
-                help,
-                env,
-            } => {
-                write!(f, "    {} {}", name, w_flag!(metavar))?;
-
-                let width = f.width().unwrap();
-                if let Some(env) = env {
-                    let pad = width - self.full_width();
-
-                    let m_os = std::env::var_os(env);
-                    let val = match &m_os {
-                        Some(s) => std::borrow::Cow::from(format!(" = {:?}", s.to_string_lossy())),
-                        None => std::borrow::Cow::Borrowed(": N/A"),
-                    };
-                    let next_pad = 4 + self.full_width();
-                    write!(f, "{:pad$}  [env:{}{}]", "", env, val, pad = pad,)?;
-                    if help.is_some() {
-                        write!(f, "\n{:width$}", "", width = next_pad)?;
-                    }
-                }
-                Ok(())
-            }
-            HelpItem::Decor { help } => write!(f, "  {}", help),
-            HelpItem::BlankDecor => Ok(()),
-            HelpItem::Positional {
-                metavar,
-                help: _,
-                strict,
-            } => {
-                if *strict {
-                    write!(f, "    -- {}", w_flag!(metavar))
-                } else {
-                    write!(f, "    {}", w_flag!(metavar))
-                }
-            }
-            HelpItem::Command {
-                name,
-                help: _,
-                short,
-                #[cfg(feature = "manpage")]
-                    meta: _,
-                #[cfg(feature = "manpage")]
-                    info: _,
-            } => match short {
-                Some(s) => write!(f, "    {}, {}", w_flag!(name), w_flag!(s)),
-                None => write!(f, "    {}", w_flag!(name)),
-            },
-        }?;
-
-        // alt view requires width, so unwrap should just work;
-        let width = f.width().unwrap();
-        if let Some(help) = self.help() {
-            let pad = width - self.full_width();
-            for (ix, line) in help.split('\n').enumerate() {
-                {
-                    if ix == 0 {
-                        write!(f, "{:pad$}  {}", "", line, pad = pad)
-                    } else {
-                        write!(f, "\n{:pad$}      {}", "", line, pad = width)
-                    }
-                }?;
-            }
-        }
-        Ok(())
-    }
-}
-
 impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
     fn from(item: &'a crate::item::Item) -> Self {
         match item {
-            crate::item::Item::Positional {
+            Item::Positional {
                 metavar,
                 help,
-                strict,
+                strict: _,
             } => Self::Positional {
                 metavar: Metavar(metavar),
-                strict: *strict,
                 help: help.as_deref(),
             },
-            crate::item::Item::Command {
+            Item::Command {
                 name,
                 short,
                 help,
@@ -333,145 +242,237 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 #[cfg(feature = "manpage")]
                 info,
             },
-            crate::item::Item::Flag {
+            Item::Flag {
                 name,
                 help,
                 shorts: _,
             } => Self::Flag {
-                name: ShortLongHelp(*name),
+                name: *name,
                 help: help.as_deref(),
             },
-            crate::item::Item::Argument {
+            Item::Argument {
                 name,
                 metavar,
                 env,
                 help,
                 shorts: _,
             } => Self::Argument {
-                name: ShortLongHelp(*name),
+                name: *name,
                 metavar: Metavar(metavar),
                 env: *env,
                 help: help.as_deref(),
+            },
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help,
+                fields,
+            } => Self::MultiArg {
+                name: *name,
+                help: help.as_deref(),
+                fields,
             },
         }
     }
 }
 
-impl HelpItem<'_> {
-    #[must_use]
-    /// Full width for the name, including implicit short flag, space and comma
-    /// betwen short and log parameters and metavar variable if present
-    fn full_width(&self) -> usize {
-        match self {
-            HelpItem::Decor { .. } | HelpItem::BlankDecor { .. } => 0,
-            HelpItem::Flag { name, .. } => name.full_width(),
-            HelpItem::Argument { name, metavar, .. } => name.full_width() + metavar.0.len() + 3,
-            HelpItem::Positional { metavar, .. } => metavar.0.len() + 2,
-            HelpItem::Command {
-                name, short: None, ..
-            } => name.len(),
-            HelpItem::Command {
-                name,
-                short: Some(_),
-                ..
-            } => name.len() + 3,
+fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
+    buf.write_char('<', Style::Label);
+    buf.write_str(metavar.0, Style::Label);
+    buf.write_char('>', Style::Label);
+}
+
+fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
+    match item {
+        HelpItem::Decor { help } => {
+            buf.margin(2);
+            buf.write_str(help, Style::Text);
+        }
+        HelpItem::BlankDecor => {}
+        HelpItem::Positional { metavar, help } => {
+            buf.margin(4);
+            write_metavar(buf, *metavar);
+            if let Some(help) = help {
+                buf.tabstop();
+                buf.write_str(help, Style::Text);
+            }
+        }
+        HelpItem::Command {
+            name,
+            short,
+            help,
+            #[cfg(feature = "manpage")]
+                meta: _,
+            #[cfg(feature = "manpage")]
+                info: _,
+        } => {
+            buf.margin(4);
+            buf.write_str(name, Style::Label);
+            if let Some(short) = short {
+                buf.write_str(", ", Style::Text);
+                buf.write_char(*short, Style::Label);
+            }
+            buf.tabstop();
+            if let Some(help) = help {
+                buf.write_str(help, Style::Text);
+            }
+        }
+        HelpItem::Flag { name, help } => {
+            buf.margin(4);
+            write_shortlong(buf, *name);
+            buf.tabstop();
+            if let Some(help) = help {
+                buf.write_str(help, Style::Text);
+            }
+        }
+        HelpItem::Argument {
+            name,
+            metavar,
+            env,
+            help,
+        } => {
+            buf.margin(4);
+            write_shortlong(buf, *name);
+            buf.write_str(" ", Style::Label);
+            write_metavar(buf, *metavar);
+            buf.tabstop();
+
+            if let Some(env) = env {
+                let val = match std::env::var_os(env) {
+                    Some(s) => std::borrow::Cow::from(format!(" = {:?}", s.to_string_lossy())),
+                    None => std::borrow::Cow::Borrowed(": N/A"),
+                };
+                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+                if help.is_some() {
+                    buf.newline();
+                    buf.tabstop();
+                }
+            }
+            if let Some(help) = help {
+                buf.write_str(help, Style::Text);
+            }
+        }
+        HelpItem::MultiArg { name, help, fields } => {
+            buf.margin(4);
+            write_shortlong(buf, *name);
+            for (field, _) in fields.iter() {
+                buf.write_str(" ", Style::Label);
+                write_metavar(buf, Metavar(field));
+            }
+
+            if let Some(help) = help {
+                buf.tabstop();
+                buf.write_str(help, Style::Text);
+            }
+            buf.margin(12);
+            for (field, help) in fields.iter() {
+                if let Some(help) = help {
+                    buf.newline();
+                    write_metavar(buf, Metavar(field));
+                    buf.tabstop();
+                    buf.write_str(help, Style::Text);
+                }
+            }
         }
     }
+    buf.newline();
+}
 
-    fn help(&self) -> Option<&str> {
-        match self {
-            HelpItem::Decor { .. } | HelpItem::BlankDecor => None,
-            HelpItem::Command { help, .. }
-            | HelpItem::Flag { help, .. }
-            | HelpItem::Argument { help, .. }
-            | HelpItem::Positional { help, .. } => *help,
+fn write_shortlong(buf: &mut Buffer, name: ShortLong) {
+    match name {
+        ShortLong::Short(s) => {
+            buf.write_char('-', Style::Label);
+            buf.write_char(s, Style::Label);
+        }
+        ShortLong::Long(l) => {
+            buf.write_str("    --", Style::Label);
+            buf.write_str(l, Style::Label);
+        }
+        ShortLong::ShortLong(s, l) => {
+            buf.write_char('-', Style::Label);
+            buf.write_char(s, Style::Label);
+            buf.write_str(", ", Style::Text);
+            buf.write_str("--", Style::Label);
+            buf.write_str(l, Style::Label);
         }
     }
 }
 
-pub(crate) fn render_help(
-    info: &Info,
-    parser_meta: &Meta,
-    help_meta: &Meta,
-) -> Result<String, std::fmt::Error> {
-    use std::fmt::Write;
+fn write_as_lines(buf: &mut Buffer, line: &str) {
+    for line in line.lines() {
+        buf.write_str(line, Style::Text);
+        buf.newline();
+    }
+}
 
+fn write_items(items: &[HelpItem], descr: &str) -> String {
+    if items.is_empty() {
+        String::new()
+    } else {
+        let mut buf = Buffer::default();
+        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
+        buf.newline();
+        buf.margin(0);
+        buf.write_str(descr, Style::Section);
+        buf.newline();
+        for i in items {
+            let cp = buf.checkpoint();
+            write_help_item(&mut buf, i);
+            dedup(&mut dedup_cache, &mut buf, cp);
+        }
+        buf.to_string()
+    }
+}
+
+pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String {
     let mut res = String::new();
+    let mut buf = Buffer::default();
+
     if let Some(t) = info.descr {
-        write!(res, "{}\n\n", t)?;
+        write_as_lines(&mut buf, t);
+        buf.newline();
     }
 
     let auto = parser_meta.to_usage_meta().map(|u| u.to_string());
     if let Some(custom_usage) = info.usage {
         match auto {
-            Some(auto_usage) => write!(
-                res,
-                "{}\n",
-                custom_usage.replacen("{usage}", &auto_usage, 1)
+            Some(auto_usage) => buf.write_str(
+                custom_usage.replacen("{usage}", &auto_usage, 1).as_str(),
+                Style::Text,
             ),
-            None => write!(res, "{}\n", custom_usage),
-        }?;
+            None => buf.write_str(custom_usage, Style::Text),
+        };
+        buf.newline();
     } else if let Some(usage) = auto {
-        write!(res, "Usage: {}\n", usage)?;
+        buf.write_str("Usage: ", Style::Text);
+        buf.write_str(&usage, Style::Text);
+        buf.newline();
     }
 
     if let Some(t) = info.header {
-        write!(res, "\n{}\n", t)?;
+        buf.newline();
+        buf.margin(0);
+
+        write_as_lines(&mut buf, t);
     }
 
     let mut items = HelpItems::default();
     items.classify(parser_meta);
     items.classify(help_meta);
-    let mut dedup_cache = BTreeSet::new();
-    if !items.psns.is_empty() {
-        let max_width = items
-            .psns
-            .iter()
-            .map(HelpItem::full_width)
-            .max()
-            .unwrap_or(0);
-        w_section!(res, "\nAvailable positional items:\n")?;
-        for i in &items.psns {
-            let len = res.len();
-            write!(res, "{:padding$}\n", i, padding = max_width)?;
-            dedup(&mut dedup_cache, &mut res, len);
-        }
+
+    res.push_str(&buf.to_string());
+
+    res.push_str(&write_items(&items.psns, "Available positional items:"));
+    res.push_str(&write_items(&items.flgs, "Available options:"));
+    res.push_str(&write_items(&items.cmds, "Available commands:"));
+
+    let mut buf = Buffer::default();
+    if let Some(footer) = info.footer {
+        buf.margin(0);
+        buf.newline();
+        write_as_lines(&mut buf, footer);
     }
 
-    if !items.flgs.is_empty() {
-        let max_width = items
-            .flgs
-            .iter()
-            .map(HelpItem::full_width)
-            .max()
-            .unwrap_or(0);
-        w_section!(res, "\nAvailable options:\n")?;
-        for i in &items.flgs {
-            let len = res.len();
-            write!(res, "{:padding$}\n", i, padding = max_width)?;
-            dedup(&mut dedup_cache, &mut res, len);
-        }
-    }
-
-    if !items.cmds.is_empty() {
-        w_section!(res, "\nAvailable commands:\n")?;
-        let max_width = items
-            .cmds
-            .iter()
-            .map(HelpItem::full_width)
-            .max()
-            .unwrap_or(0);
-        for i in &items.cmds {
-            let len = res.len();
-            write!(res, "{:padding$}\n", i, padding = max_width)?;
-            dedup(&mut dedup_cache, &mut res, len);
-        }
-    }
-    if let Some(t) = info.footer {
-        write!(res, "\n{}", t)?;
-    }
-    if !res.ends_with('\n') {
-        res.push('\n');
-    }
-    Ok(res)
+    res.push_str(&buf.to_string());
+    res
 }

@@ -1,35 +1,23 @@
-use proc_macro2::{Ident, Span};
-use syn::{
-    parse::{Parse, ParseStream},
-    spanned::Spanned,
-    LitStr, Token,
-};
+use proc_macro2::Ident;
+use syn::Attribute;
 
-struct Doc(pub String);
-impl Parse for Doc {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        input.parse::<Token![=]>()?;
-        let s = input.parse::<LitStr>()?.value();
-        Ok(Doc(s.trim_start().to_string()))
-    }
-}
-
-impl<T> Spanned for WithSpan<T> {
-    fn span(&self) -> Span {
-        self.span
-    }
-}
-
-pub struct WithSpan<T> {
-    pub value: T,
-    pub span: Span,
-}
-
-impl<T: Parse> Parse for WithSpan<T> {
-    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let span = input.span();
-        let value = input.parse::<T>()?;
-        Ok(WithSpan { value, span })
+pub fn doc_comment(attr: &Attribute) -> Option<String> {
+    match &attr.meta {
+        syn::Meta::NameValue(syn::MetaNameValue {
+            value:
+                syn::Expr::Lit(syn::ExprLit {
+                    lit: syn::Lit::Str(s),
+                    ..
+                }),
+            ..
+        }) => {
+            let mut s = s.value();
+            if s.starts_with(' ') {
+                s = s[1..].to_string();
+            }
+            Some(s)
+        }
+        _ => None,
     }
 }
 

@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{parsers::NamedArg, Error, Meta};
+use crate::{info::Info, parsers::NamedArg, Error, Meta, ParseFailure};
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
 #[derive(Debug, Clone)]
@@ -18,6 +18,17 @@ impl Conflict {
             Conflict::Solo(s) => s,
             Conflict::Conflicts(w, _) => w,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Improve(
+    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
+);
+
+impl std::fmt::Debug for Improve {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Improve").finish()
     }
 }
 
@@ -80,6 +91,9 @@ mod inner {
         /// set of conflicts - usize contains the offset to the rejected item,
         /// first Meta contains accepted item, second meta contains rejected item
         pub(crate) conflicts: BTreeMap<usize, Conflict>,
+
+        /// A way to customize behavior for --help and error handling
+        pub(crate) improve_error: super::Improve,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -144,6 +158,7 @@ mod inner {
                 no_pos_ahead: false,
                 ambig,
                 conflicts: BTreeMap::new(),
+                improve_error: super::Improve(crate::help::improve_error),
             }
         }
     }
@@ -151,6 +166,43 @@ mod inner {
     pub(crate) struct ArgsIter<'a> {
         args: &'a Args,
         cur: usize,
+    }
+
+    impl Args {
+        #[inline(never)]
+        /// Get a list of command line arguments from OS
+        pub fn current_args() -> Self {
+            let mut arg_vec = Vec::new();
+            #[cfg(feature = "autocomplete")]
+            let mut complete_vec = Vec::new();
+
+            let mut args = std::env::args_os();
+
+            #[allow(unused_variables)]
+            let name = args.next().expect("no command name from args_os?");
+
+            #[cfg(feature = "autocomplete")]
+            for arg in args {
+                if arg
+                    .to_str()
+                    .map_or(false, |s| s.starts_with("--bpaf-complete-"))
+                {
+                    complete_vec.push(arg);
+                } else {
+                    arg_vec.push(arg);
+                }
+            }
+            #[cfg(not(feature = "autocomplete"))]
+            arg_vec.extend(args);
+
+            #[cfg(feature = "autocomplete")]
+            let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
+
+            #[cfg(not(feature = "autocomplete"))]
+            let args = Self::from(arg_vec.as_slice());
+
+            args
+        }
     }
 
     impl<'a> Args {
@@ -477,7 +529,7 @@ impl Args {
     }
 
     pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        Error::Stderr(if let Some(os) = self.current_word() {
+        Error::Message(if let Some(os) = self.current_word() {
             format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
         } else {
             format!("Couldn't parse: {}", error)
@@ -485,7 +537,7 @@ impl Args {
     }
 
     pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
-        Error::Stderr(if let Some(os) = self.current_word() {
+        Error::Message(if let Some(os) = self.current_word() {
             format!("{:?}: {}", os.to_string_lossy(), error)
         } else {
             error.to_owned()
@@ -539,9 +591,9 @@ impl Args {
                     let os = os.to_string_lossy();
                     format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
                 };
-                return Err(Error::Stderr(msg));
+                return Err(Error::Message(msg));
             }
-            _ => return Err(Error::Stderr(format!("{} requires an argument", arg))),
+            _ => return Err(Error::Message(format!("{} requires an argument", arg))),
         };
         let val = val.clone();
         self.current = Some(val_ix);
@@ -568,7 +620,7 @@ impl Args {
                 self.remove(ix);
                 Ok(Some((false, w)))
             }
-            Some((_, arg)) => Err(Error::Stderr(format!("Expected an argument, got {}", arg))),
+            Some((_, arg)) => Err(Error::Message(format!("Expected an argument, got {}", arg))),
             None => Ok(None),
         }
     }

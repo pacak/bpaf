@@ -195,3 +195,67 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn anywhere_invariant_check() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[allow(dead_code)]
+    #[bpaf(anywhere)]
+    struct Foo {
+        tag: (),
+        #[bpaf(positional)]
+        /// help
+        name: String,
+        #[bpaf(positional)]
+        val: String,
+    }
+
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = construct!(a, foo(), b).to_options();
+
+    parser.check_invariants(true);
+
+    let expected = "\
+Usage: [-a] --tag ARG ARG [-b]
+
+Available options:
+    -a
+        --tag <ARG> <ARG>
+            <ARG>  help
+    -b
+    -h, --help     Prints help information
+";
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn multi_arg_help() {
+    let a = long("flag").help("flag help").req_flag(());
+    let b = positional::<String>("NAME").help("pos1 help");
+    let c = positional::<bool>("STATE").help("pos2 help");
+    let combo = construct!(a, b, c).anywhere();
+    let verbose = short('v').long("verbose").help("verbose").switch();
+    let parser = construct!(verbose, combo).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: [-v] --flag NAME STATE
+
+Available options:
+    -v, --verbose    verbose
+        --flag <NAME> <STATE>  flag help
+            <NAME>   pos1 help
+            <STATE>  pos2 help
+    -h, --help       Prints help information
+";
+    assert_eq!(r, expected);
+}

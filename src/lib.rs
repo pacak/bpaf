@@ -389,12 +389,14 @@ mod arg;
 mod args;
 #[cfg(feature = "batteries")]
 pub mod batteries;
+mod buffer;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
 mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
+mod help;
 mod info;
 mod item;
 #[cfg(feature = "manpage")]
@@ -1665,6 +1667,7 @@ impl ParseFailure {
     /// Run an action appropriate to the failure and produce the exit code
     ///
     /// Prints a message to `stdout` or `stderr` and returns the exit code
+    #[allow(clippy::must_use_candidate)]
     pub fn exit_code(self) -> i32 {
         match self {
             ParseFailure::Stdout(msg) => {

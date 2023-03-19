@@ -53,7 +53,9 @@ impl Meta {
             Meta::Item(m) => match m {
                 Item::Positional { .. } | Item::Command { .. } => {}
                 Item::Flag { shorts, .. } => flags.extend(shorts),
-                Item::Argument { shorts, .. } => args.extend(shorts),
+                Item::MultiArg { shorts, .. } | Item::Argument { shorts, .. } => {
+                    args.extend(shorts);
+                }
             },
             Meta::HideUsage(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
                 m.collect_shorts(flags, args);

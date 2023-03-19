@@ -2,7 +2,7 @@ use roff::{Inline, Roff};
 
 use crate::{
     item::ShortLong,
-    meta_help::{HelpItem, HelpItems, ShortLongHelp},
+    meta_help::{HelpItem, HelpItems},
     OptionParser,
 };
 
@@ -152,8 +152,8 @@ impl Line<'_> {
         self
     }
 
-    fn shortlong(&mut self, name: ShortLongHelp) -> &mut Self {
-        match name.0 {
+    fn shortlong(&mut self, name: ShortLong) -> &mut Self {
+        match name {
             ShortLong::Short(s) => self.line.push(bold(format!("-{}", s))),
             ShortLong::Long(l) => self.line.push(bold(format!("--{}", l))),
             ShortLong::ShortLong(s, l) => {
@@ -218,13 +218,13 @@ impl Line<'_> {
                 self.norm('-').bold(*name);
             }
             UsageMeta::ShortArg(name, metavar) => {
-                self.norm('-').bold(*name).norm('=').italic(*metavar);
+                self.norm('-').bold(*name).norm('=').italic(metavar);
             }
             UsageMeta::LongFlag(name) => {
                 self.norm("--").bold(*name);
             }
             UsageMeta::LongArg(name, metavar) => {
-                self.norm("--").bold(*name).norm('=').italic(*metavar);
+                self.norm("--").bold(*name).norm('=').italic(metavar);
             }
             UsageMeta::Pos(x) | UsageMeta::StrictPos(x) => {
                 self.metavar(x);
@@ -316,11 +316,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
         HelpItem::BlankDecor => {
             manpage.text([]);
         }
-        HelpItem::Positional {
-            strict: _,
-            metavar,
-            help,
-        } => {
+        HelpItem::Positional { metavar, help } => {
             manpage.label(|l| {
                 l.metavar(metavar.0);
             });
@@ -362,6 +358,21 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 l.shortlong(name).norm("=").metavar(mvar.0);
                 if let Some(env) = env {
                     l.env(env);
+                }
+            });
+
+            if let Some(help) = help {
+                manpage.text([norm(help)]);
+            }
+        }
+        HelpItem::MultiArg { name, help, fields } => {
+            manpage.label(|l| {
+                l.shortlong(name).norm("=");
+                for (ix, (m, _help)) in fields.iter().enumerate() {
+                    if ix > 0 {
+                        l.norm(" ");
+                    }
+                    l.metavar(m);
                 }
             });
 
