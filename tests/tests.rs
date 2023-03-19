@@ -1806,3 +1806,37 @@ fn optional_bool_states() {
     let r = parser.run_inner(Args::from(&[])).unwrap();
     assert_eq!(r, Some(false));
 }
+
+#[test]
+fn fancy_negative() {
+    let a = short('a').req_flag(());
+    let b = any::<i64>("A");
+    let ab = construct!(a, b).adjacent().anywhere().map(|x| x.1);
+
+    let c = short('c').argument::<usize>("C").fallback(42);
+
+    let parser = construct!(ab, c).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "-10"])).unwrap();
+    assert_eq!(r, (-10, 42));
+
+    let r = parser
+        .run_inner(Args::from(&["-a=-20", "-c", "110"]))
+        .unwrap();
+    assert_eq!(r, (-20, 110));
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: -a A [-c C]
+
+Available options:
+    -a <A>
+    -c <C>
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
