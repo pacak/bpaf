@@ -17,7 +17,7 @@ pub fn options() -> OptionParser<Options> {
         .some("want at least one argument");
     let switches = long("switch")
         .help("some switch")
-        .switch()
+        .req_flag(true)
         .some("want at least one switch");
     construct!(Options { argument, switches }).to_options()
 }
@@ -37,7 +37,7 @@ pub struct Options {
     #[bpaf(argument("ARG"), some("want at least one argument"))]
     argument: Vec<u32>,
     /// some switch
-    #[bpaf(long("switch"), switch, some("want at least one switch"))]
+    #[bpaf(long("switch"), req_flag(true), some("want at least one switch"))]
     switches: Vec<bool>,
 }
 ```
@@ -76,7 +76,7 @@ Options { argument: [10], switches: [true] }
 In usage lines `some` items are indicated with `...`
 ```console
 % app --help
-Usage: --argument ARG... [--switch]...
+Usage: --argument ARG... --switch...
 
 Available options:
         --argument <ARG>  important argument

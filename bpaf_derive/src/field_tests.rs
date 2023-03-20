@@ -478,6 +478,18 @@ fn explicit_switch_argument() {
 }
 
 #[test]
+fn explicit_req_flag_argument() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(req_flag(true))]
+        item: bool
+    };
+    let output = quote! {
+        ::bpaf::long("item").req_flag(true)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn implicit_switch_argument() {
     let input: NamedField = parse_quote! {
         item: bool

@@ -90,7 +90,9 @@ where
         let mut len = args.len();
 
         while let Some(val) = parse_option(&self.inner, args, self.catch)? {
-            if args.len() < len {
+            // we keep including values for as long as we consume values from the argument
+            // list or at least one value
+            if args.len() < len || res.is_empty() {
                 len = args.len();
                 res.push(val);
             } else {
@@ -515,7 +517,9 @@ where
         let mut res = Vec::new();
         let mut len = args.len();
         while let Some(val) = parse_option(&self.inner, args, self.catch)? {
-            if args.len() < len {
+            // we keep including values for as long as we consume values from the argument
+            // list or at least one value
+            if args.len() < len || res.is_empty() {
                 len = args.len();
                 res.push(val);
             } else {

@@ -826,7 +826,10 @@ pub trait Parser<T> {
     /// [`catch`](ParseMany::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
-    /// `many` only collects elements that only consume something from the argument list.
+    /// `many` will collect at most one result that does not consume anything from the argument
+    /// list allowing using it in combination of any parsers with a fallback. After the first one
+    /// it will keep collecting the results as long as they consume something.
+    ///
     /// For derive usage `bpaf_derive` would insert implicit `many` when resulting type is a
     /// vector.
     ///
@@ -855,7 +858,9 @@ pub trait Parser<T> {
     /// [`catch`](ParseSome::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
-    /// `some` only collects elements that only consume something from the argument list.
+    /// `some` will collect at most one result that does not consume anything from the argument
+    /// list allowing using it in combination of any parsers with a fallback. After the first one
+    /// it will keep collecting the results as long as they consume something.
     ///
     #[doc = include_str!("docs/some.md")]
     ///

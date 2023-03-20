@@ -15,7 +15,7 @@ pub fn options() -> OptionParser<Options> {
         .some("want at least one argument");
     let switches = long("switch")
         .help("some switch")
-        .switch()
+        .req_flag(true)
         .some("want at least one switch");
     construct!(Options { argument, switches }).to_options()
 }

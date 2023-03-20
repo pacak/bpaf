@@ -223,6 +223,12 @@ impl Field {
                         content.parse::<token::Comma>()?;
                         let b = content.parse()?;
                         res.consumer = Some(ConsumerAttr::Flag(Box::new(a), Box::new(b)));
+                    } else if keyword == "req_flag" {
+                        check_stage(&mut stage, 2, &keyword)?;
+                        let _ = parenthesized!(content in input);
+                        let a = content.parse()?;
+                        res.consumer = Some(ConsumerAttr::ReqFlag(Box::new(a)));
+
                     //
                     // external
                     } else if keyword == "external" {

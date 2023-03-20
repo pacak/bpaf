@@ -23,7 +23,7 @@ Options { argument: [10], switches: [true] }
 ? In usage lines `some` items are indicated with `...`
 > --help
 Stdout
-Usage: --argument ARG... [--switch]...
+Usage: --argument ARG... --switch...
 
 Available options:
         --argument <ARG>  important argument
