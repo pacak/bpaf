@@ -11,6 +11,7 @@
   now propagate parsing errors outwards, you can regain the old
   behvior by specifying `catch`
 - support deriving `req_flag` consumers
+- support deriving `catch` annotation
 
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`
