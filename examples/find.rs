@@ -34,9 +34,9 @@ fn user() -> impl Parser<Option<String>> {
     let value = positional::<String>("USER");
     construct!(tag, value)
         .anywhere()
+        .catch()
         .map(|pair| pair.1)
         .optional()
-        .catch()
 }
 
 // parsers -exec xxx yyy zzz ;
@@ -52,9 +52,9 @@ fn exec() -> impl Parser<Option<Vec<OsString>>> {
     let endtag = any::<String>("END").guard(|s| s == ";", "not eot").hide();
     construct!(tag, item, endtag)
         .anywhere()
+        .catch()
         .map(|triple| triple.1)
         .optional()
-        .catch()
 }
 
 /// parses symbolic permissions `-perm -mode`, `-perm /mode` and `-perm mode`
@@ -87,9 +87,9 @@ fn perm() -> impl Parser<Option<Perm>> {
 
     construct!(tag, mode)
         .anywhere()
+        .catch()
         .map(|pair| pair.1)
         .optional()
-        .catch()
 }
 
 pub fn options() -> OptionParser<Options> {

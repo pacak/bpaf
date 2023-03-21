@@ -726,6 +726,31 @@ fn anywhere_for_struct() {
 }
 
 #[test]
+fn anywhere_catch_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(adjacent, anywhere, catch)]
+        struct Opts {
+            a: String,
+            b: String,
+        }
+    };
+
+    let expected = quote! {
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let a = ::bpaf::short('a').argument::<String>("ARG");
+                let b = ::bpaf::short('b').argument::<String>("ARG");
+                ::bpaf::construct!(Opts { a, b })
+            }.adjacent().anywhere().catch()
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn box_for_struct() {
     let top: Top = parse_quote! {
         #[bpaf(boxed)]

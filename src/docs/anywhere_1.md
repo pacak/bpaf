@@ -77,10 +77,10 @@ Other flags can go on either side of items
 Options { multi_arg: Some(MultiArg { set: (), name: "name", value: "Bob" }), turbo: true }
 ```
 
-But not in between, with potentially confusing error messages - to be fixed :)
+But not in between
 ```console
 % app --set name --turbo Bob
---set is not expected in this context
+Expected an argument <ARG>, got --turbo
 ```
 
 </details>

@@ -245,6 +245,42 @@ fn check_many_files_implicit() {
 }
 
 #[test]
+fn many_catch() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(catch)]
+        files: Vec<std::path::PathBuf>
+    };
+    let output = quote! {
+        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").many().catch()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn option_catch() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(catch)]
+        files: Option<std::path::PathBuf>
+    };
+    let output = quote! {
+        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").optional().catch()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn some_catch() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument("ARG"), some("files"), catch)]
+        files: Vec<std::path::PathBuf>
+    };
+    let output = quote! {
+        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").some("files").catch()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn check_option_file_implicit() {
     let input: NamedField = parse_quote! {
         files: Option<PathBuf>

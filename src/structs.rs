@@ -1,5 +1,5 @@
 //! Structures that implement different methods on [`Parser`] trait
-use crate::{args::Conflict, info::Error, Args, Meta, Parser};
+use crate::{args::Conflict, info::Error, item::Item, Args, Meta, Parser};
 use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
@@ -777,6 +777,24 @@ impl<T> Parser<T> for ParseBox<T> {
 #[doc = include_str!("docs/anywhere.md")]
 pub struct ParseAnywhere<P> {
     pub(crate) inner: P,
+    pub(crate) catch: bool,
+}
+
+impl<P> ParseAnywhere<P> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[doc = include_str!("docs/catch.md")]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
 }
 
 impl<P, T> Parser<T> for ParseAnywhere<P>
@@ -787,22 +805,95 @@ where
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
 
-        for (start, mut this_arg) in args.ranges() {
-            if let Ok(ok) = self.inner.eval(&mut this_arg) {
-                if start > 0 {
-                    this_arg.copy_usage_from(args, 0..start);
+        fn meta_items(meta: &Meta) -> Vec<Item> {
+            match meta {
+                Meta::And(xs) => {
+                    if xs.is_empty() {
+                        Vec::new()
+                    } else {
+                        meta_items(&xs[0])
+                    }
                 }
-                std::mem::swap(&mut this_arg, args);
-                return Ok(ok);
-            } else {
-                #[cfg(feature = "autocomplete")]
-                this_arg.swap_comps_with(&mut comp_items);
+                Meta::Or(xs) => {
+                    let mut res = Vec::new();
+                    for x in xs {
+                        res.extend(meta_items(x));
+                    }
+                    res
+                }
+                Meta::Item(i) => vec![i.clone()],
+                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => meta_items(&*m),
+                Meta::Skip | Meta::HideUsage(_) => Vec::new(),
+            }
+        }
+
+        let mut best_missing = meta_items(&self.meta());
+
+        let mut best_consumed = 0;
+
+        for (start, mut this_arg) in args.ranges() {
+            // since we only want to parse things to the right of the first item we perform
+            // parsing in two passes:
+            // - try to run the parser showing only single argument available at all the indices
+            // - try to run the parser showing starting at that argument and to the right of it
+            // this means constructing argument parsers from req flag and positional works as
+            // expected:
+            // consider examples "42 -n" and "-n 42"
+            // without multi step approach first command line also parses into 42
+
+            let mut scratch = this_arg.clone();
+            scratch.restrict_to_range(&(start..start + 1));
+            let before = scratch.len();
+            // nothing to consume, might as well stop right now
+            if before == 0 {
+                break;
+            }
+            // it will most likely fail, but it doesn't matter, we are only looking for the
+            // left most match
+            let _ = self.inner.eval(&mut scratch);
+            if before == scratch.len() {
+                // failed to consume anything which means we don't start parsing at this point
+                continue;
+            }
+
+            match self.inner.eval(&mut this_arg) {
+                // managed to consume something - should make changes permanent and return it
+                //
+                // ParseFailure covers failures or --help/--version for the nested parsers
+                // anywhere shouldn't consume that
+                good @ (Ok(_) | Err(Error::ParseFailure(_))) => {
+                    this_arg.copy_usage_from(args, 0..start);
+                    std::mem::swap(&mut this_arg, args);
+                    return good;
+                }
+
+                // failed to find something, try to improve previous error message and resume
+                Err(Error::Missing(items)) => {
+                    let consumed = args.len() - this_arg.len();
+                    if consumed >= best_consumed {
+                        best_missing = items;
+                        best_consumed = consumed;
+                        #[cfg(feature = "autocomplete")]
+                        this_arg.swap_comps_with(&mut comp_items);
+                    }
+                }
+
+                // otherwise return the error message we get
+                otherwise @ Err(Error::Message(_)) => {
+                    let consumed = args.len() - this_arg.len();
+                    if consumed > 0 && !self.catch {
+                        this_arg.copy_usage_from(args, 0..start);
+                        #[cfg(feature = "autocomplete")]
+                        this_arg.swap_comps_with(&mut comp_items);
+                        return otherwise;
+                    }
+                }
             }
         }
 
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
-        Err(Error::Missing(vec![]))
+        Err(Error::Missing(best_missing))
     }
 
     fn meta(&self) -> Meta {
@@ -815,7 +906,6 @@ where
 
 // anything else is
 fn classify_anywhere(meta: Meta) -> Meta {
-    use crate::item::Item;
     if let Meta::And(xs) = &meta {
         let mut fields = Vec::new();
         let mut iter = xs.iter();

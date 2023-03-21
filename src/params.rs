@@ -870,7 +870,7 @@ fn parse_word(
     metavar: &'static str,
     help: &Option<String>,
 ) -> Result<OsString, Error> {
-    if let Some((is_strict, word)) = args.take_positional_word()? {
+    if let Some((is_strict, word)) = args.take_positional_word(metavar)? {
         if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);

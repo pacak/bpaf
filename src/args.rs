@@ -606,7 +606,10 @@ impl Args {
     ///
     /// returns Ok(None) if input is empty
     /// returns Err if first positional argument is a flag
-    pub(crate) fn take_positional_word(&mut self) -> Result<Option<(bool, OsString)>, Error> {
+    pub(crate) fn take_positional_word(
+        &mut self,
+        metavar: &'static str,
+    ) -> Result<Option<(bool, OsString)>, Error> {
         match self.items_iter().next() {
             Some((ix, Arg::PosWord(w))) => {
                 let w = w.clone();
@@ -620,7 +623,10 @@ impl Args {
                 self.remove(ix);
                 Ok(Some((false, w)))
             }
-            Some((_, arg)) => Err(Error::Message(format!("Expected an argument, got {}", arg))),
+            Some((_, arg)) => Err(Error::Message(format!(
+                "Expected an argument <{}>, got {}",
+                metavar, arg
+            ))),
             None => Ok(None),
         }
     }
@@ -659,7 +665,7 @@ mod tests {
         let flag = a.take_flag(&long("speed"));
         assert!(flag);
         assert!(!a.is_empty());
-        let s = a.take_positional_word().unwrap().unwrap();
+        let s = a.take_positional_word("SPEED").unwrap().unwrap();
         assert_eq!(s.1, "12");
         assert!(a.is_empty());
     }
@@ -754,7 +760,7 @@ mod tests {
     fn command_and_positional() {
         let mut a = Args::from(&["cmd", "pos"]);
         assert!(a.take_cmd("cmd"));
-        let w = a.take_positional_word().unwrap().unwrap();
+        let w = a.take_positional_word("A").unwrap().unwrap();
         assert_eq!(w.1, "pos");
         assert!(a.is_empty());
     }
@@ -763,7 +769,7 @@ mod tests {
     fn positionals_after_double_dash1() {
         let mut a = Args::from(&["-v", "--", "-x"]);
         assert!(a.take_flag(&short('v')));
-        let w = a.take_positional_word().unwrap().unwrap();
+        let w = a.take_positional_word("A").unwrap().unwrap();
         assert_eq!(w.1, "-x");
         assert!(a.is_empty());
     }
@@ -772,7 +778,7 @@ mod tests {
     fn positionals_after_double_dash2() {
         let mut a = Args::from(&["-v", "--", "-x"]);
         assert!(a.take_flag(&short('v')));
-        let w = a.take_positional_word().unwrap().unwrap();
+        let w = a.take_positional_word("A").unwrap().unwrap();
         assert_eq!(w.1, "-x");
         assert!(a.is_empty());
     }
@@ -782,7 +788,7 @@ mod tests {
         let mut a = Args::from(&["-v", "12", "--", "-x"]);
         let w = a.take_arg(&short('v'), false).unwrap().unwrap();
         assert_eq!(w, "12");
-        let w = a.take_positional_word().unwrap().unwrap();
+        let w = a.take_positional_word("A").unwrap().unwrap();
         assert_eq!(w.1, "-x");
         assert!(a.is_empty());
     }

@@ -21,6 +21,7 @@
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
 //! - [Some very unusual cases](crate::_unusual)
 //! - [Applicative functors? What is it all about](crate::_applicative)
+//! - [Applicative parsing intro](https://rustmagazine.org/issue-2/applicative-parsing/)
 //! - [Batteries included](crate::batteries)
 //! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
 
@@ -1414,7 +1415,10 @@ pub trait Parser<T> {
     where
         Self: Sized + Parser<T>,
     {
-        ParseAnywhere { inner: self }
+        ParseAnywhere {
+            inner: self,
+            catch: false,
+        }
     }
 
     // consume

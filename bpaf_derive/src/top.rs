@@ -46,6 +46,7 @@ enum BParser {
         fields: Fields,
         adjacent: bool,
         anywhere: bool,
+        catch: bool,
         boxed: bool,
     },
     Singleton(Box<ReqFlag>),
@@ -242,6 +243,7 @@ struct Outer {
     fallback: Option<Box<Expr>>,
     adjacent: bool,
     anywhere: bool,
+    catch: bool,
     boxed: bool,
 }
 
@@ -259,6 +261,7 @@ impl Outer {
             fallback: None,
             adjacent: false,
             anywhere: false,
+            catch: false,
             boxed: false,
         };
 
@@ -302,6 +305,12 @@ impl Outer {
                         res.adjacent = true;
                     } else if keyword == "anywhere" {
                         res.anywhere = true;
+                    } else if keyword == "catch" {
+                        if !res.anywhere {
+                            return Err(input_copy
+                                .error("catch only makes sense when used with `anywhere`"));
+                        }
+                        res.catch = true;
                     } else if keyword == "boxed" {
                         res.boxed = true;
                     } else if keyword == "command" {
@@ -426,6 +435,7 @@ impl Top {
             fields,
             adjacent: outer.adjacent,
             anywhere: outer.anywhere,
+            catch: outer.catch,
             boxed: outer.boxed,
         };
         Ok(Top {
@@ -468,6 +478,7 @@ impl Top {
                     fields,
                     adjacent: outer.adjacent,
                     anywhere: outer.anywhere,
+                    catch: outer.catch,
                     boxed: outer.boxed,
                 }
             } else if let Some(_cmd) = &inner.command {
@@ -476,6 +487,7 @@ impl Top {
                     fields: Fields::NoFields,
                     adjacent: outer.adjacent,
                     anywhere: outer.anywhere,
+                    catch: outer.catch,
                     boxed: outer.boxed,
                 }
             } else {
@@ -607,6 +619,7 @@ impl ToTokens for BParser {
                 fields,
                 adjacent,
                 anywhere,
+                catch,
                 boxed,
             } => {
                 if let Fields::NoFields = fields {
@@ -627,6 +640,9 @@ impl ToTokens for BParser {
                 }
                 if *anywhere {
                     quote!(.anywhere()).to_tokens(tokens);
+                }
+                if *catch {
+                    quote!(.catch()).to_tokens(tokens);
                 }
                 if *boxed {
                     quote!(.boxed()).to_tokens(tokens);
