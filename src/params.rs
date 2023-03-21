@@ -875,10 +875,10 @@ fn parse_word(
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error::Message(format!(
-                "Expected <{}> to be on the right side of --",
-                metavar,
-            )));
+            return Err(Error::Message(
+                format!("Expected <{}> to be on the right side of --", metavar,),
+                false,
+            ));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.no_pos_ahead {

@@ -529,19 +529,25 @@ impl Args {
     }
 
     pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        Error::Message(if let Some(os) = self.current_word() {
-            format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
-        } else {
-            format!("Couldn't parse: {}", error)
-        })
+        Error::Message(
+            if let Some(os) = self.current_word() {
+                format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
+            } else {
+                format!("Couldn't parse: {}", error)
+            },
+            false,
+        )
     }
 
     pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
-        Error::Message(if let Some(os) = self.current_word() {
-            format!("{:?}: {}", os.to_string_lossy(), error)
-        } else {
-            error.to_owned()
-        })
+        Error::Message(
+            if let Some(os) = self.current_word() {
+                format!("{:?}: {}", os.to_string_lossy(), error)
+            } else {
+                error.to_owned()
+            },
+            false,
+        )
     }
 
     /// Get a short or long flag: `-f` / `--flag`
@@ -591,9 +597,14 @@ impl Args {
                     let os = os.to_string_lossy();
                     format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
                 };
-                return Err(Error::Message(msg));
+                return Err(Error::Message(msg, false));
             }
-            _ => return Err(Error::Message(format!("{} requires an argument", arg))),
+            _ => {
+                return Err(Error::Message(
+                    format!("{} requires an argument", arg),
+                    false,
+                ))
+            }
         };
         let val = val.clone();
         self.current = Some(val_ix);
@@ -623,10 +634,10 @@ impl Args {
                 self.remove(ix);
                 Ok(Some((false, w)))
             }
-            Some((_, arg)) => Err(Error::Message(format!(
-                "Expected an argument <{}>, got {}",
-                metavar, arg
-            ))),
+            Some((_, arg)) => Err(Error::Message(
+                format!("Expected an argument <{}>, got {}", metavar, arg),
+                false,
+            )),
             None => Ok(None),
         }
     }

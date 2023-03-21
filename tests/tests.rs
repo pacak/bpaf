@@ -1,4 +1,6 @@
 #![allow(deprecated)]
+use std::convert::Infallible;
+
 use bpaf::*;
 
 #[test]
@@ -1890,4 +1892,16 @@ fn option_requires_other_option2() {
         .unwrap_stderr();
     // error message sucks...
     assert_eq!(r, "-a is not expected in this context");
+}
+
+#[test]
+fn default_for_some() {
+    let parser = bpaf::positional::<u32>("ROOTS")
+        .some("msg")
+        .fallback_with(|| Ok::<_, Infallible>(vec![1, 2, 3]))
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+
+    assert_eq!(r, vec![1, 2, 3]);
 }

@@ -23,10 +23,10 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         match self.inner.eval(args) {
             Ok(ok) => Ok(ok),
-            e @ Err(Error::Message(_) | Error::ParseFailure(_)) => e,
-            Err(Error::Missing(_)) => match (self.fallback)() {
+            e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
+            Err(Error::Missing(_) | Error::Message(_, true)) => match (self.fallback)() {
                 Ok(ok) => Ok(ok),
-                Err(e) => Err(Error::Message(e.to_string())),
+                Err(e) => Err(Error::Message(e.to_string(), false)),
             },
         }
     }
@@ -101,7 +101,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(self.message.to_string()))
+            Err(Error::Message(self.message.to_string(), true))
         } else {
             Ok(res)
         }
@@ -377,8 +377,8 @@ where
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            e @ Err(Error::Message(_) | Error::ParseFailure(_)) => e,
-            Err(Error::Missing(_)) => {
+            e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
+            Err(Error::Missing(_) | Error::Message(_, true)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
                 Ok(self.value.clone())
@@ -495,8 +495,8 @@ where
             }
 
             match err {
-                Error::Message(_) if catch => Ok(None),
-                Error::Message(_) | Error::ParseFailure(_) => Err(err),
+                Error::Message(_, _) if catch => Ok(None),
+                Error::Message(_, _) | Error::ParseFailure(_) => Err(err),
                 Error::Missing(_) => {
                     if args.len() == orig_args.len() {
                         Ok(None)
@@ -558,7 +558,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(e.to_string())),
+            Err(e) => Err(Error::Message(e.to_string(), true)),
         }
     }
 
@@ -575,7 +575,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(self.field1.to_owned()))
+        Err(Error::Message(self.field1.to_owned(), true))
     }
 
     fn meta(&self) -> Meta {
@@ -879,7 +879,7 @@ where
                 }
 
                 // otherwise return the error message we get
-                otherwise @ Err(Error::Message(_)) => {
+                otherwise @ Err(Error::Message(_, _)) => {
                     let consumed = args.len() - this_arg.len();
                     if consumed > 0 && !self.catch {
                         this_arg.copy_usage_from(args, 0..start);

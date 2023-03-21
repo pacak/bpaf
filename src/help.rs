@@ -16,7 +16,10 @@ impl Parser<ExtraParams> for ParseExtraParams {
 
         match self.version {
             Some(ver) => Self::ver(ver).eval(args),
-            None => Err(Error::Message(String::from("Not a version or help flag"))),
+            None => Err(Error::Message(
+                String::from("Not a version or help flag"),
+                false,
+            )),
         }
     }
 
