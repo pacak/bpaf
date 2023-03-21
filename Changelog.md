@@ -10,6 +10,7 @@
 - parsing combinators `many`, `some`, `optional` and `anywhere` will
   now propagate parsing errors outwards, you can regain the old
   behvior by specifying `catch`
+- better error messages related to `anywhere` parsers
 - support deriving `req_flag` consumers
 - support deriving `catch` annotation
 
