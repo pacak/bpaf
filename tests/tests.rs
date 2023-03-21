@@ -1864,3 +1864,30 @@ fn some_env() {
     let r = parser.run_inner(Args::from(&[])).unwrap();
     assert_eq!(r, vec!["top s3cr3t".to_owned()]);
 }
+
+#[test]
+fn option_requires_other_option1() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).optional().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Expected -b B, pass --help for usage information");
+}
+
+#[test]
+fn option_requires_other_option2() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(b, a).optional().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    // error message sucks...
+    assert_eq!(r, "-a is not expected in this context");
+}
