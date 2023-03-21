@@ -1,4 +1,6 @@
 #![allow(deprecated)]
+use std::convert::Infallible;
+
 use bpaf::*;
 
 #[test]
@@ -1863,4 +1865,43 @@ fn some_env() {
         .to_options();
     let r = parser.run_inner(Args::from(&[])).unwrap();
     assert_eq!(r, vec!["top s3cr3t".to_owned()]);
+}
+
+#[test]
+fn option_requires_other_option1() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).optional().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "Expected -b B, pass --help for usage information");
+}
+
+#[test]
+fn option_requires_other_option2() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(b, a).optional().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    // error message sucks...
+    assert_eq!(r, "-a is not expected in this context");
+}
+
+#[test]
+fn default_for_some() {
+    let parser = bpaf::positional::<u32>("ROOTS")
+        .some("msg")
+        .fallback_with(|| Ok::<_, Infallible>(vec![1, 2, 3]))
+        .to_options();
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+
+    assert_eq!(r, vec![1, 2, 3]);
 }
