@@ -196,7 +196,10 @@ pub fn long(long: &'static str) -> NamedArg {
 /// $ NO_COLOR=1 app --do-something
 /// ```
 ///
-/// **For combinatoric usage you must specify either short or long key if you start the chain from `env`.**
+/// If you don't specify a short or a long name - whole argument is going to be absent from the
+/// help message. Use it combined with a named or positional argument to have a hidden fallback
+/// that wouldn't leak sensitive info.
+
 ///
 #[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
@@ -647,13 +650,6 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
 }
 
 fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T> {
-    if !named.env.is_empty() {
-        // mostly cosmetic reasons
-        assert!(
-            !(named.short.is_empty() && named.long.is_empty()),
-            "env fallback can only be used if name is present"
-        );
-    }
     ParseArgument {
         named,
         metavar,
@@ -739,7 +735,11 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item(self.item())
+        if self.named.short.is_empty() && self.named.long.is_empty() {
+            Meta::Skip
+        } else {
+            Meta::Item(self.item())
+        }
     }
 }
 

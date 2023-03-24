@@ -860,6 +860,31 @@ fn long_path_in_construct() {
 }
 
 #[test]
+fn hidden_env() {
+    let name = "BPAF_SECRET_API_KEY";
+    let visible = long("key")
+        .help("use this secret key\ntwo lines")
+        .argument::<String>("KEY");
+    let hidden = env(name).argument("KEY");
+    let parser = construct!([visible, hidden]).to_options();
+
+    let help = parser
+        .run_inner(Args::from(&["-h"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: --key KEY
+
+Available options:
+        --key <KEY>  use this secret key two lines
+    -h, --help       Prints help information
+";
+
+    assert_eq!(help, expected);
+}
+
+#[test]
 fn env_variable() {
     set_override(false);
     let name = "BPAF_SECRET_API_KEY";
