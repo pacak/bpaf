@@ -113,6 +113,9 @@ impl Parse for Fields {
             let _ = parenthesized!(content in input);
             let fields = content.parse_terminated(Field::parse_unnamed, token::Comma)?;
             Ok(Fields::Unnamed(fields))
+        } else if input.peek(token::Semi) {
+            let _ = input.parse::<token::Semi>();
+            Ok(Fields::NoFields)
         } else {
             Err(input.error("Expected named or unnamed struct"))
         }
