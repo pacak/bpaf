@@ -100,3 +100,29 @@ Available commands:
 ";
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn single_unit_command() {
+    #[derive(Bpaf, Debug, Clone, Eq, PartialEq)]
+    #[bpaf(command)]
+    struct One;
+
+    let parser = one().to_options();
+    let help = parser
+        .run_inner(bpaf::Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    one
+";
+    assert_eq!(help, expected);
+
+    let r = parser.run_inner(bpaf::Args::from(&["one"])).unwrap();
+    assert_eq!(r, One);
+}

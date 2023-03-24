@@ -793,3 +793,24 @@ fn no_fields_declaration() {
 
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
+
+#[test]
+fn single_unit_command() {
+    let top: Top = parse_quote! {
+        #[bpaf(command)]
+        struct One;
+    };
+
+    let expected = quote! {
+        fn one() -> impl ::bpaf::Parser<One> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let inner_cmd = ::bpaf::pure(One).to_options();
+                ::bpaf::command("one", inner_cmd)
+            }
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
