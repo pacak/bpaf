@@ -301,7 +301,7 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
                 }
             }
         }
-        HelpItem::Decor { help } => {
+        HelpItem::Decor { help, margin: _ } => {
             manpage.subsection(*help);
         }
         _ => {}
@@ -310,7 +310,7 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
 
 fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) {
     match item {
-        HelpItem::Decor { help } => {
+        HelpItem::Decor { help, margin: _ } => {
             manpage.subsection(help);
         }
         HelpItem::BlankDecor => {

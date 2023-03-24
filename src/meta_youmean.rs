@@ -170,7 +170,7 @@ fn collect_suggestions<'a>(
         Meta::HideUsage(meta)
         | Meta::Optional(meta)
         | Meta::Many(meta)
-        | Meta::Decorated(meta, _) => {
+        | Meta::Decorated(meta, _, _) => {
             collect_suggestions(arg, meta, variants, at_top_level);
         }
         Meta::Skip => {}

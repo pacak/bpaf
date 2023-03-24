@@ -119,6 +119,8 @@ impl Field {
         };
         let mut help = Vec::new();
 
+        let mut fallback = 0u8;
+
         let mut stage = 0;
         for attr in attrs {
             if attr.path().is_ident("doc") {
@@ -129,6 +131,7 @@ impl Field {
             } else if attr.path().is_ident("bpaf") {
                 #[allow(clippy::cognitive_complexity)]
                 attr.parse_args_with(|input: ParseStream| loop {
+                    fallback = fallback.saturating_sub(1);
                     if input.is_empty() {
                         break Ok(());
                     }
@@ -256,8 +259,25 @@ impl Field {
                             .push(PostprAttr::Guard(span, guard_fn, Box::new(msg)));
                     } else if keyword == "fallback" {
                         check_stage(&mut stage, 4, &keyword)?;
+                        fallback = 2;
                         res.postpr
                             .push(PostprAttr::Fallback(span, parse_expr(input)?));
+                    } else if keyword == "display_fallback" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        if fallback != 1 {
+                            break Err(input_copy.error(
+                                "You can only use display_fallback immediately after fallback",
+                            ));
+                        }
+                        res.postpr.push(PostprAttr::DisplayFallback(span));
+                    } else if keyword == "debug_fallback" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        if fallback != 1 {
+                            break Err(input_copy.error(
+                                "You can only use display_fallback immediately after fallback",
+                            ));
+                        }
+                        res.postpr.push(PostprAttr::DebugFallback(span));
                     } else if keyword == "fallback_with" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr

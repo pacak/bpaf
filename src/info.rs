@@ -613,7 +613,7 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
                 perform_invariant_check(i, false);
             }
         }
-        Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _) => {
+        Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _, _) => {
             perform_invariant_check(x, false);
         }
         Meta::Item(i) => match i {

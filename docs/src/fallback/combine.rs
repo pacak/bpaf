@@ -4,9 +4,13 @@ use bpaf::*;
 //
 #[allow(dead_code)]
 pub struct Options {
-    version: usize,
+    jobs: usize,
 }
 pub fn options() -> OptionParser<Options> {
-    let version = long("version").argument("VERS").fallback(42);
-    construct!(Options { version }).to_options()
+    let jobs = long("jobs")
+        .help("Number of jobs")
+        .argument("JOBS")
+        .fallback(42)
+        .display_fallback();
+    construct!(Options { jobs }).to_options()
 }

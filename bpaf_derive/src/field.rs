@@ -53,6 +53,8 @@ enum PostprAttr {
     HideUsage(Span),
     GroupHelp(Span, Box<Expr>),
     Catch(Span),
+    DisplayFallback(Span),
+    DebugFallback(Span),
 }
 
 impl PostprAttr {
@@ -70,6 +72,8 @@ impl PostprAttr {
             | PostprAttr::Hide(..)
             | PostprAttr::HideUsage(..)
             | PostprAttr::Catch(..)
+            | PostprAttr::DisplayFallback(..)
+            | PostprAttr::DebugFallback(..)
             | PostprAttr::GroupHelp(..) => true,
         }
     }
@@ -88,6 +92,8 @@ impl PostprAttr {
             | PostprAttr::Hide(span)
             | PostprAttr::HideUsage(span)
             | PostprAttr::Catch(span)
+            | PostprAttr::DisplayFallback(span)
+            | PostprAttr::DebugFallback(span)
             | PostprAttr::GroupHelp(span, _) => *span,
         }
     }
@@ -201,6 +207,8 @@ impl ToTokens for PostprAttr {
             PostprAttr::Complete(_span, f) => quote!(complete(#f)),
             PostprAttr::CompleteShell(_span, f) => quote!(complete_shell(#f)),
             PostprAttr::GroupHelp(_span, m) => quote!(group_help(#m)),
+            PostprAttr::DisplayFallback(_span) => quote!(display_fallback()),
+            PostprAttr::DebugFallback(_span) => quote!(debug_fallback()),
         }
         .to_tokens(tokens);
     }
