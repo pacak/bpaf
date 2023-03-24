@@ -5,6 +5,7 @@ use bpaf::*;
 //
 #[allow(dead_code)]
 pub struct Options {
-    #[bpaf(argument("VERS"), fallback(42))]
-    version: usize,
+    /// Number of jobs
+    #[bpaf(argument("JOBS"), fallback(42), display_fallback)]
+    jobs: usize,
 }

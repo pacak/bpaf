@@ -259,3 +259,115 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn fallback_display_simple_arg() {
+    let parser = long("a")
+        .help("help for a")
+        .argument("NUM")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "\
+Usage: [--a NUM]
+
+Available options:
+        --a <NUM>  help for a
+                   [default: 42]
+    -h, --help     Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_simple_pos() {
+    let parser = positional("NUM")
+        .help("help for pos")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: [<NUM>]
+
+Available positional items:
+    <NUM>  help for pos
+           [default: 42]
+
+Available options:
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_tuple() {
+    #[derive(Copy, Clone, Debug)]
+    struct Pair(u32, u32);
+    impl std::fmt::Display for Pair {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Pair {}, {}", self.0, self.1)
+        }
+    }
+
+    let a = long("a").help("help for a").argument("NUM");
+    let b = long("b").help("help for b").argument("NUM");
+    let parser = construct!(a, b)
+        .map(|(a, b)| Pair(a, b))
+        .fallback(Pair(42, 333))
+        .display_fallback()
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: [--a NUM --b NUM]
+
+Available options:
+        --a <NUM>  help for a
+        --b <NUM>  help for b
+                   [default: Pair 42, 333]
+    -h, --help     Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_no_help() {
+    let parser = long("a")
+        .argument("NUM")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "\
+Usage: [--a NUM]
+
+Available options:
+        --a <NUM>
+                   [default: 42]
+    -h, --help     Prints help information
+";
+
+    assert_eq!(r, expected);
+}

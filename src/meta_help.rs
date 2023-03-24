@@ -6,6 +6,7 @@ use crate::{
     buffer::{Buffer, Checkpoint, Style},
     info::Info,
     item::{Item, ShortLong},
+    meta::DecorPlace,
     Meta,
 };
 
@@ -26,6 +27,7 @@ impl std::fmt::Display for Metavar {
 pub(crate) enum HelpItem<'a> {
     Decor {
         help: &'a str,
+        margin: DecorPlace,
     },
     BlankDecor,
     Positional {
@@ -59,10 +61,13 @@ pub(crate) enum HelpItem<'a> {
 }
 
 #[derive(Default, Debug)]
+/// A collection of all the help items separated into flags, positionals and commands
+///
+/// Items are stored as references and can be trivially copied
 pub(crate) struct HelpItems<'a> {
-    pub(crate) cmds: Vec<HelpItem<'a>>,
-    pub(crate) psns: Vec<HelpItem<'a>>,
     pub(crate) flgs: Vec<HelpItem<'a>>,
+    pub(crate) psns: Vec<HelpItem<'a>>,
+    pub(crate) cmds: Vec<HelpItem<'a>>,
 }
 
 impl HelpItem<'_> {
@@ -83,6 +88,7 @@ fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
 
 impl<'a> HelpItems<'a> {
     #[inline(never)]
+    /// Store a reference to this item into corresponding class - flag, positional or command
     pub(crate) fn classify_item(&mut self, item: &'a Item) {
         match item {
             Item::Positional {
@@ -154,6 +160,7 @@ impl<'a> HelpItems<'a> {
         }
     }
 
+    /// Recursively classify contents of the Meta
     pub(crate) fn classify(&mut self, meta: &'a Meta) {
         match meta {
             Meta::And(xs) | Meta::Or(xs) => {
@@ -164,10 +171,19 @@ impl<'a> HelpItems<'a> {
             Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) => self.classify(x),
             Meta::Item(item) => self.classify_item(item),
 
-            Meta::Decorated(m, help) => {
-                self.flgs.push(HelpItem::Decor { help });
-                self.cmds.push(HelpItem::Decor { help });
-                self.psns.push(HelpItem::Decor { help });
+            Meta::Decorated(m, help, DecorPlace::Header) => {
+                self.flgs.push(HelpItem::Decor {
+                    help,
+                    margin: DecorPlace::Header,
+                });
+                self.cmds.push(HelpItem::Decor {
+                    help,
+                    margin: DecorPlace::Header,
+                });
+                self.psns.push(HelpItem::Decor {
+                    help,
+                    margin: DecorPlace::Header,
+                });
                 self.classify(m);
 
                 if self.flgs.last().map_or(false, HelpItem::is_decor) {
@@ -187,6 +203,25 @@ impl<'a> HelpItems<'a> {
                 } else {
                     self.psns.push(HelpItem::BlankDecor);
                 }
+            }
+            Meta::Decorated(m, help, DecorPlace::Suffix) => {
+                let flgs = self.flgs.len();
+                let cmds = self.cmds.len();
+                let psns = self.psns.len();
+                self.classify(m);
+                let xs = if flgs != self.flgs.len() {
+                    &mut self.flgs
+                } else if psns != self.psns.len() {
+                    &mut self.psns
+                } else if cmds != self.cmds.len() {
+                    &mut self.cmds
+                } else {
+                    return;
+                };
+                xs.push(HelpItem::Decor {
+                    help,
+                    margin: DecorPlace::Suffix,
+                })
             }
             Meta::Skip => (),
         }
@@ -284,8 +319,15 @@ fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
 
 fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
     match item {
-        HelpItem::Decor { help } => {
-            buf.margin(2);
+        HelpItem::Decor { help, margin } => {
+            match margin {
+                DecorPlace::Header => {
+                    buf.margin(2);
+                }
+                DecorPlace::Suffix => {
+                    buf.tabstop();
+                }
+            }
             buf.write_str(help, Style::Text);
         }
         HelpItem::BlankDecor => {}

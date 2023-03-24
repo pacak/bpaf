@@ -1,15 +1,15 @@
 ? Allows you to specify a default value used when argument is not specified
 >
 OK
-Options { version: 42 }
+Options { jobs: 42 }
 
 ? If value is present - fallback value is ignored
-> --version 10
+> --jobs 10
 OK
-Options { version: 10 }
+Options { jobs: 10 }
 
 ? Parsing errors are preserved and preserved to user
-> --version ten
+> --jobs ten
 Stderr
 Couldn't parse "ten": invalid digit found in string
 
@@ -18,8 +18,9 @@ Couldn't parse "ten": invalid digit found in string
 ? `bpaf` encases parsers with fallback value in usage with `[]`
 > --help
 Stdout
-Usage: [--version VERS]
+Usage: [--jobs JOBS]
 
 Available options:
-        --version <VERS>
-    -h, --help            Prints help information
+        --jobs <JOBS>  Number of jobs
+                       [default: 42]
+    -h, --help         Prints help information

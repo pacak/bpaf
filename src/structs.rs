@@ -1,5 +1,5 @@
 //! Structures that implement different methods on [`Parser`] trait
-use crate::{args::Conflict, info::Error, item::Item, Args, Meta, Parser};
+use crate::{args::Conflict, info::Error, item::Item, meta::DecorPlace, Args, Meta, Parser};
 use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
@@ -39,7 +39,7 @@ where
 /// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
 pub struct ParseGroupHelp<P> {
     pub(crate) inner: P,
-    pub(crate) message: &'static str,
+    pub(crate) message: String,
 }
 
 impl<T, P> Parser<T> for ParseGroupHelp<P>
@@ -51,7 +51,8 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::Decorated(Box::new(self.inner.meta()), self.message)
+        let meta = Box::new(self.inner.meta());
+        Meta::Decorated(meta, self.message.clone(), DecorPlace::Header)
     }
 }
 
@@ -363,6 +364,7 @@ where
 pub struct ParseFallback<P, T> {
     pub(crate) inner: P,
     pub(crate) value: T,
+    pub(crate) value_str: String,
 }
 
 impl<P, T> Parser<T> for ParseFallback<P, T>
@@ -371,23 +373,54 @@ where
     T: Clone,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let mut clone = args.clone();
-        match self.inner.eval(&mut clone) {
-            Ok(ok) => {
-                std::mem::swap(args, &mut clone);
-                Ok(ok)
-            }
-            e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
-            Err(Error::Missing(_) | Error::Message(_, true)) => {
-                #[cfg(feature = "autocomplete")]
-                args.swap_comps(&mut clone);
-                Ok(self.value.clone())
+        {
+            let parser = &self.inner;
+            let value = &self.value;
+            let mut clone = args.clone();
+            match parser.eval(&mut clone) {
+                Ok(ok) => {
+                    std::mem::swap(args, &mut clone);
+                    Ok(ok)
+                }
+                e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
+                Err(Error::Missing(_) | Error::Message(_, true)) => {
+                    #[cfg(feature = "autocomplete")]
+                    args.swap_comps(&mut clone);
+                    Ok(value.clone())
+                }
             }
         }
     }
 
     fn meta(&self) -> Meta {
-        Meta::Optional(Box::new(self.inner.meta()))
+        let m = Meta::Optional(Box::new(self.inner.meta()));
+        if self.value_str.is_empty() {
+            m
+        } else {
+            Meta::Decorated(
+                Box::from(m),
+                self.value_str.clone(),
+                crate::meta::DecorPlace::Suffix,
+            )
+        }
+    }
+}
+
+impl<P, T: std::fmt::Display> ParseFallback<P, T> {
+    /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
+    /// representation
+    pub fn display_fallback(mut self) -> Self {
+        self.value_str = format!("[default: {}]", self.value);
+        self
+    }
+}
+
+impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
+    /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
+    /// representation
+    pub fn debug_fallback(mut self) -> Self {
+        self.value_str = format!("[default: {:?}]", self.value);
+        self
     }
 }
 
@@ -822,7 +855,7 @@ where
                     res
                 }
                 Meta::Item(i) => vec![i.clone()],
-                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => meta_items(&*m),
+                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => meta_items(&*m),
                 Meta::Skip | Meta::HideUsage(_) => Vec::new(),
             }
         }

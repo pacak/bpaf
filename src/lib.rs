@@ -432,7 +432,7 @@ pub mod parsers {
     #[cfg(feature = "autocomplete")]
     pub use crate::complete_shell::ParseCompShell;
     pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
-    pub use crate::structs::{ParseBox, ParseMany, ParseOptional, ParseSome};
+    pub use crate::structs::{ParseBox, ParseFallback, ParseMany, ParseOptional, ParseSome};
 }
 
 use structs::{
@@ -1010,13 +1010,20 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
-    /// comes from a failing computation such as reading a file.
+    /// comes from a failing computation such as reading a file. By default fallback value will
+    /// not be shown in the `--help` output, you can change that by using
+    /// [`display_fallback`](ParseFallback::display_fallback) and
+    /// [`debug_fallback`](ParseFallback::debug_fallback).
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
         Self: Sized + Parser<T>,
     {
-        ParseFallback { inner: self, value }
+        ParseFallback {
+            inner: self,
+            value,
+            value_str: String::new(),
+        }
     }
     // }}}
 
@@ -1174,13 +1181,13 @@ pub trait Parser<T> {
     ///
     #[doc = include_str!("docs/group_help.md")]
     ///
-    fn group_help(self, message: &'static str) -> ParseGroupHelp<Self>
+    fn group_help<M: Into<String>>(self, message: M) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
     {
         ParseGroupHelp {
             inner: self,
-            message,
+            message: message.into(),
         }
     }
     // }}}

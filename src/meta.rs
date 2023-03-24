@@ -1,6 +1,12 @@
 use crate::item::Item;
 
 #[doc(hidden)]
+#[derive(Copy, Clone, Debug)]
+pub enum DecorPlace {
+    Header,
+    Suffix,
+}
+#[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
     And(Vec<Meta>),
@@ -8,7 +14,7 @@ pub enum Meta {
     Optional(Box<Meta>),
     Item(Item),
     Many(Box<Meta>),
-    Decorated(Box<Meta>, &'static str),
+    Decorated(Box<Meta>, String, DecorPlace),
     Skip,
     HideUsage(Box<Meta>),
 }
@@ -57,7 +63,7 @@ impl Meta {
                     args.extend(shorts);
                 }
             },
-            Meta::HideUsage(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _) => {
+            Meta::HideUsage(m) | Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => {
                 m.collect_shorts(flags, args);
             }
             Meta::Skip => {}

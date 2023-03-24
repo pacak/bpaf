@@ -6,11 +6,15 @@
 #[derive(Debug, Clone)]
 # #[allow(dead_code)]
 pub struct Options {
-    version: usize,
+    jobs: usize,
 }
 pub fn options() -> OptionParser<Options> {
-    let version = long("version").argument("VERS").fallback(42);
-    construct!(Options { version }).to_options()
+    let jobs = long("jobs")
+        .help("Number of jobs")
+        .argument("JOBS")
+        .fallback(42)
+        .display_fallback();
+    construct!(Options { jobs }).to_options()
 }
 ```
 
@@ -24,8 +28,9 @@ pub fn options() -> OptionParser<Options> {
 #[bpaf(options)]
 # #[allow(dead_code)]
 pub struct Options {
-    #[bpaf(argument("VERS"), fallback(42))]
-    version: usize,
+    /// Number of jobs
+    #[bpaf(argument("JOBS"), fallback(42), display_fallback)]
+    jobs: usize,
 }
 ```
 
@@ -37,29 +42,30 @@ pub struct Options {
 Allows you to specify a default value used when argument is not specified
 ```console
 % app 
-Options { version: 42 }
+Options { jobs: 42 }
 ```
 
 If value is present - fallback value is ignored
 ```console
-% app --version 10
-Options { version: 10 }
+% app --jobs 10
+Options { jobs: 10 }
 ```
 
 Parsing errors are preserved and preserved to user
 ```console
-% app --version ten
+% app --jobs ten
 Couldn't parse "ten": invalid digit found in string
 ```
 
 `bpaf` encases parsers with fallback value in usage with `[]`
 ```console
 % app --help
-Usage: [--version VERS]
+Usage: [--jobs JOBS]
 
 Available options:
-        --version <VERS>
-    -h, --help            Prints help information
+        --jobs <JOBS>  Number of jobs
+                       [default: 42]
+    -h, --help         Prints help information
 ```
 
 </details>
