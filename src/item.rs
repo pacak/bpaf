@@ -57,10 +57,11 @@ impl From<&NamedArg> for ShortLong {
 impl Item {
     #[must_use]
     pub(crate) fn required(self, required: bool) -> Meta {
+        let boxed = Meta::from(self);
         if required {
-            Meta::Item(self)
+            boxed
         } else {
-            Meta::Optional(Box::new(Meta::Item(self)))
+            Meta::Optional(Box::new(boxed))
         }
     }
 }

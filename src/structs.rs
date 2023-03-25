@@ -850,7 +850,7 @@ where
                     }
                     res
                 }
-                Meta::Item(i) => vec![i.clone()],
+                Meta::Item(i) => vec![*i.clone()],
                 Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => meta_items(&*m),
                 Meta::Skip | Meta::HideUsage(_) => Vec::new(),
             }
@@ -940,20 +940,27 @@ fn classify_anywhere(meta: Meta) -> Meta {
         let mut iter = xs.iter();
 
         let (name, shorts, help) = match iter.next() {
-            Some(Meta::Item(Item::Flag { name, shorts, help })) => (name, shorts, help),
+            Some(Meta::Item(item)) => match &**item {
+                Item::Flag { name, shorts, help } => (name, shorts, help),
+                _ => return meta,
+            },
             _ => return meta,
         };
 
-        while let Some(Meta::Item(Item::Positional {
-            metavar,
-            strict: _,
-            help,
-        })) = iter.next()
-        {
-            fields.push((*metavar, help.clone()));
+        while let Some(Meta::Item(item)) = iter.next() {
+            if let Item::Positional {
+                metavar,
+                strict: _,
+                help,
+            } = &**item
+            {
+                fields.push((*metavar, help.clone()));
+            } else {
+                break;
+            }
         }
         if iter.next().is_none() {
-            return Meta::Item(Item::MultiArg {
+            return Meta::from(Item::MultiArg {
                 name: *name,
                 shorts: shorts.clone(),
                 help: help.clone(),

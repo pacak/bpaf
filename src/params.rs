@@ -591,7 +591,7 @@ impl<T> Parser<T> for ParseCommand<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item(self.item())
+        Meta::from(self.item())
     }
 }
 
@@ -738,7 +738,7 @@ where
         if self.named.short.is_empty() && self.named.long.is_empty() {
             Meta::Skip
         } else {
-            Meta::Item(self.item())
+            Meta::from(self.item())
         }
     }
 }
@@ -854,12 +854,10 @@ impl<T> ParsePositional<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item({
-            Item::Positional {
-                metavar: self.metavar,
-                help: self.help.clone(),
-                strict: self.strict,
-            }
+        Meta::from(Item::Positional {
+            metavar: self.metavar,
+            help: self.help.clone(),
+            strict: self.strict,
         })
     }
 }
@@ -972,7 +970,7 @@ impl<T> ParseAny<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item(self.item())
+        Meta::from(self.item())
     }
 
     fn item(&self) -> Item {

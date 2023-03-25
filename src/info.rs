@@ -592,7 +592,7 @@ impl From<Error> for ParseFailure {
             Error::ParseFailure(pf) => pf,
             Error::Missing(items) => ParseFailure::Stderr(format!(
                 "Expected {}, pass --help for usage information",
-                Meta::Or(items.into_iter().map(Meta::Item).collect::<Vec<_>>())
+                Meta::Or(items.into_iter().map(Meta::from).collect::<Vec<_>>())
             )),
         }
     }
@@ -616,8 +616,8 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
         Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _, _) => {
             perform_invariant_check(x, false);
         }
-        Meta::Item(i) => match i {
-            Item::Command { meta, .. } => perform_invariant_check(meta, true),
+        Meta::Item(i) => match &**i {
+            Item::Command { meta, .. } => perform_invariant_check(&meta, true),
             Item::Positional { .. }
             | Item::Flag { .. }
             | Item::Argument { .. }
