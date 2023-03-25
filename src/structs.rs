@@ -168,16 +168,12 @@ where
 
 /// Parser that tries to either of two parsers and uses one that succeeeds, created with
 /// [`Parser::or_else`].
-pub struct ParseOrElse<A, B> {
-    pub(crate) this: A,
-    pub(crate) that: B,
+pub struct ParseOrElse<T> {
+    pub(crate) this: Box<dyn Parser<T>>,
+    pub(crate) that: Box<dyn Parser<T>>,
 }
 
-impl<A, B, T> Parser<T> for ParseOrElse<A, B>
-where
-    A: Parser<T>,
-    B: Parser<T>,
-{
+impl<T> Parser<T> for ParseOrElse<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
