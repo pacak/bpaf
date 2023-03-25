@@ -861,7 +861,7 @@ fn long_path_in_construct() {
 
 #[test]
 fn hidden_env() {
-    let name = "BPAF_SECRET_API_KEY";
+    let name = "BPAF_SECRET_API_KEY2";
     let visible = long("key")
         .help("use this secret key\ntwo lines")
         .argument::<String>("KEY");
@@ -882,6 +882,12 @@ Available options:
 ";
 
     assert_eq!(help, expected);
+
+    let r = parser
+        .run_inner(Args::from(&[]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "env variable BPAF_SECRET_API_KEY2 is not set");
 }
 
 #[test]

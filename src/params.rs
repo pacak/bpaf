@@ -694,6 +694,12 @@ impl<T> ParseArgument<T> {
     }
 
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
+        if self.named.short.is_empty() && self.named.long.is_empty() {
+            if let Some(name) = self.named.env.first() {
+                let msg = format!("env variable {} is not set", name);
+                return Err(Error::Message(msg, true));
+            }
+        }
         match args.take_arg(&self.named, self.adjacent) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
