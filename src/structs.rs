@@ -922,6 +922,11 @@ where
 
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
+
+        if let Ok(val) = self.inner.eval(&mut Args::from(&[])) {
+            return Ok(val);
+        }
+
         Err(Error::Missing(best_missing))
     }
 
