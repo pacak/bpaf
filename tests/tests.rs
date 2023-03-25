@@ -1936,3 +1936,10 @@ fn default_for_some() {
 
     assert_eq!(r, vec![1, 2, 3]);
 }
+
+#[test]
+fn anywhere_can_consume_nothing() {
+    let parser = positional::<String>("args").many().anywhere().to_options();
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert!(r.is_empty());
+}
