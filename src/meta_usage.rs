@@ -125,7 +125,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
         }
         Meta::Decorated(meta, _, _) => collect_usage_meta(meta, is_pos)?,
         Meta::HideUsage(_) | Meta::Skip => return None,
-        Meta::Item(i) => match i {
+        Meta::Item(i) => match &**i {
             Item::Positional {
                 metavar, strict, ..
             } => {

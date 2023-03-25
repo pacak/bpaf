@@ -12,7 +12,7 @@ pub enum Meta {
     And(Vec<Meta>),
     Or(Vec<Meta>),
     Optional(Box<Meta>),
-    Item(Item),
+    Item(Box<Item>),
     Many(Box<Meta>),
     Decorated(Box<Meta>, String, DecorPlace),
     Skip,
@@ -25,6 +25,12 @@ impl std::fmt::Display for Meta {
             Some(usage) => usage.fmt(f),
             None => f.write_str("no parameters expected"),
         }
+    }
+}
+
+impl From<Item> for Meta {
+    fn from(value: Item) -> Self {
+        Meta::Item(Box::new(value))
     }
 }
 
@@ -56,7 +62,7 @@ impl Meta {
                     x.collect_shorts(flags, args);
                 }
             }
-            Meta::Item(m) => match m {
+            Meta::Item(m) => match &**m {
                 Item::Positional { .. } | Item::Command { .. } => {}
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::MultiArg { shorts, .. } | Item::Argument { shorts, .. } => {

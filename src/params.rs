@@ -591,7 +591,7 @@ impl<T> Parser<T> for ParseCommand<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item(self.item())
+        Meta::from(self.item())
     }
 }
 
@@ -694,6 +694,12 @@ impl<T> ParseArgument<T> {
     }
 
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
+        if self.named.short.is_empty() && self.named.long.is_empty() {
+            if let Some(name) = self.named.env.first() {
+                let msg = format!("env variable {} is not set", name);
+                return Err(Error::Message(msg, true));
+            }
+        }
         match args.take_arg(&self.named, self.adjacent) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -738,7 +744,7 @@ where
         if self.named.short.is_empty() && self.named.long.is_empty() {
             Meta::Skip
         } else {
-            Meta::Item(self.item())
+            Meta::from(self.item())
         }
     }
 }
@@ -854,12 +860,10 @@ impl<T> ParsePositional<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item({
-            Item::Positional {
-                metavar: self.metavar,
-                help: self.help.clone(),
-                strict: self.strict,
-            }
+        Meta::from(Item::Positional {
+            metavar: self.metavar,
+            help: self.help.clone(),
+            strict: self.strict,
         })
     }
 }
@@ -972,7 +976,7 @@ impl<T> ParseAny<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::Item(self.item())
+        Meta::from(self.item())
     }
 
     fn item(&self) -> Item {

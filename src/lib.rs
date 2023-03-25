@@ -1129,14 +1129,14 @@ pub trait Parser<T> {
         since = "0.5.0",
         note = "instead of a.or_else(b) you should use construct!([a, b])"
     )]
-    fn or_else<P>(self, alt: P) -> ParseOrElse<Self, P>
+    fn or_else<P>(self, alt: P) -> ParseOrElse<T>
     where
-        Self: Sized + Parser<T>,
-        P: Sized + Parser<T>,
+        Self: Sized + Parser<T> + 'static,
+        P: Sized + Parser<T> + 'static,
     {
         ParseOrElse {
-            this: self,
-            that: alt,
+            this: Box::new(self),
+            that: Box::new(alt),
         }
     }
     // }}}
