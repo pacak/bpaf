@@ -200,7 +200,7 @@ fn empty_enum() {
 #[test]
 fn enum_command() {
     let input: Top = parse_quote! {
-        /// those are options
+        // those are options
         enum Opt {
             #[bpaf(command("foo"))]
             /// foo doc
@@ -812,5 +812,61 @@ fn single_unit_command() {
         }
     };
 
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn top_comment_is_group_help_enum() {
+    let top: Top = parse_quote! {
+        #[derive(Debug, Clone, Bpaf)]
+        /// present
+        enum Mode {
+            /// help
+            Intel,
+            /// help
+            Att,
+        }
+    };
+
+    let expected = quote! {
+        fn mode() -> impl ::bpaf::Parser<Mode> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("intel").help("help").req_flag(Mode::Intel);
+                let alt1 = ::bpaf::long("att").help("help").req_flag(Mode::Att);
+                ::bpaf::construct!([alt0, alt1])
+            }
+            .group_help("present")
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn top_comment_is_group_help_struct() {
+    let top: Top = parse_quote! {
+        #[derive(Debug, Clone, Bpaf)]
+        /// present
+        struct Mode {
+            /// help
+            intel: bool,
+            /// help
+            att: bool,
+        }
+    };
+
+    let expected = quote! {
+        fn mode() -> impl ::bpaf::Parser<Mode> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let intel = ::bpaf::long("intel").help("help").switch();
+                let att = ::bpaf::long("att").help("help").switch();
+                ::bpaf::construct!(Mode { intel, att })
+            }
+            .group_help("present")
+        }
+    };
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
