@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use bpaf::*;
 
 #[test]
@@ -41,7 +43,10 @@ fn short_cmd() {
         .unwrap_err()
         .unwrap_stderr();
 
-    assert_eq!(r, "No such command: `c`, did you mean `b`?");
+    assert_eq!(
+        r,
+        "No such command or positional: `c`, did you mean `beta`?"
+    );
 }
 
 #[test]
@@ -60,10 +65,9 @@ fn double_dashes_no_fallback() {
         .unwrap_err()
         .unwrap_stderr();
 
-    // TODO: can we point out at -llvm here?
     assert_eq!(
         r,
-        "Expected (--llvm | --att), pass --help for usage information"
+        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -114,8 +118,6 @@ fn double_dash_with_optional_positional() {
 
 #[test]
 fn inside_out_command_parser() {
-    #![allow(dead_code)]
-
     #[derive(Debug, Bpaf, Clone, PartialEq)]
     #[bpaf(options)]
     enum Cmd {
@@ -136,4 +138,86 @@ fn inside_out_command_parser() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "flag: `--oneline` is not valid in this context, did you mean to pass it to command \"log\"?");
+}
+
+#[test]
+fn flag_specified_twice() {
+    let parser = long("flag").switch().to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--flag", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--flag is not expected in this context");
+}
+
+#[test]
+fn ux_discussion() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(adjacent)]
+    pub struct ConfigSetBool {
+        /// Set <key> to <bool>
+        #[bpaf(long("setBool"))]
+        set_bool: (),
+        /// Configuration key
+        #[bpaf(positional("key"))]
+        key: String,
+        /// Configuration Value (bool)
+        #[bpaf(positional("bool"))]
+        value: bool,
+    }
+
+    let aa = long("bool-flag").switch();
+    let parser = construct!(config_set_bool(), aa).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--setBool", "key", "tru"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        // everything before ":" comes from bpaf, after ":" - it's an error specific
+        // to FromStr instance.
+        "Couldn't parse \"tru\": provided string was not `true` or `false`"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["--bool-fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(r, "No such flag: `--bool-fla`, did you mean `--bool-flag`?");
+
+    let r = parser
+        .run_inner(Args::from(&["--bool-flag", "--bool-flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "Expected --setBool, got \"--bool-flag\". Pass --help for usage information"
+    );
+}
+
+#[test]
+fn suggest_typo_fix() {
+    let p = long("flag").switch().to_options();
+
+    let r = p
+        .run_inner(Args::from(&["--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let r = p
+        .run_inner(Args::from(&["--fla", "--fla"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+
+    let r = p
+        .run_inner(Args::from(&["--flag", "--flag"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "--flag is not expected in this context");
 }

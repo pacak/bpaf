@@ -14,31 +14,25 @@ fn better_error_with_enum() {
         .run_inner(Args::from(&["--alpha", "--beta"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "--beta is not expected in this context: --beta cannot be used at the same time as --alpha"
-    );
+    assert_eq!(res, "--beta cannot be used at the same time as --alpha");
 
     let res = foo()
         .run_inner(Args::from(&["--alpha", "--gamma"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "--gamma is not expected in this context: --gamma cannot be used at the same time as --alpha");
+    assert_eq!(res, "--gamma cannot be used at the same time as --alpha");
 
     let res = foo()
         .run_inner(Args::from(&["--beta", "--gamma"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "--gamma is not expected in this context: --gamma cannot be used at the same time as --beta");
+    assert_eq!(res, "--gamma cannot be used at the same time as --beta");
 
     let res = foo()
         .run_inner(Args::from(&["--alpha", "--beta", "--gamma"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "--beta is not expected in this context: --beta cannot be used at the same time as --alpha"
-    );
+    assert_eq!(res, "--beta cannot be used at the same time as --alpha");
 }
 
 #[test]

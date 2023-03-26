@@ -66,8 +66,9 @@ pub(crate) fn improve_error(
     args: &mut Args,
     info: &Info,
     inner: &Meta,
-    err: Error,
+    err: Option<Error>,
 ) -> ParseFailure {
+    // handle --help and --version messages
     match info.help_parser().eval(args) {
         Ok(ExtraParams::Help) => {
             let msg = render_help(info, inner, &info.help_parser().meta());
@@ -79,10 +80,51 @@ pub(crate) fn improve_error(
         Err(_) => {}
     }
 
-    if crate::meta_youmean::should_suggest(&err) {
-        if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
-            return ParseFailure::Stderr(msg);
+    // at this point the input user gave us is invalid and we need to propose a step towards
+    // improving it. Improving steps can be:
+    // 1. adding something that is required but missing
+    //    + works best if there's no unexpected items left
+    //
+    // 2. suggesting to replace something that was typed wrongly: --asmm instead of --asm
+    //    + works best if there's something close enough to current item
+    //
+    // 3. suggesting to remove something that is totally not expected in this context
+    //    + safest fallback if earlier approaches failed
+
+    ParseFailure::Stderr(match err {
+        // parse succeeded, need to explain an unused argument
+        None => {
+            if let Some(msg) = crate::info::check_conflicts(args) {
+                msg
+            } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+                msg
+            } else if let Some((_ix, item)) = args.items_iter().next() {
+                format!("{} is not expected in this context", item)
+            } else {
+                // if parse succeeds and there's no unused items on a command line
+                // run_subparser returns the result.
+                unreachable!("Please open a ticket with bpaf, should not be reachable")
+            }
         }
-    }
-    ParseFailure::from(err)
+        Some(Error::ParseFailure(f)) => return f,
+        Some(Error::Message(msg, _)) => msg,
+        Some(Error::Missing(xs)) => {
+            if let Some(x) = args.peek() {
+                if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+                    msg
+                } else {
+                    format!(
+                        "Expected {}, got \"{}\". Pass --help for usage information",
+                        Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>()),
+                        x
+                    )
+                }
+            } else {
+                format!(
+                    "Expected {}, pass --help for usage information",
+                    Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
+                )
+            }
+        }
+    })
 }

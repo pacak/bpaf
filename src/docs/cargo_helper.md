@@ -54,7 +54,7 @@ But when used as a `cargo` subcommand, cargo will also pass the command name, th
 uses _wrong_ subcommand name to bypass the helper and show how it would look without it
 ```console
 % app wrong --argument 15
-No such command: `wrong`, did you mean `-s`?
+No such command or positional: `wrong`, did you mean `--argument`?
 ```
 
 When used with the right command - helper simply consumes it

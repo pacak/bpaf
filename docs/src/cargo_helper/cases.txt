@@ -7,7 +7,7 @@ Options { argument: 15, switch: false }
 ? uses _wrong_ subcommand name to bypass the helper and show how it would look without it
 > wrong --argument 15
 Stderr
-No such command: `wrong`, did you mean `-s`?
+No such command or positional: `wrong`, did you mean `--argument`?
 
 ? When used with the right command - helper simply consumes it
 > pretty --argument 42 -s
