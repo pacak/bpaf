@@ -23,7 +23,7 @@ impl Conflict {
 
 #[derive(Clone)]
 pub struct Improve(
-    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
+    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Option<Error>) -> ParseFailure,
 );
 
 impl std::fmt::Debug for Improve {
@@ -355,11 +355,17 @@ mod inner {
                     *removed = true;
                 }
             }
+            self.sync_remaining();
+        }
+
+        fn sync_remaining(&mut self) {
+            self.remaining = self.removed.iter().filter(|x| !**x).count();
         }
 
         /// Copy a range of removals from args to self
         pub(crate) fn copy_usage_from(&mut self, args: &Args, range: Range<usize>) {
             self.removed[range.start..range.end].copy_from_slice(&args.removed[range]);
+            self.sync_remaining();
         }
 
         #[inline(never)]

@@ -14,7 +14,7 @@ Options { decision: Undecided }
 ? `--on` and `--off` are mutually exclusive:
 > --on --off
 Stderr
---off is not expected in this context: --off cannot be used at the same time as --on
+--off cannot be used at the same time as --on
 
 ? help
 > --help

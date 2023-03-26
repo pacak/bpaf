@@ -2,37 +2,12 @@ use crate::{
     args::Arg,
     item::{Item, ShortLong},
     meta_help::{Long, Short},
-    Args, Error, Meta,
+    Args, Meta,
 };
-
-pub(crate) fn should_suggest(err: &Error) -> bool {
-    match err {
-        Error::Message(_, _) => true,
-        Error::ParseFailure(_) => false,
-        Error::Missing(xs) => {
-            let mut hi = crate::meta_help::HelpItems::default();
-            for x in xs.iter() {
-                hi.classify_item(x);
-            }
-            hi.flgs.is_empty() && hi.psns.is_empty()
-        }
-    }
-}
 
 /// Looks for potential typos
 pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
-    let arg = match args.peek() {
-        Some(arg) => arg,
-        None => return None,
-    };
-
-    if args.items.iter().filter(|&a| a == arg).count() > 1 {
-        // args contains more than one copy of unexpected item. Either user specified
-        // several of those or parser accepts only limited number of them.
-        // Or a different branch handles them. Give up and produce a default
-        // "not expected in this context" error
-        return None;
-    }
+    let arg = args.peek()?;
 
     let mut variants = Vec::new();
     collect_suggestions(arg, meta, &mut variants, true);
@@ -47,7 +22,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
                 w_flag!(cmd),
             );
             return Some(best);
-        } else if l > 0 {
+        } else if l > 0 && l < usize::MAX {
             let best = format!(
                 "No such {:?}, did you mean `{}`?",
                 actual,
@@ -76,7 +51,7 @@ impl std::fmt::Debug for I<'_> {
             Self::ShortFlag(s) => write!(f, "flag: `{}`", w_err!(Short(*s))),
             Self::LongFlag(s) => write!(f, "flag: `{}`", w_err!(Long(s))),
             Self::ShortCmd(s) => write!(f, "command alias: `{}`", w_err!(s)),
-            Self::LongCmd(s) => write!(f, "command: `{}`", w_err!(s)),
+            Self::LongCmd(s) => write!(f, "command or positional: `{}`", w_err!(s)),
             Self::Ambiguity(s) => write!(f, "flag: {} (with one dash)", w_err!(s)),
             Self::Nested(s) => write!(f, "command {}", w_err!(s)),
         }
@@ -98,7 +73,7 @@ impl std::fmt::Display for I<'_> {
 
 fn ins<'a>(expected: I<'a>, actual: I<'a>, variants: &mut Vec<(usize, (I<'a>, I<'a>))>) {
     variants.push((
-        levenshtein(&expected.to_string(), &actual.to_string()),
+        damerau_levenshtein(&expected.to_string(), &actual.to_string()),
         (actual, expected),
     ));
 }
@@ -177,39 +152,50 @@ fn collect_suggestions<'a>(
     }
 }
 
-fn levenshtein(a: &str, b: &str) -> usize {
-    let mut result = 0;
-    let mut cache = a.chars().enumerate().map(|i| i.0 + 1).collect::<Vec<_>>();
-    let mut distance_a;
-    let mut distance_b;
+/// Damerau-Levenshtein distance function
+///
+/// returns usize::MAX if there's no common characters at all mostly to avoid
+/// confusing error messages - "you typed 'foo', maybe you ment 'bar'" where
+/// 'foo' and 'bar' don't have anything in common
+fn damerau_levenshtein(a: &str, b: &str) -> usize {
+    let a_len = a.chars().count();
+    let b_len = b.chars().count();
+    let mut d = vec![0; (a_len + 1) * (b_len + 1)];
 
-    for (index_b, code_b) in b.chars().enumerate() {
-        result = index_b;
-        distance_a = index_b;
+    let ix = |ib, ia| a_len * ia + ib;
 
-        for (index_a, code_a) in a.chars().enumerate() {
-            distance_b = if code_a == code_b {
-                distance_a
-            } else {
-                distance_a + 1
-            };
-
-            distance_a = cache[index_a];
-
-            result = if distance_a > result {
-                if distance_b > result {
-                    result + 1
-                } else {
-                    distance_b
-                }
-            } else if distance_b > distance_a {
-                distance_a + 1
-            } else {
-                distance_b
-            };
-
-            cache[index_a] = result;
-        }
+    for i in 0..=a_len {
+        d[ix(i, 0)] = i;
     }
-    result
+
+    for j in 0..=b_len {
+        d[ix(0, j)] = j;
+    }
+
+    let mut pa = '\0';
+    let mut pb = '\0';
+    for (i, ca) in a.chars().enumerate() {
+        let i = i + 1;
+        for (j, cb) in b.chars().enumerate() {
+            let j = j + 1;
+            let cost = if ca == cb { 0 } else { 1 };
+
+            d[ix(i, j)] = (d[ix(i - 1, j)] + 1)
+                .min(d[ix(i, j - 1)] + 1)
+                .min(d[ix(i - 1, j - 1)] + cost);
+            if i > 1 && j > 1 && ca == pb && cb == pa {
+                d[ix(i, j)] = d[ix(i, j)].min(d[ix(i - 2, j - 2)] + 1);
+            }
+            pb = cb;
+        }
+        pa = ca;
+    }
+
+    let diff = d[ix(a_len, b_len)];
+
+    if diff >= a_len.max(b_len) {
+        usize::MAX
+    } else {
+        diff
+    }
 }

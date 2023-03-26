@@ -23,7 +23,7 @@ pub fn options() -> OptionParser<Command> {
     let a = if sneaky {
         construct!(a)
     } else {
-        let f = fail("command a is not active");
+        let f = fail("No such command: `a`, did you mean `b`?");
         construct!(f)
     };
     construct!([a, b]).to_options()

@@ -11,4 +11,4 @@ Options { switch: true, multi: [Rect { item: (), width: 10, height: 10, painted:
 ? But with `adjacent` they cannot interleave
 > --rect --rect --width 10 --painted --height 10 --height 10 --width 10
 Stderr
-Expected --width PX, pass --help for usage information
+Expected --width PX, got "--rect". Pass --help for usage information

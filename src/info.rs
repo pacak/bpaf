@@ -65,17 +65,15 @@ pub struct Info {
     pub usage: Option<&'static str>,
 }
 
-fn check_unexpected(args: &Args) -> Result<(), Error> {
-    match args.items_iter().next() {
-        None => Ok(()),
-        Some((ix, item)) => {
-            let mut msg = format!("{} is not expected in this context", item);
-            if let Some(Conflict::Conflicts(acc, rej)) = args.conflicts.get(&ix) {
-                use std::fmt::Write;
-                write!(msg, ": {} cannot be used at the same time as {}", rej, acc).unwrap();
-            }
-            Err(Error::Message(msg, false))
-        }
+pub(crate) fn check_conflicts(args: &Args) -> Option<String> {
+    let (ix, _item) = args.items_iter().next()?;
+    if let Conflict::Conflicts(acc, rej) = args.conflicts.get(&ix)? {
+        Some(format!(
+            "{} cannot be used at the same time as {}",
+            rej, acc
+        ))
+    } else {
+        None
     }
 }
 
@@ -255,21 +253,16 @@ impl<T> OptionParser<T> {
             return Err(ParseFailure::Stdout(comp));
         }
 
-        let err = match res {
-            Ok(r) => {
-                if let Err(err) = check_unexpected(args) {
-                    err
-                } else {
-                    return Ok(r);
-                }
+        if args.is_empty() {
+            if let Ok(ok) = res {
+                return Ok(ok);
             }
-            Err(err) => err,
-        };
+        }
         Err((args.improve_error.0)(
             args,
             &self.info,
             &self.inner.meta(),
-            err,
+            res.err(),
         ))
     }
 
@@ -582,19 +575,6 @@ impl<T> OptionParser<T> {
     /// `check_invariants` indicates problems with panic
     pub fn check_invariants(&self, _cosmetic: bool) {
         perform_invariant_check(&self.inner.meta(), true);
-    }
-}
-
-impl From<Error> for ParseFailure {
-    fn from(value: Error) -> Self {
-        match value {
-            Error::Message(msg, _) => ParseFailure::Stderr(msg),
-            Error::ParseFailure(pf) => pf,
-            Error::Missing(items) => ParseFailure::Stderr(format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(items.into_iter().map(Meta::from).collect::<Vec<_>>())
-            )),
-        }
     }
 }
 

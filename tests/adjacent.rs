@@ -66,7 +66,10 @@ fn adjacent_error_message_arg_single() {
         .run_inner(Args::from(&["-a", "10"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected -b B, pass --help for usage information");
+    assert_eq!(
+        r,
+        "Expected -b B, got \"10\". Pass --help for usage information"
+    );
 }
 
 #[test]
@@ -82,7 +85,10 @@ fn adjacent_error_message_pos_many() {
         .run_inner(Args::from(&["-a", "10"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <C>, pass --help for usage information");
+    assert_eq!(
+        r,
+        "Expected <C>, got \"-a\". Pass --help for usage information"
+    );
 }
 
 #[test]
@@ -98,5 +104,8 @@ fn adjacent_error_message_arg_many() {
         .run_inner(Args::from(&["-a", "10"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected -b B, pass --help for usage information");
+    assert_eq!(
+        r,
+        "Expected -b B, got \"-a\". Pass --help for usage information"
+    );
 }

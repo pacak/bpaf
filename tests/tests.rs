@@ -337,7 +337,7 @@ fn parse_errors() {
         .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Expected -a ARG, pass --help for usage information";
+    let expected_err = "No such flag: `-b`, did you mean `-a`?";
     assert_eq!(expected_err, err);
 
     let err = decorated
@@ -502,46 +502,31 @@ fn from_several_alternatives_pick_more_meaningful() {
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        err1,
-        "-b is not expected in this context: -b cannot be used at the same time as -a"
-    );
+    assert_eq!(err1, "-b cannot be used at the same time as -a");
 
     let err2 = parser
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        err2,
-        "-a is not expected in this context: -a cannot be used at the same time as -b"
-    );
+    assert_eq!(err2, "-a cannot be used at the same time as -b");
 
     let err3 = parser
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        err3,
-        "-a is not expected in this context: -a cannot be used at the same time as -c"
-    );
+    assert_eq!(err3, "-a cannot be used at the same time as -c");
 
     let err4 = parser
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        err4,
-        "-c is not expected in this context: -c cannot be used at the same time as -a"
-    );
+    assert_eq!(err4, "-c cannot be used at the same time as -a");
 
     let err5 = parser
         .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        err5,
-        "-b is not expected in this context: -b cannot be used at the same time as -c"
-    );
+    assert_eq!(err5, "-b cannot be used at the same time as -c");
 }
 
 #[test]
@@ -1254,7 +1239,10 @@ fn did_you_mean_switch() {
         .run_inner(Args::from(&["flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "No such command: `flag`, did you mean `--flag`?");
+    assert_eq!(
+        res,
+        "No such command or positional: `flag`, did you mean `--flag`?"
+    );
 
     let res = parser
         .run_inner(Args::from(&["--pla"]))
@@ -1276,7 +1264,7 @@ fn did_you_mean_req_flag() {
         .run_inner(Args::from(&["--fla"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Expected --flag, pass --help for usage information");
+    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1287,19 +1275,13 @@ fn did_you_mean_argument() {
         .run_inner(Args::from(&["--fla"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "Expected --flag VAL, pass --help for usage information"
-    );
+    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 
     let res = parser
         .run_inner(Args::from(&["--flg=hellop"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "Expected --flag VAL, pass --help for usage information"
-    );
+    assert_eq!(res, "No such flag: `--flg`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1314,7 +1296,10 @@ fn did_you_mean_command() {
         .run_inner(Args::from(&["comman"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "No such command: `comman`, did you mean `command`?");
+    assert_eq!(
+        res,
+        "No such command or positional: `comman`, did you mean `command`?"
+    );
 
     let res = parser
         .run_inner(Args::from(&["--comman"]))
@@ -1382,13 +1367,19 @@ fn did_you_mean_two_or_arguments() {
         .run_inner(Args::from(&["--parameter", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context: [--flag] cannot be used at the same time as [--parameter]");
+    assert_eq!(
+        r,
+        "[--flag] cannot be used at the same time as [--parameter]"
+    );
 
     let r = parser
         .run_inner(Args::from(&["--flag", "--parameter"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--parameter is not expected in this context: [--parameter] cannot be used at the same time as [--flag]");
+    assert_eq!(
+        r,
+        "[--parameter] cannot be used at the same time as [--flag]"
+    );
 }
 
 // problematic steps look something like this:
@@ -1499,7 +1490,10 @@ fn did_you_mean_inside_command() {
         .run_inner(Args::from(&["--fla"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `cmd`?");
+    assert_eq!(
+        r,
+        "Expected COMMAND ..., got \"--fla\". Pass --help for usage information"
+    );
 
     let r = parser
         .run_inner(Args::from(&["cmd", "--fla"]))
@@ -1523,13 +1517,19 @@ fn did_you_mean_inside_command() {
         .run_inner(Args::from(&["cmd", "--parameter", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context: [--flag] cannot be used at the same time as [--parameter]");
+    assert_eq!(
+        r,
+        "[--flag] cannot be used at the same time as [--parameter]"
+    );
 
     let r = parser
         .run_inner(Args::from(&["cmd", "--flag", "--parameter"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--parameter is not expected in this context: [--parameter] cannot be used at the same time as [--flag]");
+    assert_eq!(
+        r,
+        "[--parameter] cannot be used at the same time as [--flag]"
+    );
 }
 
 #[test]
@@ -1638,7 +1638,7 @@ fn reject_fbar() {
         .run_inner(Args::from(&["-fbar", "baz"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such command: `baz`, did you mean `-f`?");
+    assert_eq!(r, "baz is not expected in this context");
 
     let r = parser.run_inner(Args::from(&["-fbar"])).unwrap();
     assert_eq!(r, "bar");
@@ -1908,7 +1908,11 @@ fn option_requires_other_option1() {
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected -b B, pass --help for usage information");
+    // error message sucks...
+    assert_eq!(
+        r,
+        "Expected -b B, got \"-a\". Pass --help for usage information"
+    );
 }
 
 #[test]
