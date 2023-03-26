@@ -161,9 +161,7 @@ Available options:
 #[test]
 fn enum_with_docs() {
     #[derive(Debug, Clone, Bpaf)]
-    /// present
-    ///
-    /// Absent
+    /// group help
     enum Mode {
         /// help
         ///
@@ -177,7 +175,6 @@ fn enum_with_docs() {
     }
 
     let r = mode()
-        .group_help("group help")
         .to_options()
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()

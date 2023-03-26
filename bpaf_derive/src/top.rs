@@ -32,7 +32,7 @@ pub struct Top {
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 enum ParserKind {
-    BParser(BParser),
+    BParser(BParser, Option<String>),
     OParser(OParser),
 }
 
@@ -394,7 +394,7 @@ fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
     };
 
     match outer.kind.unwrap_or(OuterKind::Construct) {
-        OuterKind::Construct => ParserKind::BParser(inner),
+        OuterKind::Construct => ParserKind::BParser(inner, outer.decor.descr),
         OuterKind::Options(maybe_cargo) => {
             let inner = match maybe_cargo {
                 Some(cargo) => BParser::CargoHelper(cargo, Box::new(inner)),
@@ -412,7 +412,7 @@ fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
             };
 
             let cmd = BParser::Command(cmd_attr, Box::new(oparser), outer.adjacent);
-            ParserKind::BParser(cmd)
+            ParserKind::BParser(cmd, None)
         }
     }
 }
@@ -549,7 +549,7 @@ impl ToTokens for Top {
             kind,
         } = self;
         let outer_kind = match kind {
-            ParserKind::BParser(_) => quote!(impl ::bpaf::Parser<#outer_ty>),
+            ParserKind::BParser(_, _) => quote!(impl ::bpaf::Parser<#outer_ty>),
             ParserKind::OParser(_) => quote!(::bpaf::OptionParser<#outer_ty>),
         };
         quote!(
@@ -566,7 +566,14 @@ impl ToTokens for Top {
 impl ToTokens for ParserKind {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            ParserKind::BParser(bp) => bp.to_tokens(tokens),
+            ParserKind::BParser(bp, None) => bp.to_tokens(tokens),
+            ParserKind::BParser(bp, Some(msg)) => {
+                bp.to_tokens(tokens);
+                quote!(
+                    .group_help(#msg)
+                )
+                .to_tokens(tokens);
+            }
             ParserKind::OParser(op) => op.to_tokens(tokens),
         }
     }
