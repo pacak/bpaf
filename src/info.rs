@@ -597,7 +597,7 @@ fn perform_invariant_check(meta: &Meta, fresh: bool) {
             perform_invariant_check(x, false);
         }
         Meta::Item(i) => match &**i {
-            Item::Command { meta, .. } => perform_invariant_check(&meta, true),
+            Item::Command { meta, .. } => perform_invariant_check(meta, true),
             Item::Positional { .. }
             | Item::Flag { .. }
             | Item::Argument { .. }

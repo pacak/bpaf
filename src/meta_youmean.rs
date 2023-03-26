@@ -154,10 +154,11 @@ fn collect_suggestions<'a>(
 
 /// Damerau-Levenshtein distance function
 ///
-/// returns usize::MAX if there's no common characters at all mostly to avoid
+/// returns `usize::MAX` if there's no common characters at all mostly to avoid
 /// confusing error messages - "you typed 'foo', maybe you ment 'bar'" where
 /// 'foo' and 'bar' don't have anything in common
 fn damerau_levenshtein(a: &str, b: &str) -> usize {
+    #![allow(clippy::many_single_char_names)]
     let a_len = a.chars().count();
     let b_len = b.chars().count();
     let mut d = vec![0; (a_len + 1) * (b_len + 1)];
@@ -178,8 +179,7 @@ fn damerau_levenshtein(a: &str, b: &str) -> usize {
         let i = i + 1;
         for (j, cb) in b.chars().enumerate() {
             let j = j + 1;
-            let cost = if ca == cb { 0 } else { 1 };
-
+            let cost = usize::from(ca != cb);
             d[ix(i, j)] = (d[ix(i - 1, j)] + 1)
                 .min(d[ix(i, j - 1)] + 1)
                 .min(d[ix(i - 1, j - 1)] + cost);

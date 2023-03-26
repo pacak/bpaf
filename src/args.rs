@@ -171,6 +171,7 @@ mod inner {
     impl Args {
         #[inline(never)]
         /// Get a list of command line arguments from OS
+        #[must_use]
         pub fn current_args() -> Self {
             let mut arg_vec = Vec::new();
             #[cfg(feature = "autocomplete")]

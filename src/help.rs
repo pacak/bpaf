@@ -94,7 +94,7 @@ pub(crate) fn improve_error(
     ParseFailure::Stderr(match err {
         // parse succeeded, need to explain an unused argument
         None => {
-            if let Some(msg) = crate::info::check_conflicts(&args) {
+            if let Some(msg) = crate::info::check_conflicts(args) {
                 msg
             } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                 msg
@@ -108,8 +108,8 @@ pub(crate) fn improve_error(
         }
         Some(Error::ParseFailure(f)) => return f,
         Some(Error::Message(msg, _)) => msg,
-        Some(Error::Missing(xs)) => match args.peek() {
-            Some(x) => {
+        Some(Error::Missing(xs)) => {
+            if let Some(x) = args.peek() {
                 if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                     msg
                 } else {
@@ -119,11 +119,12 @@ pub(crate) fn improve_error(
                         x
                     )
                 }
+            } else {
+                format!(
+                    "Expected {}, pass --help for usage information",
+                    Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
+                )
             }
-            None => format!(
-                "Expected {}, pass --help for usage information",
-                Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
-            ),
-        },
+        }
     })
 }

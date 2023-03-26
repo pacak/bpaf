@@ -405,6 +405,7 @@ where
 impl<P, T: std::fmt::Display> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
     /// representation
+    #[must_use]
     pub fn display_fallback(mut self) -> Self {
         self.value_str = format!("[default: {}]", self.value);
         self
@@ -414,6 +415,7 @@ impl<P, T: std::fmt::Display> ParseFallback<P, T> {
 impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
     /// representation
+    #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
         self
@@ -831,9 +833,6 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        #[cfg(feature = "autocomplete")]
-        let mut comp_items = Vec::new();
-
         fn meta_items(meta: &Meta) -> Vec<Item> {
             match meta {
                 Meta::And(xs) => {
@@ -851,10 +850,13 @@ where
                     res
                 }
                 Meta::Item(i) => vec![*i.clone()],
-                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => meta_items(&*m),
+                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => meta_items(m),
                 Meta::Skip | Meta::HideUsage(_) => Vec::new(),
             }
         }
+
+        #[cfg(feature = "autocomplete")]
+        let mut comp_items = Vec::new();
 
         let mut best_missing = meta_items(&self.meta());
 
@@ -871,6 +873,7 @@ where
             // without multi step approach first command line also parses into 42
 
             let mut scratch = this_arg.clone();
+            #[allow(clippy::range_plus_one)] // inclusive range is the wrong type
             scratch.restrict_to_range(&(start..start + 1));
             let before = scratch.len();
             // nothing to consume, might as well stop right now

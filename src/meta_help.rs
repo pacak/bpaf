@@ -221,7 +221,7 @@ impl<'a> HelpItems<'a> {
                 xs.push(HelpItem::Decor {
                     help,
                     margin: DecorPlace::Suffix,
-                })
+                });
             }
             Meta::Skip => (),
         }
