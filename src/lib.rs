@@ -1484,7 +1484,6 @@ pub trait Parser<T> {
     {
         OptionParser {
             info: info::Info::default(),
-            inner_type: PhantomData,
             inner: Box::new(self),
         }
     }
