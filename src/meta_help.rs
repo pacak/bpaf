@@ -12,7 +12,7 @@ use crate::{
 
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct Metavar(pub(crate) &'static str);
+pub struct Metavar(pub(crate) &'static str);
 
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -57,7 +57,7 @@ pub(crate) enum HelpItem<'a> {
     MultiArg {
         name: ShortLong,
         help: Option<&'a str>,
-        fields: &'a [(&'static str, Option<String>)],
+        fields: &'a [(Metavar, Option<String>)],
     },
 }
 
@@ -99,7 +99,7 @@ impl<'a> HelpItems<'a> {
             } => {
                 if help.is_some() {
                     self.psns.push(HelpItem::Positional {
-                        metavar: Metavar(metavar),
+                        metavar: *metavar,
                         help: help.as_deref(),
                     });
                 }
@@ -146,7 +146,7 @@ impl<'a> HelpItems<'a> {
                 shorts: _,
             } => self.flgs.push(HelpItem::Argument {
                 name: *name,
-                metavar: Metavar(metavar),
+                metavar: *metavar,
                 env: *env,
                 help: help.as_deref(),
             }),
@@ -256,7 +256,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 help,
                 strict: _,
             } => Self::Positional {
-                metavar: Metavar(metavar),
+                metavar: *metavar,
                 help: help.as_deref(),
             },
             Item::Command {
@@ -298,7 +298,7 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 shorts: _,
             } => Self::Argument {
                 name: *name,
-                metavar: Metavar(metavar),
+                metavar: *metavar,
                 env: *env,
                 help: help.as_deref(),
             },
@@ -416,7 +416,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             write_shortlong(buf, *name);
             for (field, _) in fields.iter() {
                 buf.write_str(" ", Style::Label);
-                write_metavar(buf, Metavar(field));
+                write_metavar(buf, *field);
             }
 
             if let Some(help) = help {
@@ -427,7 +427,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             for (field, help) in fields.iter() {
                 if let Some(help) = help {
                     buf.newline();
-                    write_metavar(buf, Metavar(field));
+                    write_metavar(buf, *field);
                     buf.tabstop();
                     buf.write_str(help, Style::Text);
                 }

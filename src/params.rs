@@ -61,7 +61,9 @@
 use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 use super::{Args, Error, OptionParser, Parser};
-use crate::{args::Arg, from_os_str::parse_os_str, item::ShortLong, Item, Meta};
+use crate::{
+    args::Arg, from_os_str::parse_os_str, item::ShortLong, meta_help::Metavar, Item, Meta,
+};
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
@@ -687,7 +689,7 @@ impl<T> ParseArgument<T> {
     fn item(&self) -> Item {
         Item::Argument {
             name: ShortLong::from(&self.named),
-            metavar: self.metavar,
+            metavar: Metavar(self.metavar),
             env: self.named.env.first().copied(),
             help: self.named.help.clone(),
             shorts: self.named.short.clone(),
@@ -862,7 +864,7 @@ impl<T> ParsePositional<T> {
 
     fn meta(&self) -> Meta {
         Meta::from(Item::Positional {
-            metavar: self.metavar,
+            metavar: Metavar(self.metavar),
             help: self.help.clone(),
             strict: self.strict,
         })
@@ -875,13 +877,13 @@ fn parse_word(
     metavar: &'static str,
     help: &Option<String>,
 ) -> Result<OsString, Error> {
-    if let Some((is_strict, word)) = args.take_positional_word(metavar)? {
+    if let Some((is_strict, word)) = args.take_positional_word(Metavar(metavar))? {
         if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
             return Err(Error::Message(
-                format!("Expected <{}> to be on the right side of --", metavar,),
+                format!("Expected <{}> to be on the right side of --", metavar),
                 false,
             ));
         }
@@ -899,7 +901,7 @@ fn parse_word(
         }
 
         let item = Item::Positional {
-            metavar,
+            metavar: Metavar(metavar),
             help: help.clone(),
             strict,
         };
@@ -928,7 +930,7 @@ where
 /// Parse the next available item on a command line with no restrictions, created with [`any`].
 pub struct ParseAny<T> {
     ty: PhantomData<T>,
-    metavar: &'static str,
+    metavar: Metavar,
     strict: bool,
     help: Option<String>,
 }
@@ -961,7 +963,7 @@ pub struct ParseAny<T> {
 pub fn any<T>(metavar: &'static str) -> ParseAny<T> {
     ParseAny {
         ty: PhantomData,
-        metavar,
+        metavar: Metavar(metavar),
         strict: false,
         help: None,
     }

@@ -217,17 +217,29 @@ impl Line<'_> {
             UsageMeta::ShortFlag(name) => {
                 self.norm('-').bold(*name);
             }
-            UsageMeta::ShortArg(name, metavar) => {
-                self.norm('-').bold(*name).norm('=').italic(metavar);
+            UsageMeta::ShortArg(name, metavars) => {
+                self.norm('-').bold(*name).norm('=');
+                for (ix, mv) in metavars.iter().enumerate() {
+                    if ix > 0 {
+                        self.norm(' ');
+                    }
+                    self.italic(mv.0);
+                }
             }
             UsageMeta::LongFlag(name) => {
                 self.norm("--").bold(*name);
             }
-            UsageMeta::LongArg(name, metavar) => {
-                self.norm("--").bold(*name).norm('=').italic(metavar);
+            UsageMeta::LongArg(name, metavars) => {
+                self.norm("--").bold(*name).norm('=');
+                for (ix, mv) in metavars.iter().enumerate() {
+                    if ix > 0 {
+                        self.norm(' ');
+                    }
+                    self.italic(mv.0);
+                }
             }
             UsageMeta::Pos(x) | UsageMeta::StrictPos(x) => {
-                self.metavar(x);
+                self.metavar(x.0);
             }
             UsageMeta::Command => {
                 self.bold("COMMAND").norm("...");
@@ -372,7 +384,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                     if ix > 0 {
                         l.norm(" ");
                     }
-                    l.metavar(m);
+                    l.metavar(m.0);
                 }
             });
 

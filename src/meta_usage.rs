@@ -1,5 +1,6 @@
 use crate::{
     item::{Item, ShortLong},
+    meta_help::Metavar,
     Meta,
 };
 
@@ -11,11 +12,11 @@ pub(crate) enum UsageMeta {
     Optional(Box<Self>),
     Many(Box<Self>),
     ShortFlag(char),
-    ShortArg(char, String),
+    ShortArg(char, Vec<Metavar>),
     LongFlag(&'static str),
-    LongArg(&'static str, String),
-    Pos(&'static str),
-    StrictPos(&'static str),
+    LongArg(&'static str, Vec<Metavar>),
+    Pos(Metavar),
+    StrictPos(Metavar),
     Command,
 }
 
@@ -131,9 +132,9 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
             } => {
                 *is_pos = true;
                 if *strict {
-                    UsageMeta::StrictPos(metavar)
+                    UsageMeta::StrictPos(*metavar)
                 } else {
-                    UsageMeta::Pos(metavar)
+                    UsageMeta::Pos(*metavar)
                 }
             }
             Item::Command { .. } => {
@@ -146,23 +147,17 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
             },
             Item::Argument { name, metavar, .. } => match name {
                 ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
-                    UsageMeta::ShortArg(*s, (*metavar).to_string())
+                    UsageMeta::ShortArg(*s, vec![*metavar])
                 }
-                ShortLong::Long(l) => UsageMeta::LongArg(l, (*metavar).to_string()),
+                ShortLong::Long(l) => UsageMeta::LongArg(l, vec![*metavar]),
             },
             Item::MultiArg { name, fields, .. } => {
-                let mut args = String::new();
-                for (var, _) in fields.iter() {
-                    if !args.is_empty() {
-                        args.push(' ');
-                    }
-                    args.push_str(var);
-                }
+                let metas = fields.iter().map(|x| x.0).collect::<Vec<_>>();
                 match name {
                     ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
-                        UsageMeta::ShortArg(*s, args)
+                        UsageMeta::ShortArg(*s, metas)
                     }
-                    ShortLong::Long(l) => UsageMeta::LongArg(l, args),
+                    ShortLong::Long(l) => UsageMeta::LongArg(l, metas),
                 }
             }
         },
@@ -197,11 +192,23 @@ impl std::fmt::Display for UsageMeta {
             UsageMeta::Many(x) => write!(f, "{}...", x),
             UsageMeta::ShortFlag(c) => write!(f, "-{}", c),
             UsageMeta::LongFlag(l) => write!(f, "--{}", l),
-            UsageMeta::ShortArg(c, v) => write!(f, "-{} {}", c, v),
-            UsageMeta::LongArg(l, v) => write!(f, "--{} {}", l, v),
+            UsageMeta::ShortArg(c, xs) => {
+                write!(f, "-{}", c)?;
+                for x in xs {
+                    write!(f, " {}", x.0)?;
+                }
+                Ok(())
+            }
+            UsageMeta::LongArg(l, xs) => {
+                write!(f, "--{}", l)?;
+                for x in xs {
+                    write!(f, " {}", x.0)?;
+                }
+                Ok(())
+            }
             UsageMeta::Command => f.write_str("COMMAND ..."),
-            UsageMeta::Pos(s) => write!(f, "<{}>", s),
-            UsageMeta::StrictPos(s) => write!(f, "-- <{}>", s),
+            UsageMeta::Pos(s) => write!(f, "{}", s),
+            UsageMeta::StrictPos(s) => write!(f, "-- {}", s),
         }
     }
 }

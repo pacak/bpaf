@@ -1,10 +1,10 @@
-use crate::{info::Info, parsers::NamedArg, Meta};
+use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Item {
     Positional {
-        metavar: &'static str,
+        metavar: Metavar,
         strict: bool,
         help: Option<String>,
     },
@@ -24,7 +24,7 @@ pub enum Item {
     Argument {
         name: ShortLong,
         shorts: Vec<char>,
-        metavar: &'static str,
+        metavar: Metavar,
         env: Option<&'static str>,
         help: Option<String>,
     },
@@ -32,7 +32,7 @@ pub enum Item {
         name: ShortLong,
         shorts: Vec<char>,
         help: Option<String>,
-        fields: Vec<(&'static str, Option<String>)>,
+        fields: Vec<(Metavar, Option<String>)>,
     },
 }
 
