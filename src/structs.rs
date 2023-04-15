@@ -949,7 +949,12 @@ fn classify_anywhere(meta: Meta) -> Meta {
 
         let (name, shorts, help) = match iter.next() {
             Some(Meta::Item(item)) => match &**item {
-                Item::Flag { name, shorts, help } => (name, shorts, help),
+                Item::Flag {
+                    name,
+                    shorts,
+                    help,
+                    env: _,
+                } => (name, shorts, help),
                 _ => return meta,
             },
             _ => return meta,

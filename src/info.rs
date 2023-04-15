@@ -1,8 +1,5 @@
 //! Help message generation and rendering
 
-#![allow(clippy::write_with_newline)]
-use std::marker::PhantomData;
-
 use crate::{
     args::{Args, Conflict},
     item::Item,
@@ -82,7 +79,6 @@ pub(crate) fn check_conflicts(args: &Args) -> Option<String> {
 /// Created with [`to_options`](Parser::to_options)
 pub struct OptionParser<T> {
     pub(crate) inner: Box<dyn Parser<T>>,
-    pub(crate) inner_type: PhantomData<T>,
     pub(crate) info: Info,
 }
 

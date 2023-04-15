@@ -45,6 +45,7 @@ pub(crate) enum HelpItem<'a> {
     },
     Flag {
         name: ShortLong,
+        env: Option<&'static str>,
         help: Option<&'a str>,
     },
     Argument {
@@ -130,9 +131,11 @@ impl<'a> HelpItems<'a> {
             Item::Flag {
                 name,
                 help,
+                env,
                 shorts: _,
             } => self.flgs.push(HelpItem::Flag {
                 name: *name,
+                env: *env,
                 help: help.as_deref(),
             }),
             Item::Argument {
@@ -279,10 +282,12 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
             },
             Item::Flag {
                 name,
+                env,
                 help,
                 shorts: _,
             } => Self::Flag {
                 name: *name,
+                env: *env,
                 help: help.as_deref(),
             },
             Item::Argument {
@@ -359,10 +364,22 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
                 buf.write_str(help, Style::Text);
             }
         }
-        HelpItem::Flag { name, help } => {
+        HelpItem::Flag { name, env, help } => {
             buf.margin(4);
             write_shortlong(buf, *name);
             buf.tabstop();
+            if let Some(env) = env {
+                let val = if std::env::var_os(env).is_some() {
+                    ": set"
+                } else {
+                    ": not set"
+                };
+                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+                if help.is_some() {
+                    buf.newline();
+                    buf.tabstop();
+                }
+            }
             if let Some(help) = help {
                 buf.write_str(help, Style::Text);
             }

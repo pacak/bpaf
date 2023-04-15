@@ -18,6 +18,7 @@ pub enum Item {
     Flag {
         name: ShortLong,
         shorts: Vec<char>,
+        env: Option<&'static str>,
         help: Option<String>,
     },
     Argument {

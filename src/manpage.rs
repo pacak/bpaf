@@ -340,7 +340,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 }
             }
         }
-        HelpItem::Flag { name, help } => {
+        HelpItem::Flag { name, help, env: _ } => {
             manpage.label(|l| {
                 l.shortlong(name);
             });
