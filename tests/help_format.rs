@@ -198,7 +198,7 @@ fn anywhere_invariant_check() {
     #[derive(Debug, Clone, Bpaf)]
     #[allow(dead_code)]
     #[bpaf(anywhere)]
-    struct Foo {
+    struct Fooo {
         tag: (),
         #[bpaf(positional)]
         /// help
@@ -209,7 +209,7 @@ fn anywhere_invariant_check() {
 
     let a = short('a').switch();
     let b = short('b').switch();
-    let parser = construct!(a, foo(), b).to_options();
+    let parser = construct!(a, fooo(), b).to_options();
 
     parser.check_invariants(true);
 
