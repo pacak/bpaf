@@ -368,3 +368,35 @@ Available options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn env_fallback_visible() {
+    let fonts_dir = long("fonts")
+        .env("OIKOS_FONTS")
+        .help("Load fonts from this directory")
+        .argument::<String>("DIR")
+        .optional();
+
+    let system_fonts = long("system-fonts")
+        .env("OIKOS_SYSTEM_FONTS")
+        .help("Search for additional fonts in system directories")
+        .switch();
+    let parser = construct!(fonts_dir, system_fonts).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: [--fonts DIR] [--system-fonts]
+
+Available options:
+        --fonts <DIR>   [env:OIKOS_FONTS: N/A]
+                        Load fonts from this directory
+        --system-fonts  [env:OIKOS_SYSTEM_FONTS: not set]
+                        Search for additional fonts in system directories
+    -h, --help          Prints help information
+";
+    assert_eq!(r, expected);
+}

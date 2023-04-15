@@ -145,6 +145,7 @@ impl NamedArg {
         Item::Flag {
             name: ShortLong::from(self),
             help: self.help.clone(),
+            env: self.env.first().copied(),
             shorts: self.short.clone(),
         }
     }
