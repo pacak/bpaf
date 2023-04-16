@@ -1145,3 +1145,26 @@ fn generate_unparseable_items() {
         4,
     );
 }
+
+#[test]
+fn complete_with_fallback() {
+    let parser = long("name")
+        .argument::<String>("NAME")
+        .complete(test_completer_descr)
+        .parse(|x| x.parse::<u16>())
+        .fallback(10)
+        .to_options();
+
+    test_comp_v3(
+        &parser,
+        &["--name", ""],
+        &[
+            "literal\talpha\tshow\talpha    alpha",
+            "literal\tbeta\tshow\tbeta    beta",
+            "literal\tbanana\tshow\tbanana    banana",
+            "literal\tcat\tshow\tcat    cat",
+            "literal\tdurian\tshow\tdurian    durian",
+        ],
+        4,
+    );
+}
