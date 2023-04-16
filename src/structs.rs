@@ -21,13 +21,23 @@ where
     E: ToString,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        match self.inner.eval(args) {
-            Ok(ok) => Ok(ok),
-            e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
-            Err(Error::Missing(_) | Error::Message(_, true)) => match (self.fallback)() {
-                Ok(ok) => Ok(ok),
-                Err(e) => Err(Error::Message(e.to_string(), false)),
-            },
+        let mut clone = args.clone();
+        match self.inner.eval(&mut clone) {
+            Ok(ok) => {
+                std::mem::swap(args, &mut clone);
+                Ok(ok)
+            }
+            Err(e) => {
+                #[cfg(feature = "autocomplete")]
+                args.swap_comps(&mut clone);
+                match e {
+                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
+                    Error::Missing(_) | Error::Message(_, true) => match (self.fallback)() {
+                        Ok(ok) => Ok(ok),
+                        Err(e) => Err(Error::Message(e.to_string(), false)),
+                    },
+                }
+            }
         }
     }
 
@@ -369,20 +379,18 @@ where
     T: Clone,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        {
-            let parser = &self.inner;
-            let value = &self.value;
-            let mut clone = args.clone();
-            match parser.eval(&mut clone) {
-                Ok(ok) => {
-                    std::mem::swap(args, &mut clone);
-                    Ok(ok)
-                }
-                e @ Err(Error::Message(_, false) | Error::ParseFailure(_)) => e,
-                Err(Error::Missing(_) | Error::Message(_, true)) => {
-                    #[cfg(feature = "autocomplete")]
-                    args.swap_comps(&mut clone);
-                    Ok(value.clone())
+        let mut clone = args.clone();
+        match self.inner.eval(&mut clone) {
+            Ok(ok) => {
+                std::mem::swap(args, &mut clone);
+                Ok(ok)
+            }
+            Err(e) => {
+                #[cfg(feature = "autocomplete")]
+                args.swap_comps(&mut clone);
+                match e {
+                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
+                    Error::Missing(_) | Error::Message(_, true) => Ok(self.value.clone()),
                 }
             }
         }
