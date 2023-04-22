@@ -109,21 +109,20 @@ pub(crate) fn improve_error(
         Some(Error::ParseFailure(f)) => return f,
         Some(Error::Message(msg, _)) => msg,
         Some(Error::Missing(xs)) => {
+            let meta = Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
+                .normalized(false);
+
             if let Some(x) = args.peek() {
                 if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                     msg
                 } else {
                     format!(
                         "Expected {}, got \"{}\". Pass --help for usage information",
-                        Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>()),
-                        x
+                        meta, x
                     )
                 }
             } else {
-                format!(
-                    "Expected {}, pass --help for usage information",
-                    Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
-                )
+                format!("Expected {}, pass --help for usage information", meta)
             }
         }
     })

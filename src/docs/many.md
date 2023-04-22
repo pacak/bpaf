@@ -66,7 +66,7 @@ Options { argument: [], switches: [true, true] }
 In usage lines `many` items are indicated with `...`
 ```console
 % app --help
-Usage: --argument ARG... [--switch]...
+Usage: [--argument ARG]... [--switch]...
 
 Available options:
         --argument <ARG>  important argument

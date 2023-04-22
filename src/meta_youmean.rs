@@ -144,6 +144,8 @@ fn collect_suggestions<'a>(
         Meta::Item(item) => inner_item(arg, item, variants, at_top_level),
         Meta::HideUsage(meta)
         | Meta::Optional(meta)
+        | Meta::Required(meta)
+        | Meta::Anywhere(meta)
         | Meta::Many(meta)
         | Meta::Decorated(meta, _, _) => {
             collect_suggestions(arg, meta, variants, at_top_level);

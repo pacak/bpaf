@@ -14,12 +14,28 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct Metavar(pub(crate) &'static str);
 
+impl Metavar {
+    // don't render <> around the metavar if
+    fn custom(&self) -> bool {
+        self.0
+            .as_bytes()
+            .first()
+            .map_or(false, |c| !c.is_ascii_alphanumeric())
+    }
+}
+
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Write;
-        f.write_char('<')?;
+        let hide_triangles = f.alternate() || self.custom();
+        if !hide_triangles {
+            f.write_char('<')?;
+        }
         f.write_str(self.0)?;
-        f.write_char('>')
+        if !hide_triangles {
+            f.write_char('>')?;
+        }
+        Ok(())
     }
 }
 
@@ -171,7 +187,11 @@ impl<'a> HelpItems<'a> {
                     self.classify(x);
                 }
             }
-            Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) => self.classify(x),
+            Meta::Anywhere(x) // TODO?
+            | Meta::HideUsage(x)
+            | Meta::Required(x)
+            | Meta::Optional(x)
+            | Meta::Many(x) => self.classify(x),
             Meta::Item(item) => self.classify_item(item),
 
             Meta::Decorated(m, help, DecorPlace::Header) => {
@@ -317,9 +337,14 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
 }
 
 fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
-    buf.write_char('<', Style::Label);
+    let custom = metavar.custom();
+    if !custom {
+        buf.write_char('<', Style::Label);
+    }
     buf.write_str(metavar.0, Style::Label);
-    buf.write_char('>', Style::Label);
+    if !custom {
+        buf.write_char('>', Style::Label);
+    }
 }
 
 fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
@@ -487,24 +512,20 @@ pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String 
     let mut res = String::new();
     let mut buf = Buffer::default();
 
+    parser_meta.positional_invariant_check(false);
+
     if let Some(t) = info.descr {
         write_as_lines(&mut buf, t);
         buf.newline();
     }
-
-    let auto = parser_meta.to_usage_meta().map(|u| u.to_string());
+    let auto = format!("{:#}", parser_meta);
     if let Some(custom_usage) = info.usage {
-        match auto {
-            Some(auto_usage) => buf.write_str(
-                custom_usage.replacen("{usage}", &auto_usage, 1).as_str(),
-                Style::Text,
-            ),
-            None => buf.write_str(custom_usage, Style::Text),
-        };
-        buf.newline();
-    } else if let Some(usage) = auto {
-        buf.write_str("Usage: ", Style::Text);
+        let usage = custom_usage.replacen("{usage}", &auto, 1);
         buf.write_str(&usage, Style::Text);
+        buf.newline();
+    } else {
+        buf.write_str("Usage: ", Style::Text);
+        buf.write_str(&auto, Style::Text);
         buf.newline();
     }
 

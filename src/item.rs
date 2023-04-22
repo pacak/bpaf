@@ -17,12 +17,14 @@ pub enum Item {
     },
     Flag {
         name: ShortLong,
+        /// used for disambiguation
         shorts: Vec<char>,
         env: Option<&'static str>,
         help: Option<String>,
     },
     Argument {
         name: ShortLong,
+        /// used for disambiguation
         shorts: Vec<char>,
         metavar: Metavar,
         env: Option<&'static str>,
@@ -30,10 +32,20 @@ pub enum Item {
     },
     MultiArg {
         name: ShortLong,
+        /// used for disambiguation
         shorts: Vec<char>,
         help: Option<String>,
         fields: Vec<(Metavar, Option<String>)>,
     },
+}
+
+impl Item {
+    pub(crate) fn is_pos(&self) -> bool {
+        match self {
+            Item::Positional { .. } | Item::Command { .. } => true,
+            Item::Flag { .. } | Item::Argument { .. } | Item::MultiArg { .. } => false,
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -63,6 +75,67 @@ impl Item {
             boxed
         } else {
             Meta::Optional(Box::new(boxed))
+        }
+    }
+}
+
+impl std::fmt::Display for ShortLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShortLong::Long(l) => write!(f, "--{}", l),
+            ShortLong::Short(s) | ShortLong::ShortLong(s, _) => write!(f, "-{}", s),
+        }
+    }
+}
+
+impl std::fmt::Display for Item {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Item::Positional {
+                metavar,
+                strict,
+                help: _,
+            } => {
+                if *strict {
+                    f.write_str("-- ")?;
+                }
+                // use write! macro to reset the alternative view
+                write!(f, "{}", metavar)
+            }
+            Item::Command { .. } => f.write_str("COMMAND ..."),
+            Item::Flag {
+                name,
+                shorts: _,
+                env: _,
+                help: _,
+            } => write!(f, "{}", name),
+
+            Item::Argument {
+                name,
+                shorts: _,
+                metavar,
+                env: _,
+                help: _,
+            } => {
+                name.fmt(f)?;
+                f.write_str(" ")?;
+                metavar.fmt(f)
+            }
+
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help: _,
+                fields,
+            } => {
+                name.fmt(f)?;
+
+                for (metavar, _) in fields {
+                    f.write_str(" ")?;
+                    metavar.fmt(f)?;
+                }
+                Ok(())
+            }
         }
     }
 }

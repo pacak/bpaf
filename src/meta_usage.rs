@@ -57,25 +57,25 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
     let r = match meta {
         Meta::And(xs) => {
             let mut items = xs
-                .iter()
-                .filter_map(|x| {
-                    let mut this_pos = false;
-                    let usage_meta = collect_usage_meta(x, &mut this_pos)?;
-                    assert!(!*is_pos || this_pos,
-                        "bpaf usage BUG: all positional and command items must be placed in the right \
-                        most position of the structure or tuple they are in but {} breaks this rule. \
-                        See bpaf documentation for `positional` for details.",
-                        usage_meta
-                    );
-                    *is_pos |= this_pos;
+                    .iter()
+                    .filter_map(|x| {
+                        let mut this_pos = false;
+                        let usage_meta = collect_usage_meta(x, &mut this_pos)?;
+                        assert!(!*is_pos || this_pos,
+                            "bpaf usage BUG: all positional and command items must be placed in the right \
+                            most position of the structure or tuple they are in but {:?} breaks this rule. \
+                            See bpaf documentation for `positional` for details.",
+                            usage_meta
+                        );
+                        *is_pos |= this_pos;
 
-                    if let UsageMeta::Or(_) = &usage_meta {
-                        Some(UsageMeta::Required(Box::new(usage_meta)))
-                    } else {
-                    Some(usage_meta)
-                    }
-                })
-                .collect::<Vec<_>>();
+                        if let UsageMeta::Or(_) = &usage_meta {
+                            Some(UsageMeta::Required(Box::new(usage_meta)))
+                        } else {
+                            Some(usage_meta)
+                        }
+                    })
+                    .collect::<Vec<_>>();
             match items.len() {
                 0 => return None,
                 1 => items.remove(0),
@@ -116,6 +116,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
             let inner = collect_usage_meta(m, is_pos)?;
             UsageMeta::Optional(Box::new(inner))
         }
+        Meta::Required(m) => collect_usage_meta(m, is_pos)?,
         Meta::Many(meta) => {
             let inner = collect_usage_meta(meta, is_pos)?;
             if let UsageMeta::And(..) | UsageMeta::Or(..) = &inner {
@@ -124,6 +125,7 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
                 UsageMeta::Many(Box::new(inner))
             }
         }
+        Meta::Anywhere(m) => collect_usage_meta(m, is_pos)?,
         Meta::Decorated(meta, _, _) => collect_usage_meta(meta, is_pos)?,
         Meta::HideUsage(_) | Meta::Skip => return None,
         Meta::Item(i) => match &**i {
@@ -163,52 +165,4 @@ fn collect_usage_meta(meta: &Meta, is_pos: &mut bool) -> Option<UsageMeta> {
         },
     };
     Some(r)
-}
-
-impl std::fmt::Display for UsageMeta {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
-        match self {
-            UsageMeta::And(xs) => {
-                for (ix, x) in xs.iter().enumerate() {
-                    if ix != 0 {
-                        f.write_char(' ')?;
-                    }
-                    x.fmt(f)?;
-                }
-                Ok(())
-            }
-            UsageMeta::Or(xs) => {
-                for (ix, x) in xs.iter().enumerate() {
-                    if ix != 0 {
-                        f.write_str(" | ")?;
-                    }
-                    x.fmt(f)?;
-                }
-                Ok(())
-            }
-            UsageMeta::Required(x) => write!(f, "({})", x),
-            UsageMeta::Optional(x) => write!(f, "[{}]", x),
-            UsageMeta::Many(x) => write!(f, "{}...", x),
-            UsageMeta::ShortFlag(c) => write!(f, "-{}", c),
-            UsageMeta::LongFlag(l) => write!(f, "--{}", l),
-            UsageMeta::ShortArg(c, xs) => {
-                write!(f, "-{}", c)?;
-                for x in xs {
-                    write!(f, " {}", x.0)?;
-                }
-                Ok(())
-            }
-            UsageMeta::LongArg(l, xs) => {
-                write!(f, "--{}", l)?;
-                for x in xs {
-                    write!(f, " {}", x.0)?;
-                }
-                Ok(())
-            }
-            UsageMeta::Command => f.write_str("COMMAND ..."),
-            UsageMeta::Pos(s) => write!(f, "{}", s),
-            UsageMeta::StrictPos(s) => write!(f, "-- {}", s),
-        }
-    }
 }

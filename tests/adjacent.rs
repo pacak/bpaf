@@ -68,7 +68,7 @@ fn adjacent_error_message_arg_single() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -b B, got \"10\". Pass --help for usage information"
+        "Expected -b <B>, got \"10\". Pass --help for usage information"
     );
 }
 
@@ -106,6 +106,6 @@ fn adjacent_error_message_arg_many() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -b B, got \"-a\". Pass --help for usage information"
+        "Expected -b <B>, got \"-a\". Pass --help for usage information"
     );
 }

@@ -714,7 +714,7 @@ Available options:
         let expected_help = "\
 add files to the staging area
 
-Usage: [-i] [--all] <FILE>...
+Usage: [-i] [--all] [<FILE>]...
 
 Available options:
     -i
@@ -949,6 +949,7 @@ fn default_plays_nicely_with_command() {
     let expected_help = "\
 inner
 
+Usage: no parameters expected
 
 Available options:
     -h, --help  Prints help information
@@ -1009,6 +1010,7 @@ Available commands:
     let expected_help = "\
 inner descr
 
+Usage: no parameters expected
 
 Available options:
     -h, --help  Prints help information
@@ -1793,7 +1795,9 @@ fn empty_struct() {
         .unwrap_stdout();
     assert_eq!(
         r,
-        "
+        "\
+Usage: no parameters expected
+
 Available options:
     -h, --help  Prints help information
 "
@@ -1815,7 +1819,9 @@ fn empty_tuple() {
         .unwrap_stdout();
     assert_eq!(
         r,
-        "
+        "\
+Usage: no parameters expected
+
 Available options:
     -h, --help  Prints help information
 "
@@ -1911,7 +1917,7 @@ fn option_requires_other_option1() {
     // error message sucks...
     assert_eq!(
         r,
-        "Expected -b B, got \"-a\". Pass --help for usage information"
+        "Expected -b <B>, got \"-a\". Pass --help for usage information"
     );
 }
 

@@ -101,13 +101,13 @@ While `bpaf` takes some effort to render the help even for custom stuff - you ca
 bypass it by hiding options and substituting your own with custom `header`/`footer`.
 ```console
 % app --help
-Usage: [-t] [<backing>] [<xinerama>] (<+ext> | <-ext>)...
+Usage: [-t] [<backing>] [<xinerama>] [+ext | -ext]...
 
 Available positional items:
     <backing>   Backing status
     <xinerama>  Xinerama status
-    <+ext>      enable ext <EXT>
-    <-ext>      disable ext <EXT>
+    +ext        enable ext <EXT>
+    -ext        disable ext <EXT>
 
 Available options:
     -t, --turbo  Engage the turbo mode
