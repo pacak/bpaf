@@ -51,7 +51,7 @@ fn extension() -> impl Parser<(String, bool)> {
         });
 
     let state = construct!([on, off]);
-    let name = positional::<String>("EXT").hide();
+    let name = positional::<String>("EXT");
     construct!(state, name)
         .map(|(a, b)| (b, a))
         .anywhere()
@@ -101,7 +101,7 @@ While `bpaf` takes some effort to render the help even for custom stuff - you ca
 bypass it by hiding options and substituting your own with custom `header`/`footer`.
 ```console
 % app --help
-Usage: [-t] [<backing>] [<xinerama>] [+ext | -ext]...
+Usage: [-t] [<backing>] [<xinerama>] [(+ext | -ext) <EXT>]...
 
 Available positional items:
     +ext  enable ext <EXT>

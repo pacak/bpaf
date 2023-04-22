@@ -50,7 +50,7 @@ fn extension() -> impl Parser<(String, bool)> {
         });
 
     let state = construct!([on, off]);
-    let name = positional::<String>("EXT").hide();
+    let name = positional::<String>("EXT");
     construct!(state, name)
         .map(|(a, b)| (b, a))
         .anywhere()
