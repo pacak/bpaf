@@ -22,10 +22,8 @@ Options { turbo: true, backing: true, xinerama: true }
 Stdout
 Usage: [-t] [<backing>] [<xinerama>]
 
-Available positional items:
-    <backing>   Backing status
-    <xinerama>  Xinerama status
-
 Available options:
     -t, --turbo  Engage the turbo mode
+    <backing>    Backing status
+    <xinerama>   Xinerama status
     -h, --help   Prints help information

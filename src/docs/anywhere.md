@@ -79,12 +79,10 @@ with `.header` or `.footer` methods on `OptionParser`.
 % app --help
 Usage: [-t] [<backing>] [<xinerama>]
 
-Available positional items:
-    <backing>   Backing status
-    <xinerama>  Xinerama status
-
 Available options:
     -t, --turbo  Engage the turbo mode
+    <backing>    Backing status
+    <xinerama>   Xinerama status
     -h, --help   Prints help information
 ```
 

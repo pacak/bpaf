@@ -85,6 +85,7 @@ pub(crate) struct HelpItems<'a> {
     pub(crate) flgs: Vec<HelpItem<'a>>,
     pub(crate) psns: Vec<HelpItem<'a>>,
     pub(crate) cmds: Vec<HelpItem<'a>>,
+    anywhere: bool,
 }
 
 impl HelpItem<'_> {
@@ -114,10 +115,15 @@ impl<'a> HelpItems<'a> {
                 strict: _,
             } => {
                 if help.is_some() {
-                    self.psns.push(HelpItem::Positional {
+                    let hi = HelpItem::Positional {
                         metavar: *metavar,
                         help: help.as_deref(),
-                    });
+                    };
+                    if self.anywhere {
+                        self.flgs.push(hi);
+                    } else {
+                        self.psns.push(hi);
+                    }
                 }
             }
             Item::Command {
@@ -134,7 +140,7 @@ impl<'a> HelpItems<'a> {
                 #[cfg(feature = "manpage")]
                 meta,
             } => {
-                self.cmds.push(HelpItem::Command {
+                let hi = HelpItem::Command {
                     name,
                     #[cfg(feature = "manpage")]
                     info,
@@ -142,7 +148,12 @@ impl<'a> HelpItems<'a> {
                     meta,
                     short: *short,
                     help: help.as_deref(),
-                });
+                };
+                if self.anywhere {
+                    self.flgs.push(hi);
+                } else {
+                    self.cmds.push(hi);
+                }
             }
             Item::Flag {
                 name,
@@ -187,11 +198,15 @@ impl<'a> HelpItems<'a> {
                     self.classify(x);
                 }
             }
-            Meta::Anywhere(x) // TODO?
-            | Meta::HideUsage(x)
-            | Meta::Required(x)
-            | Meta::Optional(x)
-            | Meta::Many(x) => self.classify(x),
+            Meta::Anywhere(x) => {
+                let prev_anywhere = self.anywhere;
+                self.anywhere = true;
+                self.classify(x);
+                self.anywhere = prev_anywhere;
+            }
+            Meta::HideUsage(x) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
+                self.classify(x)
+            }
             Meta::Item(item) => self.classify_item(item),
 
             Meta::Decorated(m, help, DecorPlace::Header) => {

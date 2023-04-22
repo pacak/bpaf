@@ -91,13 +91,11 @@ Best effort to generate help, but you can always customize it further
 % app --help
 Usage: [--magic] [<if=FILE>] [<of=FILE>] [<bs=SIZE>]
 
-Available positional items:
-    <if=FILE>  read from FILE instead of stdin
-    <of=FILE>  write to FILE instead of stdout
-    <bs=SIZE>  read/write SIZE blocks at once instead of 512
-
 Available options:
         --magic
+    <if=FILE>    read from FILE instead of stdin
+    <of=FILE>    write to FILE instead of stdout
+    <bs=SIZE>    read/write SIZE blocks at once instead of 512
     -h, --help   Prints help information
 ```
 
