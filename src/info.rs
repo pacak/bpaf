@@ -4,7 +4,7 @@ use crate::{
     args::{Args, Conflict},
     item::Item,
     parsers::ParseCommand,
-    Meta, ParseFailure, Parser,
+    ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation

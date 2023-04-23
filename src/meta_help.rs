@@ -537,12 +537,11 @@ pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String 
     if let Some(custom_usage) = info.usage {
         let usage = custom_usage.replacen("{usage}", &auto, 1);
         buf.write_str(&usage, Style::Text);
-        buf.newline();
     } else {
         buf.write_str("Usage: ", Style::Text);
         buf.write_str(&auto, Style::Text);
-        buf.newline();
     }
+    buf.newline();
 
     if let Some(t) = info.header {
         buf.newline();
