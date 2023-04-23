@@ -404,7 +404,6 @@ mod item;
 mod manpage;
 mod meta;
 mod meta_help;
-mod meta_usage;
 mod meta_youmean;
 pub mod params;
 mod structs;
