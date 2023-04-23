@@ -169,10 +169,8 @@ impl Meta {
     /// Normalize meta info for display as usage. Required propagates outwards
     fn normalize(&mut self, for_usage: bool) {
         fn normalize_vec(xs: &mut Vec<Meta>, for_usage: bool) -> Option<Meta> {
-            xs.retain_mut(|m| {
-                m.normalize(for_usage);
-                !matches!(m, Meta::Skip)
-            });
+            xs.iter_mut().for_each(|m| m.normalize(for_usage));
+            xs.retain(|m| !matches!(m, Meta::Skip));
             match xs.len() {
                 0 => Some(Meta::Skip),
                 1 => Some(xs.remove(0)),
