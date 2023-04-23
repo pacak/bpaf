@@ -1,9 +1,9 @@
 use roff::{Inline, Roff};
 
 use crate::{
-    item::ShortLong,
+    item::{Item, ShortLong},
     meta_help::{HelpItem, HelpItems},
-    OptionParser,
+    Meta, OptionParser,
 };
 
 struct Manpage {
@@ -152,14 +152,16 @@ impl Line<'_> {
         self
     }
 
-    fn shortlong(&mut self, name: ShortLong) -> &mut Self {
+    fn shortlong(&mut self, name: ShortLong, long: bool) -> &mut Self {
         match name {
             ShortLong::Short(s) => self.line.push(bold(format!("-{}", s))),
             ShortLong::Long(l) => self.line.push(bold(format!("--{}", l))),
             ShortLong::ShortLong(s, l) => {
                 self.line.push(bold(format!("-{}", s)));
-                self.line.push(norm(", "));
-                self.line.push(bold(format!("--{}", l)));
+                if long {
+                    self.line.push(norm(", "));
+                    self.line.push(bold(format!("--{}", l)));
+                }
             }
         }
         self
@@ -186,10 +188,55 @@ impl Line<'_> {
         self.norm(" ")
     }
 
-    fn usage(&mut self, usage: &crate::meta_usage::UsageMeta) -> &mut Self {
-        use crate::meta_usage::UsageMeta;
+    fn usage_item(&mut self, item: &Item) -> &mut Self {
+        match item {
+            Item::Positional {
+                metavar,
+                strict: _,
+                help: _,
+            } => {
+                self.metavar(metavar.0);
+            }
+            Item::Command { .. } => {
+                self.bold("COMMAND ...");
+            }
+            Item::Flag {
+                name,
+                shorts: _,
+                env: _,
+                help: _,
+            } => {
+                self.shortlong(*name, false);
+            }
+            Item::Argument {
+                name,
+                shorts: _,
+                metavar,
+                env: _,
+                help: _,
+            } => {
+                self.shortlong(*name, false).norm('=').metavar(metavar.0);
+            }
+            Item::MultiArg {
+                name,
+                shorts: _,
+                help: _,
+                fields,
+            } => {
+                self.shortlong(*name, false);
+                for (ix, (mv, _)) in fields.iter().enumerate() {
+                    if ix > 0 {
+                        self.norm(' ');
+                    }
+                    self.italic(mv.0);
+                }
+            }
+        }
+        self
+    }
+    fn usage(&mut self, usage: &Meta) -> &mut Self {
         match usage {
-            UsageMeta::And(xs) => {
+            Meta::And(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix > 0 {
                         self.norm(" ");
@@ -197,7 +244,7 @@ impl Line<'_> {
                     self.usage(x);
                 }
             }
-            UsageMeta::Or(xs) => {
+            Meta::Or(xs) => {
                 for (ix, x) in xs.iter().enumerate() {
                     if ix > 0 {
                         self.norm(" | ");
@@ -205,32 +252,27 @@ impl Line<'_> {
                     self.usage(x);
                 }
             }
-            UsageMeta::Required(u) => {
+            Meta::Required(u) => {
                 self.norm('(').usage(u).norm(')');
             }
-            UsageMeta::Optional(meta) => {
-                self.norm('[').usage(meta).norm(']');
+            Meta::Optional(m) => {
+                self.norm('[').usage(m).norm(']');
             }
-            UsageMeta::Many(usage) => {
-                self.usage(usage).norm("...");
+            Meta::Many(m) => {
+                self.usage(m).norm("...");
             }
-            UsageMeta::ShortFlag(name) => {
-                self.norm('-').bold(*name);
+            Meta::Anywhere(m) => {
+                self.usage(m);
             }
-            UsageMeta::ShortArg(name, metavar) => {
-                self.norm('-').bold(*name).norm('=').italic(metavar);
+            Meta::Item(item) => {
+                self.usage_item(item);
             }
-            UsageMeta::LongFlag(name) => {
-                self.norm("--").bold(*name);
+            Meta::Decorated(m, _, _) => {
+                self.usage(m);
             }
-            UsageMeta::LongArg(name, metavar) => {
-                self.norm("--").bold(*name).norm('=').italic(metavar);
-            }
-            UsageMeta::Pos(x) | UsageMeta::StrictPos(x) => {
-                self.metavar(x);
-            }
-            UsageMeta::Command => {
-                self.bold("COMMAND").norm("...");
+            Meta::Skip => {}
+            Meta::HideUsage(m) => {
+                self.usage(m);
             }
         };
         self
@@ -342,7 +384,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
         }
         HelpItem::Flag { name, help, env: _ } => {
             manpage.label(|l| {
-                l.shortlong(name);
+                l.shortlong(name, true);
             });
             if let Some(help) = help {
                 manpage.text([norm(help)]);
@@ -355,7 +397,7 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
             help,
         } => {
             manpage.label(|l| {
-                l.shortlong(name).norm("=").metavar(mvar.0);
+                l.shortlong(name, true).norm("=").metavar(mvar.0);
                 if let Some(env) = env {
                     l.env(env);
                 }
@@ -367,12 +409,12 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
         }
         HelpItem::MultiArg { name, help, fields } => {
             manpage.label(|l| {
-                l.shortlong(name).norm("=");
+                l.shortlong(name, true).norm("=");
                 for (ix, (m, _help)) in fields.iter().enumerate() {
                     if ix > 0 {
                         l.norm(" ");
                     }
-                    l.metavar(m);
+                    l.metavar(m.0);
                 }
             });
 
@@ -449,11 +491,11 @@ impl<T> OptionParser<T> {
         });
 
         manpage.section("SYNOPSIS");
-        match meta.to_usage_meta() {
-            Some(usage) => manpage.paragraph(|l| {
-                l.bold(app).space().usage(&usage);
+        match meta.normalized(false) {
+            Meta::Skip => manpage.text([bold(app), norm(" takes no parameters")]),
+            meta => manpage.paragraph(|l| {
+                l.bold(app).space().usage(&meta);
             }),
-            None => manpage.text([bold(app), norm(" takes no parameters")]),
         };
 
         manpage.section("DESCRIPTION");

@@ -69,7 +69,7 @@ Options { value: 100, shorty: 0 }
 But if there's no fallback - the value is required
 ```console
 % app --value 1
-Expected -s ARG, pass --help for usage information
+Expected -s <ARG>, pass --help for usage information
 ```
 
 Argument is required

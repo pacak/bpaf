@@ -18,7 +18,7 @@ Options { argument: [], switches: [true, true] }
 ? In usage lines `many` items are indicated with `...`
 > --help
 Stdout
-Usage: --argument ARG... [--switch]...
+Usage: [--argument ARG]... [--switch]...
 
 Available options:
         --argument <ARG>  important argument

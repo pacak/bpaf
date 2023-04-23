@@ -119,7 +119,7 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::Many(Box::new(self.inner.meta()))
+        Meta::Many(Box::new(Meta::Required(Box::new(self.inner.meta()))))
     }
 }
 
@@ -569,7 +569,7 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::Many(Box::new(self.inner.meta()))
+        Meta::Many(Box::new(Meta::Optional(Box::new(self.inner.meta()))))
     }
 }
 
@@ -858,7 +858,11 @@ where
                     res
                 }
                 Meta::Item(i) => vec![*i.clone()],
-                Meta::Optional(m) | Meta::Many(m) | Meta::Decorated(m, _, _) => meta_items(m),
+                Meta::Optional(m)
+                | Meta::Required(m)
+                | Meta::Many(m)
+                | Meta::Anywhere(m) // TODO?
+                | Meta::Decorated(m, _, _) => meta_items(m),
                 Meta::Skip | Meta::HideUsage(_) => Vec::new(),
             }
         }
@@ -989,5 +993,5 @@ fn classify_anywhere(meta: Meta) -> Meta {
             });
         }
     }
-    meta
+    Meta::Anywhere(Box::new(meta))
 }

@@ -25,18 +25,25 @@ fn optional_group_meta() {
 }
 
 #[test]
-fn sensors_meta() {
+fn sensors_many() {
     let a = short('a').argument::<String>("A");
     let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).many().to_options();
+    assert_usage(parser, "[-a A -b B]...");
+}
 
+#[test]
+fn sensors_some() {
+    let a = short('a').argument::<String>("A");
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).some("want some sensors").to_options();
     assert_usage(parser, "(-a A -b B)...");
 }
 
 #[test]
 fn many_arg() {
     let parser = short('a').argument::<String>("A").many().to_options();
-    assert_usage(parser, "-a A...");
+    assert_usage(parser, "[-a A]...");
 }
 
 #[test]
@@ -54,7 +61,6 @@ fn many_switch() {
 #[test]
 fn some_switch() {
     let parser = short('a').switch().some("ARG").to_options();
-    // TODO - not ideal, should be -a... or (-a)...
     assert_usage(parser, "[-a]...");
 }
 
@@ -170,7 +176,7 @@ fn required_one_many() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
     let parser = construct!(a, b).many().to_options();
-    assert_usage(parser, "(-a -b)...");
+    assert_usage(parser, "[-a -b]...");
 }
 
 #[test]
@@ -193,7 +199,7 @@ fn required_or_many() {
     let f = pure(((), ()));
     let ef = construct!([e, f]);
     let parser = construct!([ab, cd, ef]).many().to_options();
-    assert_usage(parser, "(-a -b | -c -d)...");
+    assert_usage(parser, "[-a -b | -c -d]...");
 }
 
 #[test]
@@ -207,7 +213,7 @@ fn no_actual_arguments_also_works() {
         .unwrap_stdout();
     assert_eq!(
         r,
-        "\nAvailable options:\n    -h, --help  Prints help information\n"
+        "Usage: no parameters expected\n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
 
     let x = pure(true).meta();
@@ -220,6 +226,12 @@ fn a_or_b() {
     let b = short('b').long("bbb").argument::<String>("B");
     let parser = construct!([a, b]).to_options();
     assert_usage(parser, "(-a A | -b B)");
+}
+
+#[test]
+fn some_req_flag() {
+    let parser = short('a').req_flag(()).some("some").to_options();
+    assert_usage(parser, "-a...");
 }
 
 #[test]

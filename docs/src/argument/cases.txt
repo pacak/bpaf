@@ -17,7 +17,7 @@ Options { value: 100, shorty: 0 }
 ? But if there's no fallback - the value is required
 > --value 1
 Stderr
-Expected -s ARG, pass --help for usage information
+Expected -s <ARG>, pass --help for usage information
 
 ? Argument is required
 > -s

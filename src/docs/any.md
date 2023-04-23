@@ -76,7 +76,7 @@ Options { turbo: true, rest: ["git", "commit", "-m=hello world"] }
 You can keep `--help` working, but you need to add extra `guard` for that
 ```console
 % app --turbo --help
-Usage: [-t] <REST>...
+Usage: [-t] [<REST>]...
 
 Available positional items:
     <REST>  app will pass anything unused to a child process

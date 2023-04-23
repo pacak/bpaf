@@ -4,7 +4,7 @@ use crate::{
     args::{Args, Conflict},
     item::Item,
     parsers::ParseCommand,
-    Meta, ParseFailure, Parser,
+    ParseFailure, Parser,
 };
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -570,35 +570,6 @@ impl<T> OptionParser<T> {
     ///
     /// `check_invariants` indicates problems with panic
     pub fn check_invariants(&self, _cosmetic: bool) {
-        perform_invariant_check(&self.inner.meta(), true);
-    }
-}
-
-/// do a nested invariant check
-
-/// the check itself is performed as part of `to_usage_meta` transformation `fresh` parameter
-/// is used to perform it only once for every command parser encountered
-fn perform_invariant_check(meta: &Meta, fresh: bool) {
-    if fresh {
-        println!("Checking\n{:#?}", meta);
-        meta.to_usage_meta();
-    }
-    match meta {
-        Meta::And(xs) | Meta::Or(xs) => {
-            for i in xs.iter() {
-                perform_invariant_check(i, false);
-            }
-        }
-        Meta::HideUsage(x) | Meta::Optional(x) | Meta::Many(x) | Meta::Decorated(x, _, _) => {
-            perform_invariant_check(x, false);
-        }
-        Meta::Item(i) => match &**i {
-            Item::Command { meta, .. } => perform_invariant_check(meta, true),
-            Item::Positional { .. }
-            | Item::Flag { .. }
-            | Item::Argument { .. }
-            | Item::MultiArg { .. } => {}
-        },
-        Meta::Skip => {}
+        self.inner.meta().positional_invariant_check(true);
     }
 }

@@ -19,7 +19,8 @@
 - `bpaf_derive`: top level doc comments on a regular parser are now turned into a `group_help`
 - better error messages for invalid user input
 - env fallback can now be fully hidden
-
+- meta description refactor - invididual parsers should be described more consistently
+  in all sorts of messages
 
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`

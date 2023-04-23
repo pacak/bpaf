@@ -150,11 +150,11 @@ While `bpaf` takes some effort to render the help even for custom stuff - you ca
 bypass it by hiding options and substituting your own with custom `header`/`footer`.
 ```console
 % app --help
-Usage: [<-exec>] [<USER>] [<-mode>] <PATH>...
+Usage: [-exec] [<USER>] [-mode] [<PATH>]...
 
 Available positional items:
-    <-exec>  -exec /path/to/command flags and options ;
-    <-mode>  -mode (perm | -perm | /perm)
+    -exec  -exec /path/to/command flags and options ;
+    -mode  -mode (perm | -perm | /perm)
 
 Available options:
     -h, --help  Prints help information

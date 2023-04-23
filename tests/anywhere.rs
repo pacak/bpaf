@@ -1,6 +1,28 @@
 use bpaf::*;
 
 #[test]
+fn parse_anywhere_positional() {
+    let a = any::<String>("x")
+        .guard(|h| h != "--help", "ignore help")
+        .anywhere();
+
+    let b = short('b').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(
+        r,
+        "Usage: <x> [-b]\n\nAvailable options:\n    -b\n    -h, --help  Prints help information\n"
+    );
+    // this should be allowed because "anywhere" prevents anything inside from being positional
+    parser.check_invariants(true);
+}
+
+#[test]
 fn parse_anywhere_no_catch() {
     let a = short('a').req_flag(());
     let b = positional::<usize>("x");
@@ -83,7 +105,7 @@ fn parse_anywhere_catch_required() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -a x, got \"-a\". Pass --help for usage information"
+        "Expected -a <x>, got \"-a\". Pass --help for usage information"
     );
 
     let r = parser
@@ -101,7 +123,7 @@ fn parse_anywhere_catch_required() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -a x, got \"-c\". Pass --help for usage information"
+        "Expected -a <x>, got \"-c\". Pass --help for usage information"
     );
 
     let r = parser
@@ -110,7 +132,7 @@ fn parse_anywhere_catch_required() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -a x, got \"-a\". Pass --help for usage information"
+        "Expected -a <x>, got \"-a\". Pass --help for usage information"
     );
 
     let r = parser
@@ -119,7 +141,7 @@ fn parse_anywhere_catch_required() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -a x, got \"-a\". Pass --help for usage information"
+        "Expected -a <x>, got \"-a\". Pass --help for usage information"
     );
 
     let r = parser
