@@ -6,6 +6,7 @@ use crate::{
 };
 
 /// Looks for potential typos
+#[inline(never)]
 pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
     let arg = args.peek()?;
 

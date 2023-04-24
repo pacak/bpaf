@@ -943,7 +943,20 @@ where
         }
 
         if self.catch {
-            let msg = crate::help::summarize_missing(&best_missing, &self.inner.meta(), &best_args);
+            // parser "anywhere" runs in a restricted context, using restricted
+            // context makes sense for error message reporting as well. Without this
+            // it would complain about unexpected flags that are unknown to self.inner, but known
+            // to the global parser.
+            //
+            // Removing unexpected things from the context limits error to "expected xxx", but
+            // breaks "perhaps you meant ..." part. So we run this logic here as well
+            let meta = self.inner.meta();
+            best_args.restrict_to_range(&(0..0));
+
+            let msg = crate::meta_youmean::suggest(&best_args, &meta).unwrap_or_else(|| {
+                crate::help::summarize_missing(&best_missing, &meta, &best_args)
+            });
+
             Err(Error::Message(msg, true))
         } else {
             std::mem::swap(args, &mut best_args);

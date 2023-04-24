@@ -66,7 +66,10 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected an argument <x>, got -c");
+    assert_eq!(
+        r,
+        "Expected <x>, got \"-c\". Pass --help for usage information"
+    );
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b", "-c"]))
@@ -112,7 +115,7 @@ fn parse_anywhere_catch_required() {
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected an argument <x>, got -c");
+    assert_eq!(r, "Expected <x>, pass --help for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b", "-c"]))
