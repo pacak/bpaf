@@ -79,6 +79,60 @@ fn parse_anywhere_no_catch() {
 }
 
 #[test]
+fn anywhere_catch_optional() {
+    let a = short('a').req_flag(());
+    let b = positional::<usize>("x");
+    let ab = construct!(a, b).anywhere().catch().optional();
+    let bc = short('a').switch();
+    let parser = construct!(ab, bc).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    assert_eq!(r, (Some(((), 10)), false));
+
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!(r, (None, true));
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, (None, false));
+}
+
+#[test]
+fn anywhere_catch_many() {
+    let a = short('a').req_flag(());
+    let b = positional::<usize>("x");
+    let ab = construct!(a, b).anywhere().catch().many();
+    let bc = short('a').switch();
+    let parser = construct!(ab, bc).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    assert_eq!(r, (vec![((), 10)], false));
+
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!(r, (Vec::new(), true));
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, (Vec::new(), false));
+}
+
+#[test]
+fn anywhere_catch_fallback() {
+    let a = short('a').req_flag(());
+    let b = positional::<usize>("x");
+    let ab = construct!(a, b).anywhere().catch().fallback(((), 10));
+    let bc = short('a').switch();
+    let parser = construct!(ab, bc).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "12"])).unwrap();
+    assert_eq!(r, (((), 12), false));
+
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!(r, (((), 10), true));
+
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert_eq!(r, (((), 10), false));
+}
+
+#[test]
 fn parse_anywhere_catch_required() {
     let a = short('a').req_flag(());
     let b = positional::<usize>("x");
