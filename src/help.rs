@@ -2,7 +2,9 @@
 //!
 //! covers `--help`, `--version` etc.
 
-use crate::{info::Info, meta_help::render_help, short, Args, Error, Meta, ParseFailure, Parser};
+use crate::{
+    info::Info, item::Item, meta_help::render_help, short, Args, Error, Meta, ParseFailure, Parser,
+};
 
 struct ParseExtraParams {
     version: Option<&'static str>,
@@ -108,22 +110,29 @@ pub(crate) fn improve_error(
         }
         Some(Error::ParseFailure(f)) => return f,
         Some(Error::Message(msg, _)) => msg,
-        Some(Error::Missing(xs)) => {
-            let meta = Meta::Or(xs.iter().map(|i| Meta::from(i.clone())).collect::<Vec<_>>())
-                .normalized(false);
-
-            if let Some(x) = args.peek() {
-                if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
-                    msg
-                } else {
-                    format!(
-                        "Expected {}, got \"{}\". Pass --help for usage information",
-                        meta, x
-                    )
-                }
-            } else {
-                format!("Expected {}, pass --help for usage information", meta)
-            }
-        }
+        Some(Error::Missing(xs)) => summarize_missing(&xs, inner, args),
     })
+}
+
+#[inline(never)]
+pub(crate) fn summarize_missing(items: &[Item], inner: &Meta, args: &Args) -> String {
+    let meta = Meta::Or(
+        items
+            .iter()
+            .map(|i| Meta::from(i.clone()))
+            .collect::<Vec<_>>(),
+    )
+    .normalized(false);
+    if let Some(x) = args.peek() {
+        if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+            msg
+        } else {
+            format!(
+                "Expected {}, got \"{}\". Pass --help for usage information",
+                meta, x
+            )
+        }
+    } else {
+        format!("Expected {}, pass --help for usage information", meta)
+    }
 }
