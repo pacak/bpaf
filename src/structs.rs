@@ -534,7 +534,7 @@ where
             }
 
             match err {
-                Error::Message(_, _) if catch => Ok(None),
+                Error::Message(_, can_catch) if can_catch || catch => Ok(None),
                 Error::Message(_, _) | Error::ParseFailure(_) => Err(err),
                 Error::Missing(_) => {
                     if args.len() == orig_args.len() {
@@ -871,8 +871,7 @@ where
         let mut comp_items = Vec::new();
 
         let mut best_missing = meta_items(&self.meta());
-
-        let mut best_consumed = 0;
+        let mut best_args = args.clone();
 
         for (start, mut this_arg) in args.ranges() {
             // since we only want to parse things to the right of the first item we perform
@@ -905,31 +904,32 @@ where
                 //
                 // ParseFailure covers failures or --help/--version for the nested parsers
                 // anywhere shouldn't consume that
-                good @ (Ok(_) | Err(Error::ParseFailure(_))) => {
+                done @ (Ok(_) | Err(Error::ParseFailure(_))) => {
                     this_arg.copy_usage_from(args, 0..start);
                     std::mem::swap(&mut this_arg, args);
-                    return good;
+                    return done;
                 }
 
                 // failed to find something, try to improve previous error message and resume
                 Err(Error::Missing(items)) => {
-                    let consumed = args.len() - this_arg.len();
-                    if consumed >= best_consumed {
+                    if this_arg.len() < best_args.len() {
                         best_missing = items;
-                        best_consumed = consumed;
+
                         #[cfg(feature = "autocomplete")]
                         this_arg.swap_comps_with(&mut comp_items);
+                        best_args = this_arg;
                     }
                 }
 
                 // otherwise return the error message we get
-                otherwise @ Err(Error::Message(_, _)) => {
+                Err(Error::Message(msg, can_catch)) => {
                     let consumed = args.len() - this_arg.len();
-                    if consumed > 0 && !self.catch {
+                    if consumed > 0 {
+                        // && !self.catch {
                         this_arg.copy_usage_from(args, 0..start);
                         #[cfg(feature = "autocomplete")]
                         this_arg.swap_comps_with(&mut comp_items);
-                        return otherwise;
+                        return Err(Error::Message(msg, can_catch || self.catch));
                     }
                 }
             }
@@ -942,7 +942,13 @@ where
             return Ok(val);
         }
 
-        Err(Error::Missing(best_missing))
+        if self.catch {
+            let msg = crate::help::summarize_missing(&best_missing, &self.inner.meta(), &best_args);
+            Err(Error::Message(msg, true))
+        } else {
+            std::mem::swap(args, &mut best_args);
+            Err(Error::Missing(best_missing))
+        }
     }
 
     fn meta(&self) -> Meta {
