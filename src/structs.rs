@@ -534,7 +534,7 @@ where
             }
 
             match err {
-                Error::Message(_, _) if catch => Ok(None),
+                Error::Message(_, can_catch) if can_catch || catch => Ok(None),
                 Error::Message(_, _) | Error::ParseFailure(_) => Err(err),
                 Error::Missing(_) => {
                     if args.len() == orig_args.len() {
@@ -841,38 +841,20 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        fn meta_items(meta: &Meta) -> Vec<Item> {
-            match meta {
-                Meta::And(xs) => {
-                    if xs.is_empty() {
-                        Vec::new()
-                    } else {
-                        meta_items(&xs[0])
-                    }
-                }
-                Meta::Or(xs) => {
-                    let mut res = Vec::new();
-                    for x in xs {
-                        res.extend(meta_items(x));
-                    }
-                    res
-                }
-                Meta::Item(i) => vec![*i.clone()],
-                Meta::Optional(m)
-                | Meta::Required(m)
-                | Meta::Many(m)
-                | Meta::Anywhere(m) // TODO?
-                | Meta::Decorated(m, _, _) => meta_items(m),
-                Meta::Skip | Meta::HideUsage(_) => Vec::new(),
-            }
-        }
-
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
 
-        let mut best_missing = meta_items(&self.meta());
+        // the idea of "anywhere" parsing is to try to parse at all the "tails"
+        // of the arguments picking either first succesful parse or the "best" error
+        //
+        // consider a parser --set <NAME> <VAL>
+        // --set name val               <- good parser
+        // --set name --bogus val       <- want to complain on bogus here
+        // --set name                   <- want to demand <val>
 
-        let mut best_consumed = 0;
+        let mut best_args = args.clone();
+        let mut best_consumed = usize::MAX;
+        let mut best_error = Error::Missing(Vec::new());
 
         for (start, mut this_arg) in args.ranges() {
             // since we only want to parse things to the right of the first item we perform
@@ -905,31 +887,19 @@ where
                 //
                 // ParseFailure covers failures or --help/--version for the nested parsers
                 // anywhere shouldn't consume that
-                good @ (Ok(_) | Err(Error::ParseFailure(_))) => {
+                done @ (Ok(_) | Err(Error::ParseFailure(_))) => {
                     this_arg.copy_usage_from(args, 0..start);
                     std::mem::swap(&mut this_arg, args);
-                    return good;
+                    return done;
                 }
 
                 // failed to find something, try to improve previous error message and resume
-                Err(Error::Missing(items)) => {
-                    let consumed = args.len() - this_arg.len();
-                    if consumed >= best_consumed {
-                        best_missing = items;
-                        best_consumed = consumed;
-                        #[cfg(feature = "autocomplete")]
-                        this_arg.swap_comps_with(&mut comp_items);
-                    }
-                }
+                Err(err) => {
+                    if this_arg.len() < best_args.len() {
+                        best_error = err;
+                        best_consumed = this_arg.len();
 
-                // otherwise return the error message we get
-                otherwise @ Err(Error::Message(_, _)) => {
-                    let consumed = args.len() - this_arg.len();
-                    if consumed > 0 && !self.catch {
-                        this_arg.copy_usage_from(args, 0..start);
-                        #[cfg(feature = "autocomplete")]
-                        this_arg.swap_comps_with(&mut comp_items);
-                        return otherwise;
+                        best_args = this_arg;
                     }
                 }
             }
@@ -938,11 +908,37 @@ where
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
 
-        if let Ok(val) = self.inner.eval(&mut Args::from(&[])) {
-            return Ok(val);
+        // also try to run the parser with no input
+        match self.inner.eval(&mut Args::from(&[])) {
+            done @ (Ok(_) | Err(Error::ParseFailure(_))) => {
+                return done;
+            }
+            Err(err) => {
+                if best_consumed == usize::MAX {
+                    best_error = err;
+                }
+            }
         }
 
-        Err(Error::Missing(best_missing))
+        // parser "anywhere" runs in a restricted context, using restricted
+        // context makes sense for error message reporting as well. Without this
+        // it would complain about unexpected flags that are unknown to self.inner, but known
+        // to the global parser.
+        //
+        // Removing unexpected things from the context limits error to "expected xxx", but
+        // breaks "perhaps you meant ..." part. So we run this logic here as well
+        let meta = self.inner.meta();
+        best_args.restrict_to_range(&(0..0));
+
+        Err(match best_error {
+            Error::Message(msg, catch) => Error::Message(msg, catch || self.catch),
+            err @ Error::ParseFailure(_) => err,
+            Error::Missing(missing) => {
+                let msg = crate::meta_youmean::suggest(&best_args, &meta)
+                    .unwrap_or_else(|| crate::help::summarize_missing(&missing, &meta, &best_args));
+                Error::Message(msg, self.catch)
+            }
+        })
     }
 
     fn meta(&self) -> Meta {

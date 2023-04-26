@@ -21,6 +21,7 @@
 - env fallback can now be fully hidden
 - meta description refactor - invididual parsers should be described more consistently
   in all sorts of messages
+- better error messages with positionals and inside anywhere blocks
 
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`

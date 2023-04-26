@@ -1,7 +1,9 @@
 use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
-use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Error, Meta, ParseFailure};
+use crate::{
+    info::Info, item::Item, meta_help::Metavar, parsers::NamedArg, Error, Meta, ParseFailure,
+};
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
 #[derive(Debug, Clone)]
@@ -641,10 +643,11 @@ impl Args {
                 self.remove(ix);
                 Ok(Some((false, w)))
             }
-            Some((_, arg)) => Err(Error::Message(
-                format!("Expected an argument {}, got {}", metavar, arg),
-                false,
-            )),
+            Some((_, _arg)) => Err(Error::Missing(vec![Item::Positional {
+                help: None,
+                metavar,
+                strict: false,
+            }])),
             None => Ok(None),
         }
     }
