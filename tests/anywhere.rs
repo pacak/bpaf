@@ -66,10 +66,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        r,
-        "Expected <x>, got \"-c\". Pass --help for usage information"
-    );
+    assert_eq!(r, "Expected <x>, pass --help for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b", "-c"]))
@@ -193,6 +190,12 @@ fn parse_anywhere_catch_optional() {
     let parser = construct!(ab, c).to_options();
 
     let r = parser
+        .run_inner(Args::from(&["3", "-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "3 is not expected in this context");
+
+    let r = parser
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
@@ -227,10 +230,26 @@ fn parse_anywhere_catch_optional() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "-a is not expected in this context");
+}
+
+#[test]
+fn anywhere_literal() {
+    let tag = any::<String>("-mode").guard(|x| x == "-mode", "not mode");
+    let mode = positional::<usize>("value");
+    let a = construct!(tag, mode).anywhere().catch().many();
+    let b = short('b').switch();
+    let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["3", "-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "3 is not expected in this context");
+        .run_inner(Args::from(&["-b", "-mode", "12"]))
+        .unwrap();
+    assert_eq!(r, (vec![("-mode".to_owned(), 12)], true));
+
+    let r = parser
+        .run_inner(Args::from(&["-mode", "12", "-b"]))
+        .unwrap();
+    assert_eq!(r, (vec![("-mode".to_owned(), 12)], true));
+
+    let r = parser.run_inner(Args::from(&["-mode", "12"])).unwrap();
+    assert_eq!(r, (vec![("-mode".to_owned(), 12)], false));
 }

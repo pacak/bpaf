@@ -80,7 +80,7 @@ Options { multi_arg: Some(MultiArg { set: (), name: "name", value: "Bob" }), tur
 But not in between
 ```console
 % app --set name --turbo Bob
-Expected an argument <ARG>, got --turbo
+Expected <ARG>, pass --help for usage information
 ```
 
 </details>

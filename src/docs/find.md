@@ -73,7 +73,9 @@ fn perm() -> impl Parser<Option<Perm>> {
         Ok(perms)
     }
 
-    let tag = any::<String>("-mode").help("-mode (perm | -perm | /perm)");
+    let tag = any::<String>("-mode")
+        .help("-mode (perm | -perm | /perm)")
+        .guard(|x| x == "-mode", "");
     let mode = any::<String>("mode")
         .parse::<_, _, String>(|s| {
             if let Some(m) = s.strip_prefix('-') {
