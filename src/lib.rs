@@ -397,6 +397,7 @@ mod complete_gen;
 mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
+mod error;
 mod help;
 mod info;
 mod item;
@@ -411,7 +412,9 @@ mod structs;
 mod tests;
 
 #[doc(hidden)]
-pub use crate::info::Error;
+pub use crate::error::Error;
+#[doc(inline)]
+pub use crate::error::ParseFailure;
 use crate::item::Item;
 use std::marker::PhantomData;
 #[doc(hidden)]
@@ -1630,69 +1633,6 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
     ParseFail {
         field1: msg,
         field2: PhantomData,
-    }
-}
-
-/// Unsuccessful command line parsing outcome, use it for unit tests
-///
-/// Useful for unit testing for user parsers, consume it with
-/// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
-#[derive(Clone, Debug)]
-pub enum ParseFailure {
-    /// Print this to stdout and exit with success code
-    Stdout(String),
-    /// Print this to stderr and exit with failure code
-    Stderr(String),
-}
-
-impl ParseFailure {
-    /// Returns the contained `stderr` values - for unit tests
-    ///
-    /// # Panics
-    ///
-    /// Panics if failure contains `stdout`
-    #[allow(clippy::must_use_candidate)]
-    #[track_caller]
-    pub fn unwrap_stderr(self) -> String {
-        match self {
-            Self::Stderr(err) => err,
-            Self::Stdout(_) => {
-                panic!("not an stderr: {:?}", self)
-            }
-        }
-    }
-
-    /// Returns the contained `stdout` values - for unit tests
-    ///
-    /// # Panics
-    ///
-    /// Panics if failure contains `stderr`
-    #[allow(clippy::must_use_candidate)]
-    #[track_caller]
-    pub fn unwrap_stdout(self) -> String {
-        match self {
-            Self::Stdout(err) => err,
-            Self::Stderr(_) => {
-                panic!("not an stdout: {:?}", self)
-            }
-        }
-    }
-
-    /// Run an action appropriate to the failure and produce the exit code
-    ///
-    /// Prints a message to `stdout` or `stderr` and returns the exit code
-    #[allow(clippy::must_use_candidate)]
-    pub fn exit_code(self) -> i32 {
-        match self {
-            ParseFailure::Stdout(msg) => {
-                print!("{}", msg); // completions are sad otherwise
-                0
-            }
-            ParseFailure::Stderr(msg) => {
-                eprintln!("{}", msg);
-                1
-            }
-        }
     }
 }
 

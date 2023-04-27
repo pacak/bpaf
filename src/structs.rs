@@ -1,5 +1,5 @@
 //! Structures that implement different methods on [`Parser`] trait
-use crate::{args::Conflict, info::Error, item::Item, meta::DecorPlace, Args, Meta, Parser};
+use crate::{args::Conflict, item::Item, meta::DecorPlace, Args, Error, Meta, Parser};
 use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
