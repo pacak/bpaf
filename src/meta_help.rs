@@ -82,19 +82,7 @@ pub(crate) enum HelpItem<'a> {
 ///
 /// Items are stored as references and can be trivially copied
 pub(crate) struct HelpItems<'a> {
-    flgs: Vec<HelpItem<'a>>,
-    psns: Vec<HelpItem<'a>>,
-    cmds: Vec<HelpItem<'a>>,
-    anywhere: bool,
-}
-
-impl HelpItem<'_> {
-    fn is_decor(&self) -> bool {
-        match self {
-            HelpItem::Decor { .. } | HelpItem::BlankDecor => true,
-            _ => false,
-        }
-    }
+    items: Vec<HelpItem<'a>>,
 }
 
 fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
@@ -104,101 +92,114 @@ fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
     }
 }
 
-impl<'a> HelpItems<'a> {
-    pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
-        self.flgs.iter().copied()
-    }
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum HiTy {
+    Flag,
+    Command,
+    Positional,
+}
+pub(crate) struct HelpItemsIter<'a, 'b> {
+    items: &'b [HelpItem<'a>],
+    ty: HiTy,
+    cur: usize,
+    decor: Option<HiTy>,
+}
 
-    pub(crate) fn cmds(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
-        self.cmds.iter().copied()
+impl<'a, 'b> HelpItemsIter<'a, 'b> {
+    fn next_ty(&self) -> Option<HiTy> {
+        Some(match *self.items.get(self.cur)? {
+            HelpItem::Decor { .. } | HelpItem::BlankDecor => {
+                panic!("bpaf usage bug, don't nest decors...")
+            }
+            HelpItem::Positional { .. } => HiTy::Positional,
+            HelpItem::Command { .. } => HiTy::Command,
+            HelpItem::Flag { .. } | HelpItem::MultiArg { .. } | HelpItem::Argument { .. } => {
+                HiTy::Flag
+            }
+        })
     }
+}
 
-    pub(crate) fn psns(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
-        self.psns.iter().copied()
-    }
+impl<'a> Iterator for HelpItemsIter<'a, '_> {
+    type Item = HelpItem<'a>;
 
-    #[inline(never)]
-    /// Store a reference to this item into corresponding class - flag, positional or command
-    pub(crate) fn classify_item(&mut self, item: &'a Item) {
-        match item {
-            Item::Positional {
-                metavar,
-                help,
-                strict: _,
-            } => {
-                if help.is_some() {
-                    let hi = HelpItem::Positional {
-                        metavar: *metavar,
-                        help: help.as_deref(),
-                    };
-                    if self.anywhere {
-                        self.flgs.push(hi);
-                    } else {
-                        self.psns.push(hi);
+    fn next(&mut self) -> Option<Self::Item> {
+        // used to render suffix decor which follows the item itself. If we don't skip the item -
+        // we render suffix decor, otherwise we skip it
+        let mut skip = false;
+        loop {
+            let item = *self.items.get(self.cur)?;
+            self.cur += 1;
+
+            match item {
+                HelpItem::BlankDecor => {
+                    if Some(self.ty) == self.decor {
+                        self.decor = None;
+                        return Some(item);
+                    }
+                }
+                _ if Some(self.ty) == self.decor => return Some(item),
+                HelpItem::Decor {
+                    margin: DecorPlace::Suffix,
+                    ..
+                } => {
+                    if !skip {
+                        return Some(item);
+                    }
+                }
+                HelpItem::Decor { .. } => {
+                    let next_ty = self.next_ty()?;
+                    if next_ty == self.ty {
+                        self.decor = Some(next_ty);
+                        return Some(item);
+                    }
+                }
+                HelpItem::Positional { help, .. } => {
+                    if self.ty == HiTy::Positional && help.is_some() {
+                        return Some(item);
+                    }
+                }
+                HelpItem::Command { .. } => {
+                    if self.ty == HiTy::Command {
+                        return Some(item);
+                    }
+                }
+                HelpItem::MultiArg { .. } | HelpItem::Flag { .. } | HelpItem::Argument { .. } => {
+                    if self.ty == HiTy::Flag {
+                        return Some(item);
                     }
                 }
             }
-            Item::Command {
-                name,
-                short,
-                help,
+            skip = true;
+        }
+    }
+}
 
-                #[cfg(not(feature = "manpage"))]
-                    meta: _,
-                #[cfg(not(feature = "manpage"))]
-                    info: _,
-                #[cfg(feature = "manpage")]
-                info,
-                #[cfg(feature = "manpage")]
-                meta,
-            } => {
-                let hi = HelpItem::Command {
-                    name,
-                    #[cfg(feature = "manpage")]
-                    info,
-                    #[cfg(feature = "manpage")]
-                    meta,
-                    short: *short,
-                    help: help.as_deref(),
-                };
-                if self.anywhere {
-                    self.flgs.push(hi);
-                } else {
-                    self.cmds.push(hi);
-                }
-            }
-            Item::Flag {
-                name,
-                help,
-                env,
-                shorts: _,
-            } => self.flgs.push(HelpItem::Flag {
-                name: *name,
-                env: *env,
-                help: help.as_deref(),
-            }),
-            Item::Argument {
-                name,
-                metavar,
-                env,
-                help,
-                shorts: _,
-            } => self.flgs.push(HelpItem::Argument {
-                name: *name,
-                metavar: *metavar,
-                env: *env,
-                help: help.as_deref(),
-            }),
-            Item::MultiArg {
-                name,
-                shorts: _,
-                help,
-                fields,
-            } => self.flgs.push(HelpItem::MultiArg {
-                name: *name,
-                help: help.as_deref(),
-                fields,
-            }),
+impl<'a> HelpItems<'a> {
+    pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            ty: HiTy::Flag,
+            cur: 0,
+            decor: None,
+        }
+    }
+
+    pub(crate) fn cmds(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            ty: HiTy::Command,
+            cur: 0,
+            decor: None,
+        }
+    }
+
+    pub(crate) fn psns(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            ty: HiTy::Positional,
+            cur: 0,
+            decor: None,
         }
     }
 
@@ -211,64 +212,23 @@ impl<'a> HelpItems<'a> {
                 }
             }
             Meta::Anywhere(x) => {
-                let prev_anywhere = self.anywhere;
-                self.anywhere = true;
                 self.classify(x);
-                self.anywhere = prev_anywhere;
             }
             Meta::HideUsage(x) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
                 self.classify(x)
             }
-            Meta::Item(item) => self.classify_item(item),
-
+            Meta::Item(item) => self.items.push(HelpItem::from(item.as_ref())),
             Meta::Decorated(m, help, DecorPlace::Header) => {
-                self.flgs.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Header,
-                });
-                self.cmds.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Header,
-                });
-                self.psns.push(HelpItem::Decor {
+                self.items.push(HelpItem::Decor {
                     help,
                     margin: DecorPlace::Header,
                 });
                 self.classify(m);
-
-                if self.flgs.last().map_or(false, HelpItem::is_decor) {
-                    self.flgs.pop();
-                } else {
-                    self.flgs.push(HelpItem::BlankDecor);
-                }
-
-                if self.cmds.last().map_or(false, HelpItem::is_decor) {
-                    self.cmds.pop();
-                } else {
-                    self.cmds.push(HelpItem::BlankDecor);
-                }
-
-                if self.psns.last().map_or(false, HelpItem::is_decor) {
-                    self.psns.pop();
-                } else {
-                    self.psns.push(HelpItem::BlankDecor);
-                }
+                self.items.push(HelpItem::BlankDecor);
             }
             Meta::Decorated(m, help, DecorPlace::Suffix) => {
-                let flgs = self.flgs.len();
-                let cmds = self.cmds.len();
-                let psns = self.psns.len();
                 self.classify(m);
-                let xs = if flgs != self.flgs.len() {
-                    &mut self.flgs
-                } else if psns != self.psns.len() {
-                    &mut self.psns
-                } else if cmds != self.cmds.len() {
-                    &mut self.cmds
-                } else {
-                    return;
-                };
-                xs.push(HelpItem::Decor {
+                self.items.push(HelpItem::Decor {
                     help,
                     margin: DecorPlace::Suffix,
                 });
