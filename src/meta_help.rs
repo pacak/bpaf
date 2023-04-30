@@ -516,22 +516,30 @@ fn write_as_lines(buf: &mut Buffer, line: &str) {
     }
 }
 
-fn write_items(items: &[HelpItem], descr: &str) -> String {
-    if items.is_empty() {
-        String::new()
-    } else {
-        let mut buf = Buffer::default();
-        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
-        buf.newline();
-        buf.margin(0);
-        buf.write_str(descr, Style::Section);
-        buf.newline();
-        for i in items {
-            let cp = buf.checkpoint();
-            write_help_item(&mut buf, i);
-            dedup(&mut dedup_cache, &mut buf, cp);
+fn write_items<'a, I>(items: I, descr: &str) -> String
+where
+    I: Iterator<Item = HelpItem<'a>>,
+{
+    let mut buf = Buffer::default();
+    let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
+    let mut init = false;
+
+    for i in items {
+        if !init {
+            buf.newline();
+            buf.margin(0);
+            buf.write_str(descr, Style::Section);
+            buf.newline();
+            init = true;
         }
+        let cp = buf.checkpoint();
+        write_help_item(&mut buf, &i);
+        dedup(&mut dedup_cache, &mut buf, cp);
+    }
+    if init {
         buf.to_string()
+    } else {
+        String::new()
     }
 }
 
@@ -568,9 +576,9 @@ pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String 
 
     res.push_str(&buf.to_string());
 
-    res.push_str(&write_items(&items.psns, "Available positional items:"));
-    res.push_str(&write_items(&items.flgs, "Available options:"));
-    res.push_str(&write_items(&items.cmds, "Available commands:"));
+    res.push_str(&write_items(items.psns(), "Available positional items:"));
+    res.push_str(&write_items(items.flgs(), "Available options:"));
+    res.push_str(&write_items(items.cmds(), "Available commands:"));
 
     let mut buf = Buffer::default();
     if let Some(footer) = info.footer {
