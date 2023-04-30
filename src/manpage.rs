@@ -279,21 +279,21 @@ impl Line<'_> {
     }
 }
 
-fn flatten_commands<'a>(item: &HelpItem<'a>, path: &str, acc: &mut Vec<(String, HelpItem<'a>)>) {
+fn flatten_commands<'a>(item: HelpItem<'a>, path: &str, acc: &mut Vec<(String, HelpItem<'a>)>) {
     match item {
         HelpItem::Command { name, meta, .. } => {
-            acc.push((path.to_string(), *item));
+            acc.push((path.to_string(), item));
             let mut hi = HelpItems::default();
             hi.classify(meta);
-            if !hi.cmds.is_empty() {
+            if hi.cmds().next().is_some() {
                 let path = format!("{} {}", path, name);
-                for help_item in &hi.cmds {
+                for help_item in hi.cmds() {
                     flatten_commands(help_item, &path, acc);
                 }
             }
         }
         HelpItem::Decor { .. } => {
-            acc.push((String::new(), *item));
+            acc.push((String::new(), item));
         }
         _ => {}
     }
@@ -329,17 +329,17 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
             let mut hi = HelpItems::default();
             hi.classify(meta);
 
-            if !hi.psns.is_empty() {
+            if hi.psns().next().is_some() {
                 manpage.subsection("Positional items");
-                for item in &hi.psns {
-                    help_item(manpage, *item, None);
+                for item in hi.psns() {
+                    help_item(manpage, item, None);
                 }
             }
 
-            if !hi.flgs.is_empty() {
+            if hi.flgs().next().is_some() {
                 manpage.subsection("Option arguments and flags");
-                for item in &hi.flgs {
-                    help_item(manpage, *item, None);
+                for item in hi.flgs() {
+                    help_item(manpage, item, None);
                 }
             }
         }
@@ -508,24 +508,24 @@ impl<T> OptionParser<T> {
         }
 
         // --------------------------------------------------------------
-        if !hi.psns.is_empty() {
+        if hi.psns().next().is_some() {
             manpage.subsection("Positional items");
-            for item in &hi.psns {
-                help_item(&mut manpage, *item, None);
+            for item in hi.psns() {
+                help_item(&mut manpage, item, None);
             }
         }
 
-        if !hi.flgs.is_empty() {
+        if hi.flgs().next().is_some() {
             manpage.subsection("Option arguments and flags");
-            for item in &hi.flgs {
-                help_item(&mut manpage, *item, None);
+            for item in hi.flgs() {
+                help_item(&mut manpage, item, None);
             }
         }
 
-        if !hi.cmds.is_empty() {
+        if hi.cmds().next().is_some() {
             manpage.subsection("List of all the subcommands");
             let mut commands = Vec::new();
-            for item in &hi.cmds {
+            for item in hi.cmds() {
                 flatten_commands(item, app, &mut commands);
             }
             for (path, item) in &commands {

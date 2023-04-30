@@ -82,9 +82,9 @@ pub(crate) enum HelpItem<'a> {
 ///
 /// Items are stored as references and can be trivially copied
 pub(crate) struct HelpItems<'a> {
-    pub(crate) flgs: Vec<HelpItem<'a>>,
-    pub(crate) psns: Vec<HelpItem<'a>>,
-    pub(crate) cmds: Vec<HelpItem<'a>>,
+    flgs: Vec<HelpItem<'a>>,
+    psns: Vec<HelpItem<'a>>,
+    cmds: Vec<HelpItem<'a>>,
     anywhere: bool,
 }
 
@@ -105,6 +105,18 @@ fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
 }
 
 impl<'a> HelpItems<'a> {
+    pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        self.flgs.iter().copied()
+    }
+
+    pub(crate) fn cmds(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        self.cmds.iter().copied()
+    }
+
+    pub(crate) fn psns(&'_ self) -> impl Iterator<Item = HelpItem<'a>> + '_ {
+        self.psns.iter().copied()
+    }
+
     #[inline(never)]
     /// Store a reference to this item into corresponding class - flag, positional or command
     pub(crate) fn classify_item(&mut self, item: &'a Item) {
