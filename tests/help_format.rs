@@ -197,47 +197,54 @@ Available options:
 fn anywhere_invariant_check() {
     #[derive(Debug, Clone, Bpaf)]
     #[allow(dead_code)]
-    #[bpaf(anywhere)]
+    #[bpaf(adjacent)]
     struct Fooo {
         tag: (),
-        #[bpaf(positional)]
-        /// help
+        #[bpaf(positional("NAME"))]
+        /// help for name
         name: String,
-        #[bpaf(positional)]
+        #[bpaf(positional("VAL"))]
+        /// help for val
         val: String,
     }
 
-    let a = short('a').switch();
-    let b = short('b').switch();
+    let a = short('a').help("help for a").switch();
+    let b = short('b').help("help for b").switch();
     let parser = construct!(a, fooo(), b).to_options();
 
-    parser.check_invariants(true);
-
     let expected = "\
-Usage: [-a] --tag ARG ARG [-b]
+Usage: [-a] --tag <NAME> <VAL> [-b]
 
 Available options:
-    -a
-        --tag <ARG> <ARG>
-            <ARG>  help
-    -b
-    -h, --help     Prints help information
+    -a          help for a
+  --tag <NAME> <VAL>
+    <NAME>      help for name
+    <VAL>       help for val
+
+    -b          help for b
+    -h, --help  Prints help information
 ";
+
     let r = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, expected);
+
+    // this shouldn't crash
+    parser.check_invariants(true);
 }
 
 #[test]
 fn multi_arg_help() {
-    let a = long("flag").help("flag help").req_flag(());
-    let b = positional::<String>("NAME").help("pos1 help");
-    let c = positional::<bool>("STATE").help("pos2 help");
-    let combo = construct!(a, b, c).anywhere();
+    let a = short('f').long("flag").help("flag help").req_flag(());
+    let b = short('e').long("extra").help("extra strange").switch();
+    let c = positional::<String>("NAME").help("pos1 help");
+    let d = positional::<bool>("STATE").help("pos2 help");
+    let combo = construct!(a, b, c, d).adjacent().optional();
     let verbose = short('v').long("verbose").help("verbose").switch();
-    let parser = construct!(verbose, combo).to_options();
+    let detailed = long("detailed").short('d').help("detailed").switch();
+    let parser = construct!(verbose, combo, detailed).to_options();
 
     let r = parser
         .run_inner(Args::from(&["--help"]))
@@ -245,14 +252,47 @@ fn multi_arg_help() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [-v] --flag NAME STATE
+Usage: [-v] [-f [-e] <NAME> <STATE>] [-d]
 
 Available options:
-    -v, --verbose    verbose
-        --flag <NAME> <STATE>  flag help
-            <NAME>   pos1 help
-            <STATE>  pos2 help
-    -h, --help       Prints help information
+    -v, --verbose   verbose
+  -f [-e] <NAME> <STATE>
+    -f, --flag      flag help
+    -e, --extra     extra strange
+    <NAME>          pos1 help
+    <STATE>         pos2 help
+
+    -d, --detailed  detailed
+    -h, --help      Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn multi_pos_help() {
+    let a = positional::<String>("NAME").help("name help");
+    let b = positional::<String>("VAL").help("val help");
+    let combo = construct!(a, b).adjacent();
+    let verbose = short('v').long("verbose").switch();
+    let parser = construct!(verbose, combo).to_options();
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: [-v] <NAME> <VAL>
+
+Available positional items:
+  <NAME> <VAL>
+    <NAME>  name help
+    <VAL>   val help
+
+
+Available options:
+    -v, --verbose
+    -h, --help     Prints help information
 ";
     assert_eq!(r, expected);
 }

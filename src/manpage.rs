@@ -179,6 +179,7 @@ impl Line<'_> {
         self.line.push(bold(s));
         self
     }
+    #[allow(dead_code)]
     fn italic<S: Into<String>>(&mut self, s: S) -> &mut Self {
         self.line.push(italic(s));
         self
@@ -194,6 +195,7 @@ impl Line<'_> {
                 metavar,
                 strict: _,
                 help: _,
+                anywhere: _,
             } => {
                 self.metavar(metavar.0);
             }
@@ -216,20 +218,6 @@ impl Line<'_> {
                 help: _,
             } => {
                 self.shortlong(*name, false).norm('=').metavar(metavar.0);
-            }
-            Item::MultiArg {
-                name,
-                shorts: _,
-                help: _,
-                fields,
-            } => {
-                self.shortlong(*name, false);
-                for (ix, (mv, _)) in fields.iter().enumerate() {
-                    if ix > 0 {
-                        self.norm(' ');
-                    }
-                    self.italic(mv.0);
-                }
             }
         }
         self
@@ -261,7 +249,7 @@ impl Line<'_> {
             Meta::Many(m) => {
                 self.usage(m).norm("...");
             }
-            Meta::Anywhere(m) => {
+            Meta::Adjacent(m) => {
                 self.usage(m);
             }
             Meta::Item(item) => {
@@ -284,15 +272,15 @@ fn flatten_commands<'a>(item: HelpItem<'a>, path: &str, acc: &mut Vec<(String, H
         HelpItem::Command { name, meta, .. } => {
             acc.push((path.to_string(), item));
             let mut hi = HelpItems::default();
-            hi.classify(meta);
+            hi.append_meta(meta);
             if hi.cmds().next().is_some() {
                 let path = format!("{} {}", path, name);
                 for help_item in hi.cmds() {
-                    flatten_commands(help_item, &path, acc);
+                    flatten_commands(help_item.clone(), &path, acc);
                 }
             }
         }
-        HelpItem::Decor { .. } => {
+        HelpItem::DecorHeader { .. } => {
             acc.push((String::new(), item));
         }
         _ => {}
@@ -327,23 +315,23 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
                 }
             }
             let mut hi = HelpItems::default();
-            hi.classify(meta);
+            hi.append_meta(meta);
 
             if hi.psns().next().is_some() {
                 manpage.subsection("Positional items");
-                for item in hi.psns() {
+                for item in hi.psns().cloned() {
                     help_item(manpage, item, None);
                 }
             }
 
             if hi.flgs().next().is_some() {
                 manpage.subsection("Option arguments and flags");
-                for item in hi.flgs() {
+                for item in hi.flgs().cloned() {
                     help_item(manpage, item, None);
                 }
             }
         }
-        HelpItem::Decor { help, margin: _ } => {
+        HelpItem::DecorHeader { help, ty: _ } => {
             manpage.subsection(*help);
         }
         _ => {}
@@ -352,13 +340,17 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
 
 fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) {
     match item {
-        HelpItem::Decor { help, margin: _ } => {
+        HelpItem::DecorHeader { help, ty: _ } => {
             manpage.subsection(help);
         }
-        HelpItem::BlankDecor => {
+        HelpItem::DecorBlank { .. } => {
             manpage.text([]);
         }
-        HelpItem::Positional { metavar, help } => {
+        HelpItem::Positional {
+            metavar,
+            help,
+            anywhere: _,
+        } => {
             manpage.label(|l| {
                 l.metavar(metavar.0);
             });
@@ -407,21 +399,9 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 manpage.text([norm(help)]);
             }
         }
-        HelpItem::MultiArg { name, help, fields } => {
-            manpage.label(|l| {
-                l.shortlong(name, true).norm("=");
-                for (ix, (m, _help)) in fields.iter().enumerate() {
-                    if ix > 0 {
-                        l.norm(" ");
-                    }
-                    l.metavar(m.0);
-                }
-            });
-
-            if let Some(help) = help {
-                manpage.text([norm(help)]);
-            }
-        }
+        HelpItem::AnywhereStart { .. } => todo!(),
+        HelpItem::AnywhereStop { .. } => todo!(),
+        HelpItem::DecorSuffix { .. } => todo!(),
     }
 }
 
@@ -478,7 +458,7 @@ impl<T> OptionParser<T> {
     ) -> String {
         let mut hi = HelpItems::default();
         let meta = self.inner.meta();
-        hi.classify(&meta);
+        hi.append_meta(&meta);
 
         let mut manpage = Manpage::new(app, section, Some(date), None, None);
 
@@ -510,14 +490,14 @@ impl<T> OptionParser<T> {
         // --------------------------------------------------------------
         if hi.psns().next().is_some() {
             manpage.subsection("Positional items");
-            for item in hi.psns() {
+            for item in hi.psns().cloned() {
                 help_item(&mut manpage, item, None);
             }
         }
 
         if hi.flgs().next().is_some() {
             manpage.subsection("Option arguments and flags");
-            for item in hi.flgs() {
+            for item in hi.flgs().cloned() {
                 help_item(&mut manpage, item, None);
             }
         }
@@ -525,11 +505,11 @@ impl<T> OptionParser<T> {
         if hi.cmds().next().is_some() {
             manpage.subsection("List of all the subcommands");
             let mut commands = Vec::new();
-            for item in hi.cmds() {
+            for item in hi.cmds().cloned() {
                 flatten_commands(item, app, &mut commands);
             }
             for (path, item) in &commands {
-                help_item(&mut manpage, *item, Some(path));
+                help_item(&mut manpage, item.clone(), Some(path));
             }
             manpage.section("SUBCOMMANDS WITH OPTIONS");
 

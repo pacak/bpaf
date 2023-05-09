@@ -214,8 +214,25 @@ impl Field {
                             None
                         };
 
-                        let arg = parse_optional_arg(input)?;
-                        res.consumer = Some(ConsumerAttr::Any(arg, ty));
+                        let arg;
+                        let expr;
+
+                        let content;
+                        if input.peek(syn::token::Paren) {
+                            let _ = parenthesized!(content in input);
+                            arg = content.parse::<LitStr>()?;
+                            if content.peek(token::Comma) {
+                                content.parse::<token::Comma>()?;
+                                expr = Some(Box::new(content.parse::<Expr>()?));
+                            } else {
+                                expr = None;
+                            }
+                        } else {
+                            arg = LitStr::new("ARG", Span::call_site());
+                            expr = None;
+                        }
+
+                        res.consumer = Some(ConsumerAttr::Any(arg, ty, expr));
                     } else if keyword == "switch" {
                         check_stage(&mut stage, 2, &keyword)?;
                         res.consumer = Some(ConsumerAttr::Switch);
@@ -353,7 +370,7 @@ impl Field {
         // Do we even need to derive the name here?
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Any(_, _) | ConsumerAttr::Pos(_, _) => return,
+                ConsumerAttr::Any(_, _, _) | ConsumerAttr::Pos(_, _) => return,
                 ConsumerAttr::Arg(_, _)
                 | ConsumerAttr::Switch
                 | ConsumerAttr::Flag(_, _)
@@ -432,8 +449,12 @@ impl Field {
 
         if let Some(cons) = &self.consumer {
             match cons {
-                ConsumerAttr::Any(l, None) => {
-                    self.consumer = Some(ConsumerAttr::Any(l.clone(), Some(Box::new(ty.clone()))));
+                ConsumerAttr::Any(l, None, check) => {
+                    self.consumer = Some(ConsumerAttr::Any(
+                        l.clone(),
+                        Some(Box::new(ty.clone())),
+                        check.clone(),
+                    ));
                 }
                 ConsumerAttr::Arg(l, None) => {
                     self.consumer = Some(ConsumerAttr::Arg(l.clone(), Some(Box::new(ty.clone()))));

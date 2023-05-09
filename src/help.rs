@@ -3,7 +3,8 @@
 //! covers `--help`, `--version` etc.
 
 use crate::{
-    info::Info, item::Item, meta_help::render_help, short, Args, Error, Meta, ParseFailure, Parser,
+    error::MissingItem, info::Info, meta_help::render_help, short, Args, Error, Meta, ParseFailure,
+    Parser,
 };
 
 struct ParseExtraParams {
@@ -115,16 +116,35 @@ pub(crate) fn improve_error(
 }
 
 #[inline(never)]
-pub(crate) fn summarize_missing(items: &[Item], inner: &Meta, args: &Args) -> String {
+pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Args) -> String {
+    // missing items can belong to different scopes, pick the best scope to work with
+    let (best_pos, mut best_scope) = match items
+        .iter()
+        .max_by_key(|item| (item.position, item.scope.start))
+    {
+        Some(item) => (item.position, item.scope.clone()),
+        None => return "Nothing expected, but parser somehow failed...".to_owned(),
+    };
+
     let meta = Meta::Or(
         items
             .iter()
-            .map(|i| Meta::from(i.clone()))
+            .filter_map(|i| {
+                if i.scope == best_scope {
+                    Some(Meta::from(i.item.clone()))
+                } else {
+                    None
+                }
+            })
             .collect::<Vec<_>>(),
     )
     .normalized(false);
+
+    best_scope.start = best_scope.start.max(best_pos);
+    let mut args = args.clone();
+    args.set_scope(best_scope);
     if let Some(x) = args.peek() {
-        if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+        if let Some(msg) = crate::meta_youmean::suggest(&args, inner) {
             msg
         } else {
             format!(

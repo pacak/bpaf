@@ -180,6 +180,7 @@ impl<T> OptionParser<T> {
         self.inner
             .meta()
             .collect_shorts(&mut avail_flags, &mut avail_args);
+
         args.disambiguate(&avail_flags, &avail_args)?;
         match self.run_subparser(&mut args) {
             Ok(t) if args.is_empty() => Ok(t),

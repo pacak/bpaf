@@ -5,7 +5,9 @@
 pub(crate) enum Style {
     /// Plain text, no extra decorations
     Text,
+    /// Section title
     Section,
+    /// Flag name
     Label,
 }
 
@@ -36,6 +38,15 @@ pub(crate) struct Buffer {
 }
 
 impl Buffer {
+    pub(crate) fn clear(&mut self) {
+        self.payload.clear();
+        self.tokens.clear();
+        self.tabstop = 0;
+        self.current_margin = 0;
+        self.current_char = 0;
+        self.complete = false;
+    }
+
     pub(crate) fn tabstop(&mut self) {
         let max = self.tabstop.max(self.current_char);
         if max <= MAX_TAB {
@@ -376,13 +387,18 @@ fn line_breaking_rules() {
     m.write_str("hello\nworld\n", Style::Text);
     assert_eq!(m.to_string(), "hello world");
 
-    let mut m = Buffer::default();
-    m.complete = false;
+    let mut m = Buffer {
+        complete: false,
+        ..Buffer::default()
+    };
     m.write_str("hello\n\nworld", Style::Text);
     assert_eq!(m.to_string(), "hello");
 
-    let mut m = Buffer::default();
-    m.complete = true;
+    let mut m = Buffer {
+        complete: true,
+        ..Buffer::default()
+    };
+
     m.write_str("hello\n\nworld", Style::Text);
     assert_eq!(m.to_string(), "hello\nworld");
 }

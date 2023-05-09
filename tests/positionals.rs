@@ -71,7 +71,9 @@ fn helpful_error_message() {
 #[test]
 fn positional_argument() {
     set_override(false);
-    let p = positional::<String>("FILE").group_help("File to process");
+    let p = positional::<String>("FILE")
+        .help("file name")
+        .group_help("File to process");
     let parser = p.to_options();
 
     let help = parser
@@ -84,7 +86,7 @@ Usage: <FILE>
 
 Available positional items:
   File to process
-    <FILE>
+    <FILE>  file name
 
 
 Available options:

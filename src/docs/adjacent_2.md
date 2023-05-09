@@ -45,7 +45,7 @@ fn cmd() -> impl Parser<Cmd> {
 pub fn options() -> OptionParser<Options> {
     let switch = short('s').switch();
     let commands = cmd().many();
-    construct!(Options { commands, switch }).to_options()
+    construct!(Options { switch, commands }).to_options()
 }
 ```
 

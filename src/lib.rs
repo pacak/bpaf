@@ -432,15 +432,18 @@ pub mod parsers {
     //! In most cases you won't be using those names directly, they're only listed here to provide
     //! access to documentation
     #[cfg(feature = "autocomplete")]
+    #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
-    pub use crate::params::{NamedArg, ParseArgument, ParseCommand, ParsePositional};
+    #[doc(inline)]
+    pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
+    #[doc(inline)]
     pub use crate::structs::{ParseBox, ParseFallback, ParseMany, ParseOptional, ParseSome};
 }
 
 use structs::{
-    ParseAdjacent, ParseAnywhere, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-    ParseGuard, ParseHide, ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse,
-    ParsePure, ParsePureWith, ParseSome, ParseWith,
+    ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide,
+    ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith,
+    ParseSome, ParseWith,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -453,7 +456,7 @@ pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
-pub use crate::params::{any, command, env, long, positional, short};
+pub use crate::params::{any, command, env, literal, long, positional, short};
 
 #[cfg(doc)]
 pub(self) use crate::parsers::NamedArg;
@@ -1344,91 +1347,6 @@ pub trait Parser<T> {
         ParseCompStyle { inner: self, style }
     }
     // }}}
-
-    // {{{ adjacent
-    /// Automagically restrict the inner parser scope to accept adjacent values only
-    ///
-    /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,
-    /// multi-value arguments, option-structs to name a few. If you want to run a parser on a
-    /// sequential subset of arguments - `adjacent` might be able to help you. Check the examples
-    /// for better intuition.
-    ///
-    /// # Multi-value arguments
-    ///
-    /// Parsing things like `--foo ARG1 ARG2 ARG3`
-    #[doc = include_str!("docs/adjacent_0.md")]
-    ///
-    /// # Structure groups
-    ///
-    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-    #[doc = include_str!("docs/adjacent_1.md")]
-    ///
-    /// # Chaining commands
-    ///
-    /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
-    ///
-    #[doc = include_str!("docs/adjacent_2.md")]
-    ///
-    /// # Start and end markers
-    ///
-    /// Parsing things like `find . --exec foo {} -bar ; --more`
-    ///
-    #[doc = include_str!("docs/adjacent_3.md")]
-    ///
-    /// # Multi-value arguments with optional flags
-    ///
-    /// Parsing things like `--foo ARG1 --flag --inner ARG2`
-    ///
-    /// So you can parse things while parsing things. Not sure why you might need this, but you can
-    /// :)
-    ///
-    #[doc = include_str!("docs/adjacent_4.md")]
-    ///
-    /// # Performance and other considerations
-    ///
-    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It's
-    /// best not to have complex inter-fields verification since they might trip up the detection
-    /// logic: instead of destricting, for example "sum of two fields to be 5 or greater" *inside* the
-    /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
-    ///
-    /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
-    /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
-    /// several fields.
-    ///
-    /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
-    /// parser to work only for arguments where both key and a value are in the same shell word:
-    /// `-f=bar` or `-fbar`, but not `-f bar`.
-    #[must_use]
-    fn adjacent(self) -> ParseAdjacent<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseAdjacent { inner: self }
-    }
-    // }}}
-
-    /// Parse anywhere
-    ///
-    /// Most generic escape hatch available, in combination with [`any`] allows to parse anything
-    /// anywhere, works by repeatedly trying to run the inner parser on each subsequent context.
-    /// Can be expensive performance wise especially if parser contains complex logic.
-    ///
-    #[doc = include_str!("docs/anywhere.md")]
-    ///
-    /// When using parsers annotated with `anywhere` it's a good idea to place them before other
-    /// parsers so combinations they are looking for are not consumed by simplier parsers.
-    ///
-    #[doc = include_str!("docs/anywhere_1.md")]
-    #[must_use]
-    fn anywhere(self) -> ParseAnywhere<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseAnywhere {
-            inner: self,
-            catch: false,
-        }
-    }
 
     // consume
     // {{{ to_options

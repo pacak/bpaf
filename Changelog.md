@@ -1,6 +1,19 @@
 # Change Log
 
-## bpaf [0.8.0], bpaf_derive [0.3.6] - Unreleased
+## bpaf [0.8.0], bpaf_derive [0.4.0] - Unreleased
+
+### Breaking changes
+
+- `any` now takes a function that checks if it matches the input or not.
+  You can still apply usual filtering with `guard`, etc after it but initial
+  filtering inside a function leads to better error messages.
+- `anywhere` is now a method on `any` instead of being a parser method
+  and should now be used to make an arbitrary looking flag like parsers.
+  You can still parse blocks from arbitrary places using remaining `adjacent`
+  method
+
+TODO: explain catch which is now on optional/some/many
+
 - `many` and `some` will now collect one result from a parser
   that does not consume anything from an argument list allowing
   for easier composition with parsers that consume from both
@@ -22,6 +35,9 @@
 - meta description refactor - invididual parsers should be described more consistently
   in all sorts of messages
 - better error messages with positionals and inside anywhere blocks
+
+
+
 
 ## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`

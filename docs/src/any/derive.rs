@@ -10,11 +10,15 @@ pub struct Options {
     #[bpaf(short, long)]
     /// Engage the turbo mode
     turbo: bool,
-    #[bpaf(any("REST"), guard(not_help, "keep help"), many)]
+    #[bpaf(any("REST", not_help), many)]
     /// app will pass anything unused to a child process
     rest: Vec<OsString>,
 }
 
-fn not_help(s: &OsString) -> bool {
-    s != "--help"
+fn not_help(s: OsString) -> Option<OsString> {
+    if s == "--help" {
+        None
+    } else {
+        Some(s)
+    }
 }

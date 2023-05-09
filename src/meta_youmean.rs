@@ -15,7 +15,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
 
     variants.sort_by(|a, b| b.0.cmp(&a.0));
 
-    if let Some((l, (actual, expected))) = variants.pop() {
+    if let Some((l, (mut actual, expected))) = variants.pop() {
         if let (0, I::Nested(cmd)) = (l, expected) {
             let best = format!(
                 "{:?} is not valid in this context, did you mean to pass it to command \"{}\"?",
@@ -24,10 +24,16 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
             );
             return Some(best);
         } else if l > 0 && l < usize::MAX {
+            if let (I::LongCmd(act), I::LongFlag(expected)) = (actual, expected) {
+                if act.strip_prefix('-') == Some(expected) {
+                    actual = I::Ambiguity(act);
+                }
+            }
+
             let best = format!(
                 "No such {:?}, did you mean `{}`?",
                 actual,
-                w_flag!(expected)
+                w_flag!(expected),
             );
             return Some(best);
         }
@@ -94,7 +100,7 @@ fn inner_item<'a>(
         },
         Arg::Ambiguity(_, os) => {
             if let Some(s) = os.to_str() {
-                I::Ambiguity(s)
+                I::LongCmd(s)
             } else {
                 return;
             }
@@ -117,16 +123,14 @@ fn inner_item<'a>(
                 ins(I::ShortCmd(*s), actual, variants);
             }
         }
-        Item::Flag { name, .. } | Item::Argument { name, .. } | Item::MultiArg { name, .. } => {
-            match name {
-                ShortLong::Short(s) => ins(I::ShortFlag(*s), actual, variants),
-                ShortLong::Long(l) => ins(I::LongFlag(l), actual, variants),
-                ShortLong::ShortLong(s, l) => {
-                    ins(I::ShortFlag(*s), actual, variants);
-                    ins(I::LongFlag(l), actual, variants);
-                }
+        Item::Flag { name, .. } | Item::Argument { name, .. } => match name {
+            ShortLong::Short(s) => ins(I::ShortFlag(*s), actual, variants),
+            ShortLong::Long(l) => ins(I::LongFlag(l), actual, variants),
+            ShortLong::ShortLong(s, l) => {
+                ins(I::ShortFlag(*s), actual, variants);
+                ins(I::LongFlag(l), actual, variants);
             }
-        }
+        },
     }
 }
 
@@ -146,7 +150,7 @@ fn collect_suggestions<'a>(
         Meta::HideUsage(meta)
         | Meta::Optional(meta)
         | Meta::Required(meta)
-        | Meta::Anywhere(meta)
+        | Meta::Adjacent(meta)
         | Meta::Many(meta)
         | Meta::Decorated(meta, _, _) => {
             collect_suggestions(arg, meta, variants, at_top_level);

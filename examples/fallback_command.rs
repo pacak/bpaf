@@ -15,6 +15,8 @@ enum Commands {
     Fallback(#[bpaf(external(fallback), hide)] Fallback),
 }
 
+// TODO - bpaf_derive needs to accept a parameter to any
+
 #[derive(Debug, Clone, Bpaf)]
 #[allow(dead_code)]
 struct Fallback {

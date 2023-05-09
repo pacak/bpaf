@@ -9,30 +9,23 @@ pub struct Options {
     xinerama: bool,
 }
 
-fn toggle_options(name: &'static str, help: &'static str) -> impl Parser<bool> {
-    any::<String>(name)
-        .help(help)
-        .parse(move |s| {
-            let (state, cur_name) = if let Some(rest) = s.strip_prefix('+') {
-                (true, rest)
-            } else if let Some(rest) = s.strip_prefix('-') {
-                (false, rest)
-            } else {
-                return Err(format!("{} is not a toggle option", s));
-            };
-            if cur_name != name {
-                Err(format!("{} is not a known toggle option name", cur_name))
-            } else {
-                Ok(state)
-            }
-        })
-        .anywhere()
-        .catch()
+fn toggle_option(name: &'static str, help: &'static str) -> impl Parser<bool> {
+    any::<String, _, _>(name, move |s: String| {
+        if let Some(rest) = s.strip_prefix('+') {
+            (rest == name).then_some(true)
+        } else if let Some(rest) = s.strip_prefix('-') {
+            (rest == name).then_some(false)
+        } else {
+            None
+        }
+    })
+    .help(help)
+    .anywhere()
 }
 
 pub fn options() -> OptionParser<Options> {
-    let backing = toggle_options("backing", "Backing status").fallback(false);
-    let xinerama = toggle_options("xinerama", "Xinerama status").fallback(true);
+    let backing = toggle_option("backing", "Backing status").fallback(false);
+    let xinerama = toggle_option("xinerama", "Xinerama status").fallback(true);
     let turbo = short('t')
         .long("turbo")
         .help("Engage the turbo mode")

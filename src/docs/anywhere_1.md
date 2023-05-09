@@ -20,10 +20,10 @@ pub struct MultiArg {
 
 pub fn options() -> OptionParser<Options> {
     let set = long("set").req_flag(());
-    let name = positional("ARG");
-    let value = positional("ARG");
+    let name = positional("NAME").help("Name for the option");
+    let value = positional("VAL").help("Value to set");
     let multi_arg = construct!(MultiArg { set, name, value })
-        .anywhere()
+        .adjacent()
         .optional();
 
     let turbo = long("turbo").switch();
@@ -47,14 +47,16 @@ pub struct Options {
 }
 
 #[derive(Debug, Clone, Bpaf)]
-#[bpaf(anywhere)]
+#[bpaf(adjacent)]
 # #[allow(dead_code)]
 pub struct MultiArg {
     #[bpaf(long)]
     set: (),
-    #[bpaf(positional)]
+    #[bpaf(positional("NAME"))]
+    /// Name for the option
     name: String,
-    #[bpaf(positional)]
+    #[bpaf(positional("VAL"))]
+    /// Value to set
     value: String,
 }
 ```
@@ -80,7 +82,7 @@ Options { multi_arg: Some(MultiArg { set: (), name: "name", value: "Bob" }), tur
 But not in between
 ```console
 % app --set name --turbo Bob
-Expected <ARG>, pass --help for usage information
+Expected <VAL>, got "--turbo". Pass --help for usage information
 ```
 
 </details>

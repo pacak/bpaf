@@ -1,5 +1,7 @@
 //! Structures that implement different methods on [`Parser`] trait
-use crate::{args::Conflict, item::Item, meta::DecorPlace, Args, Error, Meta, Parser};
+use crate::{
+    args::Conflict, error::MissingItem, item::Item, meta::DecorPlace, Args, Error, Meta, Parser,
+};
 use std::marker::PhantomData;
 
 #[cfg(feature = "autocomplete")]
@@ -518,6 +520,7 @@ impl<P> ParseMany<P> {
     }
 }
 
+/// try to parse
 fn parse_option<P, T>(parser: &P, args: &mut Args, catch: bool) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
@@ -526,24 +529,43 @@ where
     match parser.eval(args) {
         Ok(val) => Ok(Some(val)),
         Err(err) => {
-            std::mem::swap(args, &mut orig_args);
+            // this is safe to return Ok(None) in following scenarios
+            // when inner parser never consumed anything and
+            // 1. produced Error::Missing
+            // 2. produced Error::Message(_, true)
+            // 3. produced Error::Message and catch is enabled
+            //
+            // In all other scenarios we should return the original error
+            //
+            // When parser returns Ok(None) we should return the original arguments so if there's
+            // anything left unconsumed - this won't be lost.
 
-            #[cfg(feature = "autocomplete")]
-            if orig_args.comp_mut().is_some() {
-                args.swap_comps(&mut orig_args);
-            }
-
-            match err {
-                Error::Message(_, can_catch) if can_catch || catch => Ok(None),
-                Error::Message(_, _) | Error::ParseFailure(_) => Err(err),
-                Error::Missing(_) => {
-                    if args.len() == orig_args.len() {
+            let res = match &err {
+                Error::Message(_, can_catch) => {
+                    if *can_catch || catch {
                         Ok(None)
                     } else {
                         Err(err)
                     }
                 }
+                Error::ParseFailure(_) => Err(err),
+                Error::Missing(_) => {
+                    if orig_args.len() == args.len() || catch {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                }
+            };
+            if res.is_ok() {
+                std::mem::swap(&mut orig_args, args);
+
+                #[cfg(feature = "autocomplete")]
+                if orig_args.comp_mut().is_some() {
+                    args.swap_comps(&mut orig_args);
+                }
             }
+            res
         }
     }
 }
@@ -667,6 +689,66 @@ where
     }
 }
 
+impl<T> ParseCon<T> {
+    #[must_use]
+
+    /// Automagically restrict the inner parser scope to accept adjacent values only
+    ///
+    /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,
+    /// multi-value arguments, option-structs to name a few. If you want to run a parser on a
+    /// sequential subset of arguments - `adjacent` might be able to help you. Check the examples
+    /// for better intuition.
+    ///
+    /// # Multi-value arguments
+    ///
+    /// Parsing things like `--foo ARG1 ARG2 ARG3`
+    #[doc = include_str!("docs/adjacent_0.md")]
+    ///
+    /// # Structure groups
+    ///
+    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+    #[doc = include_str!("docs/adjacent_1.md")]
+    ///
+    /// # Chaining commands
+    ///
+    /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
+    ///
+    #[doc = include_str!("docs/adjacent_2.md")]
+    ///
+    /// # Start and end markers
+    ///
+    /// Parsing things like `find . --exec foo {} -bar ; --more`
+    ///
+    #[doc = include_str!("docs/adjacent_3.md")]
+    ///
+    /// # Multi-value arguments with optional flags
+    ///
+    /// Parsing things like `--foo ARG1 --flag --inner ARG2`
+    ///
+    /// So you can parse things while parsing things. Not sure why you might need this, but you can
+    /// :)
+    ///
+    #[doc = include_str!("docs/adjacent_4.md")]
+    ///
+    /// # Performance and other considerations
+    ///
+    /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It's
+    /// best not to have complex inter-fields verification since they might trip up the detection
+    /// logic: instead of destricting, for example "sum of two fields to be 5 or greater" *inside* the
+    /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
+    ///
+    /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
+    /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
+    /// several fields.
+    ///
+    /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
+    /// parser to work only for arguments where both key and a value are in the same shell word:
+    /// `-f=bar` or `-fbar`, but not `-f bar`.
+    pub fn adjacent(self) -> ParseAdjacent<Self> {
+        ParseAdjacent { inner: self }
+    }
+}
+
 /// Parser that replaces metavar placeholders with actual info in shell completion
 #[cfg(feature = "autocomplete")]
 pub struct ParseComp<P, F> {
@@ -760,29 +842,108 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let mut guess = 0..args.items.len();
-        let mut scratch = args.clone();
-        let mut res = self.inner.eval(&mut scratch);
-        let mut refined = true;
-        while refined {
-            refined = scratch.refine_range(args, &mut guess);
-            scratch = args.clone();
-            scratch.restrict_to_range(&guess);
-            res = self.inner.eval(&mut scratch);
+        let original_scope = args.scope();
+
+        let mut best_error = if let Some(item) = first_item(&self.inner.meta()) {
+            let missing_item = MissingItem {
+                item,
+                position: original_scope.start,
+                scope: original_scope.clone(),
+            };
+            Error::Missing(vec![missing_item])
+        } else {
+            unreachable!("bpaf usage BUG: adjacent should start with a required argument");
+        };
+        let mut best_args = args.clone();
+        let mut best_consumed = 0;
+
+        for (start, mut this_arg) in args.ranges() {
+            // since we only want to parse things to the right of the first item we perform
+            // parsing in two passes:
+            // - try to run the parser showing only single argument available at all the indices
+            // - try to run the parser showing starting at that argument and to the right of it
+            // this means constructing argument parsers from req flag and positional works as
+            // expected:
+            // consider examples "42 -n" and "-n 42"
+            // without multi step approach first command line also parses into 42
+            let mut scratch = this_arg.clone();
+            scratch.set_scope(start..start + 1);
+            let before = scratch.len();
+
+            // nothing to consume, might as well skip this segment right now
+            // it will most likely fail, but it doesn't matter, we are only looking for the
+            // left most match
+            if before == 0 {
+                continue;
+            }
+
+            let _ = self.inner.eval(&mut scratch);
+
+            if before == scratch.len() {
+                // failed to consume anything which means we don't start parsing at this point
+                continue;
+            }
+
+            this_arg.set_scope(start..original_scope.end);
+            let before = this_arg.len();
+
+            // values consumed by adjacent must be actually adjacent - if a scope contains
+            // already parsed values inside we need to trim it
+            if original_scope.end - start > before {
+                if let Some(adj_scope) = this_arg.adjacently_available_from(start) {
+                    this_arg.set_scope(adj_scope);
+                } else {
+                    continue;
+                }
+            }
+
+            loop {
+                match self.inner.eval(&mut this_arg) {
+                    Ok(res) => {
+                        // there's a smaller adjacent scope, we must try it before returning.
+                        if let Some(adj_scope) = this_arg.adjacent_scope(args) {
+                            this_arg = args.clone();
+                            this_arg.set_scope(adj_scope);
+                        } else {
+                            std::mem::swap(args, &mut this_arg);
+                            args.set_scope(original_scope);
+                            return Ok(res);
+                        }
+                    }
+                    Err(err) => {
+                        let consumed = before - this_arg.len();
+                        if consumed > best_consumed {
+                            best_consumed = consumed;
+                            std::mem::swap(&mut best_args, &mut this_arg);
+                        }
+                        best_error = err;
+                        break;
+                    }
+                }
+            }
         }
 
-        if guess.start > 0 {
-            scratch.copy_usage_from(args, 0..guess.start);
+        fn first_item(meta: &Meta) -> Option<Item> {
+            match meta {
+                Meta::And(xs) => xs.first().and_then(first_item),
+                Meta::Item(item) => Some(*item.clone()),
+                Meta::Skip | Meta::Or(_) => None,
+                Meta::Optional(x)
+                | Meta::Required(x)
+                | Meta::Adjacent(x)
+                | Meta::Many(x)
+                | Meta::Decorated(x, _, _)
+                | Meta::HideUsage(x) => first_item(x),
+            }
         }
-        if guess.end < args.items.len() {
-            scratch.copy_usage_from(args, guess.end..args.items.len());
-        }
-        std::mem::swap(args, &mut scratch);
-        res
+
+        std::mem::swap(args, &mut best_args);
+        Err(best_error)
     }
 
     fn meta(&self) -> Meta {
-        self.inner.meta()
+        let meta = self.inner.meta();
+        Meta::Adjacent(Box::new(meta))
     }
 }
 
@@ -805,189 +966,4 @@ impl<T> Parser<T> for ParseBox<T> {
     fn meta(&self) -> Meta {
         self.inner.meta()
     }
-}
-
-/// Parse anywhere
-///
-/// Most generic escape hatch available, in combination with [`any`] allows to parse anything
-/// anywhere, works by repeatedly trying to run the inner parser on each subsequent context.
-/// Can be expensive performance wise especially if parser contains complex logic.
-///
-#[doc = include_str!("docs/anywhere.md")]
-pub struct ParseAnywhere<P> {
-    pub(crate) inner: P,
-    pub(crate) catch: bool,
-}
-
-impl<P> ParseAnywhere<P> {
-    #[must_use]
-    /// Handle parse failures
-    ///
-    /// Can be useful to decide to skip parsing of some items on a command line
-    /// When parser succeeds - `catch` version would return a value as usual
-    /// if it fails - `catch` would restore all the consumed values and return None.
-    ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
-    pub fn catch(mut self) -> Self {
-        self.catch = true;
-        self
-    }
-}
-
-impl<P, T> Parser<T> for ParseAnywhere<P>
-where
-    P: Parser<T> + Sized,
-{
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        #[cfg(feature = "autocomplete")]
-        let mut comp_items = Vec::new();
-
-        // the idea of "anywhere" parsing is to try to parse at all the "tails"
-        // of the arguments picking either first succesful parse or the "best" error
-        //
-        // consider a parser --set <NAME> <VAL>
-        // --set name val               <- good parser
-        // --set name --bogus val       <- want to complain on bogus here
-        // --set name                   <- want to demand <val>
-
-        let mut best_args = args.clone();
-        let mut best_consumed = usize::MAX;
-        let mut best_error = Error::Missing(Vec::new());
-
-        for (start, mut this_arg) in args.ranges() {
-            // since we only want to parse things to the right of the first item we perform
-            // parsing in two passes:
-            // - try to run the parser showing only single argument available at all the indices
-            // - try to run the parser showing starting at that argument and to the right of it
-            // this means constructing argument parsers from req flag and positional works as
-            // expected:
-            // consider examples "42 -n" and "-n 42"
-            // without multi step approach first command line also parses into 42
-
-            let mut scratch = this_arg.clone();
-            #[allow(clippy::range_plus_one)] // inclusive range is the wrong type
-            scratch.restrict_to_range(&(start..start + 1));
-            let before = scratch.len();
-            // nothing to consume, might as well stop right now
-            if before == 0 {
-                break;
-            }
-            // it will most likely fail, but it doesn't matter, we are only looking for the
-            // left most match
-            let _ = self.inner.eval(&mut scratch);
-            if before == scratch.len() {
-                // failed to consume anything which means we don't start parsing at this point
-                continue;
-            }
-
-            match self.inner.eval(&mut this_arg) {
-                // managed to consume something - should make changes permanent and return it
-                //
-                // ParseFailure covers failures or --help/--version for the nested parsers
-                // anywhere shouldn't consume that
-                done @ (Ok(_) | Err(Error::ParseFailure(_))) => {
-                    this_arg.copy_usage_from(args, 0..start);
-                    std::mem::swap(&mut this_arg, args);
-                    return done;
-                }
-
-                // failed to find something, try to improve previous error message and resume
-                Err(err) => {
-                    if this_arg.len() < best_args.len() {
-                        best_error = err;
-                        best_consumed = this_arg.len();
-
-                        best_args = this_arg;
-                    }
-                }
-            }
-        }
-
-        #[cfg(feature = "autocomplete")]
-        args.swap_comps_with(&mut comp_items);
-
-        // also try to run the parser with no input
-        match self.inner.eval(&mut Args::from(&[])) {
-            done @ (Ok(_) | Err(Error::ParseFailure(_))) => {
-                return done;
-            }
-            Err(err) => {
-                if best_consumed == usize::MAX {
-                    best_error = err;
-                }
-            }
-        }
-
-        // parser "anywhere" runs in a restricted context, using restricted
-        // context makes sense for error message reporting as well. Without this
-        // it would complain about unexpected flags that are unknown to self.inner, but known
-        // to the global parser.
-        //
-        // Removing unexpected things from the context limits error to "expected xxx", but
-        // breaks "perhaps you meant ..." part. So we run this logic here as well
-        let meta = self.inner.meta();
-        best_args.restrict_to_range(&(0..0));
-
-        Err(match best_error {
-            Error::Message(msg, catch) => Error::Message(msg, catch || self.catch),
-            err @ Error::ParseFailure(_) => err,
-            Error::Missing(missing) => {
-                let msg = crate::meta_youmean::suggest(&best_args, &meta)
-                    .unwrap_or_else(|| crate::help::summarize_missing(&missing, &meta, &best_args));
-                Error::Message(msg, self.catch)
-            }
-        })
-    }
-
-    fn meta(&self) -> Meta {
-        classify_anywhere(self.inner.meta())
-    }
-}
-
-// currently supported anywhere meta patterns:
-// - multi value options consisting of a required option followed by one or more positional items
-
-// anything else is
-fn classify_anywhere(meta: Meta) -> Meta {
-    if let Meta::And(xs) = &meta {
-        let mut fields = Vec::new();
-        let mut iter = xs.iter();
-
-        let (name, shorts, help) = match iter.next() {
-            Some(Meta::Item(item)) => match &**item {
-                Item::Flag {
-                    name,
-                    shorts,
-                    help,
-                    env: _,
-                } => (name, shorts, help),
-                _ => return meta,
-            },
-            _ => return meta,
-        };
-
-        while let Some(Meta::Item(item)) = iter.next() {
-            if let Item::Positional {
-                metavar,
-                strict: _,
-                help,
-            } = &**item
-            {
-                fields.push((*metavar, help.clone()));
-            } else {
-                break;
-            }
-        }
-        if iter.next().is_none() {
-            return Meta::from(Item::MultiArg {
-                name: *name,
-                shorts: shorts.clone(),
-                help: help.clone(),
-                fields,
-            });
-        }
-    }
-    Meta::Anywhere(Box::new(meta))
 }

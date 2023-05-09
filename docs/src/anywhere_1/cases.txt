@@ -12,4 +12,4 @@ Options { multi_arg: Some(MultiArg { set: (), name: "name", value: "Bob" }), tur
 ? But not in between
 > --set name --turbo Bob
 Stderr
-Expected <ARG>, pass --help for usage information
+Expected <VAL>, got "--turbo". Pass --help for usage information

@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::item::Item;
 
 /// Unsuccessful command line parsing outcome, internal representation
@@ -12,7 +14,19 @@ pub enum Error {
     /// Expected one of those values
     ///
     /// Used internally to generate better error messages
-    Missing(Vec<Item>),
+    Missing(Vec<MissingItem>),
+}
+
+/// Missing item in a context
+#[derive(Debug, Clone)]
+pub struct MissingItem {
+    /// Item that is missing
+    pub(crate) item: Item,
+    /// Position it is missing from - exact for positionals, earliest possible for flags
+    pub(crate) position: usize,
+    /// Range where search was performed, important for combinators that narrow the search scope
+    /// such as adjacent
+    pub(crate) scope: Range<usize>,
 }
 
 impl Error {
@@ -24,7 +38,7 @@ impl Error {
             (a @ Error::ParseFailure(_), _) => a,
             (_, b @ Error::ParseFailure(_)) => b,
 
-            // parsing failure takes priority
+            // unconditional parsing failure takes priority
             (a @ Error::Message(_, _), _) => a,
             (_, b @ Error::Message(_, _)) => b,
 
