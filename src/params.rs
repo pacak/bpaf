@@ -339,7 +339,7 @@ impl NamedArg {
     /// `skip` and `fallback` annotations, see examples.
     ///
     /// Additionally `bpaf_derive` handles `()` fields as `req_flag` see
-    /// [`adjacent`](Parser::adjacent) for more details.
+    /// [`adjacent`](crate::ParseCon::adjacent) for more details.
     /// See [`NamedArg`] for more details
     #[doc = include_str!("docs/req_flag.md")]
     #[must_use]
@@ -718,7 +718,7 @@ impl<T> ParseArgument<T> {
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
     /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
-    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](Parser::adjacent),
+    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](crate::ParseCon::adjacent),
     /// just plays a similar role.
     ///
     /// Should allow to parse some of the more unusual things
@@ -1016,10 +1016,9 @@ pub struct ParseAny<T, I, F> {
 ///
 #[doc = include_str!("docs/any.md")]
 ///
-/// See [`adjacent`](Parser::adjacent) for more examples
+/// See [`adjacent`](crate::ParseCon::adjacent) for more examples
 /// See [`literal`] for a specialized version of `any` that consumes a fixed literal.
 #[must_use]
-
 pub fn any<I, T, F>(metavar: &'static str, check: F) -> ParseAny<T, I, F> {
     ParseAny {
         metavar: Metavar(metavar),

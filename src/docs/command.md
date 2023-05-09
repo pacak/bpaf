@@ -95,7 +95,7 @@ Options { flag: true, cmd: Cmd { flag: true, arg: 42 } }
 ```
 
 And that's the confusing part - unless you add context restrictions with
-[`adjacent`](Parser::adjacent) and parse command first - outer flag wins.
+[`adjacent`](crate::ParseCon::adjacent) and parse command first - outer flag wins.
 So it's best not to mix names on different levels
 ```console
 % app cmd --arg 42 --flag
