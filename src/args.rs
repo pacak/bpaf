@@ -673,6 +673,7 @@ impl Args {
         if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
             if w == word {
                 self.remove(ix);
+                self.current = Some(ix);
                 return true;
             }
         }

@@ -585,6 +585,10 @@ impl<T> Parser<T> for ParseCommand<T> {
                 return Err(Error::Missing(Vec::new()));
             }
 
+            if let Some(cur) = args.current {
+                args.set_scope(cur..args.scope().end);
+            }
+
             args.head = usize::MAX;
             args.depth += 1;
             if !self.adjacent {
