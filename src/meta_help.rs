@@ -547,32 +547,6 @@ fn write_as_lines(buf: &mut Buffer, line: &str) {
     }
 }
 
-/*
-fn write_items<'a, I>(mut items: I, descr: &str) -> String
-where
-    I: Iterator<Item = &'a HelpItem<'a>>,
-{
-    if let Some(first) = items.next() {
-        let mut buf = Buffer::default();
-        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
-
-        buf.newline();
-        buf.margin(0);
-        buf.write_str(descr, Style::Section);
-        buf.newline();
-
-        for i in std::iter::once(first).chain(items) {
-            let cp = buf.checkpoint();
-            write_help_item(&mut buf, i);
-            dedup(&mut dedup_cache, &mut buf, cp);
-        }
-
-        buf.to_string()
-    } else {
-        String::new()
-    }
-}*/
-
 pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String {
     let mut res = String::new();
     let mut buf = Buffer::default();

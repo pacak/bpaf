@@ -101,8 +101,8 @@ mod inner {
 
         /// Describes scope current parser will be consuming elements from. Usually it will be
         /// considering the whole sequence of (unconsumed) arguments, but for "adjacent"
-        /// and "anywhere" scope usually starts on the right of the first consumed item and might
-        /// end before the end of the list
+        /// scope starts on the right of the first consumed item and might end before the end
+        /// of the list, similarly for "commands"
         scope: Range<usize>,
     }
 
@@ -362,12 +362,6 @@ mod inner {
         fn sync_remaining(&mut self) {
             self.remaining = self.removed[self.scope()].iter().filter(|x| !**x).count();
         }
-
-        //        /// Copy a range of removals from args to self
-        //        pub(crate) fn copy_usage_from(&mut self, args: &Args, range: Range<usize>) {
-        //            self.removed[range.start..range.end].copy_from_slice(&args.removed[range]);
-        //            self.sync_remaining();
-        //        }
 
         #[inline(never)]
         pub(crate) fn disambiguate(
