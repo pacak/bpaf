@@ -399,9 +399,9 @@ fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) 
                 manpage.text([norm(help)]);
             }
         }
-        HelpItem::AnywhereStart { .. } => todo!(),
-        HelpItem::AnywhereStop { .. } => todo!(),
-        HelpItem::DecorSuffix { .. } => todo!(),
+        HelpItem::AnywhereStart { .. }
+        | HelpItem::AnywhereStop { .. }
+        | HelpItem::DecorSuffix { .. } => {}
     }
 }
 
