@@ -62,7 +62,8 @@ use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{
-    args::Arg, from_os_str::parse_os_str, item::ShortLong, meta_help::Metavar, Item, Meta,
+    args::Arg, error::MissingItem, from_os_str::parse_os_str, item::ShortLong, meta_help::Metavar,
+    Item, Meta,
 };
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
@@ -338,7 +339,7 @@ impl NamedArg {
     /// `skip` and `fallback` annotations, see examples.
     ///
     /// Additionally `bpaf_derive` handles `()` fields as `req_flag` see
-    /// [`adjacent`](Parser::adjacent) for more details.
+    /// [`adjacent`](crate::ParseCon::adjacent) for more details.
     /// See [`NamedArg`] for more details
     #[doc = include_str!("docs/req_flag.md")]
     #[must_use]
@@ -467,6 +468,7 @@ where
         shorts: Vec::new(),
         help: subparser.short_descr().map(Into::into),
         subparser,
+        adjacent: false,
     }
 }
 
@@ -478,6 +480,7 @@ pub struct ParseCommand<T> {
     shorts: Vec<char>,
     help: Option<String>,
     subparser: OptionParser<T>,
+    adjacent: bool,
 }
 
 impl<P> ParseCommand<P> {
@@ -554,6 +557,12 @@ impl<P> ParseCommand<P> {
         self.longs.push(long);
         self
     }
+
+    /// Allow for the command to suceed
+    pub fn adjacent(mut self) -> Self {
+        self.adjacent = true;
+        self
+    }
 }
 
 impl<T> Parser<T> for ParseCommand<T> {
@@ -576,20 +585,48 @@ impl<T> Parser<T> for ParseCommand<T> {
                 return Err(Error::Missing(Vec::new()));
             }
 
+            if let Some(cur) = args.current {
+                args.set_scope(cur..args.scope().end);
+            }
+
             args.head = usize::MAX;
             args.depth += 1;
-            // `or_else` would prefer failures past this point to preceeding levels
-            #[allow(clippy::let_and_return)]
-            let res = self
-                .subparser
-                .run_subparser(args)
-                .map_err(Error::ParseFailure);
-            res
+            if !self.adjacent {
+                self.subparser
+                    .run_subparser(args)
+                    .map_err(Error::ParseFailure)
+            } else {
+                let mut orig_args = args.clone();
+                match self
+                    .subparser
+                    .run_subparser(args)
+                    .map_err(Error::ParseFailure)
+                {
+                    Ok(ok) => Ok(ok),
+                    Err(err) => {
+                        let orig_scope = args.scope();
+                        if let Some(narrow_scope) = args.adjacent_scope(&orig_args) {
+                            orig_args.set_scope(narrow_scope);
+                            if let Ok(res) = self.subparser.run_subparser(&mut orig_args) {
+                                orig_args.set_scope(orig_scope);
+                                std::mem::swap(&mut orig_args, args);
+                                return Ok(res);
+                            }
+                        }
+                        Err(err)
+                    }
+                }
+            }
         } else {
             #[cfg(feature = "autocomplete")]
             args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
 
-            Err(Error::Missing(vec![self.item()]))
+            let missing = MissingItem {
+                item: self.item(),
+                position: args.scope().start,
+                scope: args.scope(),
+            };
+            Err(Error::Missing(vec![missing]))
         }
     }
 
@@ -642,7 +679,14 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
             args.push_flag(&self.named);
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
-                None => Err(Error::Missing(vec![self.named.flag_item()])),
+                None => {
+                    let missing = MissingItem {
+                        item: self.named.flag_item(),
+                        position: args.scope().start,
+                        scope: args.scope(),
+                    };
+                    Err(Error::Missing(vec![missing]))
+                }
             }
         }
     }
@@ -674,7 +718,7 @@ impl<T> ParseArgument<T> {
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
     /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
-    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](Parser::adjacent),
+    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](crate::ParseCon::adjacent),
     /// just plays a similar role.
     ///
     /// Should allow to parse some of the more unusual things
@@ -723,7 +767,12 @@ impl<T> ParseArgument<T> {
                     args.current = None;
                     Ok(val)
                 } else {
-                    Err(Error::Missing(vec![self.item()]))
+                    let missing = MissingItem {
+                        item: self.item(),
+                        position: args.scope().start,
+                        scope: args.scope(),
+                    };
+                    Err(Error::Missing(vec![missing]))
                 }
             }
         }
@@ -867,6 +916,7 @@ impl<T> ParsePositional<T> {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
             strict: self.strict,
+            anywhere: false,
         })
     }
 }
@@ -900,12 +950,18 @@ fn parse_word(
             args.no_pos_ahead = true;
         }
 
-        let item = Item::Positional {
-            metavar: Metavar(metavar),
-            help: help.clone(),
-            strict,
+        let position = args.items_iter().next().map_or(args.scope().end, |x| x.0);
+        let missing = MissingItem {
+            item: Item::Positional {
+                metavar: Metavar(metavar),
+                help: help.clone(),
+                strict,
+                anywhere: false,
+            },
+            position,
+            scope: args.scope(),
         };
-        Err(Error::Missing(vec![item]))
+        Err(Error::Missing(vec![missing]))
     }
 }
 
@@ -927,23 +983,24 @@ where
     }
 }
 
-/// Parse the next available item on a command line with no restrictions, created with [`any`].
-pub struct ParseAny<T> {
-    ty: PhantomData<T>,
+/// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
+/// [`anywhere`](ParseAny::anywhere).
+pub struct ParseAny<T, I, F> {
     metavar: Metavar,
-    strict: bool,
     help: Option<String>,
+    ctx: PhantomData<(I, T)>,
+    check: F,
+    anywhere: bool,
 }
 
-/// Take next unconsumed item on the command line as raw [`String`] or [`OsString`]
+/// Take an arbitrary unconsumed item on the command line as parsed with [`FromStr`] or raw [`String`]/[`OsString`] value.
 ///
 /// **`any` is designed to consume items that don't fit into usual `flag`/`switch`/`positional`
 /// /`argument`/`command` classification**
 ///
-/// `any` behaves similar to [`positional`] so you should be using it near the right most end of
-/// the consumer struct. Note, consuming "anything" also consumes `--help` unless restricted
-/// with `guard`. It's better stick to `positional` unless you are trying to consume raw options
-/// to pass to some other process or do some special handling.
+/// By default `any` behaves similar to [`positional`] so you should be using it near the right
+/// most end of the consumer struct. It is possible to lift this restriction by calling
+/// [`anywhere`](ParseAny::anywhere) on the parser.
 ///
 /// When using combinatoring API you can specify the type with turbofish, for parsing types
 /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
@@ -952,24 +1009,55 @@ pub struct ParseAny<T> {
 /// # use bpaf::*;
 /// # use std::ffi::OsString;
 /// fn parse_any() -> impl Parser<OsString> {
-///     any::<OsString>("ANYTHING")
+///     // anything at all, including --help - in practice you want some restriction...
+///     any::<OsString, _, _>("ANYTHING", Some)
 /// }
 /// ```
 ///
 #[doc = include_str!("docs/any.md")]
 ///
-/// See [`adjacent`](Parser::adjacent) for more examples
+/// See [`adjacent`](crate::ParseCon::adjacent) for more examples
+/// See [`literal`] for a specialized version of `any` that consumes a fixed literal.
 #[must_use]
-pub fn any<T>(metavar: &'static str) -> ParseAny<T> {
+pub fn any<I, T, F>(metavar: &'static str, check: F) -> ParseAny<T, I, F> {
     ParseAny {
-        ty: PhantomData,
         metavar: Metavar(metavar),
-        strict: false,
         help: None,
+        check,
+        ctx: PhantomData,
+        anywhere: false,
     }
 }
 
-impl<T> ParseAny<T> {
+/// A specialized version of [`any`] that consumes an arbitrary string
+///
+/// ```no_run
+/// # use bpaf::*;
+/// /// Returns `true` if flag "-mode" is present and `false` otherwise.
+/// fn parse_mode() -> impl Parser<bool> {
+///     literal("-mode")
+///         .anywhere()
+///         .map(|_| true)
+///         .fallback(false)
+///
+/// }
+/// ```
+///
+/// See [`any`] for more examples
+pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
+    any(val, move |s| if s == val { Some(()) } else { None })
+}
+
+impl<F, I, T> ParseAny<T, F, I> {
+    pub(crate) fn item(&self) -> Item {
+        Item::Positional {
+            metavar: self.metavar,
+            strict: false,
+            help: self.help.clone(),
+            anywhere: self.anywhere,
+        }
+    }
+
     /// Add a help message to [`any`] parser.
     #[doc = include_str!("docs/any.md")]
     #[must_use]
@@ -978,63 +1066,51 @@ impl<T> ParseAny<T> {
         self
     }
 
-    fn meta(&self) -> Meta {
-        Meta::from(self.item())
-    }
-
-    fn item(&self) -> Item {
-        Item::Positional {
-            metavar: self.metavar,
-            strict: self.strict,
-            help: self.help.clone(),
-        }
-    }
-
-    /// returns real items only
-    fn next_os_string(&self, args: &mut Args) -> Result<OsString, Error> {
-        let (ix, item) = match args.items_iter().next() {
-            Some(item_with_index) => item_with_index,
-            None => return Err(Error::Missing(vec![self.item()])),
-        };
-        match item {
-            Arg::Ambiguity(_, s) => {
-                let os = s.clone();
-                args.remove(ix);
-                Ok(os)
-            }
-            Arg::Short(_, part, s) | Arg::Long(_, part, s) => {
-                let os = s.clone();
-                if *part {
-                    args.remove(ix + 1);
-                }
-                args.remove(ix);
-
-                Ok(os)
-            }
-
-            Arg::Word(w) | Arg::PosWord(w) => {
-                let os = w.clone();
-                args.remove(ix);
-                Ok(os)
-            }
-        }
+    /// Try to apply the parser to each unconsumed element instead of just the front one
+    ///
+    #[doc = include_str!("docs/anywhere.md")]
+    pub fn anywhere(mut self) -> Self {
+        self.anywhere = true;
+        self
     }
 }
 
-impl<T> Parser<T> for ParseAny<T>
+impl<F, I, T> Parser<T> for ParseAny<T, I, F>
 where
-    T: FromStr + 'static,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
+    I: FromStr + 'static,
+    F: Fn(I) -> Option<T>,
+    <I as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        let os = self.next_os_string(args)?;
-        match parse_os_str::<T>(os) {
-            Ok(ok) => Ok(ok),
-            Err(err) => Err(args.word_parse_error(&err)), // Error::Stderr(err)),
+        for (ix, x) in args.items_iter() {
+            let (os, next) = match x {
+                Arg::Ambiguity(_, _) => unreachable!("ambiguity was not resolved?"),
+                Arg::Short(_, next, os) | Arg::Long(_, next, os) => (os, *next),
+                Arg::Word(os) | Arg::PosWord(os) => (os, false),
+            };
+            if let Ok(i) = parse_os_str::<I>(os.clone()) {
+                if let Some(t) = (self.check)(i) {
+                    args.remove(ix);
+                    if next {
+                        args.remove(ix + 1);
+                    }
+
+                    return Ok(t);
+                }
+            }
+            if !self.anywhere {
+                break;
+            }
         }
+        let missing_item = MissingItem {
+            item: self.item(),
+            position: args.scope().start,
+            scope: args.scope(),
+        };
+        Err(Error::Missing(vec![missing_item]))
     }
 
     fn meta(&self) -> Meta {
-        self.meta()
+        Meta::Item(Box::new(self.item()))
     }
 }

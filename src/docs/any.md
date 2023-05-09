@@ -16,9 +16,8 @@ pub fn options() -> OptionParser<Options> {
         .long("turbo")
         .help("Engage the turbo mode")
         .switch();
-    let rest = any::<OsString>("REST")
+    let rest = any::<OsString, _, _>("REST", |x| (x != "--help").then_some(x))
         .help("app will pass anything unused to a child process")
-        .guard(|x| x != "--help", "keep help")
         .many();
     construct!(Options { turbo, rest }).to_options()
 }
@@ -38,13 +37,17 @@ pub struct Options {
     #[bpaf(short, long)]
     /// Engage the turbo mode
     turbo: bool,
-    #[bpaf(any("REST"), guard(not_help, "keep help"), many)]
+    #[bpaf(any("REST", not_help), many)]
     /// app will pass anything unused to a child process
     rest: Vec<OsString>,
 }
 
-fn not_help(s: &OsString) -> bool {
-    s != "--help"
+fn not_help(s: OsString) -> Option<OsString> {
+    if s == "--help" {
+        None
+    } else {
+        Some(s)
+    }
 }
 ```
 

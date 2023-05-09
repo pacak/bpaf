@@ -2,7 +2,8 @@ use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
 use crate::{
-    info::Info, item::Item, meta_help::Metavar, parsers::NamedArg, Error, Meta, ParseFailure,
+    error::MissingItem, info::Info, item::Item, meta_help::Metavar, parsers::NamedArg, Error, Meta,
+    ParseFailure,
 };
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
@@ -70,6 +71,7 @@ mod inner {
 
         #[doc(hidden)]
         /// Used to render an error message for [`parse`][crate::Parser::parse]
+        /// contains an index of a currently consumed item
         pub current: Option<usize>,
 
         #[doc(hidden)]
@@ -96,6 +98,12 @@ mod inner {
 
         /// A way to customize behavior for --help and error handling
         pub(crate) improve_error: super::Improve,
+
+        /// Describes scope current parser will be consuming elements from. Usually it will be
+        /// considering the whole sequence of (unconsumed) arguments, but for "adjacent"
+        /// scope starts on the right of the first consumed item and might end before the end
+        /// of the list, similarly for "commands"
+        scope: Range<usize>,
     }
 
     impl<const N: usize> From<&[&str; N]> for Args {
@@ -150,6 +158,7 @@ mod inner {
             Args {
                 removed: vec![false; vec.len()],
                 remaining: vec.len(),
+                scope: 0..vec.len(),
                 items: Rc::from(vec),
                 current: None,
                 head: usize::MAX,
@@ -211,16 +220,19 @@ mod inner {
     impl<'a> Args {
         /// creates iterator over remaining elements
         pub(crate) fn items_iter(&'a self) -> ArgsIter<'a> {
-            ArgsIter { args: self, cur: 0 }
+            ArgsIter {
+                args: self,
+                cur: self.scope.start,
+            }
         }
 
         pub(crate) fn remove(&mut self, index: usize) {
-            if !self.removed[index] {
+            if self.scope.contains(&index) && !self.removed[index] {
                 self.current = Some(index);
                 self.remaining -= 1;
                 self.head = self.head.min(index);
+                self.removed[index] = true;
             }
-            self.removed[index] = true;
         }
 
         pub(crate) fn is_empty(&self) -> bool {
@@ -240,6 +252,9 @@ mod inner {
         }
 
         pub(crate) fn get(&self, ix: usize) -> Option<&Arg> {
+            if !self.scope.contains(&ix) {
+                return None;
+            }
             let arg = self.items.get(ix)?;
             if *self.removed.get(ix)? {
                 None
@@ -288,87 +303,64 @@ mod inner {
             self
         }
 
-        /// restrict `guess` to the first adjacent block of consumed elements
-        ///
-        /// returns true when either
-        /// - it improved starting point
-        /// - it improved ending point and there are gaps past it
-        pub(crate) fn refine_range(&self, args: &Args, guess: &mut Range<usize>) -> bool {
-            // nothing to refine
-            if self.removed.is_empty() {
-                return false;
-            }
-            // start isn't at the right place, adjust that and retry the parsing
-            if self.removed[guess.start] == args.removed[guess.start] {
-                for (offset, (this, orig)) in self.removed[guess.start..]
-                    .iter()
-                    .zip(args.removed[guess.start..].iter())
-                    .enumerate()
-                {
-                    let ix = offset + guess.start;
-                    if !orig && *this {
-                        guess.start = ix;
-                        return true;
-                    }
-                }
+        /// Narrow down scope of &self to adjacently consumed values compared to original.
+        pub(crate) fn adjacent_scope(&self, original: &Args) -> Option<Range<usize>> {
+            if self.items.is_empty() {
+                return None;
             }
 
-            // at this point start is at the right place, next bpaf needs to set the end to the first
-            // match - point where adjacent parser stopped consuming items
-            let old_end = guess.end;
-            for (offset, (this, orig)) in self.removed[guess.start..]
+            // starting at the beginning of the scope look for the first mismatch
+            let start = self.scope().start;
+            for (mut offset, (this, orig)) in self.removed[start..]
                 .iter()
-                .zip(args.removed[guess.start..].iter())
+                .zip(original.removed[start..].iter())
                 .enumerate()
             {
-                let ix = offset + guess.start;
+                offset += start;
+                // once there's a mismatch we have the scope we are looking for:
+                // all the adjacent items consumed in this. It doesn't make sense to remove it if
+                // it matches the original scope though...
                 if !this && !orig {
-                    guess.end = ix;
-                    break;
+                    let proposed_scope = start..offset;
+                    return if self.scope() != proposed_scope {
+                        Some(proposed_scope)
+                    } else {
+                        None
+                    };
                 }
             }
+            None
+        }
 
-            // no improvements to the end
-            if old_end == guess.end {
-                return false;
+        /// Get a scope for an adjacently available block of item starting at start
+        pub(crate) fn adjacently_available_from(&self, start: usize) -> Option<Range<usize>> {
+            if self.items.is_empty() {
+                return None;
             }
-
-            // at this point check if there are any consumed items past the new end, if there are -
-            // need to rerun the parser
-            for (this, orig) in self.removed[guess.end..old_end]
-                .iter()
-                .zip(args.removed[guess.end..old_end].iter())
-            {
-                if *this && !orig {
-                    return true;
+            for end in start..self.removed.len() {
+                if self.removed.get(end) != Some(&false) {
+                    return Some(start..end);
                 }
             }
-            // otherwise refining - done
-            false
+            Some(start..start)
         }
 
         pub(crate) fn ranges(&self) -> ArgRangesIter {
             ArgRangesIter { args: self, cur: 0 }
         }
 
+        pub(crate) fn scope(&self) -> Range<usize> {
+            self.scope.clone()
+        }
+
         /// Mark everything outside of `range` as removed
-        pub(crate) fn restrict_to_range(&mut self, range: &Range<usize>) {
-            for (ix, removed) in self.removed.iter_mut().enumerate() {
-                if !range.contains(&ix) {
-                    *removed = true;
-                }
-            }
+        pub(crate) fn set_scope(&mut self, scope: Range<usize>) {
+            self.scope = scope;
             self.sync_remaining();
         }
 
         fn sync_remaining(&mut self) {
-            self.remaining = self.removed.iter().filter(|x| !**x).count();
-        }
-
-        /// Copy a range of removals from args to self
-        pub(crate) fn copy_usage_from(&mut self, args: &Args, range: Range<usize>) {
-            self.removed[range.start..range.end].copy_from_slice(&args.removed[range]);
-            self.sync_remaining();
+            self.remaining = self.removed[self.scope()].iter().filter(|x| !**x).count();
         }
 
         #[inline(never)]
@@ -445,14 +437,17 @@ mod inner {
                             self.remaining += 1; // removed Ambiguity, added short and word
                         }
                         (false, false) => {
-                            // can't parse it as neither flag or argument, give up.
-                            // ambiguity will stay and will be reported around meta_youmean
+                            // can't parse it as neither flag or argument, at least directly.
+                            // treat it as a word argument - it might be consumed by `any` or
+                            // reported by meta_youmean later.
+                            new_items[pos] = Arg::Word(std::mem::take(os));
                         }
                     }
                 }
                 pos += 1;
             }
             self.items = Rc::from(new_items);
+            self.scope = 0..self.items.len();
             Ok(())
         }
 
@@ -499,6 +494,9 @@ mod inner {
         fn next(&mut self) -> Option<Self::Item> {
             loop {
                 let cur = self.cur;
+                if cur > self.args.scope.end {
+                    return None;
+                }
                 self.cur += 1;
 
                 if *self.args.removed.get(cur)? {
@@ -506,7 +504,7 @@ mod inner {
                 }
 
                 let mut args = self.args.clone();
-                args.restrict_to_range(&(cur..usize::MAX));
+                args.set_scope(cur..self.args.items.len());
                 return Some((cur, args));
             }
         }
@@ -518,6 +516,9 @@ mod inner {
         fn next(&mut self) -> Option<Self::Item> {
             loop {
                 let ix = self.cur;
+                if !self.args.scope.contains(&ix) {
+                    return None;
+                }
                 self.cur += 1;
                 if !*self.args.removed.get(ix)? {
                     return Some((ix, &self.args.items[ix]));
@@ -608,11 +609,12 @@ impl Args {
                 };
                 return Err(Error::Message(msg, false));
             }
-            _ => {
+            None | Some(Arg::PosWord(_) | Arg::Ambiguity(..)) => {
+                // TODO - this is missing!
                 return Err(Error::Message(
                     format!("{} requires an argument", arg),
                     false,
-                ))
+                ));
             }
         };
         let val = val.clone();
@@ -643,11 +645,19 @@ impl Args {
                 self.remove(ix);
                 Ok(Some((false, w)))
             }
-            Some((_, _arg)) => Err(Error::Missing(vec![Item::Positional {
-                help: None,
-                metavar,
-                strict: false,
-            }])),
+            Some((position, _arg)) => {
+                let missing = MissingItem {
+                    item: Item::Positional {
+                        help: None,
+                        metavar,
+                        strict: false,
+                        anywhere: false,
+                    },
+                    position,
+                    scope: position..position + 1,
+                };
+                Err(Error::Missing(vec![missing]))
+            }
             None => Ok(None),
         }
     }
@@ -657,6 +667,7 @@ impl Args {
         if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
             if w == word {
                 self.remove(ix);
+                self.current = Some(ix);
                 return true;
             }
         }

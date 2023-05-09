@@ -13,14 +13,13 @@ Options { turbo: true, backing: false, xinerama: true, extensions: [("banana", t
 ? bypass it by hiding options and substituting your own with custom `header`/`footer`.
 > --help
 Stdout
-Usage: [-t] [<backing>] [<xinerama>] [(+ext | -ext) <EXT>]...
-
-Available positional items:
-    +ext  enable ext <EXT>
-    -ext  disable ext <EXT>
+Usage: [-t] [(+|-)backing] [(+|-)xinerama] [(+|-)ext <EXT>]...
 
 Available options:
-    -t, --turbo  Engage the turbo mode
-    <backing>    Backing status
-    <xinerama>   Xinerama status
-    -h, --help   Prints help information
+    -t, --turbo    Engage the turbo mode
+    (+|-)backing   Set backing status
+    (+|-)xinerama  Set Xinerama status
+  (+|-)ext <EXT>
+    <EXT>          Extension to enable or disable, see documentation for the full list
+
+    -h, --help     Prints help information

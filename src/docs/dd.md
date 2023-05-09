@@ -13,21 +13,20 @@ pub struct Options {
     block_size: usize,
 }
 
+/// Parses a string that starts with `name`, returns the suffix parsed in a usual way
 fn tag<T>(name: &'static str, meta: &'static str, help: &'static str) -> impl Parser<T>
 where
     T: FromStr,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    // it is possible to parse OsString here and strip the prefix with os_str_bytes or a similar
-    // crate
-    any::<String>(meta)
-        .help(help)
-        .parse::<_, _, String>(move |s| match s.strip_prefix(name) {
-            None => Err("Wrong tag".to_string()),
-            Some(body) => T::from_str(body).map_err(|e| e.to_string()),
-        })
-        .anywhere()
-        .catch()
+    // it is possible to parse OsString here and strip the prefix with os_str_bytes or
+    // a similar crate
+    any(meta, move |s: String| {
+        Some(s.strip_prefix(name)?.to_owned())
+    })
+    .help(help)
+    .anywhere()
+    .parse(|s| s.parse())
 }
 
 fn in_file() -> impl Parser<String> {

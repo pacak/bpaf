@@ -91,7 +91,7 @@ Options { multi: [Multi { m: (), val_1: 10, val_2: 20, val_3: 3.1415 }, Multi { 
 `-s` can't go in the middle as the parser expects the second item
 ```console
 % app -m 10 20 -s 3.1415
-Expected <V3>, got "-m". Pass --help for usage information
+Expected <V3>, got "-s". Pass --help for usage information
 ```
 
 </details>

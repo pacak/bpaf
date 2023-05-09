@@ -71,20 +71,29 @@ fn helpful_error_message() {
 #[test]
 fn positional_argument() {
     set_override(false);
-    let p = positional::<String>("FILE").group_help("File to process");
+    let p = positional::<String>("FILE")
+        .help("file name")
+        .group_help("File to process");
     let parser = p.to_options();
 
     let help = parser
         .run_inner(Args::from(&["--help"]))
         .unwrap_err()
         .unwrap_stdout();
-    let expected_help = "\
+
+    let expected = "\
 Usage: <FILE>
+
+Available positional items:
+  File to process
+    <FILE>  file name
+
 
 Available options:
     -h, --help  Prints help information
 ";
-    assert_eq!(expected_help, help);
+
+    assert_eq!(expected, help);
 }
 
 #[test]

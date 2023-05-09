@@ -1849,8 +1849,8 @@ fn optional_bool_states() {
 #[test]
 fn fancy_negative() {
     let a = short('a').req_flag(());
-    let b = any::<i64>("A");
-    let ab = construct!(a, b).adjacent().anywhere().map(|x| x.1);
+    let b = any::<i64, _, _>("A", Some);
+    let ab = construct!(a, b).adjacent().map(|x| x.1);
 
     let c = short('c').argument::<usize>("C").fallback(42);
 
@@ -1869,11 +1869,13 @@ fn fancy_negative() {
         .unwrap_err()
         .unwrap_stdout();
 
+    // TODO - rendering sucks once you start inventing fancy combinations and don't provide help...
     let expected = "\
-Usage: -a A [-c C]
+Usage: -a <A> [-c C]
 
 Available options:
-    -a <A>
+  -a <A>
+
     -c <C>
     -h, --help  Prints help information
 ";
@@ -1915,10 +1917,7 @@ fn option_requires_other_option1() {
         .unwrap_err()
         .unwrap_stderr();
     // error message sucks...
-    assert_eq!(
-        r,
-        "Expected -b <B>, got \"-a\". Pass --help for usage information"
-    );
+    assert_eq!(r, "Expected -b <B>, pass --help for usage information");
 }
 
 #[test]
@@ -1948,8 +1947,14 @@ fn default_for_some() {
 }
 
 #[test]
-fn anywhere_can_consume_nothing() {
-    let parser = positional::<String>("args").many().anywhere().to_options();
-    let r = parser.run_inner(Args::from(&[])).unwrap();
-    assert!(r.is_empty());
+fn adjacent_anywhere_needs_to_consume_something() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let parser = construct!(a, b).adjacent().to_options();
+
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert_eq!(r, (true, false));
+
+    let r = parser.run_inner(Args::from(&["-b"])).unwrap();
+    assert_eq!(r, (false, true));
 }

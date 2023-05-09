@@ -19,10 +19,10 @@ pub struct MultiArg {
 
 pub fn options() -> OptionParser<Options> {
     let set = long("set").req_flag(());
-    let name = positional("ARG");
-    let value = positional("ARG");
+    let name = positional("NAME").help("Name for the option");
+    let value = positional("VAL").help("Value to set");
     let multi_arg = construct!(MultiArg { set, name, value })
-        .anywhere()
+        .adjacent()
         .optional();
 
     let turbo = long("turbo").switch();

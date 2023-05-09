@@ -16,7 +16,7 @@ pub struct Metavar(pub(crate) &'static str);
 
 impl Metavar {
     // don't render <> around the metavar if
-    fn custom(&self) -> bool {
+    fn is_custom(&self) -> bool {
         self.0
             .as_bytes()
             .first()
@@ -27,7 +27,7 @@ impl Metavar {
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Write;
-        let hide_triangles = f.alternate() || self.custom();
+        let hide_triangles = f.alternate() || self.is_custom();
         if !hide_triangles {
             f.write_char('<')?;
         }
@@ -39,14 +39,21 @@ impl std::fmt::Display for Metavar {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub(crate) enum HelpItem<'a> {
-    Decor {
+    DecorSuffix {
         help: &'a str,
-        margin: DecorPlace,
+        ty: HiTy,
     },
-    BlankDecor,
+    DecorHeader {
+        help: &'a str,
+        ty: HiTy,
+    },
+    DecorBlank {
+        ty: HiTy,
+    },
     Positional {
+        anywhere: bool,
         metavar: Metavar,
         help: Option<&'a str>,
     },
@@ -70,11 +77,44 @@ pub(crate) enum HelpItem<'a> {
         env: Option<&'static str>,
         help: Option<&'a str>,
     },
-    MultiArg {
-        name: ShortLong,
-        help: Option<&'a str>,
-        fields: &'a [(Metavar, Option<String>)],
+    AnywhereStart {
+        inner: &'a Meta,
+        ty: HiTy,
     },
+    AnywhereStop {
+        ty: HiTy,
+    },
+}
+impl HelpItem<'_> {
+    fn has_help(&self) -> bool {
+        match self {
+            HelpItem::Positional { help, .. }
+            | HelpItem::Command { help, .. }
+            | HelpItem::Flag { help, .. }
+            | HelpItem::Argument { help, .. } => help.is_some(),
+            HelpItem::DecorHeader { .. } | HelpItem::DecorSuffix { .. } => true,
+            HelpItem::DecorBlank { .. }
+            | HelpItem::AnywhereStart { .. }
+            | HelpItem::AnywhereStop { .. } => false,
+        }
+    }
+
+    fn ty(&self) -> HiTy {
+        match self {
+            HelpItem::DecorHeader { ty, .. }
+            | HelpItem::DecorSuffix { ty, .. }
+            | HelpItem::DecorBlank { ty }
+            | HelpItem::AnywhereStart { ty, .. }
+            | HelpItem::AnywhereStop { ty } => *ty,
+            HelpItem::Positional {
+                anywhere: false, ..
+            } => HiTy::Positional,
+            HelpItem::Command { .. } => HiTy::Command,
+            HelpItem::Positional { anywhere: true, .. }
+            | HelpItem::Flag { .. }
+            | HelpItem::Argument { .. } => HiTy::Flag,
+        }
+    }
 }
 
 #[derive(Default, Debug)]
@@ -82,19 +122,7 @@ pub(crate) enum HelpItem<'a> {
 ///
 /// Items are stored as references and can be trivially copied
 pub(crate) struct HelpItems<'a> {
-    pub(crate) flgs: Vec<HelpItem<'a>>,
-    pub(crate) psns: Vec<HelpItem<'a>>,
-    pub(crate) cmds: Vec<HelpItem<'a>>,
-    anywhere: bool,
-}
-
-impl HelpItem<'_> {
-    fn is_decor(&self) -> bool {
-        match self {
-            HelpItem::Decor { .. } | HelpItem::BlankDecor => true,
-            _ => false,
-        }
-    }
+    items: Vec<HelpItem<'a>>,
 }
 
 fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
@@ -104,162 +132,185 @@ fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
     }
 }
 
-impl<'a> HelpItems<'a> {
-    #[inline(never)]
-    /// Store a reference to this item into corresponding class - flag, positional or command
-    pub(crate) fn classify_item(&mut self, item: &'a Item) {
-        match item {
-            Item::Positional {
-                metavar,
-                help,
-                strict: _,
-            } => {
-                if help.is_some() {
-                    let hi = HelpItem::Positional {
-                        metavar: *metavar,
-                        help: help.as_deref(),
-                    };
-                    if self.anywhere {
-                        self.flgs.push(hi);
-                    } else {
-                        self.psns.push(hi);
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+
+pub(crate) enum HiTy {
+    Flag,
+    Command,
+    Positional,
+}
+
+enum Block {
+    No,
+    Decor(HiTy),
+    Anywhere(HiTy),
+}
+
+pub(crate) struct HelpItemsIter<'a, 'b> {
+    items: &'b [HelpItem<'a>],
+    target: HiTy,
+    cur: usize,
+    block: Block,
+}
+
+impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
+    type Item = &'b HelpItem<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let item = self.items.get(self.cur)?;
+            self.cur += 1;
+
+            let keep = match item {
+                HelpItem::AnywhereStart { ty, .. } => {
+                    self.block = Block::Anywhere(*ty);
+                    *ty == self.target
+                }
+                HelpItem::DecorHeader { ty, .. } => {
+                    self.block = Block::Decor(*ty);
+                    *ty == self.target
+                }
+                HelpItem::DecorBlank { ty, .. } | HelpItem::AnywhereStop { ty, .. } => {
+                    self.block = Block::No;
+                    *ty == self.target
+                }
+                HelpItem::DecorSuffix { .. }
+                | HelpItem::Command { .. }
+                | HelpItem::Positional { .. }
+                | HelpItem::Flag { .. }
+                | HelpItem::Argument { .. } => {
+                    let ty = item.ty();
+                    match self.block {
+                        Block::No => ty == self.target,
+                        Block::Decor(t) => t == self.target,
+                        Block::Anywhere(t) => t == self.target && item.has_help(),
                     }
                 }
+            };
+            if keep {
+                return Some(item);
             }
-            Item::Command {
-                name,
-                short,
-                help,
+        }
+    }
+}
 
-                #[cfg(not(feature = "manpage"))]
-                    meta: _,
-                #[cfg(not(feature = "manpage"))]
-                    info: _,
-                #[cfg(feature = "manpage")]
-                info,
-                #[cfg(feature = "manpage")]
-                meta,
-            } => {
-                let hi = HelpItem::Command {
-                    name,
-                    #[cfg(feature = "manpage")]
-                    info,
-                    #[cfg(feature = "manpage")]
-                    meta,
-                    short: *short,
-                    help: help.as_deref(),
-                };
-                if self.anywhere {
-                    self.flgs.push(hi);
-                } else {
-                    self.cmds.push(hi);
-                }
-            }
-            Item::Flag {
-                name,
-                help,
-                env,
-                shorts: _,
-            } => self.flgs.push(HelpItem::Flag {
-                name: *name,
-                env: *env,
-                help: help.as_deref(),
-            }),
-            Item::Argument {
-                name,
-                metavar,
-                env,
-                help,
-                shorts: _,
-            } => self.flgs.push(HelpItem::Argument {
-                name: *name,
-                metavar: *metavar,
-                env: *env,
-                help: help.as_deref(),
-            }),
-            Item::MultiArg {
-                name,
-                shorts: _,
-                help,
-                fields,
-            } => self.flgs.push(HelpItem::MultiArg {
-                name: *name,
-                help: help.as_deref(),
-                fields,
-            }),
+impl<'a> HelpItems<'a> {
+    pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            target: HiTy::Flag,
+            cur: 0,
+            block: Block::No,
         }
     }
 
+    pub(crate) fn cmds(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            target: HiTy::Command,
+            cur: 0,
+            block: Block::No,
+        }
+    }
+
+    pub(crate) fn psns(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
+        HelpItemsIter {
+            items: &self.items,
+            target: HiTy::Positional,
+            cur: 0,
+            block: Block::No,
+        }
+    }
+
+    fn write_items(&self, target: HiTy) -> String {
+        let mut buf = Buffer::default();
+        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
+
+        // item should be written if
+        // - it is outside of the decorated block and item type matches
+        // - it is inside of the decorated block and block type matches
+        // - inside of anywhere block, block type matches and there's help
+        //
+        // BlankDecor and AnywhereStop end current decorated block.
+        for item in (HelpItemsIter {
+            items: &self.items,
+            target,
+            cur: 0,
+            block: Block::No,
+        }) {
+            let cp = buf.checkpoint();
+            write_help_item(&mut buf, item);
+            if matches!(
+                item,
+                HelpItem::Command { .. }
+                    | HelpItem::Positional { .. }
+                    | HelpItem::Flag { .. }
+                    | HelpItem::Argument { .. }
+            ) {
+                dedup(&mut dedup_cache, &mut buf, cp);
+            }
+        }
+        // return buffer to decoupe tabstop between blocks
+        buf.to_string()
+    }
+}
+
+impl Meta {
+    fn peek_front_ty(&self) -> Option<HiTy> {
+        match self {
+            Meta::And(xs) | Meta::Or(xs) => xs.iter().flat_map(|x| x.peek_front_ty()).next(),
+            Meta::Optional(x)
+            | Meta::Required(x)
+            | Meta::Adjacent(x)
+            | Meta::Many(x)
+            | Meta::Decorated(x, _, _)
+            | Meta::HideUsage(x) => x.peek_front_ty(),
+            Meta::Item(i) => Some(HiTy::from(i.as_ref())),
+            Meta::Skip => None,
+        }
+    }
+}
+
+impl<'a> HelpItems<'a> {
     /// Recursively classify contents of the Meta
-    pub(crate) fn classify(&mut self, meta: &'a Meta) {
+    pub(crate) fn append_meta(&mut self, meta: &'a Meta) {
         match meta {
             Meta::And(xs) | Meta::Or(xs) => {
                 for x in xs {
-                    self.classify(x);
+                    self.append_meta(x);
                 }
             }
-            Meta::Anywhere(x) => {
-                let prev_anywhere = self.anywhere;
-                self.anywhere = true;
-                self.classify(x);
-                self.anywhere = prev_anywhere;
+            Meta::Adjacent(m) => {
+                if let Some(ty) = m.peek_front_ty() {
+                    self.items.push(HelpItem::AnywhereStart {
+                        inner: m.as_ref(),
+                        ty,
+                    });
+                    self.append_meta(m);
+                    self.items.push(HelpItem::AnywhereStop { ty });
+                }
             }
             Meta::HideUsage(x) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
-                self.classify(x)
+                self.append_meta(x)
             }
-            Meta::Item(item) => self.classify_item(item),
-
+            Meta::Item(item) => {
+                if matches!(item.as_ref(), Item::Positional { help: None, .. }) {
+                    return;
+                }
+                self.items.push(HelpItem::from(item.as_ref()));
+            }
             Meta::Decorated(m, help, DecorPlace::Header) => {
-                self.flgs.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Header,
-                });
-                self.cmds.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Header,
-                });
-                self.psns.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Header,
-                });
-                self.classify(m);
-
-                if self.flgs.last().map_or(false, HelpItem::is_decor) {
-                    self.flgs.pop();
-                } else {
-                    self.flgs.push(HelpItem::BlankDecor);
-                }
-
-                if self.cmds.last().map_or(false, HelpItem::is_decor) {
-                    self.cmds.pop();
-                } else {
-                    self.cmds.push(HelpItem::BlankDecor);
-                }
-
-                if self.psns.last().map_or(false, HelpItem::is_decor) {
-                    self.psns.pop();
-                } else {
-                    self.psns.push(HelpItem::BlankDecor);
+                if let Some(ty) = m.peek_front_ty() {
+                    self.items.push(HelpItem::DecorHeader { help, ty });
+                    self.append_meta(m);
+                    self.items.push(HelpItem::DecorBlank { ty });
                 }
             }
             Meta::Decorated(m, help, DecorPlace::Suffix) => {
-                let flgs = self.flgs.len();
-                let cmds = self.cmds.len();
-                let psns = self.psns.len();
-                self.classify(m);
-                let xs = if flgs != self.flgs.len() {
-                    &mut self.flgs
-                } else if psns != self.psns.len() {
-                    &mut self.psns
-                } else if cmds != self.cmds.len() {
-                    &mut self.cmds
-                } else {
-                    return;
-                };
-                xs.push(HelpItem::Decor {
-                    help,
-                    margin: DecorPlace::Suffix,
-                });
+                if let Some(ty) = m.peek_front_ty() {
+                    self.append_meta(m);
+                    self.items.push(HelpItem::DecorSuffix { help, ty });
+                }
             }
             Meta::Skip => (),
         }
@@ -283,15 +334,32 @@ impl std::fmt::Display for Short {
     }
 }
 
-impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
-    fn from(item: &'a crate::item::Item) -> Self {
+impl From<&Item> for HiTy {
+    fn from(value: &Item) -> Self {
+        match value {
+            Item::Positional {
+                anywhere: false, ..
+            } => Self::Positional,
+            Item::Command { .. } => Self::Command,
+            Item::Positional { anywhere: true, .. } | Item::Flag { .. } | Item::Argument { .. } => {
+                Self::Flag
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a Item> for HelpItem<'a> {
+    // {{{
+    fn from(item: &'a Item) -> Self {
         match item {
             Item::Positional {
                 metavar,
                 help,
                 strict: _,
+                anywhere,
             } => Self::Positional {
                 metavar: *metavar,
+                anywhere: *anywhere,
                 help: help.as_deref(),
             },
             Item::Command {
@@ -337,22 +405,12 @@ impl<'a> From<&'a crate::item::Item> for HelpItem<'a> {
                 env: *env,
                 help: help.as_deref(),
             },
-            Item::MultiArg {
-                name,
-                shorts: _,
-                help,
-                fields,
-            } => Self::MultiArg {
-                name: *name,
-                help: help.as_deref(),
-                fields,
-            },
         }
     }
-}
+} // }}}
 
 fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
-    let custom = metavar.custom();
+    let custom = metavar.is_custom();
     if !custom {
         buf.write_char('<', Style::Label);
     }
@@ -364,19 +422,20 @@ fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
 
 fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
     match item {
-        HelpItem::Decor { help, margin } => {
-            match margin {
-                DecorPlace::Header => {
-                    buf.margin(2);
-                }
-                DecorPlace::Suffix => {
-                    buf.tabstop();
-                }
-            }
+        HelpItem::DecorHeader { help, .. } => {
+            buf.margin(2);
             buf.write_str(help, Style::Text);
         }
-        HelpItem::BlankDecor => {}
-        HelpItem::Positional { metavar, help } => {
+        HelpItem::DecorSuffix { help, .. } => {
+            buf.tabstop();
+            buf.write_str(help, Style::Text);
+        }
+        HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {}
+        HelpItem::Positional {
+            metavar,
+            help,
+            anywhere: _,
+        } => {
             buf.margin(4);
             write_metavar(buf, *metavar);
             if let Some(help) = help {
@@ -451,29 +510,13 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
                 buf.write_str(help, Style::Text);
             }
         }
-        HelpItem::MultiArg { name, help, fields } => {
-            buf.margin(4);
-            write_shortlong(buf, *name);
-            for (field, _) in fields.iter() {
-                buf.write_str(" ", Style::Label);
-                write_metavar(buf, *field);
-            }
-
-            if let Some(help) = help {
-                buf.tabstop();
-                buf.write_str(help, Style::Text);
-            }
-            buf.margin(12);
-            for (field, help) in fields.iter() {
-                if let Some(help) = help {
-                    buf.newline();
-                    write_metavar(buf, *field);
-                    buf.tabstop();
-                    buf.write_str(help, Style::Text);
-                }
-            }
-        }
+        HelpItem::AnywhereStart { inner, .. } => {
+            buf.margin(2);
+            let descr = format!("{:#}", inner);
+            buf.write_str(&descr, Style::Text);
+        } //            return;
     }
+
     buf.newline();
 }
 
@@ -501,25 +544,6 @@ fn write_as_lines(buf: &mut Buffer, line: &str) {
     for line in line.lines() {
         buf.write_str(line, Style::Text);
         buf.newline();
-    }
-}
-
-fn write_items(items: &[HelpItem], descr: &str) -> String {
-    if items.is_empty() {
-        String::new()
-    } else {
-        let mut buf = Buffer::default();
-        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
-        buf.newline();
-        buf.margin(0);
-        buf.write_str(descr, Style::Section);
-        buf.newline();
-        for i in items {
-            let cp = buf.checkpoint();
-            write_help_item(&mut buf, i);
-            dedup(&mut dedup_cache, &mut buf, cp);
-        }
-        buf.to_string()
     }
 }
 
@@ -551,14 +575,40 @@ pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String 
     }
 
     let mut items = HelpItems::default();
-    items.classify(parser_meta);
-    items.classify(help_meta);
+    items.append_meta(parser_meta);
+    items.append_meta(help_meta);
 
+    fn write_section_title(buf: &mut Buffer, label: &str) {
+        buf.newline();
+        buf.margin(0);
+        buf.write_str(label, Style::Section);
+        buf.newline();
+    }
     res.push_str(&buf.to_string());
 
-    res.push_str(&write_items(&items.psns, "Available positional items:"));
-    res.push_str(&write_items(&items.flgs, "Available options:"));
-    res.push_str(&write_items(&items.cmds, "Available commands:"));
+    let section = items.write_items(HiTy::Positional);
+    if !section.is_empty() {
+        buf.clear();
+        write_section_title(&mut buf, "Available positional items:");
+        res.push_str(&buf.to_string());
+        res.push_str(section.as_str());
+    }
+
+    let section = items.write_items(HiTy::Flag);
+    if !section.is_empty() {
+        buf.clear();
+        write_section_title(&mut buf, "Available options:");
+        res.push_str(&buf.to_string());
+        res.push_str(section.as_str());
+    }
+
+    let section = items.write_items(HiTy::Command);
+    if !section.is_empty() {
+        buf.clear();
+        write_section_title(&mut buf, "Available commands:");
+        res.push_str(&buf.to_string());
+        res.push_str(section.as_str());
+    }
 
     let mut buf = Buffer::default();
     if let Some(footer) = info.footer {

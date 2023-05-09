@@ -12,11 +12,13 @@ fn static_complete_test_1() {
 
     let parser = construct!(a, b, bb, c).to_options();
 
+    // this used to be disambiguation, not anymore
+    /*
     let r = parser
         .run_inner(Args::from(&["-vvvv"]).set_comp(1))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-vvvv\n");
+    assert_eq!(r, "-vvvv\n");*/
 
     let r = parser
         .run_inner(Args::from(&["--"]).set_comp(1))

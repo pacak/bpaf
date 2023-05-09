@@ -263,6 +263,16 @@ fn a_or_b_opt_and_c() {
 }
 
 #[test]
+fn any_in_adjacent() {
+    let a = short('a').req_flag(());
+    let b = any::<i64, _, _>("A", Some);
+    let parser = construct!(a, b).adjacent().to_options();
+
+    // TODO - ideally we want "-a A"
+    assert_usage(parser, "-a <A>");
+}
+
+#[test]
 fn positionals_in_branches_are_okay() {
     let a = short('a').argument::<String>("A");
     let b = short('b').argument::<String>("B");

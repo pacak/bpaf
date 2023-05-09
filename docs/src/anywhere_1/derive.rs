@@ -11,14 +11,16 @@ pub struct Options {
 }
 
 #[derive(Debug, Clone, Bpaf)]
-#[bpaf(anywhere)]
+#[bpaf(adjacent)]
 //
 #[allow(dead_code)]
 pub struct MultiArg {
     #[bpaf(long)]
     set: (),
-    #[bpaf(positional)]
+    #[bpaf(positional("NAME"))]
+    /// Name for the option
     name: String,
-    #[bpaf(positional)]
+    #[bpaf(positional("VAL"))]
+    /// Value to set
     value: String,
 }

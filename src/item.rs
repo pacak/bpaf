@@ -3,7 +3,11 @@ use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Meta};
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Item {
+    /// Positional item, consumed from the the front of the arguments
+    /// <FILE>
     Positional {
+        /// used by any, moves it from positionals into arguments
+        anywhere: bool,
         metavar: Metavar,
         strict: bool,
         help: Option<String>,
@@ -15,6 +19,9 @@ pub enum Item {
         meta: Box<Meta>,
         info: Box<Info>,
     },
+    /// short or long name, consumed anywhere
+    /// -f
+    /// --file
     Flag {
         name: ShortLong,
         /// used for disambiguation
@@ -22,6 +29,9 @@ pub enum Item {
         env: Option<&'static str>,
         help: Option<String>,
     },
+    /// Short or long name followed by a value, consumed anywhere
+    /// -f <VAL>
+    /// --file <VAL>
     Argument {
         name: ShortLong,
         /// used for disambiguation
@@ -30,20 +40,14 @@ pub enum Item {
         env: Option<&'static str>,
         help: Option<String>,
     },
-    MultiArg {
-        name: ShortLong,
-        /// used for disambiguation
-        shorts: Vec<char>,
-        help: Option<String>,
-        fields: Vec<(Metavar, Option<String>)>,
-    },
 }
 
 impl Item {
     pub(crate) fn is_pos(&self) -> bool {
         match self {
-            Item::Positional { .. } | Item::Command { .. } => true,
-            Item::Flag { .. } | Item::Argument { .. } | Item::MultiArg { .. } => false,
+            Item::Positional { anywhere, .. } => !anywhere,
+            Item::Command { .. } => true,
+            Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
 }
@@ -95,12 +99,13 @@ impl std::fmt::Display for Item {
                 metavar,
                 strict,
                 help: _,
+                anywhere: _,
             } => {
                 if *strict {
                     f.write_str("-- ")?;
                 }
-                // use write! macro to reset the alternative view
                 write!(f, "{}", metavar)
+                //                metavar.fmt(f)
             }
             Item::Command { .. } => f.write_str("COMMAND ..."),
             Item::Flag {
@@ -120,21 +125,6 @@ impl std::fmt::Display for Item {
                 name.fmt(f)?;
                 f.write_str(" ")?;
                 metavar.fmt(f)
-            }
-
-            Item::MultiArg {
-                name,
-                shorts: _,
-                help: _,
-                fields,
-            } => {
-                name.fmt(f)?;
-
-                for (metavar, _) in fields {
-                    f.write_str(" ")?;
-                    metavar.fmt(f)?;
-                }
-                Ok(())
             }
         }
     }

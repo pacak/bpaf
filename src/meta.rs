@@ -3,7 +3,9 @@ use crate::item::Item;
 #[doc(hidden)]
 #[derive(Copy, Clone, Debug)]
 pub enum DecorPlace {
+    /// Text is placed 2 spaces after the start of the line
     Header,
+    /// Text is placed after the tabstop
     Suffix,
 }
 #[doc(hidden)]
@@ -13,7 +15,7 @@ pub enum Meta {
     Or(Vec<Meta>),
     Optional(Box<Meta>),
     Required(Box<Meta>),
-    Anywhere(Box<Meta>),
+    Adjacent(Box<Meta>),
     Item(Box<Item>),
     Many(Box<Meta>),
     Decorated(Box<Meta>, String, DecorPlace),
@@ -30,6 +32,11 @@ impl Default for Meta {
 impl std::fmt::Display for Meta {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         fn go(meta: &Meta, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            // this macro does nothing other than
+            // stopping you from using Display impl of Meta since it would lose alternative state
+            #[allow(unused_macros)]
+            macro_rules! write {{} => {}}
+
             match meta {
                 Meta::And(xs) => {
                     for (ix, x) in xs.iter().enumerate() {
@@ -66,8 +73,8 @@ impl std::fmt::Display for Meta {
                 }
 
                 // hmm... Do I want to use special syntax here?
-                Meta::Anywhere(m) => m.fmt(f),
-                Meta::Decorated(m, _, _) => m.fmt(f),
+                Meta::Adjacent(m) => go(m, f),
+                Meta::Decorated(m, _, _) => go(m, f),
                 Meta::Skip => f.write_str("no parameters expected"),
                 Meta::HideUsage(m) => {
                     if !f.alternate() {
@@ -134,7 +141,7 @@ impl Meta {
                         go(meta, &mut command_pos, v);
                     }
                 }
-                Meta::Anywhere(m) => {
+                Meta::Adjacent(m) => {
                     let mut inner = false;
                     go(m, &mut inner, v);
                 }
@@ -236,7 +243,7 @@ impl Meta {
                 m.normalize(for_usage);
                 *self = std::mem::take(m);
             }
-            Meta::Anywhere(m) => {
+            Meta::Adjacent(m) => {
                 m.normalize(for_usage);
                 if matches!(**m, Meta::Skip) {
                     *self = Meta::Skip;
@@ -292,14 +299,12 @@ impl Meta {
             Meta::Item(m) => match &**m {
                 Item::Positional { .. } | Item::Command { .. } => {}
                 Item::Flag { shorts, .. } => flags.extend(shorts),
-                Item::MultiArg { shorts, .. } | Item::Argument { shorts, .. } => {
-                    args.extend(shorts);
-                }
+                Item::Argument { shorts, .. } => args.extend(shorts),
             },
             Meta::HideUsage(m)
             | Meta::Required(m)
             | Meta::Optional(m)
-            | Meta::Anywhere(m)
+            | Meta::Adjacent(m)
             | Meta::Many(m)
             | Meta::Decorated(m, _, _) => {
                 m.collect_shorts(flags, args);

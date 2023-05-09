@@ -30,7 +30,7 @@ pub enum Name {
 
 #[derive(Debug, Clone)]
 enum ConsumerAttr {
-    Any(LitStr, Option<Box<Type>>),
+    Any(LitStr, Option<Box<Type>>, Option<Box<Expr>>),
     Arg(LitStr, Option<Box<Type>>),
     Pos(LitStr, Option<Box<Type>>),
     Switch,
@@ -229,10 +229,12 @@ impl ToTokens for ConsumerAttr {
         match self {
             ConsumerAttr::Arg(arg, Some(ty)) => quote!(argument::<#ty>(#arg)),
             ConsumerAttr::Pos(arg, Some(ty)) => quote!(positional::<#ty>(#arg)),
-            ConsumerAttr::Any(arg, Some(ty)) => quote!(any::<#ty>(#arg)),
             ConsumerAttr::Arg(arg, None) => quote!(argument(#arg)),
             ConsumerAttr::Pos(arg, None) => quote!(positional(#arg)),
-            ConsumerAttr::Any(arg, None) => quote!(any(#arg)),
+            ConsumerAttr::Any(arg, Some(ty), Some(ex)) => quote!(any::<#ty, _, _>(#arg, #ex)),
+            ConsumerAttr::Any(arg, None, Some(ex)) => quote!(any(#arg, #ex)),
+            ConsumerAttr::Any(arg, Some(ty), None) => quote!(any::<#ty, _, _>(#arg, Some)),
+            ConsumerAttr::Any(arg, None, None) => quote!(any(#arg, Some)),
             ConsumerAttr::Switch => quote!(switch()),
             ConsumerAttr::Flag(a, b) => quote!(flag(#a, #b)),
             ConsumerAttr::ReqFlag(a) => quote!(req_flag(#a)),

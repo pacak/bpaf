@@ -29,11 +29,18 @@ Options { paths: ["src"], exec: Some(["rustc", "{}"]), user: Some("bob"), perm: 
 ? bypass it by hiding options and substituting your own with custom `header`/`footer`.
 > --help
 Stdout
-Usage: [-exec] [<USER>] [-mode] [<PATH>]...
-
-Available positional items:
-    -exec  -exec /path/to/command flags and options ;
-    -mode  -mode (perm | -perm | /perm)
+Usage: [-exec [<ITEM>]... ;] [-user <USER>] [-mode <MODE>] [<PATH>]...
 
 Available options:
+  -exec [<ITEM>]... ;
+    -exec       for every file find finds execute a separate shell command
+    <ITEM>      command with its arguments, find will replace {} with a file name
+    ;           anything after literal ";" will be considered a regular option again
+
+  -user <USER>
+    <USER>      User name
+
+  -mode <MODE>
+    <MODE>      (perm | -perm | /perm), where perm is any subset of rwx characters, ex +rw
+
     -h, --help  Prints help information
