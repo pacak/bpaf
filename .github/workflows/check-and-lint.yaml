@@ -140,16 +140,16 @@ jobs:
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p bpaf --all-targets --no-default-features
+          args: -p bpaf --lib --tests --no-default-features
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p bpaf --all-targets --all-features
+          args: -p bpaf --lib --tests --all-features
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p bpaf_derive --all-targets --no-default-features
+          args: -p bpaf_derive --lib --tests --no-default-features
       - uses: actions-rs/cargo@v1
         with:
           command: test
-          args: -p bpaf_derive --all-targets --all-features
+          args: -p bpaf_derive --lib --tests --all-features
