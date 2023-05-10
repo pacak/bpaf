@@ -194,6 +194,7 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
     }
 }
 
+#[cfg(feature = "manpage")]
 impl<'a> HelpItems<'a> {
     pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
         HelpItemsIter {
@@ -221,7 +222,9 @@ impl<'a> HelpItems<'a> {
             block: Block::No,
         }
     }
+}
 
+impl<'a> HelpItems<'a> {
     fn write_items(&self, target: HiTy) -> String {
         let mut buf = Buffer::default();
         let mut dedup_cache: BTreeSet<String> = BTreeSet::new();

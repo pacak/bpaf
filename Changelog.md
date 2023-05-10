@@ -1,6 +1,6 @@
 # Change Log
 
-## bpaf [0.8.0], bpaf_derive [0.4.0] - Unreleased
+## bpaf [0.8.0], bpaf_derive [0.4.0] - 2023-05-10
 
 ### Breaking changes
 
@@ -11,15 +11,15 @@
   and should now be used to make an arbitrary looking flag like parsers.
   You can still parse blocks from arbitrary places using remaining `adjacent`
   method
-
-TODO: explain catch which is now on optional/some/many
-
 - `many` and `some` will now collect one result from a parser
   that does not consume anything from an argument list allowing
   for easier composition with parsers that consume from both
   command line and environment variables. If your code depends on
   the original behavior you should replace non failing parsers under
   `many` with failing parsers: `req_flag` instead of `switch`.
+
+### Improvements
+
 - parsing combinators `many`, `some`, `optional` and `anywhere` will
   now propagate parsing errors outwards, you can regain the old
   behvior by specifying `catch`
@@ -36,7 +36,35 @@ TODO: explain catch which is now on optional/some/many
   in all sorts of messages
 - better error messages with positionals and inside anywhere blocks
 
-## bpaf [0.7.10], bpaf_derive [0.3.5] - 2013-03-19
+### Migration guide 0.7.x -> 0.8.x
+1. if you used `any` to consume items without validations just pass `Some` as a parameter
+   and add two wildcard generic type parameters:
+    ```diff
+    -let rest = any<OsString>("RESt").many();
+    +let rest = any<OsString, _, _>("REST", Some);
+    ```
+2. If you used `any` with extra validation to decide if something should be consumed at all
+   you can move this validation inside of any. If validation fails - any behaves as if this
+   argument wasn't specified at all:
+   ```diff
+   -let name = any("NAME").guard(|x| x == "Bob", "Only Bob is allowed").optional().catch();
+   +let name = any("NAME", |x| (x == "Bob").then_some(x));
+   ```
+3. You can replicate most of the behavior from old `anywhere` modifier with new `adjacent`:
+   ```diff
+   -let set = construct!(set, name, value).anywhere();
+   +let set = construct!(set, name, value).adjacent();
+   ```
+4. If you previously used `switch` or an option with fallback in combination with `many`
+   you need to replace `switch` with something that needs at least one item and move fallback
+   outside:
+   ```diff
+   -let verbose = short('v').switch().many().map(|x| x.len());
+   +let verbose = short('v').req_flag(()).many().map(|x| x.len());
+   ```
+
+
+## bpaf [0.7.10], bpaf_derive [0.3.5] - 2023-03-19
 - improve error messages for typos like `-llvm` instead of `--llvm`
 - improve error messages when a flag is accepted by a command but not directly
 - allow to derive position bool

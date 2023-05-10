@@ -14,10 +14,11 @@ Lightweight and flexible command line argument parser with derive and combinator
 
  - [Derive tutorial][__link0]
  - [Combinatoric tutorial][__link1]
- - [Some very unusual cases][__link2]
+ - [Dealing with unusual cases][__link2]
  - [Applicative functors? What is it all about][__link3]
- - [Batteries included][__link4]
- - [Q&A][__link5]
+ - [Applicative parsing intro][__link4]
+ - [Batteries included][__link5]
+ - [Q&A][__link6]
 
 
 ## Quick start - combinatoric and derive APIs
@@ -83,7 +84,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 	```
 	
 	
- 1. You can check the [derive tutorial][__link6] for more detailed information.
+ 1. You can check the [derive tutorial][__link7] for more detailed information.
 	
 	
 
@@ -163,7 +164,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 	```
 	
 	
- 1. You can check the [combinatoric tutorial][__link7] for more detailed information.
+ 1. You can check the [combinatoric tutorial][__link8] for more detailed information.
 	
 	
 
@@ -222,7 +223,7 @@ Library follows **parse, don’t validate** approach to validation when possible
 
 ## Design goals: restrictions
 
-The main restricting library sets is that you can’t use parsed values (but not the fact that parser succeeded or failed) to decide how to parse subsequent values. In other words parsers don’t have the monadic strength, only the applicative one - for more detailed explanation see [Applicative functors? What is it all about][__link8].
+The main restricting library sets is that you can’t use parsed values (but not the fact that parser succeeded or failed) to decide how to parse subsequent values. In other words parsers don’t have the monadic strength, only the applicative one - for more detailed explanation see [Applicative functors? What is it all about][__link9].
 
 To give an example, you can implement this description:
 
@@ -238,9 +239,9 @@ But not this one:
 > 
 This set of restrictions allows `bpaf` to extract information about the structure of the computations to generate help, dynamic completion and overall results in less confusing enduser experience
 
-`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link9]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link10] and [`argument`][__link11] you should put the argument one first.
+`bpaf` performs no parameter names validation, in fact having multiple parameters with the same name is fine and you can combine them as alternatives and performs no fallback other than [`fallback`][__link10]. You need to pay attention to the order of the alternatives inside the macro: parser that consumes the left most available argument on a command line wins, if this is the same - left most parser wins. So to parse a parameter `--test` that can be both [`switch`][__link11] and [`argument`][__link12] you should put the argument one first.
 
-You must place [`positional`][__link12] items at the end of a structure in derive API or consume them as last arguments in derive API.
+You must place [`positional`][__link13] items at the end of a structure in derive API or consume them as last arguments in derive API.
 
 
 ## Dynamic shell completion
@@ -255,7 +256,7 @@ You must place [`positional`][__link12] items at the end of a structure in deriv
 	```
 	
 	
- 1. Decorate [`argument`][__link13] and [`positional`][__link14] parsers with [`complete`][__link15] to autocomplete argument values
+ 1. Decorate [`argument`][__link14] and [`positional`][__link15] parsers with [`complete`][__link16] to autocomplete argument values
 	
 	
  1. Depending on your shell generate appropriate completion file and place it to whereever your shell is going to look for it, name of the file should correspond in some way to name of your program. Consult manual for your shell for the location and named conventions:
@@ -299,11 +300,6 @@ You must place [`positional`][__link12] items at the end of a structure in deriv
 	
 
 
-## Design non goals: performance
-
-Library aims to optimize for flexibility, reusability and compilation time over runtime performance which means it might perform some additional clones, allocations and other less optimal things. In practice unless you are parsing tens of thousands of different parameters and your app exits within microseconds - this won’t affect you. That said - any actual performance related problems with real world applications is a bug.
-
-
 ## More examples
 
 You can find a more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
@@ -318,7 +314,7 @@ $ cargo run --example example_name
 
 ## Testing your own parsers
 
-You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link17]
+You can test your own parsers to maintain compatibility or simply checking expected output with [`run_inner`][__link18]
 
 
 ```rust
@@ -370,27 +366,28 @@ Usage --user <ARG>
 	Disabled by default.
 	
 	
- - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`][__link20]. Disabled by default.
+ - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`][__link21]. Disabled by default.
 	
 	
 
 
- [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEGwet03UV33_nG7BNDOumJDcWG2J9NgcAg8w5G_uDmsZYklJQYWSBgmRicGFmZTAuNy43
- [__link0]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::switch
- [__link11]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::argument
- [__link12]: https://docs.rs/bpaf/0.7.7/bpaf/?search=params::positional
- [__link13]: https://docs.rs/bpaf/0.7.7/bpaf/?search=parsers::NamedArg::argument
- [__link14]: https://docs.rs/bpaf/0.7.7/bpaf/?search=params::positional
- [__link15]: https://docs.rs/bpaf/0.7.7/bpaf/?search=bpaf::Parser::complete
- [__link17]: https://docs.rs/bpaf/0.7.7/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_unusual
- [__link20]: https://docs.rs/bpaf/0.7.7/bpaf/?search=info::OptionParser::as_manpage
- [__link3]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_applicative
- [__link4]: https://docs.rs/bpaf/0.7.7/bpaf/?search=batteries
- [__link5]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link6]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_derive_tutorial
- [__link7]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_combinatoric_tutorial
- [__link8]: https://docs.rs/bpaf/0.7.7/bpaf/?search=_applicative
- [__link9]: https://docs.rs/bpaf/0.7.7/bpaf/?search=bpaf::Parser::fallback
+ [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG67Vn_d8EgCjGwx1q1eGjg8OG62q7Al6912tG9tijfvWADwPYWSBgmRicGFmZTAuOC4w
+ [__link0]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_derive_tutorial
+ [__link1]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_combinatoric_tutorial
+ [__link10]: https://docs.rs/bpaf/0.8.0/bpaf/?search=bpaf::Parser::fallback
+ [__link11]: https://docs.rs/bpaf/0.8.0/bpaf/?search=parsers::NamedArg::switch
+ [__link12]: https://docs.rs/bpaf/0.8.0/bpaf/?search=parsers::NamedArg::argument
+ [__link13]: https://docs.rs/bpaf/0.8.0/bpaf/?search=params::positional
+ [__link14]: https://docs.rs/bpaf/0.8.0/bpaf/?search=parsers::NamedArg::argument
+ [__link15]: https://docs.rs/bpaf/0.8.0/bpaf/?search=params::positional
+ [__link16]: https://docs.rs/bpaf/0.8.0/bpaf/?search=bpaf::Parser::complete
+ [__link18]: https://docs.rs/bpaf/0.8.0/bpaf/?search=info::OptionParser::run_inner
+ [__link2]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_unusual
+ [__link21]: https://docs.rs/bpaf/0.8.0/bpaf/?search=info::OptionParser::as_manpage
+ [__link3]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_applicative
+ [__link4]: https://rustmagazine.org/issue-2/applicative-parsing/
+ [__link5]: https://docs.rs/bpaf/0.8.0/bpaf/?search=batteries
+ [__link6]: https://github.com/pacak/bpaf/discussions/categories/q-a
+ [__link7]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_derive_tutorial
+ [__link8]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_combinatoric_tutorial
+ [__link9]: https://docs.rs/bpaf/0.8.0/bpaf/?search=_applicative
