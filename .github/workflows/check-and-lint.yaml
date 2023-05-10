@@ -9,147 +9,84 @@ name: Check and Lint
 
 jobs:
   windows:
+    name: Tests on windows
     runs-on: windows-latest
-    name: Check windows
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --all-targets
 
-      - uses: actions-rs/cargo@v1
-        name: all features
-        with:
-          command: test
-          args: --workspace --all-targets --all-features
+      - name: Tests
+        run: cargo test --workspace --all-targets --all-features
 
-  check:
-    name: Check linux
+  linux:
+    name: Tests, formatting and clippy on linux
     runs-on: ubuntu-latest
+    env:
+      RUSTDOCFLAGS: -Dwarnings
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
           toolchain: stable
-          override: true
+          components: rustfmt clippy
 
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: --workspace --all-targets
+      - name: clippy minimal features
+        run: cargo clippy --workspace --all-targets --no-default-features
 
-      - uses: actions-rs/cargo@v1
-        name: all features
-        with:
-          command: test
-          args: --workspace --all-targets --all-features
+      - name: clippy default features
+        run: cargo clippy --workspace --all-targets
 
-      # without autocomplete
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --all-targets --no-default-features
+      - name: clippy all features
+        run: cargo clippy --workspace --all-targets --all-features
 
-      - uses: actions-rs/cargo@v1
-        name: all features
-        with:
-          command: test
-          args: --workspace --doc --all-features
+      - name: test minimal features
+        run: cargo test --workspace --all-targets --no-default-features
 
-      # without autocomplete
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --doc --no-default-features
+      - name: test default features
+        run: cargo test --workspace --all-targets
+
+      - name: test all features
+        run: cargo test --workspace --all-targets --all-features
 
       - name: example documentation
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all-features -p docs
-
-      - name: should not have any changes
-        run: git diff && git diff-index --quiet HEAD --
+        run: cargo build --all-features -p docs && git diff && git diff-index --quiet HEAD --
 
       - name: Rustdoc
-        uses: actions-rs/cargo@v1
-        with:
-          command: doc
-          args: --all --no-deps --all-features
-        env:
-          RUSTDOCFLAGS: '-D warnings'
+        run: cargo doc --all --no-deps --all-features
 
-  fmt:
-    name: Rustfmt
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-      - run: rustup component add rustfmt
-      - run: echo "" > docs/src/lib.rs
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - name: formatting
+        run: touch docs/src/lib.rs && cargo fmt --all -- --check
 
-  clippy:
-    name: Clippy
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          components: clippy
-          override: true
-      - uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
-          name: Clippy Output
+
   compat:
-    name: Check compat 1.56
+    name: Tests on linux with old toolchain
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: 1.56.0
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
-          args: -p bpaf
+      - name: Checkout repo
+        uses: actions/checkout@v3
 
-      - uses: actions-rs/cargo@v1
+      - name: Install rust toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          command: check
-          args: -p bpaf_derive
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p bpaf --lib --tests --no-default-features
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p bpaf --lib --tests --all-features
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p bpaf_derive --lib --tests --no-default-features
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: -p bpaf_derive --lib --tests --all-features
+          toolchain: 1.56
+          components: rustfmt clippy
+
+      - name: test minimal features
+        run: cargo test --no-default-features
+
+      - name: test default features
+        run: cargo test
+
+      - name: test all features
+        run: cargo test --all-features
+
+      - name: derive
+        run: cargo test -p bpaf_derive --lib --tests --no-default-features
