@@ -19,7 +19,7 @@ owo-colors = { version = "3.5.0", features = ["supports-colors"], optional = tru
 roff = { version = "0.2.1", optional = true }
 
 [dev-dependencies]
-bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "manpage"] }
+bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "manpage", "batteries"] }
 
 
 [package.metadata.docs.rs]
