@@ -19,7 +19,7 @@
 //!
 //! - [Derive tutorial](crate::_derive_tutorial)
 //! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
-//! - [Some very unusual cases](crate::_unusual)
+//! - [Dealing with unusual cases](crate::_unusual)
 //! - [Applicative functors? What is it all about](crate::_applicative)
 //! - [Applicative parsing intro](https://rustmagazine.org/issue-2/applicative-parsing/)
 //! - [Batteries included](crate::batteries)
@@ -429,7 +429,9 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
     #[doc(inline)]
-    pub use crate::structs::{ParseBox, ParseFallback, ParseMany, ParseOptional, ParseSome};
+    pub use crate::structs::{
+        ParseBox, ParseCon, ParseFallback, ParseMany, ParseOptional, ParseSome,
+    };
 }
 
 use structs::{
@@ -818,7 +820,7 @@ pub trait Parser<T> {
 
     // change shape
     // {{{ many
-    /// Consume zero or more items from a command line and collect them into [`Vec`]
+    /// Consume zero or more items from a command line and collect them into a [`Vec`]
     ///
     /// `many` preserves any parsing falures and propagates them outwards, with extra
     /// [`catch`](ParseMany::catch) statement you can instead stop at the first value
@@ -848,7 +850,7 @@ pub trait Parser<T> {
     // }}}
 
     // {{{ some
-    /// Consume one or more items from a command line
+    /// Consume one or more items from a command line and collect them into a [`Vec`]
     ///
     /// Takes a string used as an error message if there's no specified parameters
     ///

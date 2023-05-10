@@ -154,10 +154,11 @@ impl NamedArg {
     }
 }
 
-/// A flag/switch/argument that has a short name
+/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
 ///
-/// You can specify it multiple times, `bpaf` would use items past the first of each `short` and `long` as
-/// hidden aliases.
+/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
+/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+///  `bpaf` would use items past the first one as hidden aliases.
 ///
 #[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
@@ -170,10 +171,11 @@ pub fn short(short: char) -> NamedArg {
     }
 }
 
-/// A flag/switch/argument that has a long name
+/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a long name
 ///
-/// You can specify it multiple times, `bpaf` would use items past the first of each `short` and `long` as
-/// hidden aliases.
+/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
+/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+///  `bpaf` would use items past the first one as hidden aliases.
 ///
 #[doc = include_str!("docs/short_long_env.md")]
 #[must_use]
@@ -186,11 +188,11 @@ pub fn long(long: &'static str) -> NamedArg {
     }
 }
 
-/// Environment variable fallback
+/// Parse an environment variable
 ///
-/// If named value isn't present - try to fallback to this environment variable.
-///
-/// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
+/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
+/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+///  `bpaf` would use items past the first one as hidden aliases.
 ///
 /// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
 /// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
@@ -387,7 +389,7 @@ impl NamedArg {
     }
 }
 
-/// Positional argument in utf8 (`String`) encoding
+/// Parse a positional argument
 ///
 /// For named flags and arguments ordering generally doesn't matter: most programs would
 /// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
@@ -429,7 +431,7 @@ pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
 }
 
-/// Subcommand parser
+/// Parse a subcommand
 ///
 /// Subcommands allow to use a totally independent parser inside a current one. Inner parser
 /// can have its own help message, description, version and so on. You can nest them arbitrarily
@@ -993,10 +995,11 @@ pub struct ParseAny<T, I, F> {
     anywhere: bool,
 }
 
-/// Take an arbitrary unconsumed item on the command line as parsed with [`FromStr`] or raw [`String`]/[`OsString`] value.
+/// Parse a single arbitrary item from a command line
 ///
-/// **`any` is designed to consume items that don't fit into usual `flag`/`switch`/`positional`
-/// /`argument`/`command` classification**
+/// **`any` is designed to consume items that don't fit into usual [`flag`](NamedArg::flag)
+/// /[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument)/[`positional`]
+/// [`command`] classification, in most cases you don't need to use it**
 ///
 /// By default `any` behaves similar to [`positional`] so you should be using it near the right
 /// most end of the consumer struct. It is possible to lift this restriction by calling

@@ -144,12 +144,10 @@ pub fn toggle_flag<T: Copy + 'static>(
 /// with name present when used via cargo and without it when used locally.
 ///
 /// You can read the code of this function as this approximate sequence of statements:
-/// 1. Want to parse a word
-/// 2. Word must match a given string literal
-/// 3. It's okay if it's missing
-/// 4. It's also okay when it's not matching expectations, don't consume it in this case
-/// 5. And don't show anything to the user in `--help` or completion
-/// 6. Parse this word and then everything else as a tuple, return that second item.
+/// 1. Try to parse a string literal that corresponds to a command name
+/// 2. It's okay if it's missing
+/// 3. And don't show anything to the user in `--help` or completion
+/// 4. Parse this word and then everything else as a tuple, return that second item.
 ///
 #[doc = include_str!("docs/cargo_helper.md")]
 ///

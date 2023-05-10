@@ -738,8 +738,8 @@ impl<T> ParseCon<T> {
     /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
     ///
     /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
-    /// use it on something other than [`command`](OptionParser::command) or [`construct!`] encasing
-    /// several fields.
+    /// use it on something other than [`command`](crate::OptionParser::command) or [`construct!`](crate::construct!)
+    /// encasing several fields.
     ///
     /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:

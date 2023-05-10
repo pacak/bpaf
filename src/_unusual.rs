@@ -22,12 +22,15 @@ pub mod xorg {}
 
 /// ## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
 ///
-/// Unlike `click`, `bpaf` allows commands to be nested as well for as long as the paring is not
-/// ambiguous
+/// With [`adjacent`](crate::parsers::ParseCommand::adjacent)
+/// `bpaf` allows you to have several commands side by side instead of being nested.
 #[doc = include_str!("docs/adjacent_2.md")]
 pub mod chaining {}
 
 /// ## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+///
+/// By default arguments take at most one value, you can create multi value options by using
+/// [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
 #[doc = include_str!("docs/adjacent_0.md")]
 pub mod multi_value {}
 
@@ -69,9 +72,9 @@ pub mod optional_pos {}
 #[cfg(feature = "batteries")]
 /// # Implementing cargo commands
 ///
-/// With [`cargo_helper`] you can use your application as cargo command
+/// With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
 #[doc = include_str!("docs/cargo_helper.md")]
-pub mod cargohelper {}
+pub mod cargo_helper {}
 
 #[cfg(all(doc, feature = "batteries"))]
 use crate::batteries::cargo_helper;
