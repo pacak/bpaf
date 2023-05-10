@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, parsers::NamedArg, positional, short, Parser};
+use crate::{construct, literal, parsers::NamedArg, short, Parser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///
@@ -158,11 +158,7 @@ pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
 where
     P: Parser<T>,
 {
-    let skip = positional::<String>("cmd")
-        .guard(move |s| s == cmd, "")
-        .optional()
-        .catch()
-        .hide();
+    let skip = literal(cmd).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
 
