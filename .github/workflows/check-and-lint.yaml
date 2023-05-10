@@ -79,13 +79,13 @@ jobs:
           components: rustfmt clippy
 
       - name: test minimal features
-        run: cargo test --no-default-features
+        run: cargo test --no-default-features --lib --tests
 
       - name: test default features
-        run: cargo test
+        run: cargo test --lib --tests
 
       - name: test all features
-        run: cargo test --all-features
+        run: cargo test --all-features --lib --tests
 
       - name: derive
         run: cargo test -p bpaf_derive --lib --tests --no-default-features
