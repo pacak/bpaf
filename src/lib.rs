@@ -287,14 +287,6 @@
 //!
 //! 5. Generated scripts rely on your program being accessible in $PATH
 
-//! # Design non goals: performance
-//!
-//! Library aims to optimize for flexibility, reusability and compilation time over runtime
-//! performance which means it might perform some additional clones, allocations and other less
-//! optimal things. In practice unless you are parsing tens of thousands of different parameters
-//! and your app exits within microseconds - this won't affect you. That said - any actual
-//! performance related problems with real world applications is a bug.
-
 //! # More examples
 //!
 //! You can find a more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
