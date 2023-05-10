@@ -56,14 +56,17 @@ jobs:
       - name: test all features
         run: cargo test --workspace --all-targets --all-features
 
-      - name: example documentation
-        run: cargo build --all-features -p docs && git diff && git diff-index --quiet HEAD --
+      - name: Example documentation
+        run: cargo build --all-features -p docs
+        run: git diff
+        run: git diff-index --quiet HEAD --
 
       - name: Rustdoc
         run: cargo doc --all --no-deps --all-features
 
       - name: formatting
-        run: touch docs/src/lib.rs && cargo fmt --all -- --check
+        run: touch docs/src/lib.rs
+        run: cargo fmt --all -- --check
 
 
   compat:
