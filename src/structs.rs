@@ -36,12 +36,13 @@ where
             Err(e) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
-                match e {
-                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
-                    Error::Missing(_) | Error::Message(_, true) => match (self.fallback)() {
+                if e.can_catch() {
+                    match (self.fallback)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()), false)),
-                    },
+                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+                    }
+                } else {
+                    Err(e)
                 }
             }
         }
@@ -118,7 +119,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(Message::ParseSome(self.message), true))
+            Err(Error::Message(Message::ParseSome(self.message)))
         } else {
             Ok(res)
         }
@@ -362,10 +363,10 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(Error::Message(
-                Message::ParseFailed(args.current, e.to_string()),
-                false,
-            )),
+            Err(e) => Err(Error::Message(Message::ParseFailed(
+                args.current,
+                e.to_string(),
+            ))),
         }
     }
 
@@ -397,9 +398,10 @@ where
             Err(e) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
-                match e {
-                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
-                    Error::Missing(_) | Error::Message(_, true) => Ok(self.value.clone()),
+                if e.can_catch() {
+                    Ok(self.value.clone())
+                } else {
+                    Err(e)
                 }
             }
         }
@@ -456,10 +458,10 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(Error::Message(
-                Message::ValidateFailed(args.current, self.message.to_string()),
-                false,
-            ))
+            Err(Error::Message(Message::ValidateFailed(
+                args.current,
+                self.message.to_string(),
+            )))
         }
     }
 
@@ -551,8 +553,8 @@ where
             // anything left unconsumed - this won't be lost.
 
             let res = match &err {
-                Error::Message(_, can_catch) => {
-                    if *can_catch || catch {
+                Error::Message(msg) => {
+                    if msg.can_catch() || catch {
                         Ok(None)
                     } else {
                         Err(err)
@@ -629,7 +631,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()), true)),
+            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
         }
     }
 
@@ -646,7 +648,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(Message::ParseFail(self.field1), true))
+        Err(Error::Message(Message::ParseFail(self.field1)))
     }
 
     fn meta(&self) -> Meta {

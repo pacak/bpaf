@@ -749,7 +749,7 @@ impl<T> ParseArgument<T> {
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
         if self.named.short.is_empty() && self.named.long.is_empty() {
             if let Some(name) = self.named.env.first() {
-                return Err(Error::Message(Message::NoEnv(name), true));
+                return Err(Error::Message(Message::NoEnv(name)));
             }
         }
         match args.take_arg(&self.named, self.adjacent) {
@@ -793,10 +793,7 @@ where
         let os = self.take_argument(args)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error::Message(
-                Message::ParseFailed(args.current, err),
-                false,
-            )),
+            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
         }
     }
 
@@ -941,7 +938,7 @@ fn parse_word(
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error::Message(Message::StrictPos(metavar), false));
+            return Err(Error::Message(Message::StrictPos(metavar)));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.no_pos_ahead {
@@ -980,10 +977,7 @@ where
         let os = parse_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error::Message(
-                Message::ParseFailed(args.current, err),
-                false,
-            )),
+            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
         }
     }
 

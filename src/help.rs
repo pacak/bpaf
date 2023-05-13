@@ -122,7 +122,7 @@ pub(crate) fn improve_error(
             }
         }
         Some(Error::ParseFailure(f)) => return f,
-        Some(Error::Message(msg, _)) => msg.render(args),
+        Some(Error::Message(msg)) => msg.render(args),
         Some(Error::Missing(xs)) => summarize_missing(&xs, inner, args),
     })
 }

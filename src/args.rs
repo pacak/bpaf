@@ -568,7 +568,7 @@ impl Args {
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            _ => return Err(Error::Message(Message::NoArgument(key_ix), false)),
+            _ => return Err(Error::Message(Message::NoArgument(key_ix))),
         };
         let val = val.clone();
         self.current = Some(val_ix);
