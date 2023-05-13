@@ -1,6 +1,10 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
-    args::Conflict, error::MissingItem, item::Item, meta::DecorPlace, Args, Error, Meta, Parser,
+    args::Conflict,
+    error::{Message, MissingItem},
+    item::Item,
+    meta::DecorPlace,
+    Args, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
 
@@ -36,7 +40,7 @@ where
                     Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
                     Error::Missing(_) | Error::Message(_, true) => match (self.fallback)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::Message(e.to_string(), false)),
+                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()), false)),
                     },
                 }
             }
@@ -114,7 +118,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(self.message.to_string(), true))
+            Err(Error::Message(Message::ParseSome(self.message), true))
         } else {
             Ok(res)
         }
@@ -358,7 +362,10 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(args.word_parse_error(&e.to_string())),
+            Err(e) => Err(Error::Message(
+                Message::ParseFailed(args.current, e.to_string()),
+                false,
+            )),
         }
     }
 
@@ -449,7 +456,10 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(args.word_validate_error(self.message))
+            Err(Error::Message(
+                Message::ValidateFailed(args.current, self.message.to_string()),
+                false,
+            ))
         }
     }
 
@@ -619,7 +629,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(e.to_string(), true)),
+            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()), true)),
         }
     }
 
@@ -636,7 +646,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(self.field1.to_owned(), true))
+        Err(Error::Message(Message::ParseFail(self.field1), true))
     }
 
     fn meta(&self) -> Meta {

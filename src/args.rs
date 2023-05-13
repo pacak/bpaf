@@ -2,8 +2,12 @@ use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
 use crate::{
-    error::MissingItem, info::Info, item::Item, meta_help::Metavar, parsers::NamedArg, Error, Meta,
-    ParseFailure,
+    error::{Message, MissingItem},
+    info::Info,
+    item::Item,
+    meta_help::Metavar,
+    parsers::NamedArg,
+    Error, Meta, ParseFailure,
 };
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
@@ -62,11 +66,13 @@ mod inner {
     /// ```
     #[derive(Clone, Debug)]
     pub struct Args {
-        /// list of remaining arguments, for cheap cloning
+        /// list of all available command line arguments, for cheap cloning
         pub(crate) items: Rc<[Arg]>,
+
         /// removed items, false - present, true - removed
         removed: Vec<bool>,
-        /// performance optimization mostly,
+
+        /// performance optimization mostly - tracks removed item and gives cheap is_empty
         remaining: usize,
 
         #[doc(hidden)]
@@ -243,14 +249,7 @@ mod inner {
             self.remaining
         }
 
-        pub(crate) fn current_word(&self) -> Option<&OsStr> {
-            let ix = self.current?;
-            match &self.items[ix] {
-                Arg::Word(w) | Arg::PosWord(w) => Some(w),
-                Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(..) => None,
-            }
-        }
-
+        /// Get an argument from a scope that was not consumed yet
         pub(crate) fn get(&self, ix: usize) -> Option<&Arg> {
             if !self.scope.contains(&ix) {
                 return None;
@@ -356,10 +355,6 @@ mod inner {
         /// Mark everything outside of `range` as removed
         pub(crate) fn set_scope(&mut self, scope: Range<usize>) {
             self.scope = scope;
-            self.sync_remaining();
-        }
-
-        fn sync_remaining(&mut self) {
             self.remaining = self.removed[self.scope()].iter().filter(|x| !**x).count();
         }
 
@@ -538,28 +533,6 @@ impl Args {
         }
     }
 
-    pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        Error::Message(
-            if let Some(os) = self.current_word() {
-                format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
-            } else {
-                format!("Couldn't parse: {}", error)
-            },
-            false,
-        )
-    }
-
-    pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
-        Error::Message(
-            if let Some(os) = self.current_word() {
-                format!("{:?}: {}", os.to_string_lossy(), error)
-            } else {
-                error.to_owned()
-            },
-            false,
-        )
-    }
-
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
@@ -584,7 +557,7 @@ impl Args {
         named: &NamedArg,
         adjacent: bool,
     ) -> Result<Option<OsString>, Error> {
-        let (key_ix, arg) = match self
+        let (key_ix, _arg) = match self
             .items_iter()
             .find(|arg| named.matches_arg(arg.1, adjacent))
         {
@@ -595,27 +568,7 @@ impl Args {
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
-                let msg = if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
-                    let fos = fos.to_string_lossy();
-                    let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
-                    format!(
-                        "`{}` is not accepted, try using it as `-{}={}`",
-                        fos, s, repl
-                    )
-                } else {
-                    let os = os.to_string_lossy();
-                    format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
-                };
-                return Err(Error::Message(msg, false));
-            }
-            None | Some(Arg::PosWord(_) | Arg::Ambiguity(..)) => {
-                // TODO - this is missing!
-                return Err(Error::Message(
-                    format!("{} requires an argument", arg),
-                    false,
-                ));
-            }
+            _ => return Err(Error::Message(Message::NoArgument(key_ix), false)),
         };
         let val = val.clone();
         self.current = Some(val_ix);
