@@ -3,7 +3,7 @@
 //! covers `--help`, `--version` etc.
 
 use crate::{
-    args::Arg,
+    args::{Arg, Conflict},
     error::{Message, MissingItem},
     info::Info,
     meta_help::render_help,
@@ -65,6 +65,18 @@ impl Info {
     }
 }
 
+fn check_conflicts(args: &Args) -> Option<String> {
+    let (ix, _item) = args.items_iter().next()?;
+    if let Conflict::Conflicts(acc, rej) = args.conflicts.get(&ix)? {
+        Some(format!(
+            "{} cannot be used at the same time as {}",
+            rej, acc
+        ))
+    } else {
+        None
+    }
+}
+
 pub(crate) fn improve_error(
     args: &mut Args,
     info: &Info,
@@ -97,7 +109,7 @@ pub(crate) fn improve_error(
     ParseFailure::Stderr(match err {
         // parse succeeded, need to explain an unused argument
         None => {
-            if let Some(msg) = crate::info::check_conflicts(args) {
+            if let Some(msg) = check_conflicts(args) {
                 msg
             } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                 msg
