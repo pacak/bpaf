@@ -11,12 +11,19 @@ pub enum DecorPlace {
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
+    /// All arguments listed in a vector must be present
     And(Vec<Meta>),
+    /// One of arguments listed in a vector must be present
     Or(Vec<Meta>),
+    /// Arguments are optional and encased in [] when rendered
     Optional(Box<Meta>),
+    /// Arguments are requred and encased in () when rendered
     Required(Box<Meta>),
+    /// Argumens are required to be adjacent to each other
     Adjacent(Box<Meta>),
+    /// Primitive argument as described
     Item(Box<Item>),
+    /// Accepts multiple arguments
     Many(Box<Meta>),
     Decorated(Box<Meta>, String, DecorPlace),
     Skip,
