@@ -595,7 +595,6 @@ impl<T> Parser<T> for ParseCommand<T> {
                 args.set_scope(cur..args.scope().end);
             }
 
-            args.head = usize::MAX;
             args.depth += 1;
             if !self.adjacent {
                 self.subparser

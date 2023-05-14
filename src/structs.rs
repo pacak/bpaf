@@ -200,9 +200,7 @@ impl<T> Parser<T> for ParseOrElse<T> {
         // if they both succed - pick the one that consumes left, remember the second one
         // if one succeeds - pick that, forget the remaining one unless we are doing completion
         let mut args_a = args.clone();
-        args_a.head = usize::MAX;
         let mut args_b = args.clone();
-        args_b.head = usize::MAX;
 
         // run both parsers, expand Result<T, Error> into Option<T> + Option<Error>
         // so that code that does a bunch of comparing logic can be shared across
@@ -283,33 +281,31 @@ fn this_or_that_picks_first(
         comp_stash.extend(b.drain_comps());
     }
 
-    let ok_a = err_a.is_none();
-    let ok_b = err_b.is_none();
     // otherwise pick based on the left most or successful one
     #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
         (None, None) => {
-            if args_a.head <= args_b.head {
-                Ok(true)
+            if args.len() == args_a.len() && args.len() == args_b.len() {
+                Ok((true, None))
             } else {
-                Ok(false)
+                Ok(args_a.pick_winner(args_b))
             }
         }
         (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
         // otherwise either a or b are success, true means a is success
-        (a_ok, _) => Ok(a_ok.is_none()),
+        (a_ok, _) => Ok((a_ok.is_none(), None)),
     };
 
     match res {
-        Ok(true) => {
-            if ok_b {
-                args_a.save_conflicts(args_b);
+        Ok((true, ix)) => {
+            if let Some(win) = ix {
+                args_a.save_conflicts(args_b, win);
             }
             std::mem::swap(args, args_a);
         }
-        Ok(false) => {
-            if ok_a {
-                args_b.save_conflicts(args_a);
+        Ok((false, ix)) => {
+            if let Some(win) = ix {
+                args_b.save_conflicts(args_a, win);
             }
             std::mem::swap(args, args_b);
         }
@@ -322,7 +318,7 @@ fn this_or_that_picks_first(
         comp.extend_comps(comp_stash);
     }
 
-    res
+    Ok(res?.0)
 }
 
 /// Parser that transforms parsed value with a failing function, created with
