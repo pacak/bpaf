@@ -521,7 +521,7 @@ mod inner {
                 }
                 self.cur += 1;
 
-                if self.args.present(cur)? {
+                if !self.args.present(cur)? {
                     continue;
                 }
 
