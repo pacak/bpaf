@@ -133,7 +133,6 @@ fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-
 pub(crate) enum HiTy {
     Flag,
     Command,
@@ -551,6 +550,13 @@ fn write_as_lines(buf: &mut Buffer, line: &str) {
 }
 
 pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String {
+    fn write_section_title(buf: &mut Buffer, label: &str) {
+        buf.newline();
+        buf.margin(0);
+        buf.write_str(label, Style::Section);
+        buf.newline();
+    }
+
     let mut res = String::new();
     let mut buf = Buffer::default();
 
@@ -581,12 +587,6 @@ pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String 
     items.append_meta(parser_meta);
     items.append_meta(help_meta);
 
-    fn write_section_title(buf: &mut Buffer, label: &str) {
-        buf.newline();
-        buf.margin(0);
-        buf.write_str(label, Style::Section);
-        buf.newline();
-    }
     res.push_str(&buf.to_string());
 
     let section = items.write_items(HiTy::Positional);

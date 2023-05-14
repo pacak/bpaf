@@ -1,10 +1,6 @@
 //! Help message generation and rendering
 
-use crate::{
-    args::{Args, Conflict},
-    parsers::ParseCommand,
-    Error, ParseFailure, Parser,
-};
+use crate::{args::Args, parsers::ParseCommand, Error, ParseFailure, Parser};
 
 /// Information about the parser
 ///
@@ -22,18 +18,6 @@ pub struct Info {
     pub footer: Option<&'static str>,
     /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<&'static str>,
-}
-
-pub(crate) fn check_conflicts(args: &Args) -> Option<String> {
-    let (ix, _item) = args.items_iter().next()?;
-    if let Conflict::Conflicts(acc, rej) = args.conflicts.get(&ix)? {
-        Some(format!(
-            "{} cannot be used at the same time as {}",
-            rej, acc
-        ))
-    } else {
-        None
-    }
 }
 
 /// Ready to run [`Parser`] with additional information attached

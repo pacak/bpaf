@@ -11,12 +11,19 @@ pub enum DecorPlace {
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
+    /// All arguments listed in a vector must be present
     And(Vec<Meta>),
+    /// One of arguments listed in a vector must be present
     Or(Vec<Meta>),
+    /// Arguments are optional and encased in [] when rendered
     Optional(Box<Meta>),
+    /// Arguments are requred and encased in () when rendered
     Required(Box<Meta>),
+    /// Argumens are required to be adjacent to each other
     Adjacent(Box<Meta>),
+    /// Primitive argument as described
     Item(Box<Item>),
+    /// Accepts multiple arguments
     Many(Box<Meta>),
     Decorated(Box<Meta>, String, DecorPlace),
     Skip,
@@ -171,6 +178,20 @@ impl Meta {
             m = Meta::Required(Box::new(m));
         }
         m
+    }
+
+    pub(crate) fn first_item(meta: &Meta) -> Option<Item> {
+        match meta {
+            Meta::And(xs) => xs.first().and_then(Self::first_item),
+            Meta::Item(item) => Some(*item.clone()),
+            Meta::Skip | Meta::Or(_) => None,
+            Meta::Optional(x)
+            | Meta::Required(x)
+            | Meta::Adjacent(x)
+            | Meta::Many(x)
+            | Meta::Decorated(x, _, _)
+            | Meta::HideUsage(x) => Self::first_item(x),
+        }
     }
 
     /// Normalize meta info for display as usage. Required propagates outwards

@@ -1,6 +1,8 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
-    args::Conflict, error::MissingItem, item::Item, meta::DecorPlace, Args, Error, Meta, Parser,
+    error::{Message, MissingItem},
+    meta::DecorPlace,
+    Args, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
 
@@ -32,12 +34,13 @@ where
             Err(e) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
-                match e {
-                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
-                    Error::Missing(_) | Error::Message(_, true) => match (self.fallback)() {
+                if e.can_catch() {
+                    match (self.fallback)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::Message(e.to_string(), false)),
-                    },
+                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+                    }
+                } else {
+                    Err(e)
                 }
             }
         }
@@ -114,7 +117,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(self.message.to_string(), true))
+            Err(Error::Message(Message::ParseSome(self.message)))
         } else {
             Ok(res)
         }
@@ -192,17 +195,24 @@ impl<T> Parser<T> for ParseOrElse<T> {
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
 
-        // create forks for both branches, go with a successful one.
+        // create forks for both branches
         // if they both fail - fallback to the original arguments
+        // if they both succed - pick the one that consumes left, remember the second one
+        // if one succeeds - pick that, forget the remaining one unless we are doing completion
         let mut args_a = args.clone();
         args_a.head = usize::MAX;
+        let mut args_b = args.clone();
+        args_b.head = usize::MAX;
+
+        // run both parsers, expand Result<T, Error> into Option<T> + Option<Error>
+        // so that code that does a bunch of comparing logic can be shared across
+        // all invocations of parsers rather than being inlined into each one.
+
         let (res_a, err_a) = match self.this.eval(&mut args_a) {
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
         };
 
-        let mut args_b = args.clone();
-        args_b.head = usize::MAX;
         let (res_b, err_b) = match self.that.eval(&mut args_b) {
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
@@ -217,18 +227,8 @@ impl<T> Parser<T> for ParseOrElse<T> {
             #[cfg(feature = "autocomplete")]
             comp_items,
         )? {
-            if res_b.is_some() {
-                remember_conflict(args, self.this.meta(), &mut args_b, self.that.meta());
-            } else {
-                remember_winner(args, self.this.meta());
-            }
             Ok(res_a.unwrap())
         } else {
-            if res_a.is_some() {
-                remember_conflict(args, self.that.meta(), &mut args_a, self.this.meta());
-            } else {
-                remember_winner(args, self.that.meta());
-            }
             Ok(res_b.unwrap())
         }
     }
@@ -238,32 +238,8 @@ impl<T> Parser<T> for ParseOrElse<T> {
     }
 }
 
-fn remember_winner(args: &mut Args, meta: Meta) {
-    args.conflicts
-        .entry(args.head)
-        .or_insert(Conflict::Solo(meta));
-}
-
-fn remember_conflict(args: &mut Args, winner: Meta, failed: &mut Args, loser: Meta) {
-    let winner = args
-        .conflicts
-        .entry(args.head)
-        .or_insert(Conflict::Solo(winner))
-        .winner()
-        .clone();
-
-    let loser = failed
-        .conflicts
-        .get(&failed.head)
-        .map(Conflict::winner)
-        .cloned()
-        .unwrap_or(loser);
-
-    args.conflicts
-        .entry(failed.head)
-        .or_insert(Conflict::Conflicts(winner, loser));
-}
-
+/// Given two possible errors along with to sets of arguments produce a new error or an instruction
+/// to pick between two answers. Updates arguments state to match the results
 fn this_or_that_picks_first(
     err_a: Option<Error>,
     err_b: Option<Error>,
@@ -307,28 +283,39 @@ fn this_or_that_picks_first(
         comp_stash.extend(b.drain_comps());
     }
 
+    let ok_a = err_a.is_none();
+    let ok_b = err_b.is_none();
     // otherwise pick based on the left most or successful one
-    #[allow(clippy::let_and_return)]
+    #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
         (None, None) => {
             if args_a.head <= args_b.head {
-                std::mem::swap(args, args_a);
                 Ok(true)
             } else {
-                std::mem::swap(args, args_b);
                 Ok(false)
             }
         }
-        (None, Some(_)) => {
-            std::mem::swap(args, args_a);
-            Ok(true)
-        }
-        (Some(_), None) => {
-            std::mem::swap(args, args_b);
-            Ok(false)
-        }
         (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
+        // otherwise either a or b are success, true means a is success
+        (a_ok, _) => Ok(a_ok.is_none()),
     };
+
+    match res {
+        Ok(true) => {
+            if ok_b {
+                args_a.save_conflicts(args_b);
+            }
+            std::mem::swap(args, args_a);
+        }
+        Ok(false) => {
+            if ok_a {
+                args_b.save_conflicts(args_a);
+            }
+            std::mem::swap(args, args_b);
+        }
+        // no winner, keep the completions but don't touch args otherwise
+        Err(_) => {}
+    }
 
     #[cfg(feature = "autocomplete")]
     if let Some(comp) = args.comp_mut() {
@@ -358,7 +345,10 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(args.word_parse_error(&e.to_string())),
+            Err(e) => Err(Error::Message(Message::ParseFailed(
+                args.current,
+                e.to_string(),
+            ))),
         }
     }
 
@@ -390,9 +380,10 @@ where
             Err(e) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
-                match e {
-                    Error::Message(_, false) | Error::ParseFailure(_) => Err(e),
-                    Error::Missing(_) | Error::Message(_, true) => Ok(self.value.clone()),
+                if e.can_catch() {
+                    Ok(self.value.clone())
+                } else {
+                    Err(e)
                 }
             }
         }
@@ -449,7 +440,10 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(args.word_validate_error(self.message))
+            Err(Error::Message(Message::ValidateFailed(
+                args.current,
+                self.message.to_string(),
+            )))
         }
     }
 
@@ -541,8 +535,8 @@ where
             // anything left unconsumed - this won't be lost.
 
             let res = match &err {
-                Error::Message(_, can_catch) => {
-                    if *can_catch || catch {
+                Error::Message(msg) => {
+                    if msg.can_catch() || catch {
                         Ok(None)
                     } else {
                         Err(err)
@@ -619,7 +613,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut Args) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(e.to_string(), true)),
+            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
         }
     }
 
@@ -636,7 +630,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(self.field1.to_owned(), true))
+        Err(Error::Message(Message::ParseFail(self.field1)))
     }
 
     fn meta(&self) -> Meta {
@@ -844,7 +838,7 @@ where
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
         let original_scope = args.scope();
 
-        let mut best_error = if let Some(item) = first_item(&self.inner.meta()) {
+        let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
             let missing_item = MissingItem {
                 item,
                 position: original_scope.start,
@@ -920,20 +914,6 @@ where
                         break;
                     }
                 }
-            }
-        }
-
-        fn first_item(meta: &Meta) -> Option<Item> {
-            match meta {
-                Meta::And(xs) => xs.first().and_then(first_item),
-                Meta::Item(item) => Some(*item.clone()),
-                Meta::Skip | Meta::Or(_) => None,
-                Meta::Optional(x)
-                | Meta::Required(x)
-                | Meta::Adjacent(x)
-                | Meta::Many(x)
-                | Meta::Decorated(x, _, _)
-                | Meta::HideUsage(x) => first_item(x),
             }
         }
 

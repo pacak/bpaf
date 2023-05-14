@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.8.1] - Unreleased
+- more errors are now passed as ADTs rather than plain strings
+- conflicts are now tracked with indices rather than parser meta
+
 ## bpaf [0.8.0], bpaf_derive [0.4.0] - 2023-05-10
 
 ### Breaking changes
