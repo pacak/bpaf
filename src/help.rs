@@ -152,7 +152,7 @@ impl Message {
             },
             Message::NoArgument(x) => match args.items.get(x + 1) {
                 Some(Arg::Ambiguity(_, _)) => unreachable!("unresolevd ambiguity?"),
-                Some(Arg::Short(_, _, os)) | Some(Arg::Long(_, _, os)) => {
+                Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
                     let arg = &args.items[x];
                     if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
                         let fos = fos.to_string_lossy();

@@ -837,6 +837,20 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        fn first_item(meta: &Meta) -> Option<Item> {
+            match meta {
+                Meta::And(xs) => xs.first().and_then(first_item),
+                Meta::Item(item) => Some(*item.clone()),
+                Meta::Skip | Meta::Or(_) => None,
+                Meta::Optional(x)
+                | Meta::Required(x)
+                | Meta::Adjacent(x)
+                | Meta::Many(x)
+                | Meta::Decorated(x, _, _)
+                | Meta::HideUsage(x) => first_item(x),
+            }
+        }
+
         let original_scope = args.scope();
 
         let mut best_error = if let Some(item) = first_item(&self.inner.meta()) {
@@ -918,19 +932,6 @@ where
             }
         }
 
-        fn first_item(meta: &Meta) -> Option<Item> {
-            match meta {
-                Meta::And(xs) => xs.first().and_then(first_item),
-                Meta::Item(item) => Some(*item.clone()),
-                Meta::Skip | Meta::Or(_) => None,
-                Meta::Optional(x)
-                | Meta::Required(x)
-                | Meta::Adjacent(x)
-                | Meta::Many(x)
-                | Meta::Decorated(x, _, _)
-                | Meta::HideUsage(x) => first_item(x),
-            }
-        }
 
         std::mem::swap(args, &mut best_args);
         Err(best_error)

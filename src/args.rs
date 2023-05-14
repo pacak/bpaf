@@ -339,10 +339,10 @@ mod inner {
                 // it matches the original scope though...
                 if this.present() && orig.present() {
                     let proposed_scope = start..offset;
-                    return if self.scope() != proposed_scope {
-                        Some(proposed_scope)
-                    } else {
+                    return if self.scope() == proposed_scope {
                         None
+                    } else {
+                        Some(proposed_scope)
                     };
                 }
             }
@@ -358,7 +358,7 @@ mod inner {
                 if self
                     .item_state
                     .get(end)
-                    .map_or(true, |state| state.parsed())
+                    .map_or(true, ItemState::parsed)
                 {
                     return Some(start..end);
                 }
@@ -612,6 +612,7 @@ impl Args {
         &mut self,
         metavar: Metavar,
     ) -> Result<Option<(bool, OsString)>, Error> {
+        #[allow(clippy::range_plus_one)] // gives wrong type otherwise
         match self.items_iter().next() {
             Some((ix, Arg::PosWord(w))) => {
                 let w = w.clone();

@@ -20,24 +20,28 @@ pub enum Error {
 pub enum Message {
     /// Tried to consume an env variable with no fallback, variable was not set
     NoEnv(&'static str),
+
+    /// User specified an error message on some
+    ParseSome(&'static str),
+
+    /// User asked for parser to fail explicitly
+    ParseFail(&'static str),
+
+    /// pure_with failed to parse a value
+    PureFailed(String),
+
     /// Tried to consume a strict positional argument, value was present but was not strictly
     /// positional
     StrictPos(Metavar),
-    /// User specified an error message on some
-    ParseSome(&'static str),
+
     /// User specified guard failed
     Guard(&'static str),
-    /// User asked for parser to fail explicitly
-    ParseFail(&'static str),
 
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
 
     /// Parser provided by user failed to validate a value
     ValidateFailed(Option<usize>, String),
-
-    /// pure_with failed to parse a value
-    PureFailed(String),
 
     /// Argument requres a value but something else was passed,
     /// required: --foo <BAR>
@@ -46,17 +50,18 @@ pub enum Message {
     ///        --foo
     NoArgument(usize),
 }
+
 impl Message {
     pub(crate) fn can_catch(&self) -> bool {
         match self {
-            Message::NoEnv(_) => true,
-            Message::StrictPos(_) => false,
-            Message::ParseSome(_) => true,
-            Message::Guard(_) => false,
-            Message::ParseFail(_) => true,
-            Message::ParseFailed(_, _) => false,
-            Message::ValidateFailed(_, _) => false,
+            Message::NoEnv(_) |
+            Message::ParseSome(_) |
+            Message::ParseFail(_) |
             Message::PureFailed(_) => true,
+            Message::StrictPos(_) |
+            Message::Guard(_) |
+            Message::ParseFailed(_, _) |
+            Message::ValidateFailed(_, _) |
             Message::NoArgument(_) => false,
         }
     }
