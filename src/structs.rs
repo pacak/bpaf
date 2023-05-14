@@ -1,6 +1,5 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
-    args::Conflict,
     error::{Message, MissingItem},
     item::Item,
     meta::DecorPlace,
@@ -197,17 +196,24 @@ impl<T> Parser<T> for ParseOrElse<T> {
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
 
-        // create forks for both branches, go with a successful one.
+        // create forks for both branches
         // if they both fail - fallback to the original arguments
+        // if they both succed - pick the one that consumes left, remember the second one
+        // if one succeeds - pick that, forget the remaining one unless we are doing completion
         let mut args_a = args.clone();
         args_a.head = usize::MAX;
+        let mut args_b = args.clone();
+        args_b.head = usize::MAX;
+
+        // run both parsers, expand Result<T, Error> into Option<T> + Option<Error>
+        // so that code that does a bunch of comparing logic can be shared across
+        // all invocations of parsers rather than being inlined into each one.
+
         let (res_a, err_a) = match self.this.eval(&mut args_a) {
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
         };
 
-        let mut args_b = args.clone();
-        args_b.head = usize::MAX;
         let (res_b, err_b) = match self.that.eval(&mut args_b) {
             Ok(ok) => (Some(ok), None),
             Err(err) => (None, Some(err)),
@@ -222,18 +228,8 @@ impl<T> Parser<T> for ParseOrElse<T> {
             #[cfg(feature = "autocomplete")]
             comp_items,
         )? {
-            if res_b.is_some() {
-                remember_conflict(args, self.this.meta(), &mut args_b, self.that.meta());
-            } else {
-                remember_winner(args, self.this.meta());
-            }
             Ok(res_a.unwrap())
         } else {
-            if res_a.is_some() {
-                remember_conflict(args, self.that.meta(), &mut args_a, self.this.meta());
-            } else {
-                remember_winner(args, self.that.meta());
-            }
             Ok(res_b.unwrap())
         }
     }
@@ -243,32 +239,8 @@ impl<T> Parser<T> for ParseOrElse<T> {
     }
 }
 
-fn remember_winner(args: &mut Args, meta: Meta) {
-    args.conflicts
-        .entry(args.head)
-        .or_insert(Conflict::Solo(meta));
-}
-
-fn remember_conflict(args: &mut Args, winner: Meta, failed: &mut Args, loser: Meta) {
-    let winner = args
-        .conflicts
-        .entry(args.head)
-        .or_insert(Conflict::Solo(winner))
-        .winner()
-        .clone();
-
-    let loser = failed
-        .conflicts
-        .get(&failed.head)
-        .map(Conflict::winner)
-        .cloned()
-        .unwrap_or(loser);
-
-    args.conflicts
-        .entry(failed.head)
-        .or_insert(Conflict::Conflicts(winner, loser));
-}
-
+/// Given two possible errors along with to sets of arguments produce a new error or an instruction
+/// to pick between two answers. Updates arguments state to match the results
 fn this_or_that_picks_first(
     err_a: Option<Error>,
     err_b: Option<Error>,
@@ -312,28 +284,39 @@ fn this_or_that_picks_first(
         comp_stash.extend(b.drain_comps());
     }
 
+    let ok_a = err_a.is_none();
+    let ok_b = err_b.is_none();
     // otherwise pick based on the left most or successful one
-    #[allow(clippy::let_and_return)]
+    #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
         (None, None) => {
             if args_a.head <= args_b.head {
-                std::mem::swap(args, args_a);
                 Ok(true)
             } else {
-                std::mem::swap(args, args_b);
                 Ok(false)
             }
         }
-        (None, Some(_)) => {
-            std::mem::swap(args, args_a);
-            Ok(true)
-        }
-        (Some(_), None) => {
-            std::mem::swap(args, args_b);
-            Ok(false)
-        }
         (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
+        // otherwise either a or b are success, true means a is success
+        (a_ok, _) => Ok(a_ok.is_none()),
     };
+
+    match res {
+        Ok(true) => {
+            if ok_b {
+                args_a.save_conflicts(args_b);
+            }
+            std::mem::swap(args, args_a);
+        }
+        Ok(false) => {
+            if ok_a {
+                args_b.save_conflicts(args_a);
+            }
+            std::mem::swap(args, args_b);
+        }
+        // no winner, keep the completions but don't touch args otherwise
+        Err(_) => {}
+    }
 
     #[cfg(feature = "autocomplete")]
     if let Some(comp) = args.comp_mut() {

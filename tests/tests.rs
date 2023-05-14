@@ -502,31 +502,31 @@ fn from_several_alternatives_pick_more_meaningful() {
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err1, "-b cannot be used at the same time as -a");
+    assert_eq!(err1, "\"-b\" cannot be used at the same time as \"-a\"");
 
     let err2 = parser
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err2, "-a cannot be used at the same time as -b");
+    assert_eq!(err2, "\"-a\" cannot be used at the same time as \"-b\"");
 
     let err3 = parser
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err3, "-a cannot be used at the same time as -c");
+    assert_eq!(err3, "\"-a\" cannot be used at the same time as \"-c\"");
 
     let err4 = parser
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err4, "-c cannot be used at the same time as -a");
+    assert_eq!(err4, "\"-c\" cannot be used at the same time as \"-a\"");
 
     let err5 = parser
         .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err5, "-b cannot be used at the same time as -c");
+    assert_eq!(err5, "\"-b\" cannot be used at the same time as \"-c\"");
 }
 
 #[test]
@@ -1371,7 +1371,7 @@ fn did_you_mean_two_or_arguments() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "[--flag] cannot be used at the same time as [--parameter]"
+        "\"--flag\" cannot be used at the same time as \"--parameter\""
     );
 
     let r = parser
@@ -1380,7 +1380,7 @@ fn did_you_mean_two_or_arguments() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "[--parameter] cannot be used at the same time as [--flag]"
+        "\"--parameter\" cannot be used at the same time as \"--flag\""
     );
 }
 
@@ -1521,7 +1521,7 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "[--flag] cannot be used at the same time as [--parameter]"
+        "\"--flag\" cannot be used at the same time as \"--parameter\""
     );
 
     let r = parser
@@ -1530,7 +1530,7 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "[--parameter] cannot be used at the same time as [--flag]"
+        "\"--parameter\" cannot be used at the same time as \"--flag\""
     );
 }
 

@@ -305,7 +305,7 @@ fn big_conflict() {
         .run_inner(Args::from(&["-a", "-b", "-c", "-d"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "[-c] [-d] cannot be used at the same time as [-a] [-b]";
+    let expected = "\"-c\" cannot be used at the same time as \"-a\"";
     assert_eq!(r, expected);
 }
 
