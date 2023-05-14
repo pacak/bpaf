@@ -1,7 +1,6 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
     error::{Message, MissingItem},
-    item::Item,
     meta::DecorPlace,
     Args, Error, Meta, Parser,
 };
@@ -837,23 +836,9 @@ where
     P: Parser<T> + Sized,
 {
     fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        fn first_item(meta: &Meta) -> Option<Item> {
-            match meta {
-                Meta::And(xs) => xs.first().and_then(first_item),
-                Meta::Item(item) => Some(*item.clone()),
-                Meta::Skip | Meta::Or(_) => None,
-                Meta::Optional(x)
-                | Meta::Required(x)
-                | Meta::Adjacent(x)
-                | Meta::Many(x)
-                | Meta::Decorated(x, _, _)
-                | Meta::HideUsage(x) => first_item(x),
-            }
-        }
-
         let original_scope = args.scope();
 
-        let mut best_error = if let Some(item) = first_item(&self.inner.meta()) {
+        let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
             let missing_item = MissingItem {
                 item,
                 position: original_scope.start,
@@ -931,7 +916,6 @@ where
                 }
             }
         }
-
 
         std::mem::swap(args, &mut best_args);
         Err(best_error)

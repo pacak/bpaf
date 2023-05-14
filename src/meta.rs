@@ -180,6 +180,20 @@ impl Meta {
         m
     }
 
+    pub(crate) fn first_item(meta: &Meta) -> Option<Item> {
+        match meta {
+            Meta::And(xs) => xs.first().and_then(Self::first_item),
+            Meta::Item(item) => Some(*item.clone()),
+            Meta::Skip | Meta::Or(_) => None,
+            Meta::Optional(x)
+            | Meta::Required(x)
+            | Meta::Adjacent(x)
+            | Meta::Many(x)
+            | Meta::Decorated(x, _, _)
+            | Meta::HideUsage(x) => Self::first_item(x),
+        }
+    }
+
     /// Normalize meta info for display as usage. Required propagates outwards
     fn normalize(&mut self, for_usage: bool) {
         fn normalize_vec(xs: &mut Vec<Meta>, for_usage: bool) -> Option<Meta> {

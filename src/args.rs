@@ -355,11 +355,7 @@ mod inner {
                 return None;
             }
             for end in start..self.item_state.len() {
-                if self
-                    .item_state
-                    .get(end)
-                    .map_or(true, ItemState::parsed)
-                {
+                if self.item_state.get(end).map_or(true, ItemState::parsed) {
                     return Some(start..end);
                 }
             }

@@ -54,15 +54,15 @@ pub enum Message {
 impl Message {
     pub(crate) fn can_catch(&self) -> bool {
         match self {
-            Message::NoEnv(_) |
-            Message::ParseSome(_) |
-            Message::ParseFail(_) |
-            Message::PureFailed(_) => true,
-            Message::StrictPos(_) |
-            Message::Guard(_) |
-            Message::ParseFailed(_, _) |
-            Message::ValidateFailed(_, _) |
-            Message::NoArgument(_) => false,
+            Message::NoEnv(_)
+            | Message::ParseSome(_)
+            | Message::ParseFail(_)
+            | Message::PureFailed(_) => true,
+            Message::StrictPos(_)
+            | Message::Guard(_)
+            | Message::ParseFailed(_, _)
+            | Message::ValidateFailed(_, _)
+            | Message::NoArgument(_) => false,
         }
     }
 }
