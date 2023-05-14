@@ -1,6 +1,12 @@
 //! Improve non-parse cases
 //!
 //! covers `--help`, `--version` etc.
+//!
+//! # Notation rules:
+//! - Items in backticks refer to valid flag names known to bpaf:
+//!       expected `--foo`, etc
+//! - Items in quotes refer to user input which might or might not be a valid flag:
+//!       "--foo" cannot be used at the same time as "--bar"
 
 use crate::{
     args::Arg,
