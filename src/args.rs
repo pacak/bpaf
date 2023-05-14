@@ -90,9 +90,6 @@ mod inner {
         /// "deeper" parser should win in or_else branches
         pub depth: usize,
 
-        /// used to pick the parser that consumes the left most item
-        pub(crate) head: usize,
-
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress
         #[cfg(feature = "autocomplete")]
@@ -173,7 +170,6 @@ mod inner {
                 scope: 0..vec.len(),
                 items: Rc::from(vec),
                 current: None,
-                head: usize::MAX,
                 depth: 0,
                 #[cfg(feature = "autocomplete")]
                 comp: None,
@@ -241,12 +237,26 @@ mod inner {
             if self.scope.contains(&index) && self.item_state[index].present() {
                 self.current = Some(index);
                 self.remaining -= 1;
-                self.head = self.head.min(index);
                 self.item_state[index] = ItemState::Parsed;
             }
         }
 
-        pub(crate) fn conflict(self: &Args) -> Option<(usize, usize)> {
+        pub(crate) fn pick_winner(&self, other: &Self) -> (bool, Option<usize>) {
+            for (ix, (me, other)) in self
+                .item_state
+                .iter()
+                .zip(other.item_state.iter())
+                .enumerate()
+            {
+                if me.parsed() ^ other.parsed() {
+                    return (me.parsed(), Some(ix));
+                }
+            }
+            (true, None)
+        }
+
+        /// find first saved conflict
+        pub(crate) fn conflict(&self) -> Option<(usize, usize)> {
             let (ix, _item) = self.items_iter().next()?;
             if let ItemState::Conflict(other) = self.item_state.get(ix)? {
                 Some((ix, *other))
@@ -255,10 +265,10 @@ mod inner {
             }
         }
 
-        pub(crate) fn save_conflicts(&mut self, loser: &Args) {
+        pub(crate) fn save_conflicts(&mut self, loser: &Args, win: usize) {
             for (winner, loser) in self.item_state.iter_mut().zip(loser.item_state.iter()) {
                 if winner.present() && loser.parsed() {
-                    *winner = ItemState::Conflict(self.head);
+                    *winner = ItemState::Conflict(win);
                 }
             }
         }
