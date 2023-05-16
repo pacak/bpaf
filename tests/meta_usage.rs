@@ -21,7 +21,7 @@ fn optional_group_meta() {
     let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).optional().to_options();
 
-    assert_usage(parser, "[-a A -b B]");
+    assert_usage(parser, "[-a=A -b=B]");
 }
 
 #[test]
@@ -29,7 +29,7 @@ fn sensors_many() {
     let a = short('a').argument::<String>("A");
     let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).many().to_options();
-    assert_usage(parser, "[-a A -b B]...");
+    assert_usage(parser, "[-a=A -b=B]...");
 }
 
 #[test]
@@ -37,19 +37,19 @@ fn sensors_some() {
     let a = short('a').argument::<String>("A");
     let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).some("want some sensors").to_options();
-    assert_usage(parser, "(-a A -b B)...");
+    assert_usage(parser, "(-a=A -b=B)...");
 }
 
 #[test]
 fn many_arg() {
     let parser = short('a').argument::<String>("A").many().to_options();
-    assert_usage(parser, "[-a A]...");
+    assert_usage(parser, "[-a=A]...");
 }
 
 #[test]
 fn some_arg() {
     let parser = short('a').argument::<String>("A").some("ARG").to_options();
-    assert_usage(parser, "-a A...");
+    assert_usage(parser, "-a=A...");
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn optional_argument_select() {
     let b = short('b').argument::<String>("B");
     let parser = construct!([a, b]).optional().to_options();
 
-    assert_usage(parser, "[-a A | -b B]");
+    assert_usage(parser, "[-a=A | -b=B]");
 }
 
 #[test]
@@ -215,9 +215,6 @@ fn no_actual_arguments_also_works() {
         r,
         "Usage: no parameters expected\n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
-
-    let x = pure(true).meta();
-    assert_eq!("no parameters expected", x.to_string());
 }
 
 #[test]
@@ -225,7 +222,7 @@ fn a_or_b() {
     let a = short('a').long("aaa").argument::<String>("A");
     let b = short('b').long("bbb").argument::<String>("B");
     let parser = construct!([a, b]).to_options();
-    assert_usage(parser, "(-a A | -b B)");
+    assert_usage(parser, "(-a=A | -b=B)");
 }
 
 #[test]
@@ -241,7 +238,7 @@ fn a_or_b_and_c() {
     let ab = construct!([a, b]);
     let c = positional::<String>("C");
     let parser = construct!(ab, c).to_options();
-    assert_usage(parser, "(-a A | -b B) <C>");
+    assert_usage(parser, "(-a=A | -b=B) C");
 }
 
 #[test]
@@ -249,7 +246,7 @@ fn a_or_b_opt() {
     let a = short('a').long("aaa").argument::<String>("A");
     let b = short('b').long("bbb").argument::<String>("B");
     let parser = construct!([a, b]).optional().to_options();
-    assert_usage(parser, "[-a A | -b B]");
+    assert_usage(parser, "[-a=A | -b=B]");
 }
 
 #[test]
@@ -259,7 +256,7 @@ fn a_or_b_opt_and_c() {
     let ab = construct!([a, b]).optional();
     let c = positional::<String>("C");
     let parser = construct!(ab, c).to_options();
-    assert_usage(parser, "[-a A | -b B] <C>");
+    assert_usage(parser, "[-a=A | -b=B] C");
 }
 
 #[test]
@@ -268,8 +265,7 @@ fn any_in_adjacent() {
     let b = any::<i64, _, _>("A", Some);
     let parser = construct!(a, b).adjacent().to_options();
 
-    // TODO - ideally we want "-a A"
-    assert_usage(parser, "-a <A>");
+    assert_usage(parser, "-a A");
 }
 
 #[test]
@@ -282,7 +278,7 @@ fn positionals_in_branches_are_okay() {
     let ac = construct!(a, c);
     let bd = construct!(b, d);
     let parser = construct!([ac, bd]).to_options();
-    assert_usage(parser, "(-a A <C> | -b B <D>)");
+    assert_usage(parser, "(-a=A C | -b=B D)");
 }
 
 #[test]

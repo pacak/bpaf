@@ -26,7 +26,7 @@ fn help_with_default_parse() {
     let expected_help = "\
 Add a new TODO item
 
-Usage: <ARG>
+Usage: ARG
 
 Available options:
     -h, --help  Prints help information
@@ -45,8 +45,8 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    add        Add a new TODO item
-    no_action  Does nothing
+    add         Add a new TODO item
+    no_action   Does nothing
 ";
     assert_eq!(expected_help, help);
 }
@@ -76,7 +76,7 @@ fn command_and_fallback() {
     let expected_help = "\
 Add a new TODO item
 
-Usage: <ARG>
+Usage: ARG
 
 Available options:
     -h, --help  Prints help information
@@ -95,8 +95,8 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    add        Add a new TODO item
-    no_action  Does nothing in two lines
+    add         Add a new TODO item
+    no_action   Does nothing in two lines
 ";
     assert_eq!(expected_help, help);
 }

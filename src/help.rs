@@ -10,6 +10,7 @@
 
 use crate::{
     args::Arg,
+    buffer::{Buffer, Color, Style},
     error::{Message, MissingItem},
     info::Info,
     meta_help::render_help,
@@ -88,7 +89,8 @@ pub(crate) fn improve_error(
     // handle --help and --version messages
     match info.help_parser().eval(args) {
         Ok(ExtraParams::Help) => {
-            let msg = render_help(info, inner, &info.help_parser().meta());
+            let msg = render_help(info, inner, &info.help_parser().meta())
+                .render(false, crate::buffer::Color::Monochrome);
             return ParseFailure::Stdout(msg);
         }
         Ok(ExtraParams::Version(v)) => {
@@ -116,7 +118,7 @@ pub(crate) fn improve_error(
             } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                 msg
             } else if let Some((_ix, item)) = args.items_iter().next() {
-                format!("{} is not expected in this context", item)
+                format!("`{}` is not expected in this context", item)
             } else {
                 // if parse succeeds and there's no unused items on a command line
                 // run_subparser returns the result.
@@ -213,12 +215,26 @@ pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Args
         if let Some(msg) = crate::meta_youmean::suggest(&args, inner) {
             msg
         } else {
-            format!(
-                "Expected {}, got \"{}\". Pass --help for usage information",
-                meta, x
-            )
+            let mut b = Buffer::default();
+            b.write_str("Expected `", Style::Text);
+            b.write_meta(&meta, false);
+            b.write_str("`, got `", Style::Text);
+            b.write_str(&x.to_string(), Style::Invalid);
+            b.write_str("`. Pass `", Style::Text);
+            b.write_str("--help", Style::Literal);
+            b.write_str("` for usage information", Style::Text);
+            b.render(true, Color::Monochrome)
         }
     } else {
-        format!("Expected {}, pass --help for usage information", meta)
+        let mut b = Buffer::default();
+        b.write_str("Expected `", Style::Text);
+        b.write_meta(&meta, false);
+        b.write_str("`, pass `", Style::Text);
+        b.write_str("--help", Style::Literal);
+        b.write_str("` for usage information", Style::Text);
+
+        b.render(true, Color::Monochrome)
+
+        //        format!("Expected {}, pass --help for usage information", meta)
     }
 }

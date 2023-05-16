@@ -50,6 +50,12 @@ impl Item {
             Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
+    pub(crate) fn for_usage(&mut self, short: bool) {
+        match self {
+            Item::Positional { .. } | Item::Command { .. } => {}
+            Item::Flag { name, .. } | Item::Argument { name, .. } => name.for_usage(short),
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -58,6 +64,21 @@ pub enum ShortLong {
     Short(char),
     Long(&'static str),
     ShortLong(char, &'static str),
+}
+
+impl ShortLong {
+    pub(crate) fn for_usage(&mut self, short: bool) {
+        match self {
+            ShortLong::Short(_) | ShortLong::Long(_) => {}
+            ShortLong::ShortLong(s, l) => {
+                if short {
+                    *self = Self::Short(*s);
+                } else {
+                    *self = Self::Long(l);
+                }
+            }
+        }
+    }
 }
 
 impl From<&NamedArg> for ShortLong {

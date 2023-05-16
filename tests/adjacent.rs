@@ -58,7 +58,7 @@ fn adjacent_error_message_pos_single() {
         .run_inner(Args::from(&["-a", "10"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <C>, pass --help for usage information");
+    assert_eq!(r, "Expected `C`, pass `--help` for usage information");
 }
 
 #[test]
@@ -76,7 +76,7 @@ fn adjacent_error_message_arg_single() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected -b <B>, got \"10\". Pass --help for usage information"
+        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
     );
 }
 
@@ -93,7 +93,7 @@ fn adjacent_error_message_pos_many() {
         .run_inner(Args::from(&["-a", "10"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <C>, pass --help for usage information");
+    assert_eq!(r, "Expected `C`, pass `--help` for usage information");
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn adjacent_error_message_arg_many() {
     // this should ask for -b or -c and complain on 10...
     assert_eq!(
         r,
-        "Expected -b <B>, got \"10\". Pass --help for usage information"
+        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
     );
 }
 
@@ -126,7 +126,7 @@ fn adjacent_is_adjacent() {
         .run_inner(Args::from(&["-a", "-a", "10", "20"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <B>, pass --help for usage information");
+    assert_eq!(r, "Expected `B`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a", "10", "-a", "20"]))
@@ -205,8 +205,8 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    eat    eat something
-    sleep  sleep for a bit
+    eat         eat something
+    sleep       sleep for a bit
 ";
 
     assert_eq!(r, expected);

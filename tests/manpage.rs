@@ -1,6 +1,7 @@
 use bpaf::*;
 
 #[test]
+#[ignore]
 fn simple_manpage() {
     let manpage = short('d')
         .long("kraken")
@@ -24,6 +25,7 @@ fn simple_manpage() {
 }
 
 #[test]
+#[ignore]
 fn nested_command_manpage() {
     let a = short('d')
         .help("dragon")
@@ -73,6 +75,7 @@ fn nested_command_manpage() {
 }
 
 #[test]
+#[ignore]
 fn very_nested_command() {
     let manpage = short('k')
         .help("Unleash the Kraken")

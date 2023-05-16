@@ -1,4 +1,8 @@
-use crate::item::Item;
+use crate::{
+    buffer::{Buffer, Style},
+    item::{Item, ShortLong},
+    meta_help::Metavar,
+};
 
 #[doc(hidden)]
 #[derive(Copy, Clone, Debug)]
@@ -25,75 +29,125 @@ pub enum Meta {
     Item(Box<Item>),
     /// Accepts multiple arguments
     Many(Box<Meta>),
-    Decorated(Box<Meta>, String, DecorPlace),
+    Decorated(Box<Meta>, Buffer, DecorPlace),
     Skip,
     HideUsage(Box<Meta>),
 }
 
+// to get std::mem::take to work
 impl Default for Meta {
     fn default() -> Self {
         Meta::Skip
     }
 }
 
-impl std::fmt::Display for Meta {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn go(meta: &Meta, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            // this macro does nothing other than
-            // stopping you from using Display impl of Meta since it would lose alternative state
-            #[allow(unused_macros)]
-            macro_rules! write {{} => {}}
+impl Buffer {
+    pub(crate) fn write_shortlong(&mut self, name: &ShortLong) {
+        match name {
+            ShortLong::Short(s) => {
+                self.write_char('-', Style::Literal);
+                self.write_char(*s, Style::Literal);
+            }
+            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
+                self.write_str("--", Style::Literal);
+                self.write_str(l, Style::Literal);
+            }
+        }
+    }
+    pub(crate) fn write_metavar(&mut self, mv: Metavar) {
+        self.write_str(mv.0, Style::Metavar);
+    }
 
+    pub(crate) fn write_item(&mut self, item: &Item) {
+        match item {
+            Item::Positional {
+                anywhere: _,
+                metavar,
+                strict,
+                help: _,
+            } => {
+                if *strict {
+                    self.write_str("-- ", Style::Literal)
+                }
+                self.write_metavar(*metavar);
+            }
+            Item::Command {
+                name: _,
+                short: _,
+                help: _,
+                meta: _,
+                info: _,
+            } => {
+                self.write_str("COMMAND ...", Style::Metavar);
+            }
+            Item::Flag {
+                name,
+                shorts: _,
+                env: _,
+                help: _,
+            } => self.write_shortlong(name),
+            Item::Argument {
+                name,
+                shorts: _,
+                metavar,
+                env: _,
+                help: _,
+            } => {
+                self.write_shortlong(name);
+                self.write_char('=', Style::Text);
+                self.write_metavar(*metavar);
+            }
+        }
+    }
+
+    pub(crate) fn write_meta(&mut self, meta: &Meta, for_usage: bool) {
+        fn go(meta: &Meta, f: &mut Buffer) {
             match meta {
                 Meta::And(xs) => {
                     for (ix, x) in xs.iter().enumerate() {
                         if ix != 0 {
-                            f.write_str(" ")?;
+                            f.write_str(" ", Style::Text);
                         }
-                        go(x, f)?;
+                        go(x, f);
                     }
-                    Ok(())
                 }
                 Meta::Or(xs) => {
                     for (ix, x) in xs.iter().enumerate() {
                         if ix != 0 {
-                            f.write_str(" | ")?;
+                            f.write_str(" | ", Style::Text);
                         }
-                        go(x, f)?;
+                        go(x, f);
                     }
-                    Ok(())
                 }
                 Meta::Optional(m) => {
-                    f.write_str("[")?;
-                    go(m, f)?;
-                    f.write_str("]")
+                    f.write_str("[", Style::Text);
+                    go(m, f);
+                    f.write_str("]", Style::Text)
                 }
                 Meta::Required(m) => {
-                    f.write_str("(")?;
-                    go(m, f)?;
-                    f.write_str(")")
+                    f.write_str("(", Style::Text);
+                    go(m, f);
+                    f.write_str(")", Style::Text)
                 }
-                Meta::Item(i) => i.fmt(f),
+                Meta::Item(i) => f.write_item(i),
                 Meta::Many(m) => {
-                    go(m, f)?;
-                    f.write_str("...")
+                    go(m, f);
+                    f.write_str("...", Style::Text)
                 }
 
                 // hmm... Do I want to use special syntax here?
                 Meta::Adjacent(m) => go(m, f),
                 Meta::Decorated(m, _, _) => go(m, f),
-                Meta::Skip => f.write_str("no parameters expected"),
+                Meta::Skip => f.write_str("no parameters expected", Style::Text),
                 Meta::HideUsage(m) => {
-                    if !f.alternate() {
-                        go(m, f)?;
-                    }
-                    Ok(())
+                    // hidden
+                    go(m, f);
                 }
             }
         }
 
-        let meta = self.normalized(f.alternate());
-        go(&meta, f)
+        let meta = meta.normalized(for_usage);
+        go(&meta, self);
     }
 }
 
@@ -276,7 +330,8 @@ impl Meta {
                     *self = Meta::Skip;
                 }
             }
-            Meta::Item(_) | Meta::Skip => {
+            Meta::Item(i) => i.for_usage(for_usage),
+            Meta::Skip => {
                 // nothing to do with items and skip just bubbles upwards
             }
             Meta::HideUsage(m) => {

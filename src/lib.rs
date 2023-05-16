@@ -445,6 +445,8 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
+#[doc(hidden)]
+pub use crate::buffer::Buffer;
 pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
@@ -1180,7 +1182,7 @@ pub trait Parser<T> {
     ///
     #[doc = include_str!("docs/group_help.md")]
     ///
-    fn group_help<M: Into<String>>(self, message: M) -> ParseGroupHelp<Self>
+    fn group_help<M: Into<Buffer>>(self, message: M) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
     {

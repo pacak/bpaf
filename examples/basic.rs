@@ -26,7 +26,7 @@ fn opts() -> OptionParser<Out> {
     // use `max` inside `map`
     let verbose = short('v')
         .long("verbose")
-        .help("Increase the verbosity\nYou can specify it up to 3 times\neither as -v -v -v or as -vvv")
+        .help("Increase the verbosity\n You can specify it up to 3 times\n either as -v -v -v or as -vvv")
         .req_flag(())
         .many()
         .map(|xs| xs.len())

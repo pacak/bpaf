@@ -15,10 +15,10 @@ fn parse_anywhere_positional() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: <X> [-b]
+Usage: X [-b]
 
 Available options:
-    <X>         all the things
+    X           all the things
     -b          batch mode
     -h, --help  Prints help information
 ";
@@ -42,13 +42,13 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["3", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <x>, pass --help for usage information");
+    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <x>, pass --help for usage information");
+    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b"]))
@@ -60,7 +60,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <x>, pass --help for usage information");
+    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-c", "-a", "221b"]))
@@ -74,7 +74,7 @@ fn parse_anywhere_no_catch() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected <x>, got \"-c\". Pass --help for usage information"
+        "Expected `x`, got `-c`. Pass `--help` for usage information"
     );
 
     let r = parser
@@ -153,43 +153,43 @@ fn parse_anywhere_catch_optional() {
         .run_inner(Args::from(&["-a", "221b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["3", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "3 is not expected in this context");
+    assert_eq!(r, "`3` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["-c", "-a", "221b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-a is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context");
 }
 
 #[test]

@@ -58,7 +58,7 @@ fn get_any_magic() {
         .run_inner(Args::from(&["-b", "anana"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "-b is not expected in this context");
+    assert_eq!(r, "`-b` is not expected in this context");
 
     // close enough :)
     assert!(parser.run_inner(Args::from(&["-b=anana"])).unwrap());

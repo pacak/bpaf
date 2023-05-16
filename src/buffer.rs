@@ -1,90 +1,179 @@
 //! String builder, renders a string assembled from styled blocks
-//!
-//!
+
+// help needs to support following features:
+// - linebreak - insert linebreak whenever
+// - newline - start text on a new line, don't start a new line if not already at one
+// - margin - start text at some offset at a new line
+// - tabstop - all tabstops are aligned within a section
+// - section title - "usage", "available options", "available positionals", etc. starts a new
+//         section - resets tabstops
+// - literal text user needs to type - flags, command names, etc.
+// - metavar - meta placehoder user needs to write something
+// - subsection title - two spaces + text, used for adjacent groups
+
+// help might want to render it:
+// - monochrome - default mode
+// - bright/dull/custom colors
+// - export to markdown and groff
+//
+// monochrome and colors are rendered with different widths so tabstops are out of buffer rendering
+
+// text formatting rules:
+//
+// want to be able to produce both brief and full versions of the documentation, it only makes
+// sense to look for that in the plain text...
+// - "\n " => hard line break, inserted always
+// - "\n\n" => soft line break, text after it is inserted only in "full" rendering mode
+// - "\n" => converted to spaces, text flows to the current margin value
+//
+// tabstops are aligned the same position within a section, tabstop sets a temporary margin for all
+// the soft linebreaks, tabstop
+//
+// margin sets the minimal offset for any new text and retained until new margin is set:
+// "hello" [margin 8] "world" is rendered as "hello   world"
+
+struct Splitter<'a> {
+    input: &'a str,
+}
+
+/// Split payload into chunks annotated with character width and containing no newlines according
+/// to text formatting rules
+fn split(input: &str) -> Splitter {
+    Splitter { input }
+}
+
+#[cfg_attr(test, derive(Debug, Clone, Copy, Eq, PartialEq))]
+enum Chunk<'a> {
+    Raw(&'a str, usize),
+    SoftLineBreak,
+    HardLineBreak,
+}
+
+impl<'a> Iterator for Splitter<'a> {
+    type Item = Chunk<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.input.is_empty() {
+            None
+        } else if let Some(tail) = self.input.strip_prefix("\n\n") {
+            self.input = tail;
+            Some(Chunk::SoftLineBreak)
+        } else if let Some(tail) = self.input.strip_prefix("\n ") {
+            self.input = tail;
+            Some(Chunk::HardLineBreak)
+        } else if let Some(tail) = self.input.strip_prefix('\n') {
+            self.input = tail;
+            Some(Chunk::Raw(" ", 1))
+        } else if let Some(tail) = self.input.strip_prefix(' ') {
+            self.input = tail;
+            Some(Chunk::Raw(" ", 1))
+        } else {
+            let mut char_ix = 0;
+
+            // there's iterator position but it won't give me character length of the rest of the input
+            for (byte_ix, chr) in self.input.char_indices() {
+                if chr == '\n' || chr == ' ' {
+                    let head = &self.input[..byte_ix];
+                    let tail = &self.input[byte_ix..];
+                    self.input = tail;
+                    return Some(Chunk::Raw(head, char_ix));
+                }
+                char_ix += 1;
+            }
+            let head = self.input;
+            self.input = "";
+            Some(Chunk::Raw(head, char_ix))
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) enum Style {
-    /// Plain text, no extra decorations
+    /// Plain text, no decorations
     Text,
+
     /// Section title
     Section,
-    /// Flag name
-    Label,
+
+    /// Something user needs to type literally - command names, etc
+    Literal,
+
+    /// Metavavar placeholder - something user needs to replace with own input
+    Metavar,
+
+    /// Invalid input given by user - used to display errors
+    Invalid,
+
+    /// Something less important, usually rendered in a more dull color
+    Muted,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Token {
-    Text { bytes: usize, style: Style },
+    Text {
+        bytes: usize,
+        style: Style,
+    },
+    /// Term is a command name, positional name or flag with metavar in option lists
+    ///
+    /// Empty term is used to add padding for things like default value
+    /// [TermStart]--count=ITEMS[TermEnd][Text "Number items to process"]
+    /// [TermStart][TermEnd][Text "default value is 10"]
+    ///
+    /// buffer rendering assumes that there's one term in a line and no characters before it starts
+    /// terms are indented by 4
+    TermStart,
+    TermStop,
+    /// Section means indented to 0 chars, usually "available options", "available positionals", etc
+    /// but also usage or header/footer. Sections are separated from each other by an empty line
+    SectionStart,
+    SectionStop,
+    /// Subsection means some lines indented by 2 - group header or expanded anywhere
+    ///
+    SubsectionStart,
+    SubsectionStop,
+    /// Linebreak also ends current term in a list
     LineBreak,
-    TabStop,
-    Margin(usize),
 }
+
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Buffer {
+pub struct Buffer {
     /// string info saved here
     payload: String,
+
     /// string meta info tokens
     tokens: Vec<Token>,
-    /// help listing separates keys from help info
-    /// by a single two space wide gap arranging them two columns
-    /// tab stop shows right most position of the second column start seen so far
-    tabstop: usize,
-
-    /// current char and margin are used to calculate tabstop
-    current_margin: usize,
-    current_char: usize,
-
-    /// Should the help contain full string or only up to the first newline
-    pub(crate) complete: bool,
 }
 
 impl Buffer {
     pub(crate) fn clear(&mut self) {
         self.payload.clear();
         self.tokens.clear();
-        self.tabstop = 0;
-        self.current_margin = 0;
-        self.current_char = 0;
-        self.complete = false;
     }
 
-    pub(crate) fn tabstop(&mut self) {
-        let max = self.tabstop.max(self.current_char);
-        if max <= MAX_TAB {
-            self.tabstop = max;
-        }
-        self.tokens.push(Token::TabStop);
-    }
-
-    pub(crate) fn margin(&mut self, margin: usize) {
-        self.current_margin = margin;
-        self.tokens.push(Token::Margin(margin));
-    }
-
-    pub(crate) fn newline(&mut self) {
-        self.current_char = 0;
-        self.tokens.push(Token::LineBreak);
+    #[inline(never)]
+    pub(crate) fn token(&mut self, token: Token) {
+        self.tokens.push(token);
     }
 
     #[inline(never)]
     pub(crate) fn write_str(&mut self, input: &str, style: Style) {
-        if self.current_char == 0 {
-            self.current_char = self.current_margin;
-        }
-
-        let bytes = input.len();
-        let chars = input.chars().count();
-
-        self.current_char += chars;
         self.payload.push_str(input);
+
+        // buffer chunks are unified with previous chunks of the same type
+        // [metavar]"foo" + [metavar]"bar" => [metavar]"foobar"
         match self.tokens.last_mut() {
             Some(Token::Text {
-                bytes: pb,
-                style: ps,
-            }) if *ps == style => {
-                *pb += bytes;
+                bytes: prev_bytes,
+                style: prev_style,
+            }) if *prev_style == style => {
+                *prev_bytes += input.len();
             }
             _ => {
-                self.tokens.push(Token::Text { bytes, style });
+                self.tokens.push(Token::Text {
+                    bytes: input.len(),
+                    style,
+                });
             }
         }
     }
@@ -94,156 +183,246 @@ impl Buffer {
         self.write_str(c.encode_utf8(&mut [0; 4]), style);
     }
 
-    pub(crate) fn checkpoint(&self) -> Checkpoint {
-        Checkpoint {
-            tokens: self.tokens.len(),
-            payload: self.payload.len(),
+    pub(crate) fn write_as_lines(&mut self, input: &str) {
+        for line in input.lines() {
+            self.write_str(line, Style::Text);
+            self.token(Token::LineBreak);
         }
     }
-
-    pub(crate) fn rollback(&mut self, checkpoint: Checkpoint) {
-        self.tokens.truncate(checkpoint.tokens);
-        self.payload.truncate(checkpoint.payload);
-    }
-    pub(crate) fn content_since(&self, checkpoint: Checkpoint) -> &str {
-        &self.payload[checkpoint.payload..]
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(crate) struct Checkpoint {
-    tokens: usize,
-    payload: usize,
 }
 
 const MAX_TAB: usize = 24;
 const MAX_WIDTH: usize = 100;
 
-fn padding(f: &mut std::fmt::Formatter<'_>, width: usize) {
-    write!(f, "{:width$}", "", width = width).unwrap();
+#[derive(Debug, Copy, Clone)]
+/// Default to dull color if colors are enabled,
+pub(crate) enum Color {
+    Monochrome,
+    #[cfg(feature = "color")]
+    Dull,
+    #[cfg(feature = "color")]
+    Bright,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum Sep {
-    Space,
-    Newline,
-    No,
+impl Default for Color {
+    fn default() -> Self {
+        #[allow(clippy::let_and_return)]
+        #[allow(unused_mut)]
+        let mut res;
+        #[cfg(not(feature = "color"))]
+        {
+            res = Color::Monochrome;
+        }
+
+        #[cfg(feature = "color")]
+        {
+            res = Color::Dull;
+        }
+
+        #[cfg(feature = "bright-color")]
+        {
+            res = Color::Bright;
+        }
+
+        #[cfg(feature = "dull-color")]
+        {
+            res = Color::Dull;
+        }
+        res
+    }
 }
 
-impl std::fmt::Display for Buffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // byte offset to a start of not consumed portion of a string
-        let mut byte_offset = 0;
-        // character offset frmo the beginning of the line
-        let mut line_offset = 0;
-        // current margin value
-        let mut margin = 0;
-        // are we to the right of the tabstop?
-        let mut after_tabstop = false;
-        let mut immediate_tabstop = false;
-        let mut prev = Sep::No;
+#[cfg(feature = "color")]
+impl Color {
+    fn push_str(&self, style: Style, res: &mut String, item: &str) {
+        use owo_colors::OwoColorize;
+        use std::fmt::Write;
+        match self {
+            Color::Monochrome => Ok(res.push_str(item)),
+            Color::Dull => match style {
+                Style::Text => Ok(res.push_str(item)),
+                Style::Section => write!(res, "{}", item.underline().bold()),
+                Style::Literal => write!(res, "{}", item.bold()),
+                Style::Metavar => write!(res, "{}", item.underline()),
+                Style::Invalid => write!(res, "{}", item.bold()),
+                Style::Muted => write!(res, "{}", item.dimmed()),
+            },
+            Color::Bright => match style {
+                Style::Text => Ok(res.push_str(item)),
+                Style::Section => write!(res, "{}", item.yellow().bold()),
+                Style::Literal => write!(res, "{}", item.green().bold()),
+                Style::Metavar => write!(res, "{}", item.blue().bold()),
+                Style::Invalid => write!(res, "{}", item.red().bold()),
+                Style::Muted => write!(res, "{}", item.dimmed()),
+            },
+        }
+        .unwrap();
+    }
+}
 
-        for token in &self.tokens {
-            match *token {
-                Token::Text { bytes, style } => {
-                    // no matter what text should stay to the right of this position
-                    let min_offset = if after_tabstop {
-                        std::cmp::max(margin, self.tabstop + 2)
-                    } else {
-                        margin
-                    };
+const PADDING: &str = "                                                  ";
 
-                    if immediate_tabstop {
-                        immediate_tabstop = false;
-                        line_offset += 2;
-                        padding(f, 2);
+impl Buffer {
+    #[cfg(test)]
+    fn monochrome(&self, full: bool) -> String {
+        self.render(full, Color::Monochrome)
+    }
+
+    pub(crate) fn render(&self, full: bool, color: Color) -> String {
+        let mut res = String::new();
+        let mut tabstop = 0;
+        let mut byte_pos = 0;
+
+        {
+            let mut current = 0;
+            let mut in_term = false;
+            // looking for widest term below MAX_TAB
+            for token in self.tokens.iter().copied() {
+                match token {
+                    Token::Text { bytes, style: _ } => {
+                        if in_term {
+                            current += self.payload[byte_pos..byte_pos + bytes].chars().count();
+                        }
+                        byte_pos += bytes;
                     }
-
-                    // the idea is to break lines into chunks up to MAX_WIDTH and
-                    // allow parser to have longer names without affecting the layout
-                    // of the whole document:
-                    //
-                    // --very-long-name-goes-here <ARG-IS-LONG-TOO> description starts
-                    //                    here and resumes here, can contain multiple
-                    //                    lines as well - all broken automatically
-                    // -h, --help         Render help
-                    // -v, --version      Show version
-                    //
-                    // app should follow two additional rules:
-                    // - lines that start with a space retain linebreak (and consume the space)
-                    // - double line breaks split help into separate blocks, only first block
-                    //   visible without extra flags
-                    //
-                    //  "--help hello\nworld" => "--help hello world"
-                    //  "--help hello\n world" => "--help hello\nworld"
-                    //  "--help hello\n\nworld" => "--help hello" or "--help hello\nworld"
-
-                    // split a string by words, lay them out between min_offset and MAX_WIDTH
-                    for word in self.payload[byte_offset..byte_offset + bytes]
-                        .split_inclusive(|c| c == ' ' || c == '\n')
-                    {
-                        #[allow(clippy::manual_strip)]
-                        let (word, this) = if word.ends_with(' ') {
-                            (&word[..word.len() - 1], Sep::Space)
-                        } else if word.ends_with('\n') {
-                            (&word[..word.len() - 1], Sep::Newline)
-                        } else {
-                            (word, Sep::No)
-                        };
-                        let chars = word.chars().count();
-
-                        if chars == 0 && prev == Sep::Newline {
-                            if this == Sep::Newline && !self.complete {
-                                return Ok(());
-                            }
-                            writeln!(f)?;
-                            prev = Sep::No;
-                            line_offset = 0;
-                        } else {
-                            // overflow?
-                            if line_offset + chars > MAX_WIDTH {
-                                writeln!(f)?;
-                                line_offset = 0;
-                            } else if prev != Sep::No {
-                                padding(f, 1);
-                                line_offset += 1;
-                            }
-
-                            if min_offset > line_offset {
-                                padding(f, min_offset - line_offset);
-                                line_offset = min_offset;
-                            }
-
-                            match style {
-                                Style::Text => write!(f, "{}", word),
-                                Style::Section => w_section!(f, word),
-                                Style::Label => write!(f, "{}", w_flag!(word)),
-                            }?;
-                            line_offset += chars;
-                            prev = this;
+                    Token::TermStart => {
+                        in_term = true;
+                        current = 0;
+                    }
+                    Token::TermStop => {
+                        in_term = false;
+                        if current > tabstop && current <= MAX_TAB {
+                            tabstop = current;
                         }
                     }
-                    byte_offset += bytes;
+                    _ => {}
+                }
+            }
+            byte_pos = 0;
+        }
+        tabstop += 4;
+        let tabstop = tabstop;
+
+        let mut char_pos = 0;
+        let mut offset_margin = 0;
+        let mut term_margin = 0;
+        let mut right_of_term = false;
+
+        // those things are inserted before the next text
+        let mut pending_term_offset = false;
+        // a single new line, unless one exists
+        let mut pending_newline = false;
+        // a double newline, unless one exists
+        let mut pending_blank_line = false;
+
+        for token in self.tokens.iter().copied() {
+            match token {
+                Token::Text { bytes, style } => {
+                    let input = &self.payload[byte_pos..byte_pos + bytes];
+                    for chunk in split(input) {
+                        match chunk {
+                            Chunk::Raw(s, w) => {
+                                if pending_newline {
+                                    pending_newline = false;
+                                    if char_pos > 0 {
+                                        res.push('\n');
+                                        char_pos = 0;
+                                    }
+                                }
+                                if pending_blank_line {
+                                    pending_blank_line = false;
+                                    if res.is_empty() || res.ends_with("\n\n") {
+                                        //
+                                    } else if res.ends_with('\n') {
+                                        res.push('\n');
+                                    } else {
+                                        res.push_str("\n\n");
+                                    }
+                                }
+                                if char_pos > MAX_WIDTH {
+                                    char_pos = 0;
+                                    pending_term_offset = right_of_term;
+                                    res.truncate(res.trim_end().len());
+                                    res.push('\n');
+                                    if s == " " {
+                                        continue;
+                                    }
+                                }
+                                let margin: usize = offset_margin.max(term_margin);
+                                if pending_term_offset {
+                                    res.push_str("  ");
+                                    pending_term_offset = false;
+                                }
+                                if let Some(missing) = margin.checked_sub(char_pos) {
+                                    //                                if char_pos < margin {
+                                    res.push_str(&PADDING[..missing]);
+                                    char_pos = margin;
+                                }
+                                #[cfg(feature = "color")]
+                                {
+                                    color.push_str(style, &mut res, s);
+                                }
+                                #[cfg(not(feature = "color"))]
+                                {
+                                    let _ = style;
+                                    let _ = color;
+                                    res.push_str(s);
+                                }
+                                char_pos += w;
+                            }
+                            Chunk::SoftLineBreak => {
+                                pending_term_offset = right_of_term;
+                                res.push('\n');
+                                char_pos = 0;
+                                if !full {
+                                    break;
+                                }
+                            }
+                            Chunk::HardLineBreak => {
+                                pending_term_offset = right_of_term;
+                                res.push('\n');
+                                char_pos = 0;
+                            }
+                        }
+                    }
+                    byte_pos += bytes;
                 }
                 Token::LineBreak => {
-                    line_offset = 0;
-                    writeln!(f)?;
-                    after_tabstop = false;
-                    immediate_tabstop = false;
+                    res.push('\n');
+                    term_margin = 0;
+                    pending_term_offset = false;
+                    char_pos = 0;
+                    right_of_term = false;
                 }
-                Token::TabStop => {
-                    after_tabstop = true;
-                    immediate_tabstop = true;
+                Token::SectionStart => {
+                    pending_blank_line = true;
+                    debug_assert!(char_pos == 0);
+                    offset_margin = 0;
                 }
-                Token::Margin(new_margin) => {
-                    margin = new_margin;
+                Token::SubsectionStart => {
+                    debug_assert!(char_pos == 0);
+                    offset_margin = 2;
+                }
+                Token::SectionStop => {
+                    char_pos = 0;
+                    pending_newline = true;
+                }
+                Token::SubsectionStop => {
+                    char_pos = 0;
+                    pending_newline = true;
+                }
+                Token::TermStart => {
+                    debug_assert!(char_pos == 0);
+                    term_margin = 4;
+                }
+                Token::TermStop => {
+                    pending_term_offset = true;
+                    right_of_term = true;
+                    term_margin = tabstop;
                 }
             }
         }
-        if prev == Sep::Space {
-            padding(f, 1);
-        }
-        Ok(())
+        res
     }
 }
 
@@ -251,154 +430,173 @@ impl std::fmt::Display for Buffer {
 fn tabstop_works() {
     // tabstop followed by newline
     let mut m = Buffer::default();
+    m.token(Token::TermStart);
     m.write_str("aa", Style::Text);
-    m.tabstop();
-    m.newline();
+    m.token(Token::TermStop);
+    m.token(Token::LineBreak);
+
+    m.token(Token::TermStart);
     m.write_str("b", Style::Text);
-    m.tabstop();
+    m.token(Token::TermStop);
     m.write_str("c", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "aa\nb   c\n");
+    m.token(Token::LineBreak);
+    assert_eq!(m.monochrome(true), "    aa\n    b   c\n");
+    m.clear();
 
     // plain, narrow first
-    let mut m = Buffer::default();
+    m.token(Token::TermStart);
     m.write_str("1", Style::Text);
-    m.tabstop();
+    m.token(Token::TermStop);
     m.write_str("22", Style::Text);
-    m.newline();
+    m.token(Token::LineBreak);
+
+    m.token(Token::TermStart);
     m.write_str("33", Style::Text);
-    m.tabstop();
+    m.token(Token::TermStop);
     m.write_str("4", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "1   22\n33  4\n");
+    m.token(Token::LineBreak);
+    assert_eq!(m.monochrome(true), "    1   22\n    33  4\n");
+    m.clear();
 
     // plain, wide first
-    let mut m = Buffer::default();
+    m.token(Token::TermStart);
     m.write_str("aa", Style::Text);
-    m.tabstop();
+    m.token(Token::TermStop);
+
     m.write_str("b", Style::Text);
-    m.newline();
+    m.token(Token::LineBreak);
+
+    m.token(Token::TermStart);
     m.write_str("c", Style::Text);
-    m.tabstop();
+    m.token(Token::TermStop);
+
     m.write_str("dd", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "aa  b\nc   dd\n");
+    m.token(Token::LineBreak);
+    assert_eq!(m.monochrome(true), "    aa  b\n    c   dd\n");
+    m.clear();
 
     // two different styles first
-    let mut m = Buffer::default();
+    m.token(Token::TermStart);
     m.write_str("a", Style::Text);
-    m.write_str("b", Style::Label);
-    m.tabstop();
-    m.write_str("c", Style::Label);
-    m.newline();
-    m.write_str("d", Style::Text);
-    m.tabstop();
-    m.write_str("e", Style::Label);
-    m.newline();
-    assert_eq!(m.to_string(), "ab  c\nd   e\n");
+    m.write_str("b", Style::Literal);
+    m.token(Token::TermStop);
 
-    // two different styles with margin first
-    let mut m = Buffer::default();
-    m.margin(2);
-    m.write_str("a", Style::Text);
-    m.write_str("b", Style::Label);
-    m.tabstop();
-    m.write_str("c", Style::Label);
-    m.margin(0);
-    m.newline();
+    m.write_str("c", Style::Literal);
+    m.token(Token::LineBreak);
+    m.token(Token::TermStart);
     m.write_str("d", Style::Text);
-    m.tabstop();
-    m.write_str("e", Style::Label);
-    m.newline();
-    assert_eq!(m.to_string(), "  ab  c\nd     e\n");
-}
+    m.token(Token::TermStop);
 
-#[test]
-fn margin_works() {
-    let mut m = Buffer::default();
-    m.margin(2);
-    m.write_str("a", Style::Text);
-    m.newline();
-    m.write_str("b", Style::Text);
-    m.newline();
-    m.write_str("c", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "  a\n  b\n  c\n");
+    m.write_str("e", Style::Literal);
+    m.token(Token::LineBreak);
+    assert_eq!(m.monochrome(true), "    ab  c\n    d   e\n");
 }
 
 #[test]
 fn linewrap_works() {
     let mut m = Buffer::default();
-    m.write_str("--hello", Style::Label);
-    m.tabstop();
-    for _ in 0..15 {
-        m.write_str("word and word ", Style::Text)
+    m.token(Token::TermStart);
+    m.write_str("--hello", Style::Literal);
+    m.token(Token::TermStop);
+    for i in 0..25 {
+        m.write_str(&format!("and word{i} "), Style::Text)
     }
-    m.write_str("and word", Style::Text);
-    m.newline();
+    m.write_str("and last word", Style::Text);
+    m.token(Token::LineBreak);
 
-    let expected = "\
---hello  word and word word and word word and word word and word word and word word and word word and
-         word word and word word and word word and word word and word word and word word and word
-         word and word word and word and word
+    let expected =
+"    --hello  and word0 and word1 and word2 and word3 and word4 and word5 and word6 and word7 and word8
+             and word9 and word10 and word11 and word12 and word13 and word14 and word15 and word16 and
+             word17 and word18 and word19 and word20 and word21 and word22 and word23 and word24 and last
+             word
 ";
 
-    assert_eq!(m.to_string(), expected);
+    assert_eq!(m.monochrome(true), expected);
 }
 
 #[test]
 fn very_long_tabstop() {
     let mut m = Buffer::default();
+    m.token(Token::TermStart);
     m.write_str(
         "--this-is-a-very-long-option <DON'T DO THIS AT HOME>",
-        Style::Label,
+        Style::Literal,
     );
-    m.tabstop();
-    for _ in 0..15 {
-        m.write_str("word and word ", Style::Text)
+    m.token(Token::TermStop);
+    for i in 0..15 {
+        m.write_str(&format!("and word{i} "), Style::Text)
     }
-    m.write_str("and word", Style::Text);
-    m.newline();
+    m.write_str("and last word", Style::Text);
+    m.token(Token::LineBreak);
 
-    let expected = "\
---this-is-a-very-long-option <DON'T DO THIS AT HOME>  word and word word and word word and word word
-  and word word and word word and word word and word word and word word and word word and word word
-  and word word and word word and word word and word word and word and word
+    let expected =
+"    --this-is-a-very-long-option <DON'T DO THIS AT HOME>  and word0 and word1 and word2 and word3 and word4
+      and word5 and word6 and word7 and word8 and word9 and word10 and word11 and word12 and word13 and
+      word14 and last word
 ";
 
-    assert_eq!(m.to_string(), expected);
+    assert_eq!(m.monochrome(true), expected);
 }
 
 #[test]
 fn line_breaking_rules() {
-    let mut m = Buffer::default();
-    m.write_str("hello ", Style::Text);
-    assert_eq!(m.to_string(), "hello ");
+    let mut buffer = Buffer::default();
+    buffer.write_str("hello ", Style::Text);
+    assert_eq!(buffer.monochrome(true), "hello ");
+    buffer.clear();
 
-    let mut m = Buffer::default();
-    m.write_str("hello\n world\n", Style::Text);
-    assert_eq!(m.to_string(), "hello\nworld");
+    buffer.write_str("hello\n world\n", Style::Text);
+    assert_eq!(buffer.monochrome(true), "hello\nworld ");
+    buffer.clear();
 
-    let mut m = Buffer::default();
-    m.write_str("hello\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello world");
+    buffer.write_str("hello\nworld", Style::Text);
+    assert_eq!(buffer.monochrome(true), "hello world");
+    buffer.clear();
 
-    let mut m = Buffer::default();
-    m.write_str("hello\nworld\n", Style::Text);
-    assert_eq!(m.to_string(), "hello world");
+    buffer.write_str("hello\nworld\n", Style::Text);
+    assert_eq!(buffer.monochrome(true), "hello world ");
+    buffer.clear();
 
-    let mut m = Buffer {
-        complete: false,
-        ..Buffer::default()
-    };
-    m.write_str("hello\n\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello");
+    buffer.write_str("hello\n\nworld", Style::Text);
+    assert_eq!(buffer.monochrome(false), "hello\n");
+    buffer.clear();
 
-    let mut m = Buffer {
-        complete: true,
-        ..Buffer::default()
-    };
+    buffer.write_str("hello\n\nworld", Style::Text);
+    assert_eq!(buffer.monochrome(true), "hello\nworld");
+    buffer.clear();
+}
 
-    m.write_str("hello\n\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello\nworld");
+#[test]
+fn splitter_works() {
+    assert_eq!(
+        split("hello ").collect::<Vec<_>>(),
+        [Chunk::Raw("hello", 5), Chunk::Raw(" ", 1)]
+    );
+
+    assert_eq!(
+        split("hello\nworld").collect::<Vec<_>>(),
+        [
+            Chunk::Raw("hello", 5),
+            Chunk::Raw(" ", 1),
+            Chunk::Raw("world", 5)
+        ]
+    );
+
+    assert_eq!(
+        split("hello\n world").collect::<Vec<_>>(),
+        [
+            Chunk::Raw("hello", 5),
+            Chunk::HardLineBreak,
+            Chunk::Raw("world", 5)
+        ]
+    );
+
+    assert_eq!(
+        split("hello\n\nworld").collect::<Vec<_>>(),
+        [
+            Chunk::Raw("hello", 5),
+            Chunk::SoftLineBreak,
+            Chunk::Raw("world", 5)
+        ]
+    );
 }

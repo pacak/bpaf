@@ -128,10 +128,10 @@ impl<T> OptionParser<T> {
     ///         .unwrap_err()
     ///         .unwrap_stdout();
     ///     let expected_help = "\
-    /// Usage: <FILE>
+    /// Usage: FILE
     ///
     /// Available positional items:
-    ///     <FILE>  File to process
+    ///     FILE        File to process
     ///
     /// Available options:
     ///     -h, --help  Prints help information

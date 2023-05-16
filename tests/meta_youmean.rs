@@ -148,7 +148,7 @@ fn flag_specified_twice() {
         .run_inner(Args::from(&["--flag", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(r, "`--flag` is not expected in this context");
 }
 
 #[test]
@@ -195,7 +195,7 @@ fn ux_discussion() {
 
     assert_eq!(
         r,
-        "Expected --setBool, got \"--bool-flag\". Pass --help for usage information"
+        "Expected `--setBool`, got `--bool-flag`. Pass `--help` for usage information"
     );
 }
 
@@ -219,7 +219,7 @@ fn suggest_typo_fix() {
         .run_inner(Args::from(&["--flag", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(r, "`--flag` is not expected in this context");
 }
 
 #[test]
@@ -265,10 +265,10 @@ fn better_error_message_with_typos() {
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
-Usage: [-e Arg]... [<POS>]...
+Usage: [-e=Arg]... [POS]...
 
 Available options:
-    -e <Arg>
+    -e=Arg
     -h, --help  Prints help information
 ";
     assert_eq!(r, expected);
@@ -284,9 +284,9 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    lines      Multi
-               Line
-               Comment
+    lines       Multi
+                Line
+                Comment
     arguments
 ";
     assert_eq!(r, expected);

@@ -23,15 +23,15 @@ fn decorations() {
 descr
 descr
 
-custom -p ARG
+Usage: -p=ARG
 
 header
 header
 
 Available options:
-    -p, --parser <ARG>  [env:BPAF_VARIABLE: N/A]
-    -h, --help          Prints help information
-    -V, --version       Prints version information
+    -p, --parser=ARG  [env:BPAF_VARIABLE: N/A]
+    -h, --help        Prints help information
+    -V, --version     Prints version information
 
 footer
 footer
@@ -62,6 +62,7 @@ Available options:
     -a
     -c          c
     -b
+    -c          c
     -h, --help  Prints help information
 ";
 
@@ -98,6 +99,7 @@ Available options:
 }
 
 #[test]
+// no longer deduplicated
 fn duplicate_pos_items_same_help() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
@@ -113,10 +115,11 @@ fn duplicate_pos_items_same_help() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: (-a <C> | -b <C>)
+Usage: (-a C | -b C)
 
 Available positional items:
-    <C>  C
+    C           C
+    C           C
 
 Available options:
     -a
@@ -143,11 +146,11 @@ fn duplicate_pos_items_diff_help() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: (-a <C> | -b <C>)
+Usage: (-a C | -b C)
 
 Available positional items:
-    <C>  C1
-    <C>  C2
+    C           C1
+    C           C2
 
 Available options:
     -a
@@ -213,13 +216,13 @@ fn anywhere_invariant_check() {
     let parser = construct!(a, fooo(), b).to_options();
 
     let expected = "\
-Usage: [-a] --tag <NAME> <VAL> [-b]
+Usage: [-a] --tag NAME VAL [-b]
 
 Available options:
     -a          help for a
-  --tag <NAME> <VAL>
-    <NAME>      help for name
-    <VAL>       help for val
+  --tag NAME VAL
+    NAME        help for name
+    VAL         help for val
 
     -b          help for b
     -h, --help  Prints help information
@@ -252,15 +255,15 @@ fn multi_arg_help() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [-v] [-f [-e] <NAME> <STATE>] [-d]
+Usage: [-v] [-f [-e] NAME STATE] [-d]
 
 Available options:
     -v, --verbose   verbose
-  -f [-e] <NAME> <STATE>
+  -f [-e] NAME STATE
     -f, --flag      flag help
     -e, --extra     extra strange
-    <NAME>          pos1 help
-    <STATE>         pos2 help
+    NAME            pos1 help
+    STATE           pos2 help
 
     -d, --detailed  detailed
     -h, --help      Prints help information
@@ -282,13 +285,12 @@ fn multi_pos_help() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [-v] <NAME> <VAL>
+Usage: [-v] NAME VAL
 
 Available positional items:
-  <NAME> <VAL>
-    <NAME>  name help
-    <VAL>   val help
-
+  NAME VAL
+    NAME           name help
+    VAL            val help
 
 Available options:
     -v, --verbose
@@ -311,12 +313,12 @@ fn fallback_display_simple_arg() {
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
-Usage: [--a NUM]
+Usage: [--a=NUM]
 
 Available options:
-        --a <NUM>  help for a
-                   [default: 42]
-    -h, --help     Prints help information
+        --a=NUM  help for a
+                 [default: 42]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -336,11 +338,11 @@ fn fallback_display_simple_pos() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [<NUM>]
+Usage: [NUM]
 
 Available positional items:
-    <NUM>  help for pos
-           [default: 42]
+    NUM         help for pos
+                [default: 42]
 
 Available options:
     -h, --help  Prints help information
@@ -373,13 +375,13 @@ fn fallback_display_tuple() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [--a NUM --b NUM]
+Usage: [--a=NUM --b=NUM]
 
 Available options:
-        --a <NUM>  help for a
-        --b <NUM>  help for b
-                   [default: Pair 42, 333]
-    -h, --help     Prints help information
+        --a=NUM  help for a
+        --b=NUM  help for b
+                 [default: Pair 42, 333]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -398,12 +400,12 @@ fn fallback_display_no_help() {
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
-Usage: [--a NUM]
+Usage: [--a=NUM]
 
 Available options:
-        --a <NUM>
-                   [default: 42]
-    -h, --help     Prints help information
+        --a=NUM
+                 [default: 42]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -429,13 +431,13 @@ fn env_fallback_visible() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: [--fonts DIR] [--system-fonts]
+Usage: [--fonts=DIR] [--system-fonts]
 
 Available options:
-        --fonts <DIR>   [env:OIKOS_FONTS: N/A]
-                        Load fonts from this directory
-        --system-fonts  [env:OIKOS_SYSTEM_FONTS: not set]
-                        Search for additional fonts in system directories
+        --fonts=DIR     Load fonts from this directory
+                        [env:OIKOS_FONTS: N/A]
+        --system-fonts  Search for additional fonts in system directories
+                        [env:OIKOS_SYSTEM_FONTS: not set]
     -h, --help          Prints help information
 ";
     assert_eq!(r, expected);

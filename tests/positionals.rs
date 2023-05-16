@@ -12,11 +12,11 @@ fn positional_with_help() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage: <USER> <API_KEY>
+Usage: USER API_KEY
 
 Available positional items:
-    <USER>     github user in two lines
-    <API_KEY>  api key to use
+    USER        github user in two lines
+    API_KEY     api key to use
 
 Available options:
     -h, --help  Prints help information
@@ -36,11 +36,11 @@ fn help_for_positional() {
         .unwrap_stdout();
 
     let expected_help = "\
-Usage: <C> <DDD>
+Usage: C DDD
 
 Available positional items:
-    <C>    help for c
-    <DDD>  help for ddd
+    C           help for c
+    DDD         help for ddd
 
 Available options:
     -h, --help  Prints help information
@@ -82,12 +82,11 @@ fn positional_argument() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: <FILE>
+Usage: FILE
 
 Available positional items:
   File to process
-    <FILE>  file name
-
+    FILE        file name
 
 Available options:
     -h, --help  Prints help information
@@ -161,14 +160,14 @@ fn strictly_positional() {
         .unwrap_stdout();
     assert_eq!(
         r,
-        "Usage: -- <A>\n\nAvailable options:\n    -h, --help  Prints help information\n"
+        "Usage: -- A\n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
 
     let r = parser
         .run_inner(Args::from(&["a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <A> to be on the right side of --");
+    assert_eq!(r, "Expected A to be on the right side of --");
 
     let r = parser.run_inner(Args::from(&["--", "a"])).unwrap();
     assert_eq!(r, "a");
@@ -177,11 +176,12 @@ fn strictly_positional() {
         .run_inner(Args::from(&["a", "--"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <A> to be on the right side of --");
+    assert_eq!(r, "Expected A to be on the right side of --");
 
     let r = parser
         .run_inner(Args::from(&["--"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected -- <A>, pass --help for usage information");
+    // TODO - hmmmm.... this is a bit odd
+    assert_eq!(r, "Expected `-- A`, pass `--help` for usage information");
 }

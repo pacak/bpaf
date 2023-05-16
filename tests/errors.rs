@@ -28,13 +28,13 @@ fn cannot_be_used_partial_arg() {
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "-b is not expected in this context");
+    assert_eq!(res, "`-b` is not expected in this context");
 
     let res = parser
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "-b is not expected in this context");
+    assert_eq!(res, "`-b` is not expected in this context");
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn cannot_be_used_multiple_times() {
         .run_inner(Args::from(&["-aaa"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "-a is not expected in this context";
+    let expected = "`-a` is not expected in this context";
     assert_eq!(r, expected);
 
     // TODO - improve error message
@@ -115,6 +115,6 @@ fn cannot_be_used_multiple_times() {
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "-a is not expected in this context";
+    let expected = "`-a` is not expected in this context";
     assert_eq!(r, expected);
 }

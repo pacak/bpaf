@@ -1,9 +1,5 @@
-#![allow(clippy::write_with_newline)]
-#![allow(clippy::match_like_matches_macro)]
-use std::collections::BTreeSet;
-
 use crate::{
-    buffer::{Buffer, Checkpoint, Style},
+    buffer::{Buffer, Style, Token},
     info::Info,
     item::{Item, ShortLong},
     meta::DecorPlace,
@@ -15,19 +11,19 @@ use crate::{
 pub struct Metavar(pub(crate) &'static str);
 
 impl Metavar {
-    // don't render <> around the metavar if
-    fn is_custom(&self) -> bool {
+    /// metavar inside any can serve two goals -
+    fn is_meta(&self) -> bool {
         self.0
             .as_bytes()
             .first()
-            .map_or(false, |c| !c.is_ascii_alphanumeric())
+            .map_or(true, |c| c.is_ascii_alphanumeric())
     }
 }
 
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         use std::fmt::Write;
-        let hide_triangles = f.alternate() || self.is_custom();
+        let hide_triangles = f.alternate() || self.is_meta();
         if !hide_triangles {
             f.write_char('<')?;
         }
@@ -39,7 +35,7 @@ impl std::fmt::Display for Metavar {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
         help: &'a str,
@@ -125,13 +121,6 @@ pub(crate) struct HelpItems<'a> {
     items: Vec<HelpItem<'a>>,
 }
 
-fn dedup(items: &mut BTreeSet<String>, buf: &mut Buffer, cp: Checkpoint) {
-    let new = buf.content_since(cp).to_owned();
-    if !items.insert(new) {
-        buf.rollback(cp);
-    }
-}
-
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum HiTy {
     Flag,
@@ -193,6 +182,17 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
     }
 }
 
+impl<'a> HelpItems<'a> {
+    #[inline(never)]
+    fn items_of_ty(&self, target: HiTy) -> impl Iterator<Item = &HelpItem> {
+        HelpItemsIter {
+            items: &self.items,
+            target,
+            cur: 0,
+            block: Block::No,
+        }
+    }
+}
 #[cfg(feature = "manpage")]
 impl<'a> HelpItems<'a> {
     pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
@@ -220,40 +220,6 @@ impl<'a> HelpItems<'a> {
             cur: 0,
             block: Block::No,
         }
-    }
-}
-
-impl<'a> HelpItems<'a> {
-    fn write_items(&self, target: HiTy) -> String {
-        let mut buf = Buffer::default();
-        let mut dedup_cache: BTreeSet<String> = BTreeSet::new();
-
-        // item should be written if
-        // - it is outside of the decorated block and item type matches
-        // - it is inside of the decorated block and block type matches
-        // - inside of anywhere block, block type matches and there's help
-        //
-        // BlankDecor and AnywhereStop end current decorated block.
-        for item in (HelpItemsIter {
-            items: &self.items,
-            target,
-            cur: 0,
-            block: Block::No,
-        }) {
-            let cp = buf.checkpoint();
-            write_help_item(&mut buf, item);
-            if matches!(
-                item,
-                HelpItem::Command { .. }
-                    | HelpItem::Positional { .. }
-                    | HelpItem::Flag { .. }
-                    | HelpItem::Argument { .. }
-            ) {
-                dedup(&mut dedup_cache, &mut buf, cp);
-            }
-        }
-        // return buffer to decoupe tabstop between blocks
-        buf.to_string()
     }
 }
 
@@ -412,25 +378,22 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
 } // }}}
 
 fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
-    let custom = metavar.is_custom();
-    if !custom {
-        buf.write_char('<', Style::Label);
-    }
-    buf.write_str(metavar.0, Style::Label);
-    if !custom {
-        buf.write_char('>', Style::Label);
-    }
+    buf.write_str(metavar.0, Style::Metavar);
 }
 
 fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
-            buf.margin(2);
+            buf.token(Token::SubsectionStart);
             buf.write_str(help, Style::Text);
+            buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorSuffix { help, .. } => {
-            buf.tabstop();
+            buf.token(Token::TermStart);
+            buf.token(Token::TermStop);
+            buf.token(Token::SubsectionStart);
             buf.write_str(help, Style::Text);
+            buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {}
         HelpItem::Positional {
@@ -438,10 +401,10 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             help,
             anywhere: _,
         } => {
-            buf.margin(4);
+            buf.token(Token::TermStart);
             write_metavar(buf, *metavar);
+            buf.token(Token::TermStop);
             if let Some(help) = help {
-                buf.tabstop();
                 buf.write_str(help, Style::Text);
             }
         }
@@ -454,35 +417,36 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             #[cfg(feature = "manpage")]
                 info: _,
         } => {
-            buf.margin(4);
-            buf.write_str(name, Style::Label);
+            buf.token(Token::TermStart);
+            buf.write_str(name, Style::Literal);
             if let Some(short) = short {
                 buf.write_str(", ", Style::Text);
-                buf.write_char(*short, Style::Label);
+                buf.write_char(*short, Style::Literal);
             }
-            buf.tabstop();
+            buf.token(Token::TermStop);
             if let Some(help) = help {
                 buf.write_str(help, Style::Text);
             }
         }
         HelpItem::Flag { name, env, help } => {
-            buf.margin(4);
+            buf.token(Token::TermStart);
             write_shortlong(buf, *name);
-            buf.tabstop();
+            buf.token(Token::TermStop);
+            if let Some(help) = help {
+                buf.write_str(help, Style::Text);
+            }
             if let Some(env) = env {
                 let val = if std::env::var_os(env).is_some() {
                     ": set"
                 } else {
                     ": not set"
                 };
-                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
                 if help.is_some() {
-                    buf.newline();
-                    buf.tabstop();
+                    buf.token(Token::LineBreak);
+                    buf.token(Token::TermStart);
+                    buf.token(Token::TermStop);
                 }
-            }
-            if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
             }
         }
         HelpItem::Argument {
@@ -491,53 +455,55 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             env,
             help,
         } => {
-            buf.margin(4);
+            buf.token(Token::TermStart);
             write_shortlong(buf, *name);
-            buf.write_str(" ", Style::Label);
+            buf.write_str("=", Style::Text);
             write_metavar(buf, *metavar);
-            buf.tabstop();
+            buf.token(Token::TermStop);
+
+            if let Some(help) = help {
+                buf.write_str(help, Style::Text);
+            }
 
             if let Some(env) = env {
                 let val = match std::env::var_os(env) {
                     Some(s) => std::borrow::Cow::from(format!(" = {:?}", s.to_string_lossy())),
                     None => std::borrow::Cow::Borrowed(": N/A"),
                 };
-                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
                 if help.is_some() {
-                    buf.newline();
-                    buf.tabstop();
+                    buf.token(Token::LineBreak);
+                    buf.token(Token::TermStart);
+                    buf.token(Token::TermStop);
                 }
-            }
-            if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
             }
         }
         HelpItem::AnywhereStart { inner, .. } => {
-            buf.margin(2);
-            let descr = format!("{:#}", inner);
-            buf.write_str(&descr, Style::Text);
-        } //            return;
+            buf.token(Token::SubsectionStart);
+            buf.write_meta(inner, true);
+            buf.token(Token::SubsectionStop);
+        }
     }
 
-    buf.newline();
+    buf.token(Token::LineBreak);
 }
 
 fn write_shortlong(buf: &mut Buffer, name: ShortLong) {
     match name {
         ShortLong::Short(s) => {
-            buf.write_char('-', Style::Label);
-            buf.write_char(s, Style::Label);
+            buf.write_char('-', Style::Literal);
+            buf.write_char(s, Style::Literal);
         }
         ShortLong::Long(l) => {
-            buf.write_str("    --", Style::Label);
-            buf.write_str(l, Style::Label);
+            buf.write_str("    --", Style::Literal);
+            buf.write_str(l, Style::Literal);
         }
         ShortLong::ShortLong(s, l) => {
-            buf.write_char('-', Style::Label);
-            buf.write_char(s, Style::Label);
+            buf.write_char('-', Style::Literal);
+            buf.write_char(s, Style::Literal);
             buf.write_str(", ", Style::Text);
-            buf.write_str("--", Style::Label);
-            buf.write_str(l, Style::Label);
+            buf.write_str("--", Style::Literal);
+            buf.write_str(l, Style::Literal);
         }
     }
 }
@@ -545,81 +511,57 @@ fn write_shortlong(buf: &mut Buffer, name: ShortLong) {
 fn write_as_lines(buf: &mut Buffer, line: &str) {
     for line in line.lines() {
         buf.write_str(line, Style::Text);
-        buf.newline();
+        buf.token(Token::LineBreak);
     }
 }
 
-pub fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> String {
-    fn write_section_title(buf: &mut Buffer, label: &str) {
-        buf.newline();
-        buf.margin(0);
-        buf.write_str(label, Style::Section);
-        buf.newline();
-    }
-
-    let mut res = String::new();
+#[inline(never)]
+pub(crate) fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> Buffer {
+    parser_meta.positional_invariant_check(false);
     let mut buf = Buffer::default();
 
-    parser_meta.positional_invariant_check(false);
-
     if let Some(t) = info.descr {
+        buf.token(Token::SectionStart);
         write_as_lines(&mut buf, t);
-        buf.newline();
+        buf.token(Token::SectionStop);
     }
-    let auto = format!("{:#}", parser_meta);
-    if let Some(custom_usage) = info.usage {
-        let usage = custom_usage.replacen("{usage}", &auto, 1);
-        buf.write_str(&usage, Style::Text);
-    } else {
-        buf.write_str("Usage: ", Style::Text);
-        buf.write_str(&auto, Style::Text);
-    }
-    buf.newline();
+
+    buf.token(Token::SectionStart);
+    buf.write_str("Usage: ", Style::Text);
+    buf.write_meta(parser_meta, true);
+    buf.token(Token::SectionStop);
 
     if let Some(t) = info.header {
-        buf.newline();
-        buf.margin(0);
-
+        buf.token(Token::SectionStart);
         write_as_lines(&mut buf, t);
+        buf.token(Token::SectionStop);
     }
 
     let mut items = HelpItems::default();
     items.append_meta(parser_meta);
     items.append_meta(help_meta);
 
-    res.push_str(&buf.to_string());
-
-    let section = items.write_items(HiTy::Positional);
-    if !section.is_empty() {
-        buf.clear();
-        write_section_title(&mut buf, "Available positional items:");
-        res.push_str(&buf.to_string());
-        res.push_str(section.as_str());
+    for (ty, name) in [
+        (HiTy::Positional, "Available positional items:"),
+        (HiTy::Flag, "Available options:"),
+        (HiTy::Command, "Available commands:"),
+    ] {
+        let mut xs = items.items_of_ty(ty).peekable();
+        if xs.peek().is_some() {
+            buf.token(Token::SectionStart);
+            buf.write_str(name, Style::Section);
+            buf.token(Token::LineBreak);
+            for item in xs {
+                write_help_item(&mut buf, item);
+            }
+            buf.token(Token::SectionStop);
+        }
     }
 
-    let section = items.write_items(HiTy::Flag);
-    if !section.is_empty() {
-        buf.clear();
-        write_section_title(&mut buf, "Available options:");
-        res.push_str(&buf.to_string());
-        res.push_str(section.as_str());
-    }
-
-    let section = items.write_items(HiTy::Command);
-    if !section.is_empty() {
-        buf.clear();
-        write_section_title(&mut buf, "Available commands:");
-        res.push_str(&buf.to_string());
-        res.push_str(section.as_str());
-    }
-
-    let mut buf = Buffer::default();
     if let Some(footer) = info.footer {
-        buf.margin(0);
-        buf.newline();
+        buf.token(Token::SectionStart);
         write_as_lines(&mut buf, footer);
+        buf.token(Token::SectionStop);
     }
-
-    res.push_str(&buf.to_string());
-    res
+    buf
 }

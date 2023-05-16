@@ -2,7 +2,7 @@
 use crate::{
     error::{Message, MissingItem},
     meta::DecorPlace,
-    Args, Error, Meta, Parser,
+    Args, Buffer, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
 
@@ -54,7 +54,7 @@ where
 /// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
 pub struct ParseGroupHelp<P> {
     pub(crate) inner: P,
-    pub(crate) message: String,
+    pub(crate) message: Buffer,
 }
 
 impl<T, P> Parser<T> for ParseGroupHelp<P>
