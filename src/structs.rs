@@ -248,7 +248,7 @@ fn this_or_that_picks_first(
 ) -> Result<bool, Error> {
     // if higher depth parser succeeds - it takes a priority
     // completion from different depths should never mix either
-    match Ord::cmp(&args_a.depth, &args_b.depth) {
+    match Ord::cmp(&args_a.depth(), &args_b.depth()) {
         std::cmp::Ordering::Less => {
             std::mem::swap(args, args_b);
             #[cfg(feature = "autocomplete")]
@@ -770,7 +770,7 @@ where
 
         // completion function generates suggestions based on the parsed inner value, for
         // that `res` must contain a parsed value
-        let depth = args.depth;
+        let depth = args.depth();
         if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
                 if let Some(is_arg) = ci.meta_type() {

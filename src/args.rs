@@ -52,6 +52,7 @@ mod inner {
     use std::{
         ffi::{OsStr, OsString},
         ops::Range,
+        path::PathBuf,
         rc::Rc,
     };
 
@@ -87,8 +88,8 @@ mod inner {
         pub current: Option<usize>,
 
         #[doc(hidden)]
-        /// "deeper" parser should win in or_else branches
-        pub depth: usize,
+        /// path to current command, "deeper" parser should win in or_else branches
+        pub path: Vec<String>,
 
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress
@@ -170,7 +171,7 @@ mod inner {
                 scope: 0..vec.len(),
                 items: Rc::from(vec),
                 current: None,
-                depth: 0,
+                path: Vec::new(),
                 #[cfg(feature = "autocomplete")]
                 comp: None,
                 #[cfg(feature = "autocomplete")]
@@ -178,6 +179,9 @@ mod inner {
                 ambig,
                 improve_error: super::Improve(crate::help::improve_error),
             }
+        }
+        pub(crate) fn depth(&self) -> usize {
+            self.path.len()
         }
     }
 
@@ -197,8 +201,9 @@ mod inner {
 
             let mut args = std::env::args_os();
 
-            #[allow(unused_variables)]
-            let name = args.next().expect("no command name from args_os?");
+            let os_name = args.next().expect("no command name from args_os?");
+            let path = PathBuf::from(os_name);
+            let name = path.file_name().expect("binary with no name?").to_str();
 
             #[cfg(feature = "autocomplete")]
             for arg in args {
@@ -215,10 +220,14 @@ mod inner {
             arg_vec.extend(args);
 
             #[cfg(feature = "autocomplete")]
-            let args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
+            let mut args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
 
             #[cfg(not(feature = "autocomplete"))]
-            let args = Self::from(arg_vec.as_slice());
+            let mut args = Self::from(arg_vec.as_slice());
+
+            if let Some(name) = name {
+                args.path.push(name.to_string());
+            }
 
             args
         }

@@ -38,7 +38,7 @@
 //! - `"elvish"` - version 6
 //! and should be followed by a single value - code for shell to evaluate
 
-use std::{ffi::OsString, path::PathBuf};
+use std::ffi::OsString;
 
 use crate::{construct, Args};
 
@@ -194,13 +194,10 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
 }
 
 pub(crate) fn args_with_complete(
-    os_name: OsString,
+    name: Option<&str>,
     arguments: &[OsString],
     complete_arguments: &[OsString],
 ) -> Args {
-    let path = PathBuf::from(os_name);
-    let path = path.file_name().expect("binary with no name?").to_str();
-
     // not trying to run a completer - just make the arguments
     if complete_arguments.is_empty() {
         return Args::from(arguments);
@@ -210,11 +207,7 @@ pub(crate) fn args_with_complete(
 
     match parse_comp_options().run_inner(cargs) {
         Ok(comp) => {
-            let name = match path {
-                Some(path) => path,
-                None => panic!("app name is not utf8, giving up rendering completer"),
-            };
-
+            let name = name.expect("app name is not utf8, giving up rendering the completer");
             let rev = match comp {
                 CompOptions::Dump { style } => {
                     match style {

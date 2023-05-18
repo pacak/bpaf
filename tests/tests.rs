@@ -563,7 +563,7 @@ Available commands:
     let expected_help = "\
 This is local info
 
-Usage: [-b]
+Usage: bar [-b]
 
 Available options:
     -b
@@ -692,7 +692,7 @@ Available commands:
         let expected_help = "\
 fetches branches from remote repository
 
-Usage: [--dry_run] [--all] [SRC]
+Usage: fetch [--dry_run] [--all] [SRC]
 
 Available options:
         --dry_run
@@ -715,7 +715,7 @@ Available options:
         let expected_help = "\
 add files to the staging area
 
-Usage: [-i] [--all] [FILE]...
+Usage: add [-i] [--all] [FILE]...
 
 Available options:
     -i
@@ -950,7 +950,7 @@ fn default_plays_nicely_with_command() {
     let expected_help = "\
 inner
 
-Usage: no parameters expected
+Usage: foo no parameters expected
 
 Available options:
     -h, --help  Prints help information
@@ -1011,7 +1011,7 @@ Available commands:
     let expected_help = "\
 inner descr
 
-Usage: no parameters expected
+Usage: foo no parameters expected
 
 Available options:
     -h, --help  Prints help information

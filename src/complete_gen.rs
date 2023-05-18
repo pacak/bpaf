@@ -45,7 +45,7 @@ impl Args {
         if !self.valid_complete_head() {
             return;
         }
-        let depth = self.depth;
+        let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
@@ -64,7 +64,7 @@ impl Args {
         if !self.valid_complete_head() {
             return;
         }
-        let depth = self.depth;
+        let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {
@@ -89,7 +89,7 @@ impl Args {
         if !self.valid_complete_head() {
             return;
         }
-        let depth = self.depth;
+        let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Positional {
                 extra: CompExtra {
@@ -114,7 +114,7 @@ impl Args {
         if !self.valid_complete_head() {
             return;
         }
-        let depth = self.depth;
+        let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Command {
                 extra: CompExtra {
@@ -140,7 +140,7 @@ impl Args {
         if !self.valid_complete_head() {
             return;
         }
-        let depth = self.depth;
+        let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Value {
                 extra: CompExtra {

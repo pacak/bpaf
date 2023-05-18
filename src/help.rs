@@ -89,7 +89,8 @@ pub(crate) fn improve_error(
     // handle --help and --version messages
     match info.help_parser().eval(args) {
         Ok(ExtraParams::Help) => {
-            let msg = render_help(info, inner, &info.help_parser().meta())
+            let path = &args.path;
+            let msg = render_help(path, info, inner, &info.help_parser().meta())
                 .render(false, crate::buffer::Color::Monochrome);
             return ParseFailure::Stdout(msg);
         }

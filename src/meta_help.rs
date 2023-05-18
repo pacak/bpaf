@@ -516,7 +516,12 @@ fn write_as_lines(buf: &mut Buffer, line: &str) {
 }
 
 #[inline(never)]
-pub(crate) fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> Buffer {
+pub(crate) fn render_help(
+    path: &[String],
+    info: &Info,
+    parser_meta: &Meta,
+    help_meta: &Meta,
+) -> Buffer {
     parser_meta.positional_invariant_check(false);
     let mut buf = Buffer::default();
 
@@ -528,6 +533,10 @@ pub(crate) fn render_help(info: &Info, parser_meta: &Meta, help_meta: &Meta) -> 
 
     buf.token(Token::SectionStart);
     buf.write_str("Usage: ", Style::Text);
+    for item in path {
+        buf.write_str(item, Style::Literal);
+        buf.write_char(' ', Style::Text);
+    }
     buf.write_meta(parser_meta, true);
     buf.token(Token::SectionStop);
 

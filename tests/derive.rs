@@ -26,7 +26,7 @@ fn help_with_default_parse() {
     let expected_help = "\
 Add a new TODO item
 
-Usage: ARG
+Usage: add ARG
 
 Available options:
     -h, --help  Prints help information
@@ -76,7 +76,7 @@ fn command_and_fallback() {
     let expected_help = "\
 Add a new TODO item
 
-Usage: ARG
+Usage: add ARG
 
 Available options:
     -h, --help  Prints help information

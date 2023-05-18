@@ -595,7 +595,7 @@ impl<T> Parser<T> for ParseCommand<T> {
                 args.set_scope(cur..args.scope().end);
             }
 
-            args.depth += 1;
+            args.path.push(self.longs[0].to_string());
             if !self.adjacent {
                 self.subparser
                     .run_subparser(args)
