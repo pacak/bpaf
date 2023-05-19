@@ -1,5 +1,5 @@
 use crate::{
-    buffer::{Buffer, Style, Token},
+    buffer_inner::{Buffer, Style, Token},
     info::Info,
     item::{Item, ShortLong},
     Meta,
@@ -385,14 +385,14 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
             buf.token(Token::SubsectionStart);
-            buf.write_buffer(help);
+            buf.buffer(help);
             buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorSuffix { help, .. } => {
             buf.token(Token::TermStart);
             buf.token(Token::TermStop);
             buf.token(Token::SubsectionStart);
-            buf.write_buffer(help);
+            buf.buffer(help);
             buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {}
@@ -558,7 +558,7 @@ pub(crate) fn render_help(
         let mut xs = items.items_of_ty(ty).peekable();
         if xs.peek().is_some() {
             buf.token(Token::SectionStart);
-            buf.write_str(name, Style::Section);
+            buf.write_str(name, Style::Title);
             buf.token(Token::LineBreak);
             for item in xs {
                 write_help_item(&mut buf, item);

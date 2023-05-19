@@ -10,7 +10,7 @@
 
 use crate::{
     args::Arg,
-    buffer::{Buffer, Color, Style},
+    buffer_inner::{Buffer, Color, Style},
     error::{Message, MissingItem},
     info::Info,
     meta_help::render_help,
@@ -91,7 +91,7 @@ pub(crate) fn improve_error(
         Ok(ExtraParams::Help) => {
             let path = &args.path;
             let msg = render_help(path, info, inner, &info.help_parser().meta())
-                .render(false, crate::buffer::Color::Monochrome);
+                .render(false, crate::buffer_inner::Color::Monochrome);
             return ParseFailure::Stdout(msg);
         }
         Ok(ExtraParams::Version(v)) => {

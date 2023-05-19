@@ -366,7 +366,7 @@ mod arg;
 mod args;
 #[cfg(feature = "batteries")]
 pub mod batteries;
-mod buffer;
+mod buffer_inner;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
@@ -402,6 +402,8 @@ pub use crate::complete_shell::ShellComp;
 #[cfg(feature = "manpage")]
 pub use manpage::Section;
 
+pub mod buffer;
+
 pub mod parsers {
     //! This module exposes parsers that accept further configuration with builder pattern
     //!
@@ -430,7 +432,7 @@ use structs::{ParseComp, ParseCompStyle};
 #[doc(inline)]
 pub use crate::args::Args;
 #[doc(hidden)]
-pub use crate::buffer::Buffer;
+pub use crate::buffer_inner::Buffer;
 pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
 pub use crate::meta::Meta;
