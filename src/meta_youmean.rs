@@ -19,8 +19,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
         if let (0, I::Nested(cmd)) = (l, expected) {
             let best = format!(
                 "{:?} is not valid in this context, did you mean to pass it to command \"{}\"?",
-                actual,
-                w_flag!(cmd),
+                actual, cmd,
             );
             return Some(best);
         } else if l > 0 && l < usize::MAX {
@@ -30,11 +29,7 @@ pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
                 }
             }
 
-            let best = format!(
-                "No such {:?}, did you mean `{}`?",
-                actual,
-                w_flag!(expected),
-            );
+            let best = format!("No such {:?}, did you mean `{}`?", actual, expected,);
             return Some(best);
         }
     }
@@ -55,12 +50,12 @@ enum I<'a> {
 impl std::fmt::Debug for I<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::ShortFlag(s) => write!(f, "flag: `{}`", w_err!(Short(*s))),
-            Self::LongFlag(s) => write!(f, "flag: `{}`", w_err!(Long(s))),
-            Self::ShortCmd(s) => write!(f, "command alias: `{}`", w_err!(s)),
-            Self::LongCmd(s) => write!(f, "command or positional: `{}`", w_err!(s)),
-            Self::Ambiguity(s) => write!(f, "flag: {} (with one dash)", w_err!(s)),
-            Self::Nested(s) => write!(f, "command {}", w_err!(s)),
+            Self::ShortFlag(s) => write!(f, "flag: `{}`", Short(*s)),
+            Self::LongFlag(s) => write!(f, "flag: `{}`", Long(s)),
+            Self::ShortCmd(s) => write!(f, "command alias: `{}`", s),
+            Self::LongCmd(s) => write!(f, "command or positional: `{}`", s),
+            Self::Ambiguity(s) => write!(f, "flag: {} (with one dash)", s),
+            Self::Nested(s) => write!(f, "command {}", s),
         }
     }
 }

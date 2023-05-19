@@ -354,22 +354,6 @@
 //!
 //!
 
-#[macro_use]
-#[cfg(feature = "color")]
-mod color;
-
-#[macro_use]
-#[cfg(not(feature = "color"))]
-mod no_color;
-
-#[cfg(feature = "color")]
-#[doc(hidden)]
-pub use color::set_override;
-
-#[cfg(not(feature = "color"))]
-#[doc(hidden)]
-pub use no_color::set_override;
-
 #[cfg(feature = "extradocs")]
 pub mod _applicative;
 #[cfg(feature = "extradocs")]

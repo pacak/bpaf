@@ -3,7 +3,6 @@ use bpaf::*;
 
 #[test]
 fn help_with_default_parse() {
-    set_override(false);
     use bpaf::Parser;
     #[derive(Debug, Clone, Bpaf)]
     enum Action {

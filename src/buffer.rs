@@ -241,6 +241,13 @@ impl Default for Color {
         {
             res = Color::Dull;
         }
+        #[cfg(feature = "color")]
+        {
+            use supports_color::{on, Stream};
+            if !(on(Stream::Stdout).is_some() && on(Stream::Stderr).is_some()) {
+                res = Color::Monochrome;
+            }
+        }
         res
     }
 }

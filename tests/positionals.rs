@@ -2,7 +2,6 @@ use bpaf::*;
 
 #[test]
 fn positional_with_help() {
-    set_override(false);
     let user = positional::<String>("USER").help("github user\nin two lines");
     let api = positional::<String>("API_KEY").help("api key to use");
     let parser = construct!(user, api).to_options();
@@ -26,7 +25,6 @@ Available options:
 
 #[test]
 fn help_for_positional() {
-    set_override(false);
     let c = positional::<String>("C").help("help for\nc");
     let d = positional::<String>("DDD").help("help for\nddd");
     let parser = construct!(c, d).to_options();
@@ -70,7 +68,6 @@ fn helpful_error_message() {
 
 #[test]
 fn positional_argument() {
-    set_override(false);
     let p = positional::<String>("FILE")
         .help("file name")
         .group_help("File to process");

@@ -4,7 +4,6 @@ use bpaf::*;
 
 #[test]
 fn ambiguity() {
-    set_override(false);
     #[derive(Debug, Clone)]
     enum A {
         V(Vec<bool>),
@@ -30,7 +29,6 @@ fn ambiguity() {
 
 #[test]
 fn short_cmd() {
-    set_override(false);
     let parser = long("alpha")
         .req_flag(())
         .to_options()

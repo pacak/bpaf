@@ -204,7 +204,6 @@ fn required_or_many() {
 
 #[test]
 fn no_actual_arguments_also_works() {
-    set_override(false);
     let parser = pure(true).to_options();
 
     let r = parser

@@ -22,7 +22,6 @@ fn construct_with_fn() {
         short('c').switch()
     }
 
-    set_override(false);
     let parser = construct!(Opts { a(), b, c() }).to_options();
     let help = parser
         .run_inner(Args::from(&["--help"]))
@@ -71,7 +70,6 @@ fn simple_two_optional_flags() {
         .unwrap_stderr();
     assert_eq!("`-a` is not expected in this context", err);
 
-    set_override(false);
     let help = decorated
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
@@ -142,7 +140,6 @@ fn either_of_three_required_flags() {
         .unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
-    set_override(false);
     // help is always generated
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -185,7 +182,6 @@ fn either_of_three_required_flags2() {
         .unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
-    set_override(false);
     // help is always generated
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -228,7 +224,6 @@ fn either_of_two_required_flags_and_one_optional() {
         .unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
-    set_override(false);
     // help is always generated
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -293,7 +288,6 @@ fn default_arguments() {
     let a = short('a').argument::<i32>("ARG").fallback(42);
     let decorated = a.to_options();
 
-    set_override(false);
     let help = decorated
         .run_inner(Args::from(&["-h"]))
         .unwrap_err()
@@ -351,7 +345,6 @@ fn parse_errors() {
 #[test]
 #[ignore]
 fn custom_usage() {
-    set_override(false);
     let a = short('a').long("long").argument::<String>("ARG");
     let parser = a.to_options().usage("Usage: -a <ARG> or --long <ARG>");
     let help = parser
@@ -370,7 +363,6 @@ Available options:
 
 #[test]
 fn long_usage_string() {
-    set_override(false);
     let a = short('a')
         .long("a-very-long-flag-with")
         .argument::<String>("ARG");
@@ -424,7 +416,6 @@ Available options:
 
 #[test]
 fn group_help_args() {
-    set_override(false);
     let a = short('a').help("flag A, related to B").switch();
     let b = short('b').help("flag B, related to A").switch();
     let c = short('c').help("flag C, unrelated").switch();
@@ -452,7 +443,6 @@ Available options:
 
 #[test]
 fn group_help_commands() {
-    set_override(false);
     let a = short('a')
         .switch()
         .to_options()
@@ -532,7 +522,6 @@ fn from_several_alternatives_pick_more_meaningful() {
 
 #[test]
 fn subcommands() {
-    set_override(false);
     let bar = short('b').switch();
 
     let bar_cmd = command("bar", bar.to_options().descr("This is local info"));
@@ -574,7 +563,6 @@ Available options:
 
 #[test]
 fn multiple_aliases() {
-    set_override(false);
     let a = short('a').short('b').short('c').req_flag(());
     let parser = a.to_options();
 
@@ -661,7 +649,6 @@ mod git {
 
     #[test]
     fn root_help() {
-        set_override(false);
         let parser = setup();
         let expected_help = "\
 The stupid content tracker
@@ -687,7 +674,6 @@ Available commands:
 
     #[test]
     fn fetch_help() {
-        set_override(false);
         let parser = setup();
         let expected_help = "\
 fetches branches from remote repository
@@ -710,7 +696,6 @@ Available options:
 
     #[test]
     fn add_help() {
-        set_override(false);
         let parser = setup();
         let expected_help = "\
 add files to the staging area
@@ -796,7 +781,6 @@ fn arg_bench() {
 
 #[test]
 fn simple_cargo_helper() {
-    set_override(false);
     let a = short('a').long("AAAAA").help("two lines\nof help").switch();
     let b = short('b').switch();
     let parser = construct!(a, b);
@@ -878,7 +862,6 @@ Available options:
 
 #[test]
 fn env_variable() {
-    set_override(false);
     let name = "BPAF_SECRET_API_KEY";
     let parser = long("key")
         .env(name)
@@ -924,7 +907,6 @@ Available options:
 
 #[test]
 fn default_plays_nicely_with_command() {
-    set_override(false);
     #[derive(Debug, Clone)]
     enum Foo {
         Foo,
@@ -980,7 +962,6 @@ Available commands:
 
 #[test]
 fn command_with_aliases() {
-    set_override(false);
     let inner = pure(()).to_options().descr("inner descr");
     let cmd = command("foo", inner).long("bar").short('f').short('b');
     let parser = cmd.to_options().descr("outer");
@@ -1030,7 +1011,6 @@ Available options:
 
 #[test]
 fn help_for_options() {
-    set_override(false);
     let a = short('a').help("help for\na").switch();
     let b = short('c')
         .env("BbBbB")
@@ -1063,7 +1043,6 @@ Available options:
 
 #[test]
 fn help_for_commands() {
-    set_override(false);
     let d = command("thing_d", pure(()).to_options()).help("help for d\ntwo lines");
     let e = command("thing_e", pure(()).to_options())
         .short('e')
@@ -1464,7 +1443,6 @@ fn cargo_show_asm_issue_parse() {
 
 #[test]
 fn cargo_show_asm_issue_unknown_switch() {
-    set_override(false);
     let target = long("flag").switch();
 
     let verbosity = short('v').switch();
