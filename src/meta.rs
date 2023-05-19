@@ -1,5 +1,5 @@
 use crate::{
-    buffer_inner::{Buffer, Style},
+    inner_buffer::{Buffer, Style},
     item::{Item, ShortLong},
     meta_help::Metavar,
 };

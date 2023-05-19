@@ -7,9 +7,9 @@ fn decorations() {
         .env("BPAF_VARIABLE")
         .argument::<String>("ARG")
         .to_options()
-        .descr("descr\ndescr")
-        .header("header\nheader")
-        .footer("footer\nfooter")
+        .descr("descr\n descr")
+        .header("header\n header")
+        .footer("footer\n footer")
         .version("version")
         .usage("custom {usage}");
 

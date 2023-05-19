@@ -19,7 +19,7 @@ use crate::{
     complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
-    Args, CompleteDecor, ShellComp,
+    Args, Buffer, CompleteDecor, ShellComp,
 };
 use std::ffi::OsStr;
 
@@ -52,7 +52,7 @@ impl Args {
                     depth,
                     hidden_group: "",
                     visible_group: "",
-                    help: named.help.clone(),
+                    help: named.help.as_ref().and_then(|b| b.to_completion()),
                 },
                 name: ShortLong::from(named),
             });
@@ -71,7 +71,7 @@ impl Args {
                     depth,
                     hidden_group: "",
                     visible_group: "",
-                    help: named.help.clone(),
+                    help: named.help.as_ref().and_then(|b| b.to_completion()),
                 },
                 metavar,
                 name: ShortLong::from(named),
@@ -83,7 +83,7 @@ impl Args {
     pub(crate) fn push_metadata(
         &mut self,
         meta: &'static str,
-        help: &Option<String>,
+        help: &Option<Buffer>,
         is_arg: bool,
     ) {
         if !self.valid_complete_head() {
@@ -96,7 +96,7 @@ impl Args {
                     depth,
                     hidden_group: "",
                     visible_group: "",
-                    help: help.clone(),
+                    help: help.as_ref().and_then(|b| b.to_completion()),
                 },
                 meta,
                 is_arg,
@@ -109,7 +109,7 @@ impl Args {
         &mut self,
         name: &'static str,
         short: Option<char>,
-        help: &Option<String>,
+        help: &Option<Buffer>,
     ) {
         if !self.valid_complete_head() {
             return;
@@ -121,7 +121,7 @@ impl Args {
                     depth,
                     hidden_group: "",
                     visible_group: "",
-                    help: help.clone(),
+                    help: help.as_ref().and_then(|b| b.to_completion()),
                 },
                 name,
                 short,

@@ -1,4 +1,4 @@
-use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Meta};
+use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Buffer, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -10,12 +10,12 @@ pub enum Item {
         anywhere: bool,
         metavar: Metavar,
         strict: bool,
-        help: Option<String>,
+        help: Option<Buffer>,
     },
     Command {
         name: &'static str,
         short: Option<char>,
-        help: Option<String>,
+        help: Option<Buffer>,
         meta: Box<Meta>,
         info: Box<Info>,
     },
@@ -27,7 +27,7 @@ pub enum Item {
         /// used for disambiguation
         shorts: Vec<char>,
         env: Option<&'static str>,
-        help: Option<String>,
+        help: Option<Buffer>,
     },
     /// Short or long name followed by a value, consumed anywhere
     /// -f <VAL>
@@ -38,7 +38,7 @@ pub enum Item {
         shorts: Vec<char>,
         metavar: Metavar,
         env: Option<&'static str>,
-        help: Option<String>,
+        help: Option<Buffer>,
     },
 }
 

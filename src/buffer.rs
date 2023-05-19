@@ -1,4 +1,4 @@
-use crate::{buffer_inner::Style, Buffer, Meta};
+use crate::{inner_buffer::Style, Buffer, Meta};
 
 impl Buffer {
     #[inline]

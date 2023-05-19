@@ -10,15 +10,15 @@
 
 use crate::{
     args::Arg,
-    buffer_inner::{Buffer, Color, Style},
     error::{Message, MissingItem},
     info::Info,
+    inner_buffer::{Buffer, Color, Style},
     meta_help::render_help,
     short, Args, Error, Meta, ParseFailure, Parser,
 };
 
 struct ParseExtraParams {
-    version: Option<&'static str>,
+    version: Option<Buffer>,
 }
 
 impl Parser<ExtraParams> for ParseExtraParams {
@@ -27,15 +27,15 @@ impl Parser<ExtraParams> for ParseExtraParams {
             return Ok(ok);
         }
 
-        match self.version {
-            Some(ver) => Self::ver(ver).eval(args),
+        match &self.version {
+            Some(ver) => Self::ver(&ver).eval(args),
             None => Err(Error::Missing(Vec::new())),
         }
     }
 
     fn meta(&self) -> Meta {
-        match self.version {
-            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(ver).meta()]),
+        match &self.version {
+            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(&ver).meta()]),
             None => Self::help().meta(),
         }
     }
@@ -50,24 +50,24 @@ impl ParseExtraParams {
             .req_flag(ExtraParams::Help)
     }
     #[inline(never)]
-    fn ver(version: &'static str) -> impl Parser<ExtraParams> {
+    fn ver(version: &Buffer) -> impl Parser<ExtraParams> {
         short('V')
             .long("version")
             .help("Prints version information")
-            .req_flag(ExtraParams::Version(version))
+            .req_flag(ExtraParams::Version(version.clone()))
     }
 }
 
 #[derive(Clone, Debug)]
 enum ExtraParams {
     Help,
-    Version(&'static str),
+    Version(Buffer),
 }
 
 impl Info {
     fn help_parser(&self) -> impl Parser<ExtraParams> {
         ParseExtraParams {
-            version: self.version,
+            version: self.version.clone(),
         }
     }
 }
@@ -91,11 +91,11 @@ pub(crate) fn improve_error(
         Ok(ExtraParams::Help) => {
             let path = &args.path;
             let msg = render_help(path, info, inner, &info.help_parser().meta())
-                .render(false, crate::buffer_inner::Color::Monochrome);
+                .render(false, crate::inner_buffer::Color::Monochrome);
             return ParseFailure::Stdout(msg);
         }
         Ok(ExtraParams::Version(v)) => {
-            return ParseFailure::Stdout(format!("Version: {}\n", v));
+            return ParseFailure::Stdout(format!("Version: {}\n", v.monochrome(false)));
         }
         Err(_) => {}
     }

@@ -67,7 +67,7 @@ use crate::{
     from_os_str::parse_os_str,
     item::ShortLong,
     meta_help::Metavar,
-    Item, Meta,
+    Buffer, Item, Meta,
 };
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
@@ -144,7 +144,7 @@ pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
-    pub(crate) help: Option<String>,
+    pub(crate) help: Option<Buffer>,
 }
 
 impl NamedArg {
@@ -296,7 +296,7 @@ impl NamedArg {
     /// See [`NamedArg`] for more details
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<String>,
+        M: Into<Buffer>,
     {
         self.help = Some(help.into());
         self
@@ -484,7 +484,8 @@ where
 pub struct ParseCommand<T> {
     longs: Vec<&'static str>,
     shorts: Vec<char>,
-    help: Option<String>,
+    // short help!
+    help: Option<Buffer>,
     subparser: OptionParser<T>,
     adjacent: bool,
 }
@@ -539,7 +540,7 @@ impl<P> ParseCommand<P> {
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<String>,
+        M: Into<Buffer>,
     {
         self.help = Some(help.into());
         self
@@ -821,7 +822,7 @@ fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
 #[derive(Clone)]
 pub struct ParsePositional<T> {
     metavar: &'static str,
-    help: Option<String>,
+    help: Option<Buffer>,
     result_type: PhantomData<T>,
     strict: bool,
 }
@@ -860,7 +861,7 @@ impl<T> ParsePositional<T> {
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<String>,
+        M: Into<Buffer>,
     {
         self.help = Some(help.into());
         self
@@ -929,7 +930,7 @@ fn parse_word(
     args: &mut Args,
     strict: bool,
     metavar: &'static str,
-    help: &Option<String>,
+    help: &Option<Buffer>,
 ) -> Result<OsString, Error> {
     let metavar = Metavar(metavar);
     if let Some((is_strict, word)) = args.take_positional_word(metavar)? {
@@ -989,7 +990,7 @@ where
 /// [`anywhere`](ParseAny::anywhere).
 pub struct ParseAny<T, I, F> {
     metavar: Metavar,
-    help: Option<String>,
+    help: Option<Buffer>,
     ctx: PhantomData<(I, T)>,
     check: F,
     anywhere: bool,
@@ -1064,7 +1065,7 @@ impl<F, I, T> ParseAny<T, F, I> {
     /// Add a help message to [`any`] parser.
     #[doc = include_str!("docs/any.md")]
     #[must_use]
-    pub fn help<M: Into<String>>(mut self, help: M) -> Self {
+    pub fn help<M: Into<Buffer>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
         self
     }

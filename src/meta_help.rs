@@ -1,6 +1,6 @@
 use crate::{
-    buffer_inner::{Buffer, Style, Token},
     info::Info,
+    inner_buffer::{Buffer, Style, Token},
     item::{Item, ShortLong},
     Meta,
 };
@@ -50,12 +50,12 @@ pub(crate) enum HelpItem<'a> {
     Positional {
         anywhere: bool,
         metavar: Metavar,
-        help: Option<&'a str>,
+        help: Option<&'a Buffer>,
     },
     Command {
         name: &'static str,
         short: Option<char>,
-        help: Option<&'a str>,
+        help: Option<&'a Buffer>,
         #[cfg(feature = "manpage")]
         meta: &'a Meta,
         #[cfg(feature = "manpage")]
@@ -64,13 +64,13 @@ pub(crate) enum HelpItem<'a> {
     Flag {
         name: ShortLong,
         env: Option<&'static str>,
-        help: Option<&'a str>,
+        help: Option<&'a Buffer>,
     },
     Argument {
         name: ShortLong,
         metavar: Metavar,
         env: Option<&'static str>,
-        help: Option<&'a str>,
+        help: Option<&'a Buffer>,
     },
     AnywhereStart {
         inner: &'a Meta,
@@ -328,7 +328,7 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
             } => Self::Positional {
                 metavar: *metavar,
                 anywhere: *anywhere,
-                help: help.as_deref(),
+                help: help.as_ref(),
             },
             Item::Command {
                 name,
@@ -345,7 +345,7 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
             } => Self::Command {
                 name,
                 short: *short,
-                help: help.as_deref(),
+                help: help.as_ref(),
                 #[cfg(feature = "manpage")]
                 meta,
                 #[cfg(feature = "manpage")]
@@ -359,7 +359,7 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
             } => Self::Flag {
                 name: *name,
                 env: *env,
-                help: help.as_deref(),
+                help: help.as_ref(),
             },
             Item::Argument {
                 name,
@@ -371,7 +371,7 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
                 name: *name,
                 metavar: *metavar,
                 env: *env,
-                help: help.as_deref(),
+                help: help.as_ref(),
             },
         }
     }
@@ -395,7 +395,10 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             buf.buffer(help);
             buf.token(Token::SubsectionStop);
         }
-        HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {}
+        HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {
+            buf.token(Token::SectionStart);
+            buf.token(Token::SectionStop);
+        }
         HelpItem::Positional {
             metavar,
             help,
@@ -405,7 +408,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             write_metavar(buf, *metavar);
             buf.token(Token::TermStop);
             if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.buffer(help);
             }
         }
         HelpItem::Command {
@@ -425,7 +428,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             }
             buf.token(Token::TermStop);
             if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.buffer(help);
             }
         }
         HelpItem::Flag { name, env, help } => {
@@ -433,7 +436,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             write_shortlong(buf, *name);
             buf.token(Token::TermStop);
             if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.buffer(help);
             }
             if let Some(env) = env {
                 let val = if std::env::var_os(env).is_some() {
@@ -462,7 +465,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             buf.token(Token::TermStop);
 
             if let Some(help) = help {
-                buf.write_str(help, Style::Text);
+                buf.buffer(help);
             }
 
             if let Some(env) = env {
@@ -525,9 +528,9 @@ pub(crate) fn render_help(
     parser_meta.positional_invariant_check(false);
     let mut buf = Buffer::default();
 
-    if let Some(t) = info.descr {
+    if let Some(t) = &info.descr {
         buf.token(Token::SectionStart);
-        write_as_lines(&mut buf, t);
+        buf.buffer(t);
         buf.token(Token::SectionStop);
     }
 
@@ -540,9 +543,9 @@ pub(crate) fn render_help(
     buf.write_meta(parser_meta, true);
     buf.token(Token::SectionStop);
 
-    if let Some(t) = info.header {
+    if let Some(t) = &info.header {
         buf.token(Token::SectionStart);
-        write_as_lines(&mut buf, t);
+        buf.buffer(t);
         buf.token(Token::SectionStop);
     }
 
@@ -567,9 +570,9 @@ pub(crate) fn render_help(
         }
     }
 
-    if let Some(footer) = info.footer {
+    if let Some(footer) = &info.footer {
         buf.token(Token::SectionStart);
-        write_as_lines(&mut buf, footer);
+        buf.buffer(footer);
         buf.token(Token::SectionStop);
     }
     buf

@@ -943,8 +943,8 @@ fn zsh_help_single_line_only() {
 
 #[test]
 fn bash_help_single_line_only() {
-    let a = short('a').help("hello\nworld").argument::<String>("X");
-    let b = short('b').help("hello\nworld").argument::<String>("X");
+    let a = short('a').help("hello\n\nworld").argument::<String>("X");
+    let b = short('b').help("hello\n\nworld").argument::<String>("X");
     let parser = construct!(a, b).to_options();
 
     let r = parser

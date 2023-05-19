@@ -150,6 +150,47 @@ impl Buffer {
         self.tokens.extend(&buf.tokens);
         self.payload.push_str(&buf.payload);
     }
+
+    pub(crate) fn first_line(&self) -> Option<Buffer> {
+        if self.tokens.is_empty() {
+            return None;
+        }
+
+        let mut res = Buffer::default();
+        let mut cur = 0;
+
+        for &t in &self.tokens {
+            match t {
+                Token::Text { bytes, style: _ } => {
+                    res.tokens.push(t);
+                    res.payload.push_str(&self.payload[cur..cur + bytes]);
+                    cur += bytes;
+                }
+                Token::LineBreak => break,
+                t => res.tokens.push(t),
+            }
+        }
+        Some(res)
+    }
+
+    pub(crate) fn to_completion(&self) -> Option<String> {
+        if self.tokens.is_empty() {
+            return None;
+        }
+        let mut res = String::new();
+        let mut cur = 0;
+        for t in &self.tokens {
+            match t {
+                Token::Text { bytes, style: _ } => {
+                    res.push_str(&self.payload[cur..cur + bytes]);
+                    cur += bytes;
+                }
+                Token::LineBreak => break,
+                _ => {}
+            }
+        }
+        Some(res)
+    }
 }
 
 impl From<&str> for Buffer {
@@ -279,8 +320,7 @@ impl Color {
 const PADDING: &str = "                                                  ";
 
 impl Buffer {
-    #[cfg(test)]
-    fn monochrome(&self, full: bool) -> String {
+    pub(crate) fn monochrome(&self, full: bool) -> String {
         self.render(full, Color::Monochrome)
     }
 
@@ -338,39 +378,36 @@ impl Buffer {
                     for chunk in split(input) {
                         match chunk {
                             Chunk::Raw(s, w) => {
-                                if pending_newline {
-                                    pending_newline = false;
-                                    if char_pos > 0 {
-                                        res.push('\n');
+                                if !res.is_empty() {
+                                    if (pending_newline || pending_blank_line)
+                                        && !res.ends_with('\n')
+                                    {
                                         char_pos = 0;
-                                    }
-                                }
-                                if pending_blank_line {
-                                    pending_blank_line = false;
-                                    if res.is_empty() || res.ends_with("\n\n") {
-                                        //
-                                    } else if res.ends_with('\n') {
                                         res.push('\n');
-                                    } else {
-                                        res.push_str("\n\n");
+                                    }
+                                    if pending_blank_line && !res.ends_with("\n\n") {
+                                        res.push('\n');
+                                    }
+                                    if char_pos > MAX_WIDTH {
+                                        char_pos = 0;
+                                        pending_term_offset = right_of_term;
+                                        res.truncate(res.trim_end().len());
+                                        res.push('\n');
+                                        if s == " " {
+                                            continue;
+                                        }
                                     }
                                 }
-                                if char_pos > MAX_WIDTH {
-                                    char_pos = 0;
-                                    pending_term_offset = right_of_term;
-                                    res.truncate(res.trim_end().len());
-                                    res.push('\n');
-                                    if s == " " {
-                                        continue;
-                                    }
-                                }
+
+                                pending_newline = false;
+                                pending_blank_line = false;
+
                                 let margin: usize = offset_margin.max(term_margin);
                                 if pending_term_offset {
                                     res.push_str("  ");
                                     pending_term_offset = false;
                                 }
                                 if let Some(missing) = margin.checked_sub(char_pos) {
-                                    //                                if char_pos < margin {
                                     res.push_str(&PADDING[..missing]);
                                     char_pos = margin;
                                 }
@@ -404,11 +441,11 @@ impl Buffer {
                     byte_pos += bytes;
                 }
                 Token::LineBreak => {
-                    res.push('\n');
-                    term_margin = 0;
+                    pending_newline = true;
                     pending_term_offset = false;
-                    char_pos = 0;
                     right_of_term = false;
+                    term_margin = 0;
+                    char_pos = 0;
                 }
                 Token::SectionStart => {
                     pending_blank_line = true;
@@ -438,6 +475,9 @@ impl Buffer {
                 }
             }
         }
+        if pending_newline || pending_blank_line {
+            res.push('\n');
+        }
         res
     }
 }
@@ -445,7 +485,6 @@ impl Buffer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::buffer::*;
 
     #[test]
     fn tabstop_works() {

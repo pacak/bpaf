@@ -1,6 +1,6 @@
 //! Help message generation and rendering
 
-use crate::{args::Args, parsers::ParseCommand, Error, ParseFailure, Parser};
+use crate::{args::Args, parsers::ParseCommand, Buffer, Error, ParseFailure, Parser};
 
 /// Information about the parser
 ///
@@ -9,15 +9,15 @@ use crate::{args::Args, parsers::ParseCommand, Error, ParseFailure, Parser};
 #[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]
-    pub version: Option<&'static str>,
+    pub version: Option<Buffer>,
     /// Custom description field, see [`descr`][Info::descr]
-    pub descr: Option<&'static str>,
+    pub descr: Option<Buffer>,
     /// Custom header field, see [`header`][Info::header]
-    pub header: Option<&'static str>,
+    pub header: Option<Buffer>,
     /// Custom footer field, see [`footer`][Info::footer]
-    pub footer: Option<&'static str>,
+    pub footer: Option<Buffer>,
     /// Custom usage field, see [`usage`][Info::usage]
-    pub usage: Option<&'static str>,
+    pub usage: Option<Buffer>,
 }
 
 /// Ready to run [`Parser`] with additional information attached
@@ -213,8 +213,8 @@ impl<T> OptionParser<T> {
     ///
     /// Used internally to avoid duplicating description for [`command`].
     #[must_use]
-    pub(crate) fn short_descr(&self) -> Option<&'static str> {
-        self.info.descr.and_then(|descr| descr.lines().next())
+    pub(crate) fn short_descr(&self) -> Option<Buffer> {
+        self.info.descr.as_ref().and_then(|b| b.first_line())
     }
 
     /// Set the version field.
@@ -254,8 +254,8 @@ impl<T> OptionParser<T> {
     /// Version: 0.5.0
     /// ```
     #[must_use]
-    pub fn version(mut self, version: &'static str) -> Self {
-        self.info.version = Some(version);
+    pub fn version<B: Into<Buffer>>(mut self, version: B) -> Self {
+        self.info.version = Some(version.into());
         self
     }
     /// Set the description field
@@ -319,8 +319,8 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn descr(mut self, descr: &'static str) -> Self {
-        self.info.descr = Some(descr);
+    pub fn descr<B: Into<Buffer>>(mut self, descr: B) -> Self {
+        self.info.descr = Some(descr.into());
         self
     }
     /// Set the header field
@@ -383,8 +383,8 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn header(mut self, header: &'static str) -> Self {
-        self.info.header = Some(header);
+    pub fn header<B: Into<Buffer>>(mut self, header: B) -> Self {
+        self.info.header = Some(header.into());
         self
     }
     /// Set the footer field
@@ -447,8 +447,8 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn footer(mut self, footer: &'static str) -> Self {
-        self.info.footer = Some(footer);
+    pub fn footer<M: Into<Buffer>>(mut self, footer: M) -> Self {
+        self.info.footer = Some(footer.into());
         self
     }
     /// Set custom usage field
@@ -482,8 +482,11 @@ impl<T> OptionParser<T> {
     /// }
     /// ```
     #[must_use]
-    pub fn usage(mut self, usage: &'static str) -> Self {
-        self.info.usage = Some(usage);
+    pub fn usage<B>(mut self, usage: B) -> Self
+    where
+        B: Into<Buffer>,
+    {
+        self.info.usage = Some(usage.into());
         self
     }
 

@@ -366,7 +366,6 @@ mod arg;
 mod args;
 #[cfg(feature = "batteries")]
 pub mod batteries;
-mod buffer_inner;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
@@ -376,6 +375,7 @@ mod complete_shell;
 mod error;
 mod help;
 mod info;
+mod inner_buffer;
 mod item;
 #[cfg(feature = "manpage")]
 mod manpage;
@@ -432,10 +432,10 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
-#[doc(hidden)]
-pub use crate::buffer_inner::Buffer;
 pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
+#[doc(hidden)]
+pub use crate::inner_buffer::Buffer;
 pub use crate::meta::Meta;
 
 #[doc(inline)]

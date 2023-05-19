@@ -291,6 +291,8 @@ fn flatten_commands<'a>(item: HelpItem<'a>, path: &str, acc: &mut Vec<(String, H
 }
 
 fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
+    todo!();
+    /*
     match item {
         HelpItem::Command {
             name,
@@ -339,75 +341,76 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
             //            manpage.subsection(*help);
         }
         _ => {}
-    }
+    }*/
 }
 
 fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) {
-    match item {
-        HelpItem::DecorHeader { help, ty: _ } => {
-            todo!();
-            //            manpage.subsection(help);
-        }
-        HelpItem::DecorBlank { .. } => {
-            manpage.text([]);
-        }
-        HelpItem::Positional {
-            metavar,
-            help,
-            anywhere: _,
-        } => {
-            manpage.label(|l| {
-                l.metavar(metavar.0);
-            });
-            if let Some(help) = help {
-                manpage.text([norm(help)]);
-            }
-        }
-        HelpItem::Command {
-            name,
-            short: _,
-            help,
-            meta: _,
-            info: _,
-        } => {
-            if let Some(path) = command_path {
-                manpage.label(|l| {
-                    l.bold(path).space().bold(name);
-                });
-                if let Some(help) = help {
-                    manpage.text([norm(help)]);
-                }
-            }
-        }
-        HelpItem::Flag { name, help, env: _ } => {
-            manpage.label(|l| {
-                l.shortlong(name, true);
-            });
-            if let Some(help) = help {
-                manpage.text([norm(help)]);
-            }
-        }
-        HelpItem::Argument {
-            name,
-            metavar: mvar,
-            env,
-            help,
-        } => {
-            manpage.label(|l| {
-                l.shortlong(name, true).norm("=").metavar(mvar.0);
-                if let Some(env) = env {
-                    l.env(env);
-                }
-            });
+    todo!(); /*
+             match item {
+                 HelpItem::DecorHeader { help, ty: _ } => {
+                     todo!();
+                     //            manpage.subsection(help);
+                 }
+                 HelpItem::DecorBlank { .. } => {
+                     manpage.text([]);
+                 }
+                 HelpItem::Positional {
+                     metavar,
+                     help,
+                     anywhere: _,
+                 } => {
+                     manpage.label(|l| {
+                         l.metavar(metavar.0);
+                     });
+                     if let Some(help) = help {
+                         manpage.text([norm(help)]);
+                     }
+                 }
+                 HelpItem::Command {
+                     name,
+                     short: _,
+                     help,
+                     meta: _,
+                     info: _,
+                 } => {
+                     if let Some(path) = command_path {
+                         manpage.label(|l| {
+                             l.bold(path).space().bold(name);
+                         });
+                         if let Some(help) = help {
+                             manpage.text([norm(help)]);
+                         }
+                     }
+                 }
+                 HelpItem::Flag { name, help, env: _ } => {
+                     manpage.label(|l| {
+                         l.shortlong(name, true);
+                     });
+                     if let Some(help) = help {
+                         manpage.text([norm(help)]);
+                     }
+                 }
+                 HelpItem::Argument {
+                     name,
+                     metavar: mvar,
+                     env,
+                     help,
+                 } => {
+                     manpage.label(|l| {
+                         l.shortlong(name, true).norm("=").metavar(mvar.0);
+                         if let Some(env) = env {
+                             l.env(env);
+                         }
+                     });
 
-            if let Some(help) = help {
-                manpage.text([norm(help)]);
-            }
-        }
-        HelpItem::AnywhereStart { .. }
-        | HelpItem::AnywhereStop { .. }
-        | HelpItem::DecorSuffix { .. } => {}
-    }
+                     if let Some(help) = help {
+                         manpage.text([norm(help)]);
+                     }
+                 }
+                 HelpItem::AnywhereStart { .. }
+                 | HelpItem::AnywhereStop { .. }
+                 | HelpItem::DecorSuffix { .. } => {}
+             }*/
 }
 
 fn norm<S: Into<String>>(s: S) -> Inline {
@@ -461,84 +464,85 @@ impl<T> OptionParser<T> {
         homepage: &str,
         repo: &str,
     ) -> String {
-        let mut hi = HelpItems::default();
-        let meta = self.inner.meta();
-        hi.append_meta(&meta);
+        todo!(); /*
+                 let mut hi = HelpItems::default();
+                 let meta = self.inner.meta();
+                 hi.append_meta(&meta);
 
-        let mut manpage = Manpage::new(app, section, Some(date), None, None);
+                 let mut manpage = Manpage::new(app, section, Some(date), None, None);
 
-        manpage.section("NAME");
-        manpage.paragraph(|line| {
-            match self.info.descr {
-                Some(descr) => line.norm(app).norm(" - ").norm(descr),
-                None => line.norm(app),
-            };
-        });
+                 manpage.section("NAME");
+                 manpage.paragraph(|line| {
+                     match self.info.descr {
+                         Some(descr) => line.norm(app).norm(" - ").norm(descr),
+                         None => line.norm(app),
+                     };
+                 });
 
-        manpage.section("SYNOPSIS");
-        match meta.normalized(false) {
-            Meta::Skip => manpage.text([bold(app), norm(" takes no parameters")]),
-            meta => manpage.paragraph(|l| {
-                l.bold(app).space().usage(&meta);
-            }),
-        };
+                 manpage.section("SYNOPSIS");
+                 match meta.normalized(false) {
+                     Meta::Skip => manpage.text([bold(app), norm(" takes no parameters")]),
+                     meta => manpage.paragraph(|l| {
+                         l.bold(app).space().usage(&meta);
+                     }),
+                 };
 
-        manpage.section("DESCRIPTION");
-        if let Some(header) = self.info.header {
-            manpage.text([norm(header), newline()]);
-        }
+                 manpage.section("DESCRIPTION");
+                 if let Some(header) = self.info.header {
+                     manpage.text([norm(header), newline()]);
+                 }
 
-        if let Some(footer) = self.info.footer {
-            manpage.text([norm(footer), newline()]);
-        }
+                 if let Some(footer) = self.info.footer {
+                     manpage.text([norm(footer), newline()]);
+                 }
 
-        // --------------------------------------------------------------
-        if hi.psns().next().is_some() {
-            manpage.subsection("Positional items");
-            for item in hi.psns().cloned() {
-                help_item(&mut manpage, item, None);
-            }
-        }
+                 // --------------------------------------------------------------
+                 if hi.psns().next().is_some() {
+                     manpage.subsection("Positional items");
+                     for item in hi.psns().cloned() {
+                         help_item(&mut manpage, item, None);
+                     }
+                 }
 
-        if hi.flgs().next().is_some() {
-            manpage.subsection("Option arguments and flags");
-            for item in hi.flgs().cloned() {
-                help_item(&mut manpage, item, None);
-            }
-        }
+                 if hi.flgs().next().is_some() {
+                     manpage.subsection("Option arguments and flags");
+                     for item in hi.flgs().cloned() {
+                         help_item(&mut manpage, item, None);
+                     }
+                 }
 
-        if hi.cmds().next().is_some() {
-            manpage.subsection("List of all the subcommands");
-            let mut commands = Vec::new();
-            for item in hi.cmds().cloned() {
-                flatten_commands(item, app, &mut commands);
-            }
-            for (path, item) in &commands {
-                help_item(&mut manpage, item.clone(), Some(path));
-            }
-            manpage.section("SUBCOMMANDS WITH OPTIONS");
+                 if hi.cmds().next().is_some() {
+                     manpage.subsection("List of all the subcommands");
+                     let mut commands = Vec::new();
+                     for item in hi.cmds().cloned() {
+                         flatten_commands(item, app, &mut commands);
+                     }
+                     for (path, item) in &commands {
+                         help_item(&mut manpage, item.clone(), Some(path));
+                     }
+                     manpage.section("SUBCOMMANDS WITH OPTIONS");
 
-            for (path, item) in &commands {
-                command_help(&mut manpage, item, path);
-            }
-        }
+                     for (path, item) in &commands {
+                         command_help(&mut manpage, item, path);
+                     }
+                 }
 
-        // --------------------------------------------------------------
-        if !authors.is_empty() {
-            manpage.section("AUTHORS");
-            manpage.text([norm(authors)]);
-        }
+                 // --------------------------------------------------------------
+                 if !authors.is_empty() {
+                     manpage.section("AUTHORS");
+                     manpage.text([norm(authors)]);
+                 }
 
-        if !homepage.is_empty() {
-            manpage.section("See also");
-            manpage.text([norm(format!("Homepage: {}", homepage))]);
-        }
+                 if !homepage.is_empty() {
+                     manpage.section("See also");
+                     manpage.text([norm(format!("Homepage: {}", homepage))]);
+                 }
 
-        if !repo.is_empty() {
-            manpage.section("REPORTING BUGS");
-            manpage.text([norm(repo)]);
-        }
+                 if !repo.is_empty() {
+                     manpage.section("REPORTING BUGS");
+                     manpage.text([norm(repo)]);
+                 }
 
-        manpage.render()
+                 manpage.render()*/
     }
 }
