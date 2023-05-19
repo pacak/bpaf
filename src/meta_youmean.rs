@@ -152,7 +152,8 @@ fn collect_suggestions<'a>(
         | Meta::Required(meta)
         | Meta::Adjacent(meta)
         | Meta::Many(meta)
-        | Meta::Decorated(meta, _, _) => {
+        | Meta::Subsection(meta, _)
+        | Meta::Suffix(meta, _) => {
             collect_suggestions(arg, meta, variants, at_top_level);
         }
         Meta::Skip => {}

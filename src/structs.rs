@@ -1,7 +1,6 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
     error::{Message, MissingItem},
-    meta::DecorPlace,
     Args, Buffer, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
@@ -67,7 +66,7 @@ where
 
     fn meta(&self) -> Meta {
         let meta = Box::new(self.inner.meta());
-        Meta::Decorated(meta, self.message.clone(), DecorPlace::Header)
+        Meta::Subsection(meta, Box::new(self.message.clone()))
     }
 }
 
@@ -390,11 +389,8 @@ where
         if self.value_str.is_empty() {
             m
         } else {
-            Meta::Decorated(
-                Box::from(m),
-                self.value_str.clone(),
-                crate::meta::DecorPlace::Suffix,
-            )
+            let buf = Buffer::from(self.value_str.as_str());
+            Meta::Suffix(Box::new(m), Box::new(buf))
         }
     }
 }

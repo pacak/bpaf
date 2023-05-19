@@ -145,6 +145,14 @@ pub struct Buffer {
     tokens: Vec<Token>,
 }
 
+impl From<&str> for Buffer {
+    fn from(value: &str) -> Self {
+        let mut buf = Buffer::default();
+        buf.write_str(value, Style::Text);
+        buf
+    }
+}
+
 impl Buffer {
     pub(crate) fn clear(&mut self) {
         self.payload.clear();
@@ -188,6 +196,11 @@ impl Buffer {
             self.write_str(line, Style::Text);
             self.token(Token::LineBreak);
         }
+    }
+    /// Buffer is a monoid :)
+    pub(crate) fn write_buffer(&mut self, other: &Buffer) {
+        self.tokens.extend(&other.tokens);
+        self.payload.push_str(&other.payload);
     }
 }
 

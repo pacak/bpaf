@@ -5,14 +5,6 @@ use crate::{
 };
 
 #[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
-pub enum DecorPlace {
-    /// Text is placed 2 spaces after the start of the line
-    Header,
-    /// Text is placed after the tabstop
-    Suffix,
-}
-#[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
     /// All arguments listed in a vector must be present
@@ -29,8 +21,15 @@ pub enum Meta {
     Item(Box<Item>),
     /// Accepts multiple arguments
     Many(Box<Meta>),
-    Decorated(Box<Meta>, Buffer, DecorPlace),
+    /// Arguments form a subsection with buffer being it's header
+    ///
+    /// whole set of arguments go into the same section as the first one
+    Subsection(Box<Meta>, Box<Buffer>),
+    /// Buffer is rendered after
+    Suffix(Box<Meta>, Box<Buffer>),
+    /// This item is not rendered in the help message
     Skip,
+    /// TODO make it Option<Box<Buffer>>
     HideUsage(Box<Meta>),
 }
 
@@ -135,12 +134,12 @@ impl Buffer {
                     f.write_str("...", Style::Text)
                 }
 
-                // hmm... Do I want to use special syntax here?
-                Meta::Adjacent(m) => go(m, f),
-                Meta::Decorated(m, _, _) => go(m, f),
+                Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => go(m, f),
                 Meta::Skip => f.write_str("no parameters expected", Style::Text),
                 Meta::HideUsage(m) => {
-                    // hidden
+                    // if normalization strips this depending on for_usage flag
+                    // TODO use buffer
+                    //
                     go(m, f);
                 }
             }
@@ -152,16 +151,14 @@ impl Buffer {
 }
 
 impl Meta {
+    /// Used by normalization function to collapse duplicated commands.
+    /// It seems to be fine to strip section information but not anything else
     fn is_command(&self) -> bool {
-        if let Meta::Item(item) = self {
-            if let Item::Command { .. } = item.as_ref() {
-                return true;
-            }
-        } else if let Meta::Decorated(m, _, _) = self {
-            return m.is_command();
+        match self {
+            Meta::Item(i) => matches!(i.as_ref(), Item::Command { .. }),
+            Meta::Subsection(m, _) => m.is_command(),
+            _ => false,
         }
-
-        false
     }
 
     /// do a nested invariant check
@@ -216,7 +213,8 @@ impl Meta {
                 | Meta::Required(m)
                 | Meta::Many(m)
                 | Meta::HideUsage(m)
-                | Meta::Decorated(m, _, _) => go(m, is_pos, v),
+                | Meta::Subsection(m, _)
+                | Meta::Suffix(m, _) => go(m, is_pos, v),
                 Meta::Skip => {}
             }
         }
@@ -240,6 +238,7 @@ impl Meta {
         m
     }
 
+    /// Used by adjacent parsers since it inherits behavior of the front item
     pub(crate) fn first_item(meta: &Meta) -> Option<Item> {
         match meta {
             Meta::And(xs) => xs.first().and_then(Self::first_item),
@@ -249,7 +248,8 @@ impl Meta {
             | Meta::Required(x)
             | Meta::Adjacent(x)
             | Meta::Many(x)
-            | Meta::Decorated(x, _, _)
+            | Meta::Subsection(x, _)
+            | Meta::Suffix(x, _)
             | Meta::HideUsage(x) => Self::first_item(x),
         }
     }
@@ -320,11 +320,12 @@ impl Meta {
                     *self = Meta::Skip;
                 }
             }
-            Meta::Decorated(m, _, _) => {
+            Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
                 m.normalize(for_usage);
                 *self = std::mem::take(m);
             }
             Meta::Adjacent(m) => {
+                // TODO -
                 m.normalize(for_usage);
                 if matches!(**m, Meta::Skip) {
                     *self = Meta::Skip;
@@ -387,8 +388,9 @@ impl Meta {
             | Meta::Required(m)
             | Meta::Optional(m)
             | Meta::Adjacent(m)
-            | Meta::Many(m)
-            | Meta::Decorated(m, _, _) => {
+            | Meta::Subsection(m, _)
+            | Meta::Suffix(m, _)
+            | Meta::Many(m) => {
                 m.collect_shorts(flags, args);
             }
             Meta::Skip => {}

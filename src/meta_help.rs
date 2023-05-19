@@ -2,7 +2,6 @@ use crate::{
     buffer::{Buffer, Style, Token},
     info::Info,
     item::{Item, ShortLong},
-    meta::DecorPlace,
     Meta,
 };
 
@@ -38,11 +37,11 @@ impl std::fmt::Display for Metavar {
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
-        help: &'a str,
+        help: &'a Buffer,
         ty: HiTy,
     },
     DecorHeader {
-        help: &'a str,
+        help: &'a Buffer,
         ty: HiTy,
     },
     DecorBlank {
@@ -231,7 +230,8 @@ impl Meta {
             | Meta::Required(x)
             | Meta::Adjacent(x)
             | Meta::Many(x)
-            | Meta::Decorated(x, _, _)
+            | Meta::Subsection(x, _)
+            | Meta::Suffix(x, _)
             | Meta::HideUsage(x) => x.peek_front_ty(),
             Meta::Item(i) => Some(HiTy::from(i.as_ref())),
             Meta::Skip => None,
@@ -267,14 +267,14 @@ impl<'a> HelpItems<'a> {
                 }
                 self.items.push(HelpItem::from(item.as_ref()));
             }
-            Meta::Decorated(m, help, DecorPlace::Header) => {
+            Meta::Subsection(m, help) => {
                 if let Some(ty) = m.peek_front_ty() {
                     self.items.push(HelpItem::DecorHeader { help, ty });
                     self.append_meta(m);
                     self.items.push(HelpItem::DecorBlank { ty });
                 }
             }
-            Meta::Decorated(m, help, DecorPlace::Suffix) => {
+            Meta::Suffix(m, help) => {
                 if let Some(ty) = m.peek_front_ty() {
                     self.append_meta(m);
                     self.items.push(HelpItem::DecorSuffix { help, ty });
@@ -385,14 +385,14 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
             buf.token(Token::SubsectionStart);
-            buf.write_str(help, Style::Text);
+            buf.write_buffer(help);
             buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorSuffix { help, .. } => {
             buf.token(Token::TermStart);
             buf.token(Token::TermStop);
             buf.token(Token::SubsectionStart);
-            buf.write_str(help, Style::Text);
+            buf.write_buffer(help);
             buf.token(Token::SubsectionStop);
         }
         HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {}

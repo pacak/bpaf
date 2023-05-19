@@ -255,7 +255,10 @@ impl Line<'_> {
             Meta::Item(item) => {
                 self.usage_item(item);
             }
-            Meta::Decorated(m, _, _) => {
+            Meta::Subsection(m, _) => {
+                self.usage(m);
+            }
+            Meta::Suffix(m, _) => {
                 self.usage(m);
             }
             Meta::Skip => {}
@@ -332,7 +335,8 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
             }
         }
         HelpItem::DecorHeader { help, ty: _ } => {
-            manpage.subsection(*help);
+            todo!();
+            //            manpage.subsection(*help);
         }
         _ => {}
     }
@@ -341,7 +345,8 @@ fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
 fn help_item(manpage: &mut Manpage, item: HelpItem, command_path: Option<&str>) {
     match item {
         HelpItem::DecorHeader { help, ty: _ } => {
-            manpage.subsection(help);
+            todo!();
+            //            manpage.subsection(help);
         }
         HelpItem::DecorBlank { .. } => {
             manpage.text([]);
