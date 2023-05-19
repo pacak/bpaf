@@ -295,6 +295,7 @@ impl Meta {
             Meta::Optional(m) => {
                 m.normalize(for_usage);
                 if matches!(**m, Meta::Skip) {
+                    // Optional(Skip) => Skip
                     *self = Meta::Skip;
                 } else if let Meta::Required(mm) | Meta::Optional(mm) = m.as_mut() {
                     // Optional(Required(m)) => Optional(m)
@@ -305,12 +306,12 @@ impl Meta {
             Meta::Required(m) => {
                 m.normalize(for_usage);
                 if matches!(**m, Meta::Skip) {
+                    // Required(Skip) => Skip
                     *self = Meta::Skip;
                 } else if matches!(**m, Meta::And(_) | Meta::Or(_)) {
                     // keep () around composite parsers
                 } else {
-                    // Required(Required(m)) => Required(m)
-                    // Required(Optional(m)) => Optional(m)
+                    // and strip them elsewhere
                     *self = std::mem::take(m);
                 }
             }
@@ -320,16 +321,9 @@ impl Meta {
                     *self = Meta::Skip;
                 }
             }
-            Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
+            Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
                 m.normalize(for_usage);
                 *self = std::mem::take(m);
-            }
-            Meta::Adjacent(m) => {
-                // TODO -
-                m.normalize(for_usage);
-                if matches!(**m, Meta::Skip) {
-                    *self = Meta::Skip;
-                }
             }
             Meta::Item(i) => i.for_usage(for_usage),
             Meta::Skip => {
