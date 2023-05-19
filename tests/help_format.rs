@@ -441,3 +441,39 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn with_group_help() {
+    let a = short('a').help("option a").switch();
+    let b = short('b').help("option b").switch();
+    let c = short('c').help("option c").switch();
+
+    let ab = construct!(a, b).with_group_help(|meta| {
+        let mut b = Buffer::default();
+        b.title("Uses either of those ");
+        b.meta(meta, false);
+        b
+    });
+    let parser = construct!(ab, c).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "\
+Usage: [-a] [-b] [-c]
+
+Available options:
+  Uses either of those [-a] [-b]
+    -a          option a
+    -b          option b
+
+    -c          option c
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(Args::from(&["-a", "-c"])).unwrap();
+    assert_eq!(r, ((true, false), true));
+}

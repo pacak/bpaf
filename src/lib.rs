@@ -392,6 +392,7 @@ pub use crate::error::Error;
 #[doc(inline)]
 pub use crate::error::ParseFailure;
 use crate::item::Item;
+use buffer::MetaInfo;
 use std::marker::PhantomData;
 #[doc(hidden)]
 pub use structs::{ParseBox, ParseCon};
@@ -423,7 +424,7 @@ pub mod parsers {
 use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide,
     ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith,
-    ParseSome, ParseWith,
+    ParseSome, ParseWith, ParseWithGroupHelp,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1178,6 +1179,14 @@ pub trait Parser<T> {
         }
     }
     // }}}
+
+    fn with_group_help<F>(self, f: F) -> ParseWithGroupHelp<Self, F>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(MetaInfo) -> Buffer,
+    {
+        ParseWithGroupHelp { inner: self, f }
+    }
 
     // {{{ comp
     /// Dynamic shell completion

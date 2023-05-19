@@ -1,5 +1,6 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
+    buffer::MetaInfo,
     error::{Message, MissingItem},
     Args, Buffer, Error, Meta, Parser,
 };
@@ -67,6 +68,29 @@ where
     fn meta(&self) -> Meta {
         let meta = Box::new(self.inner.meta());
         Meta::Subsection(meta, Box::new(self.message.clone()))
+    }
+}
+
+/// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
+pub struct ParseWithGroupHelp<P, F> {
+    pub(crate) inner: P,
+    pub(crate) f: F,
+}
+
+impl<T, P, F> Parser<T> for ParseWithGroupHelp<P, F>
+where
+    P: Parser<T>,
+    F: Fn(MetaInfo) -> Buffer,
+{
+    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+        self.inner.eval(args)
+    }
+
+    fn meta(&self) -> Meta {
+        let meta = self.inner.meta();
+        let buf = (self.f)(MetaInfo(&meta));
+
+        Meta::Subsection(Box::new(meta), Box::new(buf))
     }
 }
 
