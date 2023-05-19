@@ -149,8 +149,14 @@ impl Meta {
                     }
                 }
                 Meta::Adjacent(m) => {
-                    let mut inner = false;
-                    go(m, &mut inner, v);
+                    if let Some(i) = Meta::first_item(m) {
+                        if i.is_pos() {
+                            go(m, is_pos, v);
+                        } else {
+                            let mut inner = false;
+                            go(m, &mut inner, v);
+                        }
+                    }
                 }
                 Meta::Optional(m)
                 | Meta::Required(m)
