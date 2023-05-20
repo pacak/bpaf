@@ -1,6 +1,8 @@
 //! Help message generation and rendering
 
-use crate::{args::Args, parsers::ParseCommand, Buffer, Error, ParseFailure, Parser};
+use crate::{
+    args::Args, error::Message, parsers::ParseCommand, Buffer, Error, ParseFailure, Parser,
+};
 
 /// Information about the parser
 ///
@@ -196,16 +198,21 @@ impl<T> OptionParser<T> {
             return Err(ParseFailure::Stdout(comp));
         }
 
-        if args.is_empty() {
-            if let Ok(ok) = res {
-                return Ok(ok);
+        let err = match res {
+            Ok(ok) => {
+                if let Some((ix, _)) = args.items_iter().next() {
+                    Error::Message(Message::Unconsumed(ix))
+                } else {
+                    return Ok(ok);
+                }
             }
-        }
+            Err(err) => err,
+        };
         Err((args.improve_error.0)(
             args,
             &self.info,
             &self.inner.meta(),
-            res.err(),
+            err,
         ))
     }
 

@@ -38,7 +38,7 @@ impl ItemState {
 
 #[derive(Clone)]
 pub struct Improve(
-    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Option<Error>) -> ParseFailure,
+    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
 );
 
 impl std::fmt::Debug for Improve {
@@ -74,22 +74,22 @@ mod inner {
     /// ```
     #[derive(Clone, Debug)]
     pub struct Args {
-        /// list of all available command line arguments, for cheap cloning
+        /// list of all available command line arguments, in `Rc` for cheap cloning
         pub(crate) items: Rc<[Arg]>,
 
         item_state: Vec<ItemState>,
 
-        /// performance optimization mostly - tracks removed item and gives cheap is_empty
+        /// performance optimization mostly - tracks removed item and gives cheap is_empty and len
         remaining: usize,
 
         #[doc(hidden)]
         /// Used to render an error message for [`parse`][crate::Parser::parse]
-        /// contains an index of a currently consumed item
+        /// contains an index of a currently consumed item if we are parsing a single
+        /// item
         pub current: Option<usize>,
 
-        #[doc(hidden)]
         /// path to current command, "deeper" parser should win in or_else branches
-        pub path: Vec<String>,
+        pub(crate) path: Vec<String>,
 
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress

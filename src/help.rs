@@ -28,14 +28,14 @@ impl Parser<ExtraParams> for ParseExtraParams {
         }
 
         match &self.version {
-            Some(ver) => Self::ver(&ver).eval(args),
+            Some(ver) => Self::ver(ver).eval(args),
             None => Err(Error::Missing(Vec::new())),
         }
     }
 
     fn meta(&self) -> Meta {
         match &self.version {
-            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(&ver).meta()]),
+            Some(ver) => Meta::And(vec![Self::help().meta(), Self::ver(ver).meta()]),
             None => Self::help().meta(),
         }
     }
@@ -84,7 +84,7 @@ pub(crate) fn improve_error(
     args: &mut Args,
     info: &Info,
     inner: &Meta,
-    err: Option<Error>,
+    err: Error,
 ) -> ParseFailure {
     // handle --help and --version messages
     match info.help_parser().eval(args) {
@@ -113,22 +113,22 @@ pub(crate) fn improve_error(
 
     ParseFailure::Stderr(match err {
         // parse succeeded, need to explain an unused argument
-        None => {
-            if let Some(msg) = check_conflicts(args) {
-                msg
-            } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
-                msg
-            } else if let Some((_ix, item)) = args.items_iter().next() {
-                format!("`{}` is not expected in this context", item)
+        Error::ParseFailure(f) => return f,
+        Error::Message(msg) => {
+            if let Message::Unconsumed(ix) = &msg {
+                if let Some(msg) = check_conflicts(args) {
+                    msg
+                } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
+                    msg
+                } else {
+                    let item = &args.items[*ix];
+                    format!("`{}` is not expected in this context", item)
+                }
             } else {
-                // if parse succeeds and there's no unused items on a command line
-                // run_subparser returns the result.
-                unreachable!("Please open a ticket with bpaf, should not be reachable")
+                msg.render(args)
             }
         }
-        Some(Error::ParseFailure(f)) => return f,
-        Some(Error::Message(msg)) => msg.render(args),
-        Some(Error::Missing(xs)) => summarize_missing(&xs, inner, args),
+        Error::Missing(xs) => summarize_missing(&xs, inner, args),
     })
 }
 
@@ -180,6 +180,10 @@ impl Message {
                 None => format!("{} requires an argument", args.items[x]),
             },
             Message::PureFailed(s) => s,
+            Message::Unconsumed(ix) => {
+                let item = &args.items[ix];
+                format!("`{}` is not expected in this context", item)
+            }
         }
     }
 }

@@ -49,6 +49,10 @@ pub enum Message {
     ///        --foo -- bar
     ///        --foo
     NoArgument(usize),
+
+    /// Parser is expected to consume all the things from the command line
+    /// this item will contain an index of the unconsumed value
+    Unconsumed(usize),
 }
 
 impl Message {
@@ -62,6 +66,7 @@ impl Message {
             | Message::Guard(_)
             | Message::ParseFailed(_, _)
             | Message::ValidateFailed(_, _)
+            | Message::Unconsumed(_)
             | Message::NoArgument(_) => false,
         }
     }
