@@ -1,8 +1,9 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
+    args::State,
     buffer::MetaInfo,
     error::{Message, MissingItem},
-    Args, Buffer, Error, Meta, Parser,
+    Buffer, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
 
@@ -24,7 +25,7 @@ where
     F: Fn() -> Result<T, E>,
     E: ToString,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut clone = args.clone();
         match self.inner.eval(&mut clone) {
             Ok(ok) => {
@@ -61,7 +62,7 @@ impl<T, P> Parser<T> for ParseGroupHelp<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
     }
 
@@ -82,7 +83,7 @@ where
     P: Parser<T>,
     F: Fn(MetaInfo) -> Buffer,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
     }
 
@@ -124,7 +125,7 @@ impl<T, P> Parser<Vec<T>> for ParseSome<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
 
@@ -161,7 +162,7 @@ impl<T, P> Parser<T> for ParseHide<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         #[cfg(feature = "autocomplete")]
         let mut comps = Vec::new();
 
@@ -195,7 +196,7 @@ impl<T, P> Parser<T> for ParseHideUsage<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
     }
 
@@ -212,7 +213,7 @@ pub struct ParseOrElse<T> {
 }
 
 impl<T> Parser<T> for ParseOrElse<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
         #[cfg(feature = "autocomplete")]
@@ -264,9 +265,9 @@ impl<T> Parser<T> for ParseOrElse<T> {
 fn this_or_that_picks_first(
     err_a: Option<Error>,
     err_b: Option<Error>,
-    args: &mut Args,
-    args_a: &mut Args,
-    args_b: &mut Args,
+    args: &mut State,
+    args_a: &mut State,
+    args_b: &mut State,
 
     #[cfg(feature = "autocomplete")] mut comp_stash: Vec<crate::complete_gen::Comp>,
 ) -> Result<bool, Error> {
@@ -360,7 +361,7 @@ where
     F: Fn(T) -> Result<R, E>,
     E: ToString,
 {
-    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+    fn eval(&self, args: &mut State) -> Result<R, Error> {
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
@@ -389,7 +390,7 @@ where
     P: Parser<T>,
     T: Clone,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut clone = args.clone();
         match self.inner.eval(&mut clone) {
             Ok(ok) => {
@@ -451,7 +452,7 @@ where
     P: Parser<T>,
     F: Fn(&T) -> bool,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let t = self.inner.eval(args)?;
         if (self.check)(&t) {
             Ok(t)
@@ -480,7 +481,7 @@ impl<T, P> Parser<Option<T>> for ParseOptional<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Option<T>, Error> {
         parse_option(&self.inner, args, self.catch)
     }
 
@@ -531,7 +532,7 @@ impl<P> ParseMany<P> {
 }
 
 /// try to parse
-fn parse_option<P, T>(parser: &P, args: &mut Args, catch: bool) -> Result<Option<T>, Error>
+fn parse_option<P, T>(parser: &P, args: &mut State, catch: bool) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
@@ -584,7 +585,7 @@ impl<T, P> Parser<Vec<T>> for ParseMany<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
         while let Some(val) = parse_option(&self.inner, args, self.catch)? {
@@ -609,7 +610,7 @@ where
 /// [`pure`](crate::pure).
 pub struct ParsePure<T>(pub(crate) T);
 impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
         Ok(self.0.clone())
     }
@@ -626,7 +627,7 @@ where
 impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     for ParsePureWith<T, F, E>
 {
-    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, _args: &mut State) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
             Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
@@ -644,7 +645,7 @@ pub struct ParseFail<T> {
     pub(crate) field2: PhantomData<T>,
 }
 impl<T> Parser<T> for ParseFail<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
         Err(Error::Message(Message::ParseFail(self.field1)))
     }
@@ -666,7 +667,7 @@ where
     F: Fn(T) -> R,
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+    fn eval(&self, args: &mut State) -> Result<R, Error> {
         let t = self.inner.eval(args)?;
         Ok((self.map_fn)(t))
     }
@@ -686,9 +687,9 @@ pub struct ParseCon<P> {
 
 impl<T, P> Parser<T> for ParseCon<P>
 where
-    P: Fn(&mut Args) -> Result<T, Error>,
+    P: Fn(&mut State) -> Result<T, Error>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let res = (self.inner)(args);
         args.current = None;
         res
@@ -773,7 +774,7 @@ where
     M: Into<String>,
     F: Fn(&T) -> Vec<(M, Option<M>)>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         // stash old
         let mut comp_items = Vec::new();
         args.swap_comps_with(&mut comp_items);
@@ -830,7 +831,7 @@ impl<P, T> Parser<T> for ParseCompStyle<P>
 where
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut comp_items = Vec::new();
         args.swap_comps_with(&mut comp_items);
         let res = self.inner.eval(args);
@@ -851,7 +852,7 @@ impl<P, T> Parser<T> for ParseAdjacent<P>
 where
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let original_scope = args.scope();
 
         let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
@@ -956,7 +957,7 @@ pub struct ParseBox<T> {
 }
 
 impl<T> Parser<T> for ParseBox<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
     }
     fn meta(&self) -> Meta {

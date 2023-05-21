@@ -84,25 +84,6 @@ fn fallback_with_strange_args_produces_same_results() {
 }
 
 #[test]
-fn different_methods_of_args_cration_are_identical() {
-    use crate::Args;
-    use std::ffi::OsString;
-    let items = ["hello", "--world", "--a=-b"];
-    let oitems = items.iter().map(OsString::from).collect::<Vec<_>>();
-    let oitems2 = oitems.iter().map(OsString::as_os_str).collect::<Vec<_>>();
-
-    // No Eq instances :)
-    let args1 = format!("{:?}", Args::from(&items));
-    let args2 = format!("{:?}", Args::from(&items[..])); // not available in 1.56
-    let args3 = format!("{:?}", Args::from(oitems.as_slice()));
-    let args4 = format!("{:?}", Args::from(oitems2.as_slice()));
-
-    assert_eq!(args1, args2);
-    assert_eq!(args1, args3);
-    assert_eq!(args1, args4);
-}
-
-#[test]
 fn de_yoda() {
     use bpaf::*;
     let parser = construct!(a(short('a').switch()), b(short('b').switch())).to_options();

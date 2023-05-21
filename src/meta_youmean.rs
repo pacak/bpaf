@@ -2,12 +2,12 @@ use crate::{
     args::Arg,
     item::{Item, ShortLong},
     meta_help::{Long, Short},
-    Args, Meta,
+    Meta, State,
 };
 
 /// Looks for potential typos
 #[inline(never)]
-pub(crate) fn suggest(args: &Args, meta: &Meta) -> Option<String> {
+pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<String> {
     let arg = args.peek()?;
 
     let mut variants = Vec::new();
@@ -93,13 +93,6 @@ fn inner_item<'a>(
             Some(s) => I::LongCmd(s),
             None => return,
         },
-        Arg::Ambiguity(_, os) => {
-            if let Some(s) = os.to_str() {
-                I::LongCmd(s)
-            } else {
-                return;
-            }
-        }
     };
     match item {
         Item::Positional { .. } => {}

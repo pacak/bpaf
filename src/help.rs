@@ -9,12 +9,12 @@
 //!       "--foo" cannot be used at the same time as "--bar"
 
 use crate::{
-    args::Arg,
+    args::{Arg, State},
     error::{Message, MissingItem},
     info::Info,
     inner_buffer::{Buffer, Color, Style},
     meta_help::render_help,
-    short, Args, Error, Meta, ParseFailure, Parser,
+    short, Error, Meta, ParseFailure, Parser,
 };
 
 struct ParseExtraParams {
@@ -22,7 +22,7 @@ struct ParseExtraParams {
 }
 
 impl Parser<ExtraParams> for ParseExtraParams {
-    fn eval(&self, args: &mut Args) -> Result<ExtraParams, Error> {
+    fn eval(&self, args: &mut State) -> Result<ExtraParams, Error> {
         if let Ok(ok) = ParseExtraParams::help().eval(args) {
             return Ok(ok);
         }
@@ -72,7 +72,7 @@ impl Info {
     }
 }
 
-fn check_conflicts(args: &Args) -> Option<String> {
+fn check_conflicts(args: &State) -> Option<String> {
     let (loser, winner) = args.conflict()?;
     Some(format!(
         "\"{}\" cannot be used at the same time as \"{}\"",
@@ -81,7 +81,7 @@ fn check_conflicts(args: &Args) -> Option<String> {
 }
 
 pub(crate) fn improve_error(
-    args: &mut Args,
+    args: &mut State,
     info: &Info,
     inner: &Meta,
     err: Error,
@@ -132,15 +132,15 @@ pub(crate) fn improve_error(
     })
 }
 
-fn textual_part(args: &Args, ix: Option<usize>) -> Option<String> {
+fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
     match args.items.get(ix?)? {
-        Arg::Ambiguity(_, _) | Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
-        Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy().to_string()),
+        Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
+        Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy()),
     }
 }
 
 impl Message {
-    fn render(self, args: &Args) -> String {
+    fn render(self, args: &State) -> String {
         match self {
             Message::NoEnv(name) => {
                 format!("env variable {} is not set", name)
@@ -160,7 +160,6 @@ impl Message {
                 None => format!("Couldn't parse: {}", s),
             },
             Message::NoArgument(x) => match args.items.get(x + 1) {
-                Some(Arg::Ambiguity(_, _)) => unreachable!("unresolevd ambiguity?"),
                 Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
                     let arg = &args.items[x];
                     if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
@@ -184,12 +183,30 @@ impl Message {
                 let item = &args.items[ix];
                 format!("`{}` is not expected in this context", item)
             }
+            Message::Ambiguity(ix, name) => {
+                let items = name.chars().collect::<Vec<_>>();
+
+                let s = args.items[ix].os_str().to_str().unwrap();
+
+                format!(
+                    "Parser supports -{} as both option and option-argument, \
+                                          try to split {} into individual options (-{} -{} ..) \
+                                          or use -{}={} syntax to disambiguate",
+                    items[0],
+                    s,
+                    items[0],
+                    items[1],
+                    items[0],
+                    &s[1 + items[0].len_utf8()..]
+                )
+                //assert_eq!(r, "Parser supports -a as both option and option-argument, try to split -aaaaaa into individual options (-a -a ..) or use -a=aaaaa syntax to disambiguate");
+            }
         }
     }
 }
 
 #[inline(never)]
-pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Args) -> String {
+pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &State) -> String {
     // missing items can belong to different scopes, pick the best scope to work with
     let (best_pos, mut best_scope) = match items
         .iter()

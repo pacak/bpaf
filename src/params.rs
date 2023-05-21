@@ -60,14 +60,13 @@
 //!
 use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
-use super::{Args, Error, OptionParser, Parser};
 use crate::{
-    args::Arg,
+    args::{Arg, State},
     error::{Message, MissingItem},
     from_os_str::parse_os_str,
     item::ShortLong,
     meta_help::Metavar,
-    Buffer, Item, Meta,
+    Buffer, Error, Item, Meta, OptionParser, Parser,
 };
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
@@ -388,7 +387,7 @@ impl NamedArg {
         match arg {
             Arg::Short(s, is_adj, _) => self.short.contains(s) && (!adjacent || *is_adj),
             Arg::Long(l, is_adj, _) => self.long.contains(&l.as_str()) && (!adjacent || *is_adj),
-            Arg::Word(_) | Arg::PosWord(_) | Arg::Ambiguity(..) => false,
+            Arg::Word(_) | Arg::PosWord(_) => false,
         }
     }
 }
@@ -573,7 +572,7 @@ impl<P> ParseCommand<P> {
 }
 
 impl<T> Parser<T> for ParseCommand<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         // used to avoid allocations for short names
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
@@ -672,7 +671,7 @@ struct ParseFlag<T> {
 }
 
 impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             #[cfg(feature = "autocomplete")]
@@ -746,7 +745,7 @@ impl<T> ParseArgument<T> {
         }
     }
 
-    fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
+    fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
         if self.named.short.is_empty() && self.named.long.is_empty() {
             if let Some(name) = self.named.env.first() {
                 return Err(Error::Message(Message::NoEnv(name)));
@@ -789,7 +788,7 @@ where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let os = self.take_argument(args)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
@@ -927,7 +926,7 @@ impl<T> ParsePositional<T> {
 }
 
 fn parse_word(
-    args: &mut Args,
+    args: &mut State,
     strict: bool,
     metavar: &'static str,
     help: &Option<Buffer>,
@@ -941,16 +940,16 @@ fn parse_word(
             return Err(Error::Message(Message::StrictPos(metavar)));
         }
         #[cfg(feature = "autocomplete")]
-        if args.touching_last_remove() && !args.no_pos_ahead {
+        if args.touching_last_remove() && !args.check_no_pos_ahead() {
             args.push_metadata(metavar.0, help, false);
-            args.no_pos_ahead = true;
+            args.set_no_pos_ahead();
         }
         Ok(word)
     } else {
         #[cfg(feature = "autocomplete")]
-        if !args.no_pos_ahead {
+        if !args.check_no_pos_ahead() {
             args.push_metadata(metavar.0, help, false);
-            args.no_pos_ahead = true;
+            args.set_no_pos_ahead();
         }
 
         let position = args.items_iter().next().map_or(args.scope().end, |x| x.0);
@@ -973,7 +972,7 @@ where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let os = parse_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
@@ -1085,10 +1084,9 @@ where
     F: Fn(I) -> Option<T>,
     <I as std::str::FromStr>::Err: std::fmt::Display,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         for (ix, x) in args.items_iter() {
             let (os, next) = match x {
-                Arg::Ambiguity(_, _) => unreachable!("ambiguity was not resolved?"),
                 Arg::Short(_, next, os) | Arg::Long(_, next, os) => (os, *next),
                 Arg::Word(os) | Arg::PosWord(os) => (os, false),
             };

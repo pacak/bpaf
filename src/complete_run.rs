@@ -38,9 +38,13 @@
 //! - `"elvish"` - version 6
 //! and should be followed by a single value - code for shell to evaluate
 
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
-use crate::{construct, Args};
+use crate::{
+    args::State,
+    complete_gen::{Comp, Complete},
+    construct,
+};
 
 #[derive(Clone, Debug, Copy)]
 pub enum Style {
@@ -193,39 +197,80 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
     construct!([complete, dump]).to_options()
 }
 
+#[derive(Debug)]
+pub(crate) struct ArgScanner {
+    pub(crate) revision: Option<usize>,
+    pub(crate) name: Option<String>,
+}
+
+impl ArgScanner {
+    pub(crate) fn check_next(&mut self, arg: &OsStr) -> bool {
+        let arg = match arg.to_str() {
+            Some(arg) => arg,
+            None => return false,
+        };
+        // this only works when there's a name
+        if let Some(name) = &self.name {
+            let mut matched = true;
+            match arg {
+                "--bpaf-complete-style-zsh" => dump_zsh_completer(name),
+                "--bpaf-complete-style-bash" => dump_bash_completer(name),
+                "--bpaf-complete-style-fish" => dump_fish_completer(name),
+                "--bpaf-complete-style-elvish" => dump_elvish_completer(name),
+                _ => {
+                    matched = false;
+                }
+            }
+            if matched {
+                std::process::exit(0)
+            }
+        }
+        if let Some(ver) = arg.strip_prefix("--bpaf-complete-rev=") {
+            if let Ok(ver) = ver.parse::<usize>() {
+                self.revision = Some(ver);
+            }
+        }
+        false
+    }
+    pub(crate) fn done(&self) -> Option<Complete> {
+        Some(Complete::new(self.revision?))
+    }
+}
+
 pub(crate) fn args_with_complete(
     name: Option<&str>,
     arguments: &[OsString],
     complete_arguments: &[OsString],
-) -> Args {
-    // not trying to run a completer - just make the arguments
-    if complete_arguments.is_empty() {
-        return Args::from(arguments);
-    }
+) -> State {
+    todo!(); /*
+             // not trying to run a completer - just make the arguments
+             if complete_arguments.is_empty() {
+                 return Args::from(arguments);
+             }
 
-    let cargs = Args::from(complete_arguments);
+             let cargs = Args::from(complete_arguments);
 
-    match parse_comp_options().run_inner(cargs) {
-        Ok(comp) => {
-            let name = name.expect("app name is not utf8, giving up rendering the completer");
-            let rev = match comp {
-                CompOptions::Dump { style } => {
-                    match style {
-                        Style::Bash => dump_bash_completer(name),
-                        Style::Zsh => dump_zsh_completer(name),
-                        Style::Fish => dump_fish_completer(name),
-                        Style::Elvish => dump_elvish_completer(name),
-                    }
-                    std::process::exit(0)
-                }
-                CompOptions::Complete { revision } => revision,
-            };
-            Args::from(arguments).set_comp(rev)
-        }
+             match parse_comp_options().run_inner(cargs) {
+                 Ok(comp) => {
+                     let name = name.expect("app name is not utf8, giving up rendering the completer");
+                     let rev = match comp {
+                         CompOptions::Dump { style } => {
+                             match style {
+                                 Style::Bash => dump_bash_completer(name),
+                                 Style::Zsh => dump_zsh_completer(name),
+                                 Style::Fish => dump_fish_completer(name),
+                                 Style::Elvish => dump_elvish_completer(name),
+                             }
+                             std::process::exit(0)
+                         }
+                         CompOptions::Complete { revision } => revision,
+                     };
+                     Args::from(arguments).set_comp(rev)
+                 }
 
-        Err(err) => {
-            eprintln!("Can't parse bpaf complete options: {:?}", err);
-            std::process::exit(1);
-        }
-    }
+                 Err(err) => {
+                     eprintln!("Can't parse bpaf complete options: {:?}", err);
+                     std::process::exit(1);
+                 }
+             }*/
 }

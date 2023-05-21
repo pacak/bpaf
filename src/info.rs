@@ -1,7 +1,10 @@
 //! Help message generation and rendering
 
 use crate::{
-    args::Args, error::Message, parsers::ParseCommand, Buffer, Error, ParseFailure, Parser,
+    args::{Args, State},
+    error::Message,
+    parsers::ParseCommand,
+    Buffer, Error, ParseFailure, Parser,
 };
 
 /// Information about the parser
@@ -157,26 +160,32 @@ impl<T> OptionParser<T> {
     /// [`parse`](Parser::parse), stdout/stderr isn't actually captured.
     ///
     /// Exact string reperentations may change between versions including minor releases.
-    pub fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
+    pub fn run_inner(&self, args: Args) -> Result<T, ParseFailure>
     where
         Self: Sized,
     {
-        let mut avail_flags = Vec::new();
-        let mut avail_args = Vec::new();
+        // prepare available short flags and arguments for disambiguation
+        let mut short_flags = Vec::new();
+        let mut short_args = Vec::new();
         self.inner
             .meta()
-            .collect_shorts(&mut avail_flags, &mut avail_args);
-
-        args.disambiguate(&avail_flags, &avail_args)?;
-        match self.run_subparser(&mut args) {
-            Ok(t) if args.is_empty() => Ok(t),
-            Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(err) => Err(err),
+            .collect_shorts(&mut short_flags, &mut short_args);
+        let mut err = None;
+        let mut state = State::construct(args, &short_flags, &short_args, &mut err);
+        if let Some(msg) = err {
+            return Err(crate::help::improve_error(
+                &mut state,
+                &self.info,
+                &self.inner.meta(),
+                Error::Message(msg),
+            ));
         }
+
+        self.run_subparser(&mut state)
     }
 
     /// Run subparser, implementation detail
-    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, ParseFailure> {
+    pub(crate) fn run_subparser(&self, args: &mut State) -> Result<T, ParseFailure> {
         // process should work like this:
         // - inner parser is evaluated, it returns Error
         // - if error is finalized (ParseFailure) - it is simply propagated outwards,
@@ -208,7 +217,7 @@ impl<T> OptionParser<T> {
             }
             Err(err) => err,
         };
-        Err((args.improve_error.0)(
+        Err(crate::help::improve_error(
             args,
             &self.info,
             &self.inner.meta(),

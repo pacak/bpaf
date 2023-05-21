@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{env::ArgsOs, ffi::OsString};
 
 pub(crate) use crate::arg::*;
 use crate::{
@@ -9,6 +9,115 @@ use crate::{
     parsers::NamedArg,
     Error, Meta, ParseFailure,
 };
+
+/// All currently present command line parameters, use it for unit tests and manual parsing
+///
+/// The easiest way to create `Args` is by using its `From` instance.
+/// ```rust
+/// # use bpaf::*;
+/// let parser = short('f')
+///     .switch()
+///     .to_options();
+/// let value = parser
+///     .run_inner(Args::from(&["-f"]))
+///     .unwrap();
+/// assert!(value);
+/// ```
+pub struct Args<'a> {
+    items: Box<dyn Iterator<Item = OsString> + 'a>,
+    name: Option<String>,
+    #[cfg(feature = "autocomplete")]
+    c_rev: Option<usize>,
+}
+
+impl Args<'_> {
+    /// enable completions with custom output revision style
+    #[cfg(feature = "autocomplete")]
+    pub fn set_comp(mut self, rev: usize) -> Self {
+        self.c_rev = Some(rev);
+        self
+    }
+    /// Add an application name for args created from custom input
+    /// TODO - document
+    pub fn set_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+}
+
+impl<const N: usize> From<&'static [&'static str; N]> for Args<'_> {
+    fn from(value: &'static [&'static str; N]) -> Self {
+        Self {
+            items: Box::new(value.iter().map(OsString::from)),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name: None,
+        }
+    }
+}
+
+impl<'a> From<&'a [&'a std::ffi::OsStr]> for Args<'a> {
+    fn from(value: &'a [&'a std::ffi::OsStr]) -> Self {
+        Self {
+            items: Box::new(value.iter().map(OsString::from)),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name: None,
+        }
+    }
+}
+
+impl<'a> From<&'a [&'a str]> for Args<'a> {
+    fn from(value: &'a [&'a str]) -> Self {
+        Self {
+            items: Box::new(value.iter().map(OsString::from)),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name: None,
+        }
+    }
+}
+
+impl<'a> From<&'a [String]> for Args<'a> {
+    fn from(value: &'a [String]) -> Self {
+        Self {
+            items: Box::new(value.iter().map(OsString::from)),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name: None,
+        }
+    }
+}
+
+impl<'a> From<&'a [OsString]> for Args<'a> {
+    fn from(value: &'a [OsString]) -> Self {
+        Self {
+            items: Box::new(value.iter().map(OsString::from)),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name: None,
+        }
+    }
+}
+
+impl From<ArgsOs> for Args<'_> {
+    fn from(mut value: ArgsOs) -> Self {
+        let name = value.next().and_then(|n| n.to_str().map(|s| s.to_owned()));
+        Self {
+            items: Box::new(value),
+            #[cfg(feature = "autocomplete")]
+            c_rev: None,
+            name,
+        }
+    }
+}
+
+impl Args<'_> {
+    /// Get a list of command line arguments from OS
+    pub fn current_args() -> Self {
+        Self::from(std::env::args_os())
+    }
+}
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -38,7 +147,7 @@ impl ItemState {
 
 #[derive(Clone)]
 pub struct Improve(
-    pub(crate) fn(args: &mut Args, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
+    pub(crate) fn(args: &mut State, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
 );
 
 impl std::fmt::Debug for Improve {
@@ -47,33 +156,17 @@ impl std::fmt::Debug for Improve {
     }
 }
 
-/// Hides [`Args`] internal implementation
+pub use inner::State;
+/// Hides [`State`] internal implementation
 mod inner {
-    use std::{
-        ffi::{OsStr, OsString},
-        ops::Range,
-        path::PathBuf,
-        rc::Rc,
-    };
+    use std::{ops::Range, rc::Rc};
 
-    use crate::ParseFailure;
+    use crate::{error::Message, Args};
 
-    use super::{push_vec, Arg, ItemState};
-    /// All currently present command line parameters, use it for unit tests and manual parsing
-    ///
-    /// The easiest way to create `Args` is by using it's `From` instance.
-    /// ```rust
-    /// # use bpaf::*;
-    /// let parser = short('f')
-    ///     .switch()
-    ///     .to_options();
-    /// let value = parser
-    ///     .run_inner(Args::from(&["-f"]))
-    ///     .unwrap();
-    /// assert!(value);
-    /// ```
+    use super::{split_os_argument, Arg, ArgType, ItemState};
     #[derive(Clone, Debug)]
-    pub struct Args {
+    #[doc(hidden)]
+    pub struct State {
         /// list of all available command line arguments, in `Rc` for cheap cloning
         pub(crate) items: Rc<[Arg]>,
 
@@ -91,20 +184,11 @@ mod inner {
         /// path to current command, "deeper" parser should win in or_else branches
         pub(crate) path: Vec<String>,
 
-        /// don't try to suggest any more positional items after there's a positional item failure
-        /// or parsing in progress
-        #[cfg(feature = "autocomplete")]
-        pub(crate) no_pos_ahead: bool,
-
         #[cfg(feature = "autocomplete")]
         comp: Option<crate::complete_gen::Complete>,
 
-        /// how many Ambiguities are there
-        pub(crate) ambig: usize,
-
-        /// A way to customize behavior for --help and error handling
-        pub(crate) improve_error: super::Improve,
-
+        //        /// A way to customize behavior for --help and error handling
+        //        pub(crate) improve_error: super::Improve,
         /// Describes scope current parser will be consuming elements from. Usually it will be
         /// considering the whole sequence of (unconsumed) arguments, but for "adjacent"
         /// scope starts on the right of the first consumed item and might end before the end
@@ -112,89 +196,210 @@ mod inner {
         scope: Range<usize>,
     }
 
-    impl<const N: usize> From<&[&str; N]> for Args {
-        fn from(xs: &[&str; N]) -> Self {
-            Args::from(&xs[..])
-        }
-    }
-
-    impl From<&[&str]> for Args {
-        fn from(xs: &[&str]) -> Self {
-            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
-            Args::from(vec.as_slice())
-        }
-    }
-
-    impl From<&[&OsStr]> for Args {
-        fn from(xs: &[&OsStr]) -> Self {
-            let vec = xs.iter().map(OsString::from).collect::<Vec<_>>();
-            Args::from(vec.as_slice())
-        }
-    }
-
-    impl From<&[OsString]> for Args {
-        fn from(xs: &[OsString]) -> Self {
-            let mut pos_only = false;
-            let mut vec = Vec::with_capacity(xs.len());
-            let mut ambig = 0;
-
-            let mut del = Vec::new();
-            for x in xs {
-                let prev_pos_only = pos_only;
-                push_vec(&mut vec, x.clone(), &mut pos_only);
-                if matches!(vec.last(), Some(Arg::Ambiguity(..))) {
-                    ambig += 1;
-                }
-                if !prev_pos_only && pos_only {
-                    // keep "--" in the argument list but mark it as removed
-                    // completer uses it to deal with "--" inputs
-                    del.push(vec.len() - 1);
-                }
-            }
-            let mut args = Args::args_from(vec, ambig);
-            for ix in del {
-                args.remove(ix);
-            }
-            args
-        }
-    }
-
-    impl Args {
+    impl State {
+        /// Check if item at ixth position is still present (was not parsed)
         pub(crate) fn present(&self, ix: usize) -> Option<bool> {
             Some(self.item_state.get(ix)?.present())
         }
 
-        pub(crate) fn args_from(vec: Vec<Arg>, ambig: usize) -> Self {
-            Args {
-                item_state: vec![ItemState::Unparsed; vec.len()],
-                remaining: vec.len(),
-                scope: 0..vec.len(),
-                items: Rc::from(vec),
-                current: None,
-                path: Vec::new(),
-                #[cfg(feature = "autocomplete")]
-                comp: None,
-                #[cfg(feature = "autocomplete")]
-                no_pos_ahead: false,
-                ambig,
-                improve_error: super::Improve(crate::help::improve_error),
-            }
-        }
         pub(crate) fn depth(&self) -> usize {
             self.path.len()
         }
     }
 
     pub(crate) struct ArgsIter<'a> {
-        args: &'a Args,
+        args: &'a State,
         cur: usize,
     }
 
-    impl Args {
+    /// Create [`State`] out of static values - for tests only
+    ///
+    /// # Panics
+    /// This will panic on invalid input (-foo=bar), use for tests only
+    impl<const N: usize> From<&'static [&'static str; N]> for State {
+        fn from(value: &'static [&'static str; N]) -> Self {
+            let args = Args::from(value);
+            let mut msg = None;
+            let res = State::construct(args, &[], &[], &mut msg);
+            if let Some(err) = &msg {
+                panic!("Couldn't construct state: {:?}/{:?}", err, res);
+            }
+            res
+        }
+    }
+
+    impl State {
+        #[cfg(feature = "autocomplete")]
+        pub(crate) fn check_no_pos_ahead(&self) -> bool {
+            self.comp.as_ref().map_or(false, |c| c.no_pos_ahead)
+        }
+
+        #[cfg(feature = "autocomplete")]
+        pub(crate) fn set_no_pos_ahead(&mut self) {
+            if let Some(comp) = &mut self.comp {
+                comp.no_pos_ahead = true;
+            }
+        }
+
+        pub(crate) fn construct(
+            args: Args,
+            short_flags: &[char],
+            short_args: &[char],
+            err: &mut Option<Message>,
+        ) -> State {
+            let mut items = Vec::new();
+            let mut pos_only = false;
+            let mut double_dash_marker = None;
+
+            #[cfg(feature = "autocomplete")]
+            let mut comp_scanner = crate::complete_run::ArgScanner {
+                revision: args.c_rev,
+                name: args.name,
+            };
+
+            for mut os in args.items {
+                if pos_only {
+                    items.push(Arg::PosWord(os));
+                    continue;
+                }
+
+                #[cfg(feature = "autocomplete")]
+                if comp_scanner.check_next(&os) {
+                    continue;
+                }
+
+                match split_os_argument(&os) {
+                    // -f and -fbar, but also -vvvvv
+                    Some((ArgType::Short, short, None)) => {
+                        // this scenario can be ambiguous: -fbar can mean one of
+                        // several one char: -f -b -a -r
+                        // a single short flag -f with attached value "bar"
+                        // bpaf applies following logic:
+                        // - it can be a collection of separate flags if all the names
+                        //   are valid flag name
+                        // - it can be a short flag with a value if first character is
+                        //   a valid argument name
+                        //
+                        // if both variants are correct - we complain, if just one is correct we go
+                        // with that option, otherwise this is a strange positional.
+
+                        let mut can_be_arg = true;
+                        let mut can_be_flags = true;
+                        let mut total = 0;
+                        for (ix, c) in short.chars().enumerate() {
+                            can_be_flags &= short_flags.contains(&c);
+                            if ix == 0 {
+                                can_be_arg = short_args.contains(&c);
+                            }
+                            total = ix;
+                        }
+                        // there's no body so
+                        if total == 0 {
+                            items.push(Arg::Short(short.chars().next().unwrap(), false, os));
+                            continue;
+                        }
+
+                        match (can_be_flags, can_be_arg) {
+                            (true, true) => {
+                                *err = Some(Message::Ambiguity(items.len(), short));
+                                items.push(Arg::Word(os));
+
+                                break;
+                            }
+                            (true, false) => {
+                                for c in short.chars() {
+                                    // first gets the os, rest gets the empty
+                                    items.push(Arg::Short(c, false, std::mem::take(&mut os)));
+                                }
+                            }
+                            (false, true) => {
+                                let mut chars = short.chars();
+                                let first = chars.next().unwrap();
+                                let rest = chars.as_str();
+                                items.push(Arg::Short(first, true, os));
+                                items.push(Arg::Word(rest.into()));
+                            }
+                            (false, false) => items.push(Arg::Word(os)),
+                        }
+                    }
+                    Some((ArgType::Short, short, Some(arg))) => {
+                        let mut chars = short.chars();
+                        items.push(Arg::Short(chars.next().unwrap(), true, os));
+                        items.push(arg);
+                    }
+                    // --key and --key=val
+                    Some((ArgType::Long, long, arg)) => {
+                        items.push(Arg::Long(long, arg.is_some(), os));
+                        if let Some(arg) = arg {
+                            items.push(arg);
+                        }
+                    }
+                    // something that is not a short or long flag, keep them as positionals
+                    // handle "--" specifically as "end of flags" marker
+                    None => {
+                        if os == "--" {
+                            double_dash_marker = Some(items.len());
+                            pos_only = true;
+                        }
+                        items.push(if pos_only {
+                            Arg::PosWord(os)
+                        } else {
+                            Arg::Word(os)
+                        })
+                    }
+                }
+            }
+
+            let mut item_state = vec![ItemState::Unparsed; items.len()];
+            let mut remaining = items.len();
+            if let Some(ix) = double_dash_marker {
+                item_state[ix] = ItemState::Parsed;
+                remaining -= 1;
+
+                #[cfg(feature = "autocomplete")]
+                if comp_scanner.revision.is_some() && ix == items.len() - 1 {
+                    remaining += 1;
+                    item_state[ix] = ItemState::Unparsed;
+                }
+            }
+
+            State {
+                item_state,
+                remaining,
+                scope: 0..items.len(),
+                items: items.into(),
+                current: None,
+                path: Vec::new(),
+                #[cfg(feature = "autocomplete")]
+                comp: comp_scanner.done(),
+            }
+        }
+
+        /*
         #[inline(never)]
-        /// Get a list of command line arguments from OS
+        pub(crate) fn construct_from(meta: Meta, args: Args) -> State {
+
+            let items = args.disambiguate(&avail_flags, &avail_args);
+            State {
+                item_state: vec![ItemState::Unparsed; items.len()],
+                remaining: items.len(),
+                scope: 0..items.len(),
+                items,
+                current: None,
+                path: Vec::new(),
+                #[cfg(feature = "autocomplete")]
+                comp: None,
+            }
+        }*/
+    }
+
+    impl State {
+        #[inline(never)]
         #[must_use]
         pub fn current_args() -> Self {
+            todo!();
+
+            /*
             let mut arg_vec = Vec::new();
             #[cfg(feature = "autocomplete")]
             let mut complete_vec = Vec::new();
@@ -229,11 +434,11 @@ mod inner {
                 args.path.push(name.to_string());
             }
 
-            args
+            args*/
         }
     }
 
-    impl<'a> Args {
+    impl<'a> State {
         /// creates iterator over remaining elements
         pub(crate) fn items_iter(&'a self) -> ArgsIter<'a> {
             ArgsIter {
@@ -274,7 +479,7 @@ mod inner {
             }
         }
 
-        pub(crate) fn save_conflicts(&mut self, loser: &Args, win: usize) {
+        pub(crate) fn save_conflicts(&mut self, loser: &State, win: usize) {
             for (winner, loser) in self.item_state.iter_mut().zip(loser.item_state.iter()) {
                 if winner.present() && loser.parsed() {
                     *winner = ItemState::Conflict(win);
@@ -340,7 +545,7 @@ mod inner {
         }
 
         /// Narrow down scope of &self to adjacently consumed values compared to original.
-        pub(crate) fn adjacent_scope(&self, original: &Args) -> Option<Range<usize>> {
+        pub(crate) fn adjacent_scope(&self, original: &State) -> Option<Range<usize>> {
             if self.items.is_empty() {
                 return None;
             }
@@ -399,6 +604,7 @@ mod inner {
                 .count();
         }
 
+        /*
         #[inline(never)]
         pub(crate) fn disambiguate(
             &mut self,
@@ -485,7 +691,7 @@ mod inner {
             self.items = Rc::from(new_items);
             self.scope = 0..self.items.len();
             Ok(())
-        }
+        }*/
 
         #[cfg(feature = "autocomplete")]
         /// check if bpaf tries to complete last consumed element
@@ -522,11 +728,11 @@ mod inner {
     }
 
     pub(crate) struct ArgRangesIter<'a> {
-        args: &'a Args,
+        args: &'a State,
         cur: usize,
     }
     impl<'a> Iterator for ArgRangesIter<'a> {
-        type Item = (usize, Args);
+        type Item = (usize, State);
 
         fn next(&mut self) -> Option<Self::Item> {
             loop {
@@ -564,9 +770,8 @@ mod inner {
         }
     }
 }
-pub use inner::*;
 
-impl Args {
+impl State {
     #[inline(never)]
     #[cfg(feature = "autocomplete")]
     pub(crate) fn swap_comps_with(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
@@ -683,14 +888,14 @@ mod tests {
     use crate::{long, short};
     #[test]
     fn long_arg() {
-        let mut a = Args::from(&["--speed", "12"]);
+        let mut a = State::from(&["--speed", "12"]);
         let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
     #[test]
     fn long_flag_and_positional() {
-        let mut a = Args::from(&["--speed", "12"]);
+        let mut a = State::from(&["--speed", "12"]);
         let flag = a.take_flag(&long("speed"));
         assert!(flag);
         assert!(!a.is_empty());
@@ -701,8 +906,9 @@ mod tests {
 
     #[test]
     fn multiple_short_flags() {
-        let mut a = Args::from(&["-vvv"]);
-        a.disambiguate(&['v'], &[]).unwrap();
+        let args = Args::from(&["-vvv"]);
+        let mut err = None;
+        let mut a = State::construct(args, &['v'], &[], &mut err);
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
@@ -712,7 +918,7 @@ mod tests {
 
     #[test]
     fn long_arg_with_equality() {
-        let mut a = Args::from(&["--speed=12"]);
+        let mut a = State::from(&["--speed=12"]);
         let s = a.take_arg(&long("speed"), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
@@ -720,7 +926,7 @@ mod tests {
 
     #[test]
     fn long_arg_with_equality_and_minus() {
-        let mut a = Args::from(&["--speed=-12"]);
+        let mut a = State::from(&["--speed=-12"]);
         let s = a.take_arg(&long("speed"), true).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
@@ -728,7 +934,7 @@ mod tests {
 
     #[test]
     fn short_arg_with_equality() {
-        let mut a = Args::from(&["-s=12"]);
+        let mut a = State::from(&["-s=12"]);
         let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
@@ -736,7 +942,7 @@ mod tests {
 
     #[test]
     fn short_arg_with_equality_and_minus() {
-        let mut a = Args::from(&["-s=-12"]);
+        let mut a = State::from(&["-s=-12"]);
         let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
@@ -744,7 +950,7 @@ mod tests {
 
     #[test]
     fn short_arg_with_equality_and_minus_is_adjacent() {
-        let mut a = Args::from(&["-s=-12"]);
+        let mut a = State::from(&["-s=-12"]);
         let s = a.take_arg(&short('s'), true).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
@@ -752,7 +958,7 @@ mod tests {
 
     #[test]
     fn short_arg_without_equality() {
-        let mut a = Args::from(&["-s", "12"]);
+        let mut a = State::from(&["-s", "12"]);
         let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
@@ -760,7 +966,7 @@ mod tests {
 
     #[test]
     fn two_short_flags() {
-        let mut a = Args::from(&["-s", "-v"]);
+        let mut a = State::from(&["-s", "-v"]);
         assert!(a.take_flag(&short('s')));
         assert!(a.take_flag(&short('v')));
         assert!(a.is_empty());
@@ -768,7 +974,7 @@ mod tests {
 
     #[test]
     fn two_short_flags2() {
-        let mut a = Args::from(&["-s", "-v"]);
+        let mut a = State::from(&["-s", "-v"]);
         assert!(a.take_flag(&short('v')));
         assert!(!a.take_flag(&short('v')));
         assert!(a.take_flag(&short('s')));
@@ -778,7 +984,7 @@ mod tests {
 
     #[test]
     fn command_with_flags() {
-        let mut a = Args::from(&["cmd", "-s", "v"]);
+        let mut a = State::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
         let s = a.take_arg(&short('s'), false).unwrap().unwrap();
         assert_eq!(s, "v");
@@ -787,7 +993,7 @@ mod tests {
 
     #[test]
     fn command_and_positional() {
-        let mut a = Args::from(&["cmd", "pos"]);
+        let mut a = State::from(&["cmd", "pos"]);
         assert!(a.take_cmd("cmd"));
         let w = a.take_positional_word(Metavar("A")).unwrap().unwrap();
         assert_eq!(w.1, "pos");
@@ -796,7 +1002,7 @@ mod tests {
 
     #[test]
     fn positionals_after_double_dash1() {
-        let mut a = Args::from(&["-v", "--", "-x"]);
+        let mut a = State::from(&["-v", "--", "-x"]);
         assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word(Metavar("A")).unwrap().unwrap();
         assert_eq!(w.1, "-x");
@@ -805,7 +1011,7 @@ mod tests {
 
     #[test]
     fn positionals_after_double_dash2() {
-        let mut a = Args::from(&["-v", "--", "-x"]);
+        let mut a = State::from(&["-v", "--", "-x"]);
         assert!(a.take_flag(&short('v')));
         let w = a.take_positional_word(Metavar("A")).unwrap().unwrap();
         assert_eq!(w.1, "-x");
@@ -814,7 +1020,7 @@ mod tests {
 
     #[test]
     fn positionals_after_double_dash3() {
-        let mut a = Args::from(&["-v", "12", "--", "-x"]);
+        let mut a = State::from(&["-v", "12", "--", "-x"]);
         let w = a.take_arg(&short('v'), false).unwrap().unwrap();
         assert_eq!(w, "12");
         let w = a.take_positional_word(Metavar("A")).unwrap().unwrap();
@@ -824,8 +1030,10 @@ mod tests {
 
     #[test]
     fn ambiguity_towards_flag() {
-        let mut a = Args::from(&["-abc"]);
-        a.disambiguate(&['a', 'b', 'c'], &[]).unwrap();
+        let args = Args::from(&["-abc"]);
+        let mut err = None;
+        let mut a = State::construct(args, &['a', 'b', 'c'], &[], &mut err);
+
         assert!(a.take_flag(&short('a')));
         assert!(a.take_flag(&short('b')));
         assert!(a.take_flag(&short('c')));
@@ -833,27 +1041,27 @@ mod tests {
 
     #[test]
     fn ambiguity_towards_argument() {
-        let mut a = Args::from(&["-abc"]);
-        a.disambiguate(&[], &['a']).unwrap();
+        let args = Args::from(&["-abc"]);
+        let mut err = None;
+        let mut a = State::construct(args, &[], &['a'], &mut err);
+
         let r = a.take_arg(&short('a'), false).unwrap().unwrap();
         assert_eq!(r, "bc");
     }
 
     #[test]
     fn ambiguity_towards_error() {
-        let mut a = Args::from(&["-abc"]);
-        let msg = a
-            .disambiguate(&['a', 'b', 'c'], &['a'])
-            .unwrap_err()
-            .unwrap_stderr();
-        assert_eq!(msg, "Parser supports -a as both option and option-argument, try to split -abc into individual options (-a -b ..) or use -a=bc syntax to disambiguate");
+        let args = Args::from(&["-abc"]);
+        let mut err = None;
+        let _a = State::construct(args, &['a', 'b', 'c'], &['a'], &mut err);
+        assert!(err.is_some());
     }
 
     #[test]
     fn ambiguity_towards_default() {
         // AKA unresolved
-        let a = Args::from(&["-abc"]);
-        let is_ambig = matches!(a.peek(), Some(Arg::Ambiguity(_, _)));
+        let a = State::from(&["-abc"]);
+        let is_ambig = matches!(a.peek(), Some(Arg::Word(_)));
         assert!(is_ambig);
     }
 }

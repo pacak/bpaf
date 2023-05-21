@@ -1,23 +1,17 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
 /// Preprocessed command line argument
 ///
 /// [`OsString`] in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
-    /// ambiguity between group of short options and a short option with an argument
-    /// `-abc` can be either equivalent of `-a -b -c` or `-a=bc`
-    ///
-    /// OsString is always valid utf8 here
-    Ambiguity(Vec<char>, OsString),
-
     /// short flag: `-f`
     ///
     /// bool indicates if following item is also part of this Short (created
     Short(char, bool, OsString),
 
     /// long flag: `--flag`
-    ///
+    /// bool tells if it looks like --key=val or not
     Long(String, bool, OsString),
 
     /// separate word that can be command, positional or an argument to a flag
@@ -31,6 +25,14 @@ pub(crate) enum Arg {
     ///
     /// Can start with `-` or `--`, doesn't have to be valid utf8
     PosWord(OsString),
+}
+
+impl Arg {
+    pub(crate) fn os_str(&self) -> &OsStr {
+        match self {
+            Arg::Short(_, _, s) | Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) => s.as_ref(),
+        }
+    }
 }
 
 // short flag disambiguations:
@@ -55,13 +57,14 @@ impl std::fmt::Display for Arg {
         match self {
             Arg::Short(s, _, _) => write!(f, "-{}", s),
             Arg::Long(l, _, _) => write!(f, "--{}", l),
-            Arg::Ambiguity(_, w) | Arg::Word(w) | Arg::PosWord(w) => {
+            Arg::Word(w) | Arg::PosWord(w) => {
                 write!(f, "{}", w.to_string_lossy())
             }
         }
     }
 }
 
+/*
 pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
     if *pos_only {
         return vec.push(Arg::PosWord(os));
@@ -122,7 +125,7 @@ pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
         }
     }
 }
-
+*/
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum ArgType {
     Short,

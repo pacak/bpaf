@@ -53,6 +53,9 @@ pub enum Message {
     /// Parser is expected to consume all the things from the command line
     /// this item will contain an index of the unconsumed value
     Unconsumed(usize),
+
+    /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
+    Ambiguity(usize, String),
 }
 
 impl Message {
@@ -67,6 +70,7 @@ impl Message {
             | Message::ParseFailed(_, _)
             | Message::ValidateFailed(_, _)
             | Message::Unconsumed(_)
+            | Message::Ambiguity(_, _)
             | Message::NoArgument(_) => false,
         }
     }

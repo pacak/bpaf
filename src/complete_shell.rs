@@ -1,4 +1,4 @@
-use crate::{Args, Error, Meta, Parser};
+use crate::{Error, Meta, Parser, State};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum Shell {
@@ -68,7 +68,7 @@ impl<P, T> Parser<T> for ParseCompShell<P>
 where
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         // same as with ParseComp the goal is to replace metavars added by inner parser
         // with a completion that would call a bash script.
         // unlike ParseComp we don't care if inner parser succeeds

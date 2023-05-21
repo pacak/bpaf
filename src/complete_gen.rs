@@ -15,11 +15,11 @@
 // complete short names to long names if possible
 
 use crate::{
-    args::Arg,
+    args::{Arg, State},
     complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
-    Args, Buffer, CompleteDecor, ShellComp,
+    Buffer, CompleteDecor, ShellComp,
 };
 use std::ffi::OsStr;
 
@@ -28,6 +28,10 @@ pub(crate) struct Complete {
     /// completions accumulated so far
     comps: Vec<Comp>,
     pub(crate) output_rev: usize,
+
+    /// don't try to suggest any more positional items after there's a positional item failure
+    /// or parsing in progress
+    pub(crate) no_pos_ahead: bool,
 }
 
 impl Complete {
@@ -35,11 +39,12 @@ impl Complete {
         Self {
             comps: Vec::new(),
             output_rev,
+            no_pos_ahead: false,
         }
     }
 }
 
-impl Args {
+impl State {
     /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
         if !self.valid_complete_head() {
@@ -170,7 +175,7 @@ impl Args {
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
-            Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(_, _) => false,
+            Arg::Short(..) | Arg::Long(..) => false,
             Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
@@ -350,9 +355,7 @@ impl Arg {
                     Some((self, s))
                 }
             }
-            Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) | Arg::Ambiguity(_, s) => {
-                Some((self, s))
-            }
+            Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) => Some((self, s)),
         }
     }
 }
@@ -361,7 +364,7 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
     Some((pair.0, pair.1.to_str()?))
 }
 
-impl Args {
+impl State {
     /// Generate completion from collected heads
     ///
     /// before calling this method we run parser in "complete" mode and collect live heads inside
@@ -389,13 +392,6 @@ impl Args {
         };
 
         let pos_only = items.clone().any(|i| matches!(i.0, Arg::PosWord(_)));
-
-        // bail out on unresolved ambiguities
-        if let Arg::Ambiguity(..) = arg {
-            // don't bother trying to expand -vvvv for now:
-            // -vvv<TAB> => -vvv _
-            return Some(format!("{}\n", lit));
-        }
 
         let res = comp
             .complete(lit, arg.is_word(), pos_only)

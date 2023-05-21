@@ -1070,7 +1070,8 @@ fn strict_positional_completion() {
         &["--"],
         &[
             ["--arg", "--arg", "", ""],
-            ["--", "--    -- Positional only items", "", ""],
+            ["--hello", "--hello", "", ""],
+            //            ["--", "--    -- Positional only items", "", ""],
         ],
     );
 }

@@ -432,6 +432,8 @@ use structs::{ParseComp, ParseCompStyle};
 
 #[doc(inline)]
 pub use crate::args::Args;
+#[doc(hidden)]
+pub use crate::args::State;
 pub use crate::from_os_str::FromUtf8;
 pub use crate::info::OptionParser;
 #[doc(hidden)]
@@ -663,7 +665,7 @@ macro_rules! __cons_prepare {
     ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
-        let inner = move |args: &mut $crate::Args| {
+        let inner = move |args: &mut $crate::State| {
             $(let $fields = $fields.eval(args)?;)+
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
@@ -686,7 +688,7 @@ macro_rules! __cons_prepare {
     ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
-        let inner = move |args: &mut $crate::Args| {
+        let inner = move |args: &mut $crate::State| {
             $(let $fields = if args.is_comp() {
                 $fields.eval(args)
             } else {
@@ -797,7 +799,7 @@ pub trait Parser<T> {
     // it's possible to move this function from the trait to the structs but having it
     // in the trait ensures the composition always works
     #[doc(hidden)]
-    fn eval(&self, args: &mut Args) -> Result<T, Error>;
+    fn eval(&self, args: &mut State) -> Result<T, Error>;
 
     /// Included information about the parser
     ///

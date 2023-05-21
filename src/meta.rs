@@ -374,7 +374,10 @@ impl Meta {
                 }
             }
             Meta::Item(m) => match &**m {
-                Item::Positional { .. } | Item::Command { .. } => {}
+                Item::Positional { .. } => {}
+                Item::Command { meta, .. } => {
+                    meta.collect_shorts(flags, args);
+                }
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::Argument { shorts, .. } => args.extend(shorts),
             },
