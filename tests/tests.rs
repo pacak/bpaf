@@ -61,7 +61,7 @@ fn simple_two_optional_flags() {
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("No such flag: `-V`, did you mean `-b`?", err);
+    assert_eq!("`-V` is not expected in this context", err);
 
     // accept only one copy of -a
     let err = decorated
@@ -99,7 +99,7 @@ fn simple_two_optional_flags_with_one_hidden() {
         .run_inner(Args::from(&["-a", "-V"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("No such flag: `-V`, did you mean `-a`?", err);
+    assert_eq!("`-V` is not expected in this context", err);
 
     // accepts only one copy of -a
     let err = decorated
@@ -331,14 +331,14 @@ fn parse_errors() {
         .run_inner(Args::from(&["-b", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "No such flag: `-b`, did you mean `-a`?";
+    let expected_err = "Expected `-a=ARG`, got `-b`. Pass `--help` for usage information";
     assert_eq!(expected_err, err);
 
     let err = decorated
         .run_inner(Args::from(&["-a", "123", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "No such flag: `-b`, did you mean `-a`?";
+    let expected_err = "`-b` is not expected in this context";
     assert_eq!(expected_err, err);
 }
 
@@ -1236,7 +1236,10 @@ fn did_you_mean_switch() {
         .run_inner(Args::from(&["--p"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "No such flag: `--p`, did you mean `-p`?");
+    assert_eq!(
+        res,
+        "No such flag: `--p` (with two dashes), did you mean `-p`?"
+    );
 }
 
 #[test]

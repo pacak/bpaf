@@ -1071,7 +1071,8 @@ fn strict_positional_completion() {
         &[
             ["--arg", "--arg", "", ""],
             ["--hello", "--hello", "", ""],
-            //            ["--", "--    -- Positional only items", "", ""],
+            // TODO - is this how it's supposed to be?
+            // ["--", "--    -- Positional only items", "", ""],
         ],
     );
 }

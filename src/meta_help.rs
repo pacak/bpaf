@@ -56,9 +56,7 @@ pub(crate) enum HelpItem<'a> {
         name: &'static str,
         short: Option<char>,
         help: Option<&'a Buffer>,
-        #[cfg(feature = "manpage")]
         meta: &'a Meta,
-        #[cfg(feature = "manpage")]
         info: &'a Info,
     },
     Flag {
@@ -117,7 +115,7 @@ impl HelpItem<'_> {
 ///
 /// Items are stored as references and can be trivially copied
 pub(crate) struct HelpItems<'a> {
-    items: Vec<HelpItem<'a>>,
+    pub(crate) items: Vec<HelpItem<'a>>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -285,6 +283,7 @@ impl<'a> HelpItems<'a> {
     }
 }
 
+/*
 pub(crate) struct Long<'a>(pub(crate) &'a str);
 impl std::fmt::Display for Long<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -300,7 +299,7 @@ impl std::fmt::Display for Short {
         f.write_char('-')?;
         f.write_char(self.0)
     }
-}
+}*/
 
 impl From<&Item> for HiTy {
     fn from(value: &Item) -> Self {

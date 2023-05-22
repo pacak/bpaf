@@ -1,150 +1,132 @@
 use crate::{
     args::Arg,
-    item::{Item, ShortLong},
-    meta_help::{Long, Short},
+    item::ShortLong,
+    meta_help::{HelpItem, HelpItems},
     Meta, State,
 };
 
+#[derive(Debug, Copy, Clone)]
+pub enum Variant {
+    CommandLong(&'static str),
+    Flag(ShortLong),
+}
+
+#[derive(Debug)]
+pub enum Suggestion {
+    Variant(Variant),
+    /// expected --foo, actual -foo
+    MissingDash(&'static str),
+    /// expected -f, actual --f
+    ExtraDash(char),
+    Nested(String, Variant),
+}
+
 /// Looks for potential typos
 #[inline(never)]
-pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<String> {
-    let arg = args.peek()?;
+pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> {
+    let (ix, arg) = args.items_iter().next()?;
 
-    let mut variants = Vec::new();
-    collect_suggestions(arg, meta, &mut variants, true);
-
-    variants.sort_by(|a, b| b.0.cmp(&a.0));
-
-    if let Some((l, (mut actual, expected))) = variants.pop() {
-        if let (0, I::Nested(cmd)) = (l, expected) {
-            let best = format!(
-                "{:?} is not valid in this context, did you mean to pass it to command \"{}\"?",
-                actual, cmd,
-            );
-            return Some(best);
-        } else if l > 0 && l < usize::MAX {
-            if let (I::LongCmd(act), I::LongFlag(expected)) = (actual, expected) {
-                if act.strip_prefix('-') == Some(expected) {
-                    actual = I::Ambiguity(act);
-                }
-            }
-
-            let best = format!("No such {:?}, did you mean `{}`?", actual, expected,);
-            return Some(best);
-        }
+    // suggesting typos for parts of group of short names (-vvv, typo in third v) would be strange
+    if arg.os_str().is_empty() {
+        return None;
     }
-    None
-}
+    // it also should be a printable name
+    let actual = arg.to_string();
 
-#[derive(Copy, Clone)]
-enum I<'a> {
-    ShortFlag(char),
-    LongFlag(&'a str),
-    Ambiguity(&'a str),
-    ShortCmd(char),
-    LongCmd(&'a str),
-    Nested(&'a str),
-}
+    // all the help items one level deep
+    let mut hi = HelpItems::default();
+    hi.append_meta(meta);
 
-// human readable
-impl std::fmt::Debug for I<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::ShortFlag(s) => write!(f, "flag: `{}`", Short(*s)),
-            Self::LongFlag(s) => write!(f, "flag: `{}`", Long(s)),
-            Self::ShortCmd(s) => write!(f, "command alias: `{}`", s),
-            Self::LongCmd(s) => write!(f, "command or positional: `{}`", s),
-            Self::Ambiguity(s) => write!(f, "flag: {} (with one dash)", s),
-            Self::Nested(s) => write!(f, "command {}", s),
+    // this will be used to avoid reallocations on scannign
+    let mut nested = HelpItems::default();
+
+    // while scanning keep the closest match
+    let mut best = None;
+    let mut best_dist = usize::MAX;
+    let mut improve = |dist, val| {
+        if best_dist > dist && dist > 0 && dist < 4 {
+            best_dist = dist;
+            best = Some(val);
         }
-    }
-}
-
-// used for levenshtein distance calculation
-impl std::fmt::Display for I<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
-        match self {
-            Self::ShortFlag(s) => write!(f, "-{}", s),
-            Self::LongFlag(s) => write!(f, "--{}", s),
-            Self::ShortCmd(s) => f.write_char(*s),
-            Self::LongCmd(s) | Self::Ambiguity(s) | Self::Nested(s) => f.write_str(s),
-        }
-    }
-}
-
-fn ins<'a>(expected: I<'a>, actual: I<'a>, variants: &mut Vec<(usize, (I<'a>, I<'a>))>) {
-    variants.push((
-        damerau_levenshtein(&expected.to_string(), &actual.to_string()),
-        (actual, expected),
-    ));
-}
-
-fn inner_item<'a>(
-    arg: &'a Arg,
-    item: &'a Item,
-    variants: &mut Vec<(usize, (I<'a>, I<'a>))>,
-    at_top_level: bool,
-) {
-    let actual: I = match arg {
-        Arg::Short(s, _, _) => I::ShortFlag(*s),
-        Arg::Long(s, _, _) => I::LongFlag(s.as_str()),
-        Arg::Word(w) | Arg::PosWord(w) => match &w.to_str() {
-            Some(s) => I::LongCmd(s),
-            None => return,
-        },
     };
-    match item {
-        Item::Positional { .. } => {}
-        Item::Command {
-            name, short, meta, ..
-        } => {
-            if at_top_level {
-                let mut inner = Vec::new();
-                collect_suggestions(arg, meta, &mut inner, false);
-                if let Some((0, _)) = inner.first() {
-                    variants.push((0, (actual, I::Nested(name))));
+
+    let mut nest = None;
+
+    for item in &hi.items {
+        match item {
+            HelpItem::Command { name, meta, .. } => {
+                // command can result in 2 types of suggestions:
+                // - typo in a short or a long name
+                // - there is a nested command that matches perfectly - try using that
+                let distance = damerau_levenshtein(&actual, name);
+                improve(distance, Variant::CommandLong(name));
+
+                // scan nested items and look for exact matches only
+                nested.items.clear();
+                nested.append_meta(meta);
+                for item in &nested.items {
+                    match item {
+                        HelpItem::Command { name: nname, .. } => {
+                            if *nname == actual {
+                                nest = Some((name, Variant::CommandLong(nname)));
+                            }
+                        }
+                        HelpItem::Flag { name: nname, .. }
+                        | HelpItem::Argument { name: nname, .. } => {
+                            if *nname == &actual {
+                                nest = Some((name, Variant::Flag(*nname)));
+                            }
+                        }
+                        HelpItem::DecorSuffix { .. }
+                        | HelpItem::DecorHeader { .. }
+                        | HelpItem::DecorBlank { .. }
+                        | HelpItem::Positional { .. }
+                        | HelpItem::AnywhereStart { .. }
+                        | HelpItem::AnywhereStop { .. } => {}
+                    }
                 }
             }
-            ins(I::LongCmd(name), actual, variants);
-            if let Some(s) = short {
-                ins(I::ShortCmd(*s), actual, variants);
+            HelpItem::Flag { name, .. } | HelpItem::Argument { name, .. } => {
+                if let Some(long) = name.as_long() {
+                    let distance = damerau_levenshtein(&actual, &format!("--{}", long));
+                    improve(distance, Variant::Flag(*name));
+                }
+                if let Some(short) = name.as_short() {
+                    if let Some(act) = actual.strip_prefix("--") {
+                        let mut tmp = [0u8; 4];
+                        if act == short.encode_utf8(&mut tmp) {
+                            return Some((ix, Suggestion::ExtraDash(short)));
+                        }
+                    }
+                }
             }
+            HelpItem::Positional { .. }
+            | HelpItem::DecorSuffix { .. }
+            | HelpItem::DecorHeader { .. }
+            | HelpItem::DecorBlank { .. }
+            | HelpItem::AnywhereStart { .. }
+            | HelpItem::AnywhereStop { .. } => {}
         }
-        Item::Flag { name, .. } | Item::Argument { name, .. } => match name {
-            ShortLong::Short(s) => ins(I::ShortFlag(*s), actual, variants),
-            ShortLong::Long(l) => ins(I::LongFlag(l), actual, variants),
-            ShortLong::ShortLong(s, l) => {
-                ins(I::ShortFlag(*s), actual, variants);
-                ins(I::LongFlag(l), actual, variants);
-            }
-        },
     }
-}
 
-fn collect_suggestions<'a>(
-    arg: &'a Arg,
-    meta: &'a Meta,
-    variants: &mut Vec<(usize, (I<'a>, I<'a>))>,
-    at_top_level: bool,
-) {
-    match meta {
-        Meta::And(xs) | Meta::Or(xs) => {
-            for x in xs {
-                collect_suggestions(arg, x, variants, at_top_level);
+    if let Some((name, variant)) = nest {
+        Some((ix, Suggestion::Nested(name.to_string(), variant)))
+    } else {
+        // skip confusing errors
+        if best_dist == usize::MAX {
+            return None;
+        }
+        let best = best?;
+
+        // handle missing single dash typos separately
+        if let Variant::Flag(n) = best {
+            if let Some(long) = n.as_long() {
+                if actual.strip_prefix('-') == Some(long) {
+                    return Some((ix, Suggestion::MissingDash(long)));
+                }
             }
         }
-        Meta::Item(item) => inner_item(arg, item, variants, at_top_level),
-        Meta::HideUsage(meta)
-        | Meta::Optional(meta)
-        | Meta::Required(meta)
-        | Meta::Adjacent(meta)
-        | Meta::Many(meta)
-        | Meta::Subsection(meta, _)
-        | Meta::Suffix(meta, _) => {
-            collect_suggestions(arg, meta, variants, at_top_level);
-        }
-        Meta::Skip => {}
+        Some((ix, Suggestion::Variant(best)))
     }
 }
 
@@ -189,7 +171,7 @@ fn damerau_levenshtein(a: &str, b: &str) -> usize {
 
     let diff = d[ix(a_len, b_len)];
 
-    if diff >= a_len.max(b_len) {
+    if diff >= a_len.min(b_len) {
         usize::MAX
     } else {
         diff

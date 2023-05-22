@@ -24,7 +24,8 @@ fn ambiguity() {
         .run_inner(Args::from(&["-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-b`, did you mean `-a`?");
+    // single char typos are too random
+    assert_eq!(r, "`-b` is not expected in this context");
 }
 
 #[test]
@@ -43,7 +44,7 @@ fn short_cmd() {
 
     assert_eq!(
         r,
-        "No such command or positional: `c`, did you mean `beta`?"
+        "Expected `COMMAND ...`, got `c`. Pass `--help` for usage information"
     );
 }
 
@@ -65,7 +66,7 @@ fn double_dashes_no_fallback() {
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -86,7 +87,7 @@ fn double_dashes_fallback() {
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -110,7 +111,7 @@ fn double_dash_with_optional_positional() {
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -135,7 +136,10 @@ fn inside_out_command_parser() {
         .run_inner(Args::from(&["--oneline", "log"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "flag: `--oneline` is not valid in this context, did you mean to pass it to command \"log\"?");
+    assert_eq!(
+        r,
+        "Flag `--oneline` is not valid in this context, did you mean to pass it to command `log`?"
+    );
 }
 
 #[test]
@@ -249,13 +253,13 @@ fn better_error_message_with_typos() {
         .run_inner(Args::from(&["-a", "erg"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-a`, did you mean `-e`?");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = commands()
         .run_inner(Args::from(&["arguments", "-a", "erg"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-a`, did you mean `-e`?");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = arguments()
         .to_options()

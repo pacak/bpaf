@@ -13,7 +13,9 @@ use crate::{
     error::{Message, MissingItem},
     info::Info,
     inner_buffer::{Buffer, Color, Style},
+    item::ShortLong,
     meta_help::render_help,
+    meta_youmean::{Suggestion, Variant},
     short, Error, Meta, ParseFailure, Parser,
 };
 
@@ -72,12 +74,9 @@ impl Info {
     }
 }
 
-fn check_conflicts(args: &State) -> Option<String> {
+fn check_conflicts(args: &State) -> Option<Message> {
     let (loser, winner) = args.conflict()?;
-    Some(format!(
-        "\"{}\" cannot be used at the same time as \"{}\"",
-        args.items[loser], args.items[winner]
-    ))
+    Some(Message::Conflict(winner, loser))
 }
 
 pub(crate) fn improve_error(
@@ -114,19 +113,17 @@ pub(crate) fn improve_error(
     ParseFailure::Stderr(match err {
         // parse succeeded, need to explain an unused argument
         Error::ParseFailure(f) => return f,
-        Error::Message(msg) => {
+        Error::Message(mut msg) => {
             if let Message::Unconsumed(ix) = &msg {
-                if let Some(msg) = check_conflicts(args) {
-                    msg
-                } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
-                    msg
+                if let Some(conflict) = check_conflicts(args) {
+                    msg = conflict;
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
+                    msg = Message::Suggestion(ix, suggestion);
                 } else {
-                    let item = &args.items[*ix];
-                    format!("`{}` is not expected in this context", item)
+                    msg = Message::Unconsumed(*ix);
                 }
-            } else {
-                msg.render(args)
             }
+            msg.render(args)
         }
         Error::Missing(xs) => summarize_missing(&xs, inner, args),
     })
@@ -199,7 +196,78 @@ impl Message {
                     items[0],
                     &s[1 + items[0].len_utf8()..]
                 )
-                //assert_eq!(r, "Parser supports -a as both option and option-argument, try to split -aaaaaa into individual options (-a -a ..) or use -a=aaaaa syntax to disambiguate");
+            }
+            Message::Suggestion(ix, suggestion) => {
+                let actual = &args.items[ix].to_string();
+                match suggestion {
+                    Suggestion::Variant(v) => {
+                        let ty = match &args.items[ix] {
+                            _ if actual.starts_with('-') => "flag",
+                            Arg::Short(_, _, _) | Arg::Long(_, _, _) => "flag",
+                            Arg::Word(_) | Arg::PosWord(_) => "command or positional",
+                        };
+
+                        // TODO - avoid allocating here
+                        let suggested = match v {
+                            Variant::CommandLong(name) => name.to_owned(),
+                            Variant::Flag(ShortLong::Long(l) | ShortLong::ShortLong(_, l)) => {
+                                format!("--{}", l)
+                            }
+                            Variant::Flag(ShortLong::Short(s)) => {
+                                format!("-{}", s)
+                            }
+                        };
+                        format!(
+                            "No such {}: `{}`, did you mean `{}`?",
+                            ty, actual, suggested
+                        )
+                    }
+                    Suggestion::MissingDash(name) => format!(
+                        "No such flag: `-{}` (with one dash), did you mean `--{}`?",
+                        name, name
+                    ),
+                    Suggestion::ExtraDash(name) => format!(
+                        "No such flag: `--{}` (with two dashes), did you mean `-{}`?",
+                        name, name
+                    ),
+                    Suggestion::Nested(x, v) => {
+                        let ty = match v {
+                            Variant::CommandLong(_) => "Subcommand",
+                            Variant::Flag(_) => "Flag",
+                        };
+                        format!("{} `{}` is not valid in this context, did you mean to pass it to command `{}`?", ty, actual, x)
+                    }
+                }
+
+                /*
+                let current = match &args.items[ix]
+                {
+                    Arg::Word(w) | Arg::PosWord(w) => {
+                        let s = w.to_str().unwrap();
+                        if s.starts_with('-') {
+                            format!("flag: `{}`", s)
+                        } else {
+                            format!("command or positional: `{}`", s)
+                        }
+                    }
+                    x => format!("{:?}", x),
+                    Arg::Short(_, _, _) => todo!(),
+                    Arg::Long(_, _, _) => todo!(),
+                };
+                let replacement = match suggestion {
+                    Suggestion::MissingDash(x) => format!("`--{}` (with two dashes)", x),
+                    x => format!("{:?}", x),
+                    Suggestion::Variant(_) => todo!(),
+                    Suggestion::Nested(_, _) => todo!(),
+                };
+
+                format!("No such {}, did you mean {}", current, replacement)*/
+            }
+            Message::Conflict(winner, loser) => {
+                format!(
+                    "\"{}\" cannot be used at the same time as \"{}\"",
+                    args.items[loser], args.items[winner]
+                )
             }
         }
     }
@@ -234,8 +302,9 @@ pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Stat
     let mut args = args.clone();
     args.set_scope(best_scope);
     if let Some(x) = args.peek() {
-        if let Some(msg) = crate::meta_youmean::suggest(&args, inner) {
-            msg
+        if let Some((ix, sugg)) = crate::meta_youmean::suggest(&args, inner) {
+            let msg = Message::Suggestion(ix, sugg);
+            msg.render(&args)
         } else {
             let mut b = Buffer::default();
             b.write_str("Expected `", Style::Text);
@@ -256,7 +325,5 @@ pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Stat
         b.write_str("` for usage information", Style::Text);
 
         b.render(true, Color::Monochrome)
-
-        //        format!("Expected {}, pass --help for usage information", meta)
     }
 }

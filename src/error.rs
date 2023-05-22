@@ -1,6 +1,6 @@
 use std::ops::Range;
 
-use crate::{item::Item, meta_help::Metavar};
+use crate::{item::Item, meta_help::Metavar, meta_youmean::Suggestion};
 
 /// Unsuccessful command line parsing outcome, internal representation
 #[derive(Debug)]
@@ -56,6 +56,13 @@ pub enum Message {
 
     /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
     Ambiguity(usize, String),
+
+    /// Suggested fixes for typos or missing input
+    Suggestion(usize, Suggestion),
+
+    /// Two arguments are mutually exclusive
+    /// --release --dev
+    Conflict(/* winner */ usize, usize),
 }
 
 impl Message {
@@ -71,6 +78,8 @@ impl Message {
             | Message::ValidateFailed(_, _)
             | Message::Unconsumed(_)
             | Message::Ambiguity(_, _)
+            | Message::Suggestion(_, _)
+            | Message::Conflict(_, _)
             | Message::NoArgument(_) => false,
         }
     }
