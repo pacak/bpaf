@@ -726,7 +726,7 @@ impl State {
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            _ => return Err(Error::Message(Message::NoArgument(key_ix))),
+            _ => return Err(Error(Message::NoArgument(key_ix))),
         };
         let val = val.clone();
         self.current = Some(val_ix);
@@ -768,7 +768,7 @@ impl State {
                     position,
                     scope: position..position + 1,
                 };
-                Err(Error::Missing(vec![missing]))
+                Err(Error(Message::Missing(vec![missing])))
             }
             None => Ok(None),
         }

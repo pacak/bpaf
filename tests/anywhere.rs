@@ -145,7 +145,7 @@ fn parse_anywhere_catch_optional() {
     let b = positional::<usize>("x");
 
     // optional + catch makes it so parser succeeds without consuming anything
-    // usually leaving `-a` untouched
+    // usually leaving `-a` untouched to be consumed by something else
     let ab = construct!(a, b).adjacent().optional().catch();
     let c = short('c').switch();
     let parser = construct!(ab, c).to_options();

@@ -1,18 +1,17 @@
 use crate::{
-    args::Arg,
     item::ShortLong,
     meta_help::{HelpItem, HelpItems},
     Meta, State,
 };
 
 #[derive(Debug, Copy, Clone)]
-pub enum Variant {
+pub(crate) enum Variant {
     CommandLong(&'static str),
     Flag(ShortLong),
 }
 
 #[derive(Debug)]
-pub enum Suggestion {
+pub(crate) enum Suggestion {
     Variant(Variant),
     /// expected --foo, actual -foo
     MissingDash(&'static str),

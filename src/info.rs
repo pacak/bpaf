@@ -177,7 +177,7 @@ impl<T> OptionParser<T> {
                 &mut state,
                 &self.info,
                 &self.inner.meta(),
-                Error::Message(msg),
+                msg,
             ));
         }
 
@@ -199,7 +199,7 @@ impl<T> OptionParser<T> {
         // outer parser gets value in ParseFailure format
 
         let res = self.inner.eval(args);
-        if let Err(Error::ParseFailure(failure)) = res {
+        if let Err(Error(Message::ParseFailure(failure))) = res {
             return Err(failure);
         }
         #[cfg(feature = "autocomplete")]
@@ -210,12 +210,12 @@ impl<T> OptionParser<T> {
         let err = match res {
             Ok(ok) => {
                 if let Some((ix, _)) = args.items_iter().next() {
-                    Error::Message(Message::Unconsumed(ix))
+                    Message::Unconsumed(ix)
                 } else {
                     return Ok(ok);
                 }
             }
-            Err(err) => err,
+            Err(Error(err)) => err,
         };
         Err(crate::help::improve_error(
             args,

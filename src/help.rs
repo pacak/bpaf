@@ -31,7 +31,7 @@ impl Parser<ExtraParams> for ParseExtraParams {
 
         match &self.version {
             Some(ver) => Self::ver(ver).eval(args),
-            None => Err(Error::Missing(Vec::new())),
+            None => Err(Error(Message::Missing(Vec::new()))),
         }
     }
 
@@ -83,7 +83,7 @@ pub(crate) fn improve_error(
     args: &mut State,
     info: &Info,
     inner: &Meta,
-    err: Error,
+    err: Message,
 ) -> ParseFailure {
     // handle --help and --version messages
     match info.help_parser().eval(args) {
@@ -110,23 +110,22 @@ pub(crate) fn improve_error(
     // 3. suggesting to remove something that is totally not expected in this context
     //    + safest fallback if earlier approaches failed
 
-    ParseFailure::Stderr(match err {
+    let msg = match err {
         // parse succeeded, need to explain an unused argument
-        Error::ParseFailure(f) => return f,
-        Error::Message(mut msg) => {
-            if let Message::Unconsumed(ix) = &msg {
-                if let Some(conflict) = check_conflicts(args) {
-                    msg = conflict;
-                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
-                    msg = Message::Suggestion(ix, suggestion);
-                } else {
-                    msg = Message::Unconsumed(*ix);
-                }
+        Message::ParseFailure(f) => return f,
+        Message::Missing(xs) => return ParseFailure::Stderr(summarize_missing(&xs, inner, args)),
+        Message::Unconsumed(ix) => {
+            if let Some(conflict) = check_conflicts(args) {
+                conflict
+            } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
+                Message::Suggestion(ix, suggestion)
+            } else {
+                err
             }
-            msg.render(args)
         }
-        Error::Missing(xs) => summarize_missing(&xs, inner, args),
-    })
+        err => err,
+    };
+    ParseFailure::Stderr(msg.render(args))
 }
 
 fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
@@ -139,6 +138,8 @@ fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>
 impl Message {
     fn render(self, args: &State) -> String {
         match self {
+            Message::ParseFailure(_) => unreachable!(),
+            Message::Missing(_) => unreachable!(),
             Message::NoEnv(name) => {
                 format!("env variable {} is not set", name)
             }
@@ -146,7 +147,6 @@ impl Message {
                 format!("Expected {} to be on the right side of --", x)
             }
             Message::ParseSome(s) => s.to_string(),
-            Message::Guard(_) => todo!(),
             Message::ParseFail(s) => s.to_owned(),
             Message::ParseFailed(mix, s) => match textual_part(args, mix) {
                 Some(field) => format!("Couldn't parse {:?}: {}", field, s),

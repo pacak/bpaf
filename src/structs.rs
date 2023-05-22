@@ -32,16 +32,16 @@ where
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            Err(e) => {
+            Err(Error(e)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
                 if e.can_catch() {
                     match (self.fallback)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+                        Err(e) => Err(Error(Message::PureFailed(e.to_string()))),
                     }
                 } else {
-                    Err(e)
+                    Err(Error(e))
                 }
             }
         }
@@ -141,7 +141,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(Message::ParseSome(self.message)))
+            Err(Error(Message::ParseSome(self.message)))
         } else {
             Ok(res)
         }
@@ -174,8 +174,8 @@ where
 
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comps);
-        if let Err(Error::Missing(_)) = res {
-            Err(Error::Missing(Vec::new()))
+        if let Err(Error(Message::Missing(_))) = res {
+            Err(Error(Message::Missing(Vec::new())))
         } else {
             res
         }
@@ -365,10 +365,7 @@ where
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(Error::Message(Message::ParseFailed(
-                args.current,
-                e.to_string(),
-            ))),
+            Err(e) => Err(Error(Message::ParseFailed(args.current, e.to_string()))),
         }
     }
 
@@ -397,13 +394,13 @@ where
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            Err(e) => {
+            Err(Error(e)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
                 if e.can_catch() {
                     Ok(self.value.clone())
                 } else {
-                    Err(e)
+                    Err(Error(e))
                 }
             }
         }
@@ -457,10 +454,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(Error::Message(Message::ValidateFailed(
-                args.current,
-                self.message.to_string(),
-            )))
+            Err(Error(Message::ValidateFailed(args.current, self.message)))
         }
     }
 
@@ -539,7 +533,7 @@ where
     let mut orig_args = args.clone();
     match parser.eval(args) {
         Ok(val) => Ok(Some(val)),
-        Err(err) => {
+        Err(Error(err)) => {
             // this is safe to return Ok(None) in following scenarios
             // when inner parser never consumed anything and
             // 1. produced Error::Missing
@@ -551,23 +545,17 @@ where
             // When parser returns Ok(None) we should return the original arguments so if there's
             // anything left unconsumed - this won't be lost.
 
-            let res = match &err {
-                Error::Message(msg) => {
-                    if msg.can_catch() || catch {
-                        Ok(None)
-                    } else {
-                        Err(err)
-                    }
-                }
-                Error::ParseFailure(_) => Err(err),
-                Error::Missing(_) => {
-                    if orig_args.len() == args.len() || catch {
-                        Ok(None)
-                    } else {
-                        Err(err)
-                    }
-                }
+            let missing = matches!(err, Message::Missing(_));
+
+            let res = if catch
+                || (missing && orig_args.len() == args.len())
+                || (!missing && err.can_catch())
+            {
+                Ok(None)
+            } else {
+                Err(Error(err))
             };
+
             if res.is_ok() {
                 std::mem::swap(&mut orig_args, args);
 
@@ -630,7 +618,7 @@ impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     fn eval(&self, _args: &mut State) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+            Err(e) => Err(Error(Message::PureFailed(e.to_string()))),
         }
     }
 
@@ -647,7 +635,7 @@ pub struct ParseFail<T> {
 impl<T> Parser<T> for ParseFail<T> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(Message::ParseFail(self.field1)))
+        Err(Error(Message::ParseFail(self.field1)))
     }
 
     fn meta(&self) -> Meta {
@@ -861,7 +849,7 @@ where
                 position: original_scope.start,
                 scope: original_scope.clone(),
             };
-            Error::Missing(vec![missing_item])
+            Message::Missing(vec![missing_item])
         } else {
             unreachable!("bpaf usage BUG: adjacent should start with a required argument");
         };
@@ -921,7 +909,7 @@ where
                             return Ok(res);
                         }
                     }
-                    Err(err) => {
+                    Err(Error(err)) => {
                         let consumed = before - this_arg.len();
                         if consumed > best_consumed {
                             best_consumed = consumed;
@@ -935,7 +923,7 @@ where
         }
 
         std::mem::swap(args, &mut best_args);
-        Err(best_error)
+        Err(Error(best_error))
     }
 
     fn meta(&self) -> Meta {

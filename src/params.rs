@@ -588,7 +588,7 @@ impl<T> Parser<T> for ParseCommand<T> {
                 // parser
                 args.clear_comps();
                 args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
-                return Err(Error::Missing(Vec::new()));
+                return Err(Error(Message::Missing(Vec::new())));
             }
 
             if let Some(cur) = args.current {
@@ -599,13 +599,13 @@ impl<T> Parser<T> for ParseCommand<T> {
             if !self.adjacent {
                 self.subparser
                     .run_subparser(args)
-                    .map_err(Error::ParseFailure)
+                    .map_err(|e| Error(Message::ParseFailure(e)))
             } else {
                 let mut orig_args = args.clone();
                 match self
                     .subparser
                     .run_subparser(args)
-                    .map_err(Error::ParseFailure)
+                    .map_err(Message::ParseFailure)
                 {
                     Ok(ok) => Ok(ok),
                     Err(err) => {
@@ -618,7 +618,7 @@ impl<T> Parser<T> for ParseCommand<T> {
                                 return Ok(res);
                             }
                         }
-                        Err(err)
+                        Err(Error(err))
                     }
                 }
             }
@@ -631,7 +631,7 @@ impl<T> Parser<T> for ParseCommand<T> {
                 position: args.scope().start,
                 scope: args.scope(),
             };
-            Err(Error::Missing(vec![missing]))
+            Err(Error(Message::Missing(vec![missing])))
         }
     }
 
@@ -690,7 +690,7 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
                         position: args.scope().start,
                         scope: args.scope(),
                     };
-                    Err(Error::Missing(vec![missing]))
+                    Err(Error(Message::Missing(vec![missing])))
                 }
             }
         }
@@ -748,7 +748,7 @@ impl<T> ParseArgument<T> {
     fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
         if self.named.short.is_empty() && self.named.long.is_empty() {
             if let Some(name) = self.named.env.first() {
-                return Err(Error::Message(Message::NoEnv(name)));
+                return Err(Error(Message::NoEnv(name)));
             }
         }
         match args.take_arg(&self.named, self.adjacent) {
@@ -776,7 +776,7 @@ impl<T> ParseArgument<T> {
                         position: args.scope().start,
                         scope: args.scope(),
                     };
-                    Err(Error::Missing(vec![missing]))
+                    Err(Error(Message::Missing(vec![missing])))
                 }
             }
         }
@@ -792,7 +792,7 @@ where
         let os = self.take_argument(args)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
+            Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
     }
 
@@ -937,7 +937,7 @@ fn parse_word(
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error::Message(Message::StrictPos(metavar)));
+            return Err(Error(Message::StrictPos(metavar)));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.check_no_pos_ahead() {
@@ -963,7 +963,7 @@ fn parse_word(
             position,
             scope: args.scope(),
         };
-        Err(Error::Missing(vec![missing]))
+        Err(Error(Message::Missing(vec![missing])))
     }
 }
 
@@ -976,7 +976,7 @@ where
         let os = parse_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
+            Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
     }
 
@@ -1109,7 +1109,7 @@ where
             position: args.scope().start,
             scope: args.scope(),
         };
-        Err(Error::Missing(vec![missing_item]))
+        Err(Error(Message::Missing(vec![missing_item])))
     }
 
     fn meta(&self) -> Meta {
