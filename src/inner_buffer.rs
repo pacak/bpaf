@@ -213,10 +213,18 @@ impl Buffer {
         self.tokens.push(token);
     }
 
-    #[inline(never)]
-    pub(crate) fn write_str(&mut self, input: &str, style: Style) {
-        self.payload.push_str(input);
+    pub(crate) fn write<T>(&mut self, input: T, style: Style)
+    where
+        T: std::fmt::Display,
+    {
+        use std::fmt::Write;
+        let old_len = self.payload.len();
+        let _ = write!(self.payload, "{}", input);
+        self.set_style(self.payload.len() - old_len, style);
+    }
 
+    #[inline(never)]
+    fn set_style(&mut self, len: usize, style: Style) {
         // buffer chunks are unified with previous chunks of the same type
         // [metavar]"foo" + [metavar]"bar" => [metavar]"foobar"
         match self.tokens.last_mut() {
@@ -224,15 +232,18 @@ impl Buffer {
                 bytes: prev_bytes,
                 style: prev_style,
             }) if *prev_style == style => {
-                *prev_bytes += input.len();
+                *prev_bytes += len;
             }
             _ => {
-                self.tokens.push(Token::Text {
-                    bytes: input.len(),
-                    style,
-                });
+                self.tokens.push(Token::Text { bytes: len, style });
             }
         }
+    }
+
+    #[inline(never)]
+    pub(crate) fn write_str(&mut self, input: &str, style: Style) {
+        self.payload.push_str(input);
+        self.set_style(input.len(), style);
     }
 
     #[inline(never)]

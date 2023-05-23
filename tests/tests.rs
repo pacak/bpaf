@@ -274,7 +274,7 @@ fn fallback_with_err() {
         .run_inner(Args::from(&["-a", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
 
     let r = parser
         .run_inner(Args::from(&[]))
@@ -305,14 +305,14 @@ Available options:
         .run_inner(Args::from(&["-a", "x12"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Couldn't parse \"x12\": invalid digit found in string";
+    let expected_err = "Couldn't parse `x12`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
     let err = decorated
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "-a requires an argument";
+    let expected_err = "`-a` requires an argument `ARG`";
     assert_eq!(expected_err, err);
 }
 
@@ -324,7 +324,7 @@ fn parse_errors() {
         .run_inner(Args::from(&["-a", "123x"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Couldn't parse \"123x\": invalid digit found in string";
+    let expected_err = "Couldn't parse `123x`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
     let err = decorated
@@ -404,7 +404,7 @@ Available options:
 
     assert_eq!(expected_help, help);
     assert_eq!(
-        "`-a` requires an argument, got a flag-like `-b`, try `-a=-b` to use it as an argument",
+        "`-a` requires an argument `ARG`, got a flag `-b`, try `-a=-b` to use it as an argument",
         parser
             .run_inner(Args::from(&["-a", "-b"]))
             .unwrap_err()
@@ -493,31 +493,31 @@ fn from_several_alternatives_pick_more_meaningful() {
         .run_inner(Args::from(&["-a", "-b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err1, "\"-b\" cannot be used at the same time as \"-a\"");
+    assert_eq!(err1, "`-b` cannot be used at the same time as `-a`");
 
     let err2 = parser
         .run_inner(Args::from(&["-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err2, "\"-a\" cannot be used at the same time as \"-b\"");
+    assert_eq!(err2, "`-a` cannot be used at the same time as `-b`");
 
     let err3 = parser
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err3, "\"-a\" cannot be used at the same time as \"-c\"");
+    assert_eq!(err3, "`-a` cannot be used at the same time as `-c`");
 
     let err4 = parser
         .run_inner(Args::from(&["-a", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err4, "\"-c\" cannot be used at the same time as \"-a\"");
+    assert_eq!(err4, "`-c` cannot be used at the same time as `-a`");
 
     let err5 = parser
         .run_inner(Args::from(&["-c", "-b", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(err5, "\"-b\" cannot be used at the same time as \"-c\"");
+    assert_eq!(err5, "`-b` cannot be used at the same time as `-c`");
 }
 
 #[test]
@@ -833,7 +833,7 @@ fn long_path_in_construct() {
 fn hidden_env() {
     let name = "BPAF_SECRET_API_KEY2";
     let visible = long("key")
-        .help("use this secret key\ntwo lines")
+        .help("use this secret key\n two lines")
         .argument::<String>("KEY");
     let hidden = env(name).argument("KEY");
     let parser = construct!([visible, hidden]).to_options();
@@ -847,7 +847,8 @@ fn hidden_env() {
 Usage: --key=KEY
 
 Available options:
-        --key=KEY  use this secret key two lines
+        --key=KEY  use this secret key
+                   two lines
     -h, --help     Prints help information
 ";
 
@@ -857,7 +858,7 @@ Available options:
         .run_inner(Args::from(&[]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "env variable BPAF_SECRET_API_KEY2 is not set");
+    assert_eq!(r, "Environment variable `BPAF_SECRET_API_KEY2` is not set");
 }
 
 #[test]
@@ -1138,7 +1139,7 @@ fn optional_error_handling() {
         .run_inner(Args::from(&["-p", "pi"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
+    assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
 }
 
 #[test]
@@ -1155,7 +1156,7 @@ fn many_error_handling() {
         .run_inner(Args::from(&["-p", "pi"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"pi\": invalid digit found in string");
+    assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
 }
 
 #[test]
@@ -1354,7 +1355,7 @@ fn did_you_mean_two_or_arguments() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "\"--flag\" cannot be used at the same time as \"--parameter\""
+        "`--flag` cannot be used at the same time as `--parameter`"
     );
 
     let r = parser
@@ -1363,7 +1364,7 @@ fn did_you_mean_two_or_arguments() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "\"--parameter\" cannot be used at the same time as \"--flag\""
+        "`--parameter` cannot be used at the same time as `--flag`"
     );
 }
 
@@ -1387,13 +1388,13 @@ fn cargo_show_asm_issue_guard() {
         .run_inner(Args::from(&["asm", "-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "\"x\": nope");
+    assert_eq!(res, "`x`: nope");
 
     let res = parser
         .run_inner(Args::from(&["-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "\"x\": nope");
+    assert_eq!(res, "`x`: nope");
 }
 
 #[test]
@@ -1407,13 +1408,13 @@ fn cargo_show_asm_issue_from_str() {
         .run_inner(Args::from(&["asm", "-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": invalid digit found in string");
+    assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
 
     let res = parser
         .run_inner(Args::from(&["-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": invalid digit found in string");
+    assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1430,13 +1431,13 @@ fn cargo_show_asm_issue_parse() {
         .run_inner(Args::from(&["asm", "-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": nope");
+    assert_eq!(res, "Couldn't parse `x`: nope");
 
     let res = parser
         .run_inner(Args::from(&["-t", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse \"x\": nope");
+    assert_eq!(res, "Couldn't parse `x`: nope");
 }
 
 // problematic case looks something like this:
@@ -1503,7 +1504,7 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "\"--flag\" cannot be used at the same time as \"--parameter\""
+        "`--flag` cannot be used at the same time as `--parameter`"
     );
 
     let r = parser
@@ -1512,7 +1513,7 @@ fn did_you_mean_inside_command() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "\"--parameter\" cannot be used at the same time as \"--flag\""
+        "`--parameter` cannot be used at the same time as `--flag`"
     );
 }
 
@@ -1539,7 +1540,7 @@ fn parse_many_errors_positional() {
         .run_inner(Args::from(&["1", "2", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1553,7 +1554,7 @@ fn parse_many_errors_flag() {
         .run_inner(Args::from(&["-p", "1", "-p", "x"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"x\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1581,7 +1582,7 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`-p` requires an argument, got a flag-like `--bar`, try `-p=--bar` to use it as an argument"
+        "`-p` requires an argument `P`, got a flag `--bar`, try `-p=--bar` to use it as an argument"
     );
 
     let r = parser
@@ -1590,7 +1591,7 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`--par` requires an argument, got a flag-like `--bar`, try `--par=--bar` to use it as an argument"
+        "`--par` requires an argument `P`, got a flag `--bar`, try `--par=--bar` to use it as an argument"
     );
 
     let r = parser
@@ -1599,7 +1600,7 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`--par` requires an argument, got a flag-like `--bar=baz`, try `--par=--bar=baz` to use it as an argument"
+        "`--par` requires an argument `P`, got a flag `--bar=baz`, try `--par=--bar=baz` to use it as an argument"
     );
 }
 

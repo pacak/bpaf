@@ -454,7 +454,7 @@ where
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(Error(Message::ValidateFailed(args.current, self.message)))
+            Err(Error(Message::GuardFailed(args.current, self.message)))
         }
     }
 

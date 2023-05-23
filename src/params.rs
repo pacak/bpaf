@@ -751,7 +751,7 @@ impl<T> ParseArgument<T> {
                 return Err(Error(Message::NoEnv(name)));
             }
         }
-        match args.take_arg(&self.named, self.adjacent) {
+        match args.take_arg(&self.named, self.adjacent, Metavar(self.metavar)) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
@@ -932,12 +932,12 @@ fn parse_word(
     help: &Option<Buffer>,
 ) -> Result<OsString, Error> {
     let metavar = Metavar(metavar);
-    if let Some((is_strict, word)) = args.take_positional_word(metavar)? {
+    if let Some((ix, is_strict, word)) = args.take_positional_word(metavar)? {
         if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error(Message::StrictPos(metavar)));
+            return Err(Error(Message::StrictPos(ix, metavar)));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.check_no_pos_ahead() {

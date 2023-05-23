@@ -373,8 +373,10 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
     }
 } // }}}
 
-fn write_metavar(buf: &mut Buffer, metavar: Metavar) {
-    buf.write_str(metavar.0, Style::Metavar);
+impl Buffer {
+    pub(crate) fn metavar(&mut self, metavar: Metavar) {
+        self.write_str(metavar.0, Style::Metavar);
+    }
 }
 
 fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
@@ -401,7 +403,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             anywhere: _,
         } => {
             buf.token(Token::TermStart);
-            write_metavar(buf, *metavar);
+            buf.metavar(*metavar);
             buf.token(Token::TermStop);
             if let Some(help) = help {
                 buf.buffer(help);
@@ -456,7 +458,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
             buf.token(Token::TermStart);
             write_shortlong(buf, *name);
             buf.write_str("=", Style::Text);
-            write_metavar(buf, *metavar);
+            buf.metavar(*metavar);
             buf.token(Token::TermStop);
 
             if let Some(help) = help {

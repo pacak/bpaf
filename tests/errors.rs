@@ -14,7 +14,28 @@ fn this_or_that_odd() {
         .run_inner(Args::from(&["-a", "-b", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "\"-c\" cannot be used at the same time as \"-b\"");
+    assert_eq!(res, "`-c` cannot be used at the same time as `-b`");
+}
+
+#[test]
+fn no_argument() {
+    let a = short('a').argument::<i32>("N");
+    let b = short('2').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner(Args::from(&["-a", "-42"])).unwrap();
+    assert_eq!(r, (-42, false));
+
+    //    let r = parser.run_inner(Args::from(&["-a", "-4"])).unwrap();
+    //    assert_eq!(r, (-4, flse));
+    let r = parser
+        .run_inner(Args::from(&["-a", "-2"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "`-a` requires an argument `N`, got a flag `-2`, try `-a=-2` to use it as an argument"
+    );
 }
 
 #[test]
@@ -51,10 +72,7 @@ fn better_error_with_enum() {
         .run_inner(Args::from(&["--alpha", "--beta"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "\"--beta\" cannot be used at the same time as \"--alpha\""
-    );
+    assert_eq!(res, "`--beta` cannot be used at the same time as `--alpha`");
 
     let res = foo()
         .run_inner(Args::from(&["--alpha", "--gamma"]))
@@ -62,26 +80,20 @@ fn better_error_with_enum() {
         .unwrap_stderr();
     assert_eq!(
         res,
-        "\"--gamma\" cannot be used at the same time as \"--alpha\""
+        "`--gamma` cannot be used at the same time as `--alpha`"
     );
 
     let res = foo()
         .run_inner(Args::from(&["--beta", "--gamma"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "\"--gamma\" cannot be used at the same time as \"--beta\""
-    );
+    assert_eq!(res, "`--gamma` cannot be used at the same time as `--beta`");
 
     let res = foo()
         .run_inner(Args::from(&["--alpha", "--beta", "--gamma"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(
-        res,
-        "\"--beta\" cannot be used at the same time as \"--alpha\""
-    );
+    assert_eq!(res, "`--beta` cannot be used at the same time as `--alpha`");
 }
 
 #[test]
@@ -96,7 +108,7 @@ fn guard_message() {
         .unwrap_err()
         .unwrap_stderr();
 
-    assert_eq!(res, "\"30\": too high");
+    assert_eq!(res, "`30`: too high");
 }
 
 #[test]
@@ -117,4 +129,16 @@ fn cannot_be_used_multiple_times() {
         .unwrap_stderr();
     let expected = "`-a` is not expected in this context";
     assert_eq!(r, expected);
+}
+
+#[test]
+fn strict_positional_argument() {
+    let a = short('a').argument::<usize>("N");
+    let parser = a.to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "--", "10"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`-a` requires an argument `N`");
 }

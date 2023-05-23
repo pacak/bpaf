@@ -1,7 +1,6 @@
 use crate::{
     inner_buffer::{Buffer, Style},
     item::{Item, ShortLong},
-    meta_help::Metavar,
 };
 
 #[doc(hidden)]
@@ -53,9 +52,6 @@ impl Buffer {
             }
         }
     }
-    pub(crate) fn write_metavar(&mut self, mv: Metavar) {
-        self.write_str(mv.0, Style::Metavar);
-    }
 
     pub(crate) fn write_item(&mut self, item: &Item) {
         match item {
@@ -68,7 +64,7 @@ impl Buffer {
                 if *strict {
                     self.write_str("-- ", Style::Literal)
                 }
-                self.write_metavar(*metavar);
+                self.metavar(*metavar);
             }
             Item::Command {
                 name: _,
@@ -94,7 +90,7 @@ impl Buffer {
             } => {
                 self.write_shortlong(name);
                 self.write_char('=', Style::Text);
-                self.write_metavar(*metavar);
+                self.metavar(*metavar);
             }
         }
     }

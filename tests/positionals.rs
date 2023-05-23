@@ -164,7 +164,7 @@ fn strictly_positional() {
         .run_inner(Args::from(&["a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected A to be on the right side of --");
+    assert_eq!(r, "Expected `A` to be on the right side of `--`");
 
     let r = parser.run_inner(Args::from(&["--", "a"])).unwrap();
     assert_eq!(r, "a");
@@ -173,7 +173,7 @@ fn strictly_positional() {
         .run_inner(Args::from(&["a", "--"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected A to be on the right side of --");
+    assert_eq!(r, "Expected `A` to be on the right side of `--`");
 
     let r = parser
         .run_inner(Args::from(&["--"]))

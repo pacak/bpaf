@@ -18,7 +18,7 @@ fn ambiguity() {
         .run_inner(Args::from(&["-aaaaaa"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Parser supports -a as both option and option-argument, try to split -aaaaaa into individual options (-a -a ..) or use -a=aaaaa syntax to disambiguate");
+    assert_eq!(r, "App supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual options\n(-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
 
     let r = parser
         .run_inner(Args::from(&["-b"]))
@@ -180,7 +180,7 @@ fn ux_discussion() {
         r,
         // everything before ":" comes from bpaf, after ":" - it's an error specific
         // to FromStr instance.
-        "Couldn't parse \"tru\": provided string was not `true` or `false`"
+        "Couldn't parse `tru`: provided string was not `true` or `false`"
     );
 
     let r = parser
@@ -307,7 +307,7 @@ fn big_conflict() {
         .run_inner(Args::from(&["-a", "-b", "-c", "-d"]))
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "\"-c\" cannot be used at the same time as \"-a\"";
+    let expected = "`-c` cannot be used at the same time as `-a`";
     assert_eq!(r, expected);
 }
 

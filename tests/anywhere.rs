@@ -54,7 +54,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-a", "221b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"221b\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
 
     let r = parser
         .run_inner(Args::from(&["-c", "-a"]))
@@ -66,7 +66,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-c", "-a", "221b"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"221b\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
 
     let r = parser
         .run_inner(Args::from(&["-a", "-c"]))
@@ -81,7 +81,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-a", "221b", "-c"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse \"221b\": invalid digit found in string");
+    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
 }
 
 #[test]

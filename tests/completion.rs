@@ -838,7 +838,7 @@ fn test_zsh_comp<T: std::fmt::Debug>(
 }
 
 #[test]
-#[should_panic(expected = "Parser supports ")]
+#[should_panic(expected = "App supports ")]
 fn ambiguity_no_resolve() {
     #[derive(Debug, Clone)]
     enum A {

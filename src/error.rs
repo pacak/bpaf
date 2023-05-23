@@ -37,24 +37,24 @@ pub(crate) enum Message {
     ParseFailure(ParseFailure),
     /// Tried to consume a strict positional argument, value was present but was not strictly
     /// positional
-    StrictPos(Metavar),
+    StrictPos(usize, Metavar),
 
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
 
     /// Parser provided by user failed to validate a value
-    ValidateFailed(Option<usize>, &'static str),
+    GuardFailed(Option<usize>, &'static str),
 
     /// Argument requres a value but something else was passed,
     /// required: --foo <BAR>
     /// given: --foo --bar
     ///        --foo -- bar
     ///        --foo
-    NoArgument(usize),
+    NoArgument(usize, Metavar),
 
     /// Parser is expected to consume all the things from the command line
     /// this item will contain an index of the unconsumed value
-    Unconsumed(usize),
+    Unconsumed(/* TODO - unused? */ usize),
 
     /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
     Ambiguity(usize, String),
@@ -65,6 +65,9 @@ pub(crate) enum Message {
     /// Two arguments are mutually exclusive
     /// --release --dev
     Conflict(/* winner */ usize, usize),
+
+    /// Expected one or more items in the scope, got someting else if any
+    Expected(Vec<Item>, Option<usize>),
 }
 
 impl Message {
@@ -75,15 +78,16 @@ impl Message {
             | Message::ParseFail(_)
             | Message::Missing(_)
             | Message::PureFailed(_) => true,
-            Message::StrictPos(_)
+            Message::StrictPos(_, _)
             | Message::ParseFailed(_, _)
-            | Message::ValidateFailed(_, _)
+            | Message::GuardFailed(_, _)
             | Message::Unconsumed(_)
             | Message::Ambiguity(_, _)
             | Message::Suggestion(_, _)
             | Message::Conflict(_, _)
             | Message::ParseFailure(_)
-            | Message::NoArgument(_) => false,
+            | Message::Expected(_, _)
+            | Message::NoArgument(_, _) => false,
         }
     }
 }

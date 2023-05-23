@@ -83,14 +83,14 @@ pub(crate) fn improve_error(
     args: &mut State,
     info: &Info,
     inner: &Meta,
-    err: Message,
+    msg: Message,
 ) -> ParseFailure {
     // handle --help and --version messages
     match info.help_parser().eval(args) {
         Ok(ExtraParams::Help) => {
             let path = &args.path;
             let msg = render_help(path, info, inner, &info.help_parser().meta())
-                .render(false, crate::inner_buffer::Color::Monochrome);
+                .render(false, Color::default());
             return ParseFailure::Stdout(msg);
         }
         Ok(ExtraParams::Version(v)) => {
@@ -110,22 +110,12 @@ pub(crate) fn improve_error(
     // 3. suggesting to remove something that is totally not expected in this context
     //    + safest fallback if earlier approaches failed
 
-    let msg = match err {
-        // parse succeeded, need to explain an unused argument
-        Message::ParseFailure(f) => return f,
-        Message::Missing(xs) => return ParseFailure::Stderr(summarize_missing(&xs, inner, args)),
-        Message::Unconsumed(ix) => {
-            if let Some(conflict) = check_conflicts(args) {
-                conflict
-            } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
-                Message::Suggestion(ix, suggestion)
-            } else {
-                err
-            }
-        }
-        err => err,
-    };
-    ParseFailure::Stderr(msg.render(args))
+    //    let msg = match msg {
+    //        Message::Missing(xs) => summarize_missing(&xs, inner, args),
+    //        Message::Unconsumed(_ix) => {}
+    //        err => err,
+    //    };
+    msg.render(args, inner)
 }
 
 fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
@@ -136,66 +126,131 @@ fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>
 }
 
 impl Message {
-    fn render(self, args: &State) -> String {
+    fn render(self, args: &State, inner: &Meta) -> ParseFailure {
+        let mut buffer = Buffer::default();
         match self {
-            Message::ParseFailure(_) => unreachable!(),
-            Message::Missing(_) => unreachable!(),
+            // already rendered
+            Message::ParseFailure(f) => return f,
+
+            // it is possible to have both missing and unconsumed
+            Message::Missing(xs) => {
+                let msg = summarize_missing(&xs, inner, args);
+                return msg.render(args, inner);
+            }
+
+            Message::Unconsumed(ix) => {
+                if let Some(conflict) = check_conflicts(args) {
+                    return conflict.render(args, inner);
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
+                    return Message::Suggestion(ix, suggestion).render(args, inner);
+                };
+                let item = &args.items[ix];
+                buffer.text("`");
+                buffer.write(item, Style::Invalid);
+                buffer.text("` is not expected in this context");
+            }
+
             Message::NoEnv(name) => {
-                format!("env variable {} is not set", name)
+                buffer.text("Environment variable `");
+                buffer.invalid(name);
+                buffer.text("` is not set");
+                buffer.monochrome(false);
             }
-            Message::StrictPos(x) => {
-                format!("Expected {} to be on the right side of --", x)
+            Message::StrictPos(_ix, metavar) => {
+                buffer.text("Expected `");
+                buffer.metavar(metavar);
+                buffer.text("` to be on the right side of `");
+                buffer.literal("--");
+                buffer.text("`");
             }
-            Message::ParseSome(s) => s.to_string(),
-            Message::ParseFail(s) => s.to_owned(),
-            Message::ParseFailed(mix, s) => match textual_part(args, mix) {
-                Some(field) => format!("Couldn't parse {:?}: {}", field, s),
-                None => format!("Couldn't parse: {}", s),
-            },
-            Message::ValidateFailed(mix, s) => match textual_part(args, mix) {
-                Some(field) => format!("{:?}: {}", field, s),
-                None => format!("Couldn't parse: {}", s),
-            },
-            Message::NoArgument(x) => match args.items.get(x + 1) {
+            Message::ParseSome(s) => {
+                buffer.text(s);
+            }
+            Message::ParseFail(s) => {
+                buffer.text(s);
+            }
+            Message::ParseFailed(mix, s) => {
+                buffer.text("Couldn't parse");
+                if let Some(field) = textual_part(args, mix) {
+                    buffer.text(" `");
+                    buffer.invalid(&field);
+                    buffer.text("`: ");
+                } else {
+                    buffer.text(": ");
+                }
+                buffer.text(&s);
+            }
+            Message::GuardFailed(mix, s) => {
+                if let Some(field) = textual_part(args, mix) {
+                    buffer.text("`");
+                    buffer.invalid(&field);
+                    buffer.text("`: ");
+                    buffer.text(s);
+                } else {
+                    buffer.text("Check failed: ");
+                    buffer.text(s);
+                }
+            }
+            Message::NoArgument(x, mv) => match args.get(x + 1) {
                 Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
                     let arg = &args.items[x];
-                    if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
-                        let fos = fos.to_string_lossy();
-                        let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
-                        format!(
-                            "`{}` is not accepted, try using it as `-{}={}`",
-                            fos, s, repl
-                        )
-                    } else {
-                        let os = os.to_string_lossy();
-                        format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
-                    }
+                    let os = &os.to_string_lossy();
+
+                    buffer.text("`");
+                    buffer.write(arg, Style::Literal);
+                    buffer.text("` requires an argument `");
+                    buffer.metavar(mv);
+                    buffer.text("`, got a flag `");
+                    buffer.write(os, Style::Invalid);
+                    buffer.text("`, try `");
+                    buffer.write(arg, Style::Literal);
+                    buffer.literal("=");
+                    buffer.write(os, Style::Literal);
+                    buffer.text("` to use it as an argument");
                 }
-                Some(Arg::Word(_)) => unreachable!("this is an argument!"),
-                Some(Arg::PosWord(_)) => todo!(),
-                None => format!("{} requires an argument", args.items[x]),
+                // "Some" part of this branch is actually unreachable
+                Some(Arg::Word(_) | Arg::PosWord(_)) | None => {
+                    let arg = &args.items[x];
+                    buffer.text("`");
+                    buffer.write(arg, Style::Literal);
+                    buffer.text("` requires an argument `");
+                    buffer.metavar(mv);
+                    buffer.text("`");
+                }
             },
-            Message::PureFailed(s) => s,
-            Message::Unconsumed(ix) => {
-                let item = &args.items[ix];
-                format!("`{}` is not expected in this context", item)
+            Message::PureFailed(s) => {
+                buffer.text(&s);
             }
             Message::Ambiguity(ix, name) => {
-                let items = name.chars().collect::<Vec<_>>();
-
+                let mut chars = name.chars();
+                let first = chars.next().unwrap();
+                let rest = chars.as_str();
+                let second = chars.next().unwrap();
                 let s = args.items[ix].os_str().to_str().unwrap();
 
-                format!(
-                    "Parser supports -{} as both option and option-argument, \
-                                          try to split {} into individual options (-{} -{} ..) \
-                                          or use -{}={} syntax to disambiguate",
-                    items[0],
-                    s,
-                    items[0],
-                    items[1],
-                    items[0],
-                    &s[1 + items[0].len_utf8()..]
-                )
+                match args.path.first() {
+                    Some(name) => {
+                        buffer.literal(name);
+                        buffer.text("supports `");
+                    }
+                    None => buffer.text("App supports `"),
+                }
+                buffer.literal("-");
+                buffer.write_char(first, Style::Literal);
+                buffer.text("` as both an option and an option-argument, try to split `");
+                buffer.write(s, Style::Literal);
+                buffer.text("` into individual options (");
+                buffer.literal("-");
+                buffer.write_char(first, Style::Literal);
+                buffer.literal(" -");
+                buffer.write_char(second, Style::Literal);
+                buffer.literal(" ..");
+                buffer.text(") or use `");
+                buffer.literal("-");
+                buffer.write_char(first, Style::Literal);
+                buffer.literal("=");
+                buffer.literal(rest);
+                buffer.text("` syntax to disambiguate");
             }
             Message::Suggestion(ix, suggestion) => {
                 let actual = &args.items[ix].to_string();
@@ -207,123 +262,132 @@ impl Message {
                             Arg::Word(_) | Arg::PosWord(_) => "command or positional",
                         };
 
-                        // TODO - avoid allocating here
-                        let suggested = match v {
-                            Variant::CommandLong(name) => name.to_owned(),
+                        buffer.text("No such ");
+                        buffer.text(ty);
+                        buffer.text(": `");
+                        buffer.invalid(actual);
+                        buffer.text("`, did you mean `");
+
+                        match v {
+                            Variant::CommandLong(name) => buffer.literal(name),
                             Variant::Flag(ShortLong::Long(l) | ShortLong::ShortLong(_, l)) => {
-                                format!("--{}", l)
+                                buffer.literal("--");
+                                buffer.literal(l);
                             }
                             Variant::Flag(ShortLong::Short(s)) => {
-                                format!("-{}", s)
+                                buffer.literal("-");
+                                buffer.write_char(s, Style::Literal);
                             }
                         };
-                        format!(
-                            "No such {}: `{}`, did you mean `{}`?",
-                            ty, actual, suggested
-                        )
+
+                        buffer.text("`?");
                     }
-                    Suggestion::MissingDash(name) => format!(
-                        "No such flag: `-{}` (with one dash), did you mean `--{}`?",
-                        name, name
-                    ),
-                    Suggestion::ExtraDash(name) => format!(
-                        "No such flag: `--{}` (with two dashes), did you mean `-{}`?",
-                        name, name
-                    ),
+                    Suggestion::MissingDash(name) => {
+                        buffer.text("No such flag: `");
+                        buffer.literal("-");
+                        buffer.literal(name);
+                        buffer.text("` (with one dash), did you mean `");
+                        buffer.literal("--");
+                        buffer.literal(name);
+                        buffer.text("`?");
+                    }
+                    Suggestion::ExtraDash(name) => {
+                        buffer.text("No such flag: `");
+                        buffer.literal("--");
+                        buffer.write_char(name, Style::Literal);
+                        buffer.text("` (with two dashes), did you mean `");
+                        buffer.literal("-");
+                        buffer.write_char(name, Style::Literal);
+                        buffer.text("`?");
+                    }
                     Suggestion::Nested(x, v) => {
                         let ty = match v {
                             Variant::CommandLong(_) => "Subcommand",
                             Variant::Flag(_) => "Flag",
                         };
-                        format!("{} `{}` is not valid in this context, did you mean to pass it to command `{}`?", ty, actual, x)
+                        buffer.text(ty);
+                        buffer.text(" `");
+                        buffer.literal(actual);
+                        buffer.text(
+                            "` is not valid in this context, did you mean to pass it to command `",
+                        );
+                        buffer.literal(&x);
+                        buffer.text("`?");
                     }
                 }
+            }
+            Message::Expected(exp, actual) => {
+                let items = exp.into_iter().map(Meta::from).collect::<Vec<_>>();
+                let meta = Meta::Or(items).normalized(false);
 
-                /*
-                let current = match &args.items[ix]
-                {
-                    Arg::Word(w) | Arg::PosWord(w) => {
-                        let s = w.to_str().unwrap();
-                        if s.starts_with('-') {
-                            format!("flag: `{}`", s)
-                        } else {
-                            format!("command or positional: `{}`", s)
-                        }
+                buffer.text("Expected `");
+                buffer.write_meta(&meta, false);
+                match actual {
+                    Some(actual) => {
+                        buffer.text("`, got `");
+                        buffer.write(&args.items[actual], Style::Invalid);
+                        buffer.text("`. Pass `");
                     }
-                    x => format!("{:?}", x),
-                    Arg::Short(_, _, _) => todo!(),
-                    Arg::Long(_, _, _) => todo!(),
-                };
-                let replacement = match suggestion {
-                    Suggestion::MissingDash(x) => format!("`--{}` (with two dashes)", x),
-                    x => format!("{:?}", x),
-                    Suggestion::Variant(_) => todo!(),
-                    Suggestion::Nested(_, _) => todo!(),
-                };
-
-                format!("No such {}, did you mean {}", current, replacement)*/
+                    None => {
+                        buffer.text("`, pass `");
+                    }
+                }
+                buffer.literal("--help");
+                buffer.text("` for usage information");
             }
             Message::Conflict(winner, loser) => {
-                format!(
-                    "\"{}\" cannot be used at the same time as \"{}\"",
-                    args.items[loser], args.items[winner]
-                )
+                buffer.text("`");
+                buffer.write(&args.items[loser], Style::Literal);
+                buffer.text("` cannot be used at the same time as `");
+                buffer.write(&args.items[winner], Style::Literal);
+                buffer.text("`");
             }
-        }
+        };
+
+        ParseFailure::Stderr(buffer.render(true, Color::default()))
     }
 }
 
-#[inline(never)]
-pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &State) -> String {
+/// go over all the missing items, pick the left most scope
+pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &State) -> Message {
     // missing items can belong to different scopes, pick the best scope to work with
-    let (best_pos, mut best_scope) = match items
+    let best_item = items
         .iter()
         .max_by_key(|item| (item.position, item.scope.start))
-    {
-        Some(item) => (item.position, item.scope.clone()),
-        None => return "Nothing expected, but parser somehow failed...".to_owned(),
-    };
+        .unwrap();
+    let mut best_scope = best_item.scope.clone();
 
-    let meta = Meta::Or(
-        items
-            .iter()
-            .filter_map(|i| {
-                if i.scope == best_scope {
-                    Some(Meta::from(i.item.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>(),
-    )
-    .normalized(false);
+    let expected = items
+        .iter()
+        .filter_map(|i| {
+            if i.scope == best_scope {
+                Some(i.item.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
 
-    best_scope.start = best_scope.start.max(best_pos);
+    best_scope.start = best_scope.start.max(best_item.position);
     let mut args = args.clone();
     args.set_scope(best_scope);
-    if let Some(x) = args.peek() {
+    if let Some((ix, _arg)) = args.items_iter().next() {
         if let Some((ix, sugg)) = crate::meta_youmean::suggest(&args, inner) {
-            let msg = Message::Suggestion(ix, sugg);
-            msg.render(&args)
+            Message::Suggestion(ix, sugg)
         } else {
-            let mut b = Buffer::default();
-            b.write_str("Expected `", Style::Text);
-            b.write_meta(&meta, false);
-            b.write_str("`, got `", Style::Text);
-            b.write_str(&x.to_string(), Style::Invalid);
-            b.write_str("`. Pass `", Style::Text);
-            b.write_str("--help", Style::Literal);
-            b.write_str("` for usage information", Style::Text);
-            b.render(true, Color::Monochrome)
+            Message::Expected(expected, Some(ix))
         }
     } else {
-        let mut b = Buffer::default();
-        b.write_str("Expected `", Style::Text);
-        b.write_meta(&meta, false);
-        b.write_str("`, pass `", Style::Text);
-        b.write_str("--help", Style::Literal);
-        b.write_str("` for usage information", Style::Text);
-
-        b.render(true, Color::Monochrome)
+        Message::Expected(expected, None)
     }
 }
+
+/*
+#[inline(never)]
+/// the idea is to post some context for the error
+fn snip(buffer: &mut Buffer, args: &State, items: &[usize]) {
+    for ix in args.scope() {
+        buffer.write(ix, Style::Text);
+    }
+}
+*/
