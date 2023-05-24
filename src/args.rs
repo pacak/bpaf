@@ -100,22 +100,22 @@ impl<'a> From<&'a [OsString]> for Args<'a> {
     }
 }
 
-impl From<ArgsOs> for Args<'_> {
-    fn from(mut value: ArgsOs) -> Self {
-        let name = value.next().and_then(|n| n.to_str().map(|s| s.to_owned()));
+impl Args<'_> {
+    /// Get a list of command line arguments from OS
+    pub fn current_args() -> Self {
+        let mut value = std::env::args_os();
+        let name = value.next().and_then(|n| {
+            let path = std::path::PathBuf::from(n);
+            let file_name = path.file_name()?;
+            let s = file_name.to_str()?;
+            Some(s.to_owned())
+        });
         Self {
             items: Box::new(value),
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name,
         }
-    }
-}
-
-impl Args<'_> {
-    /// Get a list of command line arguments from OS
-    pub fn current_args() -> Self {
-        Self::from(std::env::args_os())
     }
 }
 
@@ -254,7 +254,7 @@ mod inner {
             #[cfg(feature = "autocomplete")]
             let mut comp_scanner = crate::complete_run::ArgScanner {
                 revision: args.c_rev,
-                name: args.name,
+                name: args.name.as_deref(),
             };
 
             for mut os in args.items {
@@ -363,15 +363,23 @@ mod inner {
                 }
             }
 
+            let mut path = Vec::new();
+
+            #[cfg(feature = "autocomplete")]
+            let comp = comp_scanner.done();
+
+            if let Some(name) = args.name {
+                path.push(name);
+            }
             State {
                 item_state,
                 remaining,
                 scope: 0..items.len(),
                 items: items.into(),
                 current: None,
-                path: Vec::new(),
+                path,
                 #[cfg(feature = "autocomplete")]
-                comp: comp_scanner.done(),
+                comp,
             }
         }
 

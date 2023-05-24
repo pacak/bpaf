@@ -198,12 +198,12 @@ fn parse_comp_options() -> crate::OptionParser<CompOptions> {
 }
 
 #[derive(Debug)]
-pub(crate) struct ArgScanner {
+pub(crate) struct ArgScanner<'a> {
     pub(crate) revision: Option<usize>,
-    pub(crate) name: Option<String>,
+    pub(crate) name: Option<&'a str>,
 }
 
-impl ArgScanner {
+impl ArgScanner<'_> {
     pub(crate) fn check_next(&mut self, arg: &OsStr) -> bool {
         let arg = match arg.to_str() {
             Some(arg) => arg,
