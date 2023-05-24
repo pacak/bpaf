@@ -68,6 +68,9 @@ pub(crate) enum Message {
 
     /// Expected one or more items in the scope, got someting else if any
     Expected(Vec<Item>, Option<usize>),
+
+    /// Parameter is accepted but only once
+    OnlyOnce(/* winner */ usize, usize),
 }
 
 impl Message {
@@ -87,6 +90,7 @@ impl Message {
             | Message::Conflict(_, _)
             | Message::ParseFailure(_)
             | Message::Expected(_, _)
+            | Message::OnlyOnce(_, _)
             | Message::NoArgument(_, _) => false,
         }
     }

@@ -33,6 +33,20 @@ impl Arg {
             Arg::Short(_, _, s) | Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) => s.as_ref(),
         }
     }
+
+    pub(crate) fn match_short(&self, val: char) -> bool {
+        match self {
+            Arg::Short(s, _, _) => *s == val,
+            Arg::Long(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
+        }
+    }
+
+    pub(crate) fn match_long(&self, val: &str) -> bool {
+        match self {
+            Arg::Long(s, _, _) => *s == val,
+            Arg::Short(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
+        }
+    }
 }
 
 // short flag disambiguations:

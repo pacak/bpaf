@@ -150,7 +150,10 @@ fn flag_specified_twice() {
         .run_inner(Args::from(&["--flag", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`--flag` is not expected in this context");
+    assert_eq!(
+        r,
+        "Argument `--flag` cannot be used multiple times in this context"
+    );
 }
 
 #[test]
@@ -221,7 +224,10 @@ fn suggest_typo_fix() {
         .run_inner(Args::from(&["--flag", "--flag"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`--flag` is not expected in this context");
+    assert_eq!(
+        r,
+        "Argument `--flag` cannot be used multiple times in this context"
+    );
 }
 
 #[test]

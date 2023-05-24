@@ -68,7 +68,7 @@ fn simple_two_optional_flags() {
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("`-a` is not expected in this context", err);
+    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
 
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -106,7 +106,7 @@ fn simple_two_optional_flags_with_one_hidden() {
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("`-a` is not expected in this context", err);
+    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
 
     let help = decorated
         .run_inner(Args::from(&["-h"]))
@@ -800,7 +800,7 @@ fn simple_cargo_helper() {
         .run_inner(Args::from(&["-a", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("`-a` is not expected in this context", err);
+    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
 
     let help = decorated
         .run_inner(Args::from(&["-h"]))

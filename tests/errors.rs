@@ -112,26 +112,6 @@ fn guard_message() {
 }
 
 #[test]
-fn cannot_be_used_multiple_times() {
-    let parser = short('a').switch().to_options();
-
-    let r = parser
-        .run_inner(Args::from(&["-aaa"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    let expected = "`-a` is not expected in this context";
-    assert_eq!(r, expected);
-
-    // TODO - improve error message
-    let r = parser
-        .run_inner(Args::from(&["-a", "-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    let expected = "`-a` is not expected in this context";
-    assert_eq!(r, expected);
-}
-
-#[test]
 fn strict_positional_argument() {
     let a = short('a').argument::<usize>("N");
     let parser = a.to_options();
@@ -141,4 +121,56 @@ fn strict_positional_argument() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`-a` requires an argument `N`");
+}
+
+#[test]
+fn not_expected_at_all() {
+    let a = short('a').switch();
+    let parser = a.to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--megapotato"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`--megapotato` is not expected in this context");
+
+    let r = parser
+        .run_inner(Args::from(&["megapotato"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`megapotato` is not expected in this context");
+}
+
+#[test]
+fn cannot_be_used_twice() {
+    let a = short('a').switch();
+    let b = short('b').switch().many();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "-b", "-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "Argument `-a` cannot be used multiple times in this context"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["-a", "-a"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "Argument `-a` cannot be used multiple times in this context"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["-abba"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "Argument `-a` cannot be used multiple times in this context"
+    );
 }

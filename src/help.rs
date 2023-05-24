@@ -29,25 +29,50 @@ fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>
     }
 }
 
+fn only_once(args: &State, cur: usize) -> Option<usize> {
+    if cur == 0 {
+        return None;
+    }
+    let mut iter = args.items[..cur].iter().rev();
+    let offset = match args.items.get(cur)? {
+        Arg::Short(s, _, _) => iter.position(|a| a.match_short(*s)),
+        Arg::Long(l, _, _) => iter.position(|a| a.match_long(l)),
+        Arg::Word(_) | Arg::PosWord(_) => None,
+    };
+    Some(cur - offset? - 1)
+}
+
 impl Message {
-    pub(crate) fn render(self, args: &State, inner: &Meta) -> ParseFailure {
+    pub(crate) fn render(mut self, args: &State, inner: &Meta) -> ParseFailure {
+        // try to come up with a better error message for a few cases
+        match self {
+            Message::Unconsumed(ix) => {
+                if let Some(conflict) = check_conflicts(args) {
+                    self = conflict;
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
+                    self = Message::Suggestion(ix, suggestion);
+                } else if let Some(prev_ix) = only_once(args, ix) {
+                    self = Message::OnlyOnce(prev_ix, ix)
+                }
+            }
+            Message::Missing(xs) => {
+                self = summarize_missing(&xs, inner, args);
+            }
+            _ => {}
+        }
+
         let mut buffer = Buffer::default();
+
         match self {
             // already rendered
             Message::ParseFailure(f) => return f,
 
             // it is possible to have both missing and unconsumed
-            Message::Missing(xs) => {
-                let msg = summarize_missing(&xs, inner, args);
-                return msg.render(args, inner);
+            Message::Missing(_) => {
+                // this one is unreachable
             }
 
             Message::Unconsumed(ix) => {
-                if let Some(conflict) = check_conflicts(args) {
-                    return conflict.render(args, inner);
-                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
-                    return Message::Suggestion(ix, suggestion).render(args, inner);
-                };
                 let item = &args.items[ix];
                 buffer.text("`");
                 buffer.write(item, Style::Invalid);
@@ -245,6 +270,11 @@ impl Message {
                 buffer.text("` cannot be used at the same time as `");
                 buffer.write(&args.items[winner], Style::Literal);
                 buffer.text("`");
+            }
+            Message::OnlyOnce(_winner, loser) => {
+                buffer.text("Argument `");
+                buffer.write(&args.items[loser], Style::Literal);
+                buffer.text("` cannot be used multiple times in this context");
             }
         };
 
