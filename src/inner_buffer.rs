@@ -146,6 +146,10 @@ pub struct Buffer {
 }
 
 impl Buffer {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
+    }
+
     pub fn buffer(&mut self, buf: &Buffer) {
         self.tokens.extend(&buf.tokens);
         self.payload.push_str(&buf.payload);

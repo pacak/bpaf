@@ -423,9 +423,9 @@ pub mod parsers {
 }
 
 use structs::{
-    ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide,
-    ParseHideUsage, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith,
-    ParseSome, ParseWith, ParseWithGroupHelp,
+    ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseMany,
+    ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage,
+    ParseWith, ParseWithGroupHelp,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -1157,11 +1157,27 @@ pub trait Parser<T> {
     ///
     #[doc = include_str!("docs/hide_usage.md")]
     #[must_use]
-    fn hide_usage(self) -> ParseHideUsage<Self>
+    fn hide_usage(self) -> ParseUsage<Self>
     where
         Self: Sized + Parser<T>,
     {
-        ParseHideUsage { inner: self }
+        ParseUsage {
+            inner: self,
+            usage: Buffer::default(),
+        }
+    }
+
+    // customize how this parser looks like in the usage line
+    #[must_use]
+    fn usage<M>(self, usage: M) -> ParseUsage<Self>
+    where
+        M: Into<Buffer>,
+        Self: Sized + Parser<T>,
+    {
+        ParseUsage {
+            inner: self,
+            usage: usage.into(),
+        }
     }
 
     // {{{ group_help

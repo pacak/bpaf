@@ -29,7 +29,7 @@ pub enum Meta {
     /// This item is not rendered in the help message
     Skip,
     /// TODO make it Option<Box<Buffer>>
-    HideUsage(Box<Meta>),
+    CustomUsage(Box<Meta>, Box<Buffer>),
 }
 
 // to get std::mem::take to work
@@ -132,11 +132,8 @@ impl Buffer {
 
                 Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => go(m, f),
                 Meta::Skip => f.write_str("no parameters expected", Style::Text),
-                Meta::HideUsage(m) => {
-                    // if normalization strips this depending on for_usage flag
-                    // TODO use buffer
-                    //
-                    go(m, f);
+                Meta::CustomUsage(_, u) => {
+                    f.buffer(u);
                 }
             }
         }
@@ -208,7 +205,7 @@ impl Meta {
                 Meta::Optional(m)
                 | Meta::Required(m)
                 | Meta::Many(m)
-                | Meta::HideUsage(m)
+                | Meta::CustomUsage(m, _)
                 | Meta::Subsection(m, _)
                 | Meta::Suffix(m, _) => go(m, is_pos, v),
                 Meta::Skip => {}
@@ -246,7 +243,7 @@ impl Meta {
             | Meta::Many(x)
             | Meta::Subsection(x, _)
             | Meta::Suffix(x, _)
-            | Meta::HideUsage(x) => Self::first_item(x),
+            | Meta::CustomUsage(x, _) => Self::first_item(x),
         }
     }
 
@@ -325,10 +322,15 @@ impl Meta {
             Meta::Skip => {
                 // nothing to do with items and skip just bubbles upwards
             }
-            Meta::HideUsage(m) => {
+            Meta::CustomUsage(m, u) => {
                 m.normalize(for_usage);
-                if for_usage || matches!(**m, Meta::Skip) {
-                    *self = Meta::Skip;
+                // strip CustomUsage if we are not in usage so writer can simply render it
+                if for_usage {
+                    if u.is_empty() {
+                        *self = Meta::Skip;
+                    }
+                } else {
+                    *self = std::mem::take(m);
                 }
             }
         }
@@ -377,7 +379,7 @@ impl Meta {
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::Argument { shorts, .. } => args.extend(shorts),
             },
-            Meta::HideUsage(m)
+            Meta::CustomUsage(m, _)
             | Meta::Required(m)
             | Meta::Optional(m)
             | Meta::Adjacent(m)

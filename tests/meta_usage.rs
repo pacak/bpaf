@@ -300,3 +300,16 @@ fn hidden_fallback_branch() {
 
     assert_usage(commands(), "COMMAND ...");
 }
+
+#[test]
+fn custom_usage() {
+    let a = short('a').switch();
+
+    let mut buf = Buffer::default();
+    buf.text("<also takes flag b>");
+    let b = short('b').switch().usage(buf);
+
+    let parser = construct!(a, b).to_options();
+
+    assert_usage(parser, "[-a] <also takes flag b>")
+}

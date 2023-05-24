@@ -231,7 +231,7 @@ impl Meta {
             | Meta::Many(x)
             | Meta::Subsection(x, _)
             | Meta::Suffix(x, _)
-            | Meta::HideUsage(x) => x.peek_front_ty(),
+            | Meta::CustomUsage(x, _) => x.peek_front_ty(),
             Meta::Item(i) => Some(HiTy::from(i.as_ref())),
             Meta::Skip => None,
         }
@@ -257,7 +257,7 @@ impl<'a> HelpItems<'a> {
                     self.items.push(HelpItem::AnywhereStop { ty });
                 }
             }
-            Meta::HideUsage(x) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
+            Meta::CustomUsage(x, _) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
                 self.append_meta(x)
             }
             Meta::Item(item) => {

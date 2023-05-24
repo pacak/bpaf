@@ -262,7 +262,8 @@ impl Line<'_> {
                 self.usage(m);
             }
             Meta::Skip => {}
-            Meta::HideUsage(m) => {
+            Meta::CustomUsage(m, _) => {
+                todo!();
                 self.usage(m);
             }
         };

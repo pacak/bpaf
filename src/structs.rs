@@ -189,10 +189,11 @@ where
 /// Parser that hides inner parser from usage line
 ///
 /// No other changes to the inner parser
-pub struct ParseHideUsage<P> {
+pub struct ParseUsage<P> {
     pub(crate) inner: P,
+    pub(crate) usage: Buffer,
 }
-impl<T, P> Parser<T> for ParseHideUsage<P>
+impl<T, P> Parser<T> for ParseUsage<P>
 where
     P: Parser<T>,
 {
@@ -201,7 +202,7 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::HideUsage(Box::new(self.inner.meta()))
+        Meta::CustomUsage(Box::new(self.inner.meta()), Box::new(self.usage.clone()))
     }
 }
 
