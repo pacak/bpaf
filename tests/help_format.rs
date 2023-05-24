@@ -499,3 +499,24 @@ Available options:
     let r = parser.run_inner(Args::from(&["-a", "-c"])).unwrap();
     assert_eq!(r, ((true, false), true));
 }
+
+#[test]
+fn custom_help_and_version() {
+    let h = short('H').long("halp").help("halps you");
+    let v = short('v').long("release").help("prints release id");
+    let a = short('a').switch();
+    let parser = a.to_options().help_parser(h).version_parser(v);
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`--help` is not expected in this context");
+
+    let r = parser
+        .run_inner(Args::from(&["--halp"]))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "Usage: [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
+    assert_eq!(r, expected);
+}

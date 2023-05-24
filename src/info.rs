@@ -3,14 +3,16 @@
 use crate::{
     args::{Args, State},
     error::Message,
-    parsers::ParseCommand,
-    Buffer, Error, ParseFailure, Parser,
+    inner_buffer::{Color, Token},
+    meta_help::render_help,
+    parsers::{NamedArg, ParseCommand},
+    short, Buffer, Error, Meta, ParseFailure, Parser,
 };
 
 /// Information about the parser
 ///
 /// No longer public, users are only interacting with it via [`OptionParser`]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]
@@ -23,6 +25,24 @@ pub struct Info {
     pub footer: Option<Buffer>,
     /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<Buffer>,
+    pub help_arg: NamedArg,
+    pub version_arg: NamedArg,
+}
+
+impl Default for Info {
+    fn default() -> Self {
+        Self {
+            version: Default::default(),
+            descr: Default::default(),
+            header: Default::default(),
+            footer: Default::default(),
+            usage: Default::default(),
+            help_arg: short('h').long("help").help("Prints help information"),
+            version_arg: short('V')
+                .long("version")
+                .help("Prints version information"),
+        }
+    }
 }
 
 /// Ready to run [`Parser`] with additional information attached
@@ -172,13 +192,10 @@ impl<T> OptionParser<T> {
             .collect_shorts(&mut short_flags, &mut short_args);
         let mut err = None;
         let mut state = State::construct(args, &short_flags, &short_args, &mut err);
+
+        // this only handles disambiguation failure in construct
         if let Some(msg) = err {
-            return Err(crate::help::improve_error(
-                &mut state,
-                &self.info,
-                &self.inner.meta(),
-                msg,
-            ));
+            return Err(msg.render(&state, &self.inner.meta()));
         }
 
         self.run_subparser(&mut state)
@@ -217,12 +234,33 @@ impl<T> OptionParser<T> {
             }
             Err(Error(err)) => err,
         };
-        Err(crate::help::improve_error(
-            args,
-            &self.info,
-            &self.inner.meta(),
-            err,
-        ))
+
+        // handle --help and --version messages
+        if let Ok(extra) = self.info.eval(args) {
+            let mut detailed = false;
+            let buffer = match extra {
+                ExtraParams::Help(d) => {
+                    detailed = d;
+                    render_help(
+                        &args.path,
+                        &self.info,
+                        &self.inner.meta(),
+                        &self.info.meta(),
+                    )
+                }
+                ExtraParams::Version(v) => {
+                    let mut buffer = Buffer::default();
+                    buffer.text("Version: ");
+                    buffer.buffer(&v);
+                    buffer.token(Token::LineBreak);
+                    buffer
+                }
+            };
+            return Err(ParseFailure::Stdout(
+                buffer.render(detailed, Color::default()),
+            ));
+        }
+        Err(err.render(args, &self.inner.meta()))
     }
 
     /// Get first line of description if Available
@@ -538,4 +576,57 @@ impl<T> OptionParser<T> {
     pub fn check_invariants(&self, _cosmetic: bool) {
         self.inner.meta().positional_invariant_check(true);
     }
+
+    pub fn help_parser(mut self, parser: NamedArg) -> Self {
+        self.info.help_arg = parser;
+        self
+    }
+
+    pub fn version_parser(mut self, parser: NamedArg) -> Self {
+        self.info.version_arg = parser;
+        self
+    }
+}
+
+impl Info {
+    #[inline(never)]
+    fn mk_help_parser(&self) -> impl Parser<()> {
+        self.help_arg.clone().req_flag(())
+    }
+    #[inline(never)]
+    fn mk_version_parser(&self) -> impl Parser<()> {
+        self.version_arg.clone().req_flag(())
+    }
+}
+
+impl Parser<ExtraParams> for Info {
+    fn eval(&self, args: &mut State) -> Result<ExtraParams, Error> {
+        let help = self.mk_help_parser();
+        if help.eval(args).is_ok() {
+            return Ok(ExtraParams::Help(help.eval(args).is_ok()));
+        }
+
+        if let Some(version) = &self.version {
+            if self.mk_version_parser().eval(args).is_ok() {
+                return Ok(ExtraParams::Version(version.clone()));
+            }
+        }
+
+        // error message is not actually used anywhere
+        Err(Error(Message::ParseFail("not a version or help")))
+    }
+
+    fn meta(&self) -> Meta {
+        let help = self.mk_help_parser().meta();
+        match &self.version {
+            Some(_) => Meta::And(vec![help, self.mk_version_parser().meta()]),
+            None => help,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+enum ExtraParams {
+    Help(bool),
+    Version(Buffer),
 }
