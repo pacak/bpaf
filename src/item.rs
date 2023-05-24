@@ -158,7 +158,6 @@ impl std::fmt::Display for Item {
                     f.write_str("-- ")?;
                 }
                 write!(f, "{}", metavar)
-                //                metavar.fmt(f)
             }
             Item::Command { .. } => f.write_str("COMMAND ..."),
             Item::Flag {

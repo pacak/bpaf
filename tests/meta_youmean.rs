@@ -267,10 +267,10 @@ fn better_error_message_with_typos() {
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
-Usage: [-e=Arg]... [POS]...
+Usage: [-e=<Arg>]... [POS]...
 
 Available options:
-    -e=Arg
+    -e=<Arg>
     -h, --help  Prints help information
 ";
     assert_eq!(r, expected);

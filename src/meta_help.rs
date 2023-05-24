@@ -374,8 +374,19 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
 } // }}}
 
 impl Buffer {
+    #[inline(never)]
     pub(crate) fn metavar(&mut self, metavar: Metavar) {
-        self.write_str(metavar.0, Style::Metavar);
+        if metavar
+            .0
+            .chars()
+            .all(|c| c.is_uppercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            self.write_str(metavar.0, Style::Metavar);
+        } else {
+            self.write_char('<', Style::Metavar);
+            self.write_str(metavar.0, Style::Metavar);
+            self.write_char('>', Style::Metavar);
+        }
     }
 }
 

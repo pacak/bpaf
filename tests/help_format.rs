@@ -1,6 +1,28 @@
 use bpaf::*;
 
 #[test]
+fn fancy_meta() {
+    let a = long("trailing-comma").argument::<String>("all|es5|none");
+    let b = long("stdin-file-path").argument::<String>("PATH");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--help"]))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: --trailing-comma=<all|es5|none> --stdin-file-path=PATH
+
+Available options:
+        --trailing-comma=<all|es5|none>
+        --stdin-file-path=PATH
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn decorations() {
     let p = short('p')
         .long("parser")

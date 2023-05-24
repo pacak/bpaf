@@ -31,7 +31,7 @@ Available options:
 #[test]
 fn parse_anywhere_no_catch() {
     let a = short('a').req_flag(());
-    let b = positional::<usize>("x");
+    let b = positional::<usize>("X");
     let ab = construct!(a, b).adjacent();
     let c = short('c').switch();
     let parser = construct!(ab, c).to_options();
@@ -42,13 +42,13 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["3", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
+    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
+    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-a", "221b"]))
@@ -60,7 +60,7 @@ fn parse_anywhere_no_catch() {
         .run_inner(Args::from(&["-c", "-a"]))
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected `x`, pass `--help` for usage information");
+    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(Args::from(&["-c", "-a", "221b"]))
@@ -74,7 +74,7 @@ fn parse_anywhere_no_catch() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `x`, got `-c`. Pass `--help` for usage information"
+        "Expected `X`, got `-c`. Pass `--help` for usage information"
     );
 
     let r = parser
