@@ -9,10 +9,10 @@ fn default_value_using_pure_with_ok() {
 
     let opts = construct!([a, b]).to_options();
 
-    let r = opts.run_inner(Args::from(&["-t", "87"]));
+    let r = opts.run_inner(&["-t", "87"]);
     assert_eq!(87, r.unwrap());
 
-    let r = opts.run_inner(Args::from(&[]));
+    let r = opts.run_inner(&[]);
     assert_eq!(42, r.unwrap());
 }
 
@@ -22,7 +22,7 @@ fn default_value_using_pure_with_err() {
     let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
 
     let opts = construct!([a, b]).to_options();
-    let r = opts.run_inner(Args::from(&[]));
+    let r = opts.run_inner(&[]);
     let e = r.unwrap_err().unwrap_stderr();
     assert_eq!("some-err", e);
 }
@@ -36,10 +36,10 @@ fn default_value_using_pure_with_ok_for_some() {
     });
     let seeds = construct!([user_seeds, last_seeds]).to_options();
 
-    let r = seeds.run_inner(Args::from(&["23", "59"]));
+    let r = seeds.run_inner(&["23", "59"]);
     assert_eq!(vec![23, 59], r.unwrap());
 
-    let r = seeds.run_inner(Args::from(&[]));
+    let r = seeds.run_inner(&[]);
     assert_eq!(vec![3, 5, 7, 11], r.unwrap());
 }
 
@@ -53,9 +53,9 @@ fn default_value_using_pure_with_err_for_some() {
     let default_seeds = pure(vec![1, 2]);
     let seeds = construct!([user_seeds, last_seeds, default_seeds]).to_options();
 
-    let r = seeds.run_inner(Args::from(&["23", "59"]));
+    let r = seeds.run_inner(&["23", "59"]);
     assert_eq!(vec![23, 59], r.unwrap());
 
-    let r = seeds.run_inner(Args::from(&[]));
+    let r = seeds.run_inner(&[]);
     assert_eq!(r.unwrap(), vec![1, 2]);
 }

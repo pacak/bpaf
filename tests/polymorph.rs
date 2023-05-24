@@ -22,14 +22,12 @@ fn generic_argument_field() {
     let b = poly::<u32>("u32").optional();
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(Args::from(&["--usize", "12"])).unwrap();
+    let r = parser.run_inner(&["--usize", "12"]).unwrap();
     assert_eq!(r, (Some(Poly { field: 12 }), None));
 
-    let r = parser.run_inner(Args::from(&["--u32", "12"])).unwrap();
+    let r = parser.run_inner(&["--u32", "12"]).unwrap();
     assert_eq!(r, (None, Some(Poly { field: 12 })));
 
-    let r = parser
-        .run_inner(Args::from(&["--u32", "12", "--usize", "24"]))
-        .unwrap();
+    let r = parser.run_inner(&["--u32", "12", "--usize", "24"]).unwrap();
     assert_eq!(r, (Some(Poly { field: 24 }), Some(Poly { field: 12 })));
 }

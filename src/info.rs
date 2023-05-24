@@ -149,7 +149,7 @@ impl<T> OptionParser<T> {
     ///             .to_options();
     ///
     ///     let help = parser
-    ///         .run_inner(Args::from(&["--help"]))
+    ///         .run_inner(&["--help"])
     ///         .unwrap_err()
     ///         .unwrap_stdout();
     ///     let expected_help = "\
@@ -180,7 +180,7 @@ impl<T> OptionParser<T> {
     /// [`parse`](Parser::parse), stdout/stderr isn't actually captured.
     ///
     /// Exact string reperentations may change between versions including minor releases.
-    pub fn run_inner(&self, args: Args) -> Result<T, ParseFailure>
+    pub fn run_inner<'a>(&self, args: impl Into<Args<'a>>) -> Result<T, ParseFailure>
     where
         Self: Sized,
     {
@@ -191,7 +191,7 @@ impl<T> OptionParser<T> {
             .meta()
             .collect_shorts(&mut short_flags, &mut short_args);
         let mut err = None;
-        let mut state = State::construct(args, &short_flags, &short_args, &mut err);
+        let mut state = State::construct(args.into(), &short_flags, &short_args, &mut err);
 
         // this only handles disambiguation failure in construct
         if let Some(msg) = err {

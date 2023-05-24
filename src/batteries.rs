@@ -67,15 +67,15 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
 ///     verbose_by_slice(2, [Error, Warning, Info, Debug, Trace])
 /// }
 /// # let parser = verbose().to_options();
-/// # let res = parser.run_inner(Args::from(&[])).unwrap();
+/// # let res = parser.run_inner(&[]).unwrap();
 /// # assert_eq!(Level::Info, res);
-/// # let res = parser.run_inner(Args::from(&["-q"])).unwrap();
+/// # let res = parser.run_inner(&["-q"]).unwrap();
 /// # assert_eq!(Level::Warning, res);
-/// # let res = parser.run_inner(Args::from(&["-qqq"])).unwrap();
+/// # let res = parser.run_inner(&["-qqq"]).unwrap();
 /// # assert_eq!(Level::Error, res);
-/// # let res = parser.run_inner(Args::from(&["-qqqq"])).unwrap();
+/// # let res = parser.run_inner(&["-qqqq"]).unwrap();
 /// # assert_eq!(Level::Error, res);
-/// # let res = parser.run_inner(Args::from(&["-vvvvq"])).unwrap();
+/// # let res = parser.run_inner(&["-vvvvq"]).unwrap();
 /// # assert_eq!(Level::Trace, res);
 /// ```
 #[must_use]
@@ -181,8 +181,5 @@ pub fn get_usage<T>(parser: crate::OptionParser<T>) -> String
 where
     T: std::fmt::Debug,
 {
-    parser
-        .run_inner(crate::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout()
+    parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout()
 }

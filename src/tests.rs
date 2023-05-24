@@ -88,9 +88,9 @@ fn de_yoda() {
     use bpaf::*;
     let parser = construct!(a(short('a').switch()), b(short('b').switch())).to_options();
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, (false, false));
 
-    let r = parser.run_inner(Args::from(&["-a", "-b"])).unwrap();
+    let r = parser.run_inner(&["-a", "-b"]).unwrap();
     assert_eq!(r, (true, true));
 }

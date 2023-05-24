@@ -1,10 +1,10 @@
-#![allow(deprecated)]
-use bpaf::*;
+//#![allow(deprecated)]
+use bpaf::{Bpaf, Parser};
 
 #[test]
 fn help_with_default_parse() {
-    use bpaf::Parser;
     #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(fallback(Action::NoAction), options)]
     enum Action {
         /// Add a new TODO item
         #[bpaf(command)]
@@ -15,10 +15,10 @@ fn help_with_default_parse() {
         NoAction,
     }
 
-    let parser = action().or_else(bpaf::pure(Action::NoAction)).to_options();
+    let parser = action();
 
     let help = parser
-        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .run_inner(&["add", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
@@ -32,13 +32,10 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
-Usage: COMMAND ...
+Usage: [COMMAND ...]
 
 Available options:
     -h, --help  Prints help information
@@ -68,7 +65,7 @@ fn command_and_fallback() {
     let parser = action().fallback(Action::NoAction).to_options();
 
     let help = parser
-        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .run_inner(&["add", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
@@ -82,10 +79,7 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: [COMMAND ...]
@@ -107,10 +101,7 @@ fn single_unit_command() {
     struct One;
 
     let parser = one().to_options();
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: COMMAND ...
 
@@ -122,6 +113,6 @@ Available commands:
 ";
     assert_eq!(help, expected);
 
-    let r = parser.run_inner(bpaf::Args::from(&["one"])).unwrap();
+    let r = parser.run_inner(&["one"]).unwrap();
     assert_eq!(r, One);
 }

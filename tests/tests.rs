@@ -23,10 +23,7 @@ fn construct_with_fn() {
     }
 
     let parser = construct!(Opts { a(), b, c() }).to_options();
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: [-a] [-b] [-c]
@@ -45,7 +42,7 @@ Available options:
             b: true,
             c: true
         },
-        parser.run_inner(Args::from(&["-b", "-c"])).unwrap()
+        parser.run_inner(&["-b", "-c"]).unwrap()
     );
 }
 
@@ -58,22 +55,22 @@ fn simple_two_optional_flags() {
 
     // no version information given - no version field generated
     let err = decorated
-        .run_inner(Args::from(&["-a", "-V"]))
+        .run_inner(&["-a", "-V"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("`-V` is not expected in this context", err);
 
     // accept only one copy of -a
     let err = decorated
-        .run_inner(Args::from(&["-a", "-a"]))
+        .run_inner(&["-a", "-a"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
+    assert_eq!(
+        "Argument `-a` cannot be used multiple times in this context",
+        err
+    );
 
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 this is a test
@@ -96,22 +93,22 @@ fn simple_two_optional_flags_with_one_hidden() {
 
     // no version information given - no version field generated
     let err = decorated
-        .run_inner(Args::from(&["-a", "-V"]))
+        .run_inner(&["-a", "-V"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!("`-V` is not expected in this context", err);
 
     // accepts only one copy of -a
     let err = decorated
-        .run_inner(Args::from(&["-a", "-a"]))
+        .run_inner(&["-a", "-a"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
+    assert_eq!(
+        "Argument `-a` cannot be used multiple times in this context",
+        err
+    );
 
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 this is a test
@@ -134,17 +131,11 @@ fn either_of_three_required_flags() {
     let decorated = p.to_options().version("1.0");
 
     // version help requires version meta
-    let ver = decorated
-        .run_inner(Args::from(&["-V"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: (-a | -b | -c)
 
@@ -158,10 +149,7 @@ Available options:
     assert_eq!(expected_help, help);
 
     // must specify one of the required flags
-    let err = decorated
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
         "Expected `(-a | -b | -c)`, pass `--help` for usage information",
         err
@@ -176,17 +164,11 @@ fn either_of_three_required_flags2() {
     let p = construct!([a, b, c]);
     let decorated = p.to_options().version("1.0");
 
-    let ver = decorated
-        .run_inner(Args::from(&["-V"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: (-a | -b | -c)
 
@@ -200,10 +182,7 @@ Available options:
     assert_eq!(expected_help, help);
 
     // must specify one of the required flags
-    let err = decorated
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
         "Expected `(-a | -b | -c)`, pass `--help` for usage information",
         err
@@ -218,17 +197,11 @@ fn either_of_two_required_flags_and_one_optional() {
     let p = a.or_else(b).or_else(c);
     let decorated = p.to_options().version("1.0");
 
-    let ver = decorated
-        .run_inner(Args::from(&["-V"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
     assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: (-a | -b | [-c])
 
@@ -242,7 +215,7 @@ Available options:
     assert_eq!(expected_help, help);
 
     // fallback to default
-    let res = decorated.run_inner(Args::from(&[])).unwrap();
+    let res = decorated.run_inner(&[]).unwrap();
     assert!(!res);
 }
 
@@ -253,10 +226,10 @@ fn fallback_with_ok() {
         .fallback_with::<_, &str>(|| Ok(10u32))
         .to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    let r = parser.run_inner(&["-a", "1"]).unwrap();
     assert_eq!(r, 1);
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, 10);
 }
 
@@ -267,19 +240,13 @@ fn fallback_with_err() {
         .fallback_with::<_, &str>(|| Err("nope"))
         .to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    let r = parser.run_inner(&["-a", "1"]).unwrap();
     assert_eq!(r, 1);
 
-    let r = parser
-        .run_inner(Args::from(&["-a", "x"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["-a", "x"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
 
-    let r = parser
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "nope");
 }
 
@@ -288,10 +255,7 @@ fn default_arguments() {
     let a = short('a').argument::<i32>("ARG").fallback(42);
     let decorated = a.to_options();
 
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: [-a=ARG]
 
@@ -302,16 +266,13 @@ Available options:
     assert_eq!(expected_help, help);
 
     let err = decorated
-        .run_inner(Args::from(&["-a", "x12"]))
+        .run_inner(&["-a", "x12"])
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Couldn't parse `x12`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
-    let err = decorated
-        .run_inner(Args::from(&["-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err = decorated.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
     let expected_err = "`-a` requires an argument `ARG`";
     assert_eq!(expected_err, err);
 }
@@ -321,21 +282,21 @@ fn parse_errors() {
     let decorated = short('a').argument::<i32>("ARG").to_options();
 
     let err = decorated
-        .run_inner(Args::from(&["-a", "123x"]))
+        .run_inner(&["-a", "123x"])
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Couldn't parse `123x`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
     let err = decorated
-        .run_inner(Args::from(&["-b", "123x"]))
+        .run_inner(&["-b", "123x"])
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "Expected `-a=ARG`, got `-b`. Pass `--help` for usage information";
     assert_eq!(expected_err, err);
 
     let err = decorated
-        .run_inner(Args::from(&["-a", "123", "-b"]))
+        .run_inner(&["-a", "123", "-b"])
         .unwrap_err()
         .unwrap_stderr();
     let expected_err = "`-b` is not expected in this context";
@@ -347,10 +308,7 @@ fn parse_errors() {
 fn custom_usage() {
     let a = short('a').long("long").argument::<String>("ARG");
     let parser = a.to_options().usage("Usage: -a <ARG> or --long <ARG>");
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: -a=ARG or --long=ARG
 
@@ -384,10 +342,7 @@ fn long_usage_string() {
 
     let parser = construct!(a, b, c, d, e, f).to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: -a=ARG -b=ARG -c=ARG -d=ARG -e=ARG -f=ARG
@@ -405,10 +360,7 @@ Available options:
     assert_eq!(expected_help, help);
     assert_eq!(
         "`-a` requires an argument `ARG`, got a flag `-b`, try `-a=-b` to use it as an argument",
-        parser
-            .run_inner(Args::from(&["-a", "-b"]))
-            .unwrap_err()
-            .unwrap_stderr()
+        parser.run_inner(&["-a", "-b"]).unwrap_err().unwrap_stderr()
     );
 
     drop(parser);
@@ -422,10 +374,7 @@ fn group_help_args() {
     let ab = construct!(a, b).group_help("Explanation applicable for both A and B");
     let parser = construct!(ab, c).to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: [-a] [-b] [-c]
 
@@ -462,10 +411,7 @@ fn group_help_commands() {
 
     let parser = construct!([parser, c]).to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: COMMAND ...
 
@@ -489,32 +435,20 @@ fn from_several_alternatives_pick_more_meaningful() {
     let c = short('c').req_flag(());
     let parser = construct!([a, b, c]).to_options();
 
-    let err1 = parser
-        .run_inner(Args::from(&["-a", "-b"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err1 = parser.run_inner(&["-a", "-b"]).unwrap_err().unwrap_stderr();
     assert_eq!(err1, "`-b` cannot be used at the same time as `-a`");
 
-    let err2 = parser
-        .run_inner(Args::from(&["-b", "-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err2 = parser.run_inner(&["-b", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(err2, "`-a` cannot be used at the same time as `-b`");
 
-    let err3 = parser
-        .run_inner(Args::from(&["-c", "-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err3 = parser.run_inner(&["-c", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(err3, "`-a` cannot be used at the same time as `-c`");
 
-    let err4 = parser
-        .run_inner(Args::from(&["-a", "-c"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err4 = parser.run_inner(&["-a", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(err4, "`-c` cannot be used at the same time as `-a`");
 
     let err5 = parser
-        .run_inner(Args::from(&["-c", "-b", "-a"]))
+        .run_inner(&["-c", "-b", "-a"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(err5, "`-b` cannot be used at the same time as `-c`");
@@ -528,10 +462,7 @@ fn subcommands() {
 
     let parser = bar_cmd.to_options().descr("This is global info");
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 This is global info
 
@@ -546,7 +477,7 @@ Available commands:
     assert_eq!(expected_help, help);
 
     let help = parser
-        .run_inner(Args::from(&["bar", "--help"]))
+        .run_inner(&["bar", "--help"])
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
@@ -566,10 +497,7 @@ fn multiple_aliases() {
     let a = short('a').short('b').short('c').req_flag(());
     let parser = a.to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: -a
 
@@ -578,9 +506,9 @@ Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
-    parser.run_inner(Args::from(&["-a"])).unwrap();
-    parser.run_inner(Args::from(&["-b"])).unwrap();
-    parser.run_inner(Args::from(&["-c"])).unwrap();
+    parser.run_inner(&["-a"]).unwrap();
+    parser.run_inner(&["-b"]).unwrap();
+    parser.run_inner(&["-c"]).unwrap();
 }
 
 mod git {
@@ -640,10 +568,7 @@ mod git {
         let expected_err = "Expected `COMMAND ...`, pass `--help` for usage information";
         assert_eq!(
             expected_err,
-            parser
-                .run_inner(Args::from(&[]))
-                .unwrap_err()
-                .unwrap_stderr()
+            parser.run_inner(&[]).unwrap_err().unwrap_stderr()
         );
     }
 
@@ -665,10 +590,7 @@ Available commands:
 
         assert_eq!(
             expected_help,
-            parser
-                .run_inner(Args::from(&["--help"]))
-                .unwrap_err()
-                .unwrap_stdout()
+            parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout()
         );
     }
 
@@ -688,7 +610,7 @@ Available options:
         assert_eq!(
             expected_help,
             parser
-                .run_inner(Args::from(&["fetch", "--help"]))
+                .run_inner(&["fetch", "--help"])
                 .unwrap_err()
                 .unwrap_stdout()
         );
@@ -710,7 +632,7 @@ Available options:
         assert_eq!(
             expected_help,
             parser
-                .run_inner(Args::from(&["add", "--help"]))
+                .run_inner(&["add", "--help"])
                 .unwrap_err()
                 .unwrap_stdout()
         );
@@ -762,7 +684,7 @@ fn arg_bench() {
             input: vec![PathBuf::from("foo"), PathBuf::from("foo2")],
         },
         parser
-            .run_inner(Args::from(&["--number", "42", "foo", "foo2"]))
+            .run_inner(&["--number", "42", "foo", "foo2"])
             .unwrap()
     );
 
@@ -773,7 +695,7 @@ fn arg_bench() {
             width: 10,
             input: Vec::new()
         },
-        parser.run_inner(Args::from(&["--number", "42"])).unwrap()
+        parser.run_inner(&["--number", "42"]).unwrap()
     );
 
     drop(parser);
@@ -789,23 +711,23 @@ fn simple_cargo_helper() {
         .descr("this is a test");
 
     // cargo run variant
-    let ok = decorated.run_inner(Args::from(&["-a"])).unwrap();
+    let ok = decorated.run_inner(&["-a"]).unwrap();
     assert_eq!((true, false), ok);
 
     // cargo simple variant
-    let ok = decorated.run_inner(Args::from(&["simple", "-b"])).unwrap();
+    let ok = decorated.run_inner(&["simple", "-b"]).unwrap();
     assert_eq!((false, true), ok);
 
     let err = decorated
-        .run_inner(Args::from(&["-a", "-a"]))
+        .run_inner(&["-a", "-a"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!("Argument `-a` cannot be used multiple times in this context", err);
+    assert_eq!(
+        "Argument `-a` cannot be used multiple times in this context",
+        err
+    );
 
-    let help = decorated
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 this is a test
@@ -838,10 +760,7 @@ fn hidden_env() {
     let hidden = env(name).argument("KEY");
     let parser = construct!([visible, hidden]).to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: --key=KEY
@@ -854,10 +773,7 @@ Available options:
 
     assert_eq!(help, expected);
 
-    let r = parser
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Environment variable `BPAF_SECRET_API_KEY2` is not set");
 }
 
@@ -870,10 +786,7 @@ fn env_variable() {
         .argument::<String>("KEY")
         .to_options();
 
-    let help = parser
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: --key=KEY
 
@@ -885,10 +798,7 @@ Available options:
     assert_eq!(expected_help, help);
     std::env::set_var(name, "top s3cr3t");
 
-    let help = parser
-        .run_inner(Args::from(&["-h"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
 Usage: --key=KEY
 
@@ -899,10 +809,10 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let res = parser.run_inner(Args::from(&["--key", "secret"])).unwrap();
+    let res = parser.run_inner(&["--key", "secret"]).unwrap();
     assert_eq!(res, "secret");
 
-    let res = parser.run_inner(Args::from(&[])).unwrap();
+    let res = parser.run_inner(&[]).unwrap();
     assert_eq!(res, "top s3cr3t");
 }
 
@@ -926,7 +836,7 @@ fn default_plays_nicely_with_command() {
     let parser = cmd.to_options().descr("outer");
 
     let help = parser
-        .run_inner(Args::from(&["foo", "--help"]))
+        .run_inner(&["foo", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
@@ -941,10 +851,7 @@ Available options:
 
     assert_eq!(expected_help, help);
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 outer
@@ -967,10 +874,7 @@ fn command_with_aliases() {
     let cmd = command("foo", inner).long("bar").short('f').short('b');
     let parser = cmd.to_options().descr("outer");
 
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 outer
@@ -986,7 +890,7 @@ Available commands:
     assert_eq!(expected_help, help);
 
     let help = parser
-        .run_inner(Args::from(&["f", "--help"]))
+        .run_inner(&["f", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
@@ -1001,13 +905,13 @@ Available options:
     assert_eq!(expected_help, help);
 
     // hidden and visible aliases are working
-    parser.run_inner(Args::from(&["foo"])).unwrap();
-    parser.run_inner(Args::from(&["f"])).unwrap();
-    parser.run_inner(Args::from(&["bar"])).unwrap();
-    parser.run_inner(Args::from(&["b"])).unwrap();
+    parser.run_inner(&["foo"]).unwrap();
+    parser.run_inner(&["f"]).unwrap();
+    parser.run_inner(&["bar"]).unwrap();
+    parser.run_inner(&["b"]).unwrap();
 
     // and "k" isn't a thing
-    parser.run_inner(Args::from(&["k"])).unwrap_err();
+    parser.run_inner(&["k"]).unwrap_err();
 }
 
 #[test]
@@ -1022,10 +926,7 @@ fn help_for_options() {
         .help("help for\nccc")
         .argument::<String>("CCC");
     let parser = construct!(a, b, c).to_options();
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: [-a] -c=B --bbbbb=CCC
@@ -1050,10 +951,7 @@ fn help_for_commands() {
         .help("help for e\ntwo lines");
     let h = command("thing_h", pure(()).to_options());
     let parser = construct!([d, e, h]).to_options();
-    let help = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: COMMAND ...
@@ -1072,14 +970,14 @@ Available commands:
 #[test]
 fn many_doesnt_panic() {
     let parser = short('a').switch().many().map(|m| m.len()).to_options();
-    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    let r = parser.run_inner(&["-aaa"]).unwrap();
     assert_eq!(r, 3);
 }
 
 #[test]
 fn some_doesnt_panic() {
     let parser = short('a').switch().some("").map(|m| m.len()).to_options();
-    let r = parser.run_inner(Args::from(&["-aaa"])).unwrap();
+    let r = parser.run_inner(&["-aaa"]).unwrap();
     assert_eq!(r, 3);
 }
 
@@ -1101,7 +999,7 @@ fn command_resets_left_head_state() {
         .command("cmd")
         .to_options();
 
-    let xx = cmd.run_inner(Args::from(&["cmd", "-b"])).unwrap();
+    let xx = cmd.run_inner(&["cmd", "-b"]).unwrap();
     assert_eq!(xx, Foo::Bar2 { b: () });
 }
 
@@ -1110,18 +1008,12 @@ fn command_preserves_custom_failure_message() {
     let msg = "need more cheese";
     let inner = fail::<()>(msg).to_options();
 
-    let err = inner
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err = inner.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(err, msg);
 
     let outer = inner.command("feed").to_options();
 
-    let err = outer
-        .run_inner(Args::from(&["feed"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let err = outer.run_inner(&["feed"]).unwrap_err().unwrap_stderr();
     assert_eq!(err, msg);
 }
 
@@ -1129,16 +1021,13 @@ fn command_preserves_custom_failure_message() {
 fn optional_error_handling() {
     let p = short('p').argument::<u32>("P").optional().to_options();
 
-    let res = p.run_inner(Args::from(&[])).unwrap();
+    let res = p.run_inner(&[]).unwrap();
     assert_eq!(res, None);
 
-    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    let res = p.run_inner(&["-p", "3"]).unwrap();
     assert_eq!(res, Some(3));
 
-    let res = p
-        .run_inner(Args::from(&["-p", "pi"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = p.run_inner(&["-p", "pi"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
 }
 
@@ -1146,16 +1035,13 @@ fn optional_error_handling() {
 fn many_error_handling() {
     let p = short('p').argument::<u32>("P").many().to_options();
 
-    let res = p.run_inner(Args::from(&[])).unwrap();
+    let res = p.run_inner(&[]).unwrap();
     assert_eq!(res, Vec::new());
 
-    let res = p.run_inner(Args::from(&["-p", "3"])).unwrap();
+    let res = p.run_inner(&["-p", "3"]).unwrap();
     assert_eq!(res, vec![3]);
 
-    let res = p
-        .run_inner(Args::from(&["-p", "pi"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = p.run_inner(&["-p", "pi"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
 }
 
@@ -1165,10 +1051,7 @@ fn failure_is_not_stupid_1() {
     let b = pure(()).parse::<_, _, String>(|_| Err("nope".to_string()));
     let parser = construct!(a, b).to_options();
 
-    let res = parser
-        .run_inner(Args::from(&["-a", "42"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["-a", "42"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Couldn't parse: nope");
 }
 
@@ -1181,7 +1064,7 @@ fn failure_is_not_stupid_2() {
         .to_options();
 
     let res = parser
-        .run_inner(Args::from(&["-a", "42", "-b", "42"]))
+        .run_inner(&["-a", "42", "-b", "42"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "Couldn't parse: nope");
@@ -1193,16 +1076,13 @@ fn no_fallback_out_of_command_parser() {
     let alt2 = pure(String::new());
     let parser = construct!([alt1, alt2]).to_options();
 
-    let res = parser
-        .run_inner(Args::from(&["cmd"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["cmd"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Expected `NAME`, pass `--help` for usage information");
 
-    let res = parser.run_inner(Args::from(&["cmd", "a"])).unwrap();
+    let res = parser.run_inner(&["cmd", "a"]).unwrap();
     assert_eq!(res, "a");
 
-    let res = parser.run_inner(Args::from(&[])).unwrap();
+    let res = parser.run_inner(&[]).unwrap();
     assert_eq!(res, "");
 }
 
@@ -1212,31 +1092,19 @@ fn did_you_mean_switch() {
     let b = short('p').long("plag").switch();
     let parser = construct!([a, b]).to_options();
 
-    let res = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 
-    let res = parser
-        .run_inner(Args::from(&["flag"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["flag"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
         "No such command or positional: `flag`, did you mean `--flag`?"
     );
 
-    let res = parser
-        .run_inner(Args::from(&["--pla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--pla"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--pla`, did you mean `--plag`?");
 
-    let res = parser
-        .run_inner(Args::from(&["--p"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--p"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
         "No such flag: `--p` (with two dashes), did you mean `-p`?"
@@ -1246,10 +1114,7 @@ fn did_you_mean_switch() {
 #[test]
 fn did_you_mean_req_flag() {
     let parser = long("flag").req_flag(()).to_options();
-    let res = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 }
 
@@ -1257,14 +1122,11 @@ fn did_you_mean_req_flag() {
 fn did_you_mean_argument() {
     let parser = long("flag").argument::<String>("VAL").to_options();
 
-    let res = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 
     let res = parser
-        .run_inner(Args::from(&["--flg=hellop"]))
+        .run_inner(&["--flg=hellop"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "No such flag: `--flg`, did you mean `--flag`?");
@@ -1278,19 +1140,13 @@ fn did_you_mean_command() {
         .short('c')
         .to_options();
 
-    let res = parser
-        .run_inner(Args::from(&["comman"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["comman"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
         "No such command or positional: `comman`, did you mean `command`?"
     );
 
-    let res = parser
-        .run_inner(Args::from(&["--comman"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--comman"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--comman`, did you mean `command`?");
 }
 
@@ -1301,27 +1157,24 @@ fn did_you_mean_two_and_arguments() {
     let parser = cargo_helper("cmd", construct!(a, b)).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--flag", "--parametr"]))
+        .run_inner(&["--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["--flag", "--paramet=value"]))
+        .run_inner(&["--flag", "--paramet=value"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--paramet`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["--parameter", "--flg"]))
+        .run_inner(&["--parameter", "--flg"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--flg`, did you mean `--flag`?");
 
-    let r = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
 }
 
@@ -1331,26 +1184,23 @@ fn did_you_mean_two_or_arguments() {
     let b = long("parameter").switch();
     let parser = cargo_helper("cmd", construct!([a, b])).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
 
     let r = parser
-        .run_inner(Args::from(&["--flag", "--parametr"]))
+        .run_inner(&["--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["--parametr", "--flag"]))
+        .run_inner(&["--parametr", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["--parameter", "--flag"]))
+        .run_inner(&["--parameter", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1359,7 +1209,7 @@ fn did_you_mean_two_or_arguments() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--flag", "--parameter"]))
+        .run_inner(&["--flag", "--parameter"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1385,15 +1235,12 @@ fn cargo_show_asm_issue_guard() {
     let parser = cargo_helper("asm", inner).to_options();
 
     let res = parser
-        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .run_inner(&["asm", "-t", "x"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "`x`: nope");
 
-    let res = parser
-        .run_inner(Args::from(&["-t", "x"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["-t", "x"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "`x`: nope");
 }
 
@@ -1405,15 +1252,12 @@ fn cargo_show_asm_issue_from_str() {
     let parser = cargo_helper("asm", inner).to_options();
 
     let res = parser
-        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .run_inner(&["asm", "-t", "x"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
 
-    let res = parser
-        .run_inner(Args::from(&["-t", "x"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["-t", "x"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
 }
 
@@ -1428,15 +1272,12 @@ fn cargo_show_asm_issue_parse() {
     let parser = cargo_helper("asm", inner).to_options();
 
     let res = parser
-        .run_inner(Args::from(&["asm", "-t", "x"]))
+        .run_inner(&["asm", "-t", "x"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "Couldn't parse `x`: nope");
 
-    let res = parser
-        .run_inner(Args::from(&["-t", "x"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["-t", "x"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "Couldn't parse `x`: nope");
 }
 
@@ -1453,15 +1294,12 @@ fn cargo_show_asm_issue_unknown_switch() {
     let parser = cargo_helper("asm", construct!(target, verbosity)).to_options();
 
     let res = parser
-        .run_inner(Args::from(&["asm", "--fla"]))
+        .run_inner(&["asm", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 
-    let res = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
 }
 
@@ -1471,35 +1309,32 @@ fn did_you_mean_inside_command() {
     let b = long("parameter").switch();
     let parser = construct!([a, b]).to_options().command("cmd").to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--fla"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
         "Expected `COMMAND ...`, got `--fla`. Pass `--help` for usage information"
     );
 
     let r = parser
-        .run_inner(Args::from(&["cmd", "--fla"]))
+        .run_inner(&["cmd", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
 
     let r = parser
-        .run_inner(Args::from(&["cmd", "--flag", "--parametr"]))
+        .run_inner(&["cmd", "--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["cmd", "--parametr", "--flag"]))
+        .run_inner(&["cmd", "--parametr", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
-        .run_inner(Args::from(&["cmd", "--parameter", "--flag"]))
+        .run_inner(&["cmd", "--parameter", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1508,7 +1343,7 @@ fn did_you_mean_inside_command() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["cmd", "--flag", "--parameter"]))
+        .run_inner(&["cmd", "--flag", "--parameter"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1523,9 +1358,7 @@ fn combine_flags_by_order() {
     let b = short('A').req_flag(false);
     let parser = construct!([a, b]).many().to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["-a", "-A", "-A", "-A", "-a"]))
-        .unwrap();
+    let r = parser.run_inner(&["-a", "-A", "-A", "-A", "-a"]).unwrap();
     assert_eq!(r, vec![true, false, false, false, true]);
 }
 
@@ -1533,13 +1366,10 @@ fn combine_flags_by_order() {
 fn parse_many_errors_positional() {
     let p = positional::<u32>("N").many().to_options();
 
-    let r = p.run_inner(Args::from(&["1", "2", "3"])).unwrap();
+    let r = p.run_inner(&["1", "2", "3"]).unwrap();
     assert_eq!(r, vec![1, 2, 3]);
 
-    let r = p
-        .run_inner(Args::from(&["1", "2", "x"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = p.run_inner(&["1", "2", "x"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
 }
 
@@ -1547,11 +1377,11 @@ fn parse_many_errors_positional() {
 fn parse_many_errors_flag() {
     let p = short('p').argument::<u32>("N").many().to_options();
 
-    let r = p.run_inner(Args::from(&["-p", "1", "-p", "2"])).unwrap();
+    let r = p.run_inner(&["-p", "1", "-p", "2"]).unwrap();
     assert_eq!(r, vec![1, 2]);
 
     let r = p
-        .run_inner(Args::from(&["-p", "1", "-p", "x"]))
+        .run_inner(&["-p", "1", "-p", "x"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
@@ -1565,10 +1395,7 @@ fn command_with_req_parameters() {
         .fallback(String::new())
         .to_options();
 
-    let r = p
-        .run_inner(Args::from(&["cmd"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = p.run_inner(&["cmd"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Expected `X`, pass `--help` for usage information");
 }
 
@@ -1577,7 +1404,7 @@ fn suggestion_for_equals_1() {
     let parser = short('p').long("par").argument::<String>("P").to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-p", "--bar"]))
+        .run_inner(&["-p", "--bar"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1586,7 +1413,7 @@ fn suggestion_for_equals_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--par", "--bar"]))
+        .run_inner(&["--par", "--bar"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1595,7 +1422,7 @@ fn suggestion_for_equals_1() {
     );
 
     let r = parser
-        .run_inner(Args::from(&["--par", "--bar=baz"]))
+        .run_inner(&["--par", "--bar=baz"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -1608,10 +1435,10 @@ fn suggestion_for_equals_1() {
 fn double_dash_is_pos_only_just_once() {
     let parser = positional::<String>("POS").many().to_options();
 
-    let r = parser.run_inner(Args::from(&["--"])).unwrap();
+    let r = parser.run_inner(&["--"]).unwrap();
     assert_eq!(r, Vec::<String>::new());
 
-    let r = parser.run_inner(Args::from(&["--", "--"])).unwrap();
+    let r = parser.run_inner(&["--", "--"]).unwrap();
     assert_eq!(r, vec!["--".to_string()]);
 }
 
@@ -1620,12 +1447,12 @@ fn reject_fbar() {
     let parser = short('f').argument::<String>("F").to_options();
 
     let r = parser
-        .run_inner(Args::from(&["-fbar", "baz"]))
+        .run_inner(&["-fbar", "baz"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`baz` is not expected in this context");
 
-    let r = parser.run_inner(Args::from(&["-fbar"])).unwrap();
+    let r = parser.run_inner(&["-fbar"]).unwrap();
     assert_eq!(r, "bar");
 }
 
@@ -1633,10 +1460,7 @@ fn reject_fbar() {
 #[ignore]
 fn custom_usage_override() {
     let parser = short('p').switch().to_options().usage("Usage: hey {usage}");
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
         "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
@@ -1662,10 +1486,10 @@ fn catch_works() {
         .optional();
     let parser = construct!([a_n, a_s]).to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "1"])).unwrap();
+    let r = parser.run_inner(&["-a", "1"]).unwrap();
     assert_eq!(r, Some(A::Num(1)));
 
-    let r = parser.run_inner(Args::from(&["-a", "x1"])).unwrap();
+    let r = parser.run_inner(&["-a", "x1"]).unwrap();
     assert_eq!(r, Some(A::Str("x1".to_owned())));
 }
 
@@ -1693,7 +1517,7 @@ fn sneaky_command() {
     };
     let parser = construct!([maybe_cmd, b]).to_options();
 
-    let r = parser.run_inner(Args::from(&["hello"])).unwrap();
+    let r = parser.run_inner(&["hello"]).unwrap();
     assert_eq!(r, Cmd::A(false));
 }
 
@@ -1710,7 +1534,7 @@ fn default_for_many() {
         })
         .to_options();
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, vec![String::from(".")]);
 }
 
@@ -1725,13 +1549,13 @@ fn parse_option_catch() {
     let a2 = short('a').argument("S").map(A::S).optional().catch();
     let parser = construct!([a1, a2]).to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    let r = parser.run_inner(&["-a", "10"]).unwrap();
     assert_eq!(r, Some(A::U32(10)));
 
-    let r = parser.run_inner(Args::from(&["-a", "x"])).unwrap();
+    let r = parser.run_inner(&["-a", "x"]).unwrap();
     assert_eq!(r, Some(A::S("x".to_string())));
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, None);
 }
 
@@ -1751,16 +1575,13 @@ fn parse_some_catch() {
     let a2 = short('a').argument("S").map(A::S).some("A").catch().hide();
     let parser = construct!([a1, a2]).to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "10"])).unwrap();
+    let r = parser.run_inner(&["-a", "10"]).unwrap();
     assert_eq!(r, vec![A::U32(10)]);
 
-    let r = parser.run_inner(Args::from(&["-a", "x"])).unwrap();
+    let r = parser.run_inner(&["-a", "x"]).unwrap();
     assert_eq!(r, vec![A::S("x".to_string())]);
 
-    let r = parser
-        .run_inner(Args::from(&[]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "A");
 }
 
@@ -1770,13 +1591,10 @@ fn empty_struct() {
     struct Foo {}
     let parser = construct!(Foo {}).to_options();
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, Foo {});
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
         "\
@@ -1794,13 +1612,10 @@ fn empty_tuple() {
     struct Foo();
     let parser = construct!(Foo()).to_options();
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, Foo());
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
         "\
@@ -1815,7 +1630,7 @@ Available options:
 #[test]
 fn strange_short_option() {
     let parser = short('O').argument::<String>("ARG").to_options();
-    let r = parser.run_inner(Args::from(&["-Obits=2048"])).unwrap();
+    let r = parser.run_inner(&["-Obits=2048"]).unwrap();
     assert_eq!(r, "bits=2048");
 }
 
@@ -1823,10 +1638,10 @@ fn strange_short_option() {
 fn optional_bool_states() {
     let parser = short('a').switch().optional().to_options();
 
-    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    let r = parser.run_inner(&["-a"]).unwrap();
     assert_eq!(r, Some(true));
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, Some(false));
 }
 
@@ -1840,18 +1655,13 @@ fn fancy_negative() {
 
     let parser = construct!(ab, c).to_options();
 
-    let r = parser.run_inner(Args::from(&["-a", "-10"])).unwrap();
+    let r = parser.run_inner(&["-a", "-10"]).unwrap();
     assert_eq!(r, (-10, 42));
 
-    let r = parser
-        .run_inner(Args::from(&["-a=-20", "-c", "110"]))
-        .unwrap();
+    let r = parser.run_inner(&["-a=-20", "-c", "110"]).unwrap();
     assert_eq!(r, (-20, 110));
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     // TODO - rendering sucks once you start inventing fancy combinations and don't provide help...
     let expected = "\
@@ -1874,7 +1684,7 @@ fn many_env() {
         .argument::<String>("USER")
         .many()
         .to_options();
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, vec!["top s3cr3t".to_owned()]);
 }
 
@@ -1886,7 +1696,7 @@ fn some_env() {
         .argument::<String>("USER")
         .some("a")
         .to_options();
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, vec!["top s3cr3t".to_owned()]);
 }
 
@@ -1896,10 +1706,7 @@ fn option_requires_other_option1() {
     let b = short('b').argument::<String>("B");
     let parser = construct!(a, b).optional().to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Expected `-b=B`, pass `--help` for usage information");
 }
 
@@ -1909,10 +1716,7 @@ fn option_requires_other_option2() {
     let b = short('b').argument::<String>("B");
     let parser = construct!(b, a).optional().to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["-a"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
     // error message sucks...
     assert_eq!(r, "`-a` is not expected in this context");
 }
@@ -1924,7 +1728,7 @@ fn default_for_some() {
         .fallback_with(|| Ok::<_, Infallible>(vec![1, 2, 3]))
         .to_options();
 
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
 
     assert_eq!(r, vec![1, 2, 3]);
 }
@@ -1935,9 +1739,9 @@ fn adjacent_anywhere_needs_to_consume_something() {
     let b = short('b').switch();
     let parser = construct!(a, b).adjacent().to_options();
 
-    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    let r = parser.run_inner(&["-a"]).unwrap();
     assert_eq!(r, (true, false));
 
-    let r = parser.run_inner(Args::from(&["-b"])).unwrap();
+    let r = parser.run_inner(&["-b"]).unwrap();
     assert_eq!(r, (false, true));
 }

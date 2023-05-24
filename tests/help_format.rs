@@ -6,10 +6,7 @@ fn fancy_meta() {
     let b = long("stdin-file-path").argument::<String>("PATH");
     let parser = construct!(a, b).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: --trailing-comma=<all|es5|none> --stdin-file-path=PATH
@@ -35,10 +32,7 @@ fn decorations() {
         .version("version")
         .usage("custom {usage}");
 
-    let r = p
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 descr
@@ -71,10 +65,7 @@ fn duplicate_items_same_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a [-c] | -b [-c])
@@ -100,10 +91,7 @@ fn duplicate_items_dif_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a [-c] | -b [-c])
@@ -130,10 +118,7 @@ fn duplicate_pos_items_same_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a C | -b C)
@@ -161,10 +146,7 @@ fn duplicate_pos_items_diff_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a C | -b C)
@@ -200,7 +182,7 @@ fn enum_with_docs() {
 
     let r = mode()
         .to_options()
-        .run_inner(Args::from(&["--help"]))
+        .run_inner(&["--help"])
         .unwrap_err()
         .unwrap_stdout();
 
@@ -249,10 +231,7 @@ Available options:
     -h, --help  Prints help information
 ";
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(r, expected);
 
     // this shouldn't crash
@@ -270,10 +249,7 @@ fn multi_arg_help() {
     let detailed = long("detailed").short('d').help("detailed").switch();
     let parser = construct!(verbose, combo, detailed).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [-v] [-f [-e] NAME STATE] [-d]
@@ -300,10 +276,7 @@ fn multi_pos_help() {
     let combo = construct!(a, b).adjacent();
     let verbose = short('v').long("verbose").switch();
     let parser = construct!(verbose, combo).to_options();
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [-v] NAME VAL
@@ -329,10 +302,7 @@ fn fallback_display_simple_arg() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: [--a=NUM]
 
@@ -353,10 +323,7 @@ fn fallback_display_simple_pos() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [NUM]
@@ -390,10 +357,7 @@ fn fallback_display_tuple() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [--a=NUM --b=NUM]
@@ -416,10 +380,7 @@ fn fallback_display_no_help() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: [--a=NUM]
 
@@ -446,10 +407,7 @@ fn env_fallback_visible() {
         .switch();
     let parser = construct!(fonts_dir, system_fonts).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [--fonts=DIR] [--system-fonts]
@@ -478,10 +436,7 @@ fn with_group_help() {
     });
     let parser = construct!(ab, c).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: [-a] [-b] [-c]
 
@@ -496,7 +451,7 @@ Available options:
 
     assert_eq!(r, expected);
 
-    let r = parser.run_inner(Args::from(&["-a", "-c"])).unwrap();
+    let r = parser.run_inner(&["-a", "-c"]).unwrap();
     assert_eq!(r, ((true, false), true));
 }
 
@@ -507,16 +462,10 @@ fn custom_help_and_version() {
     let a = short('a').switch();
     let parser = a.to_options().help_parser(h).version_parser(v);
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "`--help` is not expected in this context");
 
-    let r = parser
-        .run_inner(Args::from(&["--halp"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
     let expected = "Usage: [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
     assert_eq!(r, expected);
 }
