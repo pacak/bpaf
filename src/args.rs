@@ -9,7 +9,12 @@ use crate::{
     Error,
 };
 
-/// All currently present command line parameters, use it for unit tests and manual parsing
+/// All currently present command line parameters with some extra metainfo
+///
+/// Use it for unit tests and manual parsing. For production use you would want to replace the
+/// program name with [`set_name`], but for tests passing a slice of strings to
+/// [`run_inner`](OptionParser::run_inner) is usually more convenient.
+///
 ///
 /// The easiest way to create `Args` is by using its `From` instance.
 /// ```rust
@@ -447,37 +452,6 @@ mod inner {
             self.comp.is_some()
         }
 
-        #[cfg(feature = "autocomplete")]
-        /// enable completions with custom output revision style
-        ///
-        ///
-        /// # Panics
-        /// Contains some assertions which shouldn't trigger in normal operation
-        #[must_use]
-        pub fn set_comp(mut self, rev: usize) -> Self {
-            // last item on a command line is "--" it might be both double dash indicator
-            // "the rest are strictly positionals" but it can also be part of the long name
-            // restore it so completion logic is more internally consistent
-            if !self.item_state.is_empty() {
-                let o = self.item_state.len() - 1;
-                if self.item_state[o].parsed() {
-                    self.item_state[o] = ItemState::Unparsed;
-                    self.remaining += 1;
-                    let mut items = self.items.to_vec();
-
-                    if let Arg::PosWord(w) = &self.items[o] {
-                        assert_eq!(w, "--");
-                        items[o] = Arg::Word(w.clone());
-                        self.items = Rc::from(items);
-                    } else {
-                        panic!("Last item is strange {:?}, this is a bug", self);
-                    }
-                }
-            }
-            self.comp = Some(crate::complete_gen::Complete::new(rev));
-            self
-        }
-
         /// Narrow down scope of &self to adjacently consumed values compared to original.
         pub(crate) fn adjacent_scope(&self, original: &State) -> Option<Range<usize>> {
             if self.items.is_empty() {
@@ -508,16 +482,15 @@ mod inner {
         }
 
         /// Get a scope for an adjacently available block of item starting at start
-        pub(crate) fn adjacently_available_from(&self, start: usize) -> Option<Range<usize>> {
-            if self.items.is_empty() {
-                return None;
-            }
-            for end in start..self.item_state.len() {
-                if self.item_state.get(end).map_or(true, ItemState::parsed) {
-                    return Some(start..end);
-                }
-            }
-            Some(start..start)
+        pub(crate) fn adjacently_available_from(&self, start: usize) -> Range<usize> {
+            let span_size = self
+                .item_state
+                .iter()
+                .copied()
+                .skip(start)
+                .take_while(ItemState::present)
+                .count();
+            start..start + span_size
         }
 
         pub(crate) fn ranges(&self) -> ArgRangesIter {

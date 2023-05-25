@@ -38,21 +38,9 @@
 //! - `"elvish"` - version 6
 //! and should be followed by a single value - code for shell to evaluate
 
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 
-use crate::{
-    args::State,
-    complete_gen::{Comp, Complete},
-    construct,
-};
-
-#[derive(Clone, Debug, Copy)]
-pub enum Style {
-    Bash,
-    Zsh,
-    Fish,
-    Elvish,
-}
+use crate::complete_gen::Complete;
 
 fn dump_bash_completer(name: &str) {
     println!(
@@ -177,26 +165,6 @@ set edit:completion:arg-completer[{name}] = {{ |@args| var args = $args[1..];
     );
 }
 
-enum CompOptions {
-    Dump { style: Style },
-    Complete { revision: usize },
-}
-
-fn parse_comp_options() -> crate::OptionParser<CompOptions> {
-    use crate::{long, Parser};
-    let zsh = long("bpaf-complete-style-zsh").req_flag(Style::Zsh);
-    let bash = long("bpaf-complete-style-bash").req_flag(Style::Bash);
-    let fish = long("bpaf-complete-style-fish").req_flag(Style::Fish);
-    let elvish = long("bpaf-complete-style-elvish").req_flag(Style::Elvish);
-    let style = construct!([zsh, bash, fish, elvish]);
-    let dump = construct!(CompOptions::Dump { style });
-
-    let revision = long("bpaf-complete-rev").argument::<usize>("REV");
-    let complete = construct!(CompOptions::Complete { revision });
-
-    construct!([complete, dump]).to_options()
-}
-
 #[derive(Debug)]
 pub(crate) struct ArgScanner<'a> {
     pub(crate) revision: Option<usize>,
@@ -235,42 +203,4 @@ impl ArgScanner<'_> {
     pub(crate) fn done(&self) -> Option<Complete> {
         Some(Complete::new(self.revision?))
     }
-}
-
-pub(crate) fn args_with_complete(
-    name: Option<&str>,
-    arguments: &[OsString],
-    complete_arguments: &[OsString],
-) -> State {
-    todo!(); /*
-             // not trying to run a completer - just make the arguments
-             if complete_arguments.is_empty() {
-                 return Args::from(arguments);
-             }
-
-             let cargs = Args::from(complete_arguments);
-
-             match parse_comp_options().run_inner(cargs) {
-                 Ok(comp) => {
-                     let name = name.expect("app name is not utf8, giving up rendering the completer");
-                     let rev = match comp {
-                         CompOptions::Dump { style } => {
-                             match style {
-                                 Style::Bash => dump_bash_completer(name),
-                                 Style::Zsh => dump_zsh_completer(name),
-                                 Style::Fish => dump_fish_completer(name),
-                                 Style::Elvish => dump_elvish_completer(name),
-                             }
-                             std::process::exit(0)
-                         }
-                         CompOptions::Complete { revision } => revision,
-                     };
-                     Args::from(arguments).set_comp(rev)
-                 }
-
-                 Err(err) => {
-                     eprintln!("Can't parse bpaf complete options: {:?}", err);
-                     std::process::exit(1);
-                 }
-             }*/
 }

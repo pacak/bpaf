@@ -890,11 +890,7 @@ where
             // values consumed by adjacent must be actually adjacent - if a scope contains
             // already parsed values inside we need to trim it
             if original_scope.end - start > before {
-                if let Some(adj_scope) = this_arg.adjacently_available_from(start) {
-                    this_arg.set_scope(adj_scope);
-                } else {
-                    continue;
-                }
+                this_arg.set_scope(this_arg.adjacently_available_from(start));
             }
 
             loop {

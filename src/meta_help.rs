@@ -166,35 +166,6 @@ impl<'a> HelpItems<'a> {
         }
     }
 }
-#[cfg(feature = "manpage")]
-impl<'a> HelpItems<'a> {
-    pub(crate) fn flgs(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
-        HelpItemsIter {
-            items: &self.items,
-            target: HiTy::Flag,
-            cur: 0,
-            block: Block::No,
-        }
-    }
-
-    pub(crate) fn cmds(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
-        HelpItemsIter {
-            items: &self.items,
-            target: HiTy::Command,
-            cur: 0,
-            block: Block::No,
-        }
-    }
-
-    pub(crate) fn psns(&'_ self) -> impl Iterator<Item = &'_ HelpItem<'a>> + '_ {
-        HelpItemsIter {
-            items: &self.items,
-            target: HiTy::Positional,
-            cur: 0,
-            block: Block::No,
-        }
-    }
-}
 
 impl Meta {
     fn peek_front_ty(&self) -> Option<HiTy> {

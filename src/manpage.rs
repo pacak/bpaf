@@ -264,7 +264,6 @@ impl Line<'_> {
             Meta::Skip => {}
             Meta::CustomUsage(m, _) => {
                 todo!();
-                self.usage(m);
             }
         };
         self
@@ -272,6 +271,7 @@ impl Line<'_> {
 }
 
 fn flatten_commands<'a>(item: HelpItem<'a>, path: &str, acc: &mut Vec<(String, HelpItem<'a>)>) {
+    /*
     match item {
         HelpItem::Command { name, meta, .. } => {
             acc.push((path.to_string(), item));
@@ -288,7 +288,8 @@ fn flatten_commands<'a>(item: HelpItem<'a>, path: &str, acc: &mut Vec<(String, H
             acc.push((String::new(), item));
         }
         _ => {}
-    }
+    }*/
+    todo!();
 }
 
 fn command_help(manpage: &mut Manpage, item: &HelpItem, path: &str) {
