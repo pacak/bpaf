@@ -50,10 +50,20 @@ impl Item {
             Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
-    pub(crate) fn for_usage(&mut self, short: bool) {
+    /// Normalize name inside ShortLong into either short or long
+    pub(crate) fn normalize(&mut self, short: bool, saw_strict: &mut bool) {
         match self {
-            Item::Positional { .. } | Item::Command { .. } => {}
-            Item::Flag { name, .. } | Item::Argument { name, .. } => name.for_usage(short),
+            Item::Positional { strict, .. } => {
+                if *strict {
+                    if *saw_strict {
+                        *strict = false;
+                    } else {
+                        *saw_strict = true;
+                    }
+                }
+            }
+            Item::Command { .. } => {}
+            Item::Flag { name, .. } | Item::Argument { name, .. } => name.normalize(short),
         }
     }
 }
@@ -99,7 +109,9 @@ impl PartialEq<&str> for ShortLong {
 }
 
 impl ShortLong {
-    pub(crate) fn for_usage(&mut self, short: bool) {
+    /// Changes ShortLong variant into either short or long depending,
+    /// leaves both Short and Long untouched
+    pub(crate) fn normalize(&mut self, short: bool) {
         match self {
             ShortLong::Short(_) | ShortLong::Long(_) => {}
             ShortLong::ShortLong(s, l) => {
@@ -132,52 +144,6 @@ impl Item {
             boxed
         } else {
             Meta::Optional(Box::new(boxed))
-        }
-    }
-}
-
-impl std::fmt::Display for ShortLong {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ShortLong::Long(l) => write!(f, "--{}", l),
-            ShortLong::Short(s) | ShortLong::ShortLong(s, _) => write!(f, "-{}", s),
-        }
-    }
-}
-
-impl std::fmt::Display for Item {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Item::Positional {
-                metavar,
-                strict,
-                help: _,
-                anywhere: _,
-            } => {
-                if *strict {
-                    f.write_str("-- ")?;
-                }
-                write!(f, "{}", metavar)
-            }
-            Item::Command { .. } => f.write_str("COMMAND ..."),
-            Item::Flag {
-                name,
-                shorts: _,
-                env: _,
-                help: _,
-            } => write!(f, "{}", name),
-
-            Item::Argument {
-                name,
-                shorts: _,
-                metavar,
-                env: _,
-                help: _,
-            } => {
-                name.fmt(f)?;
-                f.write_str(" ")?;
-                metavar.fmt(f)
-            }
         }
     }
 }

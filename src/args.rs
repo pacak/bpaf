@@ -1,13 +1,12 @@
-use std::{env::ArgsOs, ffi::OsString};
+use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
 use crate::{
     error::{Message, MissingItem},
-    info::Info,
     item::Item,
     meta_help::Metavar,
     parsers::NamedArg,
-    Error, Meta, ParseFailure,
+    Error,
 };
 
 /// All currently present command line parameters, use it for unit tests and manual parsing
@@ -142,17 +141,6 @@ impl ItemState {
             ItemState::Unparsed | ItemState::Conflict(_) => true,
             ItemState::Parsed => false,
         }
-    }
-}
-
-#[derive(Clone)]
-pub struct Improve(
-    pub(crate) fn(args: &mut State, info: &Info, inner: &Meta, err: Error) -> ParseFailure,
-);
-
-impl std::fmt::Debug for Improve {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Improve").finish()
     }
 }
 
@@ -381,68 +369,6 @@ mod inner {
                 #[cfg(feature = "autocomplete")]
                 comp,
             }
-        }
-
-        /*
-        #[inline(never)]
-        pub(crate) fn construct_from(meta: Meta, args: Args) -> State {
-
-            let items = args.disambiguate(&avail_flags, &avail_args);
-            State {
-                item_state: vec![ItemState::Unparsed; items.len()],
-                remaining: items.len(),
-                scope: 0..items.len(),
-                items,
-                current: None,
-                path: Vec::new(),
-                #[cfg(feature = "autocomplete")]
-                comp: None,
-            }
-        }*/
-    }
-
-    impl State {
-        #[inline(never)]
-        #[must_use]
-        pub fn current_args() -> Self {
-            todo!();
-
-            /*
-            let mut arg_vec = Vec::new();
-            #[cfg(feature = "autocomplete")]
-            let mut complete_vec = Vec::new();
-
-            let mut args = std::env::args_os();
-
-            let os_name = args.next().expect("no command name from args_os?");
-            let path = PathBuf::from(os_name);
-            let name = path.file_name().expect("binary with no name?").to_str();
-
-            #[cfg(feature = "autocomplete")]
-            for arg in args {
-                if arg
-                    .to_str()
-                    .map_or(false, |s| s.starts_with("--bpaf-complete-"))
-                {
-                    complete_vec.push(arg);
-                } else {
-                    arg_vec.push(arg);
-                }
-            }
-            #[cfg(not(feature = "autocomplete"))]
-            arg_vec.extend(args);
-
-            #[cfg(feature = "autocomplete")]
-            let mut args = crate::complete_run::args_with_complete(name, &arg_vec, &complete_vec);
-
-            #[cfg(not(feature = "autocomplete"))]
-            let mut args = Self::from(arg_vec.as_slice());
-
-            if let Some(name) = name {
-                args.path.push(name.to_string());
-            }
-
-            args*/
         }
     }
 

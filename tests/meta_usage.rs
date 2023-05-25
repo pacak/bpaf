@@ -307,3 +307,28 @@ fn custom_usage() {
 
     assert_usage(parser, "[-a] <also takes flag b>")
 }
+
+#[test]
+fn double_strict() {
+    let a = short('a').switch();
+    let b = positional::<usize>("B").strict();
+    let c = positional::<usize>("C").strict();
+    let parser = construct!(a, b, c).to_options();
+    assert_usage(parser, "[-a] -- B C");
+}
+
+#[test]
+fn quadruple_strict() {
+    let a = short('a').switch();
+    let b = positional::<usize>("B").strict();
+    let c = positional::<usize>("C").strict();
+    let abc = construct!(a, b, c);
+
+    let d = short('d').switch();
+    let e = positional::<usize>("E").strict();
+    let f = positional::<usize>("F").strict();
+    let def = construct!(d, e, f);
+
+    let parser = construct!([abc, def]).to_options();
+    assert_usage(parser, "([-a] -- B C | [-d] -- E F)");
+}

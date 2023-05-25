@@ -9,31 +9,6 @@ use crate::{
 #[derive(Debug, Clone, Copy)]
 pub struct Metavar(pub(crate) &'static str);
 
-impl Metavar {
-    /// metavar inside any can serve two goals -
-    fn is_meta(&self) -> bool {
-        self.0
-            .as_bytes()
-            .first()
-            .map_or(true, |c| c.is_ascii_alphanumeric())
-    }
-}
-
-impl std::fmt::Display for Metavar {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
-        let hide_triangles = f.alternate() || self.is_meta();
-        if !hide_triangles {
-            f.write_char('<')?;
-        }
-        f.write_str(self.0)?;
-        if !hide_triangles {
-            f.write_char('>')?;
-        }
-        Ok(())
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
@@ -284,24 +259,6 @@ impl<'a> HelpItems<'a> {
     }
 }
 
-/*
-pub(crate) struct Long<'a>(pub(crate) &'a str);
-impl std::fmt::Display for Long<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("--")?;
-        f.write_str(self.0)
-    }
-}
-
-pub(crate) struct Short(pub(crate) char);
-impl std::fmt::Display for Short {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use std::fmt::Write;
-        f.write_char('-')?;
-        f.write_char(self.0)
-    }
-}*/
-
 impl From<&Item> for HiTy {
     fn from(value: &Item) -> Self {
         match value {
@@ -516,13 +473,6 @@ fn write_shortlong(buf: &mut Buffer, name: ShortLong) {
             buf.write_str("--", Style::Literal);
             buf.write_str(l, Style::Literal);
         }
-    }
-}
-
-fn write_as_lines(buf: &mut Buffer, line: &str) {
-    for line in line.lines() {
-        buf.write_str(line, Style::Text);
-        buf.token(Token::LineBreak);
     }
 }
 

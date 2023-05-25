@@ -66,6 +66,7 @@ impl Arg {
 // 2. collect short flag/arg when entering the subparsre
 // 3. when reaching ambi
 //
+
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -78,68 +79,6 @@ impl std::fmt::Display for Arg {
     }
 }
 
-/*
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    if *pos_only {
-        return vec.push(Arg::PosWord(os));
-    }
-
-    let val = split_os_argument(&os);
-    #[cfg(test)]
-    {
-        if os.to_str().is_some() {
-            let fallback = split_os_argument_fallback(&os);
-            assert_eq!(val, fallback, "while parsing {:?}", os);
-        }
-    }
-    match val {
-        // -f and -fbar
-        Some((ArgType::Short, short, None)) => {
-            let mut chars = short.chars();
-            let mut prev = chars.next();
-            let mut ambig = Vec::new();
-            for c in chars {
-                if let Some(prev) = std::mem::take(&mut prev) {
-                    ambig.push(prev);
-                }
-                ambig.push(c);
-            }
-            match prev {
-                Some(p) => vec.push(Arg::Short(p, false, os)),
-                None => {
-                    vec.push(Arg::Ambiguity(ambig, os));
-                }
-            }
-        }
-        // -f=a
-        Some((ArgType::Short, short, Some(arg))) => {
-            assert_eq!(
-                short.len(),
-                1,
-                "short flag with an argument must have only one key"
-            );
-            let key = short.chars().next().unwrap();
-            vec.push(Arg::Short(key, true, os));
-            vec.push(arg);
-        }
-        Some((ArgType::Long, long, None)) => {
-            vec.push(Arg::Long(long, false, os));
-        }
-        Some((ArgType::Long, long, Some(arg))) => {
-            vec.push(Arg::Long(long, true, os));
-            vec.push(arg);
-        }
-        _ => {
-            *pos_only = os == "--";
-            if *pos_only {
-                vec.push(Arg::PosWord(os));
-            } else {
-                vec.push(Arg::Word(os));
-            }
-        }
-    }
-}
-*/
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum ArgType {
     Short,
