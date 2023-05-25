@@ -373,7 +373,6 @@ mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
 mod error;
-mod help;
 mod info;
 mod inner_buffer;
 mod item;
