@@ -510,8 +510,6 @@ impl<T> OptionParser<T> {
     /// Custom usage field to use instead of one derived by `bpaf`. Custom message should contain
     /// `"Usage: "` prefix if you want to display one.
     ///
-    /// Before using it `bpaf` would replace `"{usage}"` tokens inside a custom usage string with
-    /// automatically generated usage.
     ///
     /// # Combinatoric usage
     /// ```rust
@@ -520,7 +518,7 @@ impl<T> OptionParser<T> {
     ///    short('s')
     ///        .switch()
     ///        .to_options()
-    ///        .usage("Usage: my_program: {usage}")
+    ///        .usage("Usage: my_program --custom --flags")
     /// }
     /// ```
     ///
@@ -529,7 +527,7 @@ impl<T> OptionParser<T> {
     /// ```rust
     /// # use bpaf::*;
     /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, usage("Usage: my_program: {usage}"))]
+    /// #[bpaf(options, usage("Usage: my_program --custom --flags"))]
     /// struct Options {
     ///     #[bpaf(short)]
     ///     switch: bool
@@ -541,6 +539,17 @@ impl<T> OptionParser<T> {
         B: Into<Buffer>,
     {
         self.info.usage = Some(usage.into());
+        self
+    }
+
+    // unlike with_group_help this prepares buffer every time it runs
+    pub fn with_usage<F>(mut self, f: F) -> Self
+    where
+        F: Fn(Buffer) -> Buffer,
+    {
+        let mut buf = Buffer::default();
+        buf.write_meta(&self.inner.meta(), true);
+        self.info.usage = Some(f(buf));
         self
     }
 

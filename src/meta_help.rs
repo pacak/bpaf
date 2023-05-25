@@ -493,12 +493,16 @@ pub(crate) fn render_help(
     }
 
     buf.token(Token::SectionStart);
-    buf.write_str("Usage: ", Style::Text);
-    for item in path {
-        buf.write_str(item, Style::Literal);
-        buf.write_char(' ', Style::Text);
+    if let Some(usage) = &info.usage {
+        buf.buffer(usage)
+    } else {
+        buf.write_str("Usage: ", Style::Text);
+        for item in path {
+            buf.write_str(item, Style::Literal);
+            buf.write_char(' ', Style::Text);
+        }
+        buf.write_meta(parser_meta, true);
     }
-    buf.write_meta(parser_meta, true);
     buf.token(Token::SectionStop);
 
     if let Some(t) = &info.header {

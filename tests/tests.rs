@@ -1457,9 +1457,23 @@ fn reject_fbar() {
 }
 
 #[test]
-#[ignore]
-fn custom_usage_override() {
-    let parser = short('p').switch().to_options().usage("Usage: hey {usage}");
+fn custom_usage_override_fixed() {
+    let parser = short('p').switch().to_options().usage("Usage: hey [-p]");
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
+    );
+}
+
+#[test]
+fn custom_usage_override_with_fn() {
+    let parser = short('p').switch().to_options().with_usage(|b| {
+        let mut buf = Buffer::default();
+        buf.text("Usage: hey ");
+        buf.buffer(&b);
+        buf
+    });
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,

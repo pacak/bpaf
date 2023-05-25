@@ -30,7 +30,7 @@ fn decorations() {
         .header("header\n header")
         .footer("footer\n footer")
         .version("version")
-        .usage("custom {usage}");
+        .usage("custom usage");
 
     let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
@@ -38,7 +38,7 @@ fn decorations() {
 descr
 descr
 
-Usage: -p=ARG
+custom usage
 
 header
 header
