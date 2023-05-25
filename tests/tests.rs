@@ -151,7 +151,7 @@ Available options:
     // must specify one of the required flags
     let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
-        "Expected `(-a | -b | -c)`, pass `--help` for usage information",
+        "Expected `-a`, `-b`, or more, pass `--help` for usage information",
         err
     );
 }
@@ -184,7 +184,7 @@ Available options:
     // must specify one of the required flags
     let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
-        "Expected `(-a | -b | -c)`, pass `--help` for usage information",
+        "Expected `-a`, `-b`, or more, pass `--help` for usage information",
         err
     );
 }

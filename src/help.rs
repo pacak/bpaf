@@ -12,7 +12,7 @@ use crate::{
     args::{Arg, State},
     error::{Message, MissingItem},
     inner_buffer::{Buffer, Color, Style},
-    item::ShortLong,
+    item::{Item, ShortLong},
     meta_youmean::{Suggestion, Variant},
     Meta, ParseFailure,
 };
@@ -246,19 +246,39 @@ impl Message {
                 }
             }
             Message::Expected(exp, actual) => {
-                let items = exp.into_iter().map(Meta::from).collect::<Vec<_>>();
-                let meta = Meta::Or(items).normalized(false);
-
-                buffer.text("Expected `");
-                buffer.write_meta(&meta, false);
+                buffer.text("Expected ");
+                match exp.len() {
+                    0 => {
+                        buffer.text("Expected no arguments");
+                    }
+                    1 => {
+                        buffer.text("`");
+                        buffer.write_item(&exp[0]);
+                        buffer.text("`");
+                    }
+                    2 => {
+                        buffer.text("`");
+                        buffer.write_item(&exp[0]);
+                        buffer.text("` or `");
+                        buffer.write_item(&exp[1]);
+                        buffer.text("`");
+                    }
+                    _ => {
+                        buffer.text("`");
+                        buffer.write_item(&exp[0]);
+                        buffer.text("`, `");
+                        buffer.write_item(&exp[1]);
+                        buffer.text("`, or more");
+                    }
+                }
                 match actual {
                     Some(actual) => {
-                        buffer.text("`, got `");
+                        buffer.text(", got `");
                         buffer.write(&args.items[actual], Style::Invalid);
                         buffer.text("`. Pass `");
                     }
                     None => {
-                        buffer.text("`, pass `");
+                        buffer.text(", pass `");
                     }
                 }
                 buffer.literal("--help");
@@ -291,10 +311,13 @@ pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Stat
         .unwrap();
     let mut best_scope = best_item.scope.clone();
 
+    let mut saw_command = false;
     let expected = items
         .iter()
         .filter_map(|i| {
-            if i.scope == best_scope {
+            let cmd = matches!(i.item, Item::Command { .. });
+            if i.scope == best_scope && !(saw_command && cmd) {
+                saw_command |= cmd;
                 Some(i.item.clone())
             } else {
                 None
