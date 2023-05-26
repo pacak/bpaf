@@ -252,12 +252,11 @@ impl<T> OptionParser<T> {
                     let mut buffer = Buffer::default();
                     buffer.text("Version: ");
                     buffer.buffer(&v);
-                    buffer.token(Token::LineBreak);
                     buffer
                 }
             };
             return Err(ParseFailure::Stdout(
-                buffer.render(detailed, Color::default()),
+                buffer.render_console(detailed, Color::default()),
             ));
         }
         Err(err.render(args, &self.inner.meta()))

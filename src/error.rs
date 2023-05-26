@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     args::{Arg, State},
-    inner_buffer::{Buffer, Color, Style},
+    inner_buffer::{Block, Buffer, Color, Style, Token},
     item::Item,
     item::ShortLong,
     meta_help::Metavar,
@@ -263,23 +263,29 @@ impl Message {
 
             Message::Unconsumed(ix) => {
                 let item = &args.items[ix];
-                buffer.text("`");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.write(item, Style::Invalid);
-                buffer.text("` is not expected in this context");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" is not expected in this context");
             }
 
             Message::NoEnv(name) => {
-                buffer.text("Environment variable `");
+                buffer.text("Environment variable ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.invalid(name);
-                buffer.text("` is not set");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" is not set");
                 buffer.monochrome(false);
             }
             Message::StrictPos(_ix, metavar) => {
-                buffer.text("Expected `");
+                buffer.text("Expected ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.metavar(metavar);
-                buffer.text("` to be on the right side of `");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" to be on the right side of ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.literal("--");
-                buffer.text("`");
+                buffer.token(Token::BlockEnd(Block::TermRef));
             }
             Message::ParseSome(s) => {
                 buffer.text(s);
@@ -290,9 +296,11 @@ impl Message {
             Message::ParseFailed(mix, s) => {
                 buffer.text("Couldn't parse");
                 if let Some(field) = textual_part(args, mix) {
-                    buffer.text(" `");
+                    buffer.text(" ");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.invalid(&field);
-                    buffer.text("`: ");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(": ");
                 } else {
                     buffer.text(": ");
                 }
@@ -300,9 +308,10 @@ impl Message {
             }
             Message::GuardFailed(mix, s) => {
                 if let Some(field) = textual_part(args, mix) {
-                    buffer.text("`");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.invalid(&field);
-                    buffer.text("`: ");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(": ");
                     buffer.text(s);
                 } else {
                     buffer.text("Check failed: ");
@@ -314,26 +323,35 @@ impl Message {
                     let arg = &args.items[x];
                     let os = &os.to_string_lossy();
 
-                    buffer.text("`");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.write(arg, Style::Literal);
-                    buffer.text("` requires an argument `");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(" requires an argument ");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.metavar(mv);
-                    buffer.text("`, got a flag `");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(", got a flag ");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.write(os, Style::Invalid);
-                    buffer.text("`, try `");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(", try ");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.write(arg, Style::Literal);
                     buffer.literal("=");
                     buffer.write(os, Style::Literal);
-                    buffer.text("` to use it as an argument");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(" to use it as an argument");
                 }
                 // "Some" part of this branch is actually unreachable
                 Some(Arg::Word(_) | Arg::PosWord(_)) | None => {
                     let arg = &args.items[x];
-                    buffer.text("`");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.write(arg, Style::Literal);
-                    buffer.text("` requires an argument `");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    buffer.text(" requires an argument ");
+                    buffer.token(Token::BlockStart(Block::TermRef));
                     buffer.metavar(mv);
-                    buffer.text("`");
+                    buffer.token(Token::BlockEnd(Block::TermRef));
                 }
             },
             Message::PureFailed(s) => {
@@ -349,26 +367,35 @@ impl Message {
                 match args.path.first() {
                     Some(name) => {
                         buffer.literal(name);
-                        buffer.text("supports `");
+                        buffer.text("supports ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                     }
-                    None => buffer.text("App supports `"),
+                    None => {
+                        buffer.text("App supports ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
+                    }
                 }
                 buffer.literal("-");
                 buffer.write_char(first, Style::Literal);
-                buffer.text("` as both an option and an option-argument, try to split `");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" as both an option and an option-argument, try to split ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.write(s, Style::Literal);
-                buffer.text("` into individual options (");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" into individual options (");
                 buffer.literal("-");
                 buffer.write_char(first, Style::Literal);
                 buffer.literal(" -");
                 buffer.write_char(second, Style::Literal);
                 buffer.literal(" ..");
-                buffer.text(") or use `");
+                buffer.text(") or use ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.literal("-");
                 buffer.write_char(first, Style::Literal);
                 buffer.literal("=");
                 buffer.literal(rest);
-                buffer.text("` syntax to disambiguate");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" syntax to disambiguate");
             }
             Message::Suggestion(ix, suggestion) => {
                 let actual = &args.items[ix].to_string();
@@ -382,9 +409,12 @@ impl Message {
 
                         buffer.text("No such ");
                         buffer.text(ty);
-                        buffer.text(": `");
+                        buffer.text(": ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.invalid(actual);
-                        buffer.text("`, did you mean `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(", did you mean ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
 
                         match v {
                             Variant::CommandLong(name) => buffer.literal(name),
@@ -398,25 +428,34 @@ impl Message {
                             }
                         };
 
-                        buffer.text("`?");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text("?");
                     }
                     Suggestion::MissingDash(name) => {
-                        buffer.text("No such flag: `");
+                        buffer.text("No such flag: ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal("-");
                         buffer.literal(name);
-                        buffer.text("` (with one dash), did you mean `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(" (with one dash), did you mean ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal("--");
                         buffer.literal(name);
-                        buffer.text("`?");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text("?");
                     }
                     Suggestion::ExtraDash(name) => {
-                        buffer.text("No such flag: `");
+                        buffer.text("No such flag: ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal("--");
                         buffer.write_char(name, Style::Literal);
-                        buffer.text("` (with two dashes), did you mean `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(" (with two dashes), did you mean ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal("-");
                         buffer.write_char(name, Style::Literal);
-                        buffer.text("`?");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text("?");
                     }
                     Suggestion::Nested(x, v) => {
                         let ty = match v {
@@ -424,13 +463,17 @@ impl Message {
                             Variant::Flag(_) => "Flag",
                         };
                         buffer.text(ty);
-                        buffer.text(" `");
+                        buffer.text(" ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal(actual);
+                        buffer.token(Token::BlockEnd(Block::TermRef));
                         buffer.text(
-                            "` is not valid in this context, did you mean to pass it to command `",
+                            " is not valid in this context, did you mean to pass it to command ",
                         );
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.literal(&x);
-                        buffer.text("`?");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text("?");
                     }
                 }
             }
@@ -441,53 +484,66 @@ impl Message {
                         buffer.text("Expected no arguments");
                     }
                     1 => {
-                        buffer.text("`");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write_item(&exp[0]);
-                        buffer.text("`");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
                     }
                     2 => {
-                        buffer.text("`");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write_item(&exp[0]);
-                        buffer.text("` or `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(" or ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write_item(&exp[1]);
-                        buffer.text("`");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
                     }
                     _ => {
-                        buffer.text("`");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write_item(&exp[0]);
-                        buffer.text("`, `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(", ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write_item(&exp[1]);
-                        buffer.text("`, or more");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(", or more");
                     }
                 }
                 match actual {
                     Some(actual) => {
-                        buffer.text(", got `");
+                        buffer.text(", got ");
+                        buffer.token(Token::BlockStart(Block::TermRef));
                         buffer.write(&args.items[actual], Style::Invalid);
-                        buffer.text("`. Pass `");
+                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        buffer.text(". Pass ");
                     }
                     None => {
-                        buffer.text(", pass `");
+                        buffer.text(", pass ");
                     }
                 }
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.literal("--help");
-                buffer.text("` for usage information");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" for usage information");
             }
             Message::Conflict(winner, loser) => {
-                buffer.text("`");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.write(&args.items[loser], Style::Literal);
-                buffer.text("` cannot be used at the same time as `");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" cannot be used at the same time as ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.write(&args.items[winner], Style::Literal);
-                buffer.text("`");
+                buffer.token(Token::BlockEnd(Block::TermRef));
             }
             Message::OnlyOnce(_winner, loser) => {
-                buffer.text("Argument `");
+                buffer.text("Argument ");
+                buffer.token(Token::BlockStart(Block::TermRef));
                 buffer.write(&args.items[loser], Style::Literal);
-                buffer.text("` cannot be used multiple times in this context");
+                buffer.token(Token::BlockEnd(Block::TermRef));
+                buffer.text(" cannot be used multiple times in this context");
             }
         };
 
-        ParseFailure::Stderr(buffer.render(true, Color::default()))
+        ParseFailure::Stderr(buffer.render_console(true, Color::default()))
     }
 }
 

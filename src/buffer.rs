@@ -27,3 +27,26 @@ impl Buffer {
 }
 
 pub struct MetaInfo<'a>(pub(crate) &'a Meta);
+
+// # section - block for each seprate command, more sections in the footer if needed
+// ## subsection - "Available options"
+// ### subsubsection - group_help
+// numbered/unnumbered list
+// paragraph of text - separated by a blank line ("\n\n"), only first paragraph is rendered in help
+// mode
+// preformatted text (4 space, block becomes mono)
+//
+// definition list - list of options is implemented this way
+//
+//
+// text styles:
+// - literal       by code only with write_meta
+// - metavar       by code only with write_meta
+//
+// - invalid       by code only
+// - muted         by code only
+//
+// - plaintext
+// - mono          ``
+// - italic        *xxx*
+// - bold          **xxx**

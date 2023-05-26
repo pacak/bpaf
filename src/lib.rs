@@ -1579,3 +1579,13 @@ where
         .hide();
     construct!(skip, parser).map(|x| x.1)
 }
+
+/// asdf
+///
+/// # 1 hello *italic* **bold** `mono`
+/// ## 2 hello *italic* **bold** `mono`
+/// ### 3 hello *italic* **bold** `mono`
+/// #### 4 hello *italic* **bold** `mono`
+/// ##### 5 hello *italic* **bold** `mono`
+///
+pub struct Foo;

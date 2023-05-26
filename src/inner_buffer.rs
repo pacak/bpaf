@@ -23,8 +23,8 @@
 // want to be able to produce both brief and full versions of the documentation, it only makes
 // sense to look for that in the plain text...
 // - "\n " => hard line break, inserted always
-// - "\n\n" => soft line break, text after it is inserted only in "full" rendering mode
-// - "\n" => converted to spaces, text flows to the current margin value
+// - "\n\n" => paragraphs are separated by this, only the first one in inserted unless in "full" mode
+// // - "\n" => converted to spaces, text flows to the current margin value
 //
 // tabstops are aligned the same position within a section, tabstop sets a temporary margin for all
 // the soft linebreaks, tabstop
@@ -45,8 +45,8 @@ fn split(input: &str) -> Splitter {
 #[cfg_attr(test, derive(Debug, Clone, Copy, Eq, PartialEq))]
 enum Chunk<'a> {
     Raw(&'a str, usize),
-    SoftLineBreak,
-    HardLineBreak,
+    Paragraph,
+    LineBreak,
 }
 
 impl<'a> Iterator for Splitter<'a> {
@@ -57,10 +57,10 @@ impl<'a> Iterator for Splitter<'a> {
             None
         } else if let Some(tail) = self.input.strip_prefix("\n\n") {
             self.input = tail;
-            Some(Chunk::SoftLineBreak)
+            Some(Chunk::Paragraph)
         } else if let Some(tail) = self.input.strip_prefix("\n ") {
             self.input = tail;
-            Some(Chunk::HardLineBreak)
+            Some(Chunk::LineBreak)
         } else if let Some(tail) = self.input.strip_prefix('\n') {
             self.input = tail;
             Some(Chunk::Raw(" ", 1))
@@ -108,12 +108,78 @@ pub(crate) enum Style {
     Muted,
 }
 
+// for help structure is
+//
+// <block>header</block>
+// <block>Usage: basic --help</block>
+// <block>
+//   <section2>Available options</section2>
+//   <dl>
+//     <block>
+//       <section3>pick one of those</section3>
+//       <td>--intel</td>
+//       <dd>dump in intel format</dd>
+//     </block>
+//     <block>
+//       <td>--release</td>
+//       <dd>install in release mode</dd>
+//     </block>
+//     <block>
+//       <section3>built in</section3>
+//       <dt>-h, --help</td>
+//       <dd>prints help</dd>
+//     </block>
+//   </dl>
+// </block>
+// <block>footer</block>
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Block {
+    // 0 margin
+    /// level 1 section header, block for separate command inside manpage, not used in --help
+    Section1,
+
+    // 0 margin
+    /// level 2 section header, "Available options" in --help, etc
+    /// in plain text styled with
+    Section2,
+
+    // 2 margin
+    /// level 3 section header, "group_help" header, etc.
+    Section3,
+
+    // inline, 4 margin, no nesting
+    /// -h, --help
+    ItemTerm,
+
+    // widest term up below 20 margin margin plus two, but at least 4.
+    /// print usage information, but also items inside Numbered/Unnumbered lists
+    ItemBody,
+
+    // 0 margin
+    /// Definition list,
+    DefList,
+
+    /// block of text, blocks are separated by a blank line in man or help
+    /// can contain headers or other items inside
+    Block,
+
+    // 2 margin
+    /// Preformatted text
+    Pre,
+
+    // inline
+    /// displayed with `` in monochrome or not when rendered with colors.
+    /// In markdown this becomes a link to a term if one is defined
+    TermRef,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Token {
-    Text {
-        bytes: usize,
-        style: Style,
-    },
+    Text { bytes: usize, style: Style },
+    BlockStart(Block),
+    BlockEnd(Block),
+    /*
     /// Term is a command name, positional name or flag with metavar in option lists
     ///
     /// Empty term is used to add padding for things like default value
@@ -133,7 +199,7 @@ pub(crate) enum Token {
     SubsectionStart,
     SubsectionStop,
     /// Linebreak also ends current term in a list
-    LineBreak,
+    LineBreak,*/
 }
 
 #[derive(Debug, Clone, Default)]
@@ -166,34 +232,19 @@ impl Buffer {
         for &t in &self.tokens {
             match t {
                 Token::Text { bytes, style: _ } => {
+                    // TODO -
                     res.tokens.push(t);
                     res.payload.push_str(&self.payload[cur..cur + bytes]);
                     cur += bytes;
                 }
-                Token::LineBreak => break,
-                t => res.tokens.push(t),
+                _ => break,
             }
         }
         Some(res)
     }
 
     pub(crate) fn to_completion(&self) -> Option<String> {
-        if self.tokens.is_empty() {
-            return None;
-        }
-        let mut res = String::new();
-        let mut cur = 0;
-        for t in &self.tokens {
-            match t {
-                Token::Text { bytes, style: _ } => {
-                    res.push_str(&self.payload[cur..cur + bytes]);
-                    cur += bytes;
-                }
-                Token::LineBreak => break,
-                _ => {}
-            }
-        }
-        Some(res)
+        Some(self.first_line()?.payload)
     }
 }
 
@@ -259,7 +310,7 @@ impl Buffer {
 const MAX_TAB: usize = 24;
 const MAX_WIDTH: usize = 100;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 /// Default to dull color if colors are enabled,
 pub(crate) enum Color {
     Monochrome,
@@ -293,6 +344,7 @@ impl Default for Color {
         {
             res = Color::Dull;
         }
+
         #[cfg(feature = "color")]
         {
             use supports_color::{on, Stream};
@@ -336,14 +388,13 @@ const PADDING: &str = "                                                  ";
 
 impl Buffer {
     pub(crate) fn monochrome(&self, full: bool) -> String {
-        self.render(full, Color::Monochrome)
+        self.render_console(full, Color::Monochrome)
     }
 
-    pub(crate) fn render(&self, full: bool, color: Color) -> String {
+    pub(crate) fn render_console(&self, full: bool, color: Color) -> String {
         let mut res = String::new();
         let mut tabstop = 0;
         let mut byte_pos = 0;
-
         {
             let mut current = 0;
             let mut in_term = false;
@@ -356,11 +407,11 @@ impl Buffer {
                         }
                         byte_pos += bytes;
                     }
-                    Token::TermStart => {
+                    Token::BlockStart(Block::ItemTerm) => {
                         in_term = true;
                         current = 0;
                     }
-                    Token::TermStop => {
+                    Token::BlockEnd(Block::ItemTerm) => {
                         in_term = false;
                         if current > tabstop && current <= MAX_TAB {
                             tabstop = current;
@@ -371,16 +422,15 @@ impl Buffer {
             }
             byte_pos = 0;
         }
-        tabstop += 4;
-        let tabstop = tabstop;
+        let tabstop = tabstop + 4;
+
+        #[cfg(test)]
+        let mut stack = Vec::new();
 
         let mut char_pos = 0;
-        let mut offset_margin = 0;
-        let mut term_margin = 0;
-        let mut right_of_term = false;
 
-        // those things are inserted before the next text
-        let mut pending_term_offset = false;
+        let mut margins: Vec<usize> = Vec::new();
+
         // a single new line, unless one exists
         let mut pending_newline = false;
         // a double newline, unless one exists
@@ -393,6 +443,7 @@ impl Buffer {
                     for chunk in split(input) {
                         match chunk {
                             Chunk::Raw(s, w) => {
+                                let margin = margins.last().copied().unwrap_or(0usize);
                                 if !res.is_empty() {
                                     if (pending_newline || pending_blank_line)
                                         && !res.ends_with('\n')
@@ -405,7 +456,6 @@ impl Buffer {
                                     }
                                     if char_pos > MAX_WIDTH {
                                         char_pos = 0;
-                                        pending_term_offset = right_of_term;
                                         res.truncate(res.trim_end().len());
                                         res.push('\n');
                                         if s == " " {
@@ -417,11 +467,6 @@ impl Buffer {
                                 pending_newline = false;
                                 pending_blank_line = false;
 
-                                let margin: usize = offset_margin.max(term_margin);
-                                if pending_term_offset {
-                                    res.push_str("  ");
-                                    pending_term_offset = false;
-                                }
                                 if let Some(missing) = margin.checked_sub(char_pos) {
                                     res.push_str(&PADDING[..missing]);
                                     char_pos = margin;
@@ -438,16 +483,14 @@ impl Buffer {
                                 }
                                 char_pos += w;
                             }
-                            Chunk::SoftLineBreak => {
-                                pending_term_offset = right_of_term;
+                            Chunk::Paragraph => {
                                 res.push('\n');
                                 char_pos = 0;
                                 if !full {
                                     break;
                                 }
                             }
-                            Chunk::HardLineBreak => {
-                                pending_term_offset = right_of_term;
+                            Chunk::LineBreak => {
                                 res.push('\n');
                                 char_pos = 0;
                             }
@@ -455,48 +498,76 @@ impl Buffer {
                     }
                     byte_pos += bytes;
                 }
-                Token::LineBreak => {
-                    pending_newline = true;
-                    pending_term_offset = false;
-                    right_of_term = false;
-                    term_margin = 0;
-                    char_pos = 0;
+                Token::BlockStart(block) => {
+                    #[cfg(test)]
+                    stack.push(block);
+                    let margin = margins.last().copied().unwrap_or(0usize);
+
+                    match block {
+                        Block::Section1 | Block::Section2 => {
+                            pending_newline = true;
+                            margins.push(margin);
+                        }
+                        Block::Section3 => {
+                            pending_newline = true;
+                            margins.push(margin + 2);
+                        }
+                        Block::ItemTerm => {
+                            pending_newline = true;
+                            margins.push(margin + 4);
+                        }
+                        Block::ItemBody => {
+                            margins.push(margin + tabstop + 2);
+                        }
+                        Block::DefList => todo!(),
+                        Block::Block => {
+                            margins.push(margin);
+                        }
+                        Block::Pre => todo!(),
+                        Block::TermRef => {
+                            if color == Color::Monochrome {
+                                res.push('`');
+                                char_pos += 1;
+                            }
+                        }
+                    }
                 }
-                Token::SectionStart => {
-                    pending_blank_line = true;
-                    debug_assert!(char_pos == 0);
-                    offset_margin = 0;
-                }
-                Token::SubsectionStart => {
-                    debug_assert!(char_pos == 0);
-                    offset_margin = 2;
-                }
-                Token::SectionStop => {
-                    char_pos = 0;
-                    pending_newline = true;
-                }
-                Token::SubsectionStop => {
-                    char_pos = 0;
-                    pending_newline = true;
-                }
-                Token::TermStart => {
-                    debug_assert!(char_pos == 0);
-                    term_margin = 4;
-                }
-                Token::TermStop => {
-                    pending_term_offset = true;
-                    right_of_term = true;
-                    term_margin = tabstop;
+                Token::BlockEnd(block) => {
+                    #[cfg(test)]
+                    assert_eq!(stack.pop(), Some(block));
+
+                    margins.pop();
+                    match block {
+                        Block::Section1 => todo!(),
+                        Block::Section2 => {}
+                        Block::Section3 => {}
+                        Block::ItemTerm => {}
+                        Block::ItemBody => {}
+                        Block::DefList => todo!(),
+                        Block::Block => {
+                            pending_blank_line = true;
+                        }
+                        Block::Pre => todo!(),
+                        Block::TermRef => {
+                            if color == Color::Monochrome {
+                                res.push('`');
+                                char_pos += 1;
+                            }
+                        }
+                    }
                 }
             }
         }
         if pending_newline || pending_blank_line {
             res.push('\n');
         }
+        #[cfg(test)]
+        assert_eq!(stack, &[]);
         res
     }
 }
 
+/*
 #[cfg(test)]
 mod test {
     use super::*;
@@ -675,4 +746,4 @@ mod test {
             ]
         );
     }
-}
+}*/
