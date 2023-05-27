@@ -1,6 +1,6 @@
 use crate::{
+    buffer::{Block, Buffer, Style, Token},
     info::Info,
-    inner_buffer::{Block, Buffer, Style, Token},
     item::{Item, ShortLong},
     Meta,
 };
@@ -318,7 +318,7 @@ impl Buffer {
     }
 }
 
-fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
+fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
             buf.token(Token::BlockStart(Block::Section3));
@@ -391,7 +391,12 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
                     buf.token(Token::BlockEnd(Block::ItemTerm));
                 }
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+                if include_env {
+                    buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+                } else {
+                    buf.text("Uses environment variable ");
+                    buf.literal(env);
+                }
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
@@ -424,7 +429,14 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem) {
                     buf.token(Token::BlockEnd(Block::ItemTerm));
                 }
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+
+                if include_env {
+                    buf.write_str(&format!("[env:{}{}]", env, val), Style::Text);
+                } else {
+                    buf.text("Uses environment variable ");
+                    buf.literal(env);
+                }
+
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
@@ -462,6 +474,7 @@ pub(crate) fn render_help(
     info: &Info,
     parser_meta: &Meta,
     help_meta: &Meta,
+    include_env: bool,
 ) -> Buffer {
     parser_meta.positional_invariant_check(false);
     let mut buf = Buffer::default();
@@ -503,12 +516,14 @@ pub(crate) fn render_help(
         let mut xs = items.items_of_ty(ty).peekable();
         if xs.peek().is_some() {
             buf.token(Token::BlockStart(Block::Block));
-            buf.token(Token::BlockStart(Block::Section2));
+            //            buf.token(Token::BlockStart(Block::Section2));
             buf.write_str(name, Style::Title);
-            buf.token(Token::BlockEnd(Block::Section2));
+            //            buf.token(Token::BlockEnd(Block::Section2));
+            buf.token(Token::BlockStart(Block::DefinitionList));
             for item in xs {
-                write_help_item(&mut buf, item);
+                write_help_item(&mut buf, item, include_env);
             }
+            buf.token(Token::BlockEnd(Block::DefinitionList));
             buf.token(Token::BlockEnd(Block::Block));
         }
     }

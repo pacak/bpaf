@@ -1,7 +1,4 @@
-use crate::{
-    inner_buffer::{Buffer, Style},
-    item::{Item, ShortLong},
-};
+use crate::{buffer::Buffer, item::Item};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -39,109 +36,7 @@ impl Default for Meta {
     }
 }
 
-impl Buffer {
-    pub(crate) fn write_shortlong(&mut self, name: &ShortLong) {
-        match name {
-            ShortLong::Short(s) => {
-                self.write_char('-', Style::Literal);
-                self.write_char(*s, Style::Literal);
-            }
-            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
-                self.write_str("--", Style::Literal);
-                self.write_str(l, Style::Literal);
-            }
-        }
-    }
-
-    pub(crate) fn write_item(&mut self, item: &Item) {
-        match item {
-            Item::Positional {
-                anywhere: _,
-                metavar,
-                strict,
-                help: _,
-            } => {
-                if *strict {
-                    self.write_str("-- ", Style::Literal)
-                }
-                self.metavar(*metavar);
-            }
-            Item::Command {
-                name: _,
-                short: _,
-                help: _,
-                meta: _,
-                info: _,
-            } => {
-                self.write_str("COMMAND ...", Style::Metavar);
-            }
-            Item::Flag {
-                name,
-                shorts: _,
-                env: _,
-                help: _,
-            } => self.write_shortlong(name),
-            Item::Argument {
-                name,
-                shorts: _,
-                metavar,
-                env: _,
-                help: _,
-            } => {
-                self.write_shortlong(name);
-                self.write_char('=', Style::Text);
-                self.metavar(*metavar);
-            }
-        }
-    }
-
-    pub(crate) fn write_meta(&mut self, meta: &Meta, for_usage: bool) {
-        fn go(meta: &Meta, f: &mut Buffer) {
-            match meta {
-                Meta::And(xs) => {
-                    for (ix, x) in xs.iter().enumerate() {
-                        if ix != 0 {
-                            f.write_str(" ", Style::Text);
-                        }
-                        go(x, f);
-                    }
-                }
-                Meta::Or(xs) => {
-                    for (ix, x) in xs.iter().enumerate() {
-                        if ix != 0 {
-                            f.write_str(" | ", Style::Text);
-                        }
-                        go(x, f);
-                    }
-                }
-                Meta::Optional(m) => {
-                    f.write_str("[", Style::Text);
-                    go(m, f);
-                    f.write_str("]", Style::Text)
-                }
-                Meta::Required(m) => {
-                    f.write_str("(", Style::Text);
-                    go(m, f);
-                    f.write_str(")", Style::Text)
-                }
-                Meta::Item(i) => f.write_item(i),
-                Meta::Many(m) => {
-                    go(m, f);
-                    f.write_str("...", Style::Text)
-                }
-
-                Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => go(m, f),
-                Meta::Skip => f.write_str("no parameters expected", Style::Text),
-                Meta::CustomUsage(_, u) => {
-                    f.buffer(u);
-                }
-            }
-        }
-
-        let meta = meta.normalized(for_usage);
-        go(&meta, self);
-    }
-}
+impl Buffer {}
 
 impl Meta {
     /// Used by normalization function to collapse duplicated commands.

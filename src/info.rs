@@ -3,7 +3,6 @@
 use crate::{
     args::{Args, State},
     error::Message,
-    inner_buffer::{Color, Token},
     meta_help::render_help,
     parsers::{NamedArg, ParseCommand},
     short, Buffer, Error, Meta, ParseFailure, Parser,
@@ -109,12 +108,16 @@ impl<T> OptionParser<T> {
     /// fn main() {
     ///     let verbosity: Option<usize> = match verbosity().try_run() {
     ///         Ok(v) => Some(v),
-    ///         Err(ParseFailure::Stdout(msg)) => {
-    ///             print!("{}", msg); // completions are sad otherwise
+    ///         Err(ParseFailure::Stdout(buf, full)) => {
+    ///             print!("{}", buf.monochrome(full));
     ///             None
     ///         }
-    ///         Err(ParseFailure::Stderr(msg)) => {
-    ///             eprintln!("{}", msg);
+    ///         Err(ParseFailure::Completion(msg)) => {
+    ///             print!("{}", msg);
+    ///             None
+    ///         }
+    ///         Err(ParseFailure::Stderr(buf, full)) => {
+    ///             eprintln!("{}", buf.monochrome(full));
     ///             None
     ///         }
     ///     };
@@ -221,7 +224,7 @@ impl<T> OptionParser<T> {
         }
         #[cfg(feature = "autocomplete")]
         if let Some(comp) = args.check_complete() {
-            return Err(ParseFailure::Stdout(comp));
+            return Err(ParseFailure::Completion(comp));
         }
 
         let err = match res {
@@ -246,6 +249,7 @@ impl<T> OptionParser<T> {
                         &self.info,
                         &self.inner.meta(),
                         &self.info.meta(),
+                        true,
                     )
                 }
                 ExtraParams::Version(v) => {
@@ -255,9 +259,7 @@ impl<T> OptionParser<T> {
                     buffer
                 }
             };
-            return Err(ParseFailure::Stdout(
-                buffer.render_console(detailed, Color::default()),
-            ));
+            return Err(ParseFailure::Stdout(buffer, detailed));
         }
         Err(err.render(args, &self.inner.meta()))
     }
@@ -634,7 +636,7 @@ impl Parser<ExtraParams> for Info {
 }
 
 #[derive(Clone, Debug)]
-enum ExtraParams {
+pub(crate) enum ExtraParams {
     Help(bool),
     Version(Buffer),
 }

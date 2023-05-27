@@ -1,5 +1,3 @@
-//! String builder, renders a string assembled from styled blocks
-
 // help needs to support following features:
 // - linebreak - insert linebreak whenever
 // - newline - start text on a new line, don't start a new line if not already at one
@@ -31,6 +29,8 @@
 //
 // margin sets the minimal offset for any new text and retained until new margin is set:
 // "hello" [margin 8] "world" is rendered as "hello   world"
+
+use super::*;
 
 struct Splitter<'a> {
     input: &'a str,
@@ -84,226 +84,6 @@ impl<'a> Iterator for Splitter<'a> {
             self.input = "";
             Some(Chunk::Raw(head, char_ix))
         }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum Style {
-    /// Plain text, no decorations
-    Text,
-
-    /// Section title
-    Title,
-
-    /// Something user needs to type literally - command names, etc
-    Literal,
-
-    /// Metavavar placeholder - something user needs to replace with own input
-    Metavar,
-
-    /// Invalid input given by user - used to display errors
-    Invalid,
-
-    /// Something less important, usually rendered in a more dull color
-    Muted,
-}
-
-// for help structure is
-//
-// <block>header</block>
-// <block>Usage: basic --help</block>
-// <block>
-//   <section2>Available options</section2>
-//   <dl>
-//     <block>
-//       <section3>pick one of those</section3>
-//       <td>--intel</td>
-//       <dd>dump in intel format</dd>
-//     </block>
-//     <block>
-//       <td>--release</td>
-//       <dd>install in release mode</dd>
-//     </block>
-//     <block>
-//       <section3>built in</section3>
-//       <dt>-h, --help</td>
-//       <dd>prints help</dd>
-//     </block>
-//   </dl>
-// </block>
-// <block>footer</block>
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Block {
-    // 0 margin
-    /// level 1 section header, block for separate command inside manpage, not used in --help
-    Section1,
-
-    // 0 margin
-    /// level 2 section header, "Available options" in --help, etc
-    /// in plain text styled with
-    Section2,
-
-    // 2 margin
-    /// level 3 section header, "group_help" header, etc.
-    Section3,
-
-    // inline, 4 margin, no nesting
-    /// -h, --help
-    ItemTerm,
-
-    // widest term up below 20 margin margin plus two, but at least 4.
-    /// print usage information, but also items inside Numbered/Unnumbered lists
-    ItemBody,
-
-    // 0 margin
-    /// Definition list,
-    DefList,
-
-    /// block of text, blocks are separated by a blank line in man or help
-    /// can contain headers or other items inside
-    Block,
-
-    // 2 margin
-    /// Preformatted text
-    Pre,
-
-    // inline
-    /// displayed with `` in monochrome or not when rendered with colors.
-    /// In markdown this becomes a link to a term if one is defined
-    TermRef,
-}
-
-#[derive(Debug, Copy, Clone)]
-pub(crate) enum Token {
-    Text { bytes: usize, style: Style },
-    BlockStart(Block),
-    BlockEnd(Block),
-    /*
-    /// Term is a command name, positional name or flag with metavar in option lists
-    ///
-    /// Empty term is used to add padding for things like default value
-    /// [TermStart]--count=ITEMS[TermEnd][Text "Number items to process"]
-    /// [TermStart][TermEnd][Text "default value is 10"]
-    ///
-    /// buffer rendering assumes that there's one term in a line and no characters before it starts
-    /// terms are indented by 4
-    TermStart,
-    TermStop,
-    /// Section means indented to 0 chars, usually "available options", "available positionals", etc
-    /// but also usage or header/footer. Sections are separated from each other by an empty line
-    SectionStart,
-    SectionStop,
-    /// Subsection means some lines indented by 2 - group header or expanded anywhere
-    ///
-    SubsectionStart,
-    SubsectionStop,
-    /// Linebreak also ends current term in a list
-    LineBreak,*/
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Buffer {
-    /// string info saved here
-    payload: String,
-
-    /// string meta info tokens
-    tokens: Vec<Token>,
-}
-
-impl Buffer {
-    pub(crate) fn is_empty(&self) -> bool {
-        self.tokens.is_empty()
-    }
-
-    pub fn buffer(&mut self, buf: &Buffer) {
-        self.tokens.extend(&buf.tokens);
-        self.payload.push_str(&buf.payload);
-    }
-
-    pub(crate) fn first_line(&self) -> Option<Buffer> {
-        if self.tokens.is_empty() {
-            return None;
-        }
-
-        let mut res = Buffer::default();
-        let mut cur = 0;
-
-        for &t in &self.tokens {
-            match t {
-                Token::Text { bytes, style: _ } => {
-                    // TODO -
-                    res.tokens.push(t);
-                    res.payload.push_str(&self.payload[cur..cur + bytes]);
-                    cur += bytes;
-                }
-                _ => break,
-            }
-        }
-        Some(res)
-    }
-
-    pub(crate) fn to_completion(&self) -> Option<String> {
-        Some(self.first_line()?.payload)
-    }
-}
-
-impl From<&str> for Buffer {
-    fn from(value: &str) -> Self {
-        let mut buf = Buffer::default();
-        buf.write_str(value, Style::Text);
-        buf
-    }
-}
-
-impl Buffer {
-    #[cfg(test)]
-    pub(crate) fn clear(&mut self) {
-        self.payload.clear();
-        self.tokens.clear();
-    }
-
-    #[inline(never)]
-    pub(crate) fn token(&mut self, token: Token) {
-        self.tokens.push(token);
-    }
-
-    pub(crate) fn write<T>(&mut self, input: T, style: Style)
-    where
-        T: std::fmt::Display,
-    {
-        use std::fmt::Write;
-        let old_len = self.payload.len();
-        let _ = write!(self.payload, "{}", input);
-        self.set_style(self.payload.len() - old_len, style);
-    }
-
-    #[inline(never)]
-    fn set_style(&mut self, len: usize, style: Style) {
-        // buffer chunks are unified with previous chunks of the same type
-        // [metavar]"foo" + [metavar]"bar" => [metavar]"foobar"
-        match self.tokens.last_mut() {
-            Some(Token::Text {
-                bytes: prev_bytes,
-                style: prev_style,
-            }) if *prev_style == style => {
-                *prev_bytes += len;
-            }
-            _ => {
-                self.tokens.push(Token::Text { bytes: len, style });
-            }
-        }
-    }
-
-    #[inline(never)]
-    pub(crate) fn write_str(&mut self, input: &str, style: Style) {
-        self.payload.push_str(input);
-        self.set_style(input.len(), style);
-    }
-
-    #[inline(never)]
-    pub(crate) fn write_char(&mut self, c: char, style: Style) {
-        self.write_str(c.encode_utf8(&mut [0; 4]), style);
     }
 }
 
@@ -368,7 +148,7 @@ impl Color {
                 Style::Title => write!(res, "{}", item.underline().bold()),
                 Style::Literal => write!(res, "{}", item.bold()),
                 Style::Metavar => write!(res, "{}", item.underline()),
-                Style::Invalid => write!(res, "{}", item.bold()),
+                Style::Invalid => write!(res, "{}", item.bold().red()),
                 Style::Muted => write!(res, "{}", item.dimmed()),
             },
             Color::Bright => match style {
@@ -387,7 +167,7 @@ impl Color {
 const PADDING: &str = "                                                  ";
 
 impl Buffer {
-    pub(crate) fn monochrome(&self, full: bool) -> String {
+    pub fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)
     }
 
@@ -519,7 +299,7 @@ impl Buffer {
                         Block::ItemBody => {
                             margins.push(margin + tabstop + 2);
                         }
-                        Block::DefList => todo!(),
+                        Block::DefinitionList | Block::NumberedList | Block::UnnumberedList => {}
                         Block::Block => {
                             margins.push(margin);
                         }
@@ -538,16 +318,18 @@ impl Buffer {
 
                     margins.pop();
                     match block {
-                        Block::Section1 => todo!(),
-                        Block::Section2 => {}
-                        Block::Section3 => {}
-                        Block::ItemTerm => {}
-                        Block::ItemBody => {}
-                        Block::DefList => todo!(),
+                        Block::Section1
+                        | Block::Section2
+                        | Block::Section3
+                        | Block::ItemTerm
+                        | Block::ItemBody
+                        | Block::DefinitionList
+                        | Block::NumberedList
+                        | Block::UnnumberedList
+                        | Block::Pre => {}
                         Block::Block => {
                             pending_blank_line = true;
                         }
-                        Block::Pre => todo!(),
                         Block::TermRef => {
                             if color == Color::Monochrome {
                                 res.push('`');

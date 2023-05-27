@@ -374,10 +374,10 @@ mod complete_run;
 mod complete_shell;
 mod error;
 mod info;
-mod inner_buffer;
 mod item;
 #[cfg(feature = "manpage")]
 mod manpage;
+
 mod meta;
 mod meta_help;
 mod meta_youmean;
@@ -386,6 +386,7 @@ mod structs;
 #[cfg(test)]
 mod tests;
 
+pub use crate::buffer::Buffer;
 #[doc(hidden)]
 pub use crate::error::Error;
 #[doc(inline)]
@@ -436,7 +437,6 @@ pub use crate::args::Args;
 pub use crate::args::State;
 pub use crate::info::OptionParser;
 #[doc(hidden)]
-pub use crate::inner_buffer::Buffer;
 pub use crate::meta::Meta;
 
 #[doc(inline)]
@@ -1580,12 +1580,5 @@ where
     construct!(skip, parser).map(|x| x.1)
 }
 
-/// asdf
-///
-/// # 1 hello *italic* **bold** `mono`
-/// ## 2 hello *italic* **bold** `mono`
-/// ### 3 hello *italic* **bold** `mono`
-/// #### 4 hello *italic* **bold** `mono`
-/// ##### 5 hello *italic* **bold** `mono`
-///
+#[doc = include_str!("../x")]
 pub struct Foo;

@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     args::{Arg, State},
-    inner_buffer::{Block, Buffer, Color, Style, Token},
+    buffer::{Block, Buffer, Color, Style, Token},
     item::Item,
     item::ShortLong,
     meta_help::Metavar,
@@ -150,9 +150,12 @@ impl Message {
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
     /// Print this to stdout and exit with success code
-    Stdout(String),
+    Stdout(Buffer, bool),
+    /// This also goes to stdout with exit code of 0,
+    /// this cannot be Buffer because completion needs more control about rendering
+    Completion(String),
     /// Print this to stderr and exit with failure code
-    Stderr(String),
+    Stderr(Buffer, bool),
 }
 
 impl ParseFailure {
@@ -165,10 +168,8 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
-            Self::Stderr(err) => err,
-            Self::Stdout(_) => {
-                panic!("not an stderr: {:?}", self)
-            }
+            Self::Stderr(err, full) => err.monochrome(full),
+            Self::Completion(..) | Self::Stdout(..) => panic!("not an stderr: {:?}", self),
         }
     }
 
@@ -181,10 +182,9 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
-            Self::Stdout(err) => err,
-            Self::Stderr(_) => {
-                panic!("not an stdout: {:?}", self)
-            }
+            Self::Stdout(err, full) => err.monochrome(full),
+            Self::Completion(s) => s,
+            Self::Stderr(..) => panic!("not an stdout: {:?}", self),
         }
     }
 
@@ -193,13 +193,18 @@ impl ParseFailure {
     /// Prints a message to `stdout` or `stderr` and returns the exit code
     #[allow(clippy::must_use_candidate)]
     pub fn exit_code(self) -> i32 {
+        let color = Color::default();
         match self {
-            ParseFailure::Stdout(msg) => {
-                print!("{}", msg); // completions are sad otherwise
+            ParseFailure::Stdout(msg, full) => {
+                print!("{}", msg.render_console(full, color));
                 0
             }
-            ParseFailure::Stderr(msg) => {
-                eprintln!("{}", msg);
+            ParseFailure::Completion(s) => {
+                print!("{}", s);
+                0
+            }
+            ParseFailure::Stderr(msg, full) => {
+                eprint!("{}", msg.render_console(full, color));
                 1
             }
         }
@@ -543,7 +548,7 @@ impl Message {
             }
         };
 
-        ParseFailure::Stderr(buffer.render_console(true, Color::default()))
+        ParseFailure::Stderr(buffer, true)
     }
 }
 

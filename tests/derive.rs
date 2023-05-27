@@ -4,15 +4,19 @@ use bpaf::{Bpaf, Parser};
 #[test]
 fn help_with_default_parse() {
     #[derive(Debug, Clone, Bpaf)]
-    #[bpaf(fallback(Action::NoAction), options)]
+    #[bpaf(fallback(Action::CheckConnection), options)]
     enum Action {
         /// Add a new TODO item
         #[bpaf(command)]
-        Add(String),
+        Add(
+            /// Item to track
+            #[bpaf(positional("ITEM"))]
+            String,
+        ),
 
-        /// Does nothing
+        /// Test connection to the server
         #[bpaf(command)]
-        NoAction,
+        CheckConnection,
     }
 
     let parser = action();
@@ -25,7 +29,10 @@ fn help_with_default_parse() {
     let expected_help = "\
 Add a new TODO item
 
-Usage: add ARG
+Usage: add ITEM
+
+Available positional items:
+    ITEM        Item to track
 
 Available options:
     -h, --help  Prints help information
@@ -38,13 +45,16 @@ Available options:
 Usage: [COMMAND ...]
 
 Available options:
-    -h, --help  Prints help information
+    -h, --help        Prints help information
 
 Available commands:
-    add         Add a new TODO item
-    no_action   Does nothing
+    add               Add a new TODO item
+    check_connection  Test connection to the server
 ";
     assert_eq!(expected_help, help);
+
+    let x = action().render_markdown(false, "todoel");
+    todo!("{:?}", x);
 }
 
 #[test]
