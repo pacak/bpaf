@@ -1,21 +1,25 @@
-use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Buffer, Meta};
+use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Doc, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Item {
+    Any {
+        metavar: Doc,
+        /// used by any, moves it from positionals into arguments
+        anywhere: bool,
+        help: Option<Doc>,
+    },
     /// Positional item, consumed from the the front of the arguments
     /// <FILE>
     Positional {
-        /// used by any, moves it from positionals into arguments
-        anywhere: bool,
         metavar: Metavar,
         strict: bool,
-        help: Option<Buffer>,
+        help: Option<Doc>,
     },
     Command {
         name: &'static str,
         short: Option<char>,
-        help: Option<Buffer>,
+        help: Option<Doc>,
         meta: Box<Meta>,
         info: Box<Info>,
     },
@@ -27,7 +31,7 @@ pub enum Item {
         /// used for disambiguation
         shorts: Vec<char>,
         env: Option<&'static str>,
-        help: Option<Buffer>,
+        help: Option<Doc>,
     },
     /// Short or long name followed by a value, consumed anywhere
     /// -f <VAL>
@@ -38,15 +42,15 @@ pub enum Item {
         shorts: Vec<char>,
         metavar: Metavar,
         env: Option<&'static str>,
-        help: Option<Buffer>,
+        help: Option<Doc>,
     },
 }
 
 impl Item {
     pub(crate) fn is_pos(&self) -> bool {
         match self {
-            Item::Positional { anywhere, .. } => !anywhere,
-            Item::Command { .. } => true,
+            Item::Any { anywhere, .. } => !anywhere,
+            Item::Positional { .. } | Item::Command { .. } => true,
             Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
@@ -62,7 +66,7 @@ impl Item {
                     }
                 }
             }
-            Item::Command { .. } => {}
+            Item::Command { .. } | Item::Any { .. } => {}
             Item::Flag { name, .. } | Item::Argument { name, .. } => name.normalize(short),
         }
     }

@@ -5,7 +5,7 @@ use crate::{
     error::Message,
     meta_help::render_help,
     parsers::{NamedArg, ParseCommand},
-    short, Buffer, Error, Meta, ParseFailure, Parser,
+    short, Doc, Error, Meta, ParseFailure, Parser,
 };
 
 /// Information about the parser
@@ -15,15 +15,15 @@ use crate::{
 #[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]
-    pub version: Option<Buffer>,
+    pub version: Option<Doc>,
     /// Custom description field, see [`descr`][Info::descr]
-    pub descr: Option<Buffer>,
+    pub descr: Option<Doc>,
     /// Custom header field, see [`header`][Info::header]
-    pub header: Option<Buffer>,
+    pub header: Option<Doc>,
     /// Custom footer field, see [`footer`][Info::footer]
-    pub footer: Option<Buffer>,
+    pub footer: Option<Doc>,
     /// Custom usage field, see [`usage`][Info::usage]
-    pub usage: Option<Buffer>,
+    pub usage: Option<Doc>,
     pub help_arg: NamedArg,
     pub version_arg: NamedArg,
 }
@@ -253,9 +253,9 @@ impl<T> OptionParser<T> {
                     )
                 }
                 ExtraParams::Version(v) => {
-                    let mut buffer = Buffer::default();
+                    let mut buffer = Doc::default();
                     buffer.text("Version: ");
-                    buffer.buffer(&v);
+                    buffer.doc(&v);
                     buffer
                 }
             };
@@ -268,7 +268,7 @@ impl<T> OptionParser<T> {
     ///
     /// Used internally to avoid duplicating description for [`command`].
     #[must_use]
-    pub(crate) fn short_descr(&self) -> Option<Buffer> {
+    pub(crate) fn short_descr(&self) -> Option<Doc> {
         self.info.descr.as_ref().and_then(|b| b.first_line())
     }
 
@@ -309,7 +309,7 @@ impl<T> OptionParser<T> {
     /// Version: 0.5.0
     /// ```
     #[must_use]
-    pub fn version<B: Into<Buffer>>(mut self, version: B) -> Self {
+    pub fn version<B: Into<Doc>>(mut self, version: B) -> Self {
         self.info.version = Some(version.into());
         self
     }
@@ -374,7 +374,7 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn descr<B: Into<Buffer>>(mut self, descr: B) -> Self {
+    pub fn descr<B: Into<Doc>>(mut self, descr: B) -> Self {
         self.info.descr = Some(descr.into());
         self
     }
@@ -438,7 +438,7 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn header<B: Into<Buffer>>(mut self, header: B) -> Self {
+    pub fn header<B: Into<Doc>>(mut self, header: B) -> Self {
         self.info.header = Some(header.into());
         self
     }
@@ -502,7 +502,7 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn footer<M: Into<Buffer>>(mut self, footer: M) -> Self {
+    pub fn footer<M: Into<Doc>>(mut self, footer: M) -> Self {
         self.info.footer = Some(footer.into());
         self
     }
@@ -537,7 +537,7 @@ impl<T> OptionParser<T> {
     #[must_use]
     pub fn usage<B>(mut self, usage: B) -> Self
     where
-        B: Into<Buffer>,
+        B: Into<Doc>,
     {
         self.info.usage = Some(usage.into());
         self
@@ -546,9 +546,9 @@ impl<T> OptionParser<T> {
     // unlike with_group_help this prepares buffer every time it runs
     pub fn with_usage<F>(mut self, f: F) -> Self
     where
-        F: Fn(Buffer) -> Buffer,
+        F: Fn(Doc) -> Doc,
     {
-        let mut buf = Buffer::default();
+        let mut buf = Doc::default();
         buf.write_meta(&self.inner.meta(), true);
         self.info.usage = Some(f(buf));
         self
@@ -638,5 +638,5 @@ impl Parser<ExtraParams> for Info {
 #[derive(Clone, Debug)]
 pub(crate) enum ExtraParams {
     Help(bool),
-    Version(Buffer),
+    Version(Doc),
 }

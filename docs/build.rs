@@ -257,6 +257,13 @@ fn write_updated<P: AsRef<Path>>(new_val: String, path: P) -> std::io::Result<()
     Ok(())
 }
 
+// {case_name}/{combine|derive}.rs
+// {case_name}/scenario_name.md - contains description in markdown and quoted ("> ") input on the
+// last line > --help
+// {case_name}/markdown  <- generates markdown docl
+
+// generated code needs to save output in ready for template
+
 fn main() -> Result<(), Box<dyn Error>> {
     let mut libs = Vec::new();
 

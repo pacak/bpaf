@@ -840,14 +840,8 @@ fn default_plays_nicely_with_command() {
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected_help = "\
-inner
-
-Usage: foo no parameters expected
-
-Available options:
-    -h, --help  Prints help information
-";
+    let expected_help =
+        "inner\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
 
     assert_eq!(expected_help, help);
 
@@ -894,14 +888,8 @@ Available commands:
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected_help = "\
-inner descr
-
-Usage: foo no parameters expected
-
-Available options:
-    -h, --help  Prints help information
-";
+    let expected_help =
+        "inner descr\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
     assert_eq!(expected_help, help);
 
     // hidden and visible aliases are working
@@ -1469,9 +1457,9 @@ fn custom_usage_override_fixed() {
 #[test]
 fn custom_usage_override_with_fn() {
     let parser = short('p').switch().to_options().with_usage(|b| {
-        let mut buf = Buffer::default();
+        let mut buf = Doc::default();
         buf.text("Usage: hey ");
-        buf.buffer(&b);
+        buf.doc(&b);
         buf
     });
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
@@ -1611,12 +1599,7 @@ fn empty_struct() {
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
-        "\
-Usage: no parameters expected
-
-Available options:
-    -h, --help  Prints help information
-"
+        "Usage: \n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
 }
 
@@ -1632,12 +1615,7 @@ fn empty_tuple() {
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
-        "\
-Usage: no parameters expected
-
-Available options:
-    -h, --help  Prints help information
-"
+        "Usage: \n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
 }
 

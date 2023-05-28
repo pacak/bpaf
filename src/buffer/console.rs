@@ -30,62 +30,10 @@
 // margin sets the minimal offset for any new text and retained until new margin is set:
 // "hello" [margin 8] "world" is rendered as "hello   world"
 
-use super::*;
-
-struct Splitter<'a> {
-    input: &'a str,
-}
-
-/// Split payload into chunks annotated with character width and containing no newlines according
-/// to text formatting rules
-fn split(input: &str) -> Splitter {
-    Splitter { input }
-}
-
-#[cfg_attr(test, derive(Debug, Clone, Copy, Eq, PartialEq))]
-enum Chunk<'a> {
-    Raw(&'a str, usize),
-    Paragraph,
-    LineBreak,
-}
-
-impl<'a> Iterator for Splitter<'a> {
-    type Item = Chunk<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.input.is_empty() {
-            None
-        } else if let Some(tail) = self.input.strip_prefix("\n\n") {
-            self.input = tail;
-            Some(Chunk::Paragraph)
-        } else if let Some(tail) = self.input.strip_prefix("\n ") {
-            self.input = tail;
-            Some(Chunk::LineBreak)
-        } else if let Some(tail) = self.input.strip_prefix('\n') {
-            self.input = tail;
-            Some(Chunk::Raw(" ", 1))
-        } else if let Some(tail) = self.input.strip_prefix(' ') {
-            self.input = tail;
-            Some(Chunk::Raw(" ", 1))
-        } else {
-            let mut char_ix = 0;
-
-            // there's iterator position but it won't give me character length of the rest of the input
-            for (byte_ix, chr) in self.input.char_indices() {
-                if chr == '\n' || chr == ' ' {
-                    let head = &self.input[..byte_ix];
-                    let tail = &self.input[byte_ix..];
-                    self.input = tail;
-                    return Some(Chunk::Raw(head, char_ix));
-                }
-                char_ix += 1;
-            }
-            let head = self.input;
-            self.input = "";
-            Some(Chunk::Raw(head, char_ix))
-        }
-    }
-}
+use super::{
+    splitter::{split, Chunk},
+    *,
+};
 
 const MAX_TAB: usize = 24;
 const MAX_WIDTH: usize = 100;
@@ -145,7 +93,7 @@ impl Color {
             Color::Monochrome => Ok(res.push_str(item)),
             Color::Dull => match style {
                 Style::Text => Ok(res.push_str(item)),
-                Style::Title => write!(res, "{}", item.underline().bold()),
+                Style::Emphasis => write!(res, "{}", item.underline().bold()),
                 Style::Literal => write!(res, "{}", item.bold()),
                 Style::Metavar => write!(res, "{}", item.underline()),
                 Style::Invalid => write!(res, "{}", item.bold().red()),
@@ -153,7 +101,7 @@ impl Color {
             },
             Color::Bright => match style {
                 Style::Text => Ok(res.push_str(item)),
-                Style::Title => write!(res, "{}", item.yellow().bold()),
+                Style::Emphasis => write!(res, "{}", item.yellow().bold()),
                 Style::Literal => write!(res, "{}", item.green().bold()),
                 Style::Metavar => write!(res, "{}", item.blue().bold()),
                 Style::Invalid => write!(res, "{}", item.red().bold()),
@@ -166,7 +114,7 @@ impl Color {
 
 const PADDING: &str = "                                                  ";
 
-impl Buffer {
+impl Doc {
     pub fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)
     }
@@ -206,7 +154,7 @@ impl Buffer {
 
         #[cfg(test)]
         let mut stack = Vec::new();
-
+        let mut skip = Skip::default();
         let mut char_pos = 0;
 
         let mut margins: Vec<usize> = Vec::new();
@@ -220,6 +168,11 @@ impl Buffer {
             match token {
                 Token::Text { bytes, style } => {
                     let input = &self.payload[byte_pos..byte_pos + bytes];
+                    byte_pos += bytes;
+
+                    if skip.enabled() {
+                        continue;
+                    }
                     for chunk in split(input) {
                         match chunk {
                             Chunk::Raw(s, w) => {
@@ -267,6 +220,7 @@ impl Buffer {
                                 res.push('\n');
                                 char_pos = 0;
                                 if !full {
+                                    skip.enable();
                                     break;
                                 }
                             }
@@ -276,7 +230,6 @@ impl Buffer {
                             }
                         }
                     }
-                    byte_pos += bytes;
                 }
                 Token::BlockStart(block) => {
                     #[cfg(test)]
@@ -298,6 +251,9 @@ impl Buffer {
                         }
                         Block::ItemBody => {
                             margins.push(margin + tabstop + 2);
+                        }
+                        Block::InlineBlock => {
+                            skip.push();
                         }
                         Block::DefinitionList | Block::NumberedList | Block::UnnumberedList => {}
                         Block::Block => {
@@ -327,6 +283,9 @@ impl Buffer {
                         | Block::NumberedList
                         | Block::UnnumberedList
                         | Block::Pre => {}
+                        Block::InlineBlock => {
+                            skip.pop();
+                        }
                         Block::Block => {
                             pending_blank_line = true;
                         }

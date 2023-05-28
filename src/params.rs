@@ -66,11 +66,13 @@ use crate::{
     from_os_str::parse_os_str,
     item::ShortLong,
     meta_help::Metavar,
-    Buffer, Error, Item, Meta, OptionParser, Parser,
+    Doc, Error, Item, Meta, OptionParser, Parser,
 };
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
+///
+/// # Combinatoric usage
 ///
 /// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (one short and one long)
 /// and multiple hidden short and long aliases if needed. It's also possible to consume items from
@@ -79,71 +81,30 @@ use crate::{
 /// [`help`](NamedArg::help) repeatedly to build a desired set of names then transform it into
 /// a parser using `flag`, `switch` or `positional`.
 ///
+#[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_combine.md"))]
+///
 /// # Derive usage
 ///
-/// Unlike combinatoric API where you forced to specify names for your parsers derive API allows
-/// to omit some or all the details:
-/// 1. If no naming information is present at all - `bpaf_derive` would use field name as a long name
+/// When using derive API it is possible to omit some or all the details:
+/// 1. If no naming information is present at all - `bpaf` would use field name as a long name
 ///    (or a short name if field name consists of a single character)
-/// 2. If `short` or `long` annotation is present without an argument - `bpaf_derive` would use first character
+/// 2. If `short` or `long` annotation is present without an argument - `bpaf` would use first character
 ///    or a full name as long and short name respectively. It won't try to add implicit long or
 ///    short name from the previous item.
-/// 3. If `short` or `long` annotation is present with an argument - those are values `bpaf_derive` would
+/// 3. If `short` or `long` annotation is present with an argument - those are values `bpaf` would
 ///    use instead of the original field name
-/// 4. If `env(arg)` annotation is present - `bpaf_derive` would generate `.env(arg)` method:
-///
-///    ```rust
-///    # use bpaf::*;
-///    const DB: &str = "top_secret_database";
-///
-///    #[derive(Debug, Clone, Bpaf)]
-///    #[bpaf(options)]
-///    pub struct Config {
-///       /// flag with no annotation
-///       pub flag_1: bool,
-///
-///       /// explicit short suppresses long
-///       #[bpaf(short)]
-///       pub flag_2: bool,
-///
-///       /// explicit short with custom letter
-///       #[bpaf(short('z'))]
-///       pub flag_3: bool,
-///
-///       /// explicit short and long
-///       #[bpaf(short, long)]
-///       pub deposit: bool,
-///
-///       /// implicit long + env variable from DB constant
-///       #[bpaf(env(DB))]
-///       pub database: String,
-///
-///       /// implicit long + env variable "USER"
-///       #[bpaf(env("USER"))]
-///       pub user: String,
-///    }
-///    ```
-///
-/// # Example
-/// ```console
-/// $ app --help
-///    <skip>
-///         --flag-1         flag with no annotation
-///    -f                    explicit short suppresses long
-///    -z                    explicit short with custom letter
-///    -d, --deposit         explicit short and long
-///        --database <ARG>  [env:top_secret_database: N/A]
-///                          implicit long + env variable from DB constant
-///        --user <ARG>      [env:USER = "pacak"]
-///                          implicit long + env variable "USER"
-///    <skip>
-/// ```
+/// 4. You can specify many `short` and `long` names, any past the first one of each type will
+///    become hidden aliases
+/// 5. If `env(arg)` annotation is present - in addition to long/short names derived according to
+///    rules 1..3 `bpaf` would also parse environment variable `arg` which can be a string literal
+///    or an expression.
+#[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_derive.md"))]
 #[derive(Clone, Debug)]
 pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     env: Vec<&'static str>,
-    pub(crate) help: Option<Buffer>,
+    pub(crate) help: Option<Doc>,
 }
 
 impl NamedArg {
@@ -162,8 +123,7 @@ impl NamedArg {
 /// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
 /// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
-///
-#[doc = include_str!("docs/short_long_env.md")]
+#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
 pub fn short(short: char) -> NamedArg {
     NamedArg {
@@ -180,7 +140,7 @@ pub fn short(short: char) -> NamedArg {
 /// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 ///
-#[doc = include_str!("docs/short_long_env.md")]
+#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
 pub fn long(long: &'static str) -> NamedArg {
     NamedArg {
@@ -224,7 +184,7 @@ pub fn env(variable: &'static str) -> NamedArg {
 impl NamedArg {
     /// Add a short name to a flag/switch/argument
     ///
-    #[doc = include_str!("docs/short_long_env.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs/short_long_env.md"))]
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
@@ -295,7 +255,7 @@ impl NamedArg {
     /// See [`NamedArg`] for more details
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<Buffer>,
+        M: Into<Doc>,
     {
         self.help = Some(help.into());
         self
@@ -308,7 +268,7 @@ impl NamedArg {
     ///
     #[doc = include_str!("docs/switch.md")]
     #[must_use]
-    /// See [`NamedArg`] for more details
+    /// See [`NamedArg`](crate::NamedArg) for more details
     pub fn switch(self) -> impl Parser<bool> {
         build_flag_parser(true, Some(false), self)
     }
@@ -484,7 +444,7 @@ pub struct ParseCommand<T> {
     longs: Vec<&'static str>,
     shorts: Vec<char>,
     // short help!
-    help: Option<Buffer>,
+    help: Option<Doc>,
     subparser: OptionParser<T>,
     adjacent: bool,
 }
@@ -539,7 +499,7 @@ impl<P> ParseCommand<P> {
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<Buffer>,
+        M: Into<Doc>,
     {
         self.help = Some(help.into());
         self
@@ -821,7 +781,7 @@ fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
 #[derive(Clone)]
 pub struct ParsePositional<T> {
     metavar: &'static str,
-    help: Option<Buffer>,
+    help: Option<Doc>,
     result_type: PhantomData<T>,
     strict: bool,
 }
@@ -860,7 +820,7 @@ impl<T> ParsePositional<T> {
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
-        M: Into<Buffer>,
+        M: Into<Doc>,
     {
         self.help = Some(help.into());
         self
@@ -920,7 +880,6 @@ impl<T> ParsePositional<T> {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
             strict: self.strict,
-            anywhere: false,
         })
     }
 }
@@ -929,7 +888,7 @@ fn parse_word(
     args: &mut State,
     strict: bool,
     metavar: &'static str,
-    help: &Option<Buffer>,
+    help: &Option<Doc>,
 ) -> Result<OsString, Error> {
     let metavar = Metavar(metavar);
     if let Some((ix, is_strict, word)) = args.take_positional_word(metavar)? {
@@ -958,7 +917,6 @@ fn parse_word(
                 metavar,
                 help: help.clone(),
                 strict,
-                anywhere: false,
             },
             position,
             scope: args.scope(),
@@ -988,8 +946,8 @@ where
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
 /// [`anywhere`](ParseAny::anywhere).
 pub struct ParseAny<T, I, F> {
-    metavar: Metavar,
-    help: Option<Buffer>,
+    metavar: Doc,
+    help: Option<Doc>,
     ctx: PhantomData<(I, T)>,
     check: F,
     anywhere: bool,
@@ -1022,9 +980,9 @@ pub struct ParseAny<T, I, F> {
 /// See [`adjacent`](crate::ParseCon::adjacent) for more examples
 /// See [`literal`] for a specialized version of `any` that consumes a fixed literal.
 #[must_use]
-pub fn any<I, T, F>(metavar: &'static str, check: F) -> ParseAny<T, I, F> {
+pub fn any<I, T, F>(metavar: impl Into<Doc>, check: F) -> ParseAny<T, I, F> {
     ParseAny {
-        metavar: Metavar(metavar),
+        metavar: metavar.into(),
         help: None,
         check,
         ctx: PhantomData,
@@ -1053,9 +1011,8 @@ pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Opt
 
 impl<F, I, T> ParseAny<T, F, I> {
     pub(crate) fn item(&self) -> Item {
-        Item::Positional {
-            metavar: self.metavar,
-            strict: false,
+        Item::Any {
+            metavar: self.metavar.clone(),
             help: self.help.clone(),
             anywhere: self.anywhere,
         }
@@ -1064,7 +1021,7 @@ impl<F, I, T> ParseAny<T, F, I> {
     /// Add a help message to [`any`] parser.
     #[doc = include_str!("docs/any.md")]
     #[must_use]
-    pub fn help<M: Into<Buffer>>(mut self, help: M) -> Self {
+    pub fn help<M: Into<Doc>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
         self
     }

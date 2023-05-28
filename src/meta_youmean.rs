@@ -81,7 +81,8 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
                         | HelpItem::DecorBlank { .. }
                         | HelpItem::Positional { .. }
                         | HelpItem::AnywhereStart { .. }
-                        | HelpItem::AnywhereStop { .. } => {}
+                        | HelpItem::AnywhereStop { .. }
+                        | HelpItem::Any { .. } => {}
                     }
                 }
             }
@@ -104,7 +105,8 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
             | HelpItem::DecorHeader { .. }
             | HelpItem::DecorBlank { .. }
             | HelpItem::AnywhereStart { .. }
-            | HelpItem::AnywhereStop { .. } => {}
+            | HelpItem::AnywhereStop { .. }
+            | HelpItem::Any { .. } => {}
         }
     }
 

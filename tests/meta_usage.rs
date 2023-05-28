@@ -206,7 +206,7 @@ fn no_actual_arguments_also_works() {
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
-        "Usage: no parameters expected\n\nAvailable options:\n    -h, --help  Prints help information\n"
+        "Usage: \n\nAvailable options:\n    -h, --help  Prints help information\n"
     );
 }
 
@@ -299,7 +299,7 @@ fn hidden_fallback_branch() {
 fn custom_usage() {
     let a = short('a').switch();
 
-    let mut buf = Buffer::default();
+    let mut buf = Doc::default();
     buf.text("<also takes flag b>");
     let b = short('b').switch().usage(buf);
 

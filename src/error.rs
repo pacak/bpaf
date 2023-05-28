@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::{
     args::{Arg, State},
-    buffer::{Block, Buffer, Color, Style, Token},
+    buffer::{Block, Color, Doc, Style, Token},
     item::Item,
     item::ShortLong,
     meta_help::Metavar,
@@ -150,12 +150,12 @@ impl Message {
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
     /// Print this to stdout and exit with success code
-    Stdout(Buffer, bool),
+    Stdout(Doc, bool),
     /// This also goes to stdout with exit code of 0,
-    /// this cannot be Buffer because completion needs more control about rendering
+    /// this cannot be Doc because completion needs more control about rendering
     Completion(String),
     /// Print this to stderr and exit with failure code
-    Stderr(Buffer, bool),
+    Stderr(Doc, bool),
 }
 
 impl ParseFailure {
@@ -255,7 +255,7 @@ impl Message {
             _ => {}
         }
 
-        let mut buffer = Buffer::default();
+        let mut doc = Doc::default();
 
         match self {
             // already rendered
@@ -268,59 +268,59 @@ impl Message {
 
             Message::Unconsumed(ix) => {
                 let item = &args.items[ix];
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.write(item, Style::Invalid);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" is not expected in this context");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(item, Style::Invalid);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" is not expected in this context");
             }
 
             Message::NoEnv(name) => {
-                buffer.text("Environment variable ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.invalid(name);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" is not set");
-                buffer.monochrome(false);
+                doc.text("Environment variable ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.invalid(name);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" is not set");
+                doc.monochrome(false);
             }
             Message::StrictPos(_ix, metavar) => {
-                buffer.text("Expected ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.metavar(metavar);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" to be on the right side of ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.literal("--");
-                buffer.token(Token::BlockEnd(Block::TermRef));
+                doc.text("Expected ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.metavar(metavar);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" to be on the right side of ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("--");
+                doc.token(Token::BlockEnd(Block::TermRef));
             }
             Message::ParseSome(s) => {
-                buffer.text(s);
+                doc.text(s);
             }
             Message::ParseFail(s) => {
-                buffer.text(s);
+                doc.text(s);
             }
             Message::ParseFailed(mix, s) => {
-                buffer.text("Couldn't parse");
+                doc.text("Couldn't parse");
                 if let Some(field) = textual_part(args, mix) {
-                    buffer.text(" ");
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.invalid(&field);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(": ");
+                    doc.text(" ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.invalid(&field);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(": ");
                 } else {
-                    buffer.text(": ");
+                    doc.text(": ");
                 }
-                buffer.text(&s);
+                doc.text(&s);
             }
             Message::GuardFailed(mix, s) => {
                 if let Some(field) = textual_part(args, mix) {
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.invalid(&field);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(": ");
-                    buffer.text(s);
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.invalid(&field);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(": ");
+                    doc.text(s);
                 } else {
-                    buffer.text("Check failed: ");
-                    buffer.text(s);
+                    doc.text("Check failed: ");
+                    doc.text(s);
                 }
             }
             Message::NoArgument(x, mv) => match args.get(x + 1) {
@@ -328,39 +328,39 @@ impl Message {
                     let arg = &args.items[x];
                     let os = &os.to_string_lossy();
 
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.write(arg, Style::Literal);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(" requires an argument ");
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.metavar(mv);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(", got a flag ");
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.write(os, Style::Invalid);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(", try ");
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.write(arg, Style::Literal);
-                    buffer.literal("=");
-                    buffer.write(os, Style::Literal);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(" to use it as an argument");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" requires an argument ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.metavar(mv);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(", got a flag ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(os, Style::Invalid);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(", try ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.literal("=");
+                    doc.write(os, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" to use it as an argument");
                 }
                 // "Some" part of this branch is actually unreachable
                 Some(Arg::Word(_) | Arg::PosWord(_)) | None => {
                     let arg = &args.items[x];
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.write(arg, Style::Literal);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
-                    buffer.text(" requires an argument ");
-                    buffer.token(Token::BlockStart(Block::TermRef));
-                    buffer.metavar(mv);
-                    buffer.token(Token::BlockEnd(Block::TermRef));
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" requires an argument ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.metavar(mv);
+                    doc.token(Token::BlockEnd(Block::TermRef));
                 }
             },
             Message::PureFailed(s) => {
-                buffer.text(&s);
+                doc.text(&s);
             }
             Message::Ambiguity(ix, name) => {
                 let mut chars = name.chars();
@@ -371,36 +371,36 @@ impl Message {
 
                 match args.path.first() {
                     Some(name) => {
-                        buffer.literal(name);
-                        buffer.text("supports ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
+                        doc.literal(name);
+                        doc.text("supports ");
+                        doc.token(Token::BlockStart(Block::TermRef));
                     }
                     None => {
-                        buffer.text("App supports ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
+                        doc.text("App supports ");
+                        doc.token(Token::BlockStart(Block::TermRef));
                     }
                 }
-                buffer.literal("-");
-                buffer.write_char(first, Style::Literal);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" as both an option and an option-argument, try to split ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.write(s, Style::Literal);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" into individual options (");
-                buffer.literal("-");
-                buffer.write_char(first, Style::Literal);
-                buffer.literal(" -");
-                buffer.write_char(second, Style::Literal);
-                buffer.literal(" ..");
-                buffer.text(") or use ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.literal("-");
-                buffer.write_char(first, Style::Literal);
-                buffer.literal("=");
-                buffer.literal(rest);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" syntax to disambiguate");
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" as both an option and an option-argument, try to split ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(s, Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" into individual options (");
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.literal(" -");
+                doc.write_char(second, Style::Literal);
+                doc.literal(" ..");
+                doc.text(") or use ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.literal("=");
+                doc.literal(rest);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" syntax to disambiguate");
             }
             Message::Suggestion(ix, suggestion) => {
                 let actual = &args.items[ix].to_string();
@@ -412,143 +412,143 @@ impl Message {
                             Arg::Word(_) | Arg::PosWord(_) => "command or positional",
                         };
 
-                        buffer.text("No such ");
-                        buffer.text(ty);
-                        buffer.text(": ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.invalid(actual);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(", did you mean ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
+                        doc.text("No such ");
+                        doc.text(ty);
+                        doc.text(": ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.invalid(actual);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
 
                         match v {
-                            Variant::CommandLong(name) => buffer.literal(name),
+                            Variant::CommandLong(name) => doc.literal(name),
                             Variant::Flag(ShortLong::Long(l) | ShortLong::ShortLong(_, l)) => {
-                                buffer.literal("--");
-                                buffer.literal(l);
+                                doc.literal("--");
+                                doc.literal(l);
                             }
                             Variant::Flag(ShortLong::Short(s)) => {
-                                buffer.literal("-");
-                                buffer.write_char(s, Style::Literal);
+                                doc.literal("-");
+                                doc.write_char(s, Style::Literal);
                             }
                         };
 
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text("?");
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
                     }
                     Suggestion::MissingDash(name) => {
-                        buffer.text("No such flag: ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal("-");
-                        buffer.literal(name);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(" (with one dash), did you mean ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal("--");
-                        buffer.literal(name);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text("?");
+                        doc.text("No such flag: ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("-");
+                        doc.literal(name);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" (with one dash), did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("--");
+                        doc.literal(name);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
                     }
                     Suggestion::ExtraDash(name) => {
-                        buffer.text("No such flag: ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal("--");
-                        buffer.write_char(name, Style::Literal);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(" (with two dashes), did you mean ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal("-");
-                        buffer.write_char(name, Style::Literal);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text("?");
+                        doc.text("No such flag: ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("--");
+                        doc.write_char(name, Style::Literal);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" (with two dashes), did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("-");
+                        doc.write_char(name, Style::Literal);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
                     }
                     Suggestion::Nested(x, v) => {
                         let ty = match v {
                             Variant::CommandLong(_) => "Subcommand",
                             Variant::Flag(_) => "Flag",
                         };
-                        buffer.text(ty);
-                        buffer.text(" ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal(actual);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(
+                        doc.text(ty);
+                        doc.text(" ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal(actual);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(
                             " is not valid in this context, did you mean to pass it to command ",
                         );
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.literal(&x);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text("?");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal(&x);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
                     }
                 }
             }
             Message::Expected(exp, actual) => {
-                buffer.text("Expected ");
+                doc.text("Expected ");
                 match exp.len() {
                     0 => {
-                        buffer.text("Expected no arguments");
+                        doc.text("Expected no arguments");
                     }
                     1 => {
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write_item(&exp[0]);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
                     }
                     2 => {
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write_item(&exp[0]);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(" or ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write_item(&exp[1]);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" or ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[1]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
                     }
                     _ => {
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write_item(&exp[0]);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(", ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write_item(&exp[1]);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(", or more");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[1]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", or more");
                     }
                 }
                 match actual {
                     Some(actual) => {
-                        buffer.text(", got ");
-                        buffer.token(Token::BlockStart(Block::TermRef));
-                        buffer.write(&args.items[actual], Style::Invalid);
-                        buffer.token(Token::BlockEnd(Block::TermRef));
-                        buffer.text(". Pass ");
+                        doc.text(", got ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write(&args.items[actual], Style::Invalid);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(". Pass ");
                     }
                     None => {
-                        buffer.text(", pass ");
+                        doc.text(", pass ");
                     }
                 }
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.literal("--help");
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" for usage information");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("--help");
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" for usage information");
             }
             Message::Conflict(winner, loser) => {
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.write(&args.items[loser], Style::Literal);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" cannot be used at the same time as ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.write(&args.items[winner], Style::Literal);
-                buffer.token(Token::BlockEnd(Block::TermRef));
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[loser], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" cannot be used at the same time as ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[winner], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
             }
             Message::OnlyOnce(_winner, loser) => {
-                buffer.text("Argument ");
-                buffer.token(Token::BlockStart(Block::TermRef));
-                buffer.write(&args.items[loser], Style::Literal);
-                buffer.token(Token::BlockEnd(Block::TermRef));
-                buffer.text(" cannot be used multiple times in this context");
+                doc.text("Argument ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[loser], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" cannot be used multiple times in this context");
             }
         };
 
-        ParseFailure::Stderr(buffer, true)
+        ParseFailure::Stderr(doc, true)
     }
 }
 

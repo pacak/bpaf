@@ -1,5 +1,5 @@
 use crate::{
-    buffer::{Block, Buffer, Style, Token},
+    buffer::{Block, Doc, Style, Token},
     info::Info,
     item::{Item, ShortLong},
     Meta,
@@ -12,25 +12,29 @@ pub struct Metavar(pub(crate) &'static str);
 #[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
-        help: &'a Buffer,
+        help: &'a Doc,
         ty: HiTy,
     },
     DecorHeader {
-        help: &'a Buffer,
+        help: &'a Doc,
         ty: HiTy,
     },
     DecorBlank {
         ty: HiTy,
     },
-    Positional {
+    Any {
+        metavar: &'a Doc,
         anywhere: bool,
+        help: Option<&'a Doc>,
+    },
+    Positional {
         metavar: Metavar,
-        help: Option<&'a Buffer>,
+        help: Option<&'a Doc>,
     },
     Command {
         name: &'static str,
         short: Option<char>,
-        help: Option<&'a Buffer>,
+        help: Option<&'a Doc>,
         meta: &'a Meta,
         #[cfg(feature = "manpage")]
         info: &'a Info,
@@ -38,13 +42,13 @@ pub(crate) enum HelpItem<'a> {
     Flag {
         name: ShortLong,
         env: Option<&'static str>,
-        help: Option<&'a Buffer>,
+        help: Option<&'a Doc>,
     },
     Argument {
         name: ShortLong,
         metavar: Metavar,
         env: Option<&'static str>,
-        help: Option<&'a Buffer>,
+        help: Option<&'a Doc>,
     },
     AnywhereStart {
         inner: &'a Meta,
@@ -60,6 +64,7 @@ impl HelpItem<'_> {
             HelpItem::Positional { help, .. }
             | HelpItem::Command { help, .. }
             | HelpItem::Flag { help, .. }
+            | HelpItem::Any { help, .. }
             | HelpItem::Argument { help, .. } => help.is_some(),
             HelpItem::DecorHeader { .. } | HelpItem::DecorSuffix { .. } => true,
             HelpItem::DecorBlank { .. }
@@ -75,11 +80,12 @@ impl HelpItem<'_> {
             | HelpItem::DecorBlank { ty }
             | HelpItem::AnywhereStart { ty, .. }
             | HelpItem::AnywhereStop { ty } => *ty,
-            HelpItem::Positional {
+            HelpItem::Any {
                 anywhere: false, ..
-            } => HiTy::Positional,
+            }
+            | HelpItem::Positional { .. } => HiTy::Positional,
             HelpItem::Command { .. } => HiTy::Command,
-            HelpItem::Positional { anywhere: true, .. }
+            HelpItem::Any { anywhere: true, .. }
             | HelpItem::Flag { .. }
             | HelpItem::Argument { .. } => HiTy::Flag,
         }
@@ -136,6 +142,7 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
                     *ty == self.target
                 }
                 HelpItem::DecorSuffix { .. }
+                | HelpItem::Any { .. }
                 | HelpItem::Command { .. }
                 | HelpItem::Positional { .. }
                 | HelpItem::Flag { .. }
@@ -233,11 +240,12 @@ impl<'a> HelpItems<'a> {
 impl From<&Item> for HiTy {
     fn from(value: &Item) -> Self {
         match value {
-            Item::Positional {
+            Item::Positional { .. }
+            | Item::Any {
                 anywhere: false, ..
             } => Self::Positional,
             Item::Command { .. } => Self::Command,
-            Item::Positional { anywhere: true, .. } | Item::Flag { .. } | Item::Argument { .. } => {
+            Item::Any { anywhere: true, .. } | Item::Flag { .. } | Item::Argument { .. } => {
                 Self::Flag
             }
         }
@@ -252,10 +260,8 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
                 metavar,
                 help,
                 strict: _,
-                anywhere,
             } => Self::Positional {
                 metavar: *metavar,
-                anywhere: *anywhere,
                 help: help.as_ref(),
             },
             Item::Command {
@@ -297,11 +303,20 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
                 env: *env,
                 help: help.as_ref(),
             },
+            Item::Any {
+                metavar,
+                anywhere,
+                help,
+            } => Self::Any {
+                metavar,
+                anywhere: *anywhere,
+                help: help.as_ref(),
+            },
         }
     }
 } // }}}
 
-impl Buffer {
+impl Doc {
     #[inline(never)]
     pub(crate) fn metavar(&mut self, metavar: Metavar) {
         if metavar
@@ -318,35 +333,47 @@ impl Buffer {
     }
 }
 
-fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
+fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
             buf.token(Token::BlockStart(Block::Section3));
-            buf.buffer(help);
+            buf.doc(help);
             buf.token(Token::BlockEnd(Block::Section3));
+
+            //            buf.buffer(help);
         }
         HelpItem::DecorSuffix { help, .. } => {
             buf.token(Token::BlockStart(Block::ItemTerm));
             buf.token(Token::BlockEnd(Block::ItemTerm));
             buf.token(Token::BlockStart(Block::ItemBody));
-            buf.buffer(help);
+            buf.doc(help);
             buf.token(Token::BlockEnd(Block::ItemBody));
         }
         HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {
             buf.token(Token::BlockStart(Block::Block));
             buf.token(Token::BlockEnd(Block::Block));
         }
-        HelpItem::Positional {
+        HelpItem::Any {
             metavar,
             help,
             anywhere: _,
         } => {
             buf.token(Token::BlockStart(Block::ItemTerm));
+            buf.doc(metavar);
+            buf.token(Token::BlockEnd(Block::ItemTerm));
+            if let Some(help) = help {
+                buf.token(Token::BlockStart(Block::ItemBody));
+                buf.doc(help);
+                buf.token(Token::BlockEnd(Block::ItemBody));
+            }
+        }
+        HelpItem::Positional { metavar, help } => {
+            buf.token(Token::BlockStart(Block::ItemTerm));
             buf.metavar(*metavar);
             buf.token(Token::BlockEnd(Block::ItemTerm));
             if let Some(help) = help {
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.buffer(help);
+                buf.doc(help);
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
@@ -367,7 +394,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
             buf.token(Token::BlockEnd(Block::ItemTerm));
             if let Some(help) = help {
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.buffer(help);
+                buf.doc(help);
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
@@ -377,7 +404,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
             buf.token(Token::BlockEnd(Block::ItemTerm));
             if let Some(help) = help {
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.buffer(help);
+                buf.doc(help);
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
             if let Some(env) = env {
@@ -414,7 +441,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
 
             if let Some(help) = help {
                 buf.token(Token::BlockStart(Block::ItemBody));
-                buf.buffer(help);
+                buf.doc(help);
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
 
@@ -448,7 +475,7 @@ fn write_help_item(buf: &mut Buffer, item: &HelpItem, include_env: bool) {
     }
 }
 
-fn write_shortlong(buf: &mut Buffer, name: ShortLong) {
+fn write_shortlong(buf: &mut Doc, name: ShortLong) {
     match name {
         ShortLong::Short(s) => {
             buf.write_char('-', Style::Literal);
@@ -475,32 +502,30 @@ pub(crate) fn render_help(
     parser_meta: &Meta,
     help_meta: &Meta,
     include_env: bool,
-) -> Buffer {
+) -> Doc {
     parser_meta.positional_invariant_check(false);
-    let mut buf = Buffer::default();
+    let mut buf = Doc::default();
 
     if let Some(t) = &info.descr {
         buf.token(Token::BlockStart(Block::Block));
-        buf.buffer(t);
+        buf.doc(t);
         buf.token(Token::BlockEnd(Block::Block));
     }
 
     buf.token(Token::BlockStart(Block::Block));
     if let Some(usage) = &info.usage {
-        buf.buffer(usage)
+        buf.doc(usage)
     } else {
-        buf.write_str("Usage: ", Style::Text);
-        for item in path {
-            buf.write_str(item, Style::Literal);
-            buf.write_char(' ', Style::Text);
-        }
+        buf.write_str("Usage", Style::Emphasis);
+        buf.write_str(": ", Style::Text);
+        buf.write_path(path);
         buf.write_meta(parser_meta, true);
     }
     buf.token(Token::BlockEnd(Block::Block));
 
     if let Some(t) = &info.header {
         buf.token(Token::BlockStart(Block::Block));
-        buf.buffer(t);
+        buf.doc(t);
         buf.token(Token::BlockEnd(Block::Block));
     }
 
@@ -508,30 +533,48 @@ pub(crate) fn render_help(
     items.append_meta(parser_meta);
     items.append_meta(help_meta);
 
-    for (ty, name) in [
-        (HiTy::Positional, "Available positional items:"),
-        (HiTy::Flag, "Available options:"),
-        (HiTy::Command, "Available commands:"),
-    ] {
-        let mut xs = items.items_of_ty(ty).peekable();
-        if xs.peek().is_some() {
-            buf.token(Token::BlockStart(Block::Block));
-            //            buf.token(Token::BlockStart(Block::Section2));
-            buf.write_str(name, Style::Title);
-            //            buf.token(Token::BlockEnd(Block::Section2));
-            buf.token(Token::BlockStart(Block::DefinitionList));
-            for item in xs {
-                write_help_item(&mut buf, item, include_env);
-            }
-            buf.token(Token::BlockEnd(Block::DefinitionList));
-            buf.token(Token::BlockEnd(Block::Block));
-        }
-    }
+    buf.write_help_item_groups(&items, include_env);
 
     if let Some(footer) = &info.footer {
         buf.token(Token::BlockStart(Block::Block));
-        buf.buffer(footer);
+        buf.doc(footer);
         buf.token(Token::BlockEnd(Block::Block));
     }
     buf
+}
+
+impl Doc {
+    #[inline(never)]
+    pub(crate) fn write_help_item_groups(&mut self, items: &HelpItems, include_env: bool) {
+        for (ty, name) in [
+            (HiTy::Positional, "Available positional items:"),
+            (HiTy::Flag, "Available options:"),
+            (HiTy::Command, "Available commands:"),
+        ] {
+            self.write_help_items(items, ty, name, include_env);
+        }
+    }
+
+    #[inline(never)]
+    fn write_help_items(&mut self, items: &HelpItems, ty: HiTy, name: &str, include_env: bool) {
+        let mut xs = items.items_of_ty(ty).peekable();
+        if xs.peek().is_some() {
+            self.token(Token::BlockStart(Block::Block));
+            self.write_str(name, Style::Emphasis);
+            self.token(Token::BlockStart(Block::DefinitionList));
+            for item in xs {
+                write_help_item(self, item, include_env);
+            }
+            self.token(Token::BlockEnd(Block::DefinitionList));
+            self.token(Token::BlockEnd(Block::Block));
+        }
+    }
+
+    // TODO - use this
+    pub(crate) fn write_path(&mut self, path: &[String]) {
+        for item in path {
+            self.write_str(item, Style::Literal);
+            self.write_char(' ', Style::Text);
+        }
+    }
 }

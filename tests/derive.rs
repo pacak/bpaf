@@ -52,9 +52,6 @@ Available commands:
     check_connection  Test connection to the server
 ";
     assert_eq!(expected_help, help);
-
-    let x = action().render_markdown(false, "todoel");
-    todo!("{:?}", x);
 }
 
 #[test]

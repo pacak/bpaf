@@ -1,6 +1,6 @@
-//! This is not a typical bpaf usage, but you should be able to replicate command line used by dd
-
-use bpaf::*;
+//! This is not a typical bpaf usage,
+//! but you should be able to replicate command line used by dd
+use bpaf::{any, construct, doc::Style, short, OptionParser, Parser};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -13,41 +13,48 @@ pub struct Options {
 }
 
 /// Parses a string that starts with `name`, returns the suffix parsed in a usual way
-fn tag<T>(name: &'static str, meta: &'static str, help: &'static str) -> impl Parser<T>
+fn tag<T>(name: &'static str, meta: &str, help: &'static str) -> impl Parser<T>
 where
     T: FromStr,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    // it is possible to parse OsString here and strip the prefix with os_str_bytes or
-    // a similar crate
-    any(meta, move |s: String| {
-        Some(s.strip_prefix(name)?.to_owned())
-    })
+    // it is possible to parse OsString here and strip the prefix with
+    // `os_str_bytes` or a similar crate
+    any(
+        // this defines custom metavar for the help message
+        &[(name, Style::Literal), (meta, Style::Metavar)][..],
+        move |s: String| Some(s.strip_prefix(name)?.to_owned()),
+    )
     .help(help)
     .anywhere()
     .parse(|s| s.parse())
 }
 
 fn in_file() -> impl Parser<String> {
-    tag::<String>("if=", "if=FILE", "read from FILE instead of stdin").fallback(String::from("-"))
+    tag::<String>("if=", "FILE", "read from FILE")
+        .fallback(String::from("-"))
+        .display_fallback()
 }
 
 fn out_file() -> impl Parser<String> {
-    tag::<String>("of=", "of=FILE", "write to FILE instead of stdout").fallback(String::from("-"))
+    tag::<String>("of=", "FILE", "write to FILE")
+        .fallback(String::from("-"))
+        .display_fallback()
 }
 
 fn block_size() -> impl Parser<usize> {
-    // it is possible to parse notation used by dd itself as well, using only ints for simplicity
-    tag::<usize>(
-        "bs=",
-        "bs=SIZE",
-        "read/write SIZE blocks at once instead of 512",
-    )
-    .fallback(512)
+    // it is possible to parse notation used by dd itself as well,
+    // using usuze only for simplicity
+    tag::<usize>("bs=", "SIZE", "read/write SIZE blocks at once")
+        .fallback(512)
+        .display_fallback()
 }
 
 pub fn options() -> OptionParser<Options> {
-    let magic = long("magic").switch();
+    let magic = short('m')
+        .long("magic")
+        .help("a usual switch still works")
+        .switch();
     construct!(Options {
         magic,
         in_file(),

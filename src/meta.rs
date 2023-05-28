@@ -1,4 +1,4 @@
-use crate::{buffer::Buffer, item::Item};
+use crate::{buffer::Doc, item::Item};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -20,13 +20,13 @@ pub enum Meta {
     /// Arguments form a subsection with buffer being it's header
     ///
     /// whole set of arguments go into the same section as the first one
-    Subsection(Box<Meta>, Box<Buffer>),
+    Subsection(Box<Meta>, Box<Doc>),
     /// Buffer is rendered after
-    Suffix(Box<Meta>, Box<Buffer>),
+    Suffix(Box<Meta>, Box<Doc>),
     /// This item is not rendered in the help message
     Skip,
-    /// TODO make it Option<Box<Buffer>>
-    CustomUsage(Box<Meta>, Box<Buffer>),
+    /// TODO make it Option<Box<Doc>>
+    CustomUsage(Box<Meta>, Box<Doc>),
 }
 
 // to get std::mem::take to work
@@ -36,7 +36,7 @@ impl Default for Meta {
     }
 }
 
-impl Buffer {}
+impl Doc {}
 
 impl Meta {
     /// Used by normalization function to collapse duplicated commands.
@@ -283,7 +283,7 @@ impl Meta {
                 }
             }
             Meta::Item(m) => match &**m {
-                Item::Positional { .. } => {}
+                Item::Any { .. } | Item::Positional { .. } => {}
                 Item::Command { meta, .. } => {
                     meta.collect_shorts(flags, args);
                 }

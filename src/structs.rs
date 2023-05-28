@@ -3,7 +3,7 @@ use crate::{
     args::State,
     buffer::MetaInfo,
     error::{Message, MissingItem},
-    Buffer, Error, Meta, Parser,
+    Doc, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
 
@@ -55,7 +55,7 @@ where
 /// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
 pub struct ParseGroupHelp<P> {
     pub(crate) inner: P,
-    pub(crate) message: Buffer,
+    pub(crate) message: Doc,
 }
 
 impl<T, P> Parser<T> for ParseGroupHelp<P>
@@ -81,7 +81,7 @@ pub struct ParseWithGroupHelp<P, F> {
 impl<T, P, F> Parser<T> for ParseWithGroupHelp<P, F>
 where
     P: Parser<T>,
-    F: Fn(MetaInfo) -> Buffer,
+    F: Fn(MetaInfo) -> Doc,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
@@ -191,7 +191,7 @@ where
 /// No other changes to the inner parser
 pub struct ParseUsage<P> {
     pub(crate) inner: P,
-    pub(crate) usage: Buffer,
+    pub(crate) usage: Doc,
 }
 impl<T, P> Parser<T> for ParseUsage<P>
 where
@@ -412,7 +412,7 @@ where
         if self.value_str.is_empty() {
             m
         } else {
-            let buf = Buffer::from(self.value_str.as_str());
+            let buf = Doc::from(self.value_str.as_str());
             Meta::Suffix(Box::new(m), Box::new(buf))
         }
     }

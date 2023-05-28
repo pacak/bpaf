@@ -3,356 +3,268 @@
 #![allow(clippy::redundant_else)] // not useful
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
-
-//! # Derive and combinatoric API
 //!
-//! `bpaf` supports both combinatoric and derive APIs and it's possible to mix and match both APIs
-//! at once. Both APIs provide access to mostly the same features, some things are more convenient
-//! to do with derive (usually less typing), some - with combinatoric (usually maximum flexibility
-//! and reducing boilerplate structs). In most cases using just one would suffice. Whenever
-//! possible APIs share the same keywords and overall structure. Documentation is shared and
-//! contains examples for both combinatoric and derive style.
+//! ## 1. Design considerations for types produced by the parser
 //!
-//! `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
-
-//! # Quick links
-//!
-//! - [Derive tutorial](crate::_derive_tutorial)
-//! - [Combinatoric tutorial](crate::_combinatoric_tutorial)
-//! - [Dealing with unusual cases](crate::_unusual)
-//! - [Applicative functors? What is it all about](crate::_applicative)
-//! - [Applicative parsing intro](https://rustmagazine.org/issue-2/applicative-parsing/)
-//! - [Batteries included](crate::batteries)
-//! - [Q&A](https://github.com/pacak/bpaf/discussions/categories/q-a)
-
-//! # Quick start - combinatoric and derive APIs
+//! Parsing usually starts from deciding what kind of data your APP wants to get. You want to take
+//! advantage of Rust typesystem, try to represent the result such that more validation
+//! can be done during parsing.
 //!
 //! <details>
-//! <summary style="display: list-item;">Derive style API, click to expand</summary>
+//! <summary>A few examples</summary>
+//! Use enums instead of huge structs for mutually exclusive options:
 //!
-//! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
-//!    ```toml
-//!    [dependencies]
-//!    bpaf = { version = "0.7", features = ["derive"] }
-//!    ```
+//! ```no_check
+//! enum OutputFormat {
+//!     Intel,
+//!     Att,
+//!     Llvm
+//! }
 //!
-//! 2. Define a structure containing command line attributes and run generated function
-//!    ```no_run
-//!    use bpaf::Bpaf;
+//! fn main() {
+//!     ...
+//!     // `rustc` ensures you handle each case, parser won't try to consume
+//!     // combinations of flags it can't represent. For example it won't accept
+//!     // both `--intel` and `--att` at once
+//!     // (unless it can collect multiple of them in a vector)
+//!     match format {
+//!         OutputFormat::Intel => ...,
+//!         OutputFormat::Att=> ...,
+//!         OutputFormat::Llvm=> ...,
+//!     }
+//! }
+//! ```
 //!
-//!    #[derive(Clone, Debug, Bpaf)]
-//!    #[bpaf(options, version)]
-//!    /// Accept speed and distance, print them
-//!    struct SpeedAndDistance {
-//!        /// Speed in KPH
-//!        speed: f64,
-//!        /// Distance in miles
-//!        distance: f64,
-//!    }
+//! While it's easy to see how flags like `--intel` and `--att` maps to each of those bools,
+//! consuming inside your app is more fragile
 //!
-//!    fn main() {
-//!        // #[derive(Bpaf)] generates `speed_and_distance` function
-//!        let opts = speed_and_distance().run();
-//!        println!("Options: {:?}", opts);
-//!    }
-//!    ```
+//! ```no_check
+//! struct OutputFormat {
+//!     intel: bool,
+//!     att: bool,
+//!     llvm: bool,
+//! }
 //!
-//! 3. Try to run the app
-//!    ```console
-//!    % very_basic --help
-//!    Accept speed and distance, print them
+//! fn main() {
+//!     ...
+//!     // what happens when none matches? Or all of them?
+//!     // What happens when you add a new output format?
+//!     if format.intel {
+//!         ...
+//!     } else if format.att {
+//!         ...
+//!     } else if format.llvm {
+//!         ...
+//!     } else {
+//!         // can this branch be reached?
+//!     }
+//! }
+//! ```
 //!
-//!    Usage: --speed ARG --distance ARG
+//! Mutually exclusive things are not limited to just flags. For example if your program can take
+//! input from several different sources such as file, database or interactive input it's a good
+//! idea to use enum as well:
 //!
-//!    Available options:
-//!            --speed <ARG>     Speed in KPH
-//!            --distance <ARG>  Distance in miles
-//!        -h, --help            Prints help information
-//!        -V, --version         Prints version information
+//! ```no_check
+//! enum Input {
+//!     File {
+//!         filepath: PathBuf,
+//!     }
+//!     Database {
+//!         user: String,
+//!         password: String.
+//!     }
+//!     Interactive,
+//! }
+//! ```
 //!
-//!    % very_basic --speed 100
-//!    Expected --distance ARG, pass --help for usage information
+//! If your codebase uses newtype pattern - it's a good idea to use it starting from the command
+//! options:
 //!
-//!    % very_basic --speed 100 --distance 500
-//!    Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
-//!
-//!    % very_basic --version
-//!    Version: 0.5.0 (taken from Cargo.toml by default)
-//!    ```
-//! 4. You can check the [derive tutorial](crate::_derive_tutorial) for more detailed information.
-//!
+//! ```no_check
+//! struct Options {
+//!     // better than taking a String and parsing internally
+//!     date: NaiveDate,
+//!     // f64 might work too, but you can start from some basic sanity checks
+//!     speed: Speed
+//!     ...
+//! }
+//! ```
 //! </details>
 //!
+//! ## 2. Primitive items on the command line
+//!
+//! If we are not talking about exotic cases most of the command line arguments can be narrowed
+//! down to a few items:
 //! <details>
-//! <summary style="display: list-item;">Combinatoric style API, click to expand</summary>
+//! <summary>An overview of primitive parser shapes</summary>
 //!
-//! 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
-//!    ```toml
-//!    [dependencies]
-//!    bpaf = "0.7"
-//!    ```
+//! - an option with a short or a long name: `-v` or `--verbose`, short options can sometimes be
+//!   squashed together: `-vvv` can be parsed the same as `-v -v -v` passed separately.
+//!   If such option is parsed into a `bool` `bpaf` documentation calls them *switches*, if it
+//!   parses into some fixed value - it's a *flag*.
 //!
-//! 2. Declare parsers for components, combine them and run it
-//!    ```no_run
-//!    use bpaf::{construct, long, Parser};
-//!    #[derive(Clone, Debug)]
-//!    struct SpeedAndDistance {
-//!        /// Dpeed in KPH
-//!        speed: f64,
-//!        /// Distance in miles
-//!        distance: f64,
-//!    }
+//!   <details>
+//!   <summary>Examples of flags and switches</summary>
+//!   <div class="code-wrap">
+//!   <pre>
+//!   cargo build <span style="font-weight: bold">--release</span>
+//!   cargo test <span style="font-weight: bold">-q</span>
+//!   cargo asm <span style="font-weight: bold">--intel</span>
+//!   </pre>
+//!   </div>
+//!   </details>
 //!
-//!    fn main() {
-//!        // primitive parsers
-//!        let speed = long("speed")
-//!            .help("Speed in KPG")
-//!            .argument::<f64>("SPEED");
-//!
-//!        let distance = long("distance")
-//!            .help("Distance in miles")
-//!            .argument::<f64>("DIST");
-//!
-//!        // parser containing information about both speed and distance
-//!        let parser = construct!(SpeedAndDistance { speed, distance });
-//!
-//!        // option parser with metainformation attached
-//!        let speed_and_distance
-//!            = parser
-//!            .to_options()
-//!            .descr("Accept speed and distance, print them");
-//!
-//!        let opts = speed_and_distance.run();
-//!        println!("Options: {:?}", opts);
-//!    }
-//!    ```
-//!
-//! 3. Try to run the app
-//!
-//!    ```console
-//!    % very_basic --help
-//!    Accept speed and distance, print them
-//!
-//!    Usage: --speed ARG --distance ARG
-//!
-//!    Available options:
-//!            --speed <ARG>     Speed in KPH
-//!            --distance <ARG>  Distance in miles
-//!        -h, --help            Prints help information
-//!        -V, --version         Prints version information
-//!
-//!    % very_basic --speed 100
-//!    Expected --distance ARG, pass --help for usage information
-//!
-//!    % very_basic --speed 100 --distance 500
-//!    Options: SpeedAndDistance { speed: 100.0, distance: 500.0 }
-//!
-//!    % very_basic --version
-//!    Version: 0.5.0 (taken from Cargo.toml by default)
-//!    ```
-//!
-//! 4. You can check the [combinatoric tutorial](crate::_combinatoric_tutorial) for more detailed information.
+//! - an option with a short or a long name with extra value attached: `-p <PACKAGE>` or
+//!   `--package <PACKAGE>`. Value can also be separated by `=` sign from the name or, in case
+//!   of a short name, be adjacent to it: `--package=bpaf` and `-pbpaf`.
+//!   `bpaf` documentation calls them *arguments*.
 //!
 //!
-//! </details>
+//!   <details>
+//!   <summary>Examples of arguments</summary>
+//!   <div class="code-wrap">
+//!   <pre>
+//!   cargo build <span style="font-weight: bold">--package bpaf</span>
+//!   cargo test <span style="font-weight: bold">-j2</span>
+//!   cargo check <span style="font-weight: bold">--bin=megapotato</span>
+//!   </pre>
+//!   </div>
+//!   </details>
 //!
-//! # Design goals: flexibility, reusability, correctness
+//! - value taken from a command line just by being in the correct position and not being a flag.
+//!   `bpaf` documentation calls them *positionals*.
 //!
-//! Library allows to consume command line arguments by building up parsers for individual
-//! arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
-//! For example it's possible to take a parser that requires a single floating point number and
-//! transform it to a parser that takes several of them or takes it optionally so different
-//! subcommands or binaries can share a lot of the code:
+//!   <details>
+//!   <summary>Examples of positionals</summary>
+//!   <div class="code-wrap">
+//!   <pre>
+//!   cat <span style="font-weight: bold">/etc/passwd</span>
+//!   rm -rf test <span style="font-weight: bold">target</span>
+//!   man <span style="font-weight: bold">gcc</span>
+//!   </pre>
+//!   </div>
+//!   </details>
 //!
-//! ```rust
-//! # use bpaf::*;
-//! // a regular function that doesn't depend on any context, you can export it
-//! // and share across subcommands and binaries
-//! fn speed() -> impl Parser<f64> {
-//!     long("speed")
-//!         .help("Speed in KPH")
-//!         .argument::<f64>("SPEED")
-//! }
+//! - a positional item that starts a whole new set of options with a separate help message.
+//!   `bpaf` documentation calls them *commands* or *subcommands*.
 //!
-//! // this parser accepts multiple `--speed` flags from a command line when used,
-//! // collecting results into a vector
-//! fn multiple_args() -> impl Parser<Vec<f64>> {
-//!     speed().many()
-//! }
+//!   <details>
+//!   <summary>Examples of subcommands</summary>
+//!   <div class="code-wrap">
+//!   <pre>
+//!   cargo <span style="font-weight: bold">build --release</span>
+//!   cargo <span style="font-weight: bold">clippy</span>
+//!   cargo <span style="font-weight: bold">asm --intel --everything</span>
+//!   </pre>
+//!   </div>
+//!   </details>
 //!
-//! // this parser checks if `--speed` is present and uses value of 42.0 if it's not
-//! fn with_fallback() -> impl Parser<f64> {
-//!     speed().fallback(42.0)
-//! }
-//! ```
+//! - value can be taken from an environment variable.
 //!
-//! At any point you can apply additional validation or fallback values in terms of current parsed
-//! state of each subparser and you can have several stages as well:
+//!   <details>
+//!   <summary>Examples of environment variable</summary>
+//!   <div class="code-wrap">
+//!   <pre>
+//!   <span style="font-weight: bold">CARGO_TARGET_DIR=~/shared</span> cargo build --release
+//!   <span style="font-weight: bold">PASSWORD=secret</span> encrypt file
+//!   </pre>
+//!   </div>
+//!   </details>
 //!
-//! ```rust
-//! # use bpaf::*;
-//! #[derive(Clone, Debug)]
-//! struct Speed(f64);
-//! fn speed() -> impl Parser<Speed> {
-//!     long("speed")
-//!         .help("Speed in KPH")
-//!         .argument::<f64>("SPEED")
+//!   </details>
 //!
-//!         // You can perform additional validation with `parse` and `guard` functions
-//!         // in as many steps as required.
-//!         // Before and after next two applications the type is still `impl Parser<f64>`
-//!         .guard(|&speed| speed >= 0.0, "You need to buy a DLC to move backwards")
-//!         .guard(|&speed| speed <= 100.0, "You need to buy a DLC to break the speed limits")
+//! `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
+//! Both APIs can achieve the same results, you can use one that better suits your needs. You can
+//! find documentation with more examples following those links.
 //!
-//!         // You can transform contained values, next line gives `impl Parser<Speed>` as a result
-//!         .map(|speed| Speed(speed))
-//! }
-//! ```
+//! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
+//!   [`long`] and [`env`](crate::params::env). At the same point you can attach
+//!   [`help`](NamedArg::help).
+//! - [`switch`](NamedArg::switch) - simple switch that returns `true` if it's present on a command
+//!   line and `false` otherwise.
+//! - [`flag`](NamedArg::flag) - a variant of `switch` that lets you return one of two custom
+//!   values, for example `Color::On` and `Color::Off`.
+//! - [`req_flag`](NamedArg::req_flag) - a variant of `switch` that only only succeeds when it's name
+//!   is present on a command line
+//! - [`argument`](NamedArg::argument) - named argument containing a value
+//! - [`positional`] - positional argument, you can further customize it with
+//!   [`strict`](ParsePositional::strict)
+//! - [`command`](OptionParser::command) - command parser, you need to define [`OptionParser`]
+//!   for the nested parser first.
+//! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
+//!   not fitting into usual classification
 //!
-//! Library follows **parse, don’t validate** approach to validation when possible. Usually you parse
-//! your values just once and get the results as a Rust struct/enum with strict types rather than a
-//! stringly typed hashmap with stringly typed values in both combinatoric and derive APIs.
-
-//! # Design goals: restrictions
+//! ## 3. Transforming and changing parsers
 //!
-//! The main restricting library sets is that you can't use parsed values (but not the fact that
-//! parser succeeded or failed) to decide how to parse subsequent values. In other words parsers
-//! don't have the monadic strength, only the applicative one - for more detailed explanation see
-//! [Applicative functors? What is it all about](crate::_applicative).
+//! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
+//! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
+//! [`Parser`] trait, some of those methods are applied automagically if you are using derive API.
 //!
+//! `bpaf` distinguishes two types of parse failures - "value is absent" and
+//! "value is present but invalid", most parsers listed in this section only handle the first
+//! type of falure by default, but you can use their respective `catch` method to handle the later
+//! one.
 //!
-//! To give an example, you can implement this description:
+//! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
+//!   different value if parser fails to find what it is looking for.
+//! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
+//!   also [`catch`](ParseOptional::catch) .
+//! - [`many`](Parser::many) and [`some`](Parser::some) - collect multiple values into a vector,
+//!   see their respective [`catch`](ParseMany::catch) and [`catch`](ParseSome).
+//! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
+//!   and/or validate value produced by a parser
+//! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
 //!
-//! > Program takes one of `--stdout` or `--file` flag to specify the output target, when it's `--file`
-//! > program also requires `-f` attribute with the filename
+//! ## 4. Combining multiple parsers together
 //!
-//! But not this one:
+//! Once you have parsers for all the primitive fields figured out you can start combining them
+//! together to produce a parser for a final result - data type you designed in the step one.
+//! For derive API you apply annotations to data types with `#[derive(Bpaf)`] and `#[bpaf(..)]`,
+//! with combinatoric API you use [`construct!`](crate::construct!) macro.
 //!
-//! > Program takes an `-o` attribute with possible values of `'stdout'` and `'file'`, when it's `'file'`
-//! > program also requires `-f` attribute with the filename
+//! All fields in a struct needs to be successfully parsed in order for the parser to succeed
+//! and only one variant from enum will consume its values at a time.
 //!
-//! This set of restrictions allows `bpaf` to extract information about the structure of the computations
-//! to generate help, dynamic completion and overall results in less confusing enduser experience
+//! ## 5. Improving user experience
 //!
-//! `bpaf` performs no parameter names validation, in fact having multiple parameters
-//! with the same name is fine and you can combine them as alternatives and performs no fallback
-//! other than [`fallback`](Parser::fallback). You need to pay attention to the order of the
-//! alternatives inside the macro: parser that consumes the left most available argument on a
-//! command line wins, if this is the same - left most parser wins. So to parse a parameter
-//! `--test` that can be both [`switch`](NamedArg::switch) and [`argument`](NamedArg::argument) you
-//! should put the argument one first.
+//! `bpaf` would use doc comments on fields in derive mode and and values passed in various
+//! `help` methods to generate `--help` documentation, you can further improve it with those
+//! methods:
 //!
-//! You must place [`positional`] items at the end of a structure in derive API or consume them
-//! as last arguments in derive API.
-
-//! # Dynamic shell completion
+//! - [`display_fallback`](ParseFallback::display_fallback) and
+//!   [`debug_fallback`](ParseFallback::debug_fallback) will include `fallback` value into
+//!   the generated help
+//! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
+//!   generated *Usage* line or whole generated help
+//! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
+//!   add a common description shared by several parsers
+//! - [`usage`](Parser::usage) - customize usage for a primitive or composite parser
+//! - [`usage`](OptionParser::usage) and [`with_usage`](OptionParser::with_usage) lets you to
+//!   customize whole usage line as a whole either by completely overriding it or by building around it.
 //!
-//! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
-//! names, but also argument and positional item values.
+//! By default with completion enabled `bpaf` would complete names for flags, arguments and
+//! commands. You can also generate completion for argument values, possible positionals, etc.
+//! This requires enabling **autocomplete** cargo feature.
 //!
-//! 1. Enable `autocomplete` feature:
-//!    ```toml
-//!    bpaf = { version = "0.7", features = ["autocomplete"] }
-//!    ```
-//! 2. Decorate [`argument`](NamedArg::argument) and [`positional`] parsers with
-//!    [`complete`](Parser::complete) to autocomplete argument values
+//! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
 //!
-//! 3. Depending on your shell generate appropriate completion file and place it to whereever your
-//!    shell is going to look for it, name of the file should correspond in some way to name of
-//!    your program. Consult manual for your shell for the location and named conventions:
-//!    1. **bash**: for the first `bpaf` completion you need to install the whole script
-//!        ```console
-//!        $ your_program --bpaf-complete-style-bash >> ~/.bash_completion
-//!        ```
-//!        but since the script doesn't depend on a program name - it's enough to do this for
-//!        each next program
-//!        ```console
-//!        echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
-//!        ```
-//!    2. **zsh**: note `_` at the beginning of the filename
-//!       ```console
-//!       $ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
-//!       ```
-//!    3. **fish**
-//!       ```console
-//!       $ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
-//!       ```
-//!    4. **elvish** - not sure where to put it, documentation is a bit cryptic
-//!       ```console
-//!       $ your_program --bpaf-complete-style-elvish
-//!       ```
-//! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
-//!    upgrade: generated completion files contain only instructions how to ask your program for
-//!    possible completions and don't change even if options are different.
+//! And finally you can generate documentation for command line in markdown/html and manpage
+//! formats
+//! - [`render_markdown`](OptionParser::render_markdown)
+//! - [`render_html`](OptionParser::render_html)
+//! - [`render_manpage`](OptionParser::render_manpage)
 //!
-//! 5. Generated scripts rely on your program being accessible in $PATH
-
-//! # More examples
-//!
-//! You can find a more examples here: <https://github.com/pacak/bpaf/tree/master/examples>
-//!
-//!
-//! They're usually documented or at least contain an explanation to important bits and you can see
-//! how they work by cloning the repo and running
-//! ```shell
-//! $ cargo run --example example_name
-//! ```
-
-//! # Testing your own parsers
-//!
-//! You can test your own parsers to maintain compatibility or simply checking expected output
-//! with [`run_inner`](OptionParser::run_inner)
-//!
-//! ```rust
-//! # use bpaf::*;
-//! #[derive(Debug, Clone, Bpaf)]
-//! #[bpaf(options)]
-//! pub struct Options {
-//!     pub user: String
-//! }
-//!
-//! #[test]
-//! fn test_my_options() {
-//!     let help = options()
-//!         .run_inner(&["--help"])
-//!         .unwrap_err()
-//!         .unwrap_stdout();
-//!     let expected_help = "\
-//! Usage --user <ARG>
-//! <skip>
-//! ";
-//!
-//!     assert_eq!(help, expected_help);
-//! }
-//! ```
-//!
-
-//! # Cargo features
-//!
-//! - `derive`: adds a dependency on `bpaf_derive` crate and reexport `Bpaf` derive macro. You
-//!   need to enable it to use derive API. Disabled by default.
-//!
-//! - `extradocs`: used internally to include tutorials to <https://docs.rs/bpaf>, no reason to
-//! enable it for local development unless you want to build your own copy of the documentation
-//! (<https://github.com/rust-lang/cargo/issues/8905>). Disabled by default.
-//!
-//! - `batteries`: helpers implemented with public `bpaf` API. Disabled by default.
-//!
-//! - `autocomplete`: enables support for shell autocompletion. Disabled by default.
-//!
-//! - `bright-color`, `dull-color`: use more colors when printing `--help` and such. Enabling
-//!   either color feature adds some extra dependencies and might raise MRSV. If you are planning
-//!   to use this feature in a published app - it's best to expose them as feature flags:
-//!   ```toml
-//!   [features]
-//!   bright-color = ["bpaf/bright-color"]
-//!   dull-color = ["bpaf/dull-color"]
-//!   ```
-//!   Disabled by default.
-//!
-//! - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`]. Disabled by default.
-//!
-//!
+//! ## 6. Testing your parsers and running them
+//! - You can [`run`](OptionParser::run) the parser on the arguments passed on the command line
+//! - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
+//!   parser `bpaf` relies on
+//! - [`run_inner`](OptionParser::run_inner) runs the parser with custom [`Args`] you can create
+//!   either explicitly or implicitly using one of the [`From`] implementations, `Args` can be
+//!   customized with [`set_comp`](Args::set_comp) and [`set_name`](Args::set_name).
+//! - [`ParseFailure`] contains the parse outcome, you can consume it either by hands or using one
+//!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
+//!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
 
 #[cfg(feature = "extradocs")]
 pub mod _applicative;
@@ -366,18 +278,18 @@ mod arg;
 mod args;
 #[cfg(feature = "batteries")]
 pub mod batteries;
+mod buffer;
 #[cfg(feature = "autocomplete")]
 mod complete_gen;
 #[cfg(feature = "autocomplete")]
 mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
+pub mod doc;
 mod error;
+mod from_os_str;
 mod info;
 mod item;
-#[cfg(feature = "manpage")]
-mod manpage;
-
 mod meta;
 mod meta_help;
 mod meta_youmean;
@@ -385,26 +297,6 @@ pub mod params;
 mod structs;
 #[cfg(test)]
 mod tests;
-
-pub use crate::buffer::Buffer;
-#[doc(hidden)]
-pub use crate::error::Error;
-#[doc(inline)]
-pub use crate::error::ParseFailure;
-use crate::item::Item;
-
-use buffer::MetaInfo;
-use std::marker::PhantomData;
-#[doc(hidden)]
-pub use structs::{ParseBox, ParseCon};
-
-#[cfg(feature = "autocomplete")]
-pub use crate::complete_shell::ShellComp;
-
-#[cfg(feature = "manpage")]
-pub use manpage::Section;
-
-pub mod buffer;
 
 pub mod parsers {
     //! This module exposes parsers that accept further configuration with builder pattern
@@ -422,6 +314,33 @@ pub mod parsers {
     };
 }
 
+// -------------------------------------------------------------------
+
+use crate::{buffer::MetaInfo, item::Item};
+
+#[doc(inline)]
+pub use crate::{
+    args::Args,
+    buffer::Doc,
+    error::ParseFailure,
+    info::OptionParser,
+    params::{any, command, env, literal, long, positional, short},
+};
+
+#[doc(hidden)]
+// used by construct macro, not part of public API
+pub use crate::{
+    args::State,
+    error::Error,
+    meta::Meta,
+    structs::{ParseBox, ParseCon},
+};
+
+use std::marker::PhantomData;
+
+//#[cfg(feature = "manpage")]
+//pub use manpage::Section;
+
 use structs::{
     ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseMany,
     ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage,
@@ -429,26 +348,16 @@ use structs::{
 };
 
 #[cfg(feature = "autocomplete")]
+pub use crate::complete_shell::ShellComp;
+#[cfg(feature = "autocomplete")]
 use structs::{ParseComp, ParseCompStyle};
 
-#[doc(inline)]
-pub use crate::args::Args;
-#[doc(hidden)]
-pub use crate::args::State;
-pub use crate::info::OptionParser;
-#[doc(hidden)]
-pub use crate::meta::Meta;
-
-#[doc(inline)]
-pub use crate::params::{any, command, env, literal, long, positional, short};
-
 #[cfg(doc)]
-pub(self) use crate::parsers::NamedArg;
+use crate::params::{NamedArg, ParsePositional};
 
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
-mod from_os_str;
 
 /// Compose several parsers to produce a single result
 ///
@@ -1151,7 +1060,7 @@ pub trait Parser<T> {
     ///
     /// Parsers hidden from usage will still show up in available arguments list. Best used on
     /// optional things that augment main application functionality but not define it. You might
-    /// use custom usage to indicate that some options are hidden
+    /// use custom [`usage`](Parser::usage) to indicate that some options are hidden.
     ///
     #[doc = include_str!("docs/hide_usage.md")]
     #[must_use]
@@ -1161,15 +1070,17 @@ pub trait Parser<T> {
     {
         ParseUsage {
             inner: self,
-            usage: Buffer::default(),
+            usage: Doc::default(),
         }
     }
 
-    // customize how this parser looks like in the usage line
+    /// Customize how this parser looks like in the usage line
+    ///
+    // #[doc=include_str!("docs2/arg_usage.md")]
     #[must_use]
     fn usage<M>(self, usage: M) -> ParseUsage<Self>
     where
-        M: Into<Buffer>,
+        M: Into<Doc>,
         Self: Sized + Parser<T>,
     {
         ParseUsage {
@@ -1186,7 +1097,7 @@ pub trait Parser<T> {
     ///
     #[doc = include_str!("docs/group_help.md")]
     ///
-    fn group_help<M: Into<Buffer>>(self, message: M) -> ParseGroupHelp<Self>
+    fn group_help<M: Into<Doc>>(self, message: M) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
     {
@@ -1197,10 +1108,13 @@ pub trait Parser<T> {
     }
     // }}}
 
+    /// Make a help message for a complex parser from its [`MetaInfo`]
+    ///
+    #[doc = include_str!("docs2/with_group_help.md")]
     fn with_group_help<F>(self, f: F) -> ParseWithGroupHelp<Self, F>
     where
         Self: Sized + Parser<T>,
-        F: Fn(MetaInfo) -> Buffer,
+        F: Fn(MetaInfo) -> Doc,
     {
         ParseWithGroupHelp { inner: self, f }
     }
@@ -1580,5 +1494,5 @@ where
     construct!(skip, parser).map(|x| x.1)
 }
 
-#[doc = include_str!("../x")]
+#[doc = include_str!("../simple.md")]
 pub struct Foo;

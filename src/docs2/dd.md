@@ -1,7 +1,7 @@
 ```no_run
 //! This is not a typical bpaf usage,
 //! but you should be able to replicate command line used by dd
-use bpaf::{any, construct, doc::Style, short, OptionParser, Parser};
+use bpaf::{any, buffer::Style, construct, short, OptionParser, Parser};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -70,39 +70,54 @@ fn main() {
 }
 
 ```
-<details>
-<summary style="display: list-item;">Examples</summary>
+`bpaf` generates usual help message with
 
 
-`dd` takes parameters in `name=value` shape
-```console
-% app if=/dev/zero of=file bs=10000
-Options { magic: false, in_file: "/dev/zero", out_file: "file", block_size: 10000 }
-```
+<div class='bpaf-doc'>
+$ app --help<br>
+<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]<br>
+<b>Available options:</b>
+<dl><dt><tt><b>-m</b></tt>, <tt><b>--magic</b></tt></dt>
+<dd>a usual switch still works</dd>
+<dt><tt><b>if=</b><i>FILE</i></tt></dt>
+<dd>read from FILE</dd>
+<dt></dt>
+<dd>[default: -]</dd>
+<dt><tt><b>of=</b><i>FILE</i></tt></dt>
+<dd>write to FILE</dd>
+<dt></dt>
+<dd>[default: -]</dd>
+<dt><tt><b>bs=</b><i>SIZE</i></tt></dt>
+<dd>read/write SIZE blocks at once</dd>
+<dt></dt>
+<dd>[default: 512]</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
 
-Usual properties about ordering holds, you can also mix them with regular options
-```console
-% app if=/dev/zero of=file bs=10000 --magic
-Options { magic: true, in_file: "/dev/zero", out_file: "file", block_size: 10000 }
-```
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: mono;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
 
-Fallback works as expected
-```console
-% app --magic bs=42
-Options { magic: true, in_file: "-", out_file: "-", block_size: 42 }
-```
 
-Best effort to generate help, but you can always customize it further
-```console
-% app --help
-Usage: [--magic] [<if=FILE>] [<of=FILE>] [<bs=SIZE>]
+Unlike usual application `dd` takes it arguments in shape of operations
+`KEY=VAL` without any dashes, plus usual `--help` and `--version` flags.
 
-Available options:
-        --magic
-    <if=FILE>    read from FILE instead of stdin
-    <of=FILE>    write to FILE instead of stdout
-    <bs=SIZE>    read/write SIZE blocks at once instead of 512
-    -h, --help   Prints help information
-```
+To handle that we define custom basic parsers that make handling such operations easy
 
-</details>
+
+<div class='bpaf-doc'>
+$ app if=/dev/zero of=/tmp/blob bs=1024<br>
+Options { magic: false, in_file: "/dev/zero", out_file: "/tmp/blob", block_size: 1024 }
+</div>
+

@@ -19,7 +19,7 @@ use crate::{
     complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
-    Buffer, CompleteDecor, ShellComp,
+    CompleteDecor, Doc, ShellComp,
 };
 use std::ffi::OsStr;
 
@@ -85,12 +85,7 @@ impl State {
     }
 
     /// Add a new completion hint for metadata, if needed
-    pub(crate) fn push_metadata(
-        &mut self,
-        meta: &'static str,
-        help: &Option<Buffer>,
-        is_arg: bool,
-    ) {
+    pub(crate) fn push_metadata(&mut self, meta: &'static str, help: &Option<Doc>, is_arg: bool) {
         if !self.valid_complete_head() {
             return;
         }
@@ -114,7 +109,7 @@ impl State {
         &mut self,
         name: &'static str,
         short: Option<char>,
-        help: &Option<Buffer>,
+        help: &Option<Doc>,
     ) {
         if !self.valid_complete_head() {
             return;

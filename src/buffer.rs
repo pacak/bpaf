@@ -6,40 +6,70 @@ use crate::{
 };
 
 mod console;
+mod html;
 mod manpage;
 mod markdown;
+mod splitter;
 
-pub(crate) use console::Color;
+pub(crate) use self::console::Color;
+pub use manpage::Section;
 
+impl From<&[(&str, Style)]> for Doc {
+    fn from(val: &[(&str, Style)]) -> Self {
+        let mut res = Doc::default();
+        for (text, style) in val {
+            res.write_str(text, *style);
+        }
+        res
+    }
+}
+
+/// Parser metainformation
+///
+///
+///
+/// See [`Doc::meta`](Doc::meta)
 pub struct MetaInfo<'a>(pub(crate) &'a Meta);
 
-impl Buffer {
+impl Doc {
     #[inline]
     pub fn text(&mut self, text: &str) {
         self.write_str(text, Style::Text);
     }
+
     #[inline]
     pub fn literal(&mut self, text: &str) {
         self.write_str(text, Style::Literal);
     }
+
     #[inline]
     pub fn title(&mut self, text: &str) {
-        self.write_str(text, Style::Title);
+        self.write_str(text, Style::Emphasis);
     }
+
     #[inline]
     pub fn invalid(&mut self, text: &str) {
         self.write_str(text, Style::Invalid);
     }
+
     #[inline]
     pub fn muted(&mut self, text: &str) {
         self.write_str(text, Style::Muted);
     }
+
     pub fn meta(&mut self, meta: MetaInfo, for_usage: bool) {
         self.write_meta(&meta.0, for_usage);
     }
+
+    pub fn doc(&mut self, buf: &Doc) {
+        self.tokens.push(Token::BlockStart(Block::InlineBlock));
+        self.tokens.extend(&buf.tokens);
+        self.payload.push_str(&buf.payload);
+        self.tokens.push(Token::BlockEnd(Block::InlineBlock));
+    }
 }
 
-impl Buffer {
+impl Doc {
     pub(crate) fn write_shortlong(&mut self, name: &ShortLong) {
         match name {
             ShortLong::Short(s) => {
@@ -56,7 +86,6 @@ impl Buffer {
     pub(crate) fn write_item(&mut self, item: &Item) {
         match item {
             Item::Positional {
-                anywhere: _,
                 metavar,
                 strict,
                 help: _,
@@ -92,11 +121,18 @@ impl Buffer {
                 self.write_char('=', Style::Text);
                 self.metavar(*metavar);
             }
+            Item::Any {
+                metavar,
+                anywhere: _,
+                help: _,
+            } => {
+                self.doc(metavar);
+            }
         }
     }
 
     pub(crate) fn write_meta(&mut self, meta: &Meta, for_usage: bool) {
-        fn go(meta: &Meta, f: &mut Buffer) {
+        fn go(meta: &Meta, f: &mut Doc) {
             match meta {
                 Meta::And(xs) => {
                     for (ix, x) in xs.iter().enumerate() {
@@ -133,7 +169,7 @@ impl Buffer {
                 Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => go(m, f),
                 Meta::Skip => {} // => f.write_str("no parameters expected", Style::Text),
                 Meta::CustomUsage(_, u) => {
-                    f.buffer(u);
+                    f.doc(u);
                 }
             }
         }
@@ -144,12 +180,12 @@ impl Buffer {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum Style {
+pub enum Style {
     /// Plain text, no decorations
     Text,
 
-    /// Section title
-    Title,
+    /// Word with emphasis - things like "Usage", "Available options", etc
+    Emphasis,
 
     /// Something user needs to type literally - command names, etc
     Literal,
@@ -157,37 +193,12 @@ pub(crate) enum Style {
     /// Metavavar placeholder - something user needs to replace with own input
     Metavar,
 
-    /// Invalid input given by user - used to display errors
+    /// Invalid input given by user - used to display invalid parts of the input
     Invalid,
 
     /// Something less important, usually rendered in a more dull color
     Muted,
 }
-
-// for help structure is
-//
-// <block>header</block>
-// <block>Usage: basic --help</block>
-// <block>
-//   <section2>Available options</section2>
-//   <dl>
-//     <block>
-//       <section3>pick one of those</section3>
-//       <td>--intel</td>
-//       <dd>dump in intel format</dd>
-//     </block>
-//     <block>
-//       <td>--release</td>
-//       <dd>install in release mode</dd>
-//     </block>
-//     <block>
-//       <section3>built in</section3>
-//       <dt>-h, --help</td>
-//       <dd>prints help</dd>
-//     </block>
-//   </dl>
-// </block>
-// <block>footer</block>
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Block {
@@ -223,6 +234,10 @@ pub enum Block {
     /// can contain headers or other items inside
     Block,
 
+    /// inserted when block is written into a block. single blank line in the input
+    /// fast forward until the end of current inline block
+    InlineBlock,
+
     // 2 margin
     /// Preformatted text
     Pre,
@@ -241,7 +256,7 @@ pub(crate) enum Token {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Buffer {
+pub struct Doc {
     /// string info saved here
     payload: String,
 
@@ -249,22 +264,36 @@ pub struct Buffer {
     tokens: Vec<Token>,
 }
 
-impl Buffer {
+#[derive(Debug, Clone, Copy, Default)]
+struct Skip(usize);
+impl Skip {
+    fn enabled(&self) -> bool {
+        self.0 > 0
+    }
+    fn enable(&mut self) {
+        self.0 = 1;
+    }
+    fn push(&mut self) {
+        if self.0 > 0 {
+            self.0 += 1;
+        }
+    }
+    fn pop(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+}
+
+impl Doc {
     pub(crate) fn is_empty(&self) -> bool {
         self.tokens.is_empty()
     }
 
-    pub fn buffer(&mut self, buf: &Buffer) {
-        self.tokens.extend(&buf.tokens);
-        self.payload.push_str(&buf.payload);
-    }
-
-    pub(crate) fn first_line(&self) -> Option<Buffer> {
+    pub(crate) fn first_line(&self) -> Option<Doc> {
         if self.tokens.is_empty() {
             return None;
         }
 
-        let mut res = Buffer::default();
+        let mut res = Doc::default();
         let mut cur = 0;
 
         for &t in &self.tokens {
@@ -286,15 +315,15 @@ impl Buffer {
     }
 }
 
-impl From<&str> for Buffer {
+impl From<&str> for Doc {
     fn from(value: &str) -> Self {
-        let mut buf = Buffer::default();
+        let mut buf = Doc::default();
         buf.write_str(value, Style::Text);
         buf
     }
 }
 
-impl Buffer {
+impl Doc {
     #[cfg(test)]
     pub(crate) fn clear(&mut self) {
         self.payload.clear();
@@ -346,7 +375,7 @@ impl Buffer {
 }
 
 #[derive(Debug, Clone)]
-struct Section<'a> {
+struct DocSection<'a> {
     /// Path name to the command name starting from the application
     path: Vec<String>,
     info: &'a Info,
@@ -357,9 +386,9 @@ fn extract_sections<'a>(
     meta: &'a Meta,
     info: &'a Info,
     path: &mut Vec<String>,
-    sections: &mut Vec<Section<'a>>,
+    sections: &mut Vec<DocSection<'a>>,
 ) {
-    sections.push(Section {
+    sections.push(DocSection {
         path: path.clone(),
         info,
         meta,

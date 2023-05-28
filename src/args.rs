@@ -12,8 +12,8 @@ use crate::{
 /// All currently present command line parameters with some extra metainfo
 ///
 /// Use it for unit tests and manual parsing. For production use you would want to replace the
-/// program name with [`set_name`], but for tests passing a slice of strings to
-/// [`run_inner`](OptionParser::run_inner) is usually more convenient.
+/// program name with [`set_name`](Args::set_name), but for tests passing a slice of strings to
+/// [`run_inner`](crate::OptionParser::run_inner) is usually more convenient.
 ///
 ///
 /// The easiest way to create `Args` is by using its `From` instance.
@@ -43,8 +43,8 @@ impl Args<'_> {
     }
     /// Add an application name for args created from custom input
     /// TODO - document
-    pub fn set_name(mut self, name: String) -> Self {
-        self.name = Some(name);
+    pub fn set_name(mut self, name: &str) -> Self {
+        self.name = Some(name.to_owned());
         self
     }
 }
@@ -671,7 +671,6 @@ impl State {
                         help: None,
                         metavar,
                         strict: false,
-                        anywhere: false,
                     },
                     position,
                     scope: position..position + 1,

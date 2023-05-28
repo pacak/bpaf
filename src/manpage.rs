@@ -2,50 +2,12 @@ use roff::{Inline, Roff};
 
 use crate::{
     item::{Item, ShortLong},
-    meta_help::{HelpItem, HelpItems},
+    meta_help::HelpItem,
     Meta, OptionParser,
 };
 
 struct Manpage {
     roff: Roff,
-}
-
-#[derive(Debug, Clone, Copy)]
-/// Manual page section
-pub enum Section<'a> {
-    /// General commands
-    General,
-    /// System calls
-    SystemCall,
-    /// Library functions such as C standard library functions
-    LibraryFunction,
-    /// Special files (usually devices in /dev) and drivers
-    SpecialFile,
-    /// File formats and conventions
-    FileFormat,
-    /// Games and screensavers
-    Game,
-    /// Miscellaneous
-    Misc,
-    /// System administration commands and daemons
-    Sysadmin,
-    /// Custom section
-    Custom(&'a str),
-}
-impl Section<'_> {
-    fn as_str(&self) -> &str {
-        match self {
-            Section::General => "1",
-            Section::SystemCall => "2",
-            Section::LibraryFunction => "3",
-            Section::SpecialFile => "4",
-            Section::FileFormat => "5",
-            Section::Game => "6",
-            Section::Misc => "7",
-            Section::Sysadmin => "8",
-            Section::Custom(s) => s,
-        }
-    }
 }
 
 impl Manpage {
@@ -190,6 +152,8 @@ impl Line<'_> {
     }
 
     fn usage_item(&mut self, item: &Item) -> &mut Self {
+        todo!();
+        /*
         match item {
             Item::Positional {
                 metavar,
@@ -220,7 +184,7 @@ impl Line<'_> {
                 self.shortlong(*name, false).norm('=').metavar(metavar.0);
             }
         }
-        self
+        self*/
     }
     fn usage(&mut self, usage: &Meta) -> &mut Self {
         match usage {

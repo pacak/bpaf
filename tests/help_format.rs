@@ -429,7 +429,7 @@ fn with_group_help() {
     let c = short('c').help("option c").switch();
 
     let ab = construct!(a, b).with_group_help(|meta| {
-        let mut b = Buffer::default();
+        let mut b = Doc::default();
         b.title("Uses either of those ");
         b.meta(meta, false);
         b
