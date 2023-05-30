@@ -397,6 +397,38 @@ fn version_with_commands() {
 }
 
 #[test]
+fn hidden_command() {
+    let top: Top = parse_quote! {
+        #[bpaf(options)]
+        enum Action {
+            #[bpaf(command)]
+            Visible,
+            #[bpaf(command, hide)]
+            Hidden,
+        }
+    };
+    let expected = quote! {
+        fn action() -> ::bpaf::OptionParser<Action> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = {
+                    let inner_cmd = ::bpaf::pure(Action::Visible).to_options();
+                    ::bpaf::command("visible", inner_cmd)
+                };
+                let alt1 = {
+                    let inner_cmd = ::bpaf::pure(Action::Hidden).to_options();
+                    ::bpaf::command("hidden", inner_cmd)
+                }.hide();
+                ::bpaf::construct!([alt0, alt1])
+            }
+            .to_options()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn command_with_aliases() {
     let top: Top = parse_quote! {
         #[bpaf(command, short('c'), long("long"))]
