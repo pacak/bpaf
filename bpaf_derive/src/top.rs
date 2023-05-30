@@ -38,7 +38,12 @@ enum ParserKind {
 
 #[derive(Debug)]
 enum BParser {
-    Command(CommandAttr, Box<OParser>, bool),
+    Command {
+        attribute: CommandAttr,
+        inner_parser: Box<OParser>,
+        is_adjacent: bool,
+        is_hidden: bool,
+    },
     CargoHelper(LitStr, Box<BParser>),
     CompStyle(Box<Expr>, Box<BParser>),
     Constructor {
@@ -397,7 +402,12 @@ fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
                 inner: Box::new(inner),
             };
 
-            let cmd = BParser::Command(cmd_attr, Box::new(oparser), outer.adjacent);
+            let cmd = BParser::Command {
+                attribute: cmd_attr,
+                inner_parser: Box::new(oparser),
+                is_adjacent: outer.adjacent,
+                is_hidden: false,
+            };
             ParserKind::BParser(cmd, None)
         }
     }
@@ -485,7 +495,12 @@ impl Top {
                         inner: Box::new(branch),
                         decor,
                     };
-                    let branch = BParser::Command(cmd_arg, Box::new(oparser), outer.adjacent);
+                    let branch = BParser::Command {
+                        attribute: cmd_arg,
+                        inner_parser: Box::new(oparser),
+                        is_adjacent: outer.adjacent,
+                        is_hidden: inner.is_hidden,
+                    };
                     branches.push(branch);
                 } else {
                     branches.push(branch);
@@ -569,7 +584,12 @@ impl ToTokens for OParser {
 impl ToTokens for BParser {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            BParser::Command(cmd_attr, oparser, adj) => {
+            BParser::Command {
+                attribute: cmd_attr,
+                inner_parser: oparser,
+                is_adjacent,
+                is_hidden,
+            } => {
                 let cmd_name = &cmd_attr.name;
                 let mut names = quote!();
                 for short in &cmd_attr.shorts {
@@ -596,8 +616,11 @@ impl ToTokens for BParser {
                 }
                 .to_tokens(tokens);
 
-                if *adj {
+                if *is_adjacent {
                     quote!(.adjacent()).to_tokens(tokens);
+                }
+                if *is_hidden {
+                    quote!(.hide()).to_tokens(tokens);
                 }
             }
             BParser::CargoHelper(name, inner) => quote!({
