@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.8.1], bpaf_derive [0.4.1] - 2023-05-30
+- combination of `command` and `hide` now works as expected in `bpaf_derive`
+
 ## bpaf [0.8.0], bpaf_derive [0.4.0] - 2023-05-10
 
 ### Breaking changes
