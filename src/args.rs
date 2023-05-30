@@ -2,24 +2,36 @@ use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
 use crate::{
-    error::MissingItem, info::Info, item::Item, meta_help::Metavar, parsers::NamedArg, Error, Meta,
-    ParseFailure,
+    error::{Message, MissingItem},
+    info::Info,
+    item::Item,
+    meta_help::Metavar,
+    parsers::NamedArg,
+    Error, Meta, ParseFailure,
 };
 
 /// Shows which branch of [`ParseOrElse`] parsed the argument
-#[derive(Debug, Clone)]
-pub(crate) enum Conflict {
-    /// Only one branch succeeded
-    Solo(Meta),
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub(crate) enum ItemState {
+    /// Value is yet to be parsed
+    Unparsed,
     /// Both branches succeeded, first parser was taken in favor of the second one
-    Conflicts(Meta, Meta),
+    Conflict(usize),
+    /// Value was parsed
+    Parsed,
 }
 
-impl Conflict {
-    pub(crate) fn winner(&self) -> &Meta {
+impl ItemState {
+    pub(crate) fn parsed(&self) -> bool {
         match self {
-            Conflict::Solo(s) => s,
-            Conflict::Conflicts(w, _) => w,
+            ItemState::Unparsed | ItemState::Conflict(_) => false,
+            ItemState::Parsed => true,
+        }
+    }
+    pub(crate) fn present(&self) -> bool {
+        match self {
+            ItemState::Unparsed | ItemState::Conflict(_) => true,
+            ItemState::Parsed => false,
         }
     }
 }
@@ -38,7 +50,6 @@ impl std::fmt::Debug for Improve {
 /// Hides [`Args`] internal implementation
 mod inner {
     use std::{
-        collections::BTreeMap,
         ffi::{OsStr, OsString},
         ops::Range,
         rc::Rc,
@@ -46,7 +57,7 @@ mod inner {
 
     use crate::ParseFailure;
 
-    use super::{push_vec, Arg, Conflict};
+    use super::{push_vec, Arg, ItemState};
     /// All currently present command line parameters, use it for unit tests and manual parsing
     ///
     /// The easiest way to create `Args` is by using it's `From` instance.
@@ -62,11 +73,12 @@ mod inner {
     /// ```
     #[derive(Clone, Debug)]
     pub struct Args {
-        /// list of remaining arguments, for cheap cloning
+        /// list of all available command line arguments, for cheap cloning
         pub(crate) items: Rc<[Arg]>,
-        /// removed items, false - present, true - removed
-        removed: Vec<bool>,
-        /// performance optimization mostly,
+
+        item_state: Vec<ItemState>,
+
+        /// performance optimization mostly - tracks removed item and gives cheap is_empty
         remaining: usize,
 
         #[doc(hidden)]
@@ -78,9 +90,6 @@ mod inner {
         /// "deeper" parser should win in or_else branches
         pub depth: usize,
 
-        /// used to pick the parser that consumes the left most item
-        pub(crate) head: usize,
-
         /// don't try to suggest any more positional items after there's a positional item failure
         /// or parsing in progress
         #[cfg(feature = "autocomplete")]
@@ -91,10 +100,6 @@ mod inner {
 
         /// how many Ambiguities are there
         pub(crate) ambig: usize,
-
-        /// set of conflicts - usize contains the offset to the rejected item,
-        /// first Meta contains accepted item, second meta contains rejected item
-        pub(crate) conflicts: BTreeMap<usize, Conflict>,
 
         /// A way to customize behavior for --help and error handling
         pub(crate) improve_error: super::Improve,
@@ -154,21 +159,23 @@ mod inner {
     }
 
     impl Args {
+        pub(crate) fn present(&self, ix: usize) -> Option<bool> {
+            Some(self.item_state.get(ix)?.present())
+        }
+
         pub(crate) fn args_from(vec: Vec<Arg>, ambig: usize) -> Self {
             Args {
-                removed: vec![false; vec.len()],
+                item_state: vec![ItemState::Unparsed; vec.len()],
                 remaining: vec.len(),
                 scope: 0..vec.len(),
                 items: Rc::from(vec),
                 current: None,
-                head: usize::MAX,
                 depth: 0,
                 #[cfg(feature = "autocomplete")]
                 comp: None,
                 #[cfg(feature = "autocomplete")]
                 no_pos_ahead: false,
                 ambig,
-                conflicts: BTreeMap::new(),
                 improve_error: super::Improve(crate::help::improve_error),
             }
         }
@@ -227,11 +234,42 @@ mod inner {
         }
 
         pub(crate) fn remove(&mut self, index: usize) {
-            if self.scope.contains(&index) && !self.removed[index] {
+            if self.scope.contains(&index) && self.item_state[index].present() {
                 self.current = Some(index);
                 self.remaining -= 1;
-                self.head = self.head.min(index);
-                self.removed[index] = true;
+                self.item_state[index] = ItemState::Parsed;
+            }
+        }
+
+        pub(crate) fn pick_winner(&self, other: &Self) -> (bool, Option<usize>) {
+            for (ix, (me, other)) in self
+                .item_state
+                .iter()
+                .zip(other.item_state.iter())
+                .enumerate()
+            {
+                if me.parsed() ^ other.parsed() {
+                    return (me.parsed(), Some(ix));
+                }
+            }
+            (true, None)
+        }
+
+        /// find first saved conflict
+        pub(crate) fn conflict(&self) -> Option<(usize, usize)> {
+            let (ix, _item) = self.items_iter().next()?;
+            if let ItemState::Conflict(other) = self.item_state.get(ix)? {
+                Some((ix, *other))
+            } else {
+                None
+            }
+        }
+
+        pub(crate) fn save_conflicts(&mut self, loser: &Args, win: usize) {
+            for (winner, loser) in self.item_state.iter_mut().zip(loser.item_state.iter()) {
+                if winner.present() && loser.parsed() {
+                    *winner = ItemState::Conflict(win);
+                }
             }
         }
 
@@ -243,23 +281,12 @@ mod inner {
             self.remaining
         }
 
-        pub(crate) fn current_word(&self) -> Option<&OsStr> {
-            let ix = self.current?;
-            match &self.items[ix] {
-                Arg::Word(w) | Arg::PosWord(w) => Some(w),
-                Arg::Short(..) | Arg::Long(..) | Arg::Ambiguity(..) => None,
-            }
-        }
-
+        /// Get an argument from a scope that was not consumed yet
         pub(crate) fn get(&self, ix: usize) -> Option<&Arg> {
-            if !self.scope.contains(&ix) {
-                return None;
-            }
-            let arg = self.items.get(ix)?;
-            if *self.removed.get(ix)? {
-                None
+            if self.scope.contains(&ix) && self.item_state.get(ix)?.present() {
+                Some(self.items.get(ix)?)
             } else {
-                Some(arg)
+                None
             }
         }
 
@@ -283,10 +310,10 @@ mod inner {
             // last item on a command line is "--" it might be both double dash indicator
             // "the rest are strictly positionals" but it can also be part of the long name
             // restore it so completion logic is more internally consistent
-            if !self.removed.is_empty() {
-                let o = self.removed.len() - 1;
-                if self.removed[o] {
-                    self.removed[o] = false;
+            if !self.item_state.is_empty() {
+                let o = self.item_state.len() - 1;
+                if self.item_state[o].parsed() {
+                    self.item_state[o] = ItemState::Unparsed;
                     self.remaining += 1;
                     let mut items = self.items.to_vec();
 
@@ -311,21 +338,21 @@ mod inner {
 
             // starting at the beginning of the scope look for the first mismatch
             let start = self.scope().start;
-            for (mut offset, (this, orig)) in self.removed[start..]
+            for (mut offset, (this, orig)) in self.item_state[start..]
                 .iter()
-                .zip(original.removed[start..].iter())
+                .zip(original.item_state[start..].iter())
                 .enumerate()
             {
                 offset += start;
                 // once there's a mismatch we have the scope we are looking for:
                 // all the adjacent items consumed in this. It doesn't make sense to remove it if
                 // it matches the original scope though...
-                if !this && !orig {
+                if this.present() && orig.present() {
                     let proposed_scope = start..offset;
-                    return if self.scope() != proposed_scope {
-                        Some(proposed_scope)
-                    } else {
+                    return if self.scope() == proposed_scope {
                         None
+                    } else {
+                        Some(proposed_scope)
                     };
                 }
             }
@@ -337,8 +364,8 @@ mod inner {
             if self.items.is_empty() {
                 return None;
             }
-            for end in start..self.removed.len() {
-                if self.removed.get(end) != Some(&false) {
+            for end in start..self.item_state.len() {
+                if self.item_state.get(end).map_or(true, ItemState::parsed) {
                     return Some(start..end);
                 }
             }
@@ -356,11 +383,11 @@ mod inner {
         /// Mark everything outside of `range` as removed
         pub(crate) fn set_scope(&mut self, scope: Range<usize>) {
             self.scope = scope;
-            self.sync_remaining();
-        }
-
-        fn sync_remaining(&mut self) {
-            self.remaining = self.removed[self.scope()].iter().filter(|x| !**x).count();
+            self.remaining = self.item_state[self.scope()]
+                .iter()
+                .copied()
+                .filter(ItemState::present)
+                .count();
         }
 
         #[inline(never)]
@@ -413,11 +440,11 @@ mod inner {
                             let os = std::mem::take(os);
 
                             new_items.remove(pos);
-                            self.removed.remove(pos);
+                            self.item_state.remove(pos);
                             for short in items.iter().rev() {
                                 // inefficient but ambiguities shouldn't supposed to happen
                                 new_items.insert(pos, Arg::Short(*short, false, OsString::new()));
-                                self.removed.insert(pos, false);
+                                self.item_state.insert(pos, ItemState::Unparsed);
                             }
                             // items[0] is written twice - in a loop above without `os` and right here,
                             // with `os` present
@@ -432,7 +459,7 @@ mod inner {
                             ));
                             new_items[pos] = Arg::Short(items[0], true, std::mem::take(os));
                             new_items.insert(pos + 1, word);
-                            self.removed.insert(pos, false);
+                            self.item_state.insert(pos, ItemState::Unparsed);
 
                             self.remaining += 1; // removed Ambiguity, added short and word
                         }
@@ -465,7 +492,8 @@ mod inner {
         ///   ([-a] alpha) | beta
         /// and user passes "-a <TAB>" we should not suggest "beta"
         pub(crate) fn valid_complete_head(&self) -> bool {
-            self.is_empty() || (self.len() == 1 && self.removed.last() == Some(&false))
+            self.is_empty()
+                || (self.len() == 1 && self.item_state.last().expect("we just confirmed").present())
         }
 
         #[cfg(feature = "autocomplete")]
@@ -499,7 +527,7 @@ mod inner {
                 }
                 self.cur += 1;
 
-                if *self.args.removed.get(cur)? {
+                if !self.args.present(cur)? {
                     continue;
                 }
 
@@ -520,7 +548,7 @@ mod inner {
                     return None;
                 }
                 self.cur += 1;
-                if !*self.args.removed.get(ix)? {
+                if self.args.item_state.get(ix)?.present() {
                     return Some((ix, &self.args.items[ix]));
                 }
             }
@@ -536,28 +564,6 @@ impl Args {
         if let Some(comp) = self.comp_mut() {
             comp.swap_comps(comps);
         }
-    }
-
-    pub(crate) fn word_parse_error(&mut self, error: &str) -> Error {
-        Error::Message(
-            if let Some(os) = self.current_word() {
-                format!("Couldn't parse {:?}: {}", os.to_string_lossy(), error)
-            } else {
-                format!("Couldn't parse: {}", error)
-            },
-            false,
-        )
-    }
-
-    pub(crate) fn word_validate_error(&mut self, error: &str) -> Error {
-        Error::Message(
-            if let Some(os) = self.current_word() {
-                format!("{:?}: {}", os.to_string_lossy(), error)
-            } else {
-                error.to_owned()
-            },
-            false,
-        )
     }
 
     /// Get a short or long flag: `-f` / `--flag`
@@ -584,7 +590,7 @@ impl Args {
         named: &NamedArg,
         adjacent: bool,
     ) -> Result<Option<OsString>, Error> {
-        let (key_ix, arg) = match self
+        let (key_ix, _arg) = match self
             .items_iter()
             .find(|arg| named.matches_arg(arg.1, adjacent))
         {
@@ -595,27 +601,7 @@ impl Args {
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
             Some(Arg::Word(w)) => w,
-            Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
-                let msg = if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
-                    let fos = fos.to_string_lossy();
-                    let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
-                    format!(
-                        "`{}` is not accepted, try using it as `-{}={}`",
-                        fos, s, repl
-                    )
-                } else {
-                    let os = os.to_string_lossy();
-                    format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
-                };
-                return Err(Error::Message(msg, false));
-            }
-            None | Some(Arg::PosWord(_) | Arg::Ambiguity(..)) => {
-                // TODO - this is missing!
-                return Err(Error::Message(
-                    format!("{} requires an argument", arg),
-                    false,
-                ));
-            }
+            _ => return Err(Error::Message(Message::NoArgument(key_ix))),
         };
         let val = val.clone();
         self.current = Some(val_ix);
@@ -632,6 +618,7 @@ impl Args {
         &mut self,
         metavar: Metavar,
     ) -> Result<Option<(bool, OsString)>, Error> {
+        #[allow(clippy::range_plus_one)] // gives wrong type otherwise
         match self.items_iter().next() {
             Some((ix, Arg::PosWord(w))) => {
                 let w = w.clone();

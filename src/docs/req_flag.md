@@ -80,7 +80,7 @@ Options { decision: Undecided }
 `--on` and `--off` are mutually exclusive:
 ```console
 % app --on --off
---off cannot be used at the same time as --on
+"--off" cannot be used at the same time as "--on"
 ```
 
 help

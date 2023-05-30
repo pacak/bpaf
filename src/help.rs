@@ -1,10 +1,19 @@
 //! Improve non-parse cases
 //!
 //! covers `--help`, `--version` etc.
+//!
+//! # Notation rules:
+//! - Items in backticks refer to valid flag names known to bpaf:
+//!       expected `--foo`, etc
+//! - Items in quotes refer to user input which might or might not be a valid flag:
+//!       "--foo" cannot be used at the same time as "--bar"
 
 use crate::{
-    error::MissingItem, info::Info, meta_help::render_help, short, Args, Error, Meta, ParseFailure,
-    Parser,
+    args::Arg,
+    error::{Message, MissingItem},
+    info::Info,
+    meta_help::render_help,
+    short, Args, Error, Meta, ParseFailure, Parser,
 };
 
 struct ParseExtraParams {
@@ -19,10 +28,7 @@ impl Parser<ExtraParams> for ParseExtraParams {
 
         match self.version {
             Some(ver) => Self::ver(ver).eval(args),
-            None => Err(Error::Message(
-                String::from("Not a version or help flag"),
-                false,
-            )),
+            None => Err(Error::Missing(Vec::new())),
         }
     }
 
@@ -65,6 +71,14 @@ impl Info {
     }
 }
 
+fn check_conflicts(args: &Args) -> Option<String> {
+    let (loser, winner) = args.conflict()?;
+    Some(format!(
+        "\"{}\" cannot be used at the same time as \"{}\"",
+        args.items[loser], args.items[winner]
+    ))
+}
+
 pub(crate) fn improve_error(
     args: &mut Args,
     info: &Info,
@@ -97,7 +111,7 @@ pub(crate) fn improve_error(
     ParseFailure::Stderr(match err {
         // parse succeeded, need to explain an unused argument
         None => {
-            if let Some(msg) = crate::info::check_conflicts(args) {
+            if let Some(msg) = check_conflicts(args) {
                 msg
             } else if let Some(msg) = crate::meta_youmean::suggest(args, inner) {
                 msg
@@ -110,9 +124,61 @@ pub(crate) fn improve_error(
             }
         }
         Some(Error::ParseFailure(f)) => return f,
-        Some(Error::Message(msg, _)) => msg,
+        Some(Error::Message(msg)) => msg.render(args),
         Some(Error::Missing(xs)) => summarize_missing(&xs, inner, args),
     })
+}
+
+fn textual_part(args: &Args, ix: Option<usize>) -> Option<String> {
+    match args.items.get(ix?)? {
+        Arg::Ambiguity(_, _) | Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
+        Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy().to_string()),
+    }
+}
+
+impl Message {
+    fn render(self, args: &Args) -> String {
+        match self {
+            Message::NoEnv(name) => {
+                format!("env variable {} is not set", name)
+            }
+            Message::StrictPos(x) => {
+                format!("Expected {} to be on the right side of --", x)
+            }
+            Message::ParseSome(s) => s.to_string(),
+            Message::Guard(_) => todo!(),
+            Message::ParseFail(s) => s.to_owned(),
+            Message::ParseFailed(mix, s) => match textual_part(args, mix) {
+                Some(field) => format!("Couldn't parse {:?}: {}", field, s),
+                None => format!("Couldn't parse: {}", s),
+            },
+            Message::ValidateFailed(mix, s) => match textual_part(args, mix) {
+                Some(field) => format!("{:?}: {}", field, s),
+                None => format!("Couldn't parse: {}", s),
+            },
+            Message::NoArgument(x) => match args.items.get(x + 1) {
+                Some(Arg::Ambiguity(_, _)) => unreachable!("unresolevd ambiguity?"),
+                Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
+                    let arg = &args.items[x];
+                    if let (Arg::Short(s, _, fos), true) = (&arg, os.is_empty()) {
+                        let fos = fos.to_string_lossy();
+                        let repl = fos.strip_prefix('-').unwrap().strip_prefix(*s).unwrap();
+                        format!(
+                            "`{}` is not accepted, try using it as `-{}={}`",
+                            fos, s, repl
+                        )
+                    } else {
+                        let os = os.to_string_lossy();
+                        format!( "`{}` requires an argument, got a flag-like `{}`, try `{}={}` to use it as an argument", arg, os, arg,os)
+                    }
+                }
+                Some(Arg::Word(_)) => unreachable!("this is an argument!"),
+                Some(Arg::PosWord(_)) => todo!(),
+                None => format!("{} requires an argument", args.items[x]),
+            },
+            Message::PureFailed(s) => s,
+        }
+    }
 }
 
 #[inline(never)]

@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.8.2] - Unreleased
+- more errors are now passed as ADTs rather than plain strings
+- conflicts are now tracked with indices rather than parser meta
+
 ## bpaf [0.8.1], bpaf_derive [0.4.1] - 2023-05-30
 - combination of `command` and `hide` now works as expected in `bpaf_derive`
 

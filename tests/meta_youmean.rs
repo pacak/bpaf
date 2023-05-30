@@ -291,3 +291,31 @@ Available commands:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn big_conflict() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let c = short('c').switch();
+    let d = short('d').switch();
+    let ab = construct!(a, b);
+    let cd = construct!(c, d);
+    let parser = construct!([ab, cd]).to_options();
+    let r = parser
+        .run_inner(Args::from(&["-a", "-b", "-c", "-d"]))
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected = "\"-c\" cannot be used at the same time as \"-a\"";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn pure_conflict() {
+    let a = short('a').switch();
+    let b = pure(false);
+    let parser = construct!([a, b]).to_options();
+    let r = parser.run_inner(Args::from(&[])).unwrap();
+    assert!(!r);
+    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    assert!(r);
+}

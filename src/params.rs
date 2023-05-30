@@ -62,7 +62,11 @@ use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 use super::{Args, Error, OptionParser, Parser};
 use crate::{
-    args::Arg, error::MissingItem, from_os_str::parse_os_str, item::ShortLong, meta_help::Metavar,
+    args::Arg,
+    error::{Message, MissingItem},
+    from_os_str::parse_os_str,
+    item::ShortLong,
+    meta_help::Metavar,
     Item, Meta,
 };
 
@@ -591,7 +595,6 @@ impl<T> Parser<T> for ParseCommand<T> {
                 args.set_scope(cur..args.scope().end);
             }
 
-            args.head = usize::MAX;
             args.depth += 1;
             if !self.adjacent {
                 self.subparser
@@ -745,8 +748,7 @@ impl<T> ParseArgument<T> {
     fn take_argument(&self, args: &mut Args) -> Result<OsString, Error> {
         if self.named.short.is_empty() && self.named.long.is_empty() {
             if let Some(name) = self.named.env.first() {
-                let msg = format!("env variable {} is not set", name);
-                return Err(Error::Message(msg, true));
+                return Err(Error::Message(Message::NoEnv(name)));
             }
         }
         match args.take_arg(&self.named, self.adjacent) {
@@ -790,7 +792,7 @@ where
         let os = self.take_argument(args)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(args.word_parse_error(&err)),
+            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
         }
     }
 
@@ -929,33 +931,31 @@ fn parse_word(
     metavar: &'static str,
     help: &Option<String>,
 ) -> Result<OsString, Error> {
-    if let Some((is_strict, word)) = args.take_positional_word(Metavar(metavar))? {
+    let metavar = Metavar(metavar);
+    if let Some((is_strict, word)) = args.take_positional_word(metavar)? {
         if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
             args.push_value("--", &Some("-- Positional only items".to_owned()), false);
 
-            return Err(Error::Message(
-                format!("Expected <{}> to be on the right side of --", metavar),
-                false,
-            ));
+            return Err(Error::Message(Message::StrictPos(metavar)));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.no_pos_ahead {
-            args.push_metadata(metavar, help, false);
+            args.push_metadata(metavar.0, help, false);
             args.no_pos_ahead = true;
         }
         Ok(word)
     } else {
         #[cfg(feature = "autocomplete")]
         if !args.no_pos_ahead {
-            args.push_metadata(metavar, help, false);
+            args.push_metadata(metavar.0, help, false);
             args.no_pos_ahead = true;
         }
 
         let position = args.items_iter().next().map_or(args.scope().end, |x| x.0);
         let missing = MissingItem {
             item: Item::Positional {
-                metavar: Metavar(metavar),
+                metavar,
                 help: help.clone(),
                 strict,
                 anywhere: false,
@@ -976,7 +976,7 @@ where
         let os = parse_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
-            Err(err) => Err(args.word_parse_error(&err)),
+            Err(err) => Err(Error::Message(Message::ParseFailed(args.current, err))),
         }
     }
 

@@ -633,7 +633,7 @@ impl ToTokens for BParser {
                 adjacent,
                 boxed,
             } => {
-                if let Fields::NoFields = fields {
+                if matches!(fields, Fields::NoFields) {
                     quote!(::bpaf::pure(#name)).to_tokens(tokens);
                 } else {
                     let parse_decls = fields.parser_decls();
