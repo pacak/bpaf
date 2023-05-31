@@ -140,10 +140,7 @@ impl Roff {
     }
 
     /// Insert one or more string slices using custom font for each one
-    pub(crate) fn text<const N: usize, S>(&mut self, text: &[(Font, S); N]) -> &mut Self
-    where
-        S: AsRef<str>,
-    {
+    pub(crate) fn text(&mut self, text: &[(Font, &str)]) -> &mut Self {
         let mut prev_font = None;
         for (font, item) in text {
             if prev_font == Some(font) {

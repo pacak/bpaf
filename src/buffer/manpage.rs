@@ -213,7 +213,7 @@ impl Doc {
                                     //roff.control0("IP");
                                 }
                                 ListKind::Ol(ix) => {
-                                    roff.text(&[(Font::Roman, format!("{}. ", ix))]);
+                                    roff.text(&[(Font::Roman, &format!("{}. ", ix))]);
                                     *ix += 1;
                                 }
                                 ListKind::Ul => {
