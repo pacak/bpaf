@@ -7,7 +7,7 @@ use syn::{
     PathArguments, PathSegment, Result, Token, Type,
 };
 
-use crate::utils::{doc_comment, to_kebab_case, LineIter};
+use crate::utils::{doc_comment, to_kebab_case};
 
 use super::{
     as_long_name, as_short_name, parse_optional_arg, split_type, ConsumerAttr, Name, PostprAttr,
@@ -349,7 +349,9 @@ impl Field {
 
         res.implicit_naming();
         res.implicit_consumer()?;
-        res.help = LineIter::from(&help[..]).next();
+        if !help.is_empty() {
+            res.help = Some(help.join("\n"));
+        }
 
         if !(res.external.is_some() || res.consumer.is_some()) {
             return Err(syn::Error::new(

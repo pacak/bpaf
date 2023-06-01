@@ -187,13 +187,11 @@ fn derive_help() {
         /// multi
         ///
         /// vis
-        ///
-        ///
-        /// hidden
+        ///  hidden
         pub(crate) flag: bool
     };
     let output = quote! {
-        ::bpaf::long("flag").help("multi\nvis").switch()
+        ::bpaf::long("flag").help("multi\n\nvis\n hidden").switch()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
