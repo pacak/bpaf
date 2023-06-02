@@ -208,7 +208,10 @@
 //! one.
 //!
 //! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
-//!   different value if parser fails to find what it is looking for.
+//!   different value if parser fails to find what it is looking for. Generated help for former
+//!   can be updated to include default value using
+//!   [`display_fallback`](ParseFallback::display_fallback) and
+//!   [`debug_fallback`](ParseFallback::debug_fallback) .
 //! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
 //!   also [`catch`](ParseOptional::catch) .
 //! - [`many`](Parser::many) and [`some`](Parser::some) - collect multiple values into a vector,
@@ -904,7 +907,7 @@ pub trait Parser<T> {
     ///
     /// Parser would still fail if value is present but failure comes from some transformation
     ///
-    #[doc = include_str!("docs/fallback.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
@@ -930,7 +933,7 @@ pub trait Parser<T> {
     ///
     /// Would still fail if value is present but failure comes from some earlier transformation
     ///
-    #[doc = include_str!("docs/fallback_with.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.

@@ -421,6 +421,8 @@ where
 impl<P, T: std::fmt::Display> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
     /// representation
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
     #[must_use]
     pub fn display_fallback(mut self) -> Self {
         self.value_str = format!("[default: {}]", self.value);
@@ -431,6 +433,8 @@ impl<P, T: std::fmt::Display> ParseFallback<P, T> {
 impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
     /// representation
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
