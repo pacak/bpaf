@@ -324,7 +324,7 @@ pub use crate::{
     buffer::Doc,
     error::ParseFailure,
     info::OptionParser,
-    params::{any, command, env, literal, long, positional, short},
+    params::{any, env, literal, long, positional, short},
 };
 
 #[doc(hidden)]

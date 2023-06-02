@@ -370,36 +370,8 @@ pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
 }
 
-/// Parse a subcommand
-///
-/// Subcommands allow to use a totally independent parser inside a current one. Inner parser
-/// can have its own help message, description, version and so on. You can nest them arbitrarily
-/// too.
-///
-/// Alternatively you can create commands using [`command`](OptionParser::command)
-///
-/// # Important restriction
-/// When parsing command arguments from command lines you should have parsers for all your
-/// named values and command before parsers for positional items. In derive API fields parsed as
-/// positional should be at the end of your `struct`/`enum`. Same rule applies
-/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
-///
-/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
-///
-/// For example for non positional `non_pos` and a command `command` parsers
-/// ```rust
-/// # use bpaf::*;
-/// # let non_pos = || short('n').switch();
-/// # let command = || pure(()).to_options().command("POS");
-/// let valid = construct!(non_pos(), command());
-/// let invalid = construct!(command(), non_pos());
-/// ```
-///
-/// **`bpaf` panics during help generation unless if this restriction holds**
-///
-#[doc = include_str!("docs/command.md")]
-///
-#[must_use]
+#[doc(hidden)]
+#[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
 pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
 where
     T: 'static,
@@ -410,6 +382,54 @@ where
         help: subparser.short_descr().map(Into::into),
         subparser,
         adjacent: false,
+    }
+}
+
+impl<T> OptionParser<T> {
+    /// Parse a subcommand
+    ///
+    /// Subcommands allow to use a totally independent parser inside a current one. Inner parser
+    /// can have its own help message, description, version and so on. You can nest them arbitrarily
+    /// too.
+    ///
+    /// # Important restriction
+    /// When parsing command arguments from command lines you should have parsers for all your
+    /// named values before parsers for commands and positional items. In derive API fields parsed as
+    /// positional should be at the end of your `struct`/`enum`. Same rule applies
+    /// to parsers with positional fields or commands inside: such parsers should go to the end as well.
+    ///
+    /// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
+    ///
+    /// For example for non positional `non_pos` and a command `command` parsers
+    /// ```rust
+    /// # use bpaf::*;
+    /// # let non_pos = || short('n').switch();
+    /// # let command = || pure(()).to_options().command("POS");
+    /// let valid = construct!(non_pos(), command());
+    /// let invalid = construct!(command(), non_pos());
+    /// ```
+    ///
+    /// **`bpaf` panics during help generation unless if this restriction holds**
+    ///
+    /// You can attach a single visible short alias and multiple hiddden short and long aliases
+    /// using [`short`](ParseCommand::short) and [`long`](ParseCommand::long) methods.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
+    ///
+    /// To represent multiple possible commands it is convenient to use enums
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/command_enum.md"))]
+    #[must_use]
+    pub fn command(self, name: &'static str) -> ParseCommand<T>
+    where
+        T: 'static,
+    {
+        ParseCommand {
+            longs: vec![name],
+            shorts: Vec::new(),
+            help: self.short_descr().map(Into::into),
+            subparser: self,
+            adjacent: false,
+        }
     }
 }
 
@@ -445,7 +465,7 @@ impl<P> ParseCommand<P> {
     /// }
     ///
     /// fn mysterious_parser() -> impl Parser<bool> {
-    ///     command("mystery", inner())
+    ///     inner().command("mystery")
     ///         .help("This command performs a mystery operation")
     /// }
     /// ```

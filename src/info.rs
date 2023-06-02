@@ -4,7 +4,7 @@ use crate::{
     args::{Args, State},
     error::Message,
     meta_help::render_help,
-    parsers::{NamedArg, ParseCommand},
+    parsers::NamedArg,
     short, Doc, Error, Meta, ParseFailure, Parser,
 };
 
@@ -552,17 +552,6 @@ impl<T> OptionParser<T> {
         buf.write_meta(&self.inner.meta(), true);
         self.info.usage = Some(f(buf));
         self
-    }
-
-    /// Turn `OptionParser` into subcommand parser
-    ///
-    /// This is identical to [`command`](crate::params::command)
-    #[must_use]
-    pub fn command(self, name: &'static str) -> ParseCommand<T>
-    where
-        T: 'static,
-    {
-        crate::params::command(name, self)
     }
 
     /// Check the invariants `bpaf` relies on for normal operations

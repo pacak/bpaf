@@ -458,7 +458,7 @@ fn from_several_alternatives_pick_more_meaningful() {
 fn subcommands() {
     let bar = short('b').switch();
 
-    let bar_cmd = command("bar", bar.to_options().descr("This is local info"));
+    let bar_cmd = bar.to_options().descr("This is local info").command("bar");
 
     let parser = bar_cmd.to_options().descr("This is global info");
 
@@ -543,7 +543,7 @@ mod git {
         let fetch_inner = fetch
             .to_options()
             .descr("fetches branches from remote repository");
-        let fetch_cmd = command("fetch", fetch_inner);
+        let fetch_cmd = fetch_inner.command("fetch");
 
         let interactive = short('i').switch();
         let all = long("all").switch();
@@ -554,7 +554,7 @@ mod git {
             files
         });
         let add_inner = add.to_options().descr("add files to the staging area");
-        let add_cmd = command("add", add_inner);
+        let add_cmd = add_inner.command("add");
 
         construct!([fetch_cmd, add_cmd])
             .to_options()
@@ -829,7 +829,10 @@ fn default_plays_nicely_with_command() {
         }
     }
 
-    let cmd = command("foo", pure(Foo::Foo).to_options().descr("inner"))
+    let cmd = pure(Foo::Foo)
+        .to_options()
+        .descr("inner")
+        .command("foo")
         .help("foo")
         .fallback(Default::default());
 
@@ -865,7 +868,7 @@ Available commands:
 #[test]
 fn command_with_aliases() {
     let inner = pure(()).to_options().descr("inner descr");
-    let cmd = command("foo", inner).long("bar").short('f').short('b');
+    let cmd = inner.command("foo").long("bar").short('f').short('b');
     let parser = cmd.to_options().descr("outer");
 
     let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
@@ -933,11 +936,16 @@ Available options:
 
 #[test]
 fn help_for_commands() {
-    let d = command("thing_d", pure(()).to_options()).help("help for d\ntwo lines");
-    let e = command("thing_e", pure(()).to_options())
+    let d = pure(())
+        .to_options()
+        .command("thing_d")
+        .help("help for d\ntwo lines");
+    let e = pure(())
+        .to_options()
+        .command("thing_e")
         .short('e')
         .help("help for e\ntwo lines");
-    let h = command("thing_h", pure(()).to_options());
+    let h = pure(()).to_options().command("thing_h");
     let parser = construct!([d, e, h]).to_options();
     let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 

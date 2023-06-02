@@ -35,7 +35,7 @@ fn main() {
     .to_options()
     .descr("fetches branches from remote repository");
 
-    let fetch_cmd = command("fetch", fetch);
+    let fetch_cmd = fetch.command("fetch");
 
     let interactive = short('i').switch();
     let all = long("all").switch();
@@ -48,7 +48,7 @@ fn main() {
     .to_options()
     .descr("add files to the staging area");
 
-    let add_cmd = command("add", add).help("add files to the staging area");
+    let add_cmd = add.command("add").help("add files to the staging area");
 
     let opt = construct!([fetch_cmd, add_cmd])
         .to_options()
