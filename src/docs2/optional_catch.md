@@ -125,7 +125,7 @@ Options { height: None, height_str: Some("ten"), width: None, width_str: None }
 
 In case of wrong `--width` - parser `width` fails, parser for `optional` sees this as a
 "value is present but not correct" and propagates the error outside, execution never reaches
-`width_str` parser:
+`width_str` parser
 
 
 <div class='bpaf-doc'>

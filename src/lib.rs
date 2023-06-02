@@ -735,7 +735,7 @@ pub trait Parser<T> {
     /// For derive usage `bpaf_derive` would insert implicit `many` when resulting type is a
     /// vector.
     ///
-    #[doc = include_str!("docs/many.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/many.md"))]
     ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
@@ -764,7 +764,7 @@ pub trait Parser<T> {
     /// list allowing using it in combination of any parsers with a fallback. After the first one
     /// it will keep collecting the results as long as they consume something.
     ///
-    #[doc = include_str!("docs/some.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/some.md"))]
     ///
     /// # See also
     /// [`many`](Parser::many) also collects results to a vector but succeeds with
