@@ -184,7 +184,7 @@ pub fn env(variable: &'static str) -> NamedArg {
 impl NamedArg {
     /// Add a short name to a flag/switch/argument
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs/short_long_env.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.short.push(short);
@@ -193,7 +193,7 @@ impl NamedArg {
 
     /// Add a long name to a flag/switch/argument
     ///
-    #[doc = include_str!("docs/short_long_env.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
         self.long.push(long);
@@ -213,46 +213,23 @@ impl NamedArg {
     /// ```console
     /// $ NO_COLOR=1 app --do-something
     /// ```
-    #[doc = include_str!("docs/short_long_env.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
     #[must_use]
     pub fn env(mut self, variable: &'static str) -> Self {
         self.env.push(variable);
         self
     }
 
-    /// Add a help message to a flag/switch/argument
+    /// Add a help message to a `flag`/`switch`/`argument`
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_bool() -> impl Parser<bool> {
-    ///     short('f')
-    ///         .long("flag")
-    ///         .help("a flag that does a thing")
-    ///         .switch()
-    /// }
-    /// ```
+    /// `bpaf` converts doc comments and string into help by following those rules:
+    /// 1. Everything up to the first blank line is included into a "short" help message
+    /// 2. Everything is included into a "long" help message
+    /// 3. `bpaf` preserves linebreaks followed by a line that starts with a space
+    /// 4. Linebreaks are removed otherwise
     ///
-    /// # Derive usage
-    /// `bpaf_derive` converts doc comments into option help by following those rules:
-    /// 1. It skips blank lines, if present.
-    /// 2. It stops parsing after a double blank line.
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     /// This line is part of help message
-    ///     ///
-    ///     /// So is this one
-    ///     ///
-    ///     ///
-    ///     /// But this one isn't
-    ///     key: String,
-    /// }
-    /// ```
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch_help.md"))]
     #[must_use]
-    /// See [`NamedArg`] for more details
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,
@@ -266,18 +243,21 @@ impl NamedArg {
     /// A special case of a [`flag`](NamedArg::flag) that gets decoded into a `bool`, mostly serves as a convenient
     /// shortcut to `.flag(true, false)`.
     ///
-    #[doc = include_str!("docs/switch.md")]
+    /// In Derive API bpaf would use `switch` for `bool` fields inside named structs that don't
+    /// have other consumer annotations ([`flag`](NamedArg::flag),
+    /// [`argument`](NamedArg::argument), etc).
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     #[must_use]
-    /// See [`NamedArg`](crate::NamedArg) for more details
     pub fn switch(self) -> impl Parser<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
     /// Flag with custom present/absent values
     ///
-    /// More generic version of [`switch`](NamedArg::switch) that uses arbitrary type instead of
+    /// More generic version of [`switch`](NamedArg::switch) that can use arbitrary type instead of
     /// [`bool`].
-    #[doc = include_str!("docs/flag.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     ///
     #[must_use]
     pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
@@ -290,23 +270,13 @@ impl NamedArg {
     /// Required flag with custom value
     ///
     /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but would only
-    /// succeed if user specifies it on a command line.
-    /// Not very useful by itself and works best in combination with other parsers.
+    /// succeed if user specifies its name on a command line.
+    /// Wworks best in combination with other parsers.
     ///
-    /// ## Using `req_flag` to implement 3-state options.
-    ///
-    /// In derive mode `bpaf` would transform field-less enum variants into `req_flag`
-    /// In addition to naming annotations (`short`, `long` and `env`) such variants also
-    /// accepts `hide` and `default` annotations. Former hides it from `--help` (see
-    /// [`hide`](Parser::hide), later makes it a default choice if preceeding variants
-    /// fail to parse. You shoud only use `default` annotation on the last variant of
-    /// enum. To better convey the meaning you might want to use a combination of
-    /// `skip` and `fallback` annotations, see examples.
-    ///
-    /// Additionally `bpaf_derive` handles `()` fields as `req_flag` see
-    /// [`adjacent`](crate::ParseCon::adjacent) for more details.
-    /// See [`NamedArg`] for more details
-    #[doc = include_str!("docs/req_flag.md")]
+    /// In derive style API `bpaf` would transform field-less enum variants into a parser
+    /// that accepts one of it's variant names as `req_flag`. Additionally `bpaf` handles `()`
+    /// fields as `req_flag`.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
     #[must_use]
     pub fn req_flag<T>(self, present: T) -> impl Parser<T>
     where
@@ -325,13 +295,10 @@ impl NamedArg {
     /// When using combinatoring API you can specify the type with turbofish, for parsing types
     /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
     /// it by hands.
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_arg() -> impl Parser<usize> {
-    ///     short('a').argument::<usize>("ARG")
-    /// }
-    /// ```
-    #[doc = include_str!("docs/argument.md")]
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
+    ///
+    /// You can further restrict it using [`adjacent`](ParseArgument::adjacent)
     #[must_use]
     pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
     where
@@ -524,7 +491,7 @@ impl<P> ParseCommand<P> {
         self
     }
 
-    /// Allow for the command to suceed
+    //    /// Allow for the command to suceed
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
         self
@@ -688,7 +655,7 @@ impl<T> ParseArgument<T> {
     ///
     /// Should allow to parse some of the more unusual things
     ///
-    #[doc = include_str!("docs/pos_adjacent.md")]
+    #[doc = include_str!("docs2/adjacent_argument.md")]
     #[must_use]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;

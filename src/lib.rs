@@ -115,8 +115,8 @@
 //!   </div>
 //!   </details>
 //!
-//! - an option with a short or a long name with extra value attached: `-p <PACKAGE>` or
-//!   `--package <PACKAGE>`. Value can also be separated by `=` sign from the name or, in case
+//! - an option with a short or a long name with extra value attached: `-p PACKAGE` or
+//!   `--package PACKAGE`. Value can also be separated by `=` sign from the name or, in case
 //!   of a short name, be adjacent to it: `--package=bpaf` and `-pbpaf`.
 //!   `bpaf` documentation calls them *arguments*.
 //!
@@ -187,7 +187,8 @@
 //!   values, for example `Color::On` and `Color::Off`.
 //! - [`req_flag`](NamedArg::req_flag) - a variant of `switch` that only only succeeds when it's name
 //!   is present on a command line
-//! - [`argument`](NamedArg::argument) - named argument containing a value
+//! - [`argument`](NamedArg::argument) - named argument containing a value, you can further
+//! customize it with [`adjacent`](ParseArgument::adjacent)
 //! - [`positional`] - positional argument, you can further customize it with
 //!   [`strict`](ParsePositional::strict)
 //! - [`command`](OptionParser::command) - command parser, you need to define [`OptionParser`]
@@ -249,9 +250,8 @@
 //!
 //! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
 //!
-//! And finally you can generate documentation for command line in markdown/html and manpage
+//! And finally you can generate documentation for command line in html-markdown mix and manpage
 //! formats
-//! - [`render_markdown`](OptionParser::render_markdown)
 //! - [`render_html`](OptionParser::render_html)
 //! - [`render_manpage`](OptionParser::render_manpage)
 //!
@@ -1493,6 +1493,3 @@ where
         .hide();
     construct!(skip, parser).map(|x| x.1)
 }
-
-#[doc = include_str!("../simple.md")]
-pub struct Foo;

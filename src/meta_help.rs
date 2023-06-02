@@ -560,7 +560,9 @@ impl Doc {
         let mut xs = items.items_of_ty(ty).peekable();
         if xs.peek().is_some() {
             self.token(Token::BlockStart(Block::Block));
+            self.token(Token::BlockStart(Block::Section2));
             self.write_str(name, Style::Emphasis);
+            self.token(Token::BlockEnd(Block::Section2));
             self.token(Token::BlockStart(Block::DefinitionList));
             for item in xs {
                 write_help_item(self, item, include_env);

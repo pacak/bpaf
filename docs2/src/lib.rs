@@ -1,5 +1,8 @@
 use bpaf::{Args, OptionParser, ParseFailure};
 
+#[cfg(test)]
+use pretty_assertions::assert_eq;
+
 #[allow(dead_code)]
 fn write_updated(new_val: String, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
     use std::io::Read;

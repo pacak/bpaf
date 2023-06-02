@@ -97,7 +97,6 @@ impl Color {
                 Style::Literal => write!(res, "{}", item.bold()),
                 Style::Metavar => write!(res, "{}", item.underline()),
                 Style::Invalid => write!(res, "{}", item.bold().red()),
-                Style::Muted => write!(res, "{}", item.dimmed()),
             },
             Color::Bright => match style {
                 Style::Text => Ok(res.push_str(item)),
@@ -105,7 +104,6 @@ impl Color {
                 Style::Literal => write!(res, "{}", item.green().bold()),
                 Style::Metavar => write!(res, "{}", item.blue().bold()),
                 Style::Invalid => write!(res, "{}", item.red().bold()),
-                Style::Muted => write!(res, "{}", item.dimmed()),
             },
         }
         .unwrap();
@@ -237,7 +235,7 @@ impl Doc {
                     let margin = margins.last().copied().unwrap_or(0usize);
 
                     match block {
-                        Block::Section1 | Block::Section2 => {
+                        Block::Header | Block::Section2 => {
                             pending_newline = true;
                             margins.push(margin);
                         }
@@ -259,7 +257,7 @@ impl Doc {
                         Block::Block => {
                             margins.push(margin);
                         }
-                        Block::Pre => todo!(),
+                        Block::Meta => {}
                         Block::TermRef => {
                             if color == Color::Monochrome {
                                 res.push('`');
@@ -274,7 +272,7 @@ impl Doc {
 
                     margins.pop();
                     match block {
-                        Block::Section1
+                        Block::Header
                         | Block::Section2
                         | Block::Section3
                         | Block::ItemTerm
@@ -282,7 +280,7 @@ impl Doc {
                         | Block::DefinitionList
                         | Block::NumberedList
                         | Block::UnnumberedList
-                        | Block::Pre => {}
+                        | Block::Meta => {}
                         Block::InlineBlock => {
                             skip.pop();
                         }

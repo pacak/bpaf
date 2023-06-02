@@ -66,12 +66,12 @@ impl<T> OptionParser<T> {
 
         if sections.len() > 1 {
             buf.token(Token::BlockStart(Block::Block));
-            buf.token(Token::BlockStart(Block::Section1));
+            buf.token(Token::BlockStart(Block::Header));
             buf.text("SYNOPSIS");
-            buf.token(Token::BlockEnd(Block::Section1));
+            buf.token(Token::BlockEnd(Block::Header));
             buf.token(Token::BlockEnd(Block::Block));
 
-            buf.token(Token::BlockStart(Block::Pre));
+            //           buf.token(Token::BlockStart(Block::Meta));
             for section in &sections {
                 for p in &section.path {
                     buf.literal(p);
@@ -81,7 +81,7 @@ impl<T> OptionParser<T> {
                 buf.write_meta(section.meta, true);
                 buf.text("\n");
             }
-            buf.token(Token::BlockEnd(Block::Pre));
+            //            buf.token(Token::BlockEnd(Block::Meta));
         }
 
         // NAME
@@ -94,24 +94,24 @@ impl<T> OptionParser<T> {
 
         for section in &sections {
             if sections.len() > 1 {
-                buf.token(Token::BlockStart(Block::Section1));
+                buf.token(Token::BlockStart(Block::Header));
                 buf.write_path(&section.path);
-                buf.token(Token::BlockEnd(Block::Section1));
+                buf.token(Token::BlockEnd(Block::Header));
             }
 
             if let Some(descr) = &section.info.descr {
-                buf.token(Token::BlockStart(Block::Section1));
+                buf.token(Token::BlockStart(Block::Header));
                 buf.text("NAME");
-                buf.token(Token::BlockEnd(Block::Section1));
+                buf.token(Token::BlockEnd(Block::Header));
 
                 buf.text(app.as_ref());
                 buf.text(" - ");
                 buf.doc(descr);
             }
 
-            buf.token(Token::BlockStart(Block::Section1));
+            buf.token(Token::BlockStart(Block::Header));
             buf.text("SYNOPSIS");
-            buf.token(Token::BlockEnd(Block::Section1));
+            buf.token(Token::BlockEnd(Block::Header));
             buf.write_path(&section.path);
             buf.write_meta(section.meta, true);
 
@@ -167,7 +167,6 @@ impl From<Style> for Font {
             Style::Literal => Font::Bold,
             Style::Metavar => Font::Italic,
             Style::Invalid => Font::Italic,
-            Style::Muted => Font::Roman,
         }
     }
 }
@@ -201,7 +200,7 @@ impl Doc {
                 Token::BlockStart(block) => {
                     //
                     match block {
-                        Block::Section1 | Block::Section2 | Block::Section3 => {
+                        Block::Header | Block::Section2 | Block::Section3 => {
                             capture.1 = true;
                         }
                         Block::ItemTerm => {
@@ -234,7 +233,7 @@ impl Doc {
                             roff.control0("PP");
                         }
                         Block::InlineBlock => {}
-                        Block::Pre => {
+                        Block::Meta => {
                             roff.control0("nf");
                         }
 
@@ -244,7 +243,7 @@ impl Doc {
                 Token::BlockEnd(block) => {
                     //
                     match block {
-                        Block::Section1 => {
+                        Block::Header => {
                             capture.1 = false;
                             roff.control("SH", [capture.0.to_uppercase()]);
                             capture.0.clear();
@@ -265,7 +264,7 @@ impl Doc {
                         Block::UnnumberedList => todo!(),
                         Block::Block => {}
                         Block::InlineBlock => {}
-                        Block::Pre => {
+                        Block::Meta => {
                             roff.control0("fi");
                         }
                         Block::TermRef => todo!(),

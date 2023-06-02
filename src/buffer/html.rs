@@ -7,56 +7,56 @@ use crate::{
     Doc, OptionParser, Parser,
 };
 
-impl<T> OptionParser<T> {
-    pub(crate) fn collect_html(&self, app: impl Into<String>) -> Doc {
-        let app = app.into();
-        let mut sections = Vec::new();
-        let root = self.inner.meta();
-        let mut path = vec![app];
-        extract_sections(&root, &self.info, &mut path, &mut sections);
+#[inline(never)]
+fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
+    let app = app.into();
+    let mut sections = Vec::new();
+    let root = meta;
+    let mut path = vec![app];
+    extract_sections(&root, info, &mut path, &mut sections);
 
-        let mut buf = Doc::default();
+    let mut buf = Doc::default();
 
-        if sections.len() > 1 {
+    if sections.len() > 1 {
+        buf.token(Token::BlockStart(Block::Block));
+        buf.token(Token::BlockStart(Block::Header));
+        buf.text("Command summary");
+        buf.token(Token::BlockEnd(Block::Header));
+        buf.token(Token::BlockEnd(Block::Block));
+
+        // TODO - this defines forward references to sections which are rendered differently
+        // between html and markdown and never used in console...
+        for section in &sections {
             buf.token(Token::BlockStart(Block::Block));
-            buf.token(Token::BlockStart(Block::Section1));
-            buf.text("Command summary");
-            buf.token(Token::BlockEnd(Block::Section1));
+            buf.text(&format!(
+                "* [`{}`↴](#{})",
+                section.path.join(" "),
+                section.path.join("-").to_lowercase(),
+            ));
             buf.token(Token::BlockEnd(Block::Block));
-
-            // TODO - this defines forward references to sections which are rendered differently
-            // between html and markdown and never used in console...
-            for section in &sections {
-                buf.token(Token::BlockStart(Block::Block));
-                buf.text(&format!(
-                    "* [`{}`↴](#{})",
-                    section.path.join(" "),
-                    section.path.join("-").to_lowercase(),
-                ));
-                buf.token(Token::BlockEnd(Block::Block));
-            }
         }
-
-        for section in sections {
-            buf.token(Token::BlockStart(Block::Section1));
-            buf.text(&section.path.join(" ").to_string());
-            buf.token(Token::BlockEnd(Block::Section1));
-
-            let b = render_help(
-                &section.path,
-                section.info,
-                section.meta,
-                &section.info.meta(),
-                false,
-            );
-            buf.doc(&b);
-        }
-        buf
     }
 
+    for section in sections {
+        buf.token(Token::BlockStart(Block::Header));
+        buf.text(&section.path.join(" ").to_string());
+        buf.token(Token::BlockEnd(Block::Header));
+
+        let b = render_help(
+            &section.path,
+            section.info,
+            section.meta,
+            &section.info.meta(),
+            false,
+        );
+        buf.doc(&b);
+    }
+    buf
+}
+
+impl<T> OptionParser<T> {
     pub fn render_html(&self, full: bool, app: impl Into<String>) -> String {
-        let buf = self.collect_html(app);
-        buf.render_html(full)
+        collect_html(app.into(), &self.inner.meta(), &self.info).render_html(full)
     }
 }
 
@@ -94,7 +94,6 @@ impl From<Style> for Styles {
                 bold: true,
                 italic: false,
             },
-            Style::Muted => todo!(),
         }
     }
 }
@@ -191,13 +190,14 @@ impl Doc {
                 Token::BlockStart(b) => {
                     change_style(&mut res, &mut cur_style, Styles::default());
                     match b {
-                        Block::Section1 => {
+                        Block::Header => {
                             blank_line(&mut res);
                             res.push_str("# ");
                         }
                         Block::Section2 => {
-                            blank_line(&mut res);
-                            res.push_str("## ");
+                            res.push_str("<div>\n");
+                            //blank_line(&mut res);
+                            //                            res.push_str("## ");
                         }
                         Block::Section3 => {
                             //                            blank_line(&mut res);
@@ -212,7 +212,7 @@ impl Doc {
                             }
                         }
                         Block::DefinitionList => {
-                            at_newline(&mut res);
+                            //                            at_newline(&mut res);
                             res.push_str("<dl>");
                         }
                         Block::NumberedList => {
@@ -224,9 +224,9 @@ impl Doc {
                             res.push_str("<ul>");
                         }
                         Block::Block => {
-                            blank_line(&mut res);
+                            //                            blank_line(&mut res);
                         }
-                        Block::Pre => todo!(),
+                        Block::Meta => todo!(),
                         Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
@@ -238,9 +238,14 @@ impl Doc {
                     change_style(&mut res, &mut cur_style, Styles::default());
                     stack.pop();
                     match b {
-                        Block::Section1 | Block::Section2 | Block::Section3 => {
+                        Block::Header => {
                             blank_line(&mut res);
                         }
+                        Block::Section2 => {
+                            res.push_str("</div>");
+                        }
+
+                        Block::Section3 => {}
                         Block::InlineBlock => {
                             skip.pop();
                         }
@@ -258,7 +263,7 @@ impl Doc {
                         Block::Block => {
                             //                            blank_line(&mut res);
                         }
-                        Block::Pre => todo!(),
+                        Block::Meta => todo!(),
                         Block::TermRef => {}
                     }
                 }

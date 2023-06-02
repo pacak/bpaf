@@ -8,7 +8,6 @@ use crate::{
 mod console;
 mod html;
 mod manpage;
-mod markdown;
 mod splitter;
 
 pub(crate) use self::console::Color;
@@ -43,18 +42,13 @@ impl Doc {
     }
 
     #[inline]
-    pub fn title(&mut self, text: &str) {
+    pub fn emphasis(&mut self, text: &str) {
         self.write_str(text, Style::Emphasis);
     }
 
     #[inline]
     pub fn invalid(&mut self, text: &str) {
         self.write_str(text, Style::Invalid);
-    }
-
-    #[inline]
-    pub fn muted(&mut self, text: &str) {
-        self.write_str(text, Style::Muted);
     }
 
     pub fn meta(&mut self, meta: MetaInfo, for_usage: bool) {
@@ -195,16 +189,13 @@ pub enum Style {
 
     /// Invalid input given by user - used to display invalid parts of the input
     Invalid,
-
-    /// Something less important, usually rendered in a more dull color
-    Muted,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Block {
     // 0 margin
     /// level 1 section header, block for separate command inside manpage, not used in --help
-    Section1,
+    Header,
 
     // 0 margin
     /// level 2 section header, "Available options" in --help, etc
@@ -238,14 +229,12 @@ pub enum Block {
     /// fast forward until the end of current inline block
     InlineBlock,
 
-    // 2 margin
-    /// Preformatted text
-    Pre,
-
     // inline
     /// displayed with `` in monochrome or not when rendered with colors.
     /// In markdown this becomes a link to a term if one is defined
     TermRef,
+
+    Meta,
 }
 
 #[derive(Debug, Copy, Clone)]

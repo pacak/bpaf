@@ -60,9 +60,8 @@ anything about hidden aliases.
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--verbose</b></tt>] [<tt><b>-r</b></tt>] [<tt><b>-j</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>-u</b></tt>] [<tt><b>-F</b></tt>=<tt><i>ARG</i></tt>]... <tt><b>--database</b></tt>=<tt><i>ARG</i></tt> [<tt><b>-q</b></tt>] <tt><b>--user</b></tt>=<tt><i>ARG</i></tt><br>
-<b>Available options:</b>
-<dl><dt><tt><b>    --verbose</b></tt></dt>
+<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--verbose</b></tt>] [<tt><b>-r</b></tt>] [<tt><b>-j</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>-u</b></tt>] [<tt><b>-F</b></tt>=<tt><i>ARG</i></tt>]... <tt><b>--database</b></tt>=<tt><i>ARG</i></tt> [<tt><b>-q</b></tt>] <tt><b>--user</b></tt>=<tt><i>ARG</i></tt><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --verbose</b></tt></dt>
 <dd>Use verbose output</dd>
 <dt><tt><b>-r</b></tt></dt>
 <dd>Compile in a release mode</dd>

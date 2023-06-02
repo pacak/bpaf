@@ -430,7 +430,7 @@ fn with_group_help() {
 
     let ab = construct!(a, b).with_group_help(|meta| {
         let mut b = Doc::default();
-        b.title("Uses either of those ");
+        b.emphasis("Uses either of those ");
         b.meta(meta, false);
         b
     });

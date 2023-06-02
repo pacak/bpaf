@@ -1,7 +1,7 @@
 ```no_run
 //! This is not a typical bpaf usage,
 //! but you should be able to replicate command line used by dd
-use bpaf::{any, buffer::Style, construct, short, OptionParser, Parser};
+use bpaf::{any, construct, doc::Style, short, OptionParser, Parser};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -75,9 +75,8 @@ fn main() {
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]<br>
-<b>Available options:</b>
-<dl><dt><tt><b>-m</b></tt>, <tt><b>--magic</b></tt></dt>
+<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]<div>
+<b>Available options:</b></div><dl><dt><tt><b>-m</b></tt>, <tt><b>--magic</b></tt></dt>
 <dd>a usual switch still works</dd>
 <dt><tt><b>if=</b><i>FILE</i></tt></dt>
 <dd>read from FILE</dd>
