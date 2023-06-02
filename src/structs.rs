@@ -491,7 +491,7 @@ where
 
 impl<P> ParseOptional<P> {
     #[must_use]
-    /// Handle parse failures
+    /// Handle parse failures for optional parsers
     ///
     /// Can be useful to decide to skip parsing of some items on a command line
     /// When parser succeeds - `catch` version would return a value as usual
@@ -499,7 +499,11 @@ impl<P> ParseOptional<P> {
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    ///
+    /// Those examples are very artificial and designed to show what difference `catch` makes, to
+    /// actually parse arguments like in examples you should [`parse`](Parser::parse) or construct
+    /// enum with alternative branches
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
