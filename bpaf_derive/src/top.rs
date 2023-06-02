@@ -606,12 +606,12 @@ impl ToTokens for BParser {
                 if let Some(msg) = &oparser.decor.descr {
                     quote!( {
                         let inner_cmd = #oparser #usage;
-                        ::bpaf::command(#cmd_name, inner_cmd).help(#msg)#names
+                        inner_cmd.command(#cmd_name).help(#msg)#names
                     })
                 } else {
                     quote!({
                         let inner_cmd = #oparser #usage;
-                        ::bpaf::command(#cmd_name, inner_cmd)#names
+                        inner_cmd.command(#cmd_name)#names
                     })
                 }
                 .to_tokens(tokens);

@@ -155,7 +155,7 @@ fn struct_command() {
                     .to_options()
                     .descr("those are options")
                 ;
-                ::bpaf::command("opt", inner_cmd).help("those are options")
+                inner_cmd.command("opt").help("those are options")
             }
         }
     };
@@ -180,7 +180,7 @@ fn struct_command_short() {
                     .to_options()
                     .descr("those are options")
                 ;
-                ::bpaf::command("o", inner_cmd)
+                inner_cmd.command("o")
                     .help("those are options")
                     .short('x')
             }
@@ -223,7 +223,7 @@ fn enum_command() {
                     }
                     .to_options()
                     .descr("foo doc");
-                    ::bpaf::command("foo", inner_cmd).help("foo doc")
+                    inner_cmd.command("foo").help("foo doc")
                 };
                 let alt1 = {
                     let inner_cmd = {
@@ -232,7 +232,7 @@ fn enum_command() {
                     }
                     .to_options()
                     .descr("bar doc");
-                    ::bpaf::command("bar", inner_cmd).help("bar doc")
+                    inner_cmd.command("bar").help("bar doc")
                 };
                 ::bpaf::construct!([alt0, alt1])
             }
@@ -327,11 +327,11 @@ fn enum_to_flag_and_switches() {
                 };
                 let alt5 = {
                     let inner_cmd = ::bpaf::pure(Opt::Alpha).to_options().usage("custom");
-                    ::bpaf::command("alpha", inner_cmd)
+                    inner_cmd.command("alpha")
                 };
                 let alt6 = {
                     let inner_cmd = ::bpaf::pure(Opt::Omega).to_options() ;
-                    ::bpaf::command("omega", inner_cmd)
+                    inner_cmd.command("omega")
                 };
                 ::bpaf::construct!([alt0, alt1, alt2, alt3, alt4, alt5, alt6])
             }
@@ -414,11 +414,11 @@ fn hidden_command() {
             {
                 let alt0 = {
                     let inner_cmd = ::bpaf::pure(Action::Visible).to_options();
-                    ::bpaf::command("visible", inner_cmd)
+                    inner_cmd.command("visible")
                 };
                 let alt1 = {
                     let inner_cmd = ::bpaf::pure(Action::Hidden).to_options();
-                    ::bpaf::command("hidden", inner_cmd)
+                    inner_cmd.command("hidden")
                 }.hide();
                 ::bpaf::construct!([alt0, alt1])
             }
@@ -447,7 +447,7 @@ fn command_with_aliases() {
                     ::bpaf::construct!(Command { i })
                 }
                 .to_options();
-                ::bpaf::command("command", inner_cmd)
+                inner_cmd.command("command")
                     .short('c')
                     .long("long")
             }
@@ -476,11 +476,11 @@ fn version_with_commands_with_cargo_helper() {
                 ::bpaf::cargo_helper("subcargo", {
                     let alt0 = {
                         let inner_cmd = ::bpaf::pure(Action::Alpha).to_options();
-                        ::bpaf::command("alpha", inner_cmd)
+                        inner_cmd.command("alpha")
                     };
                     let alt1 = {
                         let inner_cmd = ::bpaf::pure(Action::Beta).to_options();
-                        ::bpaf::command("beta", inner_cmd)
+                        inner_cmd.command("beta")
                     };
                     ::bpaf::construct!([alt0, alt1])
                 })
@@ -789,7 +789,7 @@ fn single_unit_command() {
             use ::bpaf::Parser;
             {
                 let inner_cmd = ::bpaf::pure(One).to_options();
-                ::bpaf::command("one", inner_cmd)
+                inner_cmd.command("one")
             }
         }
     };
