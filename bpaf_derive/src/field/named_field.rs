@@ -295,6 +295,17 @@ impl Field {
                             ));
                         }
                         res.postpr.push(PostprAttr::DebugFallback(span));
+                    } else if keyword == "adjacent" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        if matches!(res.consumer, Some(ConsumerAttr::Arg(_, _)))
+                            && res.postpr.is_empty()
+                        {
+                            res.postpr.push(PostprAttr::Adjacent(span));
+                        } else {
+                            break Err(input_copy.error(
+                                "You can only use adjacent immediately after `positional`",
+                            ));
+                        }
                     } else if keyword == "fallback_with" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr

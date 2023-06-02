@@ -40,6 +40,7 @@ enum ConsumerAttr {
 
 #[derive(Debug, Clone)]
 enum PostprAttr {
+    Adjacent(Span),
     Guard(Span, Path, Box<Expr>),
     Many(Span, Option<LitStr>),
     Map(Span, Path),
@@ -64,7 +65,8 @@ impl PostprAttr {
             | PostprAttr::Map(..)
             | PostprAttr::Optional(..)
             | PostprAttr::Parse(..) => false,
-            PostprAttr::Guard(..)
+            PostprAttr::Adjacent(..)
+            | PostprAttr::Guard(..)
             | PostprAttr::Fallback(..)
             | PostprAttr::FallbackWith(..)
             | PostprAttr::Complete(..)
@@ -80,7 +82,8 @@ impl PostprAttr {
 
     fn span(&self) -> Span {
         match self {
-            PostprAttr::Guard(span, _, _)
+            PostprAttr::Adjacent(span)
+            | PostprAttr::Guard(span, _, _)
             | PostprAttr::Many(span, _)
             | PostprAttr::Map(span, _)
             | PostprAttr::Optional(span)
@@ -193,6 +196,7 @@ pub fn as_long_name(value: &Ident) -> LitStr {
 impl ToTokens for PostprAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
+            PostprAttr::Adjacent(_span) => quote!(adjacent()),
             PostprAttr::Guard(_span, f, m) => quote!(guard(#f, #m)),
             PostprAttr::Many(_span, None) => quote!(many()),
             PostprAttr::Many(_span, Some(m)) => quote!(some(#m)),

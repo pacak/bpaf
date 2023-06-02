@@ -96,6 +96,18 @@ fn derive_fallback_display() {
 }
 
 #[test]
+fn adjacent_argument() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument, adjacent)]
+        number: f64
+    };
+    let output = quote! {
+        ::bpaf::long("number").argument::<f64>("ARG").adjacent()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn derive_fallback_with() {
     let input: NamedField = parse_quote! {
         #[bpaf(fallback_with(external))]
