@@ -421,6 +421,17 @@ fn positional_named_fields() {
 }
 
 #[test]
+fn strict_positional_named_fields() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(positional("ARG"), strict)]
+        name: String
+    };
+    let output = quote! {
+        ::bpaf::positional::<String>("ARG").strict()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+#[test]
 fn optional_named_pathed() {
     let input: NamedField = parse_quote! {
         #[bpaf(long, short)]

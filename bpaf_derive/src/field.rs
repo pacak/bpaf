@@ -41,6 +41,7 @@ enum ConsumerAttr {
 #[derive(Debug, Clone)]
 enum PostprAttr {
     Adjacent(Span),
+    Strict(Span),
     Guard(Span, Path, Box<Expr>),
     Many(Span, Option<LitStr>),
     Map(Span, Path),
@@ -66,6 +67,7 @@ impl PostprAttr {
             | PostprAttr::Optional(..)
             | PostprAttr::Parse(..) => false,
             PostprAttr::Adjacent(..)
+            | PostprAttr::Strict(..)
             | PostprAttr::Guard(..)
             | PostprAttr::Fallback(..)
             | PostprAttr::FallbackWith(..)
@@ -83,6 +85,7 @@ impl PostprAttr {
     fn span(&self) -> Span {
         match self {
             PostprAttr::Adjacent(span)
+            | PostprAttr::Strict(span)
             | PostprAttr::Guard(span, _, _)
             | PostprAttr::Many(span, _)
             | PostprAttr::Map(span, _)
@@ -197,6 +200,7 @@ impl ToTokens for PostprAttr {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             PostprAttr::Adjacent(_span) => quote!(adjacent()),
+            PostprAttr::Strict(_span) => quote!(strict()),
             PostprAttr::Guard(_span, f, m) => quote!(guard(#f, #m)),
             PostprAttr::Many(_span, None) => quote!(many()),
             PostprAttr::Many(_span, Some(m)) => quote!(some(#m)),

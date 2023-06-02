@@ -306,6 +306,16 @@ impl Field {
                                 "You can only use adjacent immediately after `positional`",
                             ));
                         }
+                    } else if keyword == "strict" {
+                        check_stage(&mut stage, 4, &keyword)?;
+                        if matches!(res.consumer, Some(ConsumerAttr::Pos(_, _)))
+                            && res.postpr.is_empty()
+                        {
+                            res.postpr.push(PostprAttr::Strict(span));
+                        } else {
+                            break Err(input_copy
+                                .error("You can only use strict immediately after `positional`"));
+                        }
                     } else if keyword == "fallback_with" {
                         check_stage(&mut stage, 4, &keyword)?;
                         res.postpr
