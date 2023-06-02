@@ -1,9 +1,11 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 use bpaf::{Args, OptionParser, ParseFailure};
 
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
-#[allow(dead_code)]
 fn write_updated(new_val: String, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
     use std::io::Read;
     use std::io::Seek;
@@ -22,7 +24,6 @@ fn write_updated(new_val: String, path: impl AsRef<std::path::Path>) -> std::io:
     Ok(())
 }
 
-#[allow(dead_code)]
 fn import_escaped_source(res: &mut String, path: impl AsRef<std::path::Path>, title: &str) {
     use std::fmt::Write;
 
@@ -42,7 +43,6 @@ fn import_escaped_source(res: &mut String, path: impl AsRef<std::path::Path>, ti
     writeln!(res, "</details>").unwrap();
 }
 
-#[allow(dead_code)]
 fn run_and_render<T: std::fmt::Debug>(
     res: &mut String,
     options: OptionParser<T>,
@@ -76,7 +76,6 @@ $ app {all_args}<br>
     Ok(())
 }
 
-#[allow(dead_code)]
 fn compare_parsers<T1: std::fmt::Debug, T2: std::fmt::Debug>(
     derive: OptionParser<T1>,
     combine: OptionParser<T2>,

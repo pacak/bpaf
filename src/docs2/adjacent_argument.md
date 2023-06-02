@@ -96,7 +96,7 @@ Options { package: "bpaf" }
 </div>
 
 
-Separating by space results in parse failure
+Separating them by space results in parse failure
 
 
 <div class='bpaf-doc'>
