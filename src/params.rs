@@ -911,31 +911,31 @@ pub struct ParseAny<T, I, F> {
 /// Parse a single arbitrary item from a command line
 ///
 /// **`any` is designed to consume items that don't fit into usual [`flag`](NamedArg::flag)
-/// /[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument)/[`positional`]
-/// [`command`] classification, in most cases you don't need to use it**
+/// /[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument)/[`positional`]/
+/// [`command`](OptionParser::command) classification, in most cases you don't need to use it**
 ///
 /// By default `any` behaves similar to [`positional`] so you should be using it near the right
-/// most end of the consumer struct. It is possible to lift this restriction by calling
+/// most end of the consumer struct and it will only try to parse first unconsumed item on the
+/// command line. It is possible to lift this restriction by calling
 /// [`anywhere`](ParseAny::anywhere) on the parser.
 ///
-/// When using combinatoring API you can specify the type with turbofish, for parsing types
-/// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
-/// it by hands. For `any` you would usually consume it either as a `String` or `OsString`.
-/// ```no_run
-/// # use bpaf::*;
-/// # use std::ffi::OsString;
-/// fn parse_any() -> impl Parser<OsString> {
-///     // anything at all, including --help - in practice you want some restriction...
-///     any::<OsString, _, _>("ANYTHING", Some)
-/// }
-/// ```
+/// `check` argument is a function from any type `I` that implements `FromStr` to `T`.
+/// Usually this should be `String` or `OsString`, but feel free to experiment. When
+/// running `any` tries to parse an item on a command line into that `I` and applies the `check`
+/// function. If `check` succeeds - parser `any` succeeds and produces `T`, otherwise it behaves
+/// as if it haven't seen it. If `any` works in `anywhere` mode - it will try to parse all other
+/// unconsumed items, otherwise `any` fails.
 ///
-#[doc = include_str!("docs/any.md")]
+#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
 ///
-/// See [`adjacent`](crate::ParseCon::adjacent) for more examples
-/// See [`literal`] for a specialized version of `any` that consumes a fixed literal.
+/// # See also
+/// [`literal`] - a specialized version of `any` that tries to parse a fixed literal
 #[must_use]
-pub fn any<I, T, F>(metavar: impl Into<Doc>, check: F) -> ParseAny<T, I, F> {
+pub fn any<I, T, F>(metavar: impl Into<Doc>, check: F) -> ParseAny<T, I, F>
+where
+    I: FromStr + 'static,
+    F: Fn(I) -> Option<T>,
+{
     ParseAny {
         metavar: metavar.into(),
         help: None,
@@ -947,21 +947,24 @@ pub fn any<I, T, F>(metavar: impl Into<Doc>, check: F) -> ParseAny<T, I, F> {
 
 /// A specialized version of [`any`] that consumes an arbitrary string
 ///
-/// ```no_run
-/// # use bpaf::*;
-/// /// Returns `true` if flag "-mode" is present and `false` otherwise.
-/// fn parse_mode() -> impl Parser<bool> {
-///     literal("-mode")
-///         .anywhere()
-///         .map(|_| true)
-///         .fallback(false)
+/// By default `literal` behaves similar to [`positional`] so you should be using it near the right
+/// most end of the consumer struct and it will only try to parse first unconsumed item on the
+/// command line. It is possible to lift this restriction by calling
+/// [`anywhere`](ParseAny::anywhere) on the parser.
 ///
-/// }
-/// ```
+#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
 ///
-/// See [`any`] for more examples
+/// # See also
+/// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
+/// or not.
 pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
-    any(val, move |s| if s == val { Some(()) } else { None })
+    any(&[(val, crate::buffer::Style::Literal)][..], move |s| {
+        if s == val {
+            Some(())
+        } else {
+            None
+        }
+    })
 }
 
 impl<F, I, T> ParseAny<T, F, I> {
