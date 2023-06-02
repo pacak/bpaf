@@ -795,7 +795,7 @@ pub trait Parser<T> {
     /// for as long as it's not prevented from doing so by present postprocessing options.
     /// But it's also possible to specify it explicitly.
     ///
-    #[doc = include_str!("docs/optional.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional.md"))]
     ///
     #[must_use]
     fn optional(self) -> ParseOptional<Self>
