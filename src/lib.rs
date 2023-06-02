@@ -188,7 +188,7 @@
 //! - [`req_flag`](NamedArg::req_flag) - a variant of `switch` that only only succeeds when it's name
 //!   is present on a command line
 //! - [`argument`](NamedArg::argument) - named argument containing a value, you can further
-//! customize it with [`adjacent`](ParseArgument::adjacent)
+//! customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
 //! - [`positional`] - positional argument, you can further customize it with
 //!   [`strict`](ParsePositional::strict)
 //! - [`command`](OptionParser::command) - command parser, you need to define [`OptionParser`]

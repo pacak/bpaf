@@ -228,6 +228,9 @@ impl NamedArg {
     /// 3. `bpaf` preserves linebreaks followed by a line that starts with a space
     /// 4. Linebreaks are removed otherwise
     ///
+    /// You can pass anything that can be converted into [`Doc`], if you are not using
+    /// documentation generation functionality ([`doc`](crate::doc)) this can be `&str`.
+    ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/switch_help.md"))]
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
@@ -355,7 +358,13 @@ impl NamedArg {
 ///
 /// **`bpaf` panics during help generation unless if this restriction holds**
 ///
-#[doc = include_str!("docs/positional.md")]
+/// Without using `--` `bpaf` would only accept items that don't start with `-` as positional, you
+/// can use [`any`] to work around this restriction.
+///
+/// By default `bpaf` accepts positional items with or without `--` where values permit, you can
+/// further restrict the parser to accept positionals only on the right side of `--` using
+/// [`strict`](ParsePositional::strict).
+#[cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))]
 #[must_use]
 pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
@@ -655,7 +664,7 @@ impl<T> ParseArgument<T> {
     ///
     /// Should allow to parse some of the more unusual things
     ///
-    #[doc = include_str!("docs2/adjacent_argument.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_argument.md"))]
     #[must_use]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
@@ -756,34 +765,16 @@ pub struct ParsePositional<T> {
 impl<T> ParsePositional<T> {
     /// Add a help message to a [`positional`] parser
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parse_name() -> impl Parser<String> {
-    ///     positional::<String>("NAME")
-    ///         .help("a flag that does a thing")
-    /// }
-    /// ```
+    /// `bpaf` converts doc comments and string into help by following those rules:
+    /// 1. Everything up to the first blank line is included into a "short" help message
+    /// 2. Everything is included into a "long" help message
+    /// 3. `bpaf` preserves linebreaks followed by a line that starts with a space
+    /// 4. Linebreaks are removed otherwise
     ///
-    /// # Derive usage
-    /// `bpaf_derive` converts doc comments into option help by following those rules:
-    /// 1. It skips blank lines, if present.
-    /// 2. It stops parsing after a double blank line.
+    /// You can pass anything that can be converted into [`Doc`], if you are not using
+    /// documentation generation functionality ([`doc`](crate::doc)) this can be `&str`.
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options (
-    ///     /// This line is part of help message
-    ///     ///
-    ///     /// So is this one
-    ///     ///
-    ///     ///
-    ///     /// But this one isn't
-    ///     String,
-    /// );
-    /// ```
-    /// See also [`NamedArg::help`]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))]
     #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
@@ -793,7 +784,7 @@ impl<T> ParsePositional<T> {
         self
     }
 
-    /// Changes positional parser to be "strict" positional
+    /// Changes positional parser to be a "strict" positional
     ///
     /// Usually positional items can appear anywhere on a command line:
     /// ```console
@@ -807,35 +798,12 @@ impl<T> ParsePositional<T> {
     /// ```console
     /// $ cargo run --example basic -- --help
     /// ```
+    ///
     /// here `cargo` takes a `--help` as a positional item and passes it to the example
     ///
     /// `bpaf` allows to require user to pass `--` for positional items with `strict` annotation.
-    /// `bpaf` would display such positional elements differently in usage line as well. If your
-    /// app requires several different strict positional elements - it's better to place
-    /// this annotation only to the first one.
-    ///
-    /// # Example
-    /// Usage line for a cargo-run like app that takes an app and possibly many strictly
-    /// positional child arguments can look like this:
-    /// ```console
-    /// $ app --help
-    /// Usage: [-p SPEC] [[--bin NAME] | [--example NAME]] [--release] [<BIN>] -- <CHILD_ARG>...
-    /// <skip>
-    /// ```
-    ///
-    /// # Combinatoric usage
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> impl Parser<Vec<std::ffi::OsString>> {
-    ///     positional::<std::ffi::OsString>("OPTS")
-    ///         .strict()
-    ///         .many()
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    /// Not available at the moment
+    /// `bpaf` would display such positional elements differently in usage line as well.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/positional_strict.md"))]
     #[must_use]
     pub fn strict(mut self) -> Self {
         self.strict = true;

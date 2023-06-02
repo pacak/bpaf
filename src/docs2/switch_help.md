@@ -17,6 +17,7 @@ Output detailed help information, you can specify it multiple times
 
  when used once it outputs basic diagnostic info,
  when used twice or three times - it includes extra debugging.",
+            // ^ note extra spaces before "when" that preserve the linebreaks
         )
         .switch();
     let name = long("name")
@@ -48,6 +49,7 @@ pub struct Options {
     ///
     ///  when used once it outputs basic diagnostic info,
     ///  when used twice or three times - it includes extra debugging.
+    //  ^ note extra spaces before when that preserve the linebreaks
     verbose: bool,
 
     #[bpaf(argument("NAME"))]
