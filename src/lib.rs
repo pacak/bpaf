@@ -236,9 +236,6 @@
 //! `help` methods to generate `--help` documentation, you can further improve it with those
 //! methods:
 //!
-//! - [`display_fallback`](ParseFallback::display_fallback) and
-//!   [`debug_fallback`](ParseFallback::debug_fallback) will include `fallback` value into
-//!   the generated help
 //! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
 //!   generated *Usage* line or whole generated help
 //! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
@@ -1049,7 +1046,7 @@ pub trait Parser<T> {
     /// Best used for optional parsers or parsers with a defined fallback, usually for implementing
     /// backward compatibility or hidden aliases
     ///
-    #[doc = include_str!("docs/hide.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/hide.md"))]
     ///
     fn hide(self) -> ParseHide<Self>
     where
@@ -1065,7 +1062,7 @@ pub trait Parser<T> {
     /// optional things that augment main application functionality but not define it. You might
     /// use custom [`usage`](Parser::usage) to indicate that some options are hidden.
     ///
-    #[doc = include_str!("docs/hide_usage.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/hide_usage.md"))]
     #[must_use]
     fn hide_usage(self) -> ParseUsage<Self>
     where
