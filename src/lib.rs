@@ -1095,8 +1095,7 @@ pub trait Parser<T> {
     /// `bpaf` inserts the group help message before the block with all the fields
     /// from the inner parser and an empty line after the block.
     ///
-    #[doc = include_str!("docs/group_help.md")]
-    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/group_help.md"))]
     fn group_help<M: Into<Doc>>(self, message: M) -> ParseGroupHelp<Self>
     where
         Self: Sized + Parser<T>,
@@ -1110,7 +1109,7 @@ pub trait Parser<T> {
 
     /// Make a help message for a complex parser from its [`MetaInfo`]
     ///
-    #[doc = include_str!("docs2/with_group_help.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/with_group_help.md"))]
     fn with_group_help<F>(self, f: F) -> ParseWithGroupHelp<Self, F>
     where
         Self: Sized + Parser<T>,
