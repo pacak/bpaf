@@ -543,7 +543,7 @@ impl<T> OptionParser<T> {
         self
     }
 
-    // unlike with_group_help this prepares buffer every time it runs
+    /// Generate new usage line using automatically derived usage
     pub fn with_usage<F>(mut self, f: F) -> Self
     where
         F: Fn(Doc) -> Doc,

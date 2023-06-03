@@ -315,6 +315,7 @@ impl Doc {
         Some(res)
     }
 
+    #[cfg(feature = "autocomplete")]
     pub(crate) fn to_completion(&self) -> Option<String> {
         Some(self.first_line()?.payload)
     }

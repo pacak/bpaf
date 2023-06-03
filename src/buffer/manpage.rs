@@ -152,13 +152,6 @@ impl<T> OptionParser<T> {
     }
 }
 
-#[derive(Clone, Copy)]
-enum ListKind {
-    Def,
-    Ol(usize),
-    Ul,
-}
-
 impl From<Style> for Font {
     fn from(value: Style) -> Self {
         match value {
@@ -177,8 +170,6 @@ impl Doc {
         // control messages and it is easier to provide them right away
         // We also strip styling from them and change sections to all caps
         let mut capture = (String::new(), false);
-
-        let mut kind = ListKind::Def;
 
         let mut byte_pos = 0;
         for token in self.tokens.iter().copied() {
@@ -206,23 +197,8 @@ impl Doc {
                         Block::ItemTerm => {
                             roff.control0("TP").strip_newlines(true);
                         }
-                        Block::ItemBody => {
-                            match &mut kind {
-                                ListKind::Def => {
-                                    //roff.control0("IP");
-                                }
-                                ListKind::Ol(ix) => {
-                                    roff.text(&[(Font::Roman, &format!("{}. ", ix))]);
-                                    *ix += 1;
-                                }
-                                ListKind::Ul => {
-                                    roff.text(&[(Font::Roman, "* ")]);
-                                }
-                            }
-                        }
-                        Block::DefinitionList => {
-                            kind = ListKind::Def;
-                        }
+                        Block::ItemBody => {}
+                        Block::DefinitionList => {}
                         Block::Block => {
                             roff.control0("PP");
                         }

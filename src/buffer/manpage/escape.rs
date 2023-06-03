@@ -5,6 +5,7 @@
 /// To generate manpages you most likely want to have this in `Handle` state.
 /// See <https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=507673#65> for more details
 #[derive(Eq, PartialEq, Copy, Clone)]
+#[allow(dead_code)] // it is used in the test
 pub enum Apostrophes {
     /// Replace apostrophes with special code that
     Handle,
