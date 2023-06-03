@@ -32,29 +32,47 @@ pub struct MetaInfo<'a>(pub(crate) &'a Meta);
 
 impl Doc {
     #[inline]
+    /// Append a fragment of plain text to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn text(&mut self, text: &str) {
         self.write_str(text, Style::Text);
     }
 
     #[inline]
+    /// Append a fragment of literal text to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn literal(&mut self, text: &str) {
         self.write_str(text, Style::Literal);
     }
 
     #[inline]
+    /// Append a fragment of text with emphasis to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn emphasis(&mut self, text: &str) {
         self.write_str(text, Style::Emphasis);
     }
 
     #[inline]
+    /// Append a fragment of unexpected user input to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn invalid(&mut self, text: &str) {
         self.write_str(text, Style::Invalid);
     }
 
+    /// Append a fragment of parser metadata to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn meta(&mut self, meta: MetaInfo, for_usage: bool) {
-        self.write_meta(&meta.0, for_usage);
+        self.write_meta(meta.0, for_usage);
     }
 
+    /// Append a `Doc` to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
     pub fn doc(&mut self, buf: &Doc) {
         self.tokens.push(Token::BlockStart(Block::InlineBlock));
         self.tokens.extend(&buf.tokens);
