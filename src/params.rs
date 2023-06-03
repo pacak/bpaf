@@ -519,7 +519,13 @@ impl<P> ParseCommand<P> {
         self
     }
 
-    //    /// Allow for the command to suceed
+    /// Allow for the command to succeed even if there are non consumed items present
+    ///
+    /// Normally a subcommand parser should handle the rest of the unconsumed elements thus
+    /// allowing only "vertical" chaining of commands. `adjacent` modifier lets command parser to
+    /// succeed if there are leftovers for as long as all comsumed items form a single adjacent
+    /// block. This opens possibilities to chain commands sequentially.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
         self
@@ -557,12 +563,19 @@ impl<T> Parser<T> for ParseCommand<T> {
                     .map_err(|e| Error(Message::ParseFailure(e)))
             } else {
                 let mut orig_args = args.clone();
+
+                // narrow down the scope to adjacently available elements
+                args.set_scope(args.adjacently_available_from(args.scope().start + 1));
+
                 match self
                     .subparser
                     .run_subparser(args)
                     .map_err(Message::ParseFailure)
                 {
-                    Ok(ok) => Ok(ok),
+                    Ok(ok) => {
+                        args.set_scope(orig_args.scope());
+                        Ok(ok)
+                    }
                     Err(err) => {
                         let orig_scope = args.scope();
                         if let Some(narrow_scope) = args.adjacent_scope(&orig_args) {
