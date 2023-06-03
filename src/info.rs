@@ -576,11 +576,25 @@ impl<T> OptionParser<T> {
         self.inner.meta().positional_invariant_check(true);
     }
 
+    /// Customize parser for `--help`
+    ///
+    /// By default `bpaf` displays help when program is called with either `--help` or `-h`, you
+    /// can customize those names and description in the help message
+    ///
+    /// Note, `--help` is something user expects to work
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
     pub fn help_parser(mut self, parser: NamedArg) -> Self {
         self.info.help_arg = parser;
         self
     }
 
+    /// Customize parser for `--version`
+    ///
+    /// By default `bpaf` displays version information when program is called with either `--version`
+    /// or `-V` (and version is available), you can customize those names and description in the help message
+    ///
+    /// Note, `--version` is something user expects to work
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
     pub fn version_parser(mut self, parser: NamedArg) -> Self {
         self.info.version_arg = parser;
         self
