@@ -310,7 +310,6 @@ impl NamedArg {
         build_argument(self, metavar)
     }
 
-    #[track_caller]
     /// `adjacent` requires for the argument to be present in the same word as the flag:
     /// `-f bar` - no, `-fbar` or `-f=bar` - yes.
     pub(crate) fn matches_arg(&self, arg: &Arg, adjacent: bool) -> bool {
