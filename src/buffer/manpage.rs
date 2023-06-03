@@ -71,7 +71,7 @@ impl<T> OptionParser<T> {
             buf.token(Token::BlockEnd(Block::Header));
             buf.token(Token::BlockEnd(Block::Block));
 
-            //           buf.token(Token::BlockStart(Block::Meta));
+            buf.token(Token::BlockStart(Block::Meta));
             for section in &sections {
                 for p in &section.path {
                     buf.literal(p);
@@ -81,7 +81,7 @@ impl<T> OptionParser<T> {
                 buf.write_meta(section.meta, true);
                 buf.text("\n");
             }
-            //            buf.token(Token::BlockEnd(Block::Meta));
+            buf.token(Token::BlockEnd(Block::Meta));
         }
 
         // NAME
