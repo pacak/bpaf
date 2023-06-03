@@ -139,11 +139,12 @@ You can mix chained commands with regular arguments that belong to the top level
 
 <div class='bpaf-doc'>
 $ app sleep --time 10 --premium eat 'Bak Kut Teh' drink<br>
-Options { premium: true, commands: [Sleep(10)] }
+Options { premium: true, commands: [Sleep(10), Eat("Bak Kut Teh"), Drink(false)] }
 </div>
 
 
-But not inside the command itself
+But not inside the command itself since values consumed by the command are not going to be
+adjacent
 
 
 <div class='bpaf-doc'>
