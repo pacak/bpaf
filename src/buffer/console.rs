@@ -113,8 +113,8 @@ impl Color {
 const PADDING: &str = "                                                  ";
 
 impl Doc {
-    /// Render the doc using monochrome version
-    pub(crate) fn monochrome(&self, full: bool) -> String {
+    /// Render a monochrome version of the document
+    pub fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)
     }
 
@@ -254,7 +254,7 @@ impl Doc {
                         Block::InlineBlock => {
                             skip.push();
                         }
-                        Block::DefinitionList | Block::NumberedList | Block::UnnumberedList => {}
+                        Block::DefinitionList => {}
                         Block::Block => {
                             margins.push(margin);
                         }
@@ -279,8 +279,6 @@ impl Doc {
                         | Block::ItemTerm
                         | Block::ItemBody
                         | Block::DefinitionList
-                        | Block::NumberedList
-                        | Block::UnnumberedList
                         | Block::Meta => {}
                         Block::InlineBlock => {
                             skip.pop();

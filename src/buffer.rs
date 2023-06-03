@@ -214,9 +214,6 @@ pub(crate) enum Block {
     /// Definition list,
     DefinitionList,
 
-    NumberedList,
-    UnnumberedList,
-
     /// block of text, blocks are separated by a blank line in man or help
     /// can contain headers or other items inside
     Block,
@@ -241,6 +238,11 @@ pub(crate) enum Token {
 }
 
 #[derive(Debug, Clone, Default)]
+/// String with styled segments.
+///
+/// You can add style information to generated documentation and help messages
+/// For simpliest possible results you can also pass a string slice in all the places
+/// that require `impl Into<Doc>`
 pub struct Doc {
     /// string info saved here
     payload: String,
@@ -309,11 +311,11 @@ impl From<&str> for Doc {
 }
 
 impl Doc {
-    #[cfg(test)]
-    pub(crate) fn clear(&mut self) {
-        self.payload.clear();
-        self.tokens.clear();
-    }
+    //    #[cfg(test)]
+    //    pub(crate) fn clear(&mut self) {
+    //        self.payload.clear();
+    //        self.tokens.clear();
+    //    }
 
     #[inline(never)]
     pub(crate) fn token(&mut self, token: Token) {

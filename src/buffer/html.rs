@@ -208,14 +208,6 @@ impl Doc {
                             //                            at_newline(&mut res);
                             res.push_str("<dl>");
                         }
-                        Block::NumberedList => {
-                            blank_line(&mut res);
-                            res.push_str("<ol>");
-                        }
-                        Block::UnnumberedList => {
-                            blank_line(&mut res);
-                            res.push_str("<ul>");
-                        }
                         Block::Block => {
                             res.push_str("<p>");
                             //                            blank_line(&mut res);
@@ -252,8 +244,6 @@ impl Doc {
                             }
                         }
                         Block::DefinitionList => res.push_str("</dl>\n"),
-                        Block::NumberedList => res.push_str("</ol>\n"),
-                        Block::UnnumberedList => res.push_str("</ul>\n"),
                         Block::Block => {
                             res.push_str("</p>");
                             //                            blank_line(&mut res);

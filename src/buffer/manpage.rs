@@ -223,12 +223,6 @@ impl Doc {
                         Block::DefinitionList => {
                             kind = ListKind::Def;
                         }
-                        Block::NumberedList => {
-                            kind = ListKind::Ol(1);
-                        }
-                        Block::UnnumberedList => {
-                            kind = ListKind::Def;
-                        }
                         Block::Block => {
                             roff.control0("PP");
                         }
@@ -260,8 +254,6 @@ impl Doc {
                             roff.control0("PP").strip_newlines(false);
                         }
                         Block::DefinitionList => {}
-                        Block::NumberedList => todo!(),
-                        Block::UnnumberedList => todo!(),
                         Block::Block => {}
                         Block::InlineBlock => {}
                         Block::Meta => {
