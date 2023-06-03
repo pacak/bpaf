@@ -75,7 +75,7 @@ Help displays only visible aliases (and a current value for env arguments)
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-s</b></tt>] <tt><b>-a</b></tt>=<tt><i>ARG</i></tt> <tt><b>-u</b></tt>=<tt><i>USER</i></tt><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-s</b></tt>] <tt><b>-a</b></tt>=<tt><i>ARG</i></tt> <tt><b>-u</b></tt>=<tt><i>USER</i></tt></p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-s</b></tt>, <tt><b>--switch</b></tt></dt>
 <dd>Switch with many names</dd>
 <dt><tt><b>-a</b></tt>, <tt><b>--argument</b></tt>=<tt><i>ARG</i></tt></dt>
@@ -87,7 +87,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

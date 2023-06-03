@@ -67,7 +67,7 @@ In `--help` output `bpaf` shows switches as usual flags with no meta variable at
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] [<tt><b>--release</b></tt>] [<tt><b>--no-default-features</b></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] [<tt><b>--release</b></tt>] [<tt><b>--no-default-features</b></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
 <dd>Produce verbose output</dd>
 <dt><tt><b>    --release</b></tt></dt>
@@ -77,7 +77,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -53,7 +53,7 @@ pub struct Options {
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> <tt><b>-n</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--age</b></tt>=<tt><i>AGE</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-n</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--age</b></tt>=<tt><i>AGE</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-n</b></tt>, <tt><b>--name</b></tt>=<tt><i>NAME</i></tt></dt>
 <dd>Specify user name</dd>
 <dt><tt><b>    --age</b></tt>=<tt><i>AGE</i></tt></dt>
@@ -63,7 +63,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

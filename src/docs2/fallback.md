@@ -79,7 +79,7 @@ is visible in `--help` output
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--jobs</b></tt>=<tt><i>JOBS</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--jobs</b></tt>=<tt><i>JOBS</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --jobs</b></tt>=<tt><i>JOBS</i></tt></dt>
 <dd>Number of jobs</dd>
 <dt></dt>
@@ -87,7 +87,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

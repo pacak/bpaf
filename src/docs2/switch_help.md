@@ -70,11 +70,11 @@ When `--help` used once it renders shoter version of the help information
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--name</b></tt>=<tt><i>NAME</i></tt> [<tt><i>OUTPUT</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--name</b></tt>=<tt><i>NAME</i></tt> [<tt><i>OUTPUT</i></tt>]</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>OUTPUT</i></tt></dt>
 <dd>Save output to a file</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
 <dd>Output detailed help information, you can specify it multiple times</dd>
 <dt><tt><b>    --name</b></tt>=<tt><i>NAME</i></tt></dt>
@@ -82,7 +82,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -104,11 +104,11 @@ version as well
 
 <div class='bpaf-doc'>
 $ app --help --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--name</b></tt>=<tt><i>NAME</i></tt> [<tt><i>OUTPUT</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--name</b></tt>=<tt><i>NAME</i></tt> [<tt><i>OUTPUT</i></tt>]</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>OUTPUT</i></tt></dt>
 <dd>Save output to a file</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
 <dd>Output detailed help information, you can specify it multiple times<br>
  when used once it outputs basic diagnostic info,<br>
@@ -118,7 +118,7 @@ when used twice or three times - it includes extra debugging.</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

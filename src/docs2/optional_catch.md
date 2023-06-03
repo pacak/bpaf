@@ -69,7 +69,7 @@ takes two values
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--height</b></tt>=<tt><i>PX</i></tt>] [<tt><b>--width</b></tt>=<tt><i>PX</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--height</b></tt>=<tt><i>PX</i></tt>] [<tt><b>--width</b></tt>=<tt><i>PX</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --height</b></tt>=<tt><i>PX</i></tt></dt>
 <dd>Height of a rectangle</dd>
 <dt><tt><b>    --width</b></tt>=<tt><i>PX</i></tt></dt>
@@ -77,7 +77,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

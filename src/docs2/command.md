@@ -68,17 +68,17 @@ Commands show up on both outer level help
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--flag</b></tt>] <tt><i>COMMAND ...</i></tt><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--flag</b></tt>] <tt><i>COMMAND ...</i></tt></p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
 <dd>This flag is specific to the outer layer</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available commands:</b></div><dl><dt><tt><b>cmd</b></tt>, <tt><b>c</b></tt></dt>
 <dd>Command to do something</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -99,14 +99,14 @@ As well as showing their own help
 
 <div class='bpaf-doc'>
 $ app cmd --help<br>
-Command to do something<b>Usage</b>: <tt><b>app</b></tt> <tt><b>cmd</b></tt> [<tt><b>--flag</b></tt>] <tt><b>--arg</b></tt>=<tt><i>ARG</i></tt><div>
+<p>Command to do something</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>cmd</b></tt> [<tt><b>--flag</b></tt>] <tt><b>--arg</b></tt>=<tt><i>ARG</i></tt></p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
 <dd>This flag is specific to command</dd>
 <dt><tt><b>    --arg</b></tt>=<tt><i>ARG</i></tt></dt>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

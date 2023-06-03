@@ -75,7 +75,7 @@ fn main() {
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-m</b></tt>, <tt><b>--magic</b></tt></dt>
 <dd>a usual switch still works</dd>
 <dt><tt><b>if=</b><i>FILE</i></tt></dt>
@@ -93,7 +93,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -224,6 +224,7 @@ impl Doc {
                             res.push_str("<ul>");
                         }
                         Block::Block => {
+                            res.push_str("<p>");
                             //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),
@@ -261,6 +262,7 @@ impl Doc {
                         Block::NumberedList => res.push_str("</ol>\n"),
                         Block::UnnumberedList => res.push_str("</ul>\n"),
                         Block::Block => {
+                            res.push_str("</p>");
                             //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),

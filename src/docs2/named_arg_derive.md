@@ -60,7 +60,7 @@ anything about hidden aliases.
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--verbose</b></tt>] [<tt><b>-r</b></tt>] [<tt><b>-j</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>-u</b></tt>] [<tt><b>-F</b></tt>=<tt><i>ARG</i></tt>]... <tt><b>--database</b></tt>=<tt><i>ARG</i></tt> [<tt><b>-q</b></tt>] <tt><b>--user</b></tt>=<tt><i>ARG</i></tt><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--verbose</b></tt>] [<tt><b>-r</b></tt>] [<tt><b>-j</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>-u</b></tt>] [<tt><b>-F</b></tt>=<tt><i>ARG</i></tt>]... <tt><b>--database</b></tt>=<tt><i>ARG</i></tt> [<tt><b>-q</b></tt>] <tt><b>--user</b></tt>=<tt><i>ARG</i></tt></p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --verbose</b></tt></dt>
 <dd>Use verbose output</dd>
 <dt><tt><b>-r</b></tt></dt>
@@ -84,7 +84,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

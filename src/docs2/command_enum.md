@@ -88,17 +88,17 @@ description
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> <tt><i>COMMAND ...</i></tt><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><i>COMMAND ...</i></tt></p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available commands:</b></div><dl><dt><tt><b>run</b></tt></dt>
 <dd>Run a binary</dd>
 <dt><tt><b>build</b></tt></dt>
 <dd>Compile a binary</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -119,17 +119,17 @@ Same as before each command gets its own help message
 
 <div class='bpaf-doc'>
 $ app run --help<br>
-Run a binary<b>Usage</b>: <tt><b>app</b></tt> <tt><b>run</b></tt> <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> [<tt><b>-- </b><i>ARG</i></tt>]...<div>
+<p>Run a binary</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>run</b></tt> <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> [<tt><b>-- </b><i>ARG</i></tt>]...</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>ARG</i></tt></dt>
 <dd>Arguments to pass to a binary</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --bin</b></tt>=<tt><i>BIN</i></tt></dt>
 <dd>Name of a binary to run</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -106,7 +106,7 @@ In `--help` message `req_flag` look similarly to [`switch`](NamedArg::switch) an
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> <tt><b>--agree</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>) [<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--agree</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>) [<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --agree</b></tt></dt>
 <dd>You must agree to perform the action</dd>
 <dt><tt><b>    --intel</b></tt></dt>
@@ -122,7 +122,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

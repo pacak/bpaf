@@ -63,19 +63,19 @@ otherwise they will show up only in **Usage** part.
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><i>CRATE</i></tt> [<tt><i>FEATURE</i></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><i>CRATE</i></tt> [<tt><i>FEATURE</i></tt>]</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>CRATE</i></tt></dt>
 <dd>Crate name to use</dd>
 <dt><tt><i>FEATURE</i></tt></dt>
 <dd>Display information about this feature</dd>
 </dl>
-<div>
+</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
 <dd>Display detailed information</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

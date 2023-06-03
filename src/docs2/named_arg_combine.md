@@ -51,7 +51,7 @@ anything about hidden aliases.
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<b>Usage</b>: <tt><b>app</b></tt> <tt><b>-s</b></tt>=<tt><i>SIZE</i></tt> (<tt><b>-o</b></tt>=<tt><i>PATH</i></tt> | <tt><b>-o</b></tt>) [<tt><b>-v</b></tt>]<div>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-s</b></tt>=<tt><i>SIZE</i></tt> (<tt><b>-o</b></tt>=<tt><i>PATH</i></tt> | <tt><b>-o</b></tt>) [<tt><b>-v</b></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-s</b></tt>, <tt><b>--size</b></tt>=<tt><i>SIZE</i></tt></dt>
 <dd>Maximum size to process</dd>
 <dt><tt><b>-o</b></tt>, <tt><b>--output</b></tt>=<tt><i>PATH</i></tt></dt>
@@ -63,7 +63,7 @@ $ app --help<br>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
-
+</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

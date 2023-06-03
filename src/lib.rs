@@ -1275,25 +1275,8 @@ pub trait Parser<T> {
 
     // consume
     // {{{ to_options
-    /// Transform `Parser` into [`OptionParser`] to attach metadata and run
+    /// Transform `Parser` into [`OptionParser`] to get ready to [`run`](OptionParser::run) it
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn parser() -> impl Parser<u32> {
-    ///     short('i')
-    ///         .argument::<u32>("ARG")
-    /// }
-    ///
-    /// fn option_parser() -> OptionParser<u32> {
-    ///     parser()
-    ///         .to_options()
-    ///         .version("3.1415")
-    ///         .descr("This is a description")
-    /// }
-    /// ```
-    ///
-    /// See [`OptionParser`] for more methods available after conversion.
     ///
     /// # Derive usage
     /// Add a top level `options` annotation to generate [`OptionParser`] instead of default
@@ -1304,25 +1287,9 @@ pub trait Parser<T> {
     /// specified value which should be an expression of type `&'static str`, see
     /// [`version`](OptionParser::version).
     ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, version("3.1415"))]
-    /// /// This is a description
-    /// struct Options {
-    ///    verbose: bool,
-    /// }
-    /// ```
-    ///
-    /// # Example
-    /// ```console
-    /// $ app --version
-    /// // Version: 3.1415
-    /// $ app --help
-    /// <skip>
-    /// This is a description
-    /// <skip>
-    /// ```
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/to_options.md"))]
+    /// # See also
+    /// There's some methods implemented on [`OptionParser`] directly to customize the appearance
     fn to_options(self) -> OptionParser<T>
     where
         Self: Sized + Parser<T> + 'static,
