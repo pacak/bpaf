@@ -240,7 +240,7 @@
 //!   generated *Usage* line or whole generated help
 //! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
 //!   add a common description shared by several parsers
-//! - [`usage`](Parser::usage) - customize usage for a primitive or composite parser
+//! - [`custom_usage`](Parser::custom_usage) - customize usage for a primitive or composite parser
 //! - [`usage`](OptionParser::usage) and [`with_usage`](OptionParser::with_usage) lets you to
 //!   customize whole usage line as a whole either by completely overriding it or by building around it.
 //!
