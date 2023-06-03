@@ -1059,9 +1059,9 @@ pub trait Parser<T> {
     /// Ignore this parser when generating usage line
     ///
     /// Parsers hidden from usage will still show up in available arguments list. Best used on
-    /// optional things that augment main application functionality but not define it. You might
-    /// use custom [`usage`](Parser::usage) to indicate that some options are hidden.
-    ///
+    /// optional things that augment main application functionality but not define it.
+    /// Alternatively you can use [`custom_usage`](Parser::custom_usage) to replace a single
+    /// option or a group of them with some other text.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/hide_usage.md"))]
     #[must_use]
     fn hide_usage(self) -> ParseUsage<Self>
@@ -1076,9 +1076,9 @@ pub trait Parser<T> {
 
     /// Customize how this parser looks like in the usage line
     ///
-    // #[doc=include_str!("docs2/arg_usage.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_usage.md"))]
     #[must_use]
-    fn usage<M>(self, usage: M) -> ParseUsage<Self>
+    fn custom_usage<M>(self, usage: M) -> ParseUsage<Self>
     where
         M: Into<Doc>,
         Self: Sized + Parser<T>,

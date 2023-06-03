@@ -301,7 +301,7 @@ fn custom_usage() {
 
     let mut buf = Doc::default();
     buf.text("<also takes flag b>");
-    let b = short('b').switch().usage(buf);
+    let b = short('b').switch().custom_usage(buf);
 
     let parser = construct!(a, b).to_options();
 
