@@ -13,11 +13,11 @@ fn write_explanation(doc_res: &mut String, explanation: &str) -> Result<()> {
     Ok(())
 }
 
-fn write_scenario(doc_res: &mut String, args: &[String]) -> Result<()> {
+fn write_scenario(doc_res: &mut String, args: &[String], all_args: &str) -> Result<()> {
     use std::fmt::Write;
     Ok(writeln!(
         doc_res,
-        "run_and_render(&mut res, options(), &{args:?}[..]).unwrap();"
+        "run_and_render(&mut res, options(), &{args:?}[..], {all_args:?}).unwrap();"
     )?)
 }
 
@@ -56,9 +56,12 @@ fn import_case(name: &str) -> Result<String> {
         panic!("cases.md is missing from {dir:?}!");
     }
     for line in std::fs::read_to_string(cases_file)?.lines() {
+        let all_args;
         let args = if let Some(args) = line.strip_prefix("> ") {
+            all_args = args;
             shell_words::split(args)?
         } else if line == ">" {
+            all_args = "";
             Vec::new()
         } else {
             write_explanation(&mut cases, line)?;
@@ -68,15 +71,15 @@ fn import_case(name: &str) -> Result<String> {
         match (!c_source.is_empty(), !d_source.is_empty()) {
             (true, false) => {
                 writeln!(cases, "let options = combine::options;")?;
-                write_scenario(&mut cases, &args)?;
+                write_scenario(&mut cases, &args, all_args)?;
             }
             (false, true) => {
                 writeln!(cases, "let options = derive::options;")?;
-                write_scenario(&mut cases, &args)?;
+                write_scenario(&mut cases, &args, all_args)?;
             }
             (true, true) => {
                 writeln!(cases, "let options = derive::options;")?;
-                write_scenario(&mut cases, &args)?;
+                write_scenario(&mut cases, &args, all_args)?;
                 write_compare(&mut cases, &args)?;
             }
             (false, false) => panic!("No source files for case {dir:?}"),
@@ -125,9 +128,9 @@ fn import_example(example: &Path, name: &str) -> Result<String> {
     let mut cases = String::new();
 
     for line in std::fs::read_to_string(PathBuf::from("src").join(name).join("cases.md"))?.lines() {
-        if let Some(args) = line.strip_prefix("> ") {
-            let args = shell_words::split(args)?;
-            write_scenario(&mut cases, &args)?;
+        if let Some(all_args) = line.strip_prefix("> ") {
+            let args = shell_words::split(all_args)?;
+            write_scenario(&mut cases, &args, all_args)?;
         } else {
             write_explanation(&mut cases, line)?;
         }

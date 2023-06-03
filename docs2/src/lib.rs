@@ -47,9 +47,9 @@ fn run_and_render<T: std::fmt::Debug>(
     res: &mut String,
     options: OptionParser<T>,
     args: &[&str],
+    all_args: &str,
 ) -> std::fmt::Result {
     use std::fmt::Write;
-    let all_args = args.join(" ");
     match options.run_inner(Args::from(args).set_name("app")) {
         Ok(ok) => writeln!(
             res,

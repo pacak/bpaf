@@ -91,7 +91,7 @@ Options { name: "Bob", age: 12 }
 
 
 <div class='bpaf-doc'>
-$ app --name Bob --age=12<br>
+$ app --name "Bob" --age=12<br>
 Options { name: "Bob", age: 12 }
 </div>
 
@@ -103,7 +103,7 @@ Options { name: "Bob", age: 18 }
 
 
 <div class='bpaf-doc'>
-$ app --name=Bob<br>
+$ app --name="Bob"<br>
 Options { name: "Bob", age: 18 }
 </div>
 
