@@ -24,10 +24,17 @@ fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::R
 
 #[test]
 fn simple() {
-    let options = short('d')
+    let kraken = short('d')
         .long("kraken")
         .help("Unleash the kraken")
-        .switch()
+        .switch();
+
+    let user = long("user")
+        .env("USER")
+        .help("Log in as this user")
+        .argument::<String>("USER");
+
+    let options = construct!(kraken, user)
         .to_options()
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
