@@ -9,11 +9,10 @@ use crate::{
 
 #[inline(never)]
 fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
-    let app = app.into();
     let mut sections = Vec::new();
     let root = meta;
     let mut path = vec![app];
-    extract_sections(&root, info, &mut path, &mut sections);
+    extract_sections(root, info, &mut path, &mut sections);
 
     let mut buf = Doc::default();
 
@@ -120,14 +119,6 @@ fn change_style(res: &mut String, cur: &mut Styles, new: Styles) {
     *cur = new;
 }
 
-/// Make it so new text is inserted at a new line
-/// as far as raw content is concerned
-fn at_newline(res: &mut String) {
-    if !(res.is_empty() || res.ends_with('\n')) {
-        res.push('\n');
-    }
-}
-
 /// Make it so new text is separated by an empty line
 fn blank_line(res: &mut String) {
     if !(res.is_empty() || res.ends_with("<br>\n")) {
@@ -150,6 +141,8 @@ div.bpaf-doc  { padding-left: 1em; }
 </style>";
 
 impl Doc {
+    #[doc(hidden)]
+    /// Render doc into html page, used by documentation sample generator
     pub fn render_html(&self, full: bool) -> String {
         let mut res = String::new();
         let mut byte_pos = 0;

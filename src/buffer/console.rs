@@ -113,7 +113,8 @@ impl Color {
 const PADDING: &str = "                                                  ";
 
 impl Doc {
-    pub fn monochrome(&self, full: bool) -> String {
+    /// Render the doc using monochrome version
+    pub(crate) fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)
     }
 

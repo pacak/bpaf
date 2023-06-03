@@ -163,7 +163,7 @@ impl Roff {
     /// This method creates a valid ROFF document which can be fed to a ROFF implementation
     #[must_use]
     pub(crate) fn render(&self, ap: Apostrophes) -> String {
-        let mut res = Vec::with_capacity(self.payload.len() * 2);
+        let mut res = Vec::with_capacity(self.payload.payload_size() * 2);
         if ap == Apostrophes::Handle {
             res.extend(super::escape::APOSTROPHE_PREABMLE.as_bytes());
         }

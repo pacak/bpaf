@@ -192,14 +192,10 @@ pub enum Style {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Block {
-    // 0 margin
+pub(crate) enum Block {
     /// level 1 section header, block for separate command inside manpage, not used in --help
     Header,
 
-    // 0 margin
-    /// level 2 section header, "Available options" in --help, etc
-    /// in plain text styled with
     Section2,
 
     // 2 margin

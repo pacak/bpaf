@@ -44,21 +44,8 @@ impl<T> FreeMonoid<T> {
     /// Length of stored text in bytes
     ///
     /// Does not account for space required to render the annotations
-    pub(crate) fn len(&self) -> usize {
+    pub(crate) fn payload_size(&self) -> usize {
         self.payload.len()
-    }
-
-    /// Is there anything inside?
-    ///
-    /// Returns `true` if both payload and labels are empty
-    pub(crate) fn is_empty(&self) -> bool {
-        self.payload.is_empty() && self.labels.is_empty()
-    }
-
-    /// Clear stored data while retaining the storage capacity
-    pub(crate) fn clear(&mut self) {
-        self.payload.clear();
-        self.labels.clear();
     }
 
     /// Append an annotated string slice

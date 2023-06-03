@@ -426,6 +426,8 @@ mod inner {
             }
         }
 
+        #[allow(dead_code)]
+        // it is in use when autocomplete is enabled
         pub(crate) fn is_empty(&self) -> bool {
             self.remaining == 0
         }
