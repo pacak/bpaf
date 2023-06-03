@@ -833,7 +833,7 @@ pub trait Parser<T> {
     /// `parse` takes a single parameter: function name to call. Function type should match
     /// parameter `F` used by `parse` in combinatoric API.
     ///
-    #[doc = include_str!("docs/parse.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/parse.md"))]
     ///
     fn parse<F, R, E>(self, f: F) -> ParseWith<T, Self, F, E, R>
     where
@@ -857,10 +857,10 @@ pub trait Parser<T> {
     /// A common case of [`parse`](Parser::parse) method, exists mostly for convenience.
     ///
     /// # Derive usage:
-    /// `map` takes a single parameter: function name to call. Function type should match
-    /// parameter `F` used by `map` in combinatoric API.
+    /// `map` takes a single parameter: function name to call. This function should transform
+    /// value produced by the parser into a new value of the same or different type.
     ///
-    #[doc = include_str!("docs/map.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/map.md"))]
     ///
     fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
     where
@@ -885,7 +885,7 @@ pub trait Parser<T> {
     /// Derive variant of `guard` takes a function name instead of a closure, mostly to keep things
     /// clean. Second argument can be either a string literal or a constant name for a static [`str`].
     ///
-    #[doc = include_str!("docs/guard.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/guard.md"))]
     ///
     #[must_use]
     fn guard<F>(self, check: F, message: &'static str) -> ParseGuard<Self, F>
