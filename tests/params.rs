@@ -5,8 +5,8 @@ use bpaf::*;
 #[test]
 fn get_any_simple() {
     let a = short('a').switch();
-    let b = any::<OsString, _, _>("REST", Some).help("any help");
-    let parser = construct!(a, b).to_options();
+    let b = any("REST", Some).help("any help");
+    let parser: OptionParser<(bool, OsString)> = construct!(a, b).to_options();
 
     let r = parser.run_inner(&["-a", "-b"]).unwrap().1;
     assert_eq!(r, "-b");
@@ -21,8 +21,8 @@ fn get_any_simple() {
 #[test]
 fn get_any_many() {
     let a = short('a').switch();
-    let b = any::<OsString, _, _>("REST", Some).help("any help").many();
-    let parser = construct!(a, b).to_options();
+    let b = any("REST", Some).help("any help").many();
+    let parser: OptionParser<(bool, Vec<OsString>)> = construct!(a, b).to_options();
 
     let r = parser.run_inner(&["-a", "-b"]).unwrap();
     assert_eq!(r.1, &["-b"]);
@@ -36,7 +36,7 @@ fn get_any_many() {
 
 #[test]
 fn get_any_many2() {
-    let parser = any::<OsString, _, _>("REST", Some).many().to_options();
+    let parser: OptionParser<Vec<OsString>> = any("REST", Some).many().to_options();
 
     let r = parser.run_inner(&["-vvv"]).unwrap();
     assert_eq!(r[0], "-vvv");

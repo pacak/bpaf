@@ -2,12 +2,12 @@ use bpaf::*;
 
 #[test]
 fn parse_anywhere_positional() {
-    let a = any::<String, _, _>("X", |h| if h != "--help" { Some(h) } else { None })
+    let a = any("X", |h| if h != "--help" { Some(h) } else { None })
         .help("all the things")
         .anywhere();
 
     let b = short('b').help("batch mode").switch();
-    let parser = construct!(a, b).to_options();
+    let parser: OptionParser<(String, bool)> = construct!(a, b).to_options();
 
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
@@ -168,11 +168,14 @@ fn parse_anywhere_catch_optional() {
 
 #[test]
 fn anywhere_literal() {
-    let tag = any::<String, _, _>("-mode", |x| if x == "-mode" { Some(()) } else { None });
+    let tag = any(
+        "-mode",
+        |x: String| if x == "-mode" { Some(()) } else { None },
+    );
     let mode = positional::<usize>("value");
     let a = construct!(tag, mode).adjacent().many().catch();
     let b = short('b').switch();
-    let parser = construct!(a, b).to_options();
+    let parser: OptionParser<(Vec<((), usize)>, bool)> = construct!(a, b).to_options();
 
     let r = parser.run_inner(&["-b", "-mode", "12"]).unwrap();
     assert_eq!(r, (vec![((), 12)], true));

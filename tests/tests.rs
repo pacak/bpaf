@@ -1648,7 +1648,8 @@ fn optional_bool_states() {
 #[test]
 fn fancy_negative() {
     let a = short('a').req_flag(());
-    let b = any::<i64, _, _>("A", Some);
+    #[allow(clippy::redundant_closure)]
+    let b = any("A", |i: i32| Some(i));
     let ab = construct!(a, b).adjacent().map(|x| x.1);
 
     let c = short('c').argument::<usize>("C").fallback(42);

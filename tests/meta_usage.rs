@@ -255,8 +255,8 @@ fn a_or_b_opt_and_c() {
 #[test]
 fn any_in_adjacent() {
     let a = short('a').req_flag(());
-    let b = any::<i64, _, _>("A", Some);
-    let parser = construct!(a, b).adjacent().to_options();
+    let b = any("A", Some);
+    let parser: OptionParser<((), i64)> = construct!(a, b).adjacent().to_options();
 
     assert_usage(parser, "-a A");
 }
