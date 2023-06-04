@@ -21,7 +21,7 @@ jobs:
           toolchain: stable
 
       - name: Tests
-        run: cargo test --workspace --all-targets --all-features
+        run: cargo test --workspace --all-targets --all-features --no-fail-fast
 
   linux:
     name: Tests, formatting and clippy on linux
@@ -48,13 +48,13 @@ jobs:
         run: cargo clippy --workspace --all-targets --all-features
 
       - name: test minimal features
-        run: cargo test --workspace --all-targets --no-default-features
+        run: cargo test --workspace --all-targets --no-default-features --no-fail-fast
 
       - name: test default features
-        run: cargo test --workspace --all-targets
+        run: cargo test --workspace --all-targets --no-fail-fast
 
       - name: test all features
-        run: cargo test --workspace --all-targets --all-features
+        run: cargo test --workspace --all-targets --all-features --no-fail-fast
 
       - name: Example documentation
         run: cargo build --all-features -p docs2 &&  git diff && git diff-index --quiet HEAD --
@@ -79,13 +79,13 @@ jobs:
           components: rustfmt clippy
 
       - name: test minimal features
-        run: cargo test --no-default-features --lib --tests
+        run: cargo test --no-default-features --lib --tests --no-fail-fast
 
       - name: test default features
-        run: cargo test --lib --tests
+        run: cargo test --lib --tests --no-fail-fast
 
       - name: test all features
-        run: cargo test --all-features --lib --tests
+        run: cargo test --all-features --lib --tests --no-fail-fast
 
       - name: derive
-        run: cargo test -p bpaf_derive --lib --tests --no-default-features
+        run: cargo test -p bpaf_derive --lib --tests --no-default-features --no-fail-fast
