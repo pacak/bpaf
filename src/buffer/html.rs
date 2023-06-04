@@ -143,7 +143,7 @@ div.bpaf-doc  { padding-left: 1em; }
 impl Doc {
     #[doc(hidden)]
     /// Render doc into html page, used by documentation sample generator
-    pub fn render_html(&self, full: bool) -> String {
+    pub fn render_html(&self, full: bool, include_css: bool) -> String {
         let mut res = String::new();
         let mut byte_pos = 0;
         let mut cur_style = Styles::default();
@@ -257,5 +257,22 @@ impl Doc {
         change_style(&mut res, &mut cur_style, Styles::default());
         res.push_str(CSS);
         res
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn transitions_are_okay() {
+        let mut doc = Doc::default();
+
+        doc.emphasis("Usage: "); // bold
+        doc.literal("my_program"); // bold + tt
+
+        let r = doc.render_html(true, false);
+
+        assert_eq!(r, "<b>Usage: <tt>my_program</tt></b>")
     }
 }
