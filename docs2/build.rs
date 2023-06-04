@@ -146,6 +146,7 @@ fn import_example(example: &Path, name: &str) -> Result<String> {
 
         #[test]
         fn all_the_test_cases() {{
+            std::env::set_var(\"USER\", \"pacak\");
             use bpaf::*;
             let mut res = String::new();
 
