@@ -48,6 +48,7 @@ impl Section<'_> {
 }
 
 impl<T> OptionParser<T> {
+    /// Render command line documentation for the app into a manpage
     pub fn render_manpage(
         &self,
         app: impl AsRef<str>,
