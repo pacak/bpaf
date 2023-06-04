@@ -11,11 +11,7 @@ pub enum Item {
     },
     /// Positional item, consumed from the the front of the arguments
     /// <FILE>
-    Positional {
-        metavar: Metavar,
-        strict: bool,
-        help: Option<Doc>,
-    },
+    Positional { metavar: Metavar, help: Option<Doc> },
     Command {
         name: &'static str,
         short: Option<char>,
@@ -55,18 +51,9 @@ impl Item {
         }
     }
     /// Normalize name inside ShortLong into either short or long
-    pub(crate) fn normalize(&mut self, short: bool, saw_strict: &mut bool) {
+    pub(crate) fn normalize(&mut self, short: bool) {
         match self {
-            Item::Positional { strict, .. } => {
-                if *strict {
-                    if *saw_strict {
-                        *strict = false;
-                    } else {
-                        *saw_strict = true;
-                    }
-                }
-            }
-            Item::Command { .. } | Item::Any { .. } => {}
+            Item::Positional { .. } | Item::Command { .. } | Item::Any { .. } => {}
             Item::Flag { name, .. } | Item::Argument { name, .. } => name.normalize(short),
         }
     }

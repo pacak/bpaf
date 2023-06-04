@@ -27,6 +27,8 @@ pub enum Meta {
     Skip,
     /// TODO make it Option<Box<Doc>>
     CustomUsage(Box<Meta>, Box<Doc>),
+    /// this meta must be prefixed with -- in unsage group
+    Strict(Box<Meta>),
 }
 
 // to get std::mem::take to work
@@ -36,7 +38,27 @@ impl Default for Meta {
     }
 }
 
-impl Doc {}
+// Meta::Strict should bubble up to one of 3 places:
+// - top level
+// - one of "and" elements
+// - one of "or" elements
+#[derive(Debug, Clone, Copy)]
+enum StrictNorm {
+    /// starting at the top and looking for Strict inside
+    Pull,
+    Push,
+    /// Already accounted for one, can strip the rest
+    Strip,
+}
+
+impl StrictNorm {
+    fn push(&mut self) {
+        match *self {
+            StrictNorm::Pull => *self = StrictNorm::Push,
+            StrictNorm::Push | StrictNorm::Strip => {}
+        }
+    }
+}
 
 impl Meta {
     /// Used by normalization function to collapse duplicated commands.
@@ -102,6 +124,7 @@ impl Meta {
                 | Meta::Many(m)
                 | Meta::CustomUsage(m, _)
                 | Meta::Subsection(m, _)
+                | Meta::Strict(m)
                 | Meta::Suffix(m, _) => go(m, is_pos, v),
                 Meta::Skip => {}
             }
@@ -115,14 +138,17 @@ impl Meta {
 
     pub(crate) fn normalized(&self, for_usage: bool) -> Meta {
         let mut m = self.clone();
-        let mut saw_strict = false;
-        m.normalize(for_usage, &mut saw_strict);
+        let mut norm = StrictNorm::Pull;
+        m.normalize(for_usage, &mut norm);
         // stip outer () around meta unless inner
         if let Meta::Required(i) = m {
             m = *i;
         }
         if matches!(m, Meta::Or(_)) {
             m = Meta::Required(Box::new(m));
+        }
+        if matches!(norm, StrictNorm::Push) {
+            m = Meta::Strict(Box::new(m));
         }
         m
     }
@@ -134,6 +160,7 @@ impl Meta {
             Meta::Item(item) => Some(*item.clone()),
             Meta::Skip | Meta::Or(_) => None,
             Meta::Optional(x)
+            | Meta::Strict(x)
             | Meta::Required(x)
             | Meta::Adjacent(x)
             | Meta::Many(x)
@@ -144,25 +171,34 @@ impl Meta {
     }
 
     /// Normalize meta info for display as usage. Required propagates outwards
-    fn normalize(&mut self, for_usage: bool, saw_strict: &mut bool) {
+    fn normalize(&mut self, for_usage: bool, norm: &mut StrictNorm) {
         fn normalize_vec(
             xs: &mut Vec<Meta>,
             for_usage: bool,
-            saw_strict: &mut bool,
+            norm: &mut StrictNorm,
             or: bool,
         ) -> Option<Meta> {
-            let mut final_saw_strict = *saw_strict;
+            let mut final_norm = *norm;
             xs.iter_mut().for_each(|m| {
-                let mut this_strict = *saw_strict;
-                m.normalize(for_usage, &mut this_strict);
-                if or {
-                    final_saw_strict |= this_strict;
-                } else {
-                    *saw_strict |= this_strict;
+                let mut this_norm = *norm;
+                m.normalize(for_usage, &mut this_norm);
+                let target: &mut StrictNorm = if or { &mut final_norm } else { norm };
+
+                match (*target, this_norm) {
+                    (_, StrictNorm::Pull) | (StrictNorm::Strip, _) => {}
+                    (StrictNorm::Pull, StrictNorm::Push) => {
+                        *m = Meta::Strict(Box::new(std::mem::take(m)));
+                        *target = StrictNorm::Strip;
+                    }
+                    _ => {
+                        *target = this_norm;
+                    }
                 }
             });
             xs.retain(|m| !matches!(m, Meta::Skip));
-            *saw_strict = final_saw_strict;
+
+            *norm = final_norm;
+
             match xs.len() {
                 0 => Some(Meta::Skip),
                 1 => Some(xs.remove(0)),
@@ -172,13 +208,13 @@ impl Meta {
 
         match self {
             Meta::And(xs) => {
-                if let Some(replacement) = normalize_vec(xs, for_usage, saw_strict, false) {
+                if let Some(replacement) = normalize_vec(xs, for_usage, norm, false) {
                     *self = replacement;
                 }
             }
             // or should have either () or [] around it
             Meta::Or(xs) => {
-                if let Some(replacement) = normalize_vec(xs, for_usage, saw_strict, true) {
+                if let Some(replacement) = normalize_vec(xs, for_usage, norm, true) {
                     *self = replacement;
                 } else {
                     let mut saw_cmd = false;
@@ -197,7 +233,7 @@ impl Meta {
                 }
             }
             Meta::Optional(m) => {
-                m.normalize(for_usage, saw_strict);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
                     // Optional(Skip) => Skip
                     *self = Meta::Skip;
@@ -208,7 +244,7 @@ impl Meta {
                 }
             }
             Meta::Required(m) => {
-                m.normalize(for_usage, saw_strict);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
                     // Required(Skip) => Skip
                     *self = Meta::Skip;
@@ -220,21 +256,21 @@ impl Meta {
                 }
             }
             Meta::Many(m) => {
-                m.normalize(for_usage, saw_strict);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
                     *self = Meta::Skip;
                 }
             }
             Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
-                m.normalize(for_usage, saw_strict);
+                m.normalize(for_usage, norm);
                 *self = std::mem::take(m);
             }
-            Meta::Item(i) => i.normalize(for_usage, saw_strict),
+            Meta::Item(i) => i.normalize(for_usage),
             Meta::Skip => {
                 // nothing to do with items and skip just bubbles upwards
             }
             Meta::CustomUsage(m, u) => {
-                m.normalize(for_usage, saw_strict);
+                m.normalize(for_usage, norm);
                 // strip CustomUsage if we are not in usage so writer can simply render it
                 if for_usage {
                     if u.is_empty() {
@@ -243,6 +279,11 @@ impl Meta {
                 } else {
                     *self = std::mem::take(m);
                 }
+            }
+            Meta::Strict(m) => {
+                m.normalize(for_usage, norm);
+                norm.push();
+                *self = std::mem::take(m);
             }
         }
     }
@@ -299,7 +340,7 @@ impl Meta {
             | Meta::Many(m) => {
                 m.collect_shorts(flags, args);
             }
-            Meta::Skip => {}
+            Meta::Skip | Meta::Strict(_) => {}
         }
     }
 }

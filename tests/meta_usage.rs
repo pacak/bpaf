@@ -318,6 +318,20 @@ fn double_strict() {
 }
 
 #[test]
+fn optional_strict() {
+    let parser = positional::<usize>("A").strict().optional().to_options();
+    assert_usage(parser, "-- [A]");
+}
+
+#[test]
+fn many_strict() {
+    let a = short('a').switch();
+    let b = positional::<usize>("B").strict().many();
+    let parser = construct!(a, b).to_options();
+    assert_usage(parser, "[-a] -- [B]...");
+}
+
+#[test]
 fn quadruple_strict() {
     let a = short('a').switch();
     let b = positional::<usize>("B").strict();
@@ -331,4 +345,18 @@ fn quadruple_strict() {
 
     let parser = construct!([abc, def]).to_options();
     assert_usage(parser, "([-a] -- B C | [-d] -- E F)");
+}
+
+#[test]
+fn quadruple_strict_many() {
+    let a = short('a').switch();
+    let b = positional::<usize>("B").strict().many();
+    let ab = construct!(a, b);
+
+    let d = short('d').switch();
+    let f = positional::<usize>("F").strict().many();
+    let df = construct!(d, f);
+
+    let parser = construct!([ab, df]).to_options();
+    assert_usage(parser, "([-a] -- [B]... | [-d] -- [F]...)");
 }

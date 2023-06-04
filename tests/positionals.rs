@@ -143,6 +143,5 @@ fn strictly_positional() {
     assert_eq!(r, "Expected `A` to be on the right side of `--`");
 
     let r = parser.run_inner(&["--"]).unwrap_err().unwrap_stderr();
-    // TODO - hmmmm.... this is a bit odd
-    assert_eq!(r, "Expected `-- A`, pass `--help` for usage information");
+    assert_eq!(r, "Expected `A`, pass `--help` for usage information");
 }

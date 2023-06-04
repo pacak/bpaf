@@ -843,11 +843,15 @@ impl<T> ParsePositional<T> {
     }
 
     fn meta(&self) -> Meta {
-        Meta::from(Item::Positional {
+        let meta = Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
-            strict: self.strict,
-        })
+        });
+        if self.strict {
+            Meta::Strict(Box::new(meta))
+        } else {
+            meta
+        }
     }
 }
 
@@ -883,7 +887,6 @@ fn parse_word(
             item: Item::Positional {
                 metavar,
                 help: help.clone(),
-                strict,
             },
             position,
             scope: args.scope(),

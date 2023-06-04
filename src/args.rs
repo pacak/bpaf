@@ -672,7 +672,6 @@ impl State {
                     item: Item::Positional {
                         help: None,
                         metavar,
-                        strict: false,
                     },
                     position,
                     scope: position..position + 1,

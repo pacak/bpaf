@@ -184,6 +184,7 @@ impl Meta {
             | Meta::Many(x)
             | Meta::Subsection(x, _)
             | Meta::Suffix(x, _)
+            | Meta::Strict(x)
             | Meta::CustomUsage(x, _) => x.peek_front_ty(),
             Meta::Item(i) => Some(HiTy::from(i.as_ref())),
             Meta::Skip => None,
@@ -210,9 +211,11 @@ impl<'a> HelpItems<'a> {
                     self.items.push(HelpItem::AnywhereStop { ty });
                 }
             }
-            Meta::CustomUsage(x, _) | Meta::Required(x) | Meta::Optional(x) | Meta::Many(x) => {
-                self.append_meta(x)
-            }
+            Meta::CustomUsage(x, _)
+            | Meta::Required(x)
+            | Meta::Optional(x)
+            | Meta::Many(x)
+            | Meta::Strict(x) => self.append_meta(x),
             Meta::Item(item) => {
                 if matches!(item.as_ref(), Item::Positional { help: None, .. }) {
                     return;
@@ -256,11 +259,7 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
     // {{{
     fn from(item: &'a Item) -> Self {
         match item {
-            Item::Positional {
-                metavar,
-                help,
-                strict: _,
-            } => Self::Positional {
+            Item::Positional { metavar, help } => Self::Positional {
                 metavar: *metavar,
                 help: help.as_ref(),
             },

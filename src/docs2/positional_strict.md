@@ -55,7 +55,7 @@ positional child arguments can look like this:
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> [<tt><b>-- </b><i>ARG</i></tt>]...</p><p><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> <tt><b>--</b></tt> [<tt><i>ARG</i></tt>]...</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>ARG</i></tt></dt>
 <dd>Arguments for the binary</dd>
 </dl>

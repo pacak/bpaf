@@ -97,14 +97,7 @@ impl Doc {
 
     pub(crate) fn write_item(&mut self, item: &Item) {
         match item {
-            Item::Positional {
-                metavar,
-                strict,
-                help: _,
-            } => {
-                if *strict {
-                    self.write_str("-- ", Style::Literal)
-                }
+            Item::Positional { metavar, help: _ } => {
                 self.metavar(*metavar);
             }
             Item::Command {
@@ -165,23 +158,30 @@ impl Doc {
                 Meta::Optional(m) => {
                     f.write_str("[", Style::Text);
                     go(m, f);
-                    f.write_str("]", Style::Text)
+                    f.write_str("]", Style::Text);
                 }
                 Meta::Required(m) => {
                     f.write_str("(", Style::Text);
                     go(m, f);
-                    f.write_str(")", Style::Text)
+                    f.write_str(")", Style::Text);
                 }
                 Meta::Item(i) => f.write_item(i),
                 Meta::Many(m) => {
                     go(m, f);
-                    f.write_str("...", Style::Text)
+                    f.write_str("...", Style::Text);
                 }
 
-                Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => go(m, f),
+                Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
+                    go(m, f);
+                }
                 Meta::Skip => {} // => f.write_str("no parameters expected", Style::Text),
                 Meta::CustomUsage(_, u) => {
                     f.doc(u);
+                }
+                Meta::Strict(m) => {
+                    f.write_str("--", Style::Literal);
+                    f.write_str(" ", Style::Text);
+                    go(m, f);
                 }
             }
         }
@@ -191,6 +191,7 @@ impl Doc {
     }
 }
 
+/// Style of a text fragment inside of [`Doc`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Style {
     /// Plain text, no decorations

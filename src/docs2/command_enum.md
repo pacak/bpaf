@@ -119,7 +119,7 @@ Same as before each command gets its own help message
 
 <div class='bpaf-doc'>
 $ app run --help<br>
-<p>Run a binary</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>run</b></tt> <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> [<tt><b>-- </b><i>ARG</i></tt>]...</p><p><div>
+<p>Run a binary</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>run</b></tt> <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> <tt><b>--</b></tt> [<tt><i>ARG</i></tt>]...</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>ARG</i></tt></dt>
 <dd>Arguments to pass to a binary</dd>
 </dl>
