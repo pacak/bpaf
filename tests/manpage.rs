@@ -47,6 +47,7 @@ fn simple() {
         Some("asdf"),
     );
 
+    #[cfg(unix)]
     assert!(write_updated(&roff, "tests/simple.1").unwrap());
 }
 
@@ -94,6 +95,7 @@ fn nested() {
             Some("asdf"),
         );
 
+    #[cfg(unix)]
     assert!(write_updated(&roff, "tests/nested.1").unwrap());
 }
 
@@ -123,5 +125,6 @@ fn very_nested() {
         Some("asdf"),
     );
 
+    #[cfg(unix)]
     assert!(write_updated(&roff, "tests/very_nested.1").unwrap());
 }
