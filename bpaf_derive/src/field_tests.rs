@@ -60,6 +60,19 @@ fn implicit_parser() {
 }
 
 #[test]
+fn implicit_parser_custom_help() {
+    let input: NamedField = parse_quote! {
+        /// help
+        #[bpaf(help(custom_help))]
+        number: usize
+    };
+    let output = quote! {
+        ::bpaf::long("number").help(custom_help).argument::<usize>("ARG")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn short_long() {
     let input: NamedField = parse_quote! {
         #[bpaf(short, long)]
@@ -670,6 +683,19 @@ fn any_field_4() {
 }
 
 #[test]
+fn any_field_custom_help() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO"), help(custom_help))]
+        /// help
+        Vec<OsString>
+    };
+    let output = quote! {
+        ::bpaf::any::<OsString, _, _>("FOO", Some).help(custom_help).many()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn any_field_5() {
     let input: UnnamedField = parse_quote! {
         #[bpaf(any("FOO", check))]
@@ -678,6 +704,19 @@ fn any_field_5() {
     };
     let output = quote! {
         ::bpaf::any::<OsString, _, _>("FOO", check).help("help").many()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn any_field_many_custom_help() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO", check), help(custom_help))]
+        /// help
+        Vec<OsString>
+    };
+    let output = quote! {
+        ::bpaf::any::<OsString, _, _>("FOO", check).help(custom_help).many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -703,6 +742,19 @@ fn unit_fields_are_required() {
     };
     let output = quote! {
         ::bpaf::long("name").help("help").req_flag(())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn unit_fields_are_required_custom_help() {
+    let input: NamedField = parse_quote! {
+        /// help
+        #[bpaf(help(custom_help))]
+        name: ()
+    };
+    let output = quote! {
+        ::bpaf::long("name").help(custom_help).req_flag(())
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

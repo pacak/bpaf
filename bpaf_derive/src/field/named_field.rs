@@ -24,6 +24,7 @@ pub struct Field {
     name: Option<Ident>,
     postpr: Vec<PostprAttr>,
     help: Option<String>,
+    cust_help: Option<Box<Expr>>,
 }
 
 fn check_stage(prev: &mut usize, new: usize, keyword: &Ident) -> Result<()> {
@@ -116,6 +117,7 @@ impl Field {
             consumer: None,
             postpr: Vec::new(),
             help: None,
+            cust_help: None,
         };
         let mut help = Vec::new();
 
@@ -357,6 +359,9 @@ impl Field {
                         check_stage(&mut stage, 4, &keyword)?;
                         let expr = parse_expr(input)?;
                         res.postpr.push(PostprAttr::GroupHelp(span, expr));
+                    } else if keyword == "help" {
+                        let expr = parse_expr(input)?;
+                        res.cust_help = Some(expr);
                     } else {
                         return Err(input_copy.error("Unexpected attribute"));
                     }
@@ -518,6 +523,18 @@ impl Field {
     }
 }
 
+impl Field {
+    fn pick_help(&self, tokens: &mut TokenStream) {
+        if let Some(help) = &self.cust_help {
+            quote!(.help(#help)).to_tokens(tokens);
+            return;
+        }
+        if let Some(help) = &self.help {
+            quote!(.help(#help)).to_tokens(tokens);
+        }
+    }
+}
+
 impl ToTokens for Field {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         if let Some(ext) = &self.external {
@@ -531,17 +548,13 @@ impl ToTokens for Field {
             if let Some(env) = &self.env {
                 quote!(.env(#env)).to_tokens(tokens);
             }
-            if let Some(help) = &self.help {
-                quote!(.help(#help)).to_tokens(tokens);
-            }
+            self.pick_help(tokens);
             if let Some(cons) = &self.consumer {
                 quote!(.#cons).to_tokens(tokens);
             }
         } else if let Some(pos) = &self.consumer {
             quote!(::bpaf::#pos).to_tokens(tokens);
-            if let Some(help) = &self.help {
-                quote!(.help(#help)).to_tokens(tokens);
-            }
+            self.pick_help(tokens);
         } else {
             unreachable!("implicit_consumer bug?");
         }
