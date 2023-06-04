@@ -196,7 +196,7 @@ impl ParseFailure {
         let color = Color::default();
         match self {
             ParseFailure::Stdout(msg, full) => {
-                print!("{}", msg.render_console(full, color));
+                println!("{}", msg.render_console(full, color));
                 0
             }
             ParseFailure::Completion(s) => {
@@ -204,7 +204,7 @@ impl ParseFailure {
                 0
             }
             ParseFailure::Stderr(msg, full) => {
-                eprint!("{}", msg.render_console(full, color));
+                eprintln!("{}", msg.render_console(full, color));
                 1
             }
         }

@@ -40,6 +40,7 @@ const MAX_WIDTH: usize = 100;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 /// Default to dull color if colors are enabled,
+#[allow(dead_code)]
 pub(crate) enum Color {
     Monochrome,
     #[cfg(feature = "color")]
@@ -50,8 +51,9 @@ pub(crate) enum Color {
 
 impl Default for Color {
     fn default() -> Self {
-        #[allow(clippy::let_and_return)]
-        #[allow(unused_mut)]
+        #![allow(clippy::let_and_return)]
+        #![allow(unused_mut)]
+        #![allow(unused_assignments)]
         let mut res;
         #[cfg(not(feature = "color"))]
         {
