@@ -136,14 +136,14 @@ Instead of usual metavariable `any` parsers take something that can represent an
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>bs=</b><i>BLOCK</i></tt>] [<tt><b>count=</b><i>NUM</i></tt>] <tt><b>of=</b><i>FILE</i></tt> [<tt><b>+turbo</b></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>bs=</b><i>BLOCK</i></tt></dt>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>bs=</b></tt><tt><i>BLOCK</i></tt>] [<tt><b>count=</b></tt><tt><i>NUM</i></tt>] <tt><b>of=</b></tt><tt><i>FILE</i></tt> [<tt><b>+turbo</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>bs=</b></tt><tt><i>BLOCK</i></tt></dt>
 <dd>How many bytes to read at once</dd>
 <dt></dt>
 <dd>[default: 1024]</dd>
-<dt><tt><b>count=</b><i>NUM</i></tt></dt>
+<dt><tt><b>count=</b></tt><tt><i>NUM</i></tt></dt>
 <dd>How many blocks to read</dd>
-<dt><tt><b>of=</b><i>FILE</i></tt></dt>
+<dt><tt><b>of=</b></tt><tt><i>FILE</i></tt></dt>
 <dd>Save results into this file</dd>
 <dt><tt><b>+turbo</b></tt></dt>
 <dd>Engage turbo mode!</dd>
@@ -171,7 +171,7 @@ Output file is required in this parser, other values are optional
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>of=</b><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+Expected <tt><b>of=</b></tt><tt><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

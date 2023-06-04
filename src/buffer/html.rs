@@ -55,7 +55,7 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
 
 impl<T> OptionParser<T> {
     pub fn render_html(&self, full: bool, app: impl Into<String>) -> String {
-        collect_html(app.into(), &self.inner.meta(), &self.info).render_html(full)
+        collect_html(app.into(), &self.inner.meta(), &self.info).render_html(full, true)
     }
 }
 
@@ -98,22 +98,22 @@ impl From<Style> for Styles {
 }
 
 fn change_style(res: &mut String, cur: &mut Styles, new: Styles) {
-    if cur.italic && !new.italic {
+    if cur.italic {
         res.push_str("</i>")
     }
-    if cur.bold && !new.bold {
+    if cur.bold {
         res.push_str("</b>")
     }
-    if cur.mono && !new.mono {
+    if cur.mono {
         res.push_str("</tt>")
     }
-    if !cur.mono && new.mono {
+    if new.mono {
         res.push_str("<tt>")
     }
-    if !cur.bold && new.bold {
+    if new.bold {
         res.push_str("<b>")
     }
-    if !cur.italic && new.italic {
+    if new.italic {
         res.push_str("<i>")
     }
     *cur = new;
@@ -255,7 +255,9 @@ impl Doc {
             }
         }
         change_style(&mut res, &mut cur_style, Styles::default());
-        res.push_str(CSS);
+        if include_css {
+            res.push_str(CSS);
+        }
         res
     }
 }
@@ -273,6 +275,6 @@ mod tests {
 
         let r = doc.render_html(true, false);
 
-        assert_eq!(r, "<b>Usage: <tt>my_program</tt></b>")
+        assert_eq!(r, "<b>Usage: </b><tt><b>my_program</b></tt>")
     }
 }

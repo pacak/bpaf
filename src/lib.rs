@@ -232,9 +232,9 @@
 //!
 //! ## 5. Improving user experience
 //!
-//! `bpaf` would use doc comments on fields in derive mode and and values passed in various
-//! `help` methods to generate `--help` documentation, you can further improve it with those
-//! methods:
+//! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
+//! in various `help` methods to generate `--help` documentation, you can further improve it
+//! using those methods:
 //!
 //! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
 //!   generated *Usage* line or whole generated help
@@ -251,9 +251,8 @@
 //! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
 //!
 //! And finally you can generate documentation for command line in html-markdown mix and manpage
-//! formats
-//! - [`render_html`](OptionParser::render_html)
-//! - [`render_manpage`](OptionParser::render_manpage)
+//! formats using [`render_html`](OptionParser::render_html) and
+//! [`render_manpage`](OptionParser::render_manpage), for more detailed info see [`doc`] module
 //!
 //! ## 6. Testing your parsers and running them
 //! - You can [`run`](OptionParser::run) the parser on the arguments passed on the command line

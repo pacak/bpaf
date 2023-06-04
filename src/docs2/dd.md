@@ -75,18 +75,18 @@ fn main() {
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b><i>FILE</i></tt>] [<tt><b>of=</b><i>FILE</i></tt>] [<tt><b>bs=</b><i>SIZE</i></tt>]</p><p><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-m</b></tt>] [<tt><b>if=</b></tt><tt><i>FILE</i></tt>] [<tt><b>of=</b></tt><tt><i>FILE</i></tt>] [<tt><b>bs=</b></tt><tt><i>SIZE</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>-m</b></tt>, <tt><b>--magic</b></tt></dt>
 <dd>a usual switch still works</dd>
-<dt><tt><b>if=</b><i>FILE</i></tt></dt>
+<dt><tt><b>if=</b></tt><tt><i>FILE</i></tt></dt>
 <dd>read from FILE</dd>
 <dt></dt>
 <dd>[default: -]</dd>
-<dt><tt><b>of=</b><i>FILE</i></tt></dt>
+<dt><tt><b>of=</b></tt><tt><i>FILE</i></tt></dt>
 <dd>write to FILE</dd>
 <dt></dt>
 <dd>[default: -]</dd>
-<dt><tt><b>bs=</b><i>SIZE</i></tt></dt>
+<dt><tt><b>bs=</b></tt><tt><i>SIZE</i></tt></dt>
 <dd>read/write SIZE blocks at once</dd>
 <dt></dt>
 <dd>[default: 512]</dd>

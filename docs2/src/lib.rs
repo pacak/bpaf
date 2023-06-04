@@ -68,7 +68,7 @@ $ app {all_args}<br>
 {}
 </div>
 ",
-            buf.render_html(full)
+            buf.render_html(full, true)
         )?,
         Err(ParseFailure::Completion(_)) => todo!(),
     };
