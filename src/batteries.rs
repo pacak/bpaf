@@ -149,7 +149,7 @@ pub fn toggle_flag<T: Copy + 'static>(
 /// 3. And don't show anything to the user in `--help` or completion
 /// 4. Parse this word and then everything else as a tuple, return that second item.
 ///
-#[doc = include_str!("docs/cargo_helper.md")]
+#[cfg_attr(not(doctest), doc = include_str!("docs2/cargo_helper.md"))]
 ///
 #[must_use]
 pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>

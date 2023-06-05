@@ -1443,7 +1443,7 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
 
 /// Strip a command name if present at the front when used as a `cargo` command
 ///
-/// See batteries::cargo_helper
+// this is exactly the same as batteries::cargo_helper, but used by derive macro...
 #[must_use]
 #[doc(hidden)]
 pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
@@ -1451,10 +1451,6 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let skip = positional::<String>("cmd")
-        .guard(move |s| s == cmd, "")
-        .optional()
-        .catch()
-        .hide();
+    let skip = literal(cmd).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
