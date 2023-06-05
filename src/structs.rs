@@ -114,7 +114,7 @@ impl<P> ParseSome<P> {
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
@@ -527,7 +527,7 @@ impl<P> ParseMany<P> {
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/many_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
