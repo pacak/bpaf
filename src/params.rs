@@ -950,6 +950,10 @@ pub struct ParseAny<T, I, F> {
 #[cfg_attr(not(doctest), doc = include_str!("docs2/any_simple.md"))]
 ///
 /// # Use `any` to parse a non standard flag
+///
+#[cfg_attr(not(doctest), doc = include_str!("docs2/any_switch.md"))]
+///
+/// # Use `any` to parse a non standard argument
 /// Normally `any` would try to display itself as a usual metavariable in the usage line and
 /// generated help, you can customize that with [`metavar`](ParseAny::metavar) method:
 ///

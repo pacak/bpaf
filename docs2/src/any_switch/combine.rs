@@ -1,8 +1,6 @@
 //
-use bpaf::*;
+use bpaf::{doc::*, *};
 #[derive(Debug, Clone)]
-//
-#[allow(dead_code)]
 pub struct Options {
     turbo: bool,
     backing: bool,
@@ -10,6 +8,7 @@ pub struct Options {
 }
 
 fn toggle_option(name: &'static str, help: &'static str) -> impl Parser<bool> {
+    // parse +name and -name into a bool
     any::<String, _, _>(name, move |s: String| {
         if let Some(rest) = s.strip_prefix('+') {
             (rest == name).then_some(true)
@@ -19,13 +18,29 @@ fn toggle_option(name: &'static str, help: &'static str) -> impl Parser<bool> {
             None
         }
     })
+    // set a custom usage and help metavariable
+    .metavar(
+        &[
+            ("+", Style::Literal),
+            (name, Style::Literal),
+            (" | ", Style::Text),
+            ("-", Style::Literal),
+            (name, Style::Literal),
+        ][..],
+    )
+    // set a custom help description
     .help(help)
+    // apply this parser to all unconsumed items
     .anywhere()
 }
 
 pub fn options() -> OptionParser<Options> {
-    let backing = toggle_option("backing", "Backing status").fallback(false);
-    let xinerama = toggle_option("xinerama", "Xinerama status").fallback(true);
+    let backing = toggle_option("backing", "Enable or disable backing")
+        .fallback(false)
+        .debug_fallback();
+    let xinerama = toggle_option("xinerama", "enable or disable Xinerama")
+        .fallback(true)
+        .debug_fallback();
     let turbo = short('t')
         .long("turbo")
         .help("Engage the turbo mode")
