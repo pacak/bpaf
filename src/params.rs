@@ -62,6 +62,7 @@ use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 use crate::{
     args::{Arg, State},
+    buffer::Style,
     error::{Message, MissingItem},
     from_os_str::parse_os_str,
     item::ShortLong,
@@ -942,21 +943,27 @@ pub struct ParseAny<T, I, F> {
 /// unconsumed items, otherwise `any` fails.
 ///
 /// # Use `any` to capture remaining arguments
+/// Normally you would use [`positional`] with [`strict`](ParsePositional::strict) annotation for
+/// that, but using any allows to blur the boundary between arguments for child process and self
+/// process a bit more.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/any_simple.md"))]
 ///
 /// # Use `any` to parse a non standard flag
+/// Normally `any` would try to display itself as a usual metavariable in the usage line and
+/// generated help, you can customize that with [`metavar`](ParseAny::metavar) method:
+///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
 ///
 /// # See also
 /// [`literal`] - a specialized version of `any` that tries to parse a fixed literal
 #[must_use]
-pub fn any<I, T, F>(metavar: impl Into<Doc>, check: F) -> ParseAny<T, I, F>
+pub fn any<I, T, F>(metavar: &str, check: F) -> ParseAny<T, I, F>
 where
     I: FromStr + 'static,
     F: Fn(I) -> Option<T>,
 {
     ParseAny {
-        metavar: metavar.into(),
+        metavar: [(metavar, Style::Metavar)][..].into(),
         help: None,
         check,
         ctx: PhantomData,
@@ -977,13 +984,8 @@ where
 /// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
 /// or not.
 pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
-    any(&[(val, crate::buffer::Style::Literal)][..], move |s| {
-        if s == val {
-            Some(())
-        } else {
-            None
-        }
-    })
+    any("", move |s| if s == val { Some(()) } else { None })
+        .metavar(&[(val, crate::buffer::Style::Literal)][..])
 }
 
 impl<F, I, T> ParseAny<T, F, I> {
@@ -1000,6 +1002,12 @@ impl<F, I, T> ParseAny<T, F, I> {
     #[must_use]
     pub fn help<M: Into<Doc>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
+        self
+    }
+
+    /// Replace metavar with a custom value
+    pub fn metavar<M: Into<Doc>>(mut self, metavar: M) -> Self {
+        self.metavar = metavar.into();
         self
     }
 

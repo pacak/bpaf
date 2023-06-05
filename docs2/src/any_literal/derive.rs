@@ -52,17 +52,15 @@ where
     // and if it is - it accepts it, otherwise it behaves like it never saw it
     // it is possible to parse OsString here and strip the prefix with
     // `os_str_bytes` or a similar crate
-    any(
+    any("", move |s: String| Some(s.strip_prefix(name)?.to_owned()))
         // this defines custom metavar for the help message
         // so it looks like something it designed to parse
-        &[(name, Style::Literal), (meta, Style::Metavar)][..],
-        move |s: String| Some(s.strip_prefix(name)?.to_owned()),
-    )
-    .help(help)
-    // this makes it so tag parser tries to read all (unconsumed by earlier parsers)
-    // item on a command line instead of trying and failing on the first one
-    .anywhere()
-    // At this point parser produces `String` while consumer might expect some other
-    // type. [`parse`](Parser::parse) handles that
-    .parse(|s| s.parse())
+        .metavar(&[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        // this makes it so tag parser tries to read all (unconsumed by earlier parsers)
+        // item on a command line instead of trying and failing on the first one
+        .anywhere()
+        // At this point parser produces `String` while consumer might expect some other
+        // type. [`parse`](Parser::parse) handles that
+        .parse(|s| s.parse())
 }

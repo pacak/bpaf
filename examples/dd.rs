@@ -20,14 +20,12 @@ where
 {
     // it is possible to parse OsString here and strip the prefix with
     // `os_str_bytes` or a similar crate
-    any(
+    any("", move |s: String| Some(s.strip_prefix(name)?.to_owned()))
         // this defines custom metavar for the help message
-        &[(name, Style::Literal), (meta, Style::Metavar)][..],
-        move |s: String| Some(s.strip_prefix(name)?.to_owned()),
-    )
-    .help(help)
-    .anywhere()
-    .parse(|s| s.parse())
+        .metavar(&[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        .anywhere()
+        .parse(|s| s.parse())
 }
 
 fn in_file() -> impl Parser<String> {
