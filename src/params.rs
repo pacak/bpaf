@@ -941,6 +941,10 @@ pub struct ParseAny<T, I, F> {
 /// as if it haven't seen it. If `any` works in `anywhere` mode - it will try to parse all other
 /// unconsumed items, otherwise `any` fails.
 ///
+/// # Use `any` to capture remaining arguments
+#[cfg_attr(not(doctest), doc = include_str!("docs2/any_simple.md"))]
+///
+/// # Use `any` to parse a non standard flag
 #[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
 ///
 /// # See also
