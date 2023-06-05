@@ -10,7 +10,7 @@
 //! primitive flag parser produces one of two values. User can combine several short flags in a single
 //! invocation: `-a -b -c` is the same as `-abc`.
 //!
-#![doc = include_str!("docs/flag.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
 //!
 //! ## Required flag
 //!
@@ -33,14 +33,14 @@
 //! literal can't start with `-` unless separated from the flag with `=`. For short flags value
 //! can follow immediately: `-fbar`.
 //!
-#![doc = include_str!("docs/argument.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/arument.md"))]
 //!
 //! ## Positional
 //!
 //! A positional argument with no additonal name, for example in `vim main.rs` `main.rs`
 //! is a positional argument. Can't start with `-`, created with [`positional`].
 //!
-#![doc = include_str!("docs/positional.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))]
 //!
 //! ## Any
 //!
@@ -57,7 +57,7 @@
 //! string. For example `cargo build` invokes command `"build"` and after `"build"` `cargo`
 //! starts accepting values it won't accept otherwise
 //!
-#![doc = include_str!("docs/command.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
 //!
 use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
@@ -262,8 +262,7 @@ impl NamedArg {
     ///
     /// More generic version of [`switch`](NamedArg::switch) that can use arbitrary type instead of
     /// [`bool`].
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
-    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
     #[must_use]
     pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
     where
