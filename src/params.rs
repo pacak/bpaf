@@ -172,7 +172,7 @@ pub fn long(long: &'static str) -> NamedArg {
 /// that wouldn't leak sensitive info.
 
 ///
-#[doc = include_str!("docs/short_long_env.md")]
+#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
 pub fn env(variable: &'static str) -> NamedArg {
     NamedArg {
