@@ -33,7 +33,7 @@
 //! literal can't start with `-` unless separated from the flag with `=`. For short flags value
 //! can follow immediately: `-fbar`.
 //!
-#![cfg_attr(not(doctest), doc = include_str!("docs2/arument.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
 //!
 //! ## Positional
 //!
