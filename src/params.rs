@@ -48,7 +48,8 @@
 //! isn't restricted to positional looking structure and would consume any items as they appear on
 //! a command line. Can be useful to collect anything unused to pass to other applications.
 //!
-#![doc = include_str!("docs/any.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/any_simple.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
 //!
 //! ## Command
 //!
@@ -998,7 +999,7 @@ impl<F, I, T> ParseAny<T, F, I> {
     }
 
     /// Add a help message to [`any`] parser.
-    #[doc = include_str!("docs/any.md")]
+    /// See examples in [`any`]
     #[must_use]
     pub fn help<M: Into<Doc>>(mut self, help: M) -> Self {
         self.help = Some(help.into());
@@ -1006,14 +1007,14 @@ impl<F, I, T> ParseAny<T, F, I> {
     }
 
     /// Replace metavar with a custom value
+    /// See examples in [`any`]
     pub fn metavar<M: Into<Doc>>(mut self, metavar: M) -> Self {
         self.metavar = metavar.into();
         self
     }
 
     /// Try to apply the parser to each unconsumed element instead of just the front one
-    ///
-    #[doc = include_str!("docs/anywhere.md")]
+    /// See examples in [`any`]
     pub fn anywhere(mut self) -> Self {
         self.anywhere = true;
         self
