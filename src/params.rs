@@ -17,7 +17,7 @@
 //! Similar to `flag`, but instead of falling back to the second value required flag parser would
 //! fail. Mostly useful in combination with other parsers, created with [`NamedArg::req_flag`].
 //!
-#![doc = include_str!("docs/req_flag.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
 //!
 //! ## Switch
 //!
