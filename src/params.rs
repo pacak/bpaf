@@ -24,7 +24,7 @@
 //! A special case of a flag that gets decoded into a `bool`, mostly serves as a convenient
 //! shortcut to `.flag(true, false)`. Created with [`NamedArg::switch`].
 //!
-#![doc = include_str!("docs/switch.md")]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
 //!
 //! ## Argument
 //!
