@@ -206,7 +206,7 @@ fn enum_command() {
             /// foo doc
             Foo { field: usize },
             /// bar doc
-            #[bpaf(command)]
+            #[bpaf(command, adjacent)]
             Bar { field: bool }
         }
     };
@@ -233,7 +233,7 @@ fn enum_command() {
                     .to_options()
                     .descr("bar doc");
                     inner_cmd.command("bar").help("bar doc")
-                };
+                }.adjacent();
                 ::bpaf::construct!([alt0, alt1])
             }
         }
@@ -791,6 +791,27 @@ fn single_unit_command() {
                 let inner_cmd = ::bpaf::pure(One).to_options();
                 inner_cmd.command("one")
             }
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn single_unit_adjacent_command() {
+    let top: Top = parse_quote! {
+        #[bpaf(command, adjacent)]
+        struct One;
+    };
+
+    let expected = quote! {
+        fn one() -> impl ::bpaf::Parser<One> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let inner_cmd = ::bpaf::pure(One).to_options();
+                inner_cmd.command("one")
+            }.adjacent()
         }
     };
 

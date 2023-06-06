@@ -150,6 +150,7 @@ pub struct Inner {
     pub is_hidden: bool,
     pub is_default: bool,
     pub skip: bool,
+    pub adjacent: bool,
 }
 
 impl Inner {
@@ -163,6 +164,7 @@ impl Inner {
             is_hidden: false,
             is_default: false,
             skip: false,
+            adjacent: false,
         };
         for attr in attrs {
             if attr.path().is_ident("doc") {
@@ -209,6 +211,14 @@ impl Inner {
                         res.is_default = true;
                     } else if keyword == "skip" {
                         res.skip = true;
+                    } else if keyword == "adjacent" {
+                        if res.command.is_some() {
+                            res.adjacent = true;
+                        } else {
+                            return Err(input_copy.error(
+                                "In this context `adjacent` requires `command` annotation",
+                            ));
+                        }
                     } else if keyword == "usage" {
                         if let Some(cmd) = &mut res.command {
                             let content;
@@ -432,9 +442,10 @@ impl Top {
         let inner = BParser::Constructor {
             name: constr,
             fields,
-            adjacent: outer.adjacent,
+            adjacent: outer.adjacent && !matches!(outer.kind, Some(OuterKind::Command(_))),
             boxed: outer.boxed,
         };
+
         Ok(Top {
             name: outer
                 .generate
@@ -498,7 +509,7 @@ impl Top {
                     let branch = BParser::Command {
                         attribute: cmd_arg,
                         inner_parser: Box::new(oparser),
-                        is_adjacent: outer.adjacent,
+                        is_adjacent: outer.adjacent || inner.adjacent,
                         is_hidden: inner.is_hidden,
                     };
                     branches.push(branch);
