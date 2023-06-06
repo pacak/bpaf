@@ -709,25 +709,25 @@ impl<T> ParseCon<T> {
     ///
     /// # Multi-value arguments
     ///
-    /// Parsing things like `--foo ARG1 ARG2 ARG3`
-    #[doc = include_str!("docs/adjacent_0.md")]
+    /// Parsing things like `--point X Y Z`
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_0.md"))]
     ///
     /// # Structure groups
     ///
-    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-    #[doc = include_str!("docs/adjacent_1.md")]
+    /// Parsing things like `--rect --width W --height H --rect --height H --width W`
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_1.md"))]
     ///
     /// # Chaining commands
-    ///
+    /// This example explains [`adjacent`](crate::params::ParseCommand::adjacent), but the same idea holds.
     /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
     ///
-    #[doc = include_str!("docs/adjacent_2.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     ///
-    /// # Start and end markers
+    /// # Capturing everything between markers
     ///
     /// Parsing things like `find . --exec foo {} -bar ; --more`
     ///
-    #[doc = include_str!("docs/adjacent_3.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_3.md"))]
     ///
     /// # Multi-value arguments with optional flags
     ///
@@ -736,7 +736,7 @@ impl<T> ParseCon<T> {
     /// So you can parse things while parsing things. Not sure why you might need this, but you can
     /// :)
     ///
-    #[doc = include_str!("docs/adjacent_4.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_4.md"))]
     ///
     /// # Performance and other considerations
     ///

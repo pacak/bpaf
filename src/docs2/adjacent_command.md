@@ -8,10 +8,11 @@ pub struct Options {
 }
 
 #[derive(Debug, Clone)]
+// shape of the variants doesn't really matter, let's use all of them :)
 enum Cmd {
     Eat(String),
-    Drink(bool),
-    Sleep(usize),
+    Drink { coffee: bool },
+    Sleep { time: usize },
 }
 
 fn cmd() -> impl Parser<Cmd> {
@@ -22,22 +23,21 @@ fn cmd() -> impl Parser<Cmd> {
         .adjacent()
         .map(Cmd::Eat);
 
-    let drink = long("coffee")
+    let coffee = long("coffee")
         .help("Are you going to drink coffee?")
-        .switch()
+        .switch();
+    let drink = construct!(Cmd::Drink { coffee })
         .to_options()
         .descr("Performs drinking action")
         .command("drink")
-        .adjacent()
-        .map(Cmd::Drink);
+        .adjacent();
 
-    let sleep = long("time")
-        .argument::<usize>("HOURS")
+    let time = long("time").argument::<usize>("HOURS");
+    let sleep = construct!(Cmd::Sleep { time })
         .to_options()
         .descr("Performs taking a nap action")
         .command("sleep")
-        .adjacent()
-        .map(Cmd::Sleep);
+        .adjacent();
 
     construct!([eat, drink, sleep])
 }
@@ -49,6 +49,40 @@ pub fn options() -> OptionParser<Options> {
         .switch();
     let commands = cmd().many();
     construct!(Options { premium, commands }).to_options()
+}
+```
+
+</details>
+<details><summary>Derive example</summary>
+
+```no_run
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    #[bpaf(short, long)]
+    /// Opt in for premium serivces
+    pub premium: bool,
+    #[bpaf(external(cmd), many)]
+    pub commands: Vec<Cmd>,
+}
+
+#[derive(Debug, Clone, Bpaf)]
+pub enum Cmd {
+    #[bpaf(command, adjacent)]
+    /// Performs eating action
+    Eat(#[bpaf(positional("FOOD"))] String),
+    #[bpaf(command, adjacent)]
+    /// Performs drinking action
+    Drink {
+        /// Are you going to drink coffee?
+        coffee: bool,
+    },
+    #[bpaf(command, adjacent)]
+    /// Performs taking a nap action
+    Sleep {
+        #[bpaf(argument("HOURS"))]
+        time: usize,
+    },
 }
 ```
 
@@ -125,7 +159,7 @@ items sequentially
 
 <div class='bpaf-doc'>
 $ app eat Fastfood drink --coffee sleep --time=5<br>
-Options { premium: false, commands: [Eat("Fastfood"), Drink(true), Sleep(5)] }
+Options { premium: false, commands: [Eat("Fastfood"), Drink { coffee: true }, Sleep { time: 5 }] }
 </div>
 
 
@@ -139,7 +173,7 @@ You can mix chained commands with regular arguments that belong to the top level
 
 <div class='bpaf-doc'>
 $ app sleep --time 10 --premium eat 'Bak Kut Teh' drink<br>
-Options { premium: true, commands: [Sleep(10), Eat("Bak Kut Teh"), Drink(false)] }
+Options { premium: true, commands: [Sleep { time: 10 }, Eat("Bak Kut Teh"), Drink { coffee: false }] }
 </div>
 
 

@@ -7,10 +7,11 @@ pub struct Options {
 }
 
 #[derive(Debug, Clone)]
+// shape of the variants doesn't really matter, let's use all of them :)
 enum Cmd {
     Eat(String),
-    Drink(bool),
-    Sleep(usize),
+    Drink { coffee: bool },
+    Sleep { time: usize },
 }
 
 fn cmd() -> impl Parser<Cmd> {
@@ -21,22 +22,21 @@ fn cmd() -> impl Parser<Cmd> {
         .adjacent()
         .map(Cmd::Eat);
 
-    let drink = long("coffee")
+    let coffee = long("coffee")
         .help("Are you going to drink coffee?")
-        .switch()
+        .switch();
+    let drink = construct!(Cmd::Drink { coffee })
         .to_options()
         .descr("Performs drinking action")
         .command("drink")
-        .adjacent()
-        .map(Cmd::Drink);
+        .adjacent();
 
-    let sleep = long("time")
-        .argument::<usize>("HOURS")
+    let time = long("time").argument::<usize>("HOURS");
+    let sleep = construct!(Cmd::Sleep { time })
         .to_options()
         .descr("Performs taking a nap action")
         .command("sleep")
-        .adjacent()
-        .map(Cmd::Sleep);
+        .adjacent();
 
     construct!([eat, drink, sleep])
 }
