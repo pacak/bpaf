@@ -107,7 +107,7 @@ Lightweight and flexible command line argument parser with derive and combinator
 	use bpaf::{construct, long, Parser};
 	#[derive(Clone, Debug)]
 	struct SpeedAndDistance {
-	    /// Dpeed in KPH
+	    /// Speed in KPH
 	    speed: f64,
 	    /// Distance in miles
 	    distance: f64,
