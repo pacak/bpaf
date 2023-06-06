@@ -230,6 +230,9 @@
 //! All fields in a struct needs to be successfully parsed in order for the parser to succeed
 //! and only one variant from enum will consume its values at a time.
 //!
+//! You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
+//! group allowing for more unusual scenarios such as multiple value arguments or chained commands.
+//!
 //! ## 5. Improving user experience
 //!
 //! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
