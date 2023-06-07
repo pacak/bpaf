@@ -1,547 +1,166 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::parse::{Parse, ParseStream};
-use syn::punctuated::Punctuated;
 use syn::{
-    braced, parenthesized, parse, parse_quote, token, Attribute, Expr, Ident, LitChar, LitStr,
-    Result, Token, Visibility,
+    braced, parenthesized,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    punctuated::Punctuated,
+    token, Attribute, Error, Expr, Ident, LitChar, LitStr, Result, Visibility,
 };
 
-use crate::field::{
-    parse_expr, parse_ident, parse_lit_char, parse_lit_str, parse_opt_arg, ConstrName, Field,
-    ReqFlag,
+use crate::{
+    attrs::{parse_bpaf_doc_attrs, EnumPrefix, PostDecor, StrictName},
+    field::StructField,
+    help::Help,
+    td::*,
+    utils::{to_kebab_case, to_snake_case, LineIter},
 };
-use crate::utils::{doc_comment, snake_case_ident, to_snake_case, LineIter};
 
 #[derive(Debug)]
-pub struct Top {
-    /// generated function name
-    name: Ident,
+/// Top level container
+///
+/// describes generated function name, visibility and suffix for OptionsDecor
+/// Contains Body
+pub(crate) struct Top {
+    // {{{
+    /// Name of a parsed or produced type, possibly with generics
+    ty: Ident,
 
-    /// visibility for the generated function
+    /// Visibility, derived from the type visibility or top level annotation
     vis: Visibility,
 
-    /// Type for generated function:
-    ///
-    /// T in Parser<T> or OptionParser<T>
-    outer_ty: Ident,
+    /// Name of a generated function, usually derived from type,
+    /// but can be specified with generate
+    generate: Ident,
 
-    kind: ParserKind,
-}
-
-#[derive(Debug)]
-#[allow(clippy::large_enum_variant)]
-enum ParserKind {
-    BParser(BParser, Option<String>),
-    OParser(OParser),
-}
-
-#[derive(Debug)]
-enum BParser {
-    Command {
-        attribute: CommandAttr,
-        inner_parser: Box<OParser>,
-        is_adjacent: bool,
-        is_hidden: bool,
-    },
-    CargoHelper(LitStr, Box<BParser>),
-    CompStyle(Box<Expr>, Box<BParser>),
-    Constructor {
-        name: ConstrName,
-        fields: Fields,
-        adjacent: bool,
-        boxed: bool,
-    },
-    Singleton(Box<ReqFlag>),
-    Fold(Vec<BParser>, Option<Box<Expr>>),
-}
-
-#[derive(Debug)]
-struct OParser {
-    inner: Box<BParser>,
-    decor: Decor,
-}
-
-#[derive(Debug, Default)]
-struct Decor {
-    descr: Option<String>,
-    header: Option<String>,
-    footer: Option<String>,
-    version: Option<Box<Expr>>,
-    usage: Option<LitStr>,
-}
-
-impl ToTokens for Decor {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        if let Some(descr) = &self.descr {
-            if !descr.is_empty() {
-                quote!(.descr(#descr)).to_tokens(tokens);
-            }
-        }
-        if let Some(header) = &self.header {
-            if !header.is_empty() {
-                quote!(.header(#header)).to_tokens(tokens);
-            }
-        }
-        if let Some(footer) = &self.footer {
-            if !footer.is_empty() {
-                quote!(.footer(#footer)).to_tokens(tokens);
-            }
-        }
-        if let Some(ver) = &self.version {
-            quote!(.version(#ver)).to_tokens(tokens);
-        }
-        if let Some(usage) = &self.usage {
-            quote!(.usage(#usage)).to_tokens(tokens);
-        }
-    }
-}
-
-/// A collection of fields, corresponds to a single constructor in enum or the whole struct but
-/// without the name
-#[derive(Clone, Debug)]
-enum Fields {
-    Named(Punctuated<Field, Token![,]>),
-    Unnamed(Punctuated<Field, Token![,]>),
-    NoFields,
-}
-impl Parse for Fields {
-    fn parse(input: parse::ParseStream) -> Result<Self> {
-        let content;
-        if input.peek(token::Brace) {
-            let _ = braced!(content in input);
-            let fields = content.parse_terminated(Field::parse_named, token::Comma)?;
-            Ok(Fields::Named(fields))
-        } else if input.peek(token::Paren) {
-            let _ = parenthesized!(content in input);
-            let fields = content.parse_terminated(Field::parse_unnamed, token::Comma)?;
-            Ok(Fields::Unnamed(fields))
-        } else if input.peek(token::Semi) {
-            let _ = input.parse::<token::Semi>();
-            Ok(Fields::NoFields)
-        } else {
-            Err(input.error("Expected named or unnamed struct"))
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-enum OuterKind {
-    Construct,
-    Options(Option<LitStr>),
-    Command(CommandAttr),
-}
-
-#[derive(Clone, Debug)]
-pub struct CommandAttr {
-    name: LitStr,
-    shorts: Vec<LitChar>,
-    longs: Vec<LitStr>,
-    usage: Option<LitStr>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Inner {
-    pub command: Option<CommandAttr>,
-    pub help: Vec<String>, // TODO - use the same with Outer
-    pub shorts: Vec<LitChar>,
-    pub longs: Vec<LitStr>,
-    pub envs: Vec<Expr>,
-    pub is_hidden: bool,
-    pub is_default: bool,
-    pub skip: bool,
-    pub adjacent: bool,
-}
-
-impl Inner {
-    fn make(inner_ty: &Ident, attrs: Vec<Attribute>) -> Result<Self> {
-        let mut res = Inner {
-            command: None,
-            help: Vec::new(),
-            shorts: Vec::new(),
-            longs: Vec::new(),
-            envs: Vec::new(),
-            is_hidden: false,
-            is_default: false,
-            skip: false,
-            adjacent: false,
-        };
-        for attr in attrs {
-            if attr.path().is_ident("doc") {
-                if let Some(doc) = doc_comment(&attr) {
-                    res.help.push(doc);
-                }
-            } else if attr.path().is_ident("bpaf") {
-                attr.parse_args_with(|input: ParseStream| loop {
-                    if input.is_empty() {
-                        break Ok(());
-                    }
-                    let input_copy = input.fork();
-                    let keyword = input.parse::<Ident>()?;
-
-                    if keyword == "command" {
-                        let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
-                            let n = to_snake_case(&inner_ty.to_string());
-                            LitStr::new(&n, inner_ty.span())
-                        });
-                        res.command = Some(CommandAttr {
-                            name,
-                            shorts: Vec::new(),
-                            longs: Vec::new(),
-                            usage: None,
-                        });
-                    } else if keyword == "short" {
-                        let lit = parse_opt_arg::<LitChar>(input)?.unwrap_or_else(|| {
-                            let n = to_snake_case(&inner_ty.to_string()).chars().next().unwrap();
-                            LitChar::new(n, inner_ty.span())
-                        });
-                        res.shorts.push(lit);
-                    } else if keyword == "long" {
-                        let lit = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
-                            let n = to_snake_case(&inner_ty.to_string());
-                            LitStr::new(&n, inner_ty.span())
-                        });
-                        res.longs.push(lit);
-                    } else if keyword == "env" {
-                        let lit = parse_expr(input)?;
-                        res.envs.push(*lit);
-                    } else if keyword == "hide" {
-                        res.is_hidden = true;
-                    } else if keyword == "default" {
-                        res.is_default = true;
-                    } else if keyword == "skip" {
-                        res.skip = true;
-                    } else if keyword == "adjacent" {
-                        if res.command.is_some() {
-                            res.adjacent = true;
-                        } else {
-                            return Err(input_copy.error(
-                                "In this context `adjacent` requires `command` annotation",
-                            ));
-                        }
-                    } else if keyword == "usage" {
-                        if let Some(cmd) = &mut res.command {
-                            let content;
-                            let _ = parenthesized!(content in input);
-                            cmd.usage = Some(content.parse::<LitStr>()?);
-                        } else {
-                            return Err(input_copy
-                                .error("In this context `usage` requires `command` annotation"));
-                        }
-                    } else {
-                        return Err(input_copy.error("Not a valid inner attribute"));
-                    }
-
-                    if !input.is_empty() {
-                        input.parse::<token::Comma>()?;
-                    }
-                })?;
-            }
-        }
-        if let Some(cmd) = &mut res.command {
-            cmd.shorts.append(&mut res.shorts);
-            cmd.longs.append(&mut res.longs);
-        }
-        Ok(res)
-    }
-}
-
-#[derive(Debug)]
-struct Outer {
-    kind: Option<OuterKind>,
-    version: Option<Box<Expr>>,
-    vis: Visibility,
-    comp_style: Option<Box<Expr>>,
-    generate: Option<Ident>,
-    decor: Decor,
-    longs: Vec<LitStr>,
-    shorts: Vec<LitChar>,
-    fallback: Option<Box<Expr>>,
-    adjacent: bool,
+    /// single branch or multipe branches for enum
+    body: Body,
+    mode: Mode,
     boxed: bool,
+    cargo_helper: Option<LitStr>,
+    attrs: Vec<TopAttr>,
 }
 
-impl Outer {
-    fn make(outer_ty: &Ident, vis: Visibility, attrs: Vec<Attribute>) -> Result<Self> {
-        let mut res = Outer {
-            kind: None,
-            version: None,
-            vis,
-            comp_style: None,
-            generate: None,
-            decor: Decor::default(),
-            longs: Vec::new(),
-            shorts: Vec::new(),
-            fallback: None,
-            adjacent: false,
-            boxed: false,
-        };
+fn ident_to_long(ident: &Ident) -> LitStr {
+    LitStr::new(&to_kebab_case(&ident.to_string()), ident.span())
+}
 
-        let mut usage = None;
-        let mut help = Vec::new();
-        for attr in attrs {
-            if attr.path().is_ident("doc") {
-                if let Some(doc) = doc_comment(&attr) {
-                    help.push(doc);
-                }
-            } else if attr.path().is_ident("bpaf") {
-                attr.parse_args_with(|input: ParseStream| loop {
-                    if input.is_empty() {
-                        break Ok(());
-                    }
-
-                    let input_copy = input.fork();
-                    let keyword = input.parse::<Ident>()?;
-
-                    if keyword == "generate" {
-                        res.generate = Some(parse_ident(input)?);
-                    } else if keyword == "options" {
-                        let lit = if input.peek(token::Paren) {
-                            let content;
-                            let _ = parenthesized!(content in input);
-                            Some(content.parse::<LitStr>()?)
-                        } else {
-                            None
-                        };
-                        res.kind = Some(OuterKind::Options(lit));
-                    } else if keyword == "complete_style" {
-                        let style = parse_expr(input)?;
-                        res.comp_style = Some(style);
-                    } else if keyword == "construct" {
-                        res.kind = Some(OuterKind::Construct);
-                    } else if keyword == "version" {
-                        let ver = parse_opt_arg::<Expr>(input)?
-                            .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION")));
-                        res.version = Some(Box::new(ver));
-                    } else if keyword == "adjacent" {
-                        res.adjacent = true;
-                    } else if keyword == "boxed" {
-                        res.boxed = true;
-                    } else if keyword == "command" {
-                        let name = parse_opt_arg::<LitStr>(input)?.unwrap_or_else(|| {
-                            let n = to_snake_case(&outer_ty.to_string());
-                            LitStr::new(&n, outer_ty.span())
-                        });
-                        res.kind = Some(OuterKind::Command(CommandAttr {
-                            name,
-                            shorts: Vec::new(),
-                            longs: Vec::new(),
-                            usage: None,
-                        }));
-                    } else if keyword == "usage" {
-                        let content;
-                        let _ = parenthesized!(content in input);
-                        let lit = Some(content.parse::<LitStr>()?);
-                        if let Some(OuterKind::Command(cmd)) = &mut res.kind {
-                            cmd.usage = lit;
-                        } else {
-                            usage = lit;
-                        }
-                    } else if keyword == "short" {
-                        // those are aliaes, no fancy name figuring out logic
-                        let lit = parse_lit_char(input)?;
-                        res.shorts.push(lit);
-                    } else if keyword == "long" {
-                        // those are aliaes, no fancy name figuring out logic
-                        let lit = parse_lit_str(input)?;
-                        res.longs.push(lit);
-                    } else if keyword == "private" {
-                        res.vis = Visibility::Inherited;
-                    } else if keyword == "fallback" {
-                        let fallback = parse_expr(input)?;
-                        res.fallback = Some(fallback);
-                    } else {
-                        return Err(input_copy.error("Unexpected attribute"));
-                    }
-                    if !input.is_empty() {
-                        input.parse::<token::Comma>()?;
-                    }
-                })?;
-            }
-        }
-        if let Some(OuterKind::Command(cmd)) = &mut res.kind {
-            cmd.shorts.append(&mut res.shorts);
-            cmd.longs.append(&mut res.longs);
-        }
-
-        res.decor = Decor::new(&help, res.version.take(), usage);
-
-        Ok(res)
-    }
+fn ident_to_short(ident: &Ident) -> LitChar {
+    LitChar::new(
+        to_kebab_case(&ident.to_string()).chars().next().unwrap(),
+        ident.span(),
+    )
 }
 
 impl Parse for Top {
-    #[allow(clippy::too_many_lines)]
-    fn parse(input: parse::ParseStream) -> Result<Self> {
+    fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
+        let (top_decor, mut help) = parse_bpaf_doc_attrs::<TopInfo>(attrs)?;
+        let TopInfo {
+            private,
+            custom_name,
+            boxed,
+            mode,
+            attrs: td_attrs,
+        } = top_decor.unwrap_or_default();
+
         let vis = input.parse::<Visibility>()?;
-        if input.peek(token::Struct) {
-            input.parse::<token::Struct>()?;
-            Self::parse_struct(attrs, vis, input)
-        } else if input.peek(token::Enum) {
-            input.parse::<token::Enum>()?;
-            Self::parse_enum(attrs, vis, input)
-        } else {
-            Err(input.error("Only struct and enum types are supported"))
+
+        let mut body = Body::parse(input)?;
+        let ty = body.ty();
+        let mut cargo_helper = None;
+        let mut attrs = Vec::with_capacity(td_attrs.len());
+        let mut options_ix = None;
+        for attr in td_attrs {
+            match attr {
+                TopAttr::CargoHelper(h) => {
+                    cargo_helper = Some(h);
+                }
+                TopAttr::ToOptions => {
+                    options_ix = Some(attrs.len());
+                    attrs.push(attr);
+
+                    if let Some(h) = std::mem::take(&mut help) {
+                        match &h {
+                            Help::Custom(_) => attrs.push(TopAttr::Descr(h)),
+                            Help::Doc(c) => {
+                                let mut chunks = LineIter::from(c.as_str());
+                                if let Some(s) = chunks.next() {
+                                    attrs.push(TopAttr::Descr(Help::Doc(s)));
+                                }
+                                if let Some(s) = chunks.next() {
+                                    if !s.is_empty() {
+                                        attrs.push(TopAttr::Header(Help::Doc(s)));
+                                    }
+                                }
+                                if let Some(s) = chunks.rest() {
+                                    attrs.push(TopAttr::Footer(Help::Doc(s)));
+                                }
+                            }
+                        }
+                    }
+                }
+                TopAttr::CompleteStyle(_)
+                | TopAttr::Usage(_)
+                | TopAttr::Version(_)
+                | TopAttr::Header(_)
+                | TopAttr::Footer(_)
+                | TopAttr::Adjacent
+                | TopAttr::CommandShort(_)
+                | TopAttr::CommandLong(_) => {
+                    attrs.push(attr);
+                }
+                TopAttr::NamedCommand(ref n) => {
+                    body.set_named_command(n.span())?;
+                    attrs.push(TopAttr::ToOptions);
+
+                    if let Some(h) = std::mem::take(&mut help) {
+                        attrs.push(TopAttr::Descr(h))
+                    }
+
+                    attrs.push(attr);
+                }
+                TopAttr::UnnamedCommand => {
+                    body.set_unnamed_command()?;
+                    attrs.push(TopAttr::ToOptions);
+
+                    if let Some(h) = std::mem::take(&mut help) {
+                        attrs.push(TopAttr::Descr(h))
+                    }
+                    attrs.push(TopAttr::NamedCommand(ident_to_long(&ty)));
+                }
+
+                TopAttr::Descr(_) => unreachable!(),
+                TopAttr::PostDecor(_) => {
+                    if let Some(ix) = options_ix {
+                        attrs.insert(ix, attr);
+                    } else {
+                        attrs.push(attr);
+                    }
+                }
+            }
         }
-    }
-}
 
-fn decorate_with_kind(outer: Outer, inner: BParser) -> ParserKind {
-    let inner = if let Some(comp_style) = outer.comp_style {
-        BParser::CompStyle(comp_style, Box::new(inner))
-    } else {
-        inner
-    };
-
-    match outer.kind.unwrap_or(OuterKind::Construct) {
-        OuterKind::Construct => ParserKind::BParser(inner, outer.decor.descr),
-        OuterKind::Options(maybe_cargo) => {
-            let inner = match maybe_cargo {
-                Some(cargo) => BParser::CargoHelper(cargo, Box::new(inner)),
-                None => inner,
+        if let Some(h) = std::mem::take(&mut help) {
+            let doc = match h {
+                Help::Custom(c) => c,
+                Help::Doc(d) => parse_quote!(#d),
             };
-            ParserKind::OParser(OParser {
-                decor: outer.decor,
-                inner: Box::new(inner),
-            })
+            let span = Span::call_site();
+            attrs.push(TopAttr::PostDecor(PostDecor::GroupHelp { doc, span }))
         }
-        OuterKind::Command(cmd_attr) => {
-            let oparser = OParser {
-                decor: outer.decor,
-                inner: Box::new(inner),
-            };
-
-            let cmd = BParser::Command {
-                attribute: cmd_attr,
-                inner_parser: Box::new(oparser),
-                is_adjacent: outer.adjacent,
-                is_hidden: false,
-            };
-            ParserKind::BParser(cmd, None)
-        }
-    }
-}
-
-impl Top {
-    fn parse_struct(attrs: Vec<Attribute>, vis: Visibility, input: ParseStream) -> Result<Self> {
-        let outer_ty = input.parse::<Ident>()?;
-        let outer = Outer::make(&outer_ty, vis, attrs)?;
-
-        let fields = input.parse::<Fields>()?;
-
-        if fields.struct_definition_followed_by_semi() {
-            input.parse::<Token![;]>()?;
-        }
-
-        let constr = ConstrName {
-            namespace: None,
-            constr: outer_ty.clone(),
-            fallback: outer.fallback.clone(),
-        };
-        let inner = BParser::Constructor {
-            name: constr,
-            fields,
-            adjacent: outer.adjacent && !matches!(outer.kind, Some(OuterKind::Command(_))),
-            boxed: outer.boxed,
-        };
 
         Ok(Top {
-            name: outer
-                .generate
-                .clone()
-                .unwrap_or_else(|| snake_case_ident(&outer_ty)),
-            vis: outer.vis.clone(),
-            kind: decorate_with_kind(outer, inner),
-            outer_ty,
-        })
-    }
+            vis: if private { Visibility::Inherited } else { vis },
+            mode,
 
-    fn parse_enum(attrs: Vec<Attribute>, vis: Visibility, input: ParseStream) -> Result<Self> {
-        let outer_ty = input.parse::<Ident>()?;
-        let outer = Outer::make(&outer_ty, vis, attrs)?;
-
-        let mut branches: Vec<BParser> = Vec::new();
-
-        let enum_contents;
-        let _ = braced!(enum_contents in input);
-        loop {
-            if enum_contents.is_empty() {
-                break;
-            }
-            let attrs = enum_contents.call(Attribute::parse_outer)?;
-            let inner_ty = enum_contents.parse::<Ident>()?;
-            let inner = Inner::make(&inner_ty, attrs.clone())?;
-
-            let constr = ConstrName {
-                namespace: Some(outer_ty.clone()),
-                constr: inner_ty,
-                fallback: None,
-            };
-
-            let branch = if enum_contents.peek(token::Paren) || enum_contents.peek(token::Brace) {
-                let fields = Fields::parse(&enum_contents)?;
-                BParser::Constructor {
-                    name: constr,
-                    fields,
-                    adjacent: outer.adjacent,
-                    boxed: outer.boxed,
-                }
-            } else if let Some(_cmd) = &inner.command {
-                BParser::Constructor {
-                    name: constr,
-                    fields: Fields::NoFields,
-                    adjacent: outer.adjacent,
-                    boxed: outer.boxed,
-                }
-            } else {
-                let req_flag = ReqFlag::make(constr, inner.clone());
-                BParser::Singleton(Box::new(req_flag))
-            };
-
-            if !inner.skip {
-                if let Some(cmd_arg) = inner.command {
-                    let decor = Decor::new(&inner.help, None, None);
-                    let oparser = OParser {
-                        inner: Box::new(branch),
-                        decor,
-                    };
-                    let branch = BParser::Command {
-                        attribute: cmd_arg,
-                        inner_parser: Box::new(oparser),
-                        is_adjacent: outer.adjacent || inner.adjacent,
-                        is_hidden: inner.is_hidden,
-                    };
-                    branches.push(branch);
-                } else {
-                    branches.push(branch);
-                }
-            }
-
-            if !enum_contents.is_empty() {
-                enum_contents.parse::<token::Comma>()?;
-            }
-        }
-
-        let inner = match branches.len() {
-            0 => {
-                return Err(syn::Error::new(
-                    outer_ty.span(),
-                    "Can't construct a parser from empty enum",
-                ))
-            }
-            1 => branches.remove(0),
-            _ => BParser::Fold(branches, outer.fallback.clone()),
-        };
-
-        Ok(Top {
-            name: outer
-                .generate
-                .clone()
-                .unwrap_or_else(|| snake_case_ident(&outer_ty)),
-            vis: outer.vis.clone(),
-            kind: decorate_with_kind(outer, inner),
-            outer_ty,
+            generate: custom_name
+                .unwrap_or_else(|| Ident::new(&to_snake_case(&ty.to_string()), ty.span())),
+            ty,
+            attrs,
+            body,
+            boxed,
+            cargo_helper,
         })
     }
 }
@@ -549,216 +168,390 @@ impl Top {
 impl ToTokens for Top {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let Top {
-            name,
+            ty,
             vis,
-            outer_ty,
-            kind,
+            generate,
+            body,
+            mode,
+            attrs,
+            boxed,
+            cargo_helper,
         } = self;
-        let outer_kind = match kind {
-            ParserKind::BParser(_, _) => quote!(impl ::bpaf::Parser<#outer_ty>),
-            ParserKind::OParser(_) => quote!(::bpaf::OptionParser<#outer_ty>),
-        };
-        quote!(
-            #vis fn #name() -> #outer_kind {
-                #[allow(unused_imports)]
-                use ::bpaf::Parser;
-                #kind
+
+        if matches!(mode, Mode::Options) {
+            let body = match cargo_helper {
+                Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
+                None => quote!(#body),
+            };
+
+            quote! {
+                #vis fn #generate() -> ::bpaf::OptionParser<#ty> {
+                    #[allow(unused_imports)]
+                    use ::bpaf::Parser;
+                    #body
+                    #(.#attrs)*
+                }
             }
-        )
+        } else {
+            let boxed = if *boxed { quote!(.boxed()) } else { quote!() };
+            quote! {
+                #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+                    #[allow(unused_imports)]
+                    use ::bpaf::Parser;
+
+                    #body
+                    #(.#attrs)*
+                    #boxed
+                }
+            }
+        }
         .to_tokens(tokens);
     }
 }
 
-impl ToTokens for ParserKind {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            ParserKind::BParser(bp, None) => bp.to_tokens(tokens),
-            ParserKind::BParser(bp, Some(msg)) => {
-                bp.to_tokens(tokens);
-                quote!(
-                    .group_help(#msg)
-                )
-                .to_tokens(tokens);
+// }}}
+
+/// Describes the actual fields,
+/// can be either a single branch for struct or multiple enum variants
+#[derive(Debug)]
+enum Body {
+    // {{{
+    Single(Branch),
+    Alternatives(Ident, Vec<EnumBranch>),
+}
+
+impl Parse for Body {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(token::Struct) {
+            input.parse::<token::Struct>()?;
+            let branch = Self::Single(input.parse::<Branch>()?);
+            if input.peek(token::Semi) {
+                input.parse::<token::Semi>()?;
             }
-            ParserKind::OParser(op) => op.to_tokens(tokens),
+            Ok(branch)
+        } else if input.peek(token::Enum) {
+            input.parse::<token::Enum>()?;
+            let name = input.parse::<Ident>()?;
+            let content;
+            braced!(content in input);
+
+            let mut branches = content.parse_terminated(EnumBranch::parse, token::Comma)?;
+            for b in branches.iter_mut() {
+                b.branch.enum_name = Some(EnumPrefix(name.clone()));
+                b.pp()?;
+            }
+
+            let branches = branches.into_iter().filter(|b| !b.skip).collect::<Vec<_>>();
+
+            Ok(Self::Alternatives(name, branches))
+        } else {
+            Err(input.error("Only structs and enums are supported"))
         }
     }
 }
 
-impl ToTokens for OParser {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let OParser { inner, decor } = self;
-        quote!(#inner.to_options()#decor).to_tokens(tokens);
+impl Body {
+    fn ty(&self) -> Ident {
+        match self {
+            Body::Single(b) => &b.ident,
+            Body::Alternatives(n, _) => n,
+        }
+        .clone()
     }
 }
 
-impl ToTokens for BParser {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
+impl Body {
+    fn set_named_command(&mut self, span: Span) -> Result<()> {
         match self {
-            BParser::Command {
-                attribute: cmd_attr,
-                inner_parser: oparser,
-                is_adjacent,
-                is_hidden,
-            } => {
-                let cmd_name = &cmd_attr.name;
-                let mut names = quote!();
-                for short in &cmd_attr.shorts {
-                    names = quote!(#names .short(#short));
-                }
-                for long in &cmd_attr.longs {
-                    names = quote!(#names .long(#long));
-                }
+            Body::Single(branch) => branch.set_command(),
+            Body::Alternatives(_, _) => Err(Error::new(
+                span,
+                "You can't annotate `enum` with a named command.",
+            )),
+        }
+    }
 
-                let usage = match &cmd_attr.usage {
-                    Some(usage) => quote!(.usage(#usage)),
-                    None => quote!(),
-                };
-                if let Some(msg) = &oparser.decor.descr {
-                    quote!( {
-                        let inner_cmd = #oparser #usage;
-                        inner_cmd.command(#cmd_name).help(#msg)#names
-                    })
-                } else {
-                    quote!({
-                        let inner_cmd = #oparser #usage;
-                        inner_cmd.command(#cmd_name)#names
-                    })
-                }
-                .to_tokens(tokens);
-
-                if *is_adjacent {
-                    quote!(.adjacent()).to_tokens(tokens);
-                }
-                if *is_hidden {
-                    quote!(.hide()).to_tokens(tokens);
-                }
-            }
-            BParser::CargoHelper(name, inner) => quote!({
-                ::bpaf::cargo_helper(#name, #inner)
-            })
-            .to_tokens(tokens),
-            BParser::Constructor {
-                name,
-                fields,
-                adjacent,
-                boxed,
-            } => {
-                if matches!(fields, Fields::NoFields) {
-                    quote!(::bpaf::pure(#name)).to_tokens(tokens);
-                } else {
-                    let parse_decls = fields.parser_decls();
-                    quote!({
-                        #(#parse_decls)*
-                        ::bpaf::construct!(#name #fields)
-                    })
-                    .to_tokens(tokens);
-                }
-                if *adjacent {
-                    quote!(.adjacent()).to_tokens(tokens);
-                }
-                if let Some(fallback) = &name.fallback {
-                    quote!(.fallback(#fallback)).to_tokens(tokens);
-                }
-                if *boxed {
-                    quote!(.boxed()).to_tokens(tokens);
-                }
-            }
-            BParser::Fold(xs, mfallback) => {
-                if xs.len() == 1 {
-                    xs[0].to_tokens(tokens);
-                } else {
-                    let mk = |i| Ident::new(&format!("alt{}", i), Span::call_site());
-                    let names = xs.iter().enumerate().map(|(ix, _)| mk(ix));
-                    let parse_decls = xs.iter().enumerate().map(|(ix, parser)| {
-                        let name = mk(ix);
-                        quote!( let #name = #parser;)
-                    });
-                    quote!({
-                        #(#parse_decls)*
-                        ::bpaf::construct!([#(#names),*])
-                    })
-                    .to_tokens(tokens);
-                }
-                if let Some(fallback) = mfallback {
-                    quote!(.fallback(#fallback)).to_tokens(tokens);
-                }
-            }
-            BParser::Singleton(field) => field.to_tokens(tokens),
-            BParser::CompStyle(style, inner) => {
-                quote!(#inner.complete_style(#style)).to_tokens(tokens);
+    fn set_unnamed_command(&mut self) -> Result<()> {
+        match self {
+            Body::Single(b) => b.set_unnamed_command(),
+            Body::Alternatives(_, _branches) => {
+                //                for branch in branches {
+                todo!();
+                //                    branch.set_unnamed_command()?;
+                //                }
+                //Ok(())
             }
         }
     }
 }
 
-impl ToTokens for Fields {
+impl ToTokens for Body {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Fields::Named(fields) => {
-                //                let names = fields.iter().map(|f| f.name());
-                let names = fields.iter().enumerate().map(|(ix, f)| f.var_name(ix));
-                quote!({ #(#names),*}).to_tokens(tokens);
+            Body::Single(branch) => quote!(#branch),
+            Body::Alternatives(_name, b) if b.len() == 1 => {
+                let branch = &b[0];
+                quote!(#branch)
             }
-            Fields::Unnamed(fields) => {
-                let names = fields.iter().enumerate().map(|(ix, f)| f.var_name(ix));
-                quote!(( #(#names),*)).to_tokens(tokens);
+            Body::Alternatives(_name, b) => {
+                let branches = b.iter();
+                let mk = |i| Ident::new(&format!("alt{}", i), Span::call_site());
+                let name_f = b.iter().enumerate().map(|(n, _)| mk(n));
+                let name_t = name_f.clone();
+                quote! {{
+                    #( let #name_f = #branches; )*
+                    ::bpaf::construct!([ #( #name_t, )* ])
+                }}
             }
-            Fields::NoFields => {}
         }
+        .to_tokens(tokens)
     }
 }
 
-impl ToTokens for ConstrName {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let constr = &self.constr;
-        match &self.namespace {
-            Some(namespace) => quote!(#namespace :: #constr).to_tokens(tokens),
-            None => constr.to_tokens(tokens),
+// }}}
+
+#[derive(Debug)]
+pub(crate) struct EnumBranch {
+    // {{{
+    branch: Branch,
+    attrs: Vec<EAttr>,
+    skip: bool,
+    help: Option<Help>,
+}
+
+impl Parse for EnumBranch {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let attrs = input.call(Attribute::parse_outer)?;
+        let (enum_decor, help) = parse_bpaf_doc_attrs::<Ed>(attrs)?;
+        let Ed { attrs, skip } = enum_decor.unwrap_or_default();
+
+        let branch = input.parse::<Branch>()?;
+
+        Ok(Self {
+            branch,
+            skip,
+            attrs,
+            help,
+        })
+    }
+}
+impl EnumBranch {
+    fn pp(&mut self) -> Result<()> {
+        let ea = std::mem::take(&mut self.attrs);
+        let EnumBranch {
+            branch,
+            attrs,
+            help,
+            skip: _,
+        } = self;
+        *attrs = Vec::with_capacity(ea.len());
+
+        for attr in ea {
+            match attr {
+                EAttr::NamedCommand(_) => {
+                    branch.set_command()?;
+                    attrs.push(EAttr::ToOptions);
+                    if let Some(h) = std::mem::take(help) {
+                        attrs.push(EAttr::Descr(h))
+                    }
+                    attrs.push(attr);
+                }
+                EAttr::UnnamedCommand => {
+                    branch.set_command()?;
+                    attrs.push(EAttr::ToOptions);
+
+                    if let Some(h) = std::mem::take(help) {
+                        attrs.push(EAttr::Descr(h))
+                    }
+
+                    attrs.push(EAttr::NamedCommand(ident_to_long(&branch.ident)));
+                }
+
+                EAttr::CommandShort(_) | EAttr::CommandLong(_) => branch.set_command()?,
+
+                EAttr::UnitShort(n) => branch.set_unit_name(StrictName::Short {
+                    name: n.unwrap_or_else(|| ident_to_short(&branch.ident)),
+                })?,
+                EAttr::UnitLong(n) => branch.set_unit_name(StrictName::Long {
+                    name: n.unwrap_or_else(|| ident_to_long(&branch.ident)),
+                })?,
+                EAttr::Env(name) => branch.set_unit_name(StrictName::Env { name })?,
+
+                EAttr::Usage(_) => {
+                    if let Some(o) = attrs.iter().position(|i| matches!(i, EAttr::ToOptions)) {
+                        attrs.insert(o + 1, attr);
+                    } else {
+                        unreachable!();
+                    }
+                }
+                EAttr::Adjacent | EAttr::Hide => attrs.push(attr),
+                EAttr::ToOptions | EAttr::Descr(_) => unreachable!(),
+            }
         }
+        branch.set_inplicit_name();
+        branch.help = std::mem::take(&mut self.help);
+
+        Ok(())
     }
 }
 
-impl Fields {
-    fn parser_decls(&self) -> Vec<TokenStream> {
-        match self {
-            Fields::Named(fields) => fields
+impl ToTokens for EnumBranch {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let EnumBranch {
+            branch,
+            skip: _,
+            attrs,
+            help: _,
+        } = self;
+        quote!(#branch #(.#attrs)*).to_tokens(tokens);
+    }
+}
+
+// }}}
+
+#[derive(Debug)]
+pub struct Branch {
+    // {{{
+    enum_name: Option<EnumPrefix>,
+    ident: Ident,
+    help: Option<Help>,
+    fields: FieldSet,
+}
+
+impl Branch {
+    fn set_command(&mut self) -> Result<()> {
+        if let FieldSet::Unit(_) = self.fields {
+            let ident = &self.ident;
+            let enum_name = &self.enum_name;
+            self.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
+        }
+        Ok(())
+    }
+    fn set_unnamed_command(&mut self) -> Result<()> {
+        if let FieldSet::Unit(_) = self.fields {
+            self.set_command()?;
+        }
+        Ok(())
+    }
+
+    fn set_unit_name(&mut self, name: StrictName) -> Result<()> {
+        if let FieldSet::Unit(names) = &mut self.fields {
+            names.push(name);
+        }
+        Ok(())
+    }
+
+    fn set_inplicit_name(&mut self) {
+        if let FieldSet::Unit(names) = &mut self.fields {
+            if !names
                 .iter()
-                .enumerate()
-                .map(|(ix, field)| {
-                    let name = field.var_name(ix);
-                    quote!(let #name = #field;)
-                })
-                .collect::<Vec<_>>(),
-            Fields::Unnamed(fields) => fields
-                .iter()
-                .enumerate()
-                .map(|(ix, field)| {
-                    let name = field.var_name(ix);
-                    quote!(let #name = #field;)
-                })
-                .collect::<Vec<_>>(),
-            Fields::NoFields => Vec::new(),
+                .any(|n| matches!(n, StrictName::Long { .. } | StrictName::Short { .. }))
+            {
+                names.push(StrictName::Long {
+                    name: ident_to_long(&self.ident),
+                });
+            }
         }
     }
+}
 
-    fn struct_definition_followed_by_semi(&self) -> bool {
+impl Parse for Branch {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let ident = input.parse::<Ident>()?;
+        let content;
+        let fields = if input.peek(token::Paren) {
+            parenthesized!(content in input);
+            FieldSet::Unnamed(content.parse_terminated(StructField::parse_unnamed, token::Comma)?)
+        } else if input.peek(token::Brace) {
+            braced!(content in input);
+            FieldSet::Named(content.parse_terminated(StructField::parse_named, token::Comma)?)
+        } else {
+            if input.peek(token::Semi) {
+                input.parse::<token::Semi>()?;
+            }
+            FieldSet::Unit(Vec::new())
+        };
+
+        Ok(Branch {
+            enum_name: None,
+            ident,
+            help: None,
+            //decor,
+            fields,
+        })
+    }
+}
+
+impl ToTokens for Branch {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let Branch {
+            enum_name,
+            ident,
+            help,
+            fields,
+        } = self;
+        let help = help.iter();
+        match fields {
+            FieldSet::Named(fields) => {
+                let name = fields
+                    .iter()
+                    .enumerate()
+                    .map(|(ix, field)| field.var_name(ix));
+                let result = name.clone();
+                let value = fields.iter();
+                quote! {{
+                    #( let #name = #value; )*
+                    ::bpaf::construct!( #enum_name #ident { #( #result , )* })
+                }}
+            }
+            FieldSet::Unnamed(fields) => {
+                let name = fields
+                    .iter()
+                    .enumerate()
+                    .map(|(ix, field)| field.var_name(ix));
+                let result = name.clone();
+                let value = fields.iter();
+                quote! {{
+                    #( let #name = #value; )*
+                    ::bpaf::construct!( #enum_name #ident ( #( #result , )* ))
+                }}
+            }
+            FieldSet::Unit(names) => {
+                quote!(::bpaf:: #( #names .)* #(help(#help).)* req_flag(#enum_name #ident))
+            }
+            FieldSet::Pure(x) => quote!(#x),
+        }
+        .to_tokens(tokens);
+    }
+}
+// }}}
+
+#[derive(Debug)]
+pub(crate) enum FieldSet {
+    // {{{
+    Named(Punctuated<StructField, token::Comma>),
+    Unnamed(Punctuated<StructField, token::Comma>),
+    Unit(Vec<StrictName>),
+    Pure(Box<Expr>),
+}
+
+/*
+impl ToTokens for FieldSet {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Fields::Named(_) | Fields::NoFields => false,
-            Fields::Unnamed(_) => true,
+            FieldSet::Named(n) => {
+                let names = n.iter().enumerate().map(|(ix, field)| field.var_name(ix));
+                let items = n.iter();
+                quote! {{
+                    #( let #names = #items; )*
+                }}
+            }
+            FieldSet::Unnamed(_) => todo!(),
+            FieldSet::Unit => quote!(),
+            FieldSet::Pure(_) => todo!(),
         }
+        .to_tokens(tokens)
     }
 }
-
-impl Decor {
-    fn new(help: &[String], version: Option<Box<Expr>>, usage: Option<LitStr>) -> Self {
-        let mut iter = LineIter::from(help);
-        Decor {
-            descr: iter.next(),
-            header: iter.next(),
-            footer: iter.next(),
-            version,
-            usage,
-        }
-    }
-}
+*/
+// }}}

@@ -1,19 +1,19 @@
 use crate::field::*;
+use pretty_assertions::assert_eq;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::parse::Parse;
-use syn::parse2;
-use syn::{parse, parse_quote, Result};
+use syn::{parse, parse::Parse, parse2, parse_quote, Result};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct UnnamedField {
-    parser: Field,
+    parser: StructField,
 }
 
 impl Parse for UnnamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let parser = Field::parse_unnamed(input)?;
-        Ok(Self { parser })
+        Ok(Self {
+            parser: StructField::parse_unnamed(input)?,
+        })
     }
 }
 
@@ -23,15 +23,16 @@ impl ToTokens for UnnamedField {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct NamedField {
-    parser: Field,
+    parser: StructField,
 }
 
 impl Parse for NamedField {
     fn parse(input: parse::ParseStream) -> Result<Self> {
-        let parser = Field::parse_named(input)?;
-        Ok(Self { parser })
+        Ok(Self {
+            parser: StructField::parse_named(input)?,
+        })
     }
 }
 
@@ -282,11 +283,11 @@ fn check_many_files_implicit() {
 #[test]
 fn many_catch() {
     let input: NamedField = parse_quote! {
-        #[bpaf(catch)]
+        #[bpaf(argument("FILE"), many, catch)]
         files: Vec<std::path::PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").many().catch()
+        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").many().catch()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -294,11 +295,11 @@ fn many_catch() {
 #[test]
 fn option_catch() {
     let input: NamedField = parse_quote! {
-        #[bpaf(catch)]
+        #[bpaf(argument("FILE"), optional, catch)]
         files: Option<std::path::PathBuf>
     };
     let output = quote! {
-        ::bpaf::long("files").argument::<std::path::PathBuf>("ARG").optional().catch()
+        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").optional().catch()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -475,9 +476,23 @@ fn optional_unnamed_pathed() {
 }
 
 #[test]
-fn optional_argument_with_name() {
+fn implicit_optional_argument_with_name() {
     let input: NamedField = parse_quote! {
         #[bpaf(argument("N"))]
+        config: Option<u64>
+    };
+    let output = quote! {
+        ::bpaf::long("config")
+            .argument::<u64>("N")
+            .optional()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn explicit_optional_argument_with_name() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument("N"), optional)]
         config: Option<u64>
     };
     let output = quote! {
@@ -633,7 +648,7 @@ fn hide_and_group_help() {
 #[test]
 fn any_field_1() {
     let input: NamedField = parse_quote! {
-        #[bpaf(any)]
+        #[bpaf(any("ARG", Some))]
         /// help
         field: OsString
     };
@@ -646,7 +661,7 @@ fn any_field_1() {
 #[test]
 fn any_field_2() {
     let input: UnnamedField = parse_quote! {
-        #[bpaf(any("FOO"))]
+        #[bpaf(any("FOO", Some))]
         /// help
         String
     };
@@ -659,7 +674,7 @@ fn any_field_2() {
 #[test]
 fn any_field_3() {
     let input: UnnamedField = parse_quote! {
-        #[bpaf(any("FOO"))]
+        #[bpaf(any("FOO", Some))]
         /// help
         Vec<String>
     };
@@ -672,7 +687,7 @@ fn any_field_3() {
 #[test]
 fn any_field_4() {
     let input: UnnamedField = parse_quote! {
-        #[bpaf(any("FOO"))]
+        #[bpaf(any("FOO", Some))]
         /// help
         Vec<OsString>
     };
@@ -685,7 +700,7 @@ fn any_field_4() {
 #[test]
 fn any_field_custom_help() {
     let input: UnnamedField = parse_quote! {
-        #[bpaf(any("FOO"), help(custom_help))]
+        #[bpaf(any("FOO", Some), help(custom_help))]
         /// help
         Vec<OsString>
     };
@@ -729,7 +744,7 @@ fn any_field_6() {
         ()
     };
     let output = quote! {
-        ::bpaf::any::<(), _, _>("FOO", |x| (x == "--lit").then_some(())).help("help")
+        ::bpaf::any("FOO", |x| (x == "--lit").then_some(())).help("help")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
@@ -787,13 +802,15 @@ fn argument_with_manual_parse() {
 
 #[test]
 fn optional_external_strange() {
-    let input: TokenStream = quote! {
+    let input: NamedField = parse_quote! {
         #[bpaf(optional, external(seed))]
         number: u32
     };
-    let msg =
-        "keyword `external` is at stage `external` can't follow previous stage (postprocessing)";
-    field_trans_fail(input, msg);
+
+    let output = quote! {
+        seed().optional()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
 
 #[test]

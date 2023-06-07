@@ -4,7 +4,7 @@ use bpaf::{Bpaf, Parser};
 #[test]
 fn help_with_default_parse() {
     #[derive(Debug, Clone, Bpaf)]
-    #[bpaf(fallback(Action::CheckConnection), options)]
+    #[bpaf(options, fallback(Action::CheckConnection))]
     enum Action {
         /// Add a new TODO item
         #[bpaf(command)]
@@ -49,7 +49,7 @@ Available options:
 
 Available commands:
     add               Add a new TODO item
-    check_connection  Test connection to the server
+    check-connection  Test connection to the server
 ";
     assert_eq!(expected_help, help);
 }
@@ -96,7 +96,7 @@ Available options:
 
 Available commands:
     add         Add a new TODO item
-    no_action   Does nothing in two lines
+    no-action   Does nothing in two lines
 ";
     assert_eq!(expected_help, help);
 }

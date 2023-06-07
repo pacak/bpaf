@@ -1,5 +1,10 @@
 # Change Log
 
+bpaf_derive
+construct is gone
+default is gone
+
+
 ## bpaf [0.8.2] - Unreleased
 - more errors are now passed as ADTs rather than plain strings
 - conflicts are now tracked with indices rather than parser meta

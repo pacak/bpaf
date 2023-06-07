@@ -5,8 +5,7 @@ use bpaf::*;
 #[allow(dead_code)]
 #[bpaf(options)]
 struct Options {
-    /// Use global file
-    global: bool,
+    /// help
     #[bpaf(external, fallback(Action::List))]
     action: Action,
 }

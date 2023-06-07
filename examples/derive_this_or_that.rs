@@ -8,14 +8,14 @@ use bpaf::Bpaf;
 // about Strings and file names and handles Option/Vec.
 // Everything else is handled as a textual named argument.
 #[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
+#[bpaf(options, fallback(Opts::Undecided))]
 enum Opts {
     /// enabled
     On,
     /// disabled
     Off,
     /// undecined
-    #[bpaf(hide, default)]
+    #[bpaf(hide)]
     Undecided,
 }
 
