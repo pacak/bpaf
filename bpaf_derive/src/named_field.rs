@@ -165,15 +165,15 @@ impl StructField {
 
     #[allow(clippy::too_many_lines)]
     pub(crate) fn make(name: Option<Ident>, ty: Type, attrs: &[Attribute]) -> Result<Self> {
-        let (fattrs, help) = parse_bpaf_doc_attrs::<FieldAttrs>(attrs)?;
+        let (field_attrs, help) = parse_bpaf_doc_attrs::<FieldAttrs>(attrs)?;
 
-        let mut fattrs = fattrs.unwrap_or_default();
+        let mut field_attrs = field_attrs.unwrap_or_default();
 
-        let derived_consumer = fattrs.consumer.is_empty();
+        let derived_consumer = field_attrs.consumer.is_empty();
 
-        let mut cons = match fattrs.consumer.pop() {
+        let mut cons = match field_attrs.consumer.pop() {
             Some(cons) => cons,
-            None => derive_consumer(name.is_some() || !fattrs.naming.is_empty(), &ty)?,
+            None => derive_consumer(name.is_some() || !field_attrs.naming.is_empty(), &ty)?,
         };
 
         if let Consumer::External { span, ident: None } = &cons {
@@ -197,7 +197,7 @@ impl StructField {
 
         let mut env = Vec::new();
         let mut naming = Vec::new();
-        for attr in fattrs.naming {
+        for attr in field_attrs.naming {
             if let Name::Env { name, .. } = attr {
                 env.push(StrictName::Env { name });
             } else {
@@ -249,7 +249,7 @@ impl StructField {
             }
         }*/
 
-        let mut postpr = std::mem::take(&mut fattrs.postpr);
+        let mut postpr = std::mem::take(&mut field_attrs.postpr);
 
         let shape = split_type(&ty);
 
@@ -296,7 +296,7 @@ impl StructField {
             }
         }
 
-        let help = match fattrs.help.pop() {
+        let help = match field_attrs.help.pop() {
             Some(h) => Some(Help::Custom(h.doc)),
             None => help,
         };
