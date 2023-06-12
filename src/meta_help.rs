@@ -177,7 +177,7 @@ impl<'a> HelpItems<'a> {
 impl Meta {
     fn peek_front_ty(&self) -> Option<HiTy> {
         match self {
-            Meta::And(xs) | Meta::Or(xs) => xs.iter().flat_map(|x| x.peek_front_ty()).next(),
+            Meta::And(xs) | Meta::Or(xs) => xs.iter().find_map(Meta::peek_front_ty),
             Meta::Optional(x)
             | Meta::Required(x)
             | Meta::Adjacent(x)
@@ -332,14 +332,13 @@ impl Doc {
     }
 }
 
+#[allow(clippy::too_many_lines)] // lines are _very_ boring
 fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
     match item {
         HelpItem::DecorHeader { help, .. } => {
             buf.token(Token::BlockStart(Block::Section3));
             buf.doc(help);
             buf.token(Token::BlockEnd(Block::Section3));
-
-            //            buf.buffer(help);
         }
         HelpItem::DecorSuffix { help, .. } => {
             buf.token(Token::BlockStart(Block::ItemTerm));
@@ -513,7 +512,7 @@ pub(crate) fn render_help(
 
     buf.token(Token::BlockStart(Block::Block));
     if let Some(usage) = &info.usage {
-        buf.doc(usage)
+        buf.doc(usage);
     } else {
         buf.write_str("Usage", Style::Emphasis);
         buf.write_str(": ", Style::Text);

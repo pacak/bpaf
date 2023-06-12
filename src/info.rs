@@ -31,11 +31,11 @@ pub struct Info {
 impl Default for Info {
     fn default() -> Self {
         Self {
-            version: Default::default(),
-            descr: Default::default(),
-            header: Default::default(),
-            footer: Default::default(),
-            usage: Default::default(),
+            version: None,
+            descr: None,
+            header: None,
+            footer: None,
+            usage: None,
             help_arg: short('h').long("help").help("Prints help information"),
             version_arg: short('V')
                 .long("version")
@@ -269,7 +269,7 @@ impl<T> OptionParser<T> {
     /// Used internally to avoid duplicating description for [`command`].
     #[must_use]
     pub(crate) fn short_descr(&self) -> Option<Doc> {
-        self.info.descr.as_ref().and_then(|b| b.first_line())
+        self.info.descr.as_ref().and_then(Doc::first_line)
     }
 
     /// Set the version field.
@@ -584,6 +584,7 @@ impl<T> OptionParser<T> {
     ///
     /// Note, `--help` is something user expects to work
     #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
+    #[must_use]
     pub fn help_parser(mut self, parser: NamedArg) -> Self {
         self.info.help_arg = parser;
         self
@@ -596,6 +597,7 @@ impl<T> OptionParser<T> {
     ///
     /// Note, `--version` is something user expects to work
     #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
+    #[must_use]
     pub fn version_parser(mut self, parser: NamedArg) -> Self {
         self.info.version_arg = parser;
         self

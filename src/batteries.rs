@@ -177,6 +177,7 @@ where
 ///     ...
 /// ```
 #[allow(clippy::needless_pass_by_value)]
+#[must_use]
 pub fn get_usage<T>(parser: crate::OptionParser<T>) -> String
 where
     T: std::fmt::Debug,

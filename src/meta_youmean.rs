@@ -40,12 +40,12 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
     let mut nested = HelpItems::default();
 
     // while scanning keep the closest match
-    let mut best = None;
+    let mut best_match = None;
     let mut best_dist = usize::MAX;
     let mut improve = |dist, val| {
         if best_dist > dist && dist > 0 && dist < 4 {
             best_dist = dist;
-            best = Some(val);
+            best_match = Some(val);
         }
     };
 
@@ -110,24 +110,24 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
         }
     }
 
-    if let Some((name, variant)) = nest {
+    if let Some((&name, variant)) = nest {
         Some((ix, Suggestion::Nested(name.to_string(), variant)))
     } else {
         // skip confusing errors
         if best_dist == usize::MAX {
             return None;
         }
-        let best = best?;
+        let best_match = best_match?;
 
         // handle missing single dash typos separately
-        if let Variant::Flag(n) = best {
+        if let Variant::Flag(n) = best_match {
             if let Some(long) = n.as_long() {
                 if actual.strip_prefix('-') == Some(long) {
                     return Some((ix, Suggestion::MissingDash(long)));
                 }
             }
         }
-        Some((ix, Suggestion::Variant(best)))
+        Some((ix, Suggestion::Variant(best_match)))
     }
 }
 

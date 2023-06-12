@@ -5,7 +5,13 @@ use syn::{
     token, Attribute, Error, Expr, Ident, LitChar, LitStr, Path, Result, Type,
 };
 
-use crate::{help::Help, utils::*};
+use crate::{
+    help::Help,
+    utils::{
+        doc_comment, parse_arg, parse_arg2, parse_expr, parse_lit_char, parse_lit_str,
+        parse_opt_metavar, parse_path, to_kebab_case,
+    },
+};
 
 #[inline(never)]
 fn type_fish(input: ParseStream) -> Result<Option<Type>> {
@@ -26,7 +32,7 @@ pub struct TurboFish<'a>(pub &'a Type);
 impl ToTokens for TurboFish<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ty = &self.0;
-        quote!(::<#ty>).to_tokens(tokens)
+        quote!(::<#ty>).to_tokens(tokens);
     }
 }
 
@@ -109,9 +115,10 @@ impl Consumer {
             | Consumer::Flag { .. }
             | Consumer::ReqFlag { .. }
             | Consumer::Argument { .. } => true,
-            Consumer::Expr { .. } | Consumer::Positional { .. } | Consumer::Any { .. } => false,
-
-            Consumer::External { .. } => false,
+            Consumer::Expr { .. }
+            | Consumer::Positional { .. }
+            | Consumer::Any { .. }
+            | Consumer::External { .. } => false,
         }
     }
 }
@@ -201,7 +208,7 @@ impl ToTokens for PostParse {
             PostParse::Parse { f, .. } => quote!(parse(#f)),
             PostParse::Strict { .. } => quote!(strict()),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -219,7 +226,7 @@ impl ToTokens for PostDecor {
             PostDecor::Hide { .. } => quote!(hide()),
             PostDecor::HideUsage { .. } => quote!(hide_usage()),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -485,7 +492,7 @@ pub(crate) struct EnumPrefix(pub Ident);
 impl ToTokens for EnumPrefix {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.0;
-        quote!(#name ::).to_tokens(tokens)
+        quote!(#name ::).to_tokens(tokens);
     }
 }
 
@@ -527,9 +534,8 @@ impl Parse for FieldAttrs {
 
             if input.is_empty() {
                 break;
-            } else {
-                input.parse::<token::Comma>()?;
             }
+            input.parse::<token::Comma>()?;
         }
         res.validate()?;
         Ok(res)
@@ -556,14 +562,14 @@ impl FieldAttrs {
     }
 }
 
-pub(crate) fn parse_bpaf_doc_attrs<T>(attrs: Vec<Attribute>) -> Result<(Option<T>, Option<Help>)>
+pub(crate) fn parse_bpaf_doc_attrs<T>(attrs: &[Attribute]) -> Result<(Option<T>, Option<Help>)>
 where
     T: Parse,
 {
     let mut help = Vec::new();
     let mut parsed = None;
 
-    for attr in attrs.iter() {
+    for attr in attrs {
         if attr.path().is_ident("doc") {
             if let Some(doc) = doc_comment(attr) {
                 help.push(doc);

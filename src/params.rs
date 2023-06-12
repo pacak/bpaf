@@ -527,6 +527,7 @@ impl<P> ParseCommand<P> {
     /// succeed if there are leftovers for as long as all comsumed items form a single adjacent
     /// block. This opens possibilities to chain commands sequentially.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
+    #[must_use]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
         self
@@ -558,11 +559,7 @@ impl<T> Parser<T> for ParseCommand<T> {
             }
 
             args.path.push(self.longs[0].to_string());
-            if !self.adjacent {
-                self.subparser
-                    .run_subparser(args)
-                    .map_err(|e| Error(Message::ParseFailure(e)))
-            } else {
+            if self.adjacent {
                 let mut orig_args = args.clone();
 
                 // narrow down the scope to adjacently available elements
@@ -590,6 +587,10 @@ impl<T> Parser<T> for ParseCommand<T> {
                         Err(Error(err))
                     }
                 }
+            } else {
+                self.subparser
+                    .run_subparser(args)
+                    .map_err(|e| Error(Message::ParseFailure(e)))
             }
         } else {
             #[cfg(feature = "autocomplete")]
@@ -987,12 +988,13 @@ where
 /// # See also
 /// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
 /// or not.
+#[must_use]
 pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
     any("", move |s| if s == val { Some(()) } else { None })
         .metavar(&[(val, crate::buffer::Style::Literal)][..])
 }
 
-impl<F, I, T> ParseAny<T, F, I> {
+impl<T, I, F> ParseAny<T, I, F> {
     pub(crate) fn item(&self) -> Item {
         Item::Any {
             metavar: self.metavar.clone(),
@@ -1011,6 +1013,7 @@ impl<F, I, T> ParseAny<T, F, I> {
 
     /// Replace metavar with a custom value
     /// See examples in [`any`]
+    #[must_use]
     pub fn metavar<M: Into<Doc>>(mut self, metavar: M) -> Self {
         self.metavar = metavar.into();
         self
@@ -1018,6 +1021,7 @@ impl<F, I, T> ParseAny<T, F, I> {
 
     /// Try to apply the parser to each unconsumed element instead of just the front one
     /// See examples in [`any`]
+    #[must_use]
     pub fn anywhere(mut self) -> Self {
         self.anywhere = true;
         self

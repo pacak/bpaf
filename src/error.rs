@@ -237,20 +237,21 @@ fn only_once(args: &State, cur: usize) -> Option<usize> {
 }
 
 impl Message {
-    pub(crate) fn render(mut self, args: &State, inner: &Meta) -> ParseFailure {
+    #[allow(clippy::too_many_lines)] // it's a huge match with lots of simple cases
+    pub(crate) fn render(mut self, args: &State, meta: &Meta) -> ParseFailure {
         // try to come up with a better error message for a few cases
         match self {
             Message::Unconsumed(ix) => {
                 if let Some(conflict) = check_conflicts(args) {
                     self = conflict;
-                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, inner) {
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, meta) {
                     self = Message::Suggestion(ix, suggestion);
                 } else if let Some(prev_ix) = only_once(args, ix) {
-                    self = Message::OnlyOnce(prev_ix, ix)
+                    self = Message::OnlyOnce(prev_ix, ix);
                 }
             }
             Message::Missing(xs) => {
-                self = summarize_missing(&xs, inner, args);
+                self = summarize_missing(&xs, meta, args);
             }
             _ => {}
         }
@@ -280,7 +281,6 @@ impl Message {
                 doc.invalid(name);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" is not set");
-                doc.monochrome(false);
             }
             Message::StrictPos(_ix, metavar) => {
                 doc.text("Expected ");
@@ -292,10 +292,7 @@ impl Message {
                 doc.literal("--");
                 doc.token(Token::BlockEnd(Block::TermRef));
             }
-            Message::ParseSome(s) => {
-                doc.text(s);
-            }
-            Message::ParseFail(s) => {
+            Message::ParseSome(s) | Message::ParseFail(s) => {
                 doc.text(s);
             }
             Message::ParseFailed(mix, s) => {
@@ -305,10 +302,8 @@ impl Message {
                     doc.token(Token::BlockStart(Block::TermRef));
                     doc.invalid(&field);
                     doc.token(Token::BlockEnd(Block::TermRef));
-                    doc.text(": ");
-                } else {
-                    doc.text(": ");
                 }
+                doc.text(": ");
                 doc.text(&s);
             }
             Message::GuardFailed(mix, s) => {
@@ -317,11 +312,10 @@ impl Message {
                     doc.invalid(&field);
                     doc.token(Token::BlockEnd(Block::TermRef));
                     doc.text(": ");
-                    doc.text(s);
                 } else {
                     doc.text("Check failed: ");
-                    doc.text(s);
                 }
+                doc.text(s);
             }
             Message::NoArgument(x, mv) => match args.get(x + 1) {
                 Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
@@ -369,17 +363,14 @@ impl Message {
                 let second = chars.next().unwrap();
                 let s = args.items[ix].os_str().to_str().unwrap();
 
-                match args.path.first() {
-                    Some(name) => {
-                        doc.literal(name);
-                        doc.text("supports ");
-                        doc.token(Token::BlockStart(Block::TermRef));
-                    }
-                    None => {
-                        doc.text("App supports ");
-                        doc.token(Token::BlockStart(Block::TermRef));
-                    }
+                if let Some(name) = args.path.first() {
+                    doc.literal(name);
+                    doc.text("supports ");
+                } else {
+                    doc.text("App supports ");
                 }
+
+                doc.token(Token::BlockStart(Block::TermRef));
                 doc.literal("-");
                 doc.write_char(first, Style::Literal);
                 doc.token(Token::BlockEnd(Block::TermRef));

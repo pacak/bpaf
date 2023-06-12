@@ -1,7 +1,8 @@
 use crate::{
     buffer::{
+        extract_sections,
         splitter::{split, Chunk},
-        Block, Token, *,
+        Block, Info, Meta, Skip, Style, Token,
     },
     meta_help::render_help,
     Doc, OptionParser, Parser,
@@ -84,12 +85,7 @@ impl From<Style> for Styles {
                 mono: false,
                 italic: false,
             },
-            Style::Emphasis => Styles {
-                mono: false,
-                bold: true,
-                italic: false,
-            },
-            Style::Invalid => Styles {
+            Style::Emphasis | Style::Invalid => Styles {
                 mono: false,
                 bold: true,
                 italic: false,
@@ -100,22 +96,22 @@ impl From<Style> for Styles {
 
 fn change_style(res: &mut String, cur: &mut Styles, new: Styles) {
     if cur.italic {
-        res.push_str("</i>")
+        res.push_str("</i>");
     }
     if cur.bold {
-        res.push_str("</b>")
+        res.push_str("</b>");
     }
     if cur.mono {
-        res.push_str("</tt>")
+        res.push_str("</tt>");
     }
     if new.mono {
-        res.push_str("<tt>")
+        res.push_str("<tt>");
     }
     if new.bold {
-        res.push_str("<b>")
+        res.push_str("<b>");
     }
     if new.italic {
-        res.push_str("<i>")
+        res.push_str("<i>");
     }
     *cur = new;
 }
@@ -144,6 +140,7 @@ div.bpaf-doc  { padding-left: 1em; }
 impl Doc {
     #[doc(hidden)]
     /// Render doc into html page, used by documentation sample generator
+    #[must_use]
     pub fn render_html(&self, full: bool, include_css: bool) -> String {
         let mut res = String::new();
         let mut byte_pos = 0;
@@ -190,12 +187,6 @@ impl Doc {
                         }
                         Block::Section2 => {
                             res.push_str("<div>\n");
-                            //blank_line(&mut res);
-                            //                            res.push_str("## ");
-                        }
-                        Block::Section3 => {
-                            //                            blank_line(&mut res);
-                            //                            res.push_str("### ");
                         }
                         Block::ItemTerm => res.push_str("<dt>"),
                         Block::ItemBody => {
@@ -206,15 +197,13 @@ impl Doc {
                             }
                         }
                         Block::DefinitionList => {
-                            //                            at_newline(&mut res);
                             res.push_str("<dl>");
                         }
                         Block::Block => {
                             res.push_str("<p>");
-                            //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),
-                        Block::TermRef => {}
+                        Block::Section3 | Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
                         }
@@ -232,7 +221,6 @@ impl Doc {
                             res.push_str("</div>");
                         }
 
-                        Block::Section3 => {}
                         Block::InlineBlock => {
                             skip.pop();
                         }
@@ -250,7 +238,7 @@ impl Doc {
                             //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),
-                        Block::TermRef => {}
+                        Block::Section3 | Block::TermRef => {}
                     }
                 }
             }

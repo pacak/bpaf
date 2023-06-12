@@ -51,11 +51,11 @@ pub(crate) const RESTORE_FONT: &str = "\\fP";
 impl Font {
     /// Escape sequence needed to set this font, None for default font
     ///
-    pub(crate) fn escape(self) -> Option<&'static str> {
+    pub(crate) fn escape(self) -> &'static str {
         match self {
-            Font::Bold => Some("\\fB"),
-            Font::Italic => Some("\\fI"),
-            Font::Roman => Some("\\fR"),
+            Font::Bold => "\\fB",
+            Font::Italic => "\\fI",
+            Font::Roman => "\\fR",
         }
     }
 }
@@ -145,11 +145,10 @@ impl Roff {
         for (font, item) in text {
             if prev_font == Some(font) {
                 self.plaintext(item.as_ref());
-            } else if let Some(escape) = font.escape() {
+            } else {
+                let escape = font.escape();
                 self.escape(escape).plaintext(item.as_ref());
                 prev_font = Some(font);
-            } else {
-                self.plaintext(item.as_ref());
             }
         }
         if prev_font.is_some() {

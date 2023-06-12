@@ -179,7 +179,7 @@ impl Meta {
             or: bool,
         ) -> Option<Meta> {
             let mut final_norm = *norm;
-            xs.iter_mut().for_each(|m| {
+            for m in xs.iter_mut() {
                 let mut this_norm = *norm;
                 m.normalize(for_usage, &mut this_norm);
                 let target: &mut StrictNorm = if or { &mut final_norm } else { norm };
@@ -194,7 +194,7 @@ impl Meta {
                         *target = this_norm;
                     }
                 }
-            });
+            }
             xs.retain(|m| !matches!(m, Meta::Skip));
 
             *norm = final_norm;

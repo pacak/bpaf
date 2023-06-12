@@ -875,6 +875,7 @@ where
             // consider examples "42 -n" and "-n 42"
             // without multi step approach first command line also parses into 42
             let mut scratch = this_arg.clone();
+            #[allow(clippy::range_plus_one)] // clippy suggests wrong type
             scratch.set_scope(start..start + 1);
             let before = scratch.len();
 

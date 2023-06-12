@@ -28,6 +28,7 @@ impl From<&[(&str, Style)]> for Doc {
 ///
 ///
 /// See [`Doc::meta`](Doc::meta)
+#[derive(Copy, Clone)]
 pub struct MetaInfo<'a>(pub(crate) &'a Meta);
 
 impl Doc {
@@ -273,7 +274,7 @@ pub struct Doc {
 #[derive(Debug, Clone, Copy, Default)]
 struct Skip(usize);
 impl Skip {
-    fn enabled(&self) -> bool {
+    fn enabled(self) -> bool {
         self.0 > 0
     }
     fn enable(&mut self) {
@@ -412,7 +413,7 @@ fn extract_sections<'a>(
             info,
         } = item
         {
-            path.push(name.to_string());
+            path.push((*name).to_string());
             extract_sections(meta, info, path, sections);
             path.pop();
         }

@@ -134,9 +134,7 @@ impl ToTokens for StructField {
             }
             HelpPlacement::NotAvailable => quote!(#prefix #(#names.)* #cons #(.#postpr)*),
         }
-        .to_tokens(tokens)
-
-        // consumer
+        .to_tokens(tokens);
     }
 }
 
@@ -155,17 +153,18 @@ impl StructField {
         let name = input.parse::<Ident>()?;
         input.parse::<token::Colon>()?;
         let ty = input.parse::<Type>()?;
-        Self::make(Some(name), ty, attrs)
+        Self::make(Some(name), ty, &attrs)
     }
 
     pub fn parse_unnamed(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
         let _vis = input.parse::<Visibility>()?;
         let ty = input.parse::<Type>()?;
-        Self::make(None, ty, attrs)
+        Self::make(None, ty, &attrs)
     }
 
-    pub fn make(name: Option<Ident>, ty: Type, attrs: Vec<Attribute>) -> Result<Self> {
+    #[allow(clippy::too_many_lines)]
+    pub(crate) fn make(name: Option<Ident>, ty: Type, attrs: &[Attribute]) -> Result<Self> {
         let (fattrs, help) = parse_bpaf_doc_attrs::<FieldAttrs>(attrs)?;
 
         let mut fattrs = fattrs.unwrap_or_default();
@@ -200,15 +199,18 @@ impl StructField {
         let mut naming = Vec::new();
         for attr in fattrs.naming {
             if let Name::Env { name, .. } = attr {
-                env.push(StrictName::Env { name })
+                env.push(StrictName::Env { name });
             } else {
-                naming.push(StrictName::from_name(attr, &name)?)
+                naming.push(StrictName::from_name(attr, &name)?);
             }
         }
 
         match (cons.needs_name(), !naming.is_empty()) {
             // need name, there are some. just need to resolve optional shorts and longs later
-            (true, true) => {}
+            (true, true) |
+            // doesn't need a name, none are given. all good
+            (false, false) => {}
+
             // needs a name, none specified, derive it from `name` field
             (true, false) => match &name {
                 Some(n) => {
@@ -237,8 +239,6 @@ impl StructField {
                 ));
             }
 
-            // doesn't need a name, none are given. all good
-            (false, false) => {}
         };
 
         /*
@@ -260,7 +260,7 @@ impl StructField {
             if matches!(ty, None) {
                 match &shape {
                     Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => {
-                        *ty = Some(t.clone())
+                        *ty = Some(t.clone());
                     }
                     _ => {}
                 }

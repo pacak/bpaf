@@ -164,25 +164,22 @@ impl Iterator for LineIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.strings.next() {
-                Some(line) => {
-                    if line.is_empty() {
-                        if self.prev_empty {
-                            self.prev_empty = false;
-                            return Some(self.take());
-                        }
-                        self.prev_empty = true;
-                    } else {
-                        self.current.push_str(line);
-                        self.current.push('\n');
+            if let Some(line) = self.strings.next() {
+                if line.is_empty() {
+                    if self.prev_empty {
+                        self.prev_empty = false;
+                        return Some(self.take());
                     }
+                    self.prev_empty = true;
+                } else {
+                    self.current.push_str(line);
+                    self.current.push('\n');
                 }
-                None => {
-                    if self.current.is_empty() {
-                        return None;
-                    }
-                    return Some(self.take());
+            } else {
+                if self.current.is_empty() {
+                    return None;
                 }
+                return Some(self.take());
             }
         }
     }

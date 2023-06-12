@@ -50,7 +50,7 @@ impl Item {
             Item::Flag { .. } | Item::Argument { .. } => false,
         }
     }
-    /// Normalize name inside ShortLong into either short or long
+    /// Normalize name inside [`ShortLong`] into either short or long
     pub(crate) fn normalize(&mut self, short: bool) {
         match self {
             Item::Positional { .. } | Item::Command { .. } | Item::Any { .. } => {}
@@ -100,7 +100,7 @@ impl PartialEq<&str> for ShortLong {
 }
 
 impl ShortLong {
-    /// Changes ShortLong variant into either short or long depending,
+    /// Changes [`ShortLong`](ShortLong::ShortLong) variant into either short or long depending,
     /// leaves both Short and Long untouched
     pub(crate) fn normalize(&mut self, short: bool) {
         match self {

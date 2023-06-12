@@ -1,4 +1,8 @@
-use crate::{attrs::PostDecor, help::Help, utils::*};
+use crate::{
+    attrs::PostDecor,
+    help::Help,
+    utils::{parse_arg, parse_opt_arg},
+};
 use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
@@ -96,11 +100,10 @@ impl ToTokens for TopAttr {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
             Self::ToOptions => quote!(to_options()),
-            Self::CargoHelper(_) => unreachable!(),
+            Self::CargoHelper(_) | Self::UnnamedCommand => unreachable!(),
             Self::Version(v) => quote!(version(#v)),
             Self::Adjacent => quote!(adjacent()),
             Self::NamedCommand(n) => quote!(command(#n)),
-            Self::UnnamedCommand => unreachable!(),
             Self::CommandShort(n) => quote!(short(#n)),
             Self::CommandLong(n) => quote!(long(#n)),
             Self::CompleteStyle(c) => quote!(complete_style(#c)),
@@ -110,7 +113,7 @@ impl ToTokens for TopAttr {
             Self::Footer(d) => quote!(footer(#d)),
             Self::PostDecor(pd) => return pd.to_tokens(tokens),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -209,9 +212,8 @@ impl Parse for TopInfo {
 
             if input.is_empty() {
                 break;
-            } else {
-                input.parse::<token::Comma>()?;
             }
+            input.parse::<token::Comma>()?;
         }
 
         Ok(TopInfo {
@@ -289,12 +291,11 @@ impl Parse for Ed {
 
             if input.is_empty() {
                 break;
-            } else {
-                input.parse::<token::Comma>()?;
             }
+            input.parse::<token::Comma>()?;
         }
 
-        Ok(Ed { attrs, skip })
+        Ok(Ed { skip, attrs })
     }
 }
 
@@ -320,7 +321,6 @@ impl ToTokens for EAttr {
         match self {
             Self::ToOptions => quote!(to_options()),
             Self::NamedCommand(n) => quote!(command(#n)),
-            Self::UnnamedCommand => unreachable!(),
             Self::CommandShort(n) => quote!(short(#n)),
             Self::CommandLong(n) => quote!(long(#n)),
             Self::Adjacent => quote!(adjacent()),
@@ -328,8 +328,8 @@ impl ToTokens for EAttr {
             Self::Usage(u) => quote!(usage(#u)),
             Self::Env(e) => quote!(env(#e)),
             Self::Hide => quote!(hide()),
-            Self::UnitShort(_) | Self::UnitLong(_) => unreachable!(),
+            Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_) => unreachable!(),
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }

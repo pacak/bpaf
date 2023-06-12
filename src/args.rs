@@ -37,12 +37,14 @@ pub struct Args<'a> {
 impl Args<'_> {
     /// enable completions with custom output revision style
     #[cfg(feature = "autocomplete")]
+    #[must_use]
     pub fn set_comp(mut self, rev: usize) -> Self {
         self.c_rev = Some(rev);
         self
     }
     /// Add an application name for args created from custom input
     /// TODO - document
+    #[must_use]
     pub fn set_name(mut self, name: &str) -> Self {
         self.name = Some(name.to_owned());
         self
@@ -106,6 +108,7 @@ impl<'a> From<&'a [OsString]> for Args<'a> {
 
 impl Args<'_> {
     /// Get a list of command line arguments from OS
+    #[must_use]
     pub fn current_args() -> Self {
         let mut value = std::env::args_os();
         let name = value.next().and_then(|n| {
@@ -209,6 +212,7 @@ mod inner {
     ///
     /// # Panics
     /// This will panic on invalid input (-foo=bar), use for tests only
+    #[allow(clippy::fallible_impl_from)] // this is for tests only, panic is okay
     impl<const N: usize> From<&'static [&'static str; N]> for State {
         fn from(value: &'static [&'static str; N]) -> Self {
             let args = Args::from(value);
@@ -234,6 +238,7 @@ mod inner {
             }
         }
 
+        #[allow(clippy::too_many_lines)] // it's relatively simple.
         pub(crate) fn construct(
             args: Args,
             short_flags: &[char],
@@ -338,7 +343,7 @@ mod inner {
                             Arg::PosWord(os)
                         } else {
                             Arg::Word(os)
-                        })
+                        });
                     }
                 }
             }

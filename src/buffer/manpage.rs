@@ -1,5 +1,5 @@
 use crate::{
-    buffer::{manpage::escape::Apostrophes, Block, Token, *},
+    buffer::{extract_sections, manpage::escape::Apostrophes, Block, HelpItems, Style, Token},
     Doc, OptionParser, Parser,
 };
 
@@ -157,10 +157,8 @@ impl From<Style> for Font {
     fn from(value: Style) -> Self {
         match value {
             Style::Text => Font::Roman,
-            Style::Emphasis => Font::Bold,
-            Style::Literal => Font::Bold,
-            Style::Metavar => Font::Italic,
-            Style::Invalid => Font::Italic,
+            Style::Emphasis | Style::Literal => Font::Bold,
+            Style::Metavar | Style::Invalid => Font::Italic,
         }
     }
 }
@@ -198,12 +196,10 @@ impl Doc {
                         Block::ItemTerm => {
                             roff.control0("TP").strip_newlines(true);
                         }
-                        Block::ItemBody => {}
-                        Block::DefinitionList => {}
+                        Block::ItemBody | Block::DefinitionList | Block::InlineBlock => {}
                         Block::Block => {
                             roff.control0("PP");
                         }
-                        Block::InlineBlock => {}
                         Block::Meta => {
                             roff.control0("nf");
                         }
@@ -230,9 +226,7 @@ impl Doc {
                         Block::ItemBody => {
                             roff.control0("PP").strip_newlines(false);
                         }
-                        Block::DefinitionList => {}
-                        Block::Block => {}
-                        Block::InlineBlock => {}
+                        Block::DefinitionList | Block::Block | Block::InlineBlock => {}
                         Block::Meta => {
                             roff.control0("fi");
                         }

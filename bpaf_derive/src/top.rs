@@ -12,15 +12,12 @@ use crate::{
     attrs::{parse_bpaf_doc_attrs, EnumPrefix, PostDecor, StrictName},
     field::StructField,
     help::Help,
-    td::*,
+    td::{EAttr, Ed, Mode, TopAttr, TopInfo},
     utils::{to_kebab_case, to_snake_case, LineIter},
 };
 
 #[derive(Debug)]
 /// Top level container
-///
-/// describes generated function name, visibility and suffix for OptionsDecor
-/// Contains Body
 pub(crate) struct Top {
     // {{{
     /// Name of a parsed or produced type, possibly with generics
@@ -55,7 +52,7 @@ fn ident_to_short(ident: &Ident) -> LitChar {
 impl Parse for Top {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
-        let (top_decor, mut help) = parse_bpaf_doc_attrs::<TopInfo>(attrs)?;
+        let (top_decor, mut help) = parse_bpaf_doc_attrs::<TopInfo>(&attrs)?;
         let TopInfo {
             private,
             custom_name,
@@ -115,17 +112,17 @@ impl Parse for Top {
                     attrs.push(TopAttr::ToOptions);
 
                     if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(TopAttr::Descr(h))
+                        attrs.push(TopAttr::Descr(h));
                     }
 
                     attrs.push(attr);
                 }
                 TopAttr::UnnamedCommand => {
-                    body.set_unnamed_command()?;
+                    body.set_unnamed_command();
                     attrs.push(TopAttr::ToOptions);
 
                     if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(TopAttr::Descr(h))
+                        attrs.push(TopAttr::Descr(h));
                     }
                     attrs.push(TopAttr::NamedCommand(ident_to_long(&ty)));
                 }
@@ -147,7 +144,7 @@ impl Parse for Top {
                 Help::Doc(d) => parse_quote!(#d),
             };
             let span = Span::call_site();
-            attrs.push(TopAttr::PostDecor(PostDecor::GroupHelp { doc, span }))
+            attrs.push(TopAttr::PostDecor(PostDecor::GroupHelp { doc, span }));
         }
 
         Ok(Top {
@@ -238,7 +235,7 @@ impl Parse for Body {
             let mut branches = content.parse_terminated(EnumBranch::parse, token::Comma)?;
             for b in branches.iter_mut() {
                 b.branch.enum_name = Some(EnumPrefix(name.clone()));
-                b.pp()?;
+                b.pp();
             }
 
             let branches = branches.into_iter().filter(|b| !b.skip).collect::<Vec<_>>();
@@ -263,7 +260,10 @@ impl Body {
 impl Body {
     fn set_named_command(&mut self, span: Span) -> Result<()> {
         match self {
-            Body::Single(branch) => branch.set_command(),
+            Body::Single(branch) => {
+                branch.set_command();
+                Ok(())
+            }
             Body::Alternatives(_, _) => Err(Error::new(
                 span,
                 "You can't annotate `enum` with a named command.",
@@ -271,7 +271,7 @@ impl Body {
         }
     }
 
-    fn set_unnamed_command(&mut self) -> Result<()> {
+    fn set_unnamed_command(&mut self) {
         match self {
             Body::Single(b) => b.set_unnamed_command(),
             Body::Alternatives(_, _branches) => {
@@ -304,7 +304,7 @@ impl ToTokens for Body {
                 }}
             }
         }
-        .to_tokens(tokens)
+        .to_tokens(tokens);
     }
 }
 
@@ -322,21 +322,21 @@ pub(crate) struct EnumBranch {
 impl Parse for EnumBranch {
     fn parse(input: ParseStream) -> Result<Self> {
         let attrs = input.call(Attribute::parse_outer)?;
-        let (enum_decor, help) = parse_bpaf_doc_attrs::<Ed>(attrs)?;
+        let (enum_decor, help) = parse_bpaf_doc_attrs::<Ed>(&attrs)?;
         let Ed { attrs, skip } = enum_decor.unwrap_or_default();
 
         let branch = input.parse::<Branch>()?;
 
         Ok(Self {
             branch,
-            skip,
             attrs,
+            skip,
             help,
         })
     }
 }
 impl EnumBranch {
-    fn pp(&mut self) -> Result<()> {
+    fn pp(&mut self) {
         let ea = std::mem::take(&mut self.attrs);
         let EnumBranch {
             branch,
@@ -349,33 +349,33 @@ impl EnumBranch {
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
-                    branch.set_command()?;
+                    branch.set_command();
                     attrs.push(EAttr::ToOptions);
                     if let Some(h) = std::mem::take(help) {
-                        attrs.push(EAttr::Descr(h))
+                        attrs.push(EAttr::Descr(h));
                     }
                     attrs.push(attr);
                 }
                 EAttr::UnnamedCommand => {
-                    branch.set_command()?;
+                    branch.set_command();
                     attrs.push(EAttr::ToOptions);
 
                     if let Some(h) = std::mem::take(help) {
-                        attrs.push(EAttr::Descr(h))
+                        attrs.push(EAttr::Descr(h));
                     }
 
                     attrs.push(EAttr::NamedCommand(ident_to_long(&branch.ident)));
                 }
 
-                EAttr::CommandShort(_) | EAttr::CommandLong(_) => branch.set_command()?,
+                EAttr::CommandShort(_) | EAttr::CommandLong(_) => branch.set_command(),
 
                 EAttr::UnitShort(n) => branch.set_unit_name(StrictName::Short {
                     name: n.unwrap_or_else(|| ident_to_short(&branch.ident)),
-                })?,
+                }),
                 EAttr::UnitLong(n) => branch.set_unit_name(StrictName::Long {
                     name: n.unwrap_or_else(|| ident_to_long(&branch.ident)),
-                })?,
-                EAttr::Env(name) => branch.set_unit_name(StrictName::Env { name })?,
+                }),
+                EAttr::Env(name) => branch.set_unit_name(StrictName::Env { name }),
 
                 EAttr::Usage(_) => {
                     if let Some(o) = attrs.iter().position(|i| matches!(i, EAttr::ToOptions)) {
@@ -390,8 +390,6 @@ impl EnumBranch {
         }
         branch.set_inplicit_name();
         branch.help = std::mem::take(&mut self.help);
-
-        Ok(())
     }
 }
 
@@ -419,26 +417,23 @@ pub struct Branch {
 }
 
 impl Branch {
-    fn set_command(&mut self) -> Result<()> {
+    fn set_command(&mut self) {
         if let FieldSet::Unit(_) = self.fields {
             let ident = &self.ident;
             let enum_name = &self.enum_name;
             self.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
         }
-        Ok(())
     }
-    fn set_unnamed_command(&mut self) -> Result<()> {
+    fn set_unnamed_command(&mut self) {
         if let FieldSet::Unit(_) = self.fields {
-            self.set_command()?;
+            self.set_command();
         }
-        Ok(())
     }
 
-    fn set_unit_name(&mut self, name: StrictName) -> Result<()> {
+    fn set_unit_name(&mut self, name: StrictName) {
         if let FieldSet::Unit(names) = &mut self.fields {
             names.push(name);
         }
-        Ok(())
     }
 
     fn set_inplicit_name(&mut self) {

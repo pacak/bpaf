@@ -32,15 +32,18 @@
 
 use super::{
     splitter::{split, Chunk},
-    *,
+    Block, Doc, Skip, Token,
 };
+
+#[cfg(feature = "color")]
+use super::Style;
 
 const MAX_TAB: usize = 24;
 const MAX_WIDTH: usize = 100;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 /// Default to dull color if colors are enabled,
-#[allow(dead_code)]
+#[allow(dead_code)] // not fully used in without colors
 pub(crate) enum Color {
     Monochrome,
     #[cfg(feature = "color")]
@@ -88,20 +91,29 @@ impl Default for Color {
 
 #[cfg(feature = "color")]
 impl Color {
-    fn push_str(&self, style: Style, res: &mut String, item: &str) {
+    fn push_str(self, style: Style, res: &mut String, item: &str) {
         use owo_colors::OwoColorize;
         use std::fmt::Write;
         match self {
-            Color::Monochrome => Ok(res.push_str(item)),
+            Color::Monochrome => {
+                res.push_str(item);
+                Ok(())
+            }
             Color::Dull => match style {
-                Style::Text => Ok(res.push_str(item)),
+                Style::Text => {
+                    res.push_str(item);
+                    Ok(())
+                }
                 Style::Emphasis => write!(res, "{}", item.underline().bold()),
                 Style::Literal => write!(res, "{}", item.bold()),
                 Style::Metavar => write!(res, "{}", item.underline()),
                 Style::Invalid => write!(res, "{}", item.bold().red()),
             },
             Color::Bright => match style {
-                Style::Text => Ok(res.push_str(item)),
+                Style::Text => {
+                    res.push_str(item);
+                    Ok(())
+                }
                 Style::Emphasis => write!(res, "{}", item.yellow().bold()),
                 Style::Literal => write!(res, "{}", item.green().bold()),
                 Style::Metavar => write!(res, "{}", item.blue().bold()),
@@ -116,10 +128,12 @@ const PADDING: &str = "                                                  ";
 
 impl Doc {
     /// Render a monochrome version of the document
+    #[must_use]
     pub fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)
     }
 
+    #[allow(clippy::too_many_lines)] // it's a big ass match statement
     pub(crate) fn render_console(&self, full: bool, color: Color) -> String {
         let mut res = String::new();
         let mut tabstop = 0;
@@ -256,11 +270,10 @@ impl Doc {
                         Block::InlineBlock => {
                             skip.push();
                         }
-                        Block::DefinitionList => {}
                         Block::Block => {
                             margins.push(margin);
                         }
-                        Block::Meta => {}
+                        Block::DefinitionList | Block::Meta => {}
                         Block::TermRef => {
                             if color == Color::Monochrome {
                                 res.push('`');
