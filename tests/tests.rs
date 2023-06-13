@@ -1746,3 +1746,18 @@ fn adjacent_anywhere_needs_to_consume_something() {
     let r = parser.run_inner(&["-b"]).unwrap();
     assert_eq!(r, (false, true));
 }
+
+#[test]
+fn fallback_for_some() {
+    let a = short('a')
+        .argument::<u32>("ARG")
+        .some("potatoes")
+        .fallback(vec![1, 2, 3]);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(&["-a", "1"]).unwrap();
+    assert_eq!(r, vec![1]);
+
+    let r = parser.run_inner(&[]).unwrap();
+    assert_eq!(r, vec![1, 2, 3]);
+}
