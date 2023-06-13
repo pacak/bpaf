@@ -232,13 +232,20 @@ impl Parse for Body {
             let content;
             braced!(content in input);
 
-            let mut branches = content.parse_terminated(EnumBranch::parse, token::Comma)?;
-            for b in branches.iter_mut() {
-                b.branch.enum_name = Some(EnumPrefix(name.clone()));
-                b.pp();
-            }
+            let branches = content
+                .parse_terminated(ParsedEnumBranch::parse, token::Comma)?
+                .into_iter()
+                .filter_map(|p| p.resolve(&name).transpose())
+                .collect::<Result<Vec<_>>>()?;
 
-            let branches = branches.into_iter().filter(|b| !b.skip).collect::<Vec<_>>();
+            //            let mut branches
+            /*
+                        for b in branches.iter_mut() {
+                            b.postprocess_with_name(&name);
+                        }
+
+                        let branches = branches.into_iter().filter(|b| !b.skip).collect::<Vec<_>>();
+            */
 
             Ok(Self::Alternatives(name, branches))
         } else {
@@ -310,48 +317,36 @@ impl ToTokens for Body {
 
 // }}}
 
-#[derive(Debug)]
-pub(crate) struct EnumBranch {
+/// Generating code for enum branch needs enum name which is not available from
+/// parsing at that moment so operations are performed in two steps:
+/// 1. parse ParsedEnumBranch
+/// 2. resolve it into EnumBranch (or skip if skip is present)
+pub(crate) struct ParsedEnumBranch {
     // {{{
     branch: Branch,
-    attrs: Vec<EAttr>,
-    skip: bool,
-    help: Option<Help>,
+    attrs: Vec<Attribute>,
 }
 
-impl Parse for EnumBranch {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let attrs = input.call(Attribute::parse_outer)?;
-        let (enum_decor, help) = parse_bpaf_doc_attrs::<Ed>(&attrs)?;
-        let Ed { attrs, skip } = enum_decor.unwrap_or_default();
+impl ParsedEnumBranch {
+    fn resolve(self, enum_name: &Ident) -> Result<Option<EnumBranch>> {
+        let ParsedEnumBranch { mut branch, attrs } = self;
 
-        let branch = input.parse::<Branch>()?;
+        branch.enum_name = Some(EnumPrefix(enum_name.clone()));
 
-        Ok(Self {
-            branch,
-            attrs,
-            skip,
-            help,
-        })
-    }
-}
-impl EnumBranch {
-    fn pp(&mut self) {
-        let ea = std::mem::take(&mut self.attrs);
-        let EnumBranch {
-            branch,
-            attrs,
-            help,
-            skip: _,
-        } = self;
-        *attrs = Vec::with_capacity(ea.len());
+        let (enum_decor, mut help) = parse_bpaf_doc_attrs::<Ed>(&attrs)?;
+        let Ed { attrs: ea, skip } = enum_decor.unwrap_or_default();
+        if skip {
+            return Ok(None);
+        }
+
+        let mut attrs = Vec::with_capacity(ea.len());
 
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
                     branch.set_command();
                     attrs.push(EAttr::ToOptions);
-                    if let Some(h) = std::mem::take(help) {
+                    if let Some(h) = std::mem::take(&mut help) {
                         attrs.push(EAttr::Descr(h));
                     }
                     attrs.push(attr);
@@ -360,7 +355,7 @@ impl EnumBranch {
                     branch.set_command();
                     attrs.push(EAttr::ToOptions);
 
-                    if let Some(h) = std::mem::take(help) {
+                    if let Some(h) = std::mem::take(&mut help) {
                         attrs.push(EAttr::Descr(h));
                     }
 
@@ -389,18 +384,35 @@ impl EnumBranch {
             }
         }
         branch.set_inplicit_name();
-        branch.help = std::mem::take(&mut self.help);
+        if let Some(help) = help {
+            branch.push_help(help);
+        }
+
+        Ok(Some(EnumBranch { branch, attrs }))
     }
+}
+
+impl Parse for ParsedEnumBranch {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(ParsedEnumBranch {
+            attrs: input.call(Attribute::parse_outer)?,
+            branch: input.parse::<Branch>()?,
+        })
+    }
+}
+
+// }}}
+
+#[derive(Debug)]
+pub(crate) struct EnumBranch {
+    // {{{
+    branch: Branch,
+    attrs: Vec<EAttr>,
 }
 
 impl ToTokens for EnumBranch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let EnumBranch {
-            branch,
-            skip: _,
-            attrs,
-            help: _,
-        } = self;
+        let EnumBranch { branch, attrs } = self;
         quote!(#branch #(.#attrs)*).to_tokens(tokens);
     }
 }
@@ -412,32 +424,32 @@ pub struct Branch {
     // {{{
     enum_name: Option<EnumPrefix>,
     ident: Ident,
-    help: Option<Help>,
     fields: FieldSet,
 }
 
 impl Branch {
     fn set_command(&mut self) {
-        if let FieldSet::Unit(_) = self.fields {
+        if let FieldSet::Unit(_, _) = self.fields {
             let ident = &self.ident;
             let enum_name = &self.enum_name;
             self.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
         }
     }
+
     fn set_unnamed_command(&mut self) {
-        if let FieldSet::Unit(_) = self.fields {
+        if let FieldSet::Unit(_, _) = self.fields {
             self.set_command();
         }
     }
 
     fn set_unit_name(&mut self, name: StrictName) {
-        if let FieldSet::Unit(names) = &mut self.fields {
+        if let FieldSet::Unit(names, _) = &mut self.fields {
             names.push(name);
         }
     }
 
     fn set_inplicit_name(&mut self) {
-        if let FieldSet::Unit(names) = &mut self.fields {
+        if let FieldSet::Unit(names, _) = &mut self.fields {
             if !names
                 .iter()
                 .any(|n| matches!(n, StrictName::Long { .. } | StrictName::Short { .. }))
@@ -446,6 +458,13 @@ impl Branch {
                     name: ident_to_long(&self.ident),
                 });
             }
+        }
+    }
+    fn push_help(&mut self, help: Help) {
+        if let FieldSet::Unit(_, h) = &mut self.fields {
+            *h = Some(help);
+        } else {
+            todo!("use GroupHelp here");
         }
     }
 }
@@ -464,13 +483,12 @@ impl Parse for Branch {
             if input.peek(token::Semi) {
                 input.parse::<token::Semi>()?;
             }
-            FieldSet::Unit(Vec::new())
+            FieldSet::Unit(Vec::new(), None)
         };
 
         Ok(Branch {
             enum_name: None,
             ident,
-            help: None,
             //decor,
             fields,
         })
@@ -482,10 +500,8 @@ impl ToTokens for Branch {
         let Branch {
             enum_name,
             ident,
-            help,
             fields,
         } = self;
-        let help = help.iter();
         match fields {
             FieldSet::Named(fields) => {
                 let name = fields
@@ -511,7 +527,8 @@ impl ToTokens for Branch {
                     ::bpaf::construct!( #enum_name #ident ( #( #result , )* ))
                 }}
             }
-            FieldSet::Unit(names) => {
+            FieldSet::Unit(names, help) => {
+                let help = help.iter();
                 quote!(::bpaf:: #( #names .)* #(help(#help).)* req_flag(#enum_name #ident))
             }
             FieldSet::Pure(x) => quote!(#x),
@@ -526,7 +543,7 @@ pub(crate) enum FieldSet {
     // {{{
     Named(Punctuated<StructField, token::Comma>),
     Unnamed(Punctuated<StructField, token::Comma>),
-    Unit(Vec<StrictName>),
+    Unit(Vec<StrictName>, Option<Help>),
     Pure(Box<Expr>),
 }
 

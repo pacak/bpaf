@@ -43,7 +43,7 @@ fn derive_consumer(name_present: bool, ty: &Type) -> Result<Consumer> {
                     span,
                 }
             } else {
-                let msg = "Refusing to derive a positional item for () , you can fix this by either adding a short/long name or making it positional explicitly";
+                let msg = "Refusing to derive a positional item for (), you can fix this by either adding a short/long name or making it positional explicitly";
                 return Err(Error::new(ty.span(), msg));
             }
         }
@@ -240,14 +240,6 @@ impl StructField {
             }
 
         };
-
-        /*
-        if let Some(name) = name.as_ref() {
-            let kebab = to_kebab_case(&name.to_string());
-            for n in naming.iter_mut() {
-                n.fill_implicit_names(&kebab);
-            }
-        }*/
 
         let mut postpr = std::mem::take(&mut field_attrs.postpr);
 

@@ -936,3 +936,36 @@ fn top_comment_is_group_help_struct() {
     };
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
+
+#[test]
+fn push_down_command() {
+    let top: Top = parse_quote! {
+        #[derive(Bpaf)]
+        #[bpaf(command)]
+        enum Options {
+            Alpha,
+            Beta,
+        }
+    };
+
+    let expected = quote! {};
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn push_down_argument() {
+    let top: Top = parse_quote! {
+        #[derive(Bpaf)]
+        #[bpaf(command)]
+        enum Options {
+            #[bpaf(short)]
+            Alpha(String),
+            Beta,
+        }
+    };
+
+    let expected = quote! {};
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
