@@ -80,19 +80,19 @@ const TOP_NEED_COMMAND: &str =
 
 #[derive(Debug)]
 pub(crate) enum TopAttr {
-    CargoHelper(LitStr),
-    Version(Box<Expr>),
-    Adjacent,
-    NamedCommand(LitStr),
-    UnnamedCommand,
-    CommandShort(LitChar),
-    CommandLong(LitStr),
-    CompleteStyle(Box<Expr>),
-    Usage(Box<Expr>),
-    ToOptions,
-    Descr(Help),
-    Header(Help),
-    Footer(Help),
+    CargoHelper(LitStr),      // <- parsing
+    Version(Box<Expr>),       // <- top only
+    Adjacent,                 // generic
+    NamedCommand(LitStr),     // generic
+    UnnamedCommand,           // <- parsing
+    CommandShort(LitChar),    //
+    CommandLong(LitStr),      // <- command
+    CompleteStyle(Box<Expr>), // decor
+    Usage(Box<Expr>),         // command or top
+    ToOptions,                // options
+    Descr(Help),              // options
+    Header(Help),             // options
+    Footer(Help),             // options
     PostDecor(PostDecor),
 }
 
