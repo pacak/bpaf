@@ -197,6 +197,7 @@ impl ArgScanner<'_> {
             if let Ok(ver) = ver.parse::<usize>() {
                 self.revision = Some(ver);
             }
+            return true;
         }
         false
     }
