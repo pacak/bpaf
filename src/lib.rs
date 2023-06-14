@@ -312,7 +312,8 @@ pub mod parsers {
     pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
     #[doc(inline)]
     pub use crate::structs::{
-        ParseBox, ParseCon, ParseFallback, ParseMany, ParseOptional, ParseSome,
+        ParseBox, ParseCon, ParseCount, ParseFallback, ParseLast, ParseMany, ParseOptional,
+        ParseSome,
     };
 }
 
@@ -344,9 +345,9 @@ use std::marker::PhantomData;
 //pub use manpage::Section;
 
 use structs::{
-    ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseMany,
-    ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage,
-    ParseWith, ParseWithGroupHelp,
+    ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide,
+    ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure, ParsePureWith,
+    ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp,
 };
 
 #[cfg(feature = "autocomplete")]
@@ -807,6 +808,25 @@ pub trait Parser<T> {
         }
     }
     // }}}
+
+    #[must_use]
+    fn count(self) -> ParseCount<Self, T>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseCount {
+            inner: self,
+            ctx: PhantomData,
+        }
+    }
+
+    #[must_use]
+    fn last(self) -> ParseLast<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseLast { inner: self }
+    }
 
     // parse
     // {{{ parse

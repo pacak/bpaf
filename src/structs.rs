@@ -468,6 +468,67 @@ where
     }
 }
 
+/// Apply inner parser as many times as it succeeds while consuming something and return this
+/// number
+pub struct ParseCount<P, T> {
+    pub(crate) inner: P,
+    pub(crate) ctx: PhantomData<T>,
+}
+
+impl<T, P> Parser<usize> for ParseCount<P, T>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<usize, Error> {
+        let mut res = 0;
+        let mut current = args.len();
+        while (parse_option(&self.inner, args, false)?).is_some() {
+            res += 1;
+            if current == args.len() {
+                break;
+            }
+            current = args.len();
+        }
+        Ok(res)
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Optional(Box::new(self.inner.meta()))))
+    }
+}
+
+/// Apply inner parser as many times as it succeeds while consuming something and return this
+/// number
+pub struct ParseLast<P> {
+    pub(crate) inner: P,
+}
+
+impl<T, P> Parser<T> for ParseLast<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        let mut last = None;
+        let mut current = args.len();
+        while let Some(val) = parse_option(&self.inner, args, false)? {
+            last = Some(val);
+            if current == args.len() {
+                break;
+            }
+            current = args.len();
+        }
+        if let Some(last) = last {
+            Ok(last)
+        } else {
+            self.inner.eval(args)
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Required(Box::new(self.inner.meta()))))
+    }
+}
+
 /// Apply inner parser, return a value in `Some` if items requested by it are all present, restore
 /// and return `None` if any are missing. Created with [`optional`](Parser::optional). Implements
 /// [`catch`](ParseOptional::catch)

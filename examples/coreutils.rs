@@ -6,7 +6,7 @@ mod boilerplate {
     pub trait ExtraParsers<T> {
         /// Assuming parser can consume one of several values - try to consume them all and return
         /// last one
-        fn last(self) -> ParseLast<T>;
+        fn my_last(self) -> ParseLast<T>;
     }
 
     impl<T> Parser<T> for ParseLast<T> {
@@ -28,7 +28,7 @@ mod boilerplate {
         P: Parser<T> + 'static,
         T: 'static,
     {
-        fn last(self) -> ParseLast<T> {
+        fn my_last(self) -> ParseLast<T> {
             let p = self
                 .some("need to specify at least once")
                 .map(|mut xs| xs.pop().unwrap());
@@ -56,7 +56,7 @@ pub mod shared {
     }
 
     pub fn parse_verbosity() -> impl Parser<Verbosity> {
-        verbosity().last().fallback(Verbosity::Status)
+        verbosity().my_last().fallback(Verbosity::Status)
     }
 
     pub fn parse_binary() -> impl Parser<bool> {
