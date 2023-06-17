@@ -1,7 +1,7 @@
 //! Parsing snippet from cargo-show-asm
 //! Derive + typed fallback + external both with and without name
 
-use bpaf::{construct, long, short, Bpaf, Parser};
+use bpaf::{construct, long, short, Bpaf, Parser, ShellComp};
 use std::path::PathBuf;
 
 #[derive(Clone, Debug, Bpaf)]
@@ -33,8 +33,17 @@ pub struct Options {
     pub verbosity: usize,
     #[bpaf(external, fallback(Syntax::Intel))]
     pub syntax: Syntax,
+    #[bpaf(external)]
+    pub selected_function: SelectedFunction,
+}
+
+#[derive(Debug, Clone, Bpaf)]
+/// Item to pick from the output
+pub struct SelectedFunction {
+    /// Complete or partial function name to filter
     #[bpaf(positional("FUNCTION"))]
     pub function: Option<String>,
+    /// Select nth item from a filtered list
     #[bpaf(positional("INDEX"), fallback(0))]
     pub nth: usize,
 }
@@ -44,15 +53,18 @@ fn verbosity() -> impl Parser<usize> {
         .long("verbose")
         .help("more verbose output, can be specified multiple times")
         .req_flag(())
-        .many()
-        .map(|v| v.len())
+        .count()
 }
 
 fn parse_manifest_path() -> impl Parser<PathBuf> {
     long("manifest-path")
         .help("Path to Cargo.toml")
         .argument::<PathBuf>("PATH")
+        .complete_shell(ShellComp::File {
+            mask: Some("*.toml"),
+        })
         .parse(|p| {
+            // cargo-metadata wants to see
             if p.is_absolute() {
                 Ok(p)
             } else {
@@ -65,6 +77,7 @@ fn parse_manifest_path() -> impl Parser<PathBuf> {
 }
 
 #[derive(Debug, Clone, Bpaf)]
+/// How to render output
 pub struct Format {
     /// Print interleaved Rust code
     pub rust: bool,
@@ -100,10 +113,29 @@ fn color_detection() -> impl Parser<bool> {
     let no = long("no-color")
         .help("Disable color highlighting")
         .req_flag(false);
-    construct!([yes, no]).fallback_with::<_, &str>(|| Ok(true))
+    construct!([yes, no]).fallback_with::<_, &str>(|| {
+        // we can call for supports-color crate here
+        Ok(true)
+    })
+}
+
+fn comp_examples(prefix: &String) -> Vec<(String, Option<String>)> {
+    // in the actual app we can ask cargo-metadata for this info
+    let examples = ["derive_show_asm", "coreutils", "comonad"];
+    examples
+        .iter()
+        .filter_map(|e| {
+            if e.starts_with(prefix) {
+                Some((e.to_string(), None))
+            } else {
+                None
+            }
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Bpaf)]
+/// Select artifact to use for analysis
 pub enum Focus {
     /// Show results from library code
     Lib,
@@ -122,7 +154,7 @@ pub enum Focus {
 
     Example(
         /// Show results from an example
-        #[bpaf(long("example"), argument("EXAMPLE"))]
+        #[bpaf(long("example"), argument("EXAMPLE"), complete(comp_examples))]
         String,
     ),
 

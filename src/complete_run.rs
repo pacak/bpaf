@@ -86,42 +86,49 @@ complete -F _bpaf_dynamic_completion {name}",
 
 fn dump_zsh_completer(name: &str) {
     println!(
-        "\
-#compdef {name}
-
-IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
-
-for line in \"${{(@)lines}}\" ; do
-    cmd=()
-    IFS=$'\\t' parts=( $(echo \"$line\") )
-    if [[ \"${{parts[1]}}\" == \"literal\" ]] ; then
-        typeset -A table
-        IFS=$'\\t' table=( $(echo -e \"$line\") )
-
-        show=( $table[show] )
-        if [[ ${{#table[@]}} -ne 0 ]] ; then
-            cmd+=(-d show)
-        fi
-
-        if [[ -n $table[vis_group] ]] ; then
-            cmd+=(-X $table[vis_group])
-        fi
-
-        if [[ -n $table[hid_group] ]] ; then
-            cmd+=(-J $table[vis_group])
-        fi
-
-        compadd ${{cmd[@]}} -- $table[literal]
-    elif [[ \"${{parts[1]}}\" == \"zsh\" ]] ; then
-        eval ${{parts[2]}}
-    else
-        compadd -- \"${{parts[1]}}\"
-    fi
-
-done",
-        name = name,
-        rev = 4,
+        r#"#compdef {name}
+source <( "${{words[1]}}" --bpaf-complete-rev=7 "${{words[@]:1}}" )
+"#,
+        name = name
     );
+    /*
+        println!(
+            "\
+    #compdef {name}
+
+    IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
+
+    for line in \"${{(@)lines}}\" ; do
+        cmd=()
+        IFS=$'\\t' parts=( $(echo \"$line\") )
+        if [[ \"${{parts[1]}}\" == \"literal\" ]] ; then
+            typeset -A table
+            IFS=$'\\t' table=( $(echo -e \"$line\") )
+
+            show=( $table[show] )
+            if [[ ${{#table[@]}} -ne 0 ]] ; then
+                cmd+=(-d show)
+            fi
+
+            if [[ -n $table[vis_group] ]] ; then
+                cmd+=(-X $table[vis_group])
+            fi
+
+            if [[ -n $table[hid_group] ]] ; then
+                cmd+=(-J $table[vis_group])
+            fi
+
+            compadd ${{cmd[@]}} -- $table[literal]
+        elif [[ \"${{parts[1]}}\" == \"zsh\" ]] ; then
+            eval ${{parts[2]}}
+        else
+            compadd -- \"${{parts[1]}}\"
+        fi
+
+    done",
+            name = name,
+            rev = 4,
+        );*/
 }
 
 fn dump_fish_completer(name: &str) {

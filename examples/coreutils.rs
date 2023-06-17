@@ -210,8 +210,16 @@ mod cat {
     #[derive(Debug, Clone, Bpaf)]
     #[bpaf(fallback(NumberingMode::None))]
     pub enum NumberingMode {
+        #[bpaf(hide)]
+        /// Don't number lines, default behavior
         None,
+
+        /// Number nonempty output lines, overrides -n
+        #[bpaf(short('b'), long("number-nonblank"))]
         NonEmpty,
+
+        /// Number all output lines
+        #[bpaf(short('n'), long("number"))]
         All,
     }
 
@@ -237,6 +245,7 @@ mod cat {
         pub squeeze_blank: bool,
 
         #[bpaf(positional("FILE"), many)]
+        /// Concatenate FILE(s) to standard output.
         pub files: Vec<PathBuf>,
     }
 

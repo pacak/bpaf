@@ -319,7 +319,9 @@ impl Doc {
 
     #[cfg(feature = "autocomplete")]
     pub(crate) fn to_completion(&self) -> Option<String> {
-        Some(self.first_line()?.payload)
+        let mut s = self.first_line()?.monochrome(false);
+        s.truncate(s.trim_end().len());
+        Some(s)
     }
 }
 

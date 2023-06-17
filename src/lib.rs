@@ -353,7 +353,7 @@ use structs::{
 #[cfg(feature = "autocomplete")]
 pub use crate::complete_shell::ShellComp;
 #[cfg(feature = "autocomplete")]
-use structs::{ParseComp, ParseCompStyle};
+use structs::ParseComp;
 
 #[cfg(doc)]
 use crate::params::{NamedArg, ParsePositional};
@@ -1270,33 +1270,33 @@ pub trait Parser<T> {
         crate::complete_shell::ParseCompShell { inner: self, op }
     }
     // }}}
-
-    // {{{ complete_style
-    /// Add extra annotations to completion information
-    ///
-    /// Not all information is gets supported by all the shells
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn opts() -> impl Parser<(bool, bool)> {
-    ///     let a = short('a').switch();
-    ///     let b = short('b').switch();
-    ///     let c = short('c').switch();
-    ///     let d = short('d').switch();
-    ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
-    ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
-    ///     construct!([ab, cd])
-    /// }
-    #[cfg(feature = "autocomplete")]
-    fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
-    where
-        Self: Sized + Parser<T>,
-    {
-        ParseCompStyle { inner: self, style }
-    }
-    // }}}
-
+    /*
+        // {{{ complete_style
+        /// Add extra annotations to completion information
+        ///
+        /// Not all information is gets supported by all the shells
+        ///
+        /// # Combinatoric usage
+        /// ```rust
+        /// # use bpaf::*;
+        /// fn opts() -> impl Parser<(bool, bool)> {
+        ///     let a = short('a').switch();
+        ///     let b = short('b').switch();
+        ///     let c = short('c').switch();
+        ///     let d = short('d').switch();
+        ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
+        ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
+        ///     construct!([ab, cd])
+        /// }
+        #[cfg(feature = "autocomplete")]
+        fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
+        where
+            Self: Sized + Parser<T>,
+        {
+            ParseCompStyle { inner: self, style }
+        }
+        // }}}
+    */
     // consume
     // {{{ to_options
     /// Transform `Parser` into [`OptionParser`] to get ready to [`run`](OptionParser::run) it

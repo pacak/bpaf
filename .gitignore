@@ -3,3 +3,4 @@ Cargo.lock
 .xwin-cache/
 /docs/src/*.rs
 /tarp
+/dotfiles

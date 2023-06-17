@@ -725,7 +725,7 @@ impl<T> ParseArgument<T> {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
-                    args.push_metadata(self.metavar, &self.named.help, true);
+                    args.push_metavar(self.metavar, &self.named.help, true, true);
                 }
                 Ok(w)
             }
@@ -857,7 +857,7 @@ impl<T> ParsePositional<T> {
     }
 }
 
-fn parse_word(
+fn parse_pos_word(
     args: &mut State,
     strict: bool,
     metavar: &'static str,
@@ -867,20 +867,21 @@ fn parse_word(
     if let Some((ix, is_strict, word)) = args.take_positional_word(metavar)? {
         if strict && !is_strict {
             #[cfg(feature = "autocomplete")]
-            args.push_value("--", &Some("-- Positional only items".to_owned()), false);
+            args.push_pos_sep();
 
             return Err(Error(Message::StrictPos(ix, metavar)));
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.check_no_pos_ahead() {
-            args.push_metadata(metavar.0, help, false);
+            let in_progress = args.word_parse_in_progress();
+            args.push_metavar(metavar.0, help, false, in_progress);
             args.set_no_pos_ahead();
         }
         Ok(word)
     } else {
         #[cfg(feature = "autocomplete")]
         if !args.check_no_pos_ahead() {
-            args.push_metadata(metavar.0, help, false);
+            args.push_metavar(metavar.0, help, false, true);
             args.set_no_pos_ahead();
         }
 
@@ -903,7 +904,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_word(args, self.strict, self.metavar, &self.help)?;
+        let os = parse_pos_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),

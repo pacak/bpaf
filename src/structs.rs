@@ -7,9 +7,6 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-#[cfg(feature = "autocomplete")]
-use crate::CompleteDecor;
-
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
 pub struct ParseFallbackWith<T, P, F, E> {
@@ -63,7 +60,20 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        self.inner.eval(args)
+        #[cfg(feature = "autocomplete")]
+        let mut comp_items = Vec::new();
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps_with(&mut comp_items);
+
+        #[allow(clippy::let_and_return)]
+        let res = self.inner.eval(args);
+
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps_with(&mut comp_items);
+        #[cfg(feature = "autocomplete")]
+        args.push_with_group(self.message.first_line(), &mut comp_items);
+
+        res
     }
 
     fn meta(&self) -> Meta {
@@ -300,12 +310,6 @@ fn this_or_that_picks_first(
         }
     }
 
-    #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
-        comp_stash.extend(a.drain_comps());
-        comp_stash.extend(b.drain_comps());
-    }
-
     // otherwise pick based on the left most or successful one
     #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
@@ -320,6 +324,33 @@ fn this_or_that_picks_first(
         // otherwise either a or b are success, true means a is success
         (a_ok, _) => Ok((a_ok.is_none(), None)),
     };
+
+    #[cfg(feature = "autocomplete")]
+    let len_a = args_a.len();
+
+    #[cfg(feature = "autocomplete")]
+    let len_b = args_b.len();
+
+    #[cfg(feature = "autocomplete")]
+    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
+        // if both parsers managed to consume the same amount - including 0, keep
+        // results from both, otherwise keep results from one that consumed more
+        let (keep_a, keep_b) = match res {
+            Ok((true, _)) => (true, false),
+            Ok((false, _)) => (false, true),
+            Err(_) => match len_a.cmp(&len_b) {
+                std::cmp::Ordering::Less => (true, false),
+                std::cmp::Ordering::Equal => (true, true),
+                std::cmp::Ordering::Greater => (false, true),
+            },
+        };
+        if keep_a {
+            comp_stash.extend(a.drain_comps());
+        }
+        if keep_b {
+            comp_stash.extend(b.drain_comps());
+        }
+    }
 
     match res {
         Ok((true, ix)) => {
@@ -617,24 +648,17 @@ where
 
             let missing = matches!(err, Message::Missing(_));
 
-            let res = if catch
-                || (missing && orig_args.len() == args.len())
-                || (!missing && err.can_catch())
+            if catch || (missing && orig_args.len() == args.len()) || (!missing && err.can_catch())
             {
-                Ok(None)
-            } else {
-                Err(Error(err))
-            };
-
-            if res.is_ok() {
                 std::mem::swap(&mut orig_args, args);
-
                 #[cfg(feature = "autocomplete")]
                 if orig_args.comp_mut().is_some() {
                     args.swap_comps(&mut orig_args);
                 }
+                Ok(None)
+            } else {
+                Err(Error(err))
             }
-            res
         }
     }
 }
@@ -856,7 +880,7 @@ where
         let depth = args.depth();
         if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
-                if let Some(is_arg) = ci.meta_type() {
+                if let Some(is_arg) = ci.is_metavar() {
                     for (replacement, description) in (self.op)(&res) {
                         comp.push_value(
                             replacement.into(),
@@ -878,6 +902,7 @@ where
     }
 }
 
+/*
 #[cfg(feature = "autocomplete")]
 pub struct ParseCompStyle<P> {
     pub(crate) inner: P,
@@ -901,7 +926,7 @@ where
     fn meta(&self) -> Meta {
         self.inner.meta()
     }
-}
+}*/
 
 pub struct ParseAdjacent<P> {
     pub(crate) inner: P,

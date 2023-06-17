@@ -19,7 +19,7 @@ use crate::{
     complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
-    CompleteDecor, Doc, ShellComp,
+    Doc, ShellComp,
 };
 use std::ffi::OsStr;
 
@@ -47,16 +47,12 @@ impl Complete {
 impl State {
     /// Add a new completion hint for flag, if needed
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
-        if !self.valid_complete_head() {
-            return;
-        }
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Flag {
                 extra: CompExtra {
                     depth,
-                    hidden_group: "",
-                    visible_group: "",
+                    group: None,
                     help: named.help.as_ref().and_then(Doc::to_completion),
                 },
                 name: ShortLong::from(named),
@@ -66,16 +62,12 @@ impl State {
 
     /// Add a new completion hint for an argument, if needed
     pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
-        if !self.valid_complete_head() {
-            return;
-        }
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Argument {
                 extra: CompExtra {
                     depth,
-                    hidden_group: "",
-                    visible_group: "",
+                    group: None,
                     help: named.help.as_ref().and_then(Doc::to_completion),
                 },
                 metavar,
@@ -85,22 +77,32 @@ impl State {
     }
 
     /// Add a new completion hint for metadata, if needed
-    pub(crate) fn push_metadata(&mut self, meta: &'static str, help: &Option<Doc>, is_arg: bool) {
-        if !self.valid_complete_head() {
-            return;
-        }
+    ///
+    /// is_meta is set to true when we are trying to parse the value and false if
+    /// when meta
+    pub(crate) fn push_metavar(
+        &mut self,
+        meta: &'static str,
+        help: &Option<Doc>,
+        is_argument: bool,
+        parse_in_progress: bool,
+    ) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
-            comp.comps.push(Comp::Positional {
-                extra: CompExtra {
-                    depth,
-                    hidden_group: "",
-                    visible_group: "",
-                    help: help.as_ref().and_then(Doc::to_completion),
-                },
-                meta,
-                is_arg,
-            });
+            let extra = CompExtra {
+                depth,
+                group: None,
+                help: help.as_ref().and_then(Doc::to_completion),
+            };
+            comp.comps.push(if parse_in_progress {
+                Comp::Metavariable {
+                    extra,
+                    meta,
+                    is_argument,
+                }
+            } else {
+                Comp::Positional { extra, meta }
+            })
         }
     }
 
@@ -111,16 +113,12 @@ impl State {
         short: Option<char>,
         help: &Option<Doc>,
     ) {
-        if !self.valid_complete_head() {
-            return;
-        }
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Command {
                 extra: CompExtra {
                     depth,
-                    hidden_group: "",
-                    visible_group: "",
+                    group: None,
                     help: help.as_ref().and_then(Doc::to_completion),
                 },
                 name,
@@ -136,37 +134,38 @@ impl State {
         }
     }
 
-    pub(crate) fn push_value(&mut self, body: &str, help: &Option<String>, is_arg: bool) {
-        if !self.valid_complete_head() {
-            return;
-        }
+    /// Insert a literal value with some description for completion
+    ///
+    /// In practice it's "--"
+    pub(crate) fn push_pos_sep(&mut self) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             comp.comps.push(Comp::Value {
                 extra: CompExtra {
                     depth,
-                    hidden_group: "",
-                    visible_group: "",
-                    help: help.clone(),
+                    group: None,
+                    help: Some("Positional only items after this token".to_owned()),
                 },
-                body: body.to_owned(),
-                is_arg,
+                body: "--".to_owned(),
+                is_argument: false,
             });
         }
     }
 
-    pub(crate) fn extend_with_style(&mut self, style: CompleteDecor, comps: &mut Vec<Comp>) {
-        if !self.valid_complete_head() {
-            return;
-        }
+    /// Insert a bunch of items
+    pub(crate) fn push_with_group(&mut self, group: Option<Doc>, comps: &mut Vec<Comp>) {
+        let group = group.map(|g| g.monochrome(true));
         if let Some(comp) = self.comp_mut() {
             for mut item in comps.drain(..) {
-                item.set_decor(style);
+                if let Some(group) = group.as_ref() {
+                    item.set_group(group.clone());
+                }
                 comp.comps.push(item);
             }
         }
     }
 }
+/*
 impl Arg {
     pub(crate) fn is_word(&self) -> bool {
         match self {
@@ -174,19 +173,17 @@ impl Arg {
             Arg::Word(_) | Arg::PosWord(_) => true,
         }
     }
-}
+}*/
 
 impl Complete {
-    pub(crate) fn push_shell(&mut self, op: ShellComp, depth: usize, is_arg: bool) {
+    pub(crate) fn push_shell(&mut self, op: ShellComp, depth: usize) {
         self.comps.push(Comp::Shell {
             extra: CompExtra {
                 depth,
-                hidden_group: "",
-                visible_group: "",
+                group: None,
                 help: None,
             },
             script: op,
-            is_arg,
         });
     }
 
@@ -195,17 +192,16 @@ impl Complete {
         body: String,
         help: Option<String>,
         depth: usize,
-        is_arg: bool,
+        is_argument: bool,
     ) {
         self.comps.push(Comp::Value {
             body,
+            is_argument,
             extra: CompExtra {
                 depth,
-                hidden_group: "",
-                visible_group: "",
+                group: None,
                 help,
             },
-            is_arg,
         });
     }
 
@@ -228,32 +224,32 @@ impl Complete {
 
 #[derive(Clone, Debug)]
 pub(crate) struct CompExtra {
-    /// used by complete_gen to separate commands from each other
+    /// Used by complete_gen to separate commands from each other
     depth: usize,
 
-    /// hidden group, "" if absent
-    hidden_group: &'static str,
+    /// Render this option in a group along with all other items with the same name
+    group: Option<String>,
 
-    /// visible group, "" if absent
-    visible_group: &'static str,
-
-    /// custom help message to render, if present
+    /// help message attached to a completion item
     help: Option<String>,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) enum Comp {
+    /// short or long flag
     Flag {
         extra: CompExtra,
         name: ShortLong,
     },
 
+    /// argument + metadata
     Argument {
         extra: CompExtra,
         name: ShortLong,
         metavar: &'static str,
     },
 
+    ///
     Command {
         extra: CompExtra,
         name: &'static str,
@@ -264,19 +260,26 @@ pub(crate) enum Comp {
     Value {
         extra: CompExtra,
         body: String,
-        is_arg: bool,
+        /// values from arguments (say -p=SPEC and user already typed "-p b"
+        /// should suppress all other options except for metavaraiables?
+        ///
+        is_argument: bool,
     },
 
-    /// Placeholder completion - static completion
+    Metavariable {
+        extra: CompExtra,
+        meta: &'static str,
+        is_argument: bool,
+    },
+
     Positional {
         extra: CompExtra,
         meta: &'static str,
-        is_arg: bool,
     },
+
     Shell {
         extra: CompExtra,
         script: ShellComp,
-        is_arg: bool,
     },
 }
 
@@ -289,6 +292,7 @@ impl Comp {
             | Comp::Positional { extra, .. }
             | Comp::Flag { extra, .. }
             | Comp::Shell { extra, .. }
+            | Comp::Metavariable { extra, .. }
             | Comp::Argument { extra, .. } => extra.depth,
         }
     }
@@ -296,48 +300,39 @@ impl Comp {
     /// completer needs to replace meta placeholder with actual values - uses this
     ///
     /// value indicates if it's an argument or a positional meta
-    pub(crate) fn meta_type(&self) -> Option<bool> {
-        match self {
-            Comp::Command { .. }
-            | Comp::Value { .. }
-            | Comp::Flag { .. }
-            | Comp::Shell { .. }
-            | Comp::Argument { .. } => None,
-            Comp::Positional { is_arg, .. } => Some(*is_arg),
+    pub(crate) fn is_metavar(&self) -> Option<bool> {
+        if let Comp::Metavariable { is_argument, .. } = self {
+            Some(*is_argument)
+        } else {
+            None
         }
     }
 
-    pub(crate) fn set_decor(&mut self, style: CompleteDecor) {
+    pub(crate) fn set_group(&mut self, group: String) {
         let extra = match self {
             Comp::Flag { extra, .. }
             | Comp::Argument { extra, .. }
             | Comp::Command { extra, .. }
             | Comp::Value { extra, .. }
             | Comp::Shell { extra, .. }
+            | Comp::Metavariable { extra, .. }
             | Comp::Positional { extra, .. } => extra,
         };
-        match style {
-            CompleteDecor::HiddenGroup(name) => extra.hidden_group = name,
-            CompleteDecor::VisibleGroup(name) => extra.visible_group = name,
+        if extra.group.is_none() {
+            extra.group = Some(group);
         }
     }
 }
 
 #[derive(Debug)]
 struct ShowComp<'a> {
-    /// completion description, only rendered if there's several of them
-    descr: &'a Option<String>,
-
-    /// substitutions to use
+    /// value to be actually inserted by the autocomplete system
     subst: String,
 
     /// pretty rendering which might include metavars, etc
     pretty: String,
 
     extra: &'a CompExtra,
-
-    /// to render only values when values are present
-    is_value: bool,
 }
 
 impl Arg {
@@ -366,10 +361,7 @@ impl State {
     /// `self.comp`, this part goes over collected heads and generates possible completions from
     /// that
     pub(crate) fn check_complete(&self) -> Option<String> {
-        let comp = match self.comp_ref() {
-            Some(comp) => comp,
-            None => return None,
-        };
+        let comp = self.comp_ref()?;
 
         let mut items = self
             .items
@@ -381,17 +373,34 @@ impl State {
         // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (arg, lit) = match items.next() {
-            Some(a) => a,
-            None => return Some("\n".to_owned()),
+        let (arg, lit) = items.next()?;
+
+        // currently bpaf does not distinguish between virtual and real words:
+        // all those are produce the same Word("val") at the end:
+        // "-k=val", "-kval", "-k val", "--key=val"
+        // so to perform full completion we look at the preceeding item
+        let (pos_only, full_lit) = match items.next() {
+            Some((Arg::Short(_, true, _os) | Arg::Long(_, true, _os), full_lit)) => {
+                (false, full_lit)
+            }
+            Some((Arg::PosWord(_), _)) => (true, lit),
+            _ => (false, lit),
         };
 
-        let pos_only = items.clone().any(|i| matches!(i.0, Arg::PosWord(_)));
+        //        let pos_only = matches!(arg, Arg::PosWord(_));
+        let is_word = matches!(arg, Arg::PosWord(_) | Arg::Word(_));
 
-        let res = comp
-            .complete(lit, arg.is_word(), pos_only)
-            .expect("format error?");
-        Some(res)
+        let (items, shell) = comp.complete(lit, is_word, pos_only);
+
+        println!("{:?} {:?}", items, shell);
+
+        Some(match comp.output_rev {
+
+            0 => render_test(&items, &shell, full_lit),
+            7 => render_zsh(&items, &shell),
+            8 => render_bash(&items, &shell),
+            unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
+        }.unwrap())
     }
 }
 
@@ -452,46 +461,86 @@ fn cmd_matches(arg: &str, name: &'static str, short: Option<char>) -> Option<&'s
     }
 }
 
+impl Comp {
+    /// this completion should suppress anything else that is not a value
+    fn only_value(&self) -> bool {
+        match self {
+            Comp::Flag { .. }
+            | Comp::Argument { .. }
+            | Comp::Positional { .. }
+            | Comp::Command { .. } => false,
+            Comp::Value {
+                extra,
+                body,
+                is_argument,
+            } => *is_argument,
+            Comp::Shell { .. } | Comp::Metavariable { .. } => true,
+        }
+    }
+    fn is_pos(&self) -> bool {
+        match self {
+            Comp::Flag { .. } | Comp::Argument { .. } | Comp::Command { .. } => false,
+            Comp::Value { is_argument, .. } => !is_argument,
+            Comp::Metavariable { .. } | Comp::Positional { .. } | Comp::Shell { .. } => true,
+        }
+    }
+}
+
 impl Complete {
-    #[allow(clippy::too_many_lines)]
     fn complete(
         &self,
         arg: &str,
         is_word: bool,
         pos_only: bool,
-    ) -> Result<String, std::fmt::Error> {
+    ) -> (Vec<ShowComp>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
         let mut shell = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
-        let mut has_values = false;
+        let mut only_values = false;
 
-        for item in self.comps.iter().filter(|c| c.depth() == max_depth) {
+        let can_be_flag = arg == "--" || arg.is_empty() || !is_word;
+        let can_be_pos = arg.is_empty() || is_word;
+
+        // values from positionals can mix with options
+        // values from arguments are exclusive
+        // metadata
+
+        println!(
+            "literal: {:?} pos only: {:?}  is word: {is_word:?},  \n{:?}",
+            arg, pos_only, self.comps
+        );
+        println!("can be flag: {can_be_flag:?}, can be pos: {can_be_pos:?}");
+
+        for item in self
+            .comps
+            .iter()
+            .filter(|c| c.depth() == max_depth && (!pos_only || c.is_pos()))
+        {
+            match (only_values, item.only_value()) {
+                (true, true) | (false, false) => {}
+                (true, false) => continue,
+                (false, true) => {
+                    only_values = true;
+                    items.clear();
+                }
+            }
+
             match item {
                 Comp::Command { name, short, extra } => {
-                    if pos_only {
-                        continue;
-                    }
                     if let Some(long) = cmd_matches(arg, name, *short) {
                         items.push(ShowComp {
                             subst: long.to_string(),
                             pretty: long.to_string(),
-                            descr: &extra.help,
-                            is_value: false,
                             extra,
                         });
                     }
                 }
 
                 Comp::Flag { name, extra } => {
-                    if pos_only {
-                        continue;
-                    }
                     if let Some(long) = arg_matches(arg, *name) {
                         items.push(ShowComp {
                             pretty: long.clone(),
                             subst: long,
-                            descr: &extra.help,
-                            is_value: false,
                             extra,
                         });
                     }
@@ -502,15 +551,10 @@ impl Complete {
                     metavar,
                     extra,
                 } => {
-                    if pos_only {
-                        continue;
-                    }
                     if let Some(long) = arg_matches(arg, *name) {
                         items.push(ShowComp {
-                            pretty: format!("{} <{}>", long, metavar),
+                            pretty: format!("{}={}", long, metavar),
                             subst: long,
-                            descr: &extra.help,
-                            is_value: false,
                             extra,
                         });
                     }
@@ -519,59 +563,59 @@ impl Complete {
                 Comp::Value {
                     body,
                     extra,
-                    is_arg,
+                    is_argument,
                 } => {
-                    has_values |= is_arg;
                     items.push(ShowComp {
                         pretty: body.clone(),
-                        descr: &extra.help,
                         extra,
                         subst: body.clone(),
-                        is_value: true,
                     });
                 }
-                Comp::Positional {
-                    meta,
-                    is_arg,
+
+                Comp::Positional { meta, extra } => {
+                    if arg.is_empty() {
+                        items.push(ShowComp {
+                            extra,
+                            pretty: meta.to_string(),
+                            subst: String::new(),
+                        });
+                    }
+                }
+
+                Comp::Metavariable {
                     extra,
+                    meta,
+                    is_argument,
                 } => {
-                    // only words can go in place of meta, not ags/flags
-                    if !is_word {
+                    // metavariable means we started parsing something and the fact
+                    // that it was not replaced with a Value means there's no good
+                    // known replacement.
+                    //
+                    // If user already typed something in this case bpaf can do one of two things:
+                    // - try to finish the completion with whatever user just typed
+                    // - display the metavar as a hint to what is expected
+                    //
+                    // First case also covers completing "--" separator...
+
+                    if !arg.is_empty() {
                         continue;
                     }
 
-                    // render empty positionals as placeholders
-                    let mut subst = if arg.is_empty() {
-                        format!("<{}>", meta)
-                    } else {
-                        arg.to_string()
-                    };
-
-                    // suppress all other completion when trying to complete argument's meta:
-                    // if valid arguments are `-a <A> | -b <B>` and current args are `-a` - suggesting
-                    // user to type `-b` would be wrong
-                    if *is_arg {
-                        subst.push('\n');
-                        return Ok(subst);
-                    }
                     items.push(ShowComp {
                         extra,
-                        pretty: subst.clone(),
-                        descr: &extra.help,
-                        subst,
-                        is_value: false,
+                        pretty: meta.to_string(),
+                        subst: String::new(),
                     });
                 }
-                Comp::Shell { script, is_arg, .. } => {
-                    has_values |= is_arg;
+
+                Comp::Shell { script, .. } => {
                     shell.push(*script);
                 }
             }
         }
 
-        if has_values {
-            items.retain(|i| i.is_value);
-        }
+        (items, shell)
+        /*
         match self.output_rev {
             1 => {
                 assert!(shell.is_empty(), "You need to regenerate your completion scripts");
@@ -585,13 +629,15 @@ impl Complete {
             4 => render_3456(&items, Shell::Zsh, &shell),
             5 => render_3456(&items, Shell::Fish,&shell),
             6 => render_3456(&items, Shell::Elvish, &shell),
-            unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
-        }
+            7 => render_zsh(&items, &shell),
+            8 => render_bash(&items, &shell),
+        }*/
     }
 }
 // eveything but zsh, for single items rende replacement as is, otherwise
 // render replacement or tab separated replacement and description
 fn render_1(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
+    /*
     use std::fmt::Write;
     let mut res = String::new();
     if items.len() == 1 {
@@ -613,7 +659,9 @@ fn render_1(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
             }?;
         }
     }
-    Ok(res)
+    println!("{:?}", res);
+    Ok(res)*/
+    todo!();
 }
 
 // zsh style, renders one item on a line, \0 separated
@@ -629,12 +677,12 @@ fn render_2(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
         if let Some(h) = &item.extra.help {
             write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
         }
-        write!(res, "\0{}", item.extra.visible_group)?;
-        if !item.extra.visible_group.is_empty() && item.extra.hidden_group.is_empty() {
-            writeln!(res, "\0{}", item.extra.visible_group)?;
-        } else {
-            writeln!(res, "\0{}", item.extra.hidden_group)?;
-        }
+        //        write!(res, "\0{}", item.extra.visible_group)?;
+        //        if !item.extra.visible_group.is_empty() && item.extra.hidden_group.is_empty() {
+        //            writeln!(res, "\0{}", item.extra.visible_group)?;
+        //        } else {
+        //            writeln!(res, "\0{}", item.extra.hidden_group)?;
+        //        }
     }
     Ok(res)
 }
@@ -650,29 +698,141 @@ fn render_3456(
         write!(res, "literal\t{}", items[0].subst)?;
         return Ok(res);
     }
-
     for i in items {
         write!(res, "literal\t{}\tshow\t{}", i.subst, i.pretty)?;
         if let Some(h) = &i.extra.help {
             write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
         }
 
-        if !i.extra.visible_group.is_empty() {
-            write!(res, "\tvis_group\t{}", i.extra.visible_group)?;
-        }
-
-        if i.extra.hidden_group.is_empty() {
-            if !i.extra.visible_group.is_empty() {
-                write!(res, "\thid_group\t{}", i.extra.visible_group)?;
-            }
-        } else {
-            write!(res, "\thid_group\t{}", i.extra.hidden_group)?;
-        }
         writeln!(res)?;
     }
 
     for op in ops {
         write_shell(&mut res, shell, *op)?;
+    }
+
+    Ok(res)
+}
+
+impl std::fmt::Display for ShowComp<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(help) = &self.extra.help {
+            write!(f, "{:24} -- {}", self.pretty, help)
+        } else {
+            write!(f, "{}", self.pretty)
+        }
+    }
+}
+
+fn render_zsh(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+
+    for op in ops {
+        match op {
+            ShellComp::File { mask: None } => writeln!(res, "_files"),
+            ShellComp::File { mask: Some(mask) } => writeln!(res, "_files -g '{}'", mask),
+            ShellComp::Dir { mask: None } => writeln!(res, "_files -/"),
+            ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g '{}'", mask),
+            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", zsh),
+            ShellComp::Nothing => Ok(()),
+        }?
+    }
+
+    if items.len() == 1 {
+        return Ok(format!("compadd -- \"{}\"\n", items[0].subst));
+    }
+    writeln!(res, "local -a args\nlocal -a descr")?;
+
+    for item in items {
+        writeln!(res, "descr=(\"{}\")", item)?;
+        writeln!(res, "args=(\"{}\")", item.subst)?;
+        if let Some(group) = &item.extra.group {
+            writeln!(
+                res,
+                "compadd -U -d descr -V {:?} -X {:?} -- $args",
+                group, group
+            )?;
+        } else {
+            writeln!(res, "compadd -U -d descr -- $args",)?;
+        }
+    }
+    Ok(res)
+}
+
+fn render_bash(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+
+    // Bash is strange when it comes to completion - rather than taking
+    // a glob - _filedir takes an extension which it later to include uppercase
+    // version as well and to include "*." in front. For compatibility with
+    // zsh and other shells - this code strips "*." from the beginning....
+    fn bashmask(i: &str) -> &str {
+        i.strip_prefix("*.").unwrap_or(i)
+    }
+
+    for op in ops {
+        match op {
+            ShellComp::File { mask: None } => write!(res, "_filedir"),
+            ShellComp::File { mask: Some(mask) } => {
+                writeln!(res, "_filedir '{}'", bashmask(mask))
+            }
+            ShellComp::Dir { mask: None } => write!(res, "_filedir -d"),
+            ShellComp::Dir { mask: Some(mask) } => {
+                writeln!(res, "_filedir -d '{}'", bashmask(mask))
+            }
+            ShellComp::Raw { bash, .. } => writeln!(res, "{}", bash),
+            ShellComp::Nothing => Ok(()),
+        }?;
+    }
+
+    if items.len() == 1 {
+        return Ok(format!("COMPREPLY+=( \"{}\" )\n", items[0].subst));
+    }
+    let mut prev = "";
+    for item in items.iter() {
+        if let Some(group) = &item.extra.group {
+            if prev != group {
+                prev = group;
+                writeln!(res, "COMPREPLY+=({:?})", group)?;
+            }
+        }
+        writeln!(res, "COMPREPLY+=(\"{}\")", item)?;
+    }
+
+    Ok(res)
+}
+
+fn render_test(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+    lit: &str,
+) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("{}\n", lit));
+    }
+
+    if items.len() == 1 && ops.is_empty() && !items[0].subst.is_empty() {
+        return Ok(items[0].subst.clone());
+    }
+
+    let mut res = String::new();
+    for op in items {
+        writeln!(
+            res,
+            "{}\t{}\t{}\t{}",
+            op.subst,
+            op.pretty,
+            op.extra.group.as_deref().unwrap_or(""),
+            op.extra.help.as_deref().unwrap_or("")
+        )?;
+    }
+    writeln!(res)?;
+    for op in ops {
+        writeln!(res, "{:?}", op)?
     }
 
     Ok(res)

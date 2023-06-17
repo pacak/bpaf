@@ -525,15 +525,13 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
-        /// Check if current autocomplete head is valid
-        ///
-        /// Parsers preceeding current one must be able to consume all the items on the command
-        /// line: assuming usage line looking like this:
-        ///   ([-a] alpha) | beta
-        /// and user passes "-a <TAB>" we should not suggest "beta"
-        pub(crate) fn valid_complete_head(&self) -> bool {
-            self.is_empty()
-                || (self.len() == 1 && self.item_state.last().expect("we just confirmed").present())
+        pub(crate) fn word_parse_in_progress(&self) -> bool {
+            // parsing positional word might or might not suppress
+            if let Some(Arg::Word(w) | Arg::PosWord(w)) = self.items.last() {
+                !w.is_empty()
+            } else {
+                false
+            }
         }
 
         #[cfg(feature = "autocomplete")]

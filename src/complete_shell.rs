@@ -85,8 +85,8 @@ where
         let depth = args.depth();
         if let Some(comp) = args.comp_mut() {
             for ci in comp_items {
-                if let Some(is_arg) = ci.meta_type() {
-                    comp.push_shell(self.op, depth, is_arg);
+                if ci.is_metavar().is_some() {
+                    comp.push_shell(self.op, depth);
                 } else {
                     comp.push_comp(ci);
                 }
