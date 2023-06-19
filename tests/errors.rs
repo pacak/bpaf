@@ -181,3 +181,13 @@ fn should_not_split_adjacent_options() {
     let r = parser.run_inner(&["-a", "hello"]).unwrap();
     assert_eq!(r, (0, ()));
 }
+
+#[test]
+fn adjacent_option_complains_to() {
+    let parser = short('a').argument::<usize>("A").to_options();
+
+    let r = parser.run_inner(&["-ayam"]).unwrap_err().unwrap_stderr();
+
+    // TODO - this should point to the whole "-ayam" thing
+    assert_eq!(r, "Couldn't parse `yam`: invalid digit found in string");
+}
