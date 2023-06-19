@@ -156,3 +156,28 @@ fn cannot_be_used_twice() {
         "Argument `-a` cannot be used multiple times in this context"
     );
 }
+
+#[test]
+fn should_not_split_adjacent_options() {
+    let a1 = short('a').req_flag(0);
+    let a2 = short('a').argument::<usize>("x");
+    let a = construct!([a2, a1]);
+    let c = pure(()).to_options().command("hello");
+    let parser = construct!(a, c).to_options();
+
+    let r = parser.run_inner(&["-a=hello"]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "Expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
+    );
+
+    let r = parser.run_inner(&["-ahello"]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "Expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
+    );
+
+    // this one is okay
+    let r = parser.run_inner(&["-a", "hello"]).unwrap();
+    assert_eq!(r, (0, ()));
+}
