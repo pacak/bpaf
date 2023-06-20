@@ -44,43 +44,12 @@ use crate::complete_gen::Complete;
 
 fn dump_bash_completer(name: &str) {
     println!(
-        "\
-_bpaf_dynamic_completion()
+        r#"_bpaf_dynamic_completion()
 {{
-    _init_completion || return
-    local kw;
-
-    COMPREPLY=()
-
-    IFS=$'\\n' BPAF_REPLY=($( \"$1\" --bpaf-complete-rev={rev} \"${{COMP_WORDS[@]:1}}\" ))
-    for line in \"${{BPAF_REPLY[@]}}\" ; do
-        IFS=$'\\t' parts=( $line )
-        if [[ \"${{parts[0]}}\" == \"literal\" ]] ; then
-            declare -A table;
-            kw=\"\"
-            for part in \"${{parts[@]}}\" ; do
-                if [ -z \"$kw\" ] ; then
-                    kw=\"$part\"
-                else
-                    table[\"$kw\"]=\"$part\"
-                    kw=\"\"
-                fi
-            done
-            if [ ${{table[\"show\"]+x}} ] ; then
-                COMPREPLY+=(\"${{table[\"show\"]}}\")
-            else
-                COMPREPLY+=(\"${{table[\"literal\"]}}\")
-            fi
-        elif [[ \"${{parts[0]}}\" == \"bash\" ]] ; then
-            eval ${{parts[1]}}
-        else
-            COMPREPLY+=(\"${{parts[0]}}\")
-        fi
-    done
+    source <( "$1" --bpaf-complete-rev=8 "${{COMP_WORDS[@]:1}}" )
 }}
-complete -F _bpaf_dynamic_completion {name}",
+complete -o nosort -F _bpaf_dynamic_completion {name}"#,
         name = name,
-        rev = 3
     );
 }
 

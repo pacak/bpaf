@@ -33,19 +33,27 @@ fn main() -> Result<()> {
         let mut bashrc = std::fs::File::create("../dotfiles/.bashrc")?;
         writeln!(bashrc, "PS1='% '")?;
         writeln!(bashrc, ". /etc/bash_completion")?;
-        write!(
-            bashrc,
-            r#"
-_bpaf_dynamic_completion()
-{{
-    source <( "$1" --bpaf-complete-rev=8 "${{COMP_WORDS[@]:1}}" )
-}}
-complete -o nosort -F _bpaf_dynamic_completion "#
-        )?;
+
         for example in &examples {
-            write!(bashrc, " {example}")?;
+            let common = [
+                "run",
+                "--release",
+                "--package=bpaf",
+                "--example",
+                example,
+                "--",
+            ];
+
+            let mut cmd = Command::new("cargo");
+            let bash = cmd
+                .args(common)
+                .arg("--bpaf-complete-style-bash")
+                .output()?
+                .stdout;
+            writeln!(bashrc, "{}", std::str::from_utf8(&bash)?)?;
         }
-        writeln!(bashrc,)?;
+
+        writeln!(bashrc)?;
     }
 
     // zsh config
