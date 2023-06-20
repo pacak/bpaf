@@ -44,7 +44,6 @@ fn zsh_file_completion() {
     assert_eq!(
         buf,
         "% derive_show_asm --manifest-path
-                  FUNCTION
 Cargo.toml  src/        tests/"
     );
 
@@ -112,7 +111,7 @@ FUNCTION                 -- Complete or partial function name to filter";
 fn bash_file_completion() {
     let buf = bash_comptest("derive_show_asm --manifest-path \t\t", false).unwrap();
     // TODO - "FUNCTION" looks a bit wonky here...
-    assert_eq!(buf, "%\nCargo.toml  src/        tests/      FUNCTION");
+    assert_eq!(buf, "%\nCargo.toml  src/        tests/");
 
     // file completion with mask in bash uses _filedir which
     // renders directories all the time
@@ -131,7 +130,8 @@ fn bash_example_variants() {
     let buf = bash_comptest("derive_show_asm --example co\t\t", false).unwrap();
     assert_eq!(
         buf,
-        "%\nSelect artifact to use for analysis  coreutils                            comonad"
+        "%\nSelect artifact to use for analysis                       coreutils
+EXAMPLE                  -- Show results from an example  comonad"
     );
     let buf = bash_comptest("derive_show_asm --example core\t", false).unwrap();
 

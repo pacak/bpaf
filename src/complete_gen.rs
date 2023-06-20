@@ -84,7 +84,6 @@ impl State {
         meta: &'static str,
         help: &Option<Doc>,
         is_argument: bool,
-        parse_in_progress: bool,
     ) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
@@ -93,14 +92,11 @@ impl State {
                 group: None,
                 help: help.as_ref().and_then(Doc::to_completion),
             };
-            comp.comps.push(if parse_in_progress {
-                Comp::Metavariable {
-                    extra,
-                    meta,
-                    is_argument,
-                }
-            } else {
-                Comp::Positional { extra, meta }
+
+            comp.comps.push(Comp::Metavariable {
+                extra,
+                meta,
+                is_argument,
             })
         }
     }
@@ -271,11 +267,6 @@ pub(crate) enum Comp {
         is_argument: bool,
     },
 
-    Positional {
-        extra: CompExtra,
-        meta: &'static str,
-    },
-
     Shell {
         extra: CompExtra,
         script: ShellComp,
@@ -288,7 +279,6 @@ impl Comp {
         match self {
             Comp::Command { extra, .. }
             | Comp::Value { extra, .. }
-            | Comp::Positional { extra, .. }
             | Comp::Flag { extra, .. }
             | Comp::Shell { extra, .. }
             | Comp::Metavariable { extra, .. }
@@ -314,8 +304,7 @@ impl Comp {
             | Comp::Command { extra, .. }
             | Comp::Value { extra, .. }
             | Comp::Shell { extra, .. }
-            | Comp::Metavariable { extra, .. }
-            | Comp::Positional { extra, .. } => extra,
+            | Comp::Metavariable { extra, .. } => extra,
         };
         if extra.group.is_none() {
             extra.group = Some(group);
@@ -464,19 +453,18 @@ impl Comp {
     /// this completion should suppress anything else that is not a value
     fn only_value(&self) -> bool {
         match self {
-            Comp::Flag { .. }
-            | Comp::Argument { .. }
-            | Comp::Positional { .. }
-            | Comp::Command { .. } => false,
-            Comp::Value { is_argument, .. } => *is_argument,
-            Comp::Shell { .. } | Comp::Metavariable { .. } => true,
+            Comp::Flag { .. } | Comp::Argument { .. } | Comp::Command { .. } => false,
+            Comp::Metavariable { is_argument, .. } | Comp::Value { is_argument, .. } => {
+                *is_argument
+            }
+            Comp::Shell { .. } => true,
         }
     }
     fn is_pos(&self) -> bool {
         match self {
             Comp::Flag { .. } | Comp::Argument { .. } | Comp::Command { .. } => false,
             Comp::Value { is_argument, .. } => !is_argument,
-            Comp::Metavariable { .. } | Comp::Positional { .. } | Comp::Shell { .. } => true,
+            Comp::Metavariable { .. } | Comp::Shell { .. } => true,
         }
     }
 }
@@ -549,35 +537,14 @@ impl Complete {
                     });
                 }
 
-                Comp::Positional { meta, extra } => {
-                    if arg.is_empty() {
-                        items.push(ShowComp {
-                            extra,
-                            pretty: meta.to_string(),
-                            subst: String::new(),
-                        });
-                    }
-                }
-
                 Comp::Metavariable {
                     extra,
                     meta,
-                    is_argument: _,
+                    is_argument,
                 } => {
-                    // metavariable means we started parsing something and the fact
-                    // that it was not replaced with a Value means there's no good
-                    // known replacement.
-                    //
-                    // If user already typed something in this case bpaf can do one of two things:
-                    // - try to finish the completion with whatever user just typed
-                    // - display the metavar as a hint to what is expected
-                    //
-                    // First case also covers completing "--" separator...
-
-                    if !arg.is_empty() {
+                    if !is_argument && !pos_only && arg.starts_with('-') {
                         continue;
                     }
-
                     items.push(ShowComp {
                         extra,
                         pretty: meta.to_string(),
@@ -645,11 +612,11 @@ fn render_zsh(
         if let Some(group) = &item.extra.group {
             writeln!(
                 res,
-                "compadd -U -d descr -V {:?} -X {:?} -- {:?}",
+                "compadd -d descr -V {:?} -X {:?} -- {:?}",
                 group, group, item.subst,
             )?;
         } else {
-            writeln!(res, "compadd -U -d descr -- {:?}", item.subst)?;
+            writeln!(res, "compadd -d descr -- {:?}", item.subst)?;
         }
     }
     Ok(res)

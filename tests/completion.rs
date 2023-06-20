@@ -103,7 +103,7 @@ fn long_and_short_arguments() {
         .run_inner(Args::from(&["-p", "x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "\tPOTATO\t\t\n\n");
 }
 
 #[test]
@@ -493,7 +493,7 @@ fn static_complete_test_7() {
         .run_inner(Args::from(&["-a", "x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "\tFILE\t\tFile to use\n\n");
 }
 
 #[test]
@@ -546,7 +546,7 @@ fn just_positional() {
         .run_inner(Args::from(&["xxx"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "xxx\n");
+    assert_eq!(r, "\tFILE\t\tFile to use\n\n");
 }
 
 fn test_completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
@@ -579,6 +579,7 @@ fn dynamic_complete_test_1() {
     assert_eq!(
         r,
         "\
+\tARG\t\t
 beta\tbeta\t\t
 banana\tbanana\t\t\n\n"
     );
@@ -608,6 +609,7 @@ banana\tbanana\t\t\n\n"
     assert_eq!(
         r,
         "\
+\tARG\t\t
 alpha\talpha\t\t
 beta\tbeta\t\t
 banana\tbanana\t\t
@@ -624,7 +626,7 @@ fn dynamic_complete_test_2() {
         .run_inner(Args::from(&["-a", "b"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "b\n");
+    assert_eq!(r, "\tARG\t\t\n\n");
 }
 
 #[test]
@@ -645,6 +647,7 @@ fn dynamic_complete_test_3() {
     assert_eq!(
         r,
         "\
+\tEXPR\t\tcalculator expression
 alpha\talpha\t\t
 beta\tbeta\t\t
 banana\tbanana\t\t
@@ -667,6 +670,7 @@ fn dynamic_complete_test_4() {
     assert_eq!(
         r,
         "\
+\tNAME\t\t
 alpha\talpha\t\talpha
 beta\tbeta\t\tbeta
 banana\tbanana\t\tbanana
@@ -753,7 +757,7 @@ fn only_positionals_after_double_dash() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a\n");
+    assert_eq!(r, "-a");
 
     let r = parser
         .run_inner(Args::from(&["-a", ""]).set_comp(0))
@@ -781,7 +785,7 @@ fn many_does_not_duplicate_metadata() {
         .run_inner(Args::from(&["xxx"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "xxx\n");
+    assert_eq!(r, "\tD\t\t\n\n");
 }
 
 #[test]
@@ -791,7 +795,7 @@ fn some_does_not_duplicate_metadata() {
         .run_inner(Args::from(&["xxx"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "xxx\n");
+    assert_eq!(r, "\tD\t\t\n\n");
 }
 
 #[test]
@@ -815,13 +819,13 @@ fn only_positionals_after_positionals() {
         .run_inner(Args::from(&["xxx"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "xxx\n");
+    assert_eq!(r, "\tD\t\t\n\n");
 
     let r = parser
         .run_inner(Args::from(&["xxx", "yyy"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "yyy\n");
+    assert_eq!(r, "\tD\t\t\n\n");
 
     let r = parser
         .run_inner(Args::from(&["xxx", ""]).set_comp(0))
@@ -830,17 +834,17 @@ fn only_positionals_after_positionals() {
     assert_eq!(r, "-a\t-a\t\t\n\tD\t\t\n\n");
 }
 
-fn complete_alpha(input: &String) -> Vec<(String, Option<String>)> {
+fn complete_alpha(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     if "alpha".starts_with(input) {
-        vec![("alpha".to_string(), None)]
+        vec![("alpha", Some("alpha description"))]
     } else {
         Vec::new()
     }
 }
 
-fn complete_beta(input: &String) -> Vec<(String, Option<String>)> {
+fn complete_beta(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     if "beta".starts_with(input) {
-        vec![("beta".to_string(), None)]
+        vec![("beta", Some("beta description"))]
     } else {
         Vec::new()
     }
@@ -856,7 +860,7 @@ fn positionals_complete_in_order() {
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "\tA\t\t\n\n");
+    assert_eq!(r, "alpha");
 
     let r = parser
         .run_inner(Args::from(&["a"]).set_comp(0))
@@ -868,13 +872,13 @@ fn positionals_complete_in_order() {
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "\tA\t\t\n\n");
 
     let r = parser
         .run_inner(Args::from(&["xxx", ""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "\tB\t\t\n\n");
+    assert_eq!(r, "beta");
 
     let r = parser
         .run_inner(Args::from(&["xxx", "b"]).set_comp(0))
@@ -886,7 +890,7 @@ fn positionals_complete_in_order() {
         .run_inner(Args::from(&["xxx", "yyy"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "yyy\n");
+    assert_eq!(r, "\tB\t\t\n\n");
 }
 
 #[test]
@@ -903,7 +907,7 @@ fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
         r,
         "\
 -a\t-a=A\t\t
-\tB\t\t\n\n"
+beta\tbeta\t\tbeta description\n\n"
     );
 }
 
@@ -924,12 +928,6 @@ fn should_be_able_to_suggest_double_dash() {
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "--arg");
-
-    let r = parser
-        .run_inner(Args::from(&["--arg", ""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "--");
 
     let r = parser
         .run_inner(Args::from(&["--arg", ""]).set_comp(0))
@@ -1009,27 +1007,23 @@ fn ambiguity_to_flags() {
 #[test]
 fn short_argument_variants() {
     let parser = short('a').argument::<String>("META").to_options();
-
-    // name separated by =, should reject "-a=aa"
     let r = parser
         .run_inner(Args::from(&["-a=aa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a=aa\n");
+    assert_eq!(r, "\tMETA\t\t\n\n");
 
-    // separate name, should reject "aa"
     let r = parser
         .run_inner(Args::from(&["-a", "aa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "aa\n");
+    assert_eq!(r, "\tMETA\t\t\n\n");
 
-    // name is adjacent, should reject "-aaa"
     let r = parser
         .run_inner(Args::from(&["-aaa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-aaa\n"); // this asks for more
+    assert_eq!(r, "\tMETA\t\t\n\n");
 }
 
 #[test]
@@ -1084,7 +1078,7 @@ fn zsh_many_positionals() {
         .run_inner(Args::from(&["p"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "p\n");
+    assert_eq!(r, "\tPOS\t\t\n\n");
 }
 
 #[test]
@@ -1202,6 +1196,7 @@ fn zsh_complete_info() {
     assert_eq!(
         r,
         "\
+\tX\t\t
 hello\thello\t\tword
 sample\tsample\t\t\n\n"
     );
@@ -1248,7 +1243,7 @@ fn double_dash_as_positional() {
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "\tP\t\tHelp\n\n");
 }
 
 #[test]
@@ -1280,7 +1275,7 @@ fn strict_positional_completion() {
         .run_inner(Args::from(&["--", ""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "\tS\t\t\n\n");
+    assert_eq!(r, "--hello");
 
     let r = parser
         .run_inner(Args::from(&["--", "--h"]).set_comp(0))
@@ -1371,10 +1366,59 @@ fn complete_with_fallback() {
     assert_eq!(
         r,
         "\
+\tNAME\t\t
 alpha\talpha\t\talpha
 beta\tbeta\t\tbeta
 banana\tbanana\t\tbanana
 cat\tcat\t\tcat
 durian\tdurian\t\tdurian\n\n"
+    );
+}
+
+#[test]
+fn mix_of_options_and_positional_completions() {
+    let a = short('a')
+        .long("arg")
+        .help("Alhpa argument")
+        .argument("ALPHA")
+        .complete(complete_alpha);
+    let b = positional("BETA")
+        .help("Beta argument")
+        .complete(complete_beta);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(
+        r,
+        "\
+--arg\t--arg=ALPHA\t\tAlhpa argument
+beta\tbeta\t\tbeta description\n\n"
+    );
+}
+
+#[test]
+fn positionals_with_no_completions_are_not_duplicated() {
+    let a = short('a')
+        .long("arg")
+        .help("Alhpa argument")
+        .argument::<String>("ALPHA");
+    let b = positional::<String>("BETA").help("Beta argument");
+
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(
+        r,
+        "\
+--arg\t--arg=ALPHA\t\tAlhpa argument
+\tBETA\t\tBeta argument\n\n"
     );
 }

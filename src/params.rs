@@ -725,7 +725,7 @@ impl<T> ParseArgument<T> {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
                 if args.touching_last_remove() {
-                    args.push_metavar(self.metavar, &self.named.help, true, true);
+                    args.push_metavar(self.metavar, &self.named.help, true);
                 }
                 Ok(w)
             }
@@ -873,15 +873,14 @@ fn parse_pos_word(
         }
         #[cfg(feature = "autocomplete")]
         if args.touching_last_remove() && !args.check_no_pos_ahead() {
-            let in_progress = args.word_parse_in_progress();
-            args.push_metavar(metavar.0, help, false, in_progress);
+            args.push_metavar(metavar.0, help, false);
             args.set_no_pos_ahead();
         }
         Ok(word)
     } else {
         #[cfg(feature = "autocomplete")]
         if !args.check_no_pos_ahead() {
-            args.push_metavar(metavar.0, help, false, true);
+            args.push_metavar(metavar.0, help, false);
             args.set_no_pos_ahead();
         }
 

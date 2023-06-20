@@ -880,8 +880,14 @@ where
         let depth = args.depth();
         if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
-                if let Some(is_arg) = ci.is_metavar() {
-                    for (replacement, description) in (self.op)(&res) {
+                let is_meta = ci.is_metavar();
+                if let Some(is_arg) = is_meta {
+                    let suggestions = (self.op)(&res);
+                    // strip metavar when completion makes a single good suggestion
+                    if suggestions.len() != 1 {
+                        comp.push_comp(ci);
+                    }
+                    for (replacement, description) in suggestions {
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),

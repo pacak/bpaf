@@ -525,16 +525,6 @@ mod inner {
         }
 
         #[cfg(feature = "autocomplete")]
-        pub(crate) fn word_parse_in_progress(&self) -> bool {
-            // parsing positional word might or might not suppress
-            if let Some(Arg::Word(w) | Arg::PosWord(w)) = self.items.last() {
-                !w.is_empty()
-            } else {
-                false
-            }
-        }
-
-        #[cfg(feature = "autocomplete")]
         pub(crate) fn comp_mut(&mut self) -> Option<&mut crate::complete_gen::Complete> {
             self.comp.as_mut()
         }
