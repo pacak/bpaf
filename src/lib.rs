@@ -810,6 +810,8 @@ pub trait Parser<T> {
     // }}}
 
     #[must_use]
+    /// Count how many times inner parser succeeds, return that number
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/count.md"))]
     fn count(self) -> ParseCount<Self, T>
     where
         Self: Sized + Parser<T>,
@@ -821,6 +823,10 @@ pub trait Parser<T> {
     }
 
     #[must_use]
+    /// Apply inner parser as many times as it succeeds, return the last value
+    ///
+    /// You can use this to allow user to pick contradicting options
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/last.md"))]
     fn last(self) -> ParseLast<Self>
     where
         Self: Sized + Parser<T>,

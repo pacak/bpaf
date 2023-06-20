@@ -202,6 +202,7 @@ impl ToTokens for PostParse {
             PostParse::Adjacent { .. } => quote!(adjacent()),
             PostParse::Catch { .. } => quote!(catch()),
             PostParse::Many { .. } => quote!(many()),
+            PostParse::Count { .. } => quote!(count()),
             PostParse::Some_ { msg, .. } => quote!(some(#msg)),
             PostParse::Map { f, .. } => quote!(map(#f)),
             PostParse::Optional { .. } => quote!(optional()),
@@ -221,6 +222,7 @@ impl ToTokens for PostDecor {
             PostDecor::DisplayFallback { .. } => quote!(display_fallback()),
             PostDecor::Fallback { value, .. } => quote!(fallback(#value)),
             PostDecor::FallbackWith { f, .. } => quote!(fallback_with(#f)),
+            PostDecor::Last { .. } => quote!(last()),
             PostDecor::GroupHelp { doc, .. } => quote!(group_help(#doc)),
             PostDecor::Guard { check, msg, .. } => quote!(guard(#check, #msg)),
             PostDecor::Hide { .. } => quote!(hide()),
@@ -235,6 +237,7 @@ pub(crate) enum PostParse {
     Adjacent { span: Span },
     Catch { span: Span },
     Many { span: Span },
+    Count { span: Span },
     Some_ { span: Span, msg: LitStr },
     Map { span: Span, f: Path },
     Optional { span: Span },
@@ -247,6 +250,7 @@ impl PostParse {
             Self::Adjacent { span }
             | Self::Catch { span }
             | Self::Many { span }
+            | Self::Count { span }
             | Self::Some_ { span, .. }
             | Self::Map { span, .. }
             | Self::Optional { span }
@@ -280,6 +284,9 @@ pub(crate) enum PostDecor {
         span: Span,
         f: Box<Path>,
     },
+    Last {
+        span: Span,
+    },
     GroupHelp {
         span: Span,
         doc: Box<Expr>,
@@ -304,6 +311,7 @@ impl PostDecor {
             | Self::DebugFallback { span }
             | Self::DisplayFallback { span }
             | Self::Fallback { span, .. }
+            | Self::Last { span }
             | Self::FallbackWith { span, .. }
             | Self::GroupHelp { span, .. }
             | Self::Guard { span, .. }
@@ -427,6 +435,8 @@ impl PostParse {
             Self::Catch { span }
         } else if kw == "many" {
             Self::Many { span }
+        } else if kw == "count" {
+            Self::Count { span }
         } else if kw == "map" {
             let f = parse_path(input)?;
             Self::Map { span, f }
@@ -462,6 +472,8 @@ impl PostDecor {
         } else if kw == "fallback" {
             let value = parse_expr(input)?;
             Self::Fallback { span, value }
+        } else if kw == "last" {
+            Self::Last { span }
         } else if kw == "fallback_with" {
             let f = Box::new(parse_path(input)?);
             Self::FallbackWith { span, f }
