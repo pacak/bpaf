@@ -344,6 +344,12 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
     Some((pair.0, pair.1.to_str()?))
 }
 
+enum Prefix<'a> {
+    NA,
+    Short(char),
+    Long(&'a str),
+}
+
 impl State {
     /// Generate completion from collected heads
     ///
@@ -369,7 +375,8 @@ impl State {
         // last value is going  to be either Arg::Word or Arg::ArgWord
         // so to perform full completion we look at the preceeding item
         // and use it's value if it was a composite short/long argument
-        let (pos_only, full_lit) = match items.next() {
+        let preceeding = items.next();
+        let (pos_only, full_lit) = match preceeding {
             Some((Arg::Short(_, true, _os) | Arg::Long(_, true, _os), full_lit)) => {
                 (false, full_lit)
             }
@@ -377,10 +384,13 @@ impl State {
             _ => (false, lit),
         };
 
-        //        let pos_only = matches!(arg, Arg::PosWord(_));
-        //        let is_word = matches!(arg, Arg::PosWord(_) | Arg::Word(_));
+        let prefix = match preceeding {
+            Some((Arg::Short(s, true, _os), _lit)) => Prefix::Short(*s),
+            Some((Arg::Long(l, true, _os), _lit)) => Prefix::Long(l.as_str()),
+            _ => Prefix::NA,
+        };
 
-        let (items, shell) = comp.complete(lit, pos_only);
+        let (items, shell) = comp.complete(lit, pos_only, prefix);
 
         Some(match comp.output_rev {
 
@@ -470,7 +480,12 @@ impl Comp {
 }
 
 impl Complete {
-    fn complete(&self, arg: &str, pos_only: bool) -> (Vec<ShowComp>, Vec<ShellComp>) {
+    fn complete(
+        &self,
+        arg: &str,
+        pos_only: bool,
+        prefix: Prefix,
+    ) -> (Vec<ShowComp>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
         let mut shell = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
@@ -533,7 +548,11 @@ impl Complete {
                     items.push(ShowComp {
                         pretty: body.clone(),
                         extra,
-                        subst: body.clone(),
+                        subst: match prefix {
+                            Prefix::NA => body.clone(),
+                            Prefix::Short(s) => format!("-{}={}", s, body),
+                            Prefix::Long(l) => format!("--{}={}", l, body),
+                        },
                     });
                 }
 

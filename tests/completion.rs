@@ -1028,19 +1028,22 @@ fn short_argument_variants() {
 
 #[test]
 fn long_argument_variants() {
-    let parser = long("alpha").argument::<String>("META").to_options();
+    let parser = long("alpha")
+        .argument::<String>("META")
+        .complete(complete_beta)
+        .to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--alpha=Regina"]).set_comp(0))
+        .run_inner(Args::from(&["--alpha=beta"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "--alpha=Regina\n");
+    assert_eq!(r, "--alpha=beta");
 
     let r = parser
         .run_inner(Args::from(&["--alpha", "Regina"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "Regina\n");
+    assert_eq!(r, "\tMETA\t\t\n\n");
 }
 
 #[test]
