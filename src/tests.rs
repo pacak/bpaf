@@ -36,7 +36,7 @@ fn wtf_shenanigans_1() {
         let (o_c, o_prefix, o_suffix) = split_os_argument(&os_string).unwrap();
         assert_eq!(i_c, o_c);
         assert_eq!(i_prefix.to_str().unwrap(), o_prefix);
-        assert_eq!(Arg::Word(i_suffix), o_suffix.unwrap());
+        assert_eq!(Arg::ArgWord(i_suffix), o_suffix.unwrap());
     }
 }
 
@@ -65,12 +65,12 @@ fn wtf_shenanigans_2() {
         let (o_c, o_prefix, o_suffix) = split_os_argument(&os_string).unwrap();
         assert_eq!(i_c, o_c);
         assert_eq!(i_prefix.to_str().unwrap(), o_prefix);
-        assert_eq!(Arg::Word(i_suffix.clone()), o_suffix.unwrap());
+        assert_eq!(Arg::ArgWord(i_suffix.clone()), o_suffix.unwrap());
 
         let (o_c, o_prefix, o_suffix) = split_os_argument_fallback(&os_string).unwrap();
         assert_eq!(i_c, o_c);
         assert_eq!(i_prefix.to_str().unwrap(), o_prefix);
-        assert_eq!(Arg::Word(i_suffix.clone()), o_suffix.unwrap());
+        assert_eq!(Arg::ArgWord(i_suffix.clone()), o_suffix.unwrap());
     }
 }
 

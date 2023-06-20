@@ -219,7 +219,7 @@ fn check_conflicts(args: &State) -> Option<Message> {
 fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
     match args.items.get(ix?)? {
         Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
-        Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy()),
+        Arg::ArgWord(s) | Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy()),
     }
 }
 
@@ -231,7 +231,7 @@ fn only_once(args: &State, cur: usize) -> Option<usize> {
     let offset = match args.items.get(cur)? {
         Arg::Short(s, _, _) => iter.position(|a| a.match_short(*s)),
         Arg::Long(l, _, _) => iter.position(|a| a.match_long(l)),
-        Arg::Word(_) | Arg::PosWord(_) => None,
+        Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => None,
     };
     Some(cur - offset? - 1)
 }
@@ -342,7 +342,7 @@ impl Message {
                     doc.text(" to use it as an argument");
                 }
                 // "Some" part of this branch is actually unreachable
-                Some(Arg::Word(_) | Arg::PosWord(_)) | None => {
+                Some(Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_)) | None => {
                     let arg = &args.items[x];
                     doc.token(Token::BlockStart(Block::TermRef));
                     doc.write(arg, Style::Literal);
@@ -400,6 +400,7 @@ impl Message {
                         let ty = match &args.items[ix] {
                             _ if actual.starts_with('-') => "flag",
                             Arg::Short(_, _, _) | Arg::Long(_, _, _) => "flag",
+                            Arg::ArgWord(_) => "argument value",
                             Arg::Word(_) | Arg::PosWord(_) => "command or positional",
                         };
 

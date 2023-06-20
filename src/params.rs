@@ -317,7 +317,7 @@ impl NamedArg {
         match arg {
             Arg::Short(s, is_adj, _) => self.short.contains(s) && (!adjacent || *is_adj),
             Arg::Long(l, is_adj, _) => self.long.contains(&l.as_str()) && (!adjacent || *is_adj),
-            Arg::Word(_) | Arg::PosWord(_) => false,
+            Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
         }
     }
 }
@@ -1039,7 +1039,7 @@ where
         for (ix, x) in args.items_iter() {
             let (os, next) = match x {
                 Arg::Short(_, next, os) | Arg::Long(_, next, os) => (os, *next),
-                Arg::Word(os) | Arg::PosWord(os) => (os, false),
+                Arg::ArgWord(os) | Arg::Word(os) | Arg::PosWord(os) => (os, false),
             };
             if let Ok(i) = parse_os_str::<I>(os.clone()) {
                 if let Some(t) = (self.check)(i) {

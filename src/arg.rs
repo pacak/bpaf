@@ -14,7 +14,10 @@ pub(crate) enum Arg {
     /// bool tells if it looks like --key=val or not
     Long(String, bool, OsString),
 
-    /// separate word that can be command, positional or an argument to a flag
+    /// "val" part of --key=val -k=val -kval
+    ArgWord(OsString),
+
+    /// separate word that can be command, positional or a separate argument to a flag
     ///
     /// Can start with `-` or `--`, doesn't have to be valid utf8
     ///
@@ -30,21 +33,25 @@ pub(crate) enum Arg {
 impl Arg {
     pub(crate) fn os_str(&self) -> &OsStr {
         match self {
-            Arg::Short(_, _, s) | Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) => s.as_ref(),
+            Arg::Short(_, _, s)
+            | Arg::Long(_, _, s)
+            | Arg::ArgWord(s)
+            | Arg::Word(s)
+            | Arg::PosWord(s) => s.as_ref(),
         }
     }
 
     pub(crate) fn match_short(&self, val: char) -> bool {
         match self {
             Arg::Short(s, _, _) => *s == val,
-            Arg::Long(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
+            Arg::ArgWord(_) | Arg::Long(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
         }
     }
 
     pub(crate) fn match_long(&self, val: &str) -> bool {
         match self {
             Arg::Long(s, _, _) => *s == val,
-            Arg::Short(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
+            Arg::Short(_, _, _) | Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
         }
     }
 }
@@ -72,7 +79,7 @@ impl std::fmt::Display for Arg {
         match self {
             Arg::Short(s, _, _) => write!(f, "-{}", s),
             Arg::Long(l, _, _) => write!(f, "--{}", l),
-            Arg::Word(w) | Arg::PosWord(w) => {
+            Arg::ArgWord(w) | Arg::Word(w) | Arg::PosWord(w) => {
                 write!(f, "{}", w.to_string_lossy())
             }
         }
@@ -178,7 +185,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
                         body.push(EQUALS);
                         body.extend(items);
                         name.truncate(1);
-                        let os = Arg::Word(os_from_vec(body));
+                        let os = Arg::ArgWord(os_from_vec(body));
                         return Some((ty, str_from_vec(name)?, Some(os)));
                     }
                     break;
@@ -196,7 +203,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
         let name = str_from_vec(name)?;
         let word = {
             let os = os_from_vec(items.collect());
-            Arg::Word(os)
+            Arg::ArgWord(os)
         };
         Some((ty, name, Some(word)))
     }
@@ -243,7 +250,7 @@ pub(crate) fn split_os_argument_fallback(
                     body.push('=');
                     body.extend(chars);
                     name.truncate(1);
-                    let os = Arg::Word(OsString::from(body));
+                    let os = Arg::ArgWord(OsString::from(body));
                     return Some((ty, name, Some(os)));
                 }
                 break;
@@ -262,6 +269,6 @@ pub(crate) fn split_os_argument_fallback(
     Some((
         ty,
         name,
-        Some(Arg::Word(OsString::from(chars.collect::<String>()))),
+        Some(Arg::ArgWord(OsString::from(chars.collect::<String>()))),
     ))
 }

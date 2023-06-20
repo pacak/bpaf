@@ -345,7 +345,9 @@ impl Arg {
                     Some((self, s))
                 }
             }
-            Arg::Long(_, _, s) | Arg::Word(s) | Arg::PosWord(s) => Some((self, s)),
+            Arg::Long(_, _, s) | Arg::ArgWord(s) | Arg::Word(s) | Arg::PosWord(s) => {
+                Some((self, s))
+            }
         }
     }
 }
@@ -375,10 +377,10 @@ impl State {
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
         let (_, lit) = items.next()?;
 
-        // currently bpaf does not distinguish between virtual and real words:
-        // all those are produce the same Word("val") at the end:
-        // "-k=val", "-kval", "-k val", "--key=val"
+        // For cases like "-k=val", "-kval", "--key=val", "--key val"
+        // last value is going  to be either Arg::Word or Arg::ArgWord
         // so to perform full completion we look at the preceeding item
+        // and use it's value if it was a composite short/long argument
         let (pos_only, full_lit) = match items.next() {
             Some((Arg::Short(_, true, _os) | Arg::Long(_, true, _os), full_lit)) => {
                 (false, full_lit)

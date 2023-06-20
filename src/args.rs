@@ -315,7 +315,7 @@ mod inner {
                                 let first = chars.next().unwrap();
                                 let rest = chars.as_str();
                                 items.push(Arg::Short(first, true, os));
-                                items.push(Arg::Word(rest.into()));
+                                items.push(Arg::ArgWord(rest.into()));
                             }
                             (false, false) => items.push(Arg::Word(os)),
                         }
@@ -638,7 +638,7 @@ impl State {
 
         let val_ix = key_ix + 1;
         let val = match self.get(val_ix) {
-            Some(Arg::Word(w)) => w,
+            Some(Arg::Word(w) | Arg::ArgWord(w)) => w,
             _ => return Err(Error(Message::NoArgument(key_ix, metavar))),
         };
         let val = val.clone();
