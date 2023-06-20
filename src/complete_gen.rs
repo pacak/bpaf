@@ -373,7 +373,7 @@ impl State {
         // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (arg, lit) = items.next()?;
+        let (_, lit) = items.next()?;
 
         // currently bpaf does not distinguish between virtual and real words:
         // all those are produce the same Word("val") at the end:
@@ -388,16 +388,14 @@ impl State {
         };
 
         //        let pos_only = matches!(arg, Arg::PosWord(_));
-        let is_word = matches!(arg, Arg::PosWord(_) | Arg::Word(_));
+        //        let is_word = matches!(arg, Arg::PosWord(_) | Arg::Word(_));
 
-        let (items, shell) = comp.complete(lit, is_word, pos_only);
-
-        println!("{:?} {:?}", items, shell);
+        let (items, shell) = comp.complete(lit, pos_only);
 
         Some(match comp.output_rev {
 
             0 => render_test(&items, &shell, full_lit),
-            7 => render_zsh(&items, &shell),
+            7 => render_zsh(&items, &shell, full_lit),
             8 => render_bash(&items, &shell),
             unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
         }.unwrap())
@@ -487,29 +485,11 @@ impl Comp {
 }
 
 impl Complete {
-    fn complete(
-        &self,
-        arg: &str,
-        is_word: bool,
-        pos_only: bool,
-    ) -> (Vec<ShowComp>, Vec<ShellComp>) {
+    fn complete(&self, arg: &str, pos_only: bool) -> (Vec<ShowComp>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
         let mut shell = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
         let mut only_values = false;
-
-        let can_be_flag = arg == "--" || arg.is_empty() || !is_word;
-        let can_be_pos = arg.is_empty() || is_word;
-
-        // values from positionals can mix with options
-        // values from arguments are exclusive
-        // metadata
-
-        println!(
-            "literal: {:?} pos only: {:?}  is word: {is_word:?},  \n{:?}",
-            arg, pos_only, self.comps
-        );
-        println!("can be flag: {can_be_flag:?}, can be pos: {can_be_pos:?}");
 
         for item in self
             .comps
@@ -724,9 +704,17 @@ impl std::fmt::Display for ShowComp<'_> {
     }
 }
 
-fn render_zsh(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt::Error> {
+fn render_zsh(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+    full_lit: &str,
+) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
     let mut res = String::new();
+
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("compadd -- {}\n", full_lit));
+    }
 
     for op in ops {
         match op {
@@ -740,21 +728,27 @@ fn render_zsh(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt:
     }
 
     if items.len() == 1 {
-        return Ok(format!("compadd -- \"{}\"\n", items[0].subst));
+        if items[0].subst.is_empty() {
+            writeln!(res, "compadd -- {:?}", items[0].pretty)?;
+            writeln!(res, "compadd ''")?;
+            return Ok(res);
+        } else {
+            return Ok(format!("compadd -- {:?}\n", items[0].subst));
+        }
     }
-    writeln!(res, "local -a args\nlocal -a descr")?;
+    writeln!(res, "local -a descr")?;
 
     for item in items {
         writeln!(res, "descr=(\"{}\")", item)?;
-        writeln!(res, "args=(\"{}\")", item.subst)?;
+        //        writeln!(res, "args=(\"{}\")", item.subst)?;
         if let Some(group) = &item.extra.group {
             writeln!(
                 res,
-                "compadd -U -d descr -V {:?} -X {:?} -- $args",
-                group, group
+                "compadd -U -d descr -V {:?} -X {:?} -- {:?}",
+                group, group, item.subst,
             )?;
         } else {
-            writeln!(res, "compadd -U -d descr -- $args",)?;
+            writeln!(res, "compadd -U -d descr -- {:?}", item.subst)?;
         }
     }
     Ok(res)
@@ -788,7 +782,13 @@ fn render_bash(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt
     }
 
     if items.len() == 1 {
-        return Ok(format!("COMPREPLY+=( \"{}\" )\n", items[0].subst));
+        if items[0].subst.is_empty() {
+            writeln!(res, "COMPREPLY+=({:?} '')", items[0].pretty)?;
+        } else {
+            writeln!(res, "COMPREPLY+=( {:?} )\n", items[0].subst)?;
+        }
+
+        return Ok(res);
     }
     let mut prev = "";
     for item in items.iter() {

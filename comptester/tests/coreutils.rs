@@ -28,13 +28,17 @@ cat";
 #[test]
 fn cat_zsh() {
     let buf = zsh_comptest("coreutils cat -- \t", false).unwrap();
-    assert_eq!(buf, "% coreutils cat -- FILE");
+    assert_eq!(
+        buf,
+        r"% coreutils cat --
+      FILE"
+    );
 }
 
 #[test]
 fn cat_bash() {
     let buf = bash_comptest("coreutils cat -- \t\t", false).unwrap();
-    assert_eq!(buf, "%");
+    assert_eq!(buf, "%\nFILE");
 }
 
 /*

@@ -5,6 +5,7 @@ use pretty_assertions::assert_eq;
 #[test]
 fn all_options_zsh() {
     let buf = zsh_comptest("derive_show_asm \t", false).unwrap();
+    // let buf = zsh_comptest("derive_show_asm ?", false).unwrap();
 
     let expected = r"% derive_show_asm
 --att                    -- Generate assembly using AT&T style
@@ -43,6 +44,7 @@ fn zsh_file_completion() {
     assert_eq!(
         buf,
         "% derive_show_asm --manifest-path
+                  FUNCTION
 Cargo.toml  src/        tests/"
     );
 
@@ -109,7 +111,8 @@ FUNCTION                 -- Complete or partial function name to filter";
 #[test]
 fn bash_file_completion() {
     let buf = bash_comptest("derive_show_asm --manifest-path \t\t", false).unwrap();
-    assert_eq!(buf, "%\nCargo.toml  src/        tests/");
+    // TODO - "FUNCTION" looks a bit wonky here...
+    assert_eq!(buf, "%\nCargo.toml  src/        tests/      FUNCTION");
 
     // file completion with mask in bash uses _filedir which
     // renders directories all the time
