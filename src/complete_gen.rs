@@ -16,7 +16,6 @@
 
 use crate::{
     args::{Arg, State},
-    complete_shell::{write_shell, Shell},
     item::ShortLong,
     parsers::NamedArg,
     Doc, ShellComp,
@@ -469,11 +468,7 @@ impl Comp {
             | Comp::Argument { .. }
             | Comp::Positional { .. }
             | Comp::Command { .. } => false,
-            Comp::Value {
-                extra,
-                body,
-                is_argument,
-            } => *is_argument,
+            Comp::Value { is_argument, .. } => *is_argument,
             Comp::Shell { .. } | Comp::Metavariable { .. } => true,
         }
     }
@@ -545,7 +540,7 @@ impl Complete {
                 Comp::Value {
                     body,
                     extra,
-                    is_argument,
+                    is_argument: _,
                 } => {
                     items.push(ShowComp {
                         pretty: body.clone(),
@@ -567,7 +562,7 @@ impl Complete {
                 Comp::Metavariable {
                     extra,
                     meta,
-                    is_argument,
+                    is_argument: _,
                 } => {
                     // metavariable means we started parsing something and the fact
                     // that it was not replaced with a Value means there's no good
@@ -597,103 +592,7 @@ impl Complete {
         }
 
         (items, shell)
-        /*
-        match self.output_rev {
-            1 => {
-                assert!(shell.is_empty(), "You need to regenerate your completion scripts");
-                render_1(&items)
-            }
-            2 => {
-                assert!(shell.is_empty(), "You need to regenerate your completion scripts");
-                render_2(&items)
-            }
-            3 => render_3456(&items, Shell::Bash, &shell),
-            4 => render_3456(&items, Shell::Zsh, &shell),
-            5 => render_3456(&items, Shell::Fish,&shell),
-            6 => render_3456(&items, Shell::Elvish, &shell),
-            7 => render_zsh(&items, &shell),
-            8 => render_bash(&items, &shell),
-        }*/
     }
-}
-// eveything but zsh, for single items rende replacement as is, otherwise
-// render replacement or tab separated replacement and description
-fn render_1(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
-    /*
-    use std::fmt::Write;
-    let mut res = String::new();
-    if items.len() == 1 {
-        writeln!(res, "{}", items[0].subst)?;
-    } else {
-        for item in items {
-            match item.descr {
-                None => {
-                    writeln!(res, "{}", item.subst)
-                }
-                Some(descr) => {
-                    writeln!(
-                        res,
-                        "{}\t{}",
-                        item.subst,
-                        descr.split('\n').next().unwrap_or("")
-                    )
-                }
-            }?;
-        }
-    }
-    println!("{:?}", res);
-    Ok(res)*/
-    todo!();
-}
-
-// zsh style, renders one item on a line, \0 separated
-// - replacement to use
-// - description to display, might contain metavars for example
-// - visible group - to display a message
-// - hidden group, just to group
-fn render_2(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
-    use std::fmt::Write;
-    let mut res = String::new();
-    for item in items {
-        write!(res, "{}\0{}", item.subst, item.pretty)?;
-        if let Some(h) = &item.extra.help {
-            write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
-        }
-        //        write!(res, "\0{}", item.extra.visible_group)?;
-        //        if !item.extra.visible_group.is_empty() && item.extra.hidden_group.is_empty() {
-        //            writeln!(res, "\0{}", item.extra.visible_group)?;
-        //        } else {
-        //            writeln!(res, "\0{}", item.extra.hidden_group)?;
-        //        }
-    }
-    Ok(res)
-}
-
-fn render_3456(
-    items: &[ShowComp],
-    shell: Shell,
-    ops: &[ShellComp],
-) -> Result<String, std::fmt::Error> {
-    use std::fmt::Write;
-    let mut res = String::new();
-    if items.len() == 1 && ops.is_empty() {
-        write!(res, "literal\t{}", items[0].subst)?;
-        return Ok(res);
-    }
-    for i in items {
-        write!(res, "literal\t{}\tshow\t{}", i.subst, i.pretty)?;
-        if let Some(h) = &i.extra.help {
-            write!(res, "    {}", h.split('\n').next().unwrap_or(""))?;
-        }
-
-        writeln!(res)?;
-    }
-
-    for op in ops {
-        write_shell(&mut res, shell, *op)?;
-    }
-
-    Ok(res)
 }
 
 impl std::fmt::Display for ShowComp<'_> {

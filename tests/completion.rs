@@ -830,26 +830,26 @@ fn only_positionals_after_positionals() {
     assert_eq!(r, "-a\t-a\t\t\n\tD\t\t\n\n");
 }
 
+fn complete_alpha(input: &String) -> Vec<(String, Option<String>)> {
+    if "alpha".starts_with(input) {
+        vec![("alpha".to_string(), None)]
+    } else {
+        Vec::new()
+    }
+}
+
+fn complete_beta(input: &String) -> Vec<(String, Option<String>)> {
+    if "beta".starts_with(input) {
+        vec![("beta".to_string(), None)]
+    } else {
+        Vec::new()
+    }
+}
+
 #[test]
 fn positionals_complete_in_order() {
-    fn c_a(input: &String) -> Vec<(String, Option<String>)> {
-        if "alpha".starts_with(input) {
-            vec![("alpha".to_string(), None)]
-        } else {
-            Vec::new()
-        }
-    }
-
-    fn c_b(input: &String) -> Vec<(String, Option<String>)> {
-        if "beta".starts_with(input) {
-            vec![("beta".to_string(), None)]
-        } else {
-            Vec::new()
-        }
-    }
-
-    let a = positional::<String>("A").complete(c_a);
-    let b = positional::<String>("B").complete(c_b);
+    let a = positional::<String>("A").complete(complete_alpha);
+    let b = positional::<String>("B").complete(complete_beta);
     let parser = construct!(a, b).to_options();
 
     let r = parser
@@ -891,15 +891,8 @@ fn positionals_complete_in_order() {
 
 #[test]
 fn should_be_able_to_suggest_positional_along_with_non_positionals_flags() {
-    fn c_a(_input: &String) -> Vec<(String, Option<String>)> {
-        vec![("a".to_string(), None)]
-    }
-    fn c_b(_input: &String) -> Vec<(String, Option<String>)> {
-        vec![("b".to_string(), None)]
-    }
-
-    let a = short('a').argument::<String>("A").complete(c_a);
-    let b = positional::<String>("B").complete(c_b);
+    let a = short('a').argument::<String>("A").complete(complete_alpha);
+    let b = positional::<String>("B").complete(complete_beta);
     let parser = construct!(a, b).to_options();
 
     let r = parser
