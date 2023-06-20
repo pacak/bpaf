@@ -1,12 +1,4 @@
-use crate::{Error, Meta, Parser, State};
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) enum Shell {
-    Bash,
-    Zsh,
-    Fish,
-    Elvish,
-}
+use crate::{complete_gen::ShowComp, Error, Meta, Parser, State};
 
 #[derive(Debug, Clone, Copy)]
 /// Shell specific completion
@@ -101,47 +93,139 @@ where
     }
 }
 
-pub(crate) fn write_shell(res: &mut String, shell: Shell, comp: ShellComp) -> std::fmt::Result {
-    match shell {
-        Shell::Bash => write_bash(res, comp),
-        Shell::Zsh => write_zsh(res, comp),
-        // not supported at the moment
-        Shell::Fish | Shell::Elvish => Ok(()),
-    }
-}
-
-fn write_bash(res: &mut String, comp: ShellComp) -> std::fmt::Result {
+pub(crate) fn render_zsh(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+    full_lit: &str,
+) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
-    match comp {
-        ShellComp::File { mask: None } => write!(res, "bash\t_filedir"),
-        ShellComp::File { mask: Some(mask) } => {
-            writeln!(res, "bash\t_filedir '{}'", bashmask(mask))
-        }
-        ShellComp::Dir { mask: None } => write!(res, "bash\t_filedir -d"),
-        ShellComp::Dir { mask: Some(mask) } => {
-            writeln!(res, "bash\t_filedir -d '{}'", bashmask(mask))
-        }
-        ShellComp::Raw { bash, .. } => writeln!(res, "bash\t{}", bash),
-        ShellComp::Nothing => Ok(()),
+    let mut res = String::new();
+
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("compadd -- {}\n", full_lit));
     }
+
+    for op in ops {
+        match op {
+            ShellComp::File { mask: None } => writeln!(res, "_files"),
+            ShellComp::File { mask: Some(mask) } => writeln!(res, "_files -g '{}'", mask),
+            ShellComp::Dir { mask: None } => writeln!(res, "_files -/"),
+            ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g '{}'", mask),
+            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", zsh),
+            ShellComp::Nothing => Ok(()),
+        }?
+    }
+
+    if items.len() == 1 {
+        if items[0].subst.is_empty() {
+            writeln!(res, "compadd -- {:?}", items[0].pretty)?;
+            writeln!(res, "compadd ''")?;
+            return Ok(res);
+        } else {
+            return Ok(format!("compadd -- {:?}\n", items[0].subst));
+        }
+    }
+    writeln!(res, "local -a descr")?;
+
+    for item in items {
+        writeln!(res, "descr=(\"{}\")", item)?;
+        //        writeln!(res, "args=(\"{}\")", item.subst)?;
+        if let Some(group) = &item.extra.group {
+            writeln!(
+                res,
+                "compadd -d descr -V {:?} -X {:?} -- {:?}",
+                group, group, item.subst,
+            )?;
+        } else {
+            writeln!(res, "compadd -d descr -- {:?}", item.subst)?;
+        }
+    }
+    Ok(res)
 }
 
-// Bash is strange when it comes to completion - rather than taking
-// a glob - _filedir takes an extension which it later to include uppercase
-// version as well and to include "*." in front. For compatibility with
-// zsh and other shells - this code strips "*." from the beginning....
-fn bashmask(i: &str) -> &str {
-    i.strip_prefix("*.").unwrap_or(i)
-}
-
-fn write_zsh(res: &mut String, comp: ShellComp) -> std::fmt::Result {
+pub(crate) fn render_bash(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
-    match comp {
-        ShellComp::File { mask: None } => writeln!(res, "zsh\t_files"),
-        ShellComp::File { mask: Some(mask) } => writeln!(res, "zsh\t_files -g '{}'", mask),
-        ShellComp::Dir { mask: None } => writeln!(res, "zsh\t_files -/"),
-        ShellComp::Dir { mask: Some(mask) } => writeln!(res, "zsh\t_files -/ -g '{}'", mask),
-        ShellComp::Raw { zsh, .. } => writeln!(res, "zsh\t{}", zsh),
-        ShellComp::Nothing => Ok(()),
+    let mut res = String::new();
+
+    // Bash is strange when it comes to completion - rather than taking
+    // a glob - _filedir takes an extension which it later to include uppercase
+    // version as well and to include "*." in front. For compatibility with
+    // zsh and other shells - this code strips "*." from the beginning....
+    fn bashmask(i: &str) -> &str {
+        i.strip_prefix("*.").unwrap_or(i)
     }
+
+    for op in ops {
+        match op {
+            ShellComp::File { mask: None } => write!(res, "_filedir"),
+            ShellComp::File { mask: Some(mask) } => {
+                writeln!(res, "_filedir '{}'", bashmask(mask))
+            }
+            ShellComp::Dir { mask: None } => write!(res, "_filedir -d"),
+            ShellComp::Dir { mask: Some(mask) } => {
+                writeln!(res, "_filedir -d '{}'", bashmask(mask))
+            }
+            ShellComp::Raw { bash, .. } => writeln!(res, "{}", bash),
+            ShellComp::Nothing => Ok(()),
+        }?;
+    }
+
+    if items.len() == 1 {
+        if items[0].subst.is_empty() {
+            writeln!(res, "COMPREPLY+=( {:?} '')", items[0].pretty)?;
+        } else {
+            writeln!(res, "COMPREPLY+=( {:?} )\n", items[0].subst)?;
+        }
+
+        return Ok(res);
+    }
+    let mut prev = "";
+    for item in items.iter() {
+        if let Some(group) = &item.extra.group {
+            if prev != group {
+                prev = group;
+                writeln!(res, "COMPREPLY+=({:?})", group)?;
+            }
+        }
+        writeln!(res, "COMPREPLY+=(\"{}\")", item)?;
+    }
+
+    Ok(res)
+}
+
+pub(crate) fn render_test(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+    lit: &str,
+) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("{}\n", lit));
+    }
+
+    if items.len() == 1 && ops.is_empty() && !items[0].subst.is_empty() {
+        return Ok(items[0].subst.clone());
+    }
+
+    let mut res = String::new();
+    for op in items {
+        writeln!(
+            res,
+            "{}\t{}\t{}\t{}",
+            op.subst,
+            op.pretty,
+            op.extra.group.as_deref().unwrap_or(""),
+            op.extra.help.as_deref().unwrap_or("")
+        )?;
+    }
+    writeln!(res)?;
+    for op in ops {
+        writeln!(res, "{:?}", op)?
+    }
+
+    Ok(res)
 }

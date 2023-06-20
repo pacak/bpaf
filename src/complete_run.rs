@@ -1,46 +1,5 @@
-//! # Autocomplete protocol
-//!
-//! ## Version 1
-//! Goals: something simple to get it working in bash and other shells
-//! without adding complexity
-//!
-//! One item per line, \t separated sections.
-//! If there's only one possible completion - only replacement itself is inserted
-//! One item per line
-//! - item to insert
-//! - item description, op
-//!
-//! ## Version 2
-//! Goals: extended version of version 1 to allow group breakdown in zsh
-//!
-//! One item per line, \0 separated sections
-//! - item to insert
-//! - item description
-//! - visible group
-//! - hidden group
-
-//! ## Versions 3/4/5/6
-//! Goals: something to allow extending protocol to support custom command like "complete file"
-//!
-//! One item per line, \t separated keys and values:
-//! KEY \t VAL \t KEY \t VAL ... KEY \t VAL
-//!
-//! For dynamic completion first key is always "literal"
-//! - `"literal"` - literal value to insert
-//! - `"show"` - value to display, can include metavars and such
-//! - `"vis_group"` - visible group
-//! - `"hid_group"` - hidden group
-//!
-//! For shell completion possible keys are
-//! - `"bash"` - rendered by version 3
-//! - `"zsh"` - version 4
-//! - `"fish"` - version 5
-//! - `"elvish"` - version 6
-//! and should be followed by a single value - code for shell to evaluate
-
-use std::ffi::OsStr;
-
 use crate::complete_gen::Complete;
+use std::ffi::OsStr;
 
 fn dump_bash_completer(name: &str) {
     println!(
@@ -60,44 +19,6 @@ source <( "${{words[1]}}" --bpaf-complete-rev=7 "${{words[@]:1}}" )
 "#,
         name = name
     );
-    /*
-        println!(
-            "\
-    #compdef {name}
-
-    IFS=$'\\n' lines=($( \"${{words[1]}}\" --bpaf-complete-rev={rev} \"${{words[@]:1}}\" ))
-
-    for line in \"${{(@)lines}}\" ; do
-        cmd=()
-        IFS=$'\\t' parts=( $(echo \"$line\") )
-        if [[ \"${{parts[1]}}\" == \"literal\" ]] ; then
-            typeset -A table
-            IFS=$'\\t' table=( $(echo -e \"$line\") )
-
-            show=( $table[show] )
-            if [[ ${{#table[@]}} -ne 0 ]] ; then
-                cmd+=(-d show)
-            fi
-
-            if [[ -n $table[vis_group] ]] ; then
-                cmd+=(-X $table[vis_group])
-            fi
-
-            if [[ -n $table[hid_group] ]] ; then
-                cmd+=(-J $table[vis_group])
-            fi
-
-            compadd ${{cmd[@]}} -- $table[literal]
-        elif [[ \"${{parts[1]}}\" == \"zsh\" ]] ; then
-            eval ${{parts[2]}}
-        else
-            compadd -- \"${{parts[1]}}\"
-        fi
-
-    done",
-            name = name,
-            rev = 4,
-        );*/
 }
 
 fn dump_fish_completer(name: &str) {
