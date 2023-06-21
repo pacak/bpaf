@@ -97,8 +97,7 @@ impl Parse for Top {
                         }
                     }
                 }
-                TopAttr::CompleteStyle(_)
-                | TopAttr::Usage(_)
+                TopAttr::Usage(_)
                 | TopAttr::Version(_)
                 | TopAttr::Header(_)
                 | TopAttr::Footer(_)

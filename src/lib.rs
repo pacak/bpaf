@@ -1270,33 +1270,7 @@ pub trait Parser<T> {
         crate::complete_shell::ParseCompShell { inner: self, op }
     }
     // }}}
-    /*
-        // {{{ complete_style
-        /// Add extra annotations to completion information
-        ///
-        /// Not all information is gets supported by all the shells
-        ///
-        /// # Combinatoric usage
-        /// ```rust
-        /// # use bpaf::*;
-        /// fn opts() -> impl Parser<(bool, bool)> {
-        ///     let a = short('a').switch();
-        ///     let b = short('b').switch();
-        ///     let c = short('c').switch();
-        ///     let d = short('d').switch();
-        ///     let ab = construct!(a, b).complete_style(CompleteDecor::VisibleGroup("a and b"));
-        ///     let cd = construct!(c, d).complete_style(CompleteDecor::VisibleGroup("c and d"));
-        ///     construct!([ab, cd])
-        /// }
-        #[cfg(feature = "autocomplete")]
-        fn complete_style(self, style: CompleteDecor) -> ParseCompStyle<Self>
-        where
-            Self: Sized + Parser<T>,
-        {
-            ParseCompStyle { inner: self, style }
-        }
-        // }}}
-    */
+
     // consume
     // {{{ to_options
     /// Transform `Parser` into [`OptionParser`] to get ready to [`run`](OptionParser::run) it
@@ -1346,42 +1320,6 @@ pub trait Parser<T> {
             inner: Box::new(self),
         }
     }
-}
-
-#[non_exhaustive]
-/// Various complete options decorations
-///
-/// Somewhat work in progress, only makes a difference in zsh
-/// # Combinatoric usage
-/// ```rust
-/// # use bpaf::*;
-/// fn pair() -> impl Parser<(bool, bool)> {
-///     let a = short('a').switch();
-///     let b = short('b').switch();
-///     construct!(a, b)
-///         .complete_style(CompleteDecor::VisibleGroup("a and b"))
-/// }
-/// ```
-///
-/// # Derive usage
-/// ```rust
-/// # use bpaf::*;
-/// #[derive(Debug, Clone, Bpaf)]
-/// #[bpaf(complete_style(CompleteDecor::VisibleGroup("a and b")))]
-/// struct Options {
-///     a: bool,
-///     b: bool,
-/// }
-/// ```
-///
-#[derive(Debug, Clone, Copy)]
-#[cfg(feature = "autocomplete")]
-pub enum CompleteDecor {
-    /// Group items according to this group
-    HiddenGroup(&'static str),
-
-    /// Group items according to this group but also show the group name
-    VisibleGroup(&'static str),
 }
 
 /// Wrap a value into a `Parser`

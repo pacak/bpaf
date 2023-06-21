@@ -80,19 +80,18 @@ const TOP_NEED_COMMAND: &str =
 
 #[derive(Debug)]
 pub(crate) enum TopAttr {
-    CargoHelper(LitStr),      // <- parsing
-    Version(Box<Expr>),       // <- top only
-    Adjacent,                 // generic
-    NamedCommand(LitStr),     // generic
-    UnnamedCommand,           // <- parsing
-    CommandShort(LitChar),    //
-    CommandLong(LitStr),      // <- command
-    CompleteStyle(Box<Expr>), // decor
-    Usage(Box<Expr>),         // command or top
-    ToOptions,                // options
-    Descr(Help),              // options
-    Header(Help),             // options
-    Footer(Help),             // options
+    CargoHelper(LitStr),   // <- parsing
+    Version(Box<Expr>),    // <- top only
+    Adjacent,              // generic
+    NamedCommand(LitStr),  // generic
+    UnnamedCommand,        // <- parsing
+    CommandShort(LitChar), //
+    CommandLong(LitStr),   // <- command
+    Usage(Box<Expr>),      // command or top
+    ToOptions,             // options
+    Descr(Help),           // options
+    Header(Help),          // options
+    Footer(Help),          // options
     PostDecor(PostDecor),
 }
 
@@ -106,7 +105,6 @@ impl ToTokens for TopAttr {
             Self::NamedCommand(n) => quote!(command(#n)),
             Self::CommandShort(n) => quote!(short(#n)),
             Self::CommandLong(n) => quote!(long(#n)),
-            Self::CompleteStyle(c) => quote!(complete_style(#c)),
             Self::Usage(u) => quote!(usage(#u)),
             Self::Descr(d) => quote!(descr(#d)),
             Self::Header(d) => quote!(header(#d)),
@@ -196,8 +194,6 @@ impl Parse for TopInfo {
             } else if kw == "long" {
                 command(&kw, mode)?;
                 attrs.push(TopAttr::CommandLong(parse_arg(input)?));
-            } else if kw == "complete_style" {
-                attrs.push(TopAttr::CompleteStyle(parse_arg(input)?));
             } else if kw == "usage" {
                 options(&kw, mode).or_else(|_| command(&kw, mode))?;
                 attrs.push(TopAttr::Usage(parse_arg(input)?));

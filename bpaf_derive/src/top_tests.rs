@@ -524,52 +524,6 @@ fn named_to_positional_without_metavar() {
 }
 
 #[test]
-fn comp_visibility_struct() {
-    let top: Top = parse_quote! {
-        #[bpaf(complete_style(x))]
-        pub struct Options {
-            path: PathBuf,
-        }
-    };
-    let expected = quote! {
-        pub fn options() -> impl ::bpaf::Parser<Options> {
-            #[allow(unused_imports)]
-            use ::bpaf::Parser;
-            {
-                let path = ::bpaf::long("path").argument::<PathBuf>("ARG");
-                ::bpaf::construct!(Options { path, })
-            }
-            .complete_style(x)
-        }
-    };
-    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
-}
-
-#[test]
-fn comp_visibility_enum() {
-    let top: Top = parse_quote! {
-        #[bpaf(complete_style(x))]
-        pub enum Foo {
-            Bar {
-                path: PathBuf,
-            }
-        }
-    };
-    let expected = quote! {
-        pub fn foo() -> impl ::bpaf::Parser<Foo> {
-            #[allow(unused_imports)]
-            use ::bpaf::Parser;
-            {
-                let path = ::bpaf::long("path").argument::<PathBuf>("ARG");
-                ::bpaf::construct!(Foo::Bar { path, })
-            }
-            .complete_style(x)
-        }
-    };
-    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
-}
-
-#[test]
 fn private_visibility() {
     let top: Top = parse_quote! {
         #[bpaf(private)]
