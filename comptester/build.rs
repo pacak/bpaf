@@ -27,6 +27,7 @@ fn main() -> Result<()> {
     let cwd = std::env::current_dir()?;
 
     std::fs::create_dir_all("../dotfiles/zsh")?;
+    std::fs::create_dir_all("../dotfiles/fish/completions")?;
 
     // bash
     {
@@ -68,6 +69,15 @@ fn main() -> Result<()> {
         writeln!(zshenv, "PS1='%% '")?;
     }
 
+    // fish config
+    {
+        let mut fish = std::fs::File::create("../dotfiles/fish/config.fish")?;
+        writeln!(fish, "fish_config theme choose None")?;
+        writeln!(fish, "set -U fish_greeting \"\"")?;
+        writeln!(fish, "function fish_title\nend")?;
+        writeln!(fish, "function fish_prompt\n    printf '%% '\nend")?;
+    }
+
     for example in &examples {
         let common = [
             "run",
@@ -78,10 +88,19 @@ fn main() -> Result<()> {
             "--",
         ];
 
-        // zsh can use the same comple
+        // zsh
         let mut cmd = Command::new("cargo");
         let zsh = cmd.args(common).arg("--bpaf-complete-style-zsh").output()?;
         std::fs::File::create(format!("../dotfiles/zsh/_{example}"))?.write_all(&zsh.stdout)?;
+
+        // fish
+        let mut cmd = Command::new("cargo");
+        let fish = cmd
+            .args(common)
+            .arg("--bpaf-complete-style-fish")
+            .output()?;
+        std::fs::File::create(format!("../dotfiles/fish/completions/{example}.fish"))?
+            .write_all(&fish.stdout)?;
     }
 
     Ok(())

@@ -146,6 +146,7 @@ pub(crate) fn render_zsh(
 pub(crate) fn render_bash(
     items: &[ShowComp],
     ops: &[ShellComp],
+    full_lit: &str,
 ) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
     let mut res = String::new();
@@ -156,6 +157,10 @@ pub(crate) fn render_bash(
     // zsh and other shells - this code strips "*." from the beginning....
     fn bashmask(i: &str) -> &str {
         i.strip_prefix("*.").unwrap_or(i)
+    }
+
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("COMPREPLY += ( {:?})\n", full_lit));
     }
 
     for op in ops {
@@ -225,6 +230,36 @@ pub(crate) fn render_test(
     writeln!(res)?;
     for op in ops {
         writeln!(res, "{:?}", op)?
+    }
+
+    Ok(res)
+}
+
+pub(crate) fn render_fish(
+    items: &[ShowComp],
+    ops: &[ShellComp],
+    full_lit: &str,
+    app: &str,
+) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+    if items.is_empty() && ops.is_empty() {
+        return Ok(format!("complete -c {} --arguments={}", app, full_lit));
+    }
+    let shared = if ops.is_empty() { "-f " } else { "" };
+    for item in items.iter().rev().filter(|i| !i.subst.is_empty()) {
+        write!(res, "complete -c {} {}", app, shared)?;
+        if let Some(long) = item.subst.strip_prefix("--") {
+            write!(res, "--long-option {} ", long)?;
+        } else if let Some(short) = item.subst.strip_prefix('-') {
+            write!(res, "--short-option {} ", short)?;
+        } else {
+            write!(res, "-a {} ", item.subst)?;
+        }
+        if let Some(help) = item.extra.help.as_deref() {
+            write!(res, "-d {:?}", help)?;
+        }
+        writeln!(res)?;
     }
 
     Ok(res)

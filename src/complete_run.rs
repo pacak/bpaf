@@ -21,24 +21,14 @@ source <( "${{words[1]}}" --bpaf-complete-rev=7 "${{words[@]:1}}" )
     );
 }
 
-fn dump_fish_completer(name: &str) {
+fn dump_fish_completer(_name: &str) {
     println!(
-        "\
-function _bpaf_dynamic_completion
-    set -l app (commandline --tokenize --current-process)[1]
-    set -l tmpline --bpaf-complete-rev={rev}
-    set tmpline $tmpline (commandline --tokenize --current-process)[2..-1]
-    if test (commandline --current-process) != (string trim (commandline --current-process))
-        set tmpline $tmpline \"\"
-    end
-    for opt in ($app $tmpline)
-        echo -E \"$opt\"
-    end
+        r#"set -l current (commandline --tokenize --current-process)
+set -l tmpline $current[1] --bpaf-complete-rev=9 $current[2..]
+if test (commandline --current-process) != (string trim (commandline --current-process))
+    set tmpline $tmpline \"\"
 end
-
-complete --no-files --command {name} --arguments '(_bpaf_dynamic_completion)'",
-        name = name,
-        rev = 1,
+source ( $tmpline | psub )"#
     );
 }
 

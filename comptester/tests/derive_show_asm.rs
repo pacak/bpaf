@@ -35,16 +35,40 @@ FUNCTION                 -- Complete or partial function name to filter";
 #[test]
 fn all_options_fish() {
     //    let buf = fish_comptest("derive_show_asm \t", true).unwrap();
-    let buf = fish_comptest("derive_show_asm \t").unwrap();
-    println!("{buf}");
-    panic!("exiting");
-    //    let expected = r"---";
-    //    assert_eq!(buf, expected);
+    let buf = fish_comptest("derive_show_asm -\t").unwrap();
+
+    let expected = "% derive_show_asm --att
+--att                        (Generate assembly using AT&T style)
+--bench                           (Show results from a benchmark)
+--bin                                (Show results from a binary)
+--color                               (Enable color highlighting)
+--dry         (Produce a build plan instead of actually building)
+--example                          (Show results from an example)
+--frozen           (Requires Cargo.lock and cache are up to date)
+--full-name  (include full demangled name instead of just prefix)
+--intel                     (Generate assembly using Intel style)
+--lib                            (Show results from library code)
+--locked                      (Requires Cargo.lock is up to date)
+--manifest-path                              (Path to Cargo.toml)
+--no-color                           (Disable color highlighting)
+--offline                     (Run without accessing the network)
+--package                            (Package to use if ambigous)
+--rust                              (Print interleaved Rust code)
+--target-dir    (Custom target directory for generated artifacts)
+--test                                 (Show results from a test)
+--verbose  (more verbose output, can be specified multiple times)";
+    assert_eq!(buf, expected);
 }
 
 #[test]
 fn single_result_zsh() {
     let buf = zsh_comptest("derive_show_asm --li\t").unwrap();
+    assert_eq!(buf, "% derive_show_asm --lib");
+}
+
+#[test]
+fn single_result_fish() {
+    let buf = fish_comptest("derive_show_asm --li\t").unwrap();
     assert_eq!(buf, "% derive_show_asm --lib");
 }
 
@@ -68,6 +92,15 @@ fn zsh_example_single() {
 }
 
 #[test]
+fn fish_example_single() {
+    let buf = fish_comptest("derive_show_asm --example de\t").unwrap();
+    assert_eq!(
+        buf,
+        "% derive_show_asm --example derive_show_asm derive_show_asm"
+    );
+}
+
+#[test]
 fn zsh_example_variants() {
     let buf = zsh_comptest("derive_show_asm --example co\t").unwrap();
     assert_eq!(
@@ -79,6 +112,19 @@ coreutils  comonad"
     let buf = zsh_comptest("derive_show_asm --example core\t").unwrap();
 
     assert_eq!(buf, "% derive_show_asm --example coreutils");
+}
+
+#[test]
+fn fish_example_variants() {
+    let buf = fish_comptest("derive_show_asm --example co\t").unwrap();
+    assert_eq!(
+        buf,
+        "% derive_show_asm --example comonad
+comonad  coreutils"
+    );
+    let buf = fish_comptest("derive_show_asm --example core\t").unwrap();
+
+    assert_eq!(buf, "% derive_show_asm --example coreutils coreutils");
 }
 
 #[test]

@@ -16,7 +16,7 @@
 
 use crate::{
     args::{Arg, State},
-    complete_shell::{render_bash, render_test, render_zsh},
+    complete_shell::{render_bash, render_fish, render_test, render_zsh},
     item::ShortLong,
     parsers::NamedArg,
     Doc, ShellComp,
@@ -346,6 +346,7 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
     Some((pair.0, pair.1.to_str()?))
 }
 
+#[derive(Debug, Copy, Clone)]
 enum Prefix<'a> {
     NA,
     Short(char),
@@ -395,10 +396,10 @@ impl State {
         let (items, shell) = comp.complete(lit, pos_only, prefix);
 
         Some(match comp.output_rev {
-
             0 => render_test(&items, &shell, full_lit),
             7 => render_zsh(&items, &shell, full_lit),
-            8 => render_bash(&items, &shell),
+            8 => render_bash(&items, &shell, full_lit),
+            9 => render_fish(&items, &shell, full_lit, self.path[0].as_str()),
             unk => panic!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk)
         }.unwrap())
     }

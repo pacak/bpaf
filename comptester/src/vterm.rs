@@ -52,8 +52,12 @@ impl Handler for VTerm {
     fn input(&mut self, c: char) {
         let cursor = self.cur();
         self[cursor] = c;
-        self.x += 1;
-        assert!(self.x <= self.width);
+        if self.x < self.width {
+            self.x += 1;
+        } else {
+            self.x = 0;
+            self.y += 1;
+        }
     }
 
     fn goto(&mut self, line: i32, col: usize) {
