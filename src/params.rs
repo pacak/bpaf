@@ -300,6 +300,10 @@ impl NamedArg {
     /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
     /// it by hands.
     ///
+    /// For `metavar` value you should pick something short and descriptive about the parameter,
+    /// usually in capital letters. For example for an abstract file parameter it could be
+    /// `"FILE"`, for a username - `"USER"`, etc.
+    ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
     ///
     /// You can further restrict it using [`adjacent`](ParseArgument::adjacent)

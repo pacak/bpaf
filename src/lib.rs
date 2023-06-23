@@ -6,15 +6,16 @@
 //!
 //! ## 1. Design considerations for types produced by the parser
 //!
-//! Parsing usually starts from deciding what kind of data your APP wants to get. You want to take
-//! advantage of Rust typesystem, try to represent the result such that more validation
-//! can be done during parsing.
+//! Parsing usually starts from deciding what kind of data your application wants to get from the user.
+//! You should try to take advantage of Rust typesystem, try to represent the result such that more
+//! validation can be done during parsing.
 //!
 //! <details>
 //! <summary>A few examples</summary>
-//! Use enums instead of huge structs for mutually exclusive options:
+//! Use enums instead of structs for mutually exclusive options:
 //!
 //! ```no_check
+//! /// Good format selection
 //! enum OutputFormat {
 //!     Intel,
 //!     Att,
@@ -39,6 +40,7 @@
 //! consuming inside your app is more fragile
 //!
 //! ```no_check
+//! /// Bad format selection
 //! struct OutputFormat {
 //!     intel: bool,
 //!     att: bool,
@@ -66,6 +68,7 @@
 //! idea to use enum as well:
 //!
 //! ```no_check
+//! /// Good input selection
 //! enum Input {
 //!     File {
 //!         filepath: PathBuf,
@@ -495,7 +498,7 @@ pub use bpaf_derive::Bpaf;
 ///
 /// # Derive usage
 ///
-/// `bpaf_derive` would combine fields of struct or enum constructors sequentially and enum
+/// `bpaf` would combine fields of struct or enum constructors sequentially and enum
 /// variants in parallel.
 /// ```rust
 /// # use bpaf::*;
@@ -672,7 +675,7 @@ use std::str::FromStr;
 /// # Derive specific considerations
 ///
 /// Every method defined on this trait belongs to the `postprocessing` section of the field
-/// annotation. `bpaf_derive` would try to figure out what chain to use for as long as there's no
+/// annotation. `bpaf` would try to figure out what chain to use for as long as there's no
 /// options changing the type: you can use [`fallback`](Parser::fallback_with),
 /// [`fallback_with`](Parser::fallback_with), [`guard`](Parser::guard), [`hide`](Parser::hide`) and
 /// [`group_help`](Parser::group_help) but not the rest of them.
@@ -681,14 +684,14 @@ use std::str::FromStr;
 /// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// struct Options {
-///     // no annotation at all - `bpaf_derive` inserts implicit `argument` and gets the right type
+///     // no annotation at all - `bpaf` inserts implicit `argument` and gets the right type
 ///     number_1: u32,
 ///
-///     // fallback isn't changing the type so `bpaf_derive` still handles it
+///     // fallback isn't changing the type so `bpaf` still handles it
 ///     #[bpaf(fallback(42))]
 ///     number_2: u32,
 ///
-///     // `bpaf_derive` inserts implicit `argument`, `optional` and the right type
+///     // `bpaf` inserts implicit `argument`, `optional` and the right type
 ///     number_3: Option<u32>,
 ///
 ///     // fails to compile: you need to specify `argument`
@@ -732,7 +735,7 @@ pub trait Parser<T> {
     /// list allowing using it in combination of any parsers with a fallback. After the first one
     /// it will keep collecting the results as long as they consume something.
     ///
-    /// For derive usage `bpaf_derive` would insert implicit `many` when resulting type is a
+    /// For derive usage `bpaf` would insert implicit `many` when resulting type is a
     /// vector.
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/many.md"))]
@@ -791,7 +794,7 @@ pub trait Parser<T> {
     ///
     /// # Derive usage
     ///
-    /// By default `bpaf_derive` would automatically use optional for fields of type `Option<T>`,
+    /// By default `bpaf` would automatically use optional for fields of type `Option<T>`,
     /// for as long as it's not prevented from doing so by present postprocessing options.
     /// But it's also possible to specify it explicitly.
     ///
@@ -1020,7 +1023,7 @@ pub trait Parser<T> {
     ///
     /// # Derive usage:
     ///
-    /// `bpaf_derive` translates enum into alternative combinations, different shapes of variants
+    /// `bpaf` translates enum into alternative combinations, different shapes of variants
     /// produce different results.
     ///
     ///
@@ -1286,6 +1289,7 @@ pub trait Parser<T> {
     /// [`version`](OptionParser::version).
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/to_options.md"))]
+    ///
     /// # See also
     /// There's some methods implemented on [`OptionParser`] directly to customize the appearance
     fn to_options(self) -> OptionParser<T>

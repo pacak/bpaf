@@ -585,7 +585,7 @@ impl<P> ParseOptional<P> {
     #[must_use]
     /// Handle parse failures for optional parsers
     ///
-    /// Can be useful to decide to skip parsing of some items on a command line
+    /// Can be useful to decide to skip parsing of some items on a command line.
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
