@@ -264,3 +264,25 @@ pub(crate) fn render_fish(
 
     Ok(res)
 }
+
+pub(crate) fn render_simple(items: &[ShowComp]) -> Result<String, std::fmt::Error> {
+    use std::fmt::Write;
+    let mut res = String::new();
+    if items.len() == 1 {
+        writeln!(res, "{}", items[0].subst)?;
+    } else {
+        for item in items {
+            if let Some(descr) = item.extra.help.as_deref() {
+                writeln!(
+                    res,
+                    "{}\t{}",
+                    item.subst,
+                    descr.split('\n').next().unwrap_or("")
+                )
+            } else {
+                writeln!(res, "{}", item.subst)
+            }?;
+        }
+    }
+    Ok(res)
+}

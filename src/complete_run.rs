@@ -26,12 +26,16 @@ fn dump_fish_completer(_name: &str) {
         r#"set -l current (commandline --tokenize --current-process)
 set -l tmpline $current[1] --bpaf-complete-rev=9 $current[2..]
 if test (commandline --current-process) != (string trim (commandline --current-process))
-    set tmpline $tmpline \"\"
+    set tmpline $tmpline ""
 end
 source ( $tmpline | psub )"#
     );
 }
 
+// I would love to support elvish better but debugger is not a thing
+// and on any error in code it simply replies "no candidates" with no
+// obvious way even to print "you are here"...
+// https://github.com/elves/elvish/issues/803
 fn dump_elvish_completer(name: &str) {
     println!(
         "\

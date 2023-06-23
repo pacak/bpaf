@@ -13,6 +13,7 @@ pub const HEIGHT: u16 = 60;
 pub const ZSH_TIMEOUT: Duration = Duration::from_millis(100);
 pub const BASH_TIMEOUT: Duration = Duration::from_millis(50);
 pub const FISH_TIMEOUT: Duration = Duration::from_millis(50);
+pub const ELVISH_TIMEOUT: Duration = Duration::from_millis(50);
 
 /// Do zsh completion test for this input
 ///
@@ -49,6 +50,17 @@ pub fn fish_comptest(input: &str) -> anyhow::Result<String> {
         .env("PATH", path)
         .env("XDG_CONFIG_HOME", format!("{cwd}/dotfiles"));
     comptest(command, false, input, FISH_TIMEOUT)
+}
+
+pub fn elvish_comptest(input: &str) -> anyhow::Result<String> {
+    let cwd = std::env::current_dir()?;
+    let cwd = cwd.parent().unwrap().to_str().unwrap();
+    let path = format!("{}:{cwd}/target/release/examples", std::env::var("PATH")?,);
+    let mut command = Command::new("elvish");
+    command
+        .env("PATH", path)
+        .env("XDG_CONFIG_HOME", format!("{cwd}/dotfiles"));
+    comptest(command, false, input, ELVISH_TIMEOUT)
 }
 
 fn comptest(

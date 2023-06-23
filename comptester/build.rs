@@ -26,8 +26,13 @@ fn main() -> Result<()> {
 
     let cwd = std::env::current_dir()?;
 
-    std::fs::create_dir_all("../dotfiles/zsh")?;
-    std::fs::create_dir_all("../dotfiles/fish/completions")?;
+    for dir in [
+        "../dotfiles/zsh",
+        "../dotfiles/fish/completions",
+        "../dotfiles/elvish",
+    ] {
+        std::fs::create_dir_all(dir)?;
+    }
 
     // bash
     {
@@ -76,6 +81,32 @@ fn main() -> Result<()> {
         writeln!(fish, "set -U fish_greeting \"\"")?;
         writeln!(fish, "function fish_title\nend")?;
         writeln!(fish, "function fish_prompt\n    printf '%% '\nend")?;
+    }
+
+    // elvish config
+    {
+        let mut elvishrc = std::fs::File::create("../dotfiles/elvish/rc.elv")?;
+        writeln!(elvishrc, "set edit:rprompt = (constantly \"\")")?;
+        writeln!(elvishrc, "set edit:prompt = (constantly \"% \")")?;
+
+        for example in &examples {
+            let common = [
+                "run",
+                "--release",
+                "--package=bpaf",
+                "--example",
+                example,
+                "--",
+            ];
+
+            let mut cmd = Command::new("cargo");
+            let elvish = cmd
+                .args(common)
+                .arg("--bpaf-complete-style-elvish")
+                .output()?
+                .stdout;
+            writeln!(elvishrc, "{}", std::str::from_utf8(&elvish)?)?;
+        }
     }
 
     for example in &examples {
