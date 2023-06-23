@@ -271,6 +271,12 @@ pub struct Doc {
     tokens: Vec<Token>,
 }
 
+impl std::fmt::Display for Doc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.monochrome(true))
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 struct Skip(usize);
 impl Skip {
