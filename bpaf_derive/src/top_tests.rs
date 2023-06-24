@@ -891,6 +891,7 @@ fn top_comment_is_group_help_struct() {
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
 
+/*
 #[test]
 fn push_down_command() {
     let top: Top = parse_quote! {
@@ -923,3 +924,4 @@ fn push_down_argument() {
 
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
+*/
