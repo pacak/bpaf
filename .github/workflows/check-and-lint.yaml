@@ -78,6 +78,9 @@ jobs:
           toolchain: 1.56
           components: rustfmt clippy
 
+      - name: trim the workspace
+        run: echo '[workspace]' >> ./comptester/Cargo.toml
+
       - name: test minimal features
         run: cargo test -p bpaf -p bpaf_derive --no-default-features --lib --tests --no-fail-fast
 

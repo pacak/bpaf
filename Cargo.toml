@@ -57,7 +57,7 @@ name = "csample"
 required-features = ["autocomplete"]
 
 [workspace]
-members = [".", "./bpaf_derive", "./bpaf_cauwugo", "docs2", "comptester"]
+members = [".", "./bpaf_derive", "./bpaf_cauwugo", "docs2"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
