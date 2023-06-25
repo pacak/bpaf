@@ -13,11 +13,17 @@ fn write_explanation(doc_res: &mut String, explanation: &str) -> Result<()> {
     Ok(())
 }
 
-fn write_scenario(doc_res: &mut String, args: &[String], all_args: &str) -> Result<()> {
+fn write_scenario(
+    doc_res: &mut String,
+    args: &[String],
+    all_args: &str,
+    complete: Option<&str>,
+) -> Result<()> {
     use std::fmt::Write;
+
     Ok(writeln!(
         doc_res,
-        "run_and_render(&mut res, options(), &{args:?}[..], {all_args:?}).unwrap();"
+        "run_and_render(&mut res, options(), &{args:?}[..], {all_args:?}, {complete:?}).unwrap();"
     )?)
 }
 
@@ -71,15 +77,15 @@ fn import_case(name: &str) -> Result<String> {
         match (!c_source.is_empty(), !d_source.is_empty()) {
             (true, false) => {
                 writeln!(cases, "let options = combine::options;")?;
-                write_scenario(&mut cases, &args, all_args)?;
+                write_scenario(&mut cases, &args, all_args, None)?;
             }
             (false, true) => {
                 writeln!(cases, "let options = derive::options;")?;
-                write_scenario(&mut cases, &args, all_args)?;
+                write_scenario(&mut cases, &args, all_args, None)?;
             }
             (true, true) => {
                 writeln!(cases, "let options = derive::options;")?;
-                write_scenario(&mut cases, &args, all_args)?;
+                write_scenario(&mut cases, &args, all_args, None)?;
                 write_compare(&mut cases, &args)?;
             }
             (false, false) => panic!("No source files for case {dir:?}"),
@@ -130,12 +136,16 @@ fn import_example(example: &Path, name: &str) -> Result<String> {
     for line in std::fs::read_to_string(PathBuf::from("src").join(name).join("cases.md"))?.lines() {
         if let Some(all_args) = line.strip_prefix("> ") {
             let args = shell_words::split(all_args)?;
-            write_scenario(&mut cases, &args, all_args)?;
+            write_scenario(&mut cases, &args, all_args, None)?;
+        } else if let Some(all_args) = line.strip_prefix("zsh> ") {
+            let args = shell_words::split(all_args)?;
+            write_scenario(&mut cases, &args, all_args, Some("zsh"))?;
         } else {
             write_explanation(&mut cases, line)?;
         }
     }
 
+    let example_name = example.strip_prefix("../").unwrap();
     Ok(format!(
         "mod {name} {{
         use crate::*;
@@ -150,11 +160,15 @@ fn import_example(example: &Path, name: &str) -> Result<String> {
             use bpaf::*;
             let mut res = String::new();
 
+            res += \"<details><summary><tt>{example_name}</tt></summary>\\n\\n\";
             res += \"```no_run\\n\";
             res += &std::fs::read_to_string({example:?}).unwrap();
-            res += \"\\n```\\n\";
+            res += \"\\n```\\n\\n\";
+            res += \"</details>\\n\\n\";
 
+            res += \"<details><summary>Output</summary>\\n\\n\";
             {cases}
+            res += \"</details>\";
 
             write_updated(res, \"../src/docs2/{name}.md\").unwrap();
 

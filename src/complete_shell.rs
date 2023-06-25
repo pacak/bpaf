@@ -133,11 +133,14 @@ pub(crate) fn render_zsh(
         if let Some(group) = &item.extra.group {
             writeln!(
                 res,
-                "compadd -d descr -V {:?} -X {:?} -- {:?}",
+                "compadd -l -d descr -V {:?} -X {:?} -- {:?}",
                 group, group, item.subst,
             )?;
         } else {
-            writeln!(res, "compadd -d descr -- {:?}", item.subst)?;
+            // it seems sorting as well as not sorting is done in a group,
+            // by default group contains just one element so and `-o nosort`
+            // does nothing, while `-V whatever` stops sorting...
+            writeln!(res, "compadd -l -V nosort -d descr -- {:?}", item.subst)?;
         }
     }
     Ok(res)

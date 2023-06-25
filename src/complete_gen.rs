@@ -317,7 +317,9 @@ pub(crate) struct ShowComp<'a> {
 
 impl std::fmt::Display for ShowComp<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if let Some(help) = &self.extra.help {
+        if let (Some(help), true) = (&self.extra.help, self.subst.is_empty()) {
+            write!(f, "{}: {}", self.pretty, help)
+        } else if let Some(help) = &self.extra.help {
             write!(f, "{:24} -- {}", self.pretty, help)
         } else {
             write!(f, "{}", self.pretty)

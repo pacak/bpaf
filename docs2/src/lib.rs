@@ -3,6 +3,7 @@
 
 use bpaf::{Args, OptionParser, ParseFailure};
 
+use comptester::zsh_comptest_with;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
@@ -48,8 +49,25 @@ fn run_and_render<T: std::fmt::Debug>(
     options: OptionParser<T>,
     args: &[&str],
     all_args: &str,
+    complete: Option<&str>,
 ) -> std::fmt::Result {
     use std::fmt::Write;
+
+    if let Some("zsh") = complete {
+        let all_args = all_args.strip_suffix("\\t").unwrap();
+        let comp = zsh_comptest_with(&(all_args.to_owned() + "\t"), 80).unwrap();
+        writeln!(
+            res,
+            "
+<pre>
+% {all_args}\\t
+{comp}
+</pre>
+"
+        )?;
+        return Ok(());
+    }
+
     match options.run_inner(Args::from(args).set_name("app")) {
         Ok(ok) => writeln!(
             res,

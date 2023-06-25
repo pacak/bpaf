@@ -19,6 +19,10 @@ pub const ELVISH_TIMEOUT: Duration = Duration::from_millis(50);
 ///
 /// if `print` is `true` - print raw output and exit
 pub fn zsh_comptest(input: &str) -> anyhow::Result<String> {
+    zsh_comptest_with(input, 120)
+}
+
+pub fn zsh_comptest_with(input: &str, width: u16) -> anyhow::Result<String> {
     let cwd = std::env::current_dir()?;
     let cwd = cwd.parent().unwrap().to_str().unwrap();
     let path = format!("{}:{cwd}/target/release/examples", std::env::var("PATH")?,);
@@ -26,7 +30,7 @@ pub fn zsh_comptest(input: &str) -> anyhow::Result<String> {
     command
         .env("PATH", path)
         .env("ZDOTDIR", format!("{cwd}/dotfiles"));
-    comptest(command, false, input, ZSH_TIMEOUT)
+    comptest(command, false, input, width, ZSH_TIMEOUT)
 }
 
 pub fn bash_comptest(input: &str) -> anyhow::Result<String> {
@@ -38,7 +42,7 @@ pub fn bash_comptest(input: &str) -> anyhow::Result<String> {
         .env("PATH", path)
         .args(["--rcfile", &format!("{cwd}/dotfiles/.bashrc")]);
     let echo = !input.contains("\t\t");
-    comptest(command, echo, input, BASH_TIMEOUT)
+    comptest(command, echo, input, 120, BASH_TIMEOUT)
 }
 
 pub fn fish_comptest(input: &str) -> anyhow::Result<String> {
@@ -49,7 +53,7 @@ pub fn fish_comptest(input: &str) -> anyhow::Result<String> {
     command
         .env("PATH", path)
         .env("XDG_CONFIG_HOME", format!("{cwd}/dotfiles"));
-    comptest(command, false, input, FISH_TIMEOUT)
+    comptest(command, false, input, 120, FISH_TIMEOUT)
 }
 
 pub fn elvish_comptest(input: &str) -> anyhow::Result<String> {
@@ -60,13 +64,14 @@ pub fn elvish_comptest(input: &str) -> anyhow::Result<String> {
     command
         .env("PATH", path)
         .env("XDG_CONFIG_HOME", format!("{cwd}/dotfiles"));
-    comptest(command, false, input, ELVISH_TIMEOUT)
+    comptest(command, false, input, 120, ELVISH_TIMEOUT)
 }
 
 fn comptest(
     command: Command,
     echo: bool,
     input: &str,
+    width: u16,
     timeout: Duration,
 ) -> anyhow::Result<String> {
     // spawn a new process, pass it the input was.
@@ -74,11 +79,11 @@ fn comptest(
     // This triggers completion loading process which takes some time in shell so we should let it
     // run for some time
     let mut process = PtyProcess::spawn(command)?;
-    process.set_window_size(WIDTH, HEIGHT)?;
+    process.set_window_size(width, HEIGHT)?;
     // for some reason bash does not produce anything with echo disabled...
     process.set_echo(echo, None)?;
 
-    let mut term = Term::new(WIDTH, HEIGHT);
+    let mut term = Term::new(width, HEIGHT);
     let mut stream = process.get_raw_handle()?;
 
     // pass the completion input

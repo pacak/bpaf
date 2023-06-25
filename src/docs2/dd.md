@@ -1,3 +1,5 @@
+<details><summary><tt>examples/dd.rs</tt></summary>
+
 ```no_run
 //! This is not a typical bpaf usage,
 //! but you should be able to replicate command line used by dd
@@ -68,6 +70,11 @@ fn main() {
 }
 
 ```
+
+</details>
+
+<details><summary>Output</summary>
+
 `bpaf` generates usual help message with
 
 
@@ -118,3 +125,4 @@ $ app if=/dev/zero of=/tmp/blob bs=1024<br>
 Options { magic: false, in_file: "/dev/zero", out_file: "/tmp/blob", block_size: 1024 }
 </div>
 
+</details>

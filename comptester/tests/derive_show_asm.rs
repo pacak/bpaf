@@ -8,27 +8,28 @@ fn all_options_zsh() {
     // let buf = zsh_comptest("derive_show_asm ?", false).unwrap();
 
     let expected = r"% derive_show_asm
---att                    -- Generate assembly using AT&T style
+--manifest-path=PATH     -- Path to Cargo.toml
+--target-dir=DIR         -- Custom target directory for generated artifacts
+--package=SPEC           -- Package to use if ambigous
 --dry                    -- Produce a build plan instead of actually building
 --frozen                 -- Requires Cargo.lock and cache are up to date
---intel                  -- Generate assembly using Intel style
 --locked                 -- Requires Cargo.lock is up to date
---manifest-path=PATH     -- Path to Cargo.toml
 --offline                -- Run without accessing the network
---package=SPEC           -- Package to use if ambigous
---target-dir=DIR         -- Custom target directory for generated artifacts
---verbose                -- more verbose output, can be specified multiple times
+--intel                  -- Generate assembly using Intel style
+--att                    -- Generate assembly using AT&T style
 Select artifact to use for analysis
---lib                    -- Show results from library code  --example=EXAMPLE        -- Show results from an example
---test=TEST              -- Show results from a test        --bin=BIN                -- Show results from a binary
+--lib                    -- Show results from library code
+--test=TEST              -- Show results from a test
 --bench=BENCH            -- Show results from a benchmark
+--example=EXAMPLE        -- Show results from an example
+--bin=BIN                -- Show results from a binary
 How to render output
 --rust                   -- Print interleaved Rust code
 --color                  -- Enable color highlighting
 --no-color               -- Disable color highlighting
 --full-name              -- include full demangled name instead of just prefix
 Item to pick from the output
-FUNCTION                 -- Complete or partial function name to filter";
+FUNCTION: Complete or partial function name to filter";
     assert_eq!(buf, expected);
 }
 
@@ -55,8 +56,7 @@ fn all_options_fish() {
 --package                            (Package to use if ambigous)
 --rust                              (Print interleaved Rust code)
 --target-dir    (Custom target directory for generated artifacts)
---test                                 (Show results from a test)
---verbose  (more verbose output, can be specified multiple times)";
+--test                                 (Show results from a test)";
     assert_eq!(buf, expected);
 }
 
@@ -107,7 +107,8 @@ fn zsh_example_variants() {
         buf,
         "% derive_show_asm --example co
 Select artifact to use for analysis
-coreutils  comonad"
+coreutils
+comonad"
     );
     let buf = zsh_comptest("derive_show_asm --example core\t").unwrap();
 
@@ -155,11 +156,10 @@ How to render output
 --color                  -- Enable color highlighting
 --no-color               -- Disable color highlighting
 --full-name              -- include full demangled name instead of just prefix
---verbose                -- more verbose output, can be specified multiple times
 --intel                  -- Generate assembly using Intel style
 --att                    -- Generate assembly using AT&T style
 Item to pick from the output
-FUNCTION                 -- Complete or partial function name to filter";
+FUNCTION: Complete or partial function name to filter";
     assert_eq!(buf, expected);
 }
 
@@ -186,8 +186,8 @@ fn bash_example_variants() {
     let buf = bash_comptest("derive_show_asm --example co\t\t").unwrap();
     assert_eq!(
         buf,
-        "%\nSelect artifact to use for analysis                       coreutils
-EXAMPLE                  -- Show results from an example  comonad"
+        "%\nSelect artifact to use for analysis    coreutils
+EXAMPLE: Show results from an example  comonad"
     );
     let buf = bash_comptest("derive_show_asm --example core\t").unwrap();
 

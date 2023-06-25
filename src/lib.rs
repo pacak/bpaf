@@ -1161,56 +1161,22 @@ pub trait Parser<T> {
     /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
     /// right after [`argument`](NamedArg::argument) or [`positional`], but this isn't enforced.
     ///
-    /// `bpaf` doesn't support generating [`OsString`](std::ffi::OsString) completions: `bpaf` must
-    /// print completions to console and for non-string values it's not possible (accurately).
-    ///
-    /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
-    ///
     /// # Example
     /// ```console
     /// $ app --name L<TAB>
     /// $ app --name Lupusregina _
     /// ```
     ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
-    ///     names
-    ///         .iter()
-    ///         .filter(|name| name.starts_with(input))
-    ///         .map(|name| (*name, None))
-    ///         .collect::<Vec<_>>()
-    /// }
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/complete.md"))]
     ///
-    /// fn name() -> impl Parser<String> {
-    ///     short('n')
-    ///         .long("name")
-    ///         .help("Specify character's name")
-    ///         .argument::<String>("Name")
-    ///         .complete(completer)
-    /// }
-    /// ```
+    /// ## A simple example
     ///
-    /// # Derive usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-    ///     let names = ["Yuri", "Lupusregina", "Solution", "Shizu", "Entoma"];
-    ///     names
-    ///         .iter()
-    ///         .filter(|name| name.starts_with(input))
-    ///         .map(|name| (*name, None))
-    ///         .collect::<Vec<_>>()
-    /// }
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/simple_dynamic.md"))]
     ///
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// struct Options {
-    ///     #[bpaf(argument("NAME"), complete(completer))]
-    ///     name: String,
-    /// }
-    /// ```
+    /// ## More detailed example
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/derive_show_asm.md"))]
+    ///
     #[cfg(feature = "autocomplete")]
     fn complete<M, F>(self, op: F) -> ParseComp<Self, F>
     where
@@ -1232,8 +1198,6 @@ pub trait Parser<T> {
     /// Places function call in place of metavar placeholder, so running `complete_shell` on
     /// something that doesn't have a [`positional`] or [`argument`](NamedArg::argument) doesn't
     /// make much sense.
-    ///
-    /// **Using this function requires enabling `"autocomplete"` feature, not enabled by default**.
     ///
     /// # Example
     /// ```console

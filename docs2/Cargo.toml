@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bpaf = { path = "../", features = ["autocomplete", "derive"] }
 pretty_assertions = "1.3"
+comptester = { path = "../comptester/" }
 
 [build-dependencies]
 shell-words = "1.1.0"
