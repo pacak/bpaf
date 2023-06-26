@@ -258,6 +258,34 @@ fn check_guard() {
 }
 
 #[test]
+fn pure_value() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(pure(42))]
+        /// Ignored
+        usize
+    };
+
+    let output = quote! {
+        ::bpaf::pure(42)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn pure_with_value() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(pure_with(detect_color))]
+        /// Ignored
+        usize
+    };
+
+    let output = quote! {
+        ::bpaf::pure_with(detect_color)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn check_fallback() {
     let input: NamedField = parse_quote! {
         #[bpaf(argument("SPEED"), fallback(42.0))]

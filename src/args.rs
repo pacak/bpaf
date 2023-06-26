@@ -26,6 +26,11 @@ use crate::{
 ///     .run_inner(Args::from(&["-f"]))
 ///     .unwrap();
 /// assert!(value);
+///
+/// // this also works
+/// let value = parser.run_inner(&["-f"])
+///     .unwrap();
+/// assert!(value);
 /// ```
 pub struct Args<'a> {
     items: Box<dyn Iterator<Item = OsString> + 'a>,
@@ -35,15 +40,38 @@ pub struct Args<'a> {
 }
 
 impl Args<'_> {
-    /// enable completions with custom output revision style
+    /// Enable completions with custom output revision style
+    ///
+    /// Use revision 0 if you want to test completion mechanism
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// let parser = short('f').switch().to_options();
+    /// // ask bpaf to produce more input from "-", for
+    /// // suggesting new items use "" at the end
+    /// let r = parser.run_inner(Args::from(&["-"])
+    ///     .set_comp(0))
+    ///     .unwrap_err()
+    ///     .unwrap_stdout();
+    /// assert_eq!(r, "-f");
+    /// ```
     #[cfg(feature = "autocomplete")]
     #[must_use]
     pub fn set_comp(mut self, rev: usize) -> Self {
         self.c_rev = Some(rev);
         self
     }
+
     /// Add an application name for args created from custom input
-    /// TODO - document
+    /// ```rust
+    /// # use bpaf::*;
+    /// let parser = short('f').switch().to_options();
+    /// let r = parser
+    ///     .run_inner(Args::from(&["--help"]).set_name("my_app"))
+    ///     .unwrap_err()
+    ///     .unwrap_stdout();
+    /// # drop(r);
+    /// ```
     #[must_use]
     pub fn set_name(mut self, name: &str) -> Self {
         self.name = Some(name.to_owned());

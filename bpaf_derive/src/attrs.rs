@@ -70,7 +70,11 @@ pub enum Consumer {
         ident: Option<Path>,
         span: Span,
     },
-    Expr {
+    Pure {
+        expr: Expr,
+        span: Span,
+    },
+    PureWith {
         expr: Expr,
         span: Span,
     },
@@ -86,7 +90,8 @@ impl Consumer {
             | Consumer::Argument { span, .. }
             | Consumer::Positional { span, .. }
             | Consumer::External { span, .. }
-            | Consumer::Expr { span, .. } => *span,
+            | Consumer::PureWith { span, .. }
+            | Consumer::Pure { span, .. } => *span,
         }
     }
 
@@ -97,7 +102,9 @@ impl Consumer {
             | Consumer::ReqFlag { .. }
             | Consumer::Argument { .. } => HelpPlacement::AtName,
             Consumer::Any { .. } | Consumer::Positional { .. } => HelpPlacement::AtConsumer,
-            Consumer::External { .. } | Consumer::Expr { .. } => HelpPlacement::NotAvailable,
+            Consumer::External { .. } | Consumer::PureWith { .. } | Consumer::Pure { .. } => {
+                HelpPlacement::NotAvailable
+            }
         }
     }
 }
@@ -115,7 +122,8 @@ impl Consumer {
             | Consumer::Flag { .. }
             | Consumer::ReqFlag { .. }
             | Consumer::Argument { .. } => true,
-            Consumer::Expr { .. }
+            Consumer::Pure { .. }
+            | Consumer::PureWith { .. }
             | Consumer::Positional { .. }
             | Consumer::Any { .. }
             | Consumer::External { .. } => false,
@@ -417,9 +425,12 @@ impl Consumer {
                 None
             };
             Consumer::External { ident, span }
-        } else if kw == "call" {
+        } else if kw == "pure" {
             let expr = parse_arg(input)?;
-            Consumer::Expr { expr, span }
+            Consumer::Pure { expr, span }
+        } else if kw == "pure_with" {
+            let expr = parse_arg(input)?;
+            Consumer::PureWith { expr, span }
         } else {
             return Ok(None);
         }))
@@ -541,7 +552,7 @@ impl Parse for FieldAttrs {
             } else if let Some(help) = CustomHelp::parse(input, &kw)? {
                 res.help.push(help);
             } else {
-                return Err(fork.error("Unepected attribute in field annotation"));
+                return Err(fork.error("Unexpected attribute in field annotation"));
             }
 
             if input.is_empty() {

@@ -202,7 +202,7 @@ impl Parse for TopInfo {
             } else {
                 return Err(Error::new_spanned(
                     kw,
-                    "Unepected attribute for top level annotation",
+                    "Unexpected attribute for top level annotation",
                 ));
             }
 
@@ -281,7 +281,7 @@ impl Parse for Ed {
             } else {
                 return Err(Error::new_spanned(
                     kw,
-                    "Unepected attribute for enum variant annotation",
+                    "Unexpected attribute for enum variant annotation",
                 ));
             }
 

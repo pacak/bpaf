@@ -26,8 +26,9 @@ impl From<&[(&str, Style)]> for Doc {
 /// Parser metainformation
 ///
 ///
-///
-/// See [`Doc::meta`](Doc::meta)
+/// This is a newtype around internal parser metainfo representation, generated
+/// with [`Parser::with_group_help`](crate::Parser::with_group_help) and consumed by
+/// [`Doc::meta`](Doc::meta)
 #[derive(Copy, Clone)]
 pub struct MetaInfo<'a>(pub(crate) &'a Meta);
 

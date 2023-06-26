@@ -63,13 +63,15 @@ use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 use crate::{
     args::{Arg, State},
-    buffer::Style,
     error::{Message, MissingItem},
     from_os_str::parse_os_str,
     item::ShortLong,
     meta_help::Metavar,
     Doc, Error, Item, Meta, OptionParser, Parser,
 };
+
+#[cfg(doc)]
+use crate::{any, command, env, long, positional, short};
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
@@ -105,7 +107,7 @@ use crate::{
 pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
-    env: Vec<&'static str>,
+    pub(crate) env: Vec<&'static str>,
     pub(crate) help: Option<Doc>,
 }
 
@@ -117,69 +119,6 @@ impl NamedArg {
             env: self.env.first().copied(),
             shorts: self.short.clone(),
         }
-    }
-}
-
-/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
-///
-/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
-///  `bpaf` would use items past the first one as hidden aliases.
-#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-#[must_use]
-pub fn short(short: char) -> NamedArg {
-    NamedArg {
-        short: vec![short],
-        env: Vec::new(),
-        long: Vec::new(),
-        help: None,
-    }
-}
-
-/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a long name
-///
-/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
-///  `bpaf` would use items past the first one as hidden aliases.
-///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-#[must_use]
-pub fn long(long: &'static str) -> NamedArg {
-    NamedArg {
-        short: Vec::new(),
-        long: vec![long],
-        env: Vec::new(),
-        help: None,
-    }
-}
-
-/// Parse an environment variable
-///
-/// You can chain multiple of [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
-///  `bpaf` would use items past the first one as hidden aliases.
-///
-/// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
-/// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
-/// variables:
-///
-/// ```console
-/// $ NO_COLOR=1 app --do-something
-/// ```
-///
-/// If you don't specify a short or a long name - whole argument is going to be absent from the
-/// help message. Use it combined with a named or positional argument to have a hidden fallback
-/// that wouldn't leak sensitive info.
-
-///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-#[must_use]
-pub fn env(variable: &'static str) -> NamedArg {
-    NamedArg {
-        short: Vec::new(),
-        long: Vec::new(),
-        help: None,
-        env: vec![variable],
     }
 }
 
@@ -326,69 +265,6 @@ impl NamedArg {
     }
 }
 
-/// Parse a positional argument
-///
-/// For named flags and arguments ordering generally doesn't matter: most programs would
-/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in unix
-/// `cat hello world` and `cat world hello` would display contents of the same two files but in
-/// different order.
-///
-/// When using combinatoring API you can specify the type with turbofish, for parsing types
-/// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
-/// it by hands.
-/// ```no_run
-/// # use bpaf::*;
-/// fn parse_pos() -> impl Parser<usize> {
-///     positional::<usize>("POS")
-/// }
-/// ```
-///
-/// # Important restriction
-/// To parse positional arguments from a command line you should place parsers for all your
-/// named values before parsers for positional items and commands. In derive API fields parsed as
-/// positional items or commands should be at the end of your `struct`/`enum`. Same rule applies
-/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
-///
-/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
-///
-/// For example for non positional `non_pos` and positional `pos` parsers
-/// ```rust
-/// # use bpaf::*;
-/// # let non_pos = || short('n').switch();
-/// # let pos = ||positional::<String>("POS");
-/// let valid = construct!(non_pos(), pos());
-/// let invalid = construct!(pos(), non_pos());
-/// ```
-///
-/// **`bpaf` panics during help generation unless if this restriction holds**
-///
-/// Without using `--` `bpaf` would only accept items that don't start with `-` as positional, you
-/// can use [`any`] to work around this restriction.
-///
-/// By default `bpaf` accepts positional items with or without `--` where values permit, you can
-/// further restrict the parser to accept positionals only on the right side of `--` using
-/// [`strict`](ParsePositional::strict).
-#[cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))]
-#[must_use]
-pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
-    build_positional(metavar)
-}
-
-#[doc(hidden)]
-#[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
-pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
-where
-    T: 'static,
-{
-    ParseCommand {
-        longs: vec![name],
-        shorts: Vec::new(),
-        help: subparser.short_descr().map(Into::into),
-        subparser,
-        adjacent: false,
-    }
-}
-
 impl<T> OptionParser<T> {
     /// Parse a subcommand
     ///
@@ -441,12 +317,12 @@ impl<T> OptionParser<T> {
 ///
 /// Created with [`command`], implements parser for the inner structure, gives access to [`help`](ParseCommand::help).
 pub struct ParseCommand<T> {
-    longs: Vec<&'static str>,
-    shorts: Vec<char>,
+    pub(crate) longs: Vec<&'static str>,
+    pub(crate) shorts: Vec<char>,
     // short help!
-    help: Option<Doc>,
-    subparser: OptionParser<T>,
-    adjacent: bool,
+    pub(crate) help: Option<Doc>,
+    pub(crate) subparser: OptionParser<T>,
+    pub(crate) adjacent: bool,
 }
 
 impl<P> ParseCommand<P> {
@@ -779,7 +655,7 @@ where
     }
 }
 
-fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
+pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
     ParsePositional {
         metavar,
         help: None,
@@ -922,80 +798,11 @@ where
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
 /// [`anywhere`](ParseAny::anywhere).
 pub struct ParseAny<T, I, F> {
-    metavar: Doc,
-    help: Option<Doc>,
-    ctx: PhantomData<(I, T)>,
-    check: F,
-    anywhere: bool,
-}
-
-/// Parse a single arbitrary item from a command line
-///
-/// **`any` is designed to consume items that don't fit into usual [`flag`](NamedArg::flag)
-/// /[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument)/[`positional`]/
-/// [`command`](OptionParser::command) classification, in most cases you don't need to use it**
-///
-/// By default `any` behaves similar to [`positional`] so you should be using it near the right
-/// most end of the consumer struct and it will only try to parse first unconsumed item on the
-/// command line. It is possible to lift this restriction by calling
-/// [`anywhere`](ParseAny::anywhere) on the parser.
-///
-/// `check` argument is a function from any type `I` that implements `FromStr` to `T`.
-/// Usually this should be `String` or `OsString`, but feel free to experiment. When
-/// running `any` tries to parse an item on a command line into that `I` and applies the `check`
-/// function. If `check` succeeds - parser `any` succeeds and produces `T`, otherwise it behaves
-/// as if it haven't seen it. If `any` works in `anywhere` mode - it will try to parse all other
-/// unconsumed items, otherwise `any` fails.
-///
-/// # Use `any` to capture remaining arguments
-/// Normally you would use [`positional`] with [`strict`](ParsePositional::strict) annotation for
-/// that, but using any allows to blur the boundary between arguments for child process and self
-/// process a bit more.
-#[cfg_attr(not(doctest), doc = include_str!("docs2/any_simple.md"))]
-///
-/// # Use `any` to parse a non standard flag
-///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/any_switch.md"))]
-///
-/// # Use `any` to parse a non standard argument
-/// Normally `any` would try to display itself as a usual metavariable in the usage line and
-/// generated help, you can customize that with [`metavar`](ParseAny::metavar) method:
-///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
-///
-/// # See also
-/// [`literal`] - a specialized version of `any` that tries to parse a fixed literal
-#[must_use]
-pub fn any<I, T, F>(metavar: &str, check: F) -> ParseAny<T, I, F>
-where
-    I: FromStr + 'static,
-    F: Fn(I) -> Option<T>,
-{
-    ParseAny {
-        metavar: [(metavar, Style::Metavar)][..].into(),
-        help: None,
-        check,
-        ctx: PhantomData,
-        anywhere: false,
-    }
-}
-
-/// A specialized version of [`any`] that consumes an arbitrary string
-///
-/// By default `literal` behaves similar to [`positional`] so you should be using it near the right
-/// most end of the consumer struct and it will only try to parse first unconsumed item on the
-/// command line. It is possible to lift this restriction by calling
-/// [`anywhere`](ParseAny::anywhere) on the parser.
-///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
-///
-/// # See also
-/// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
-/// or not.
-#[must_use]
-pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
-    any("", move |s| if s == val { Some(()) } else { None })
-        .metavar(&[(val, crate::buffer::Style::Literal)][..])
+    pub(crate) metavar: Doc,
+    pub(crate) help: Option<Doc>,
+    pub(crate) ctx: PhantomData<(I, T)>,
+    pub(crate) check: F,
+    pub(crate) anywhere: bool,
 }
 
 impl<T, I, F> ParseAny<T, I, F> {

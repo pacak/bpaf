@@ -96,8 +96,11 @@ impl ToTokens for Consumer {
             Consumer::External { ident, .. } => {
                 quote!(#ident())
             }
-            Consumer::Expr { expr, .. } => {
-                quote!(#expr)
+            Consumer::Pure { expr, .. } => {
+                quote!(::bpaf::pure(#expr))
+            }
+            Consumer::PureWith { expr, .. } => {
+                quote!(::bpaf::pure_with(#expr))
             }
         }
         .to_tokens(tokens);
