@@ -66,7 +66,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   compat:
-    name: Tests on linux with old toolchain
+    name: Tests on linux with 1.56 toolchain
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -78,17 +78,16 @@ jobs:
           toolchain: 1.56
           components: rustfmt clippy
 
-      - name: trim the workspace
-        run: echo '[workspace]' >> ./comptester/Cargo.toml
+      # comptester uses vte which is not supported by the old version
 
-      - name: test minimal features
+      - name: trim the workspace
+        run: sed -i '/docs2/d; /comptester/d;' ./Cargo.toml
+
+      - name: test minimal features, bpaf and bpaf_derive only
         run: cargo test -p bpaf -p bpaf_derive --no-default-features --lib --tests --no-fail-fast
 
-      - name: test default features
+      - name: test default features bpaf and bpaf_derive only
         run: cargo test -p bpaf -p bpaf_derive --lib --tests --no-fail-fast
 
-      - name: test all features
+      - name: test all features bpaf and bpaf_derive only
         run: cargo test -p bpaf -p bpaf_derive --all-features --lib --tests --no-fail-fast
-
-          #      - name: derive
-        #        run: cargo test -p bpaf_derive --lib --tests --no-default-features --no-fail-fast
