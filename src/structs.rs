@@ -847,6 +847,17 @@ impl<T> ParseCon<T> {
 pub struct ParseComp<P, F> {
     pub(crate) inner: P,
     pub(crate) op: F,
+    pub(crate) group: Option<String>,
+}
+
+#[cfg(feature = "autocomplete")]
+impl<P, F> ParseComp<P, F> {
+    #[must_use]
+    /// Attach group name to parsed values
+    pub fn group(mut self, group: impl Into<String>) -> Self {
+        self.group = Some(group.into());
+        self
+    }
 }
 
 #[cfg(feature = "autocomplete")]
@@ -888,9 +899,11 @@ where
                         comp.push_comp(ci);
                     }
                     for (replacement, description) in suggestions {
+                        let group = self.group.clone();
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),
+                            group,
                             depth,
                             is_arg,
                         );

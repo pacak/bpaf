@@ -225,6 +225,7 @@ impl ToTokens for PostDecor {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             PostDecor::Complete { f, .. } => quote!(complete(#f)),
+            PostDecor::CompleteGroup { group, .. } => quote!(group(#group)),
             PostDecor::CompleteShell { f, .. } => quote!(complete_shell(#f)),
             PostDecor::DebugFallback { .. } => quote!(debug_fallback()),
             PostDecor::DisplayFallback { .. } => quote!(display_fallback()),
@@ -274,6 +275,10 @@ pub(crate) enum PostDecor {
         span: Span,
         f: Path,
     },
+    CompleteGroup {
+        span: Span,
+        group: LitStr,
+    },
     CompleteShell {
         span: Span,
         f: Box<Expr>,
@@ -315,6 +320,7 @@ impl PostDecor {
     fn span(&self) -> Span {
         match self {
             Self::Complete { span, .. }
+            | Self::CompleteGroup { span, .. }
             | Self::CompleteShell { span, .. }
             | Self::DebugFallback { span }
             | Self::DisplayFallback { span }
@@ -473,6 +479,9 @@ impl PostDecor {
         Ok(Some(if kw == "complete" {
             let f = parse_path(input)?;
             Self::Complete { span, f }
+        } else if kw == "group" {
+            let group = parse_lit_str(input)?;
+            Self::CompleteGroup { span, group }
         } else if kw == "complete_shell" {
             let f = parse_arg(input)?;
             Self::CompleteShell { span, f }

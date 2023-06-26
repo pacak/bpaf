@@ -534,7 +534,7 @@ fn explicit_optional_argument_with_name() {
 #[test]
 fn optional_argument_with_name_complete() {
     let input: NamedField = parse_quote! {
-        #[bpaf(argument("N"), complete(magic))]
+        #[bpaf(argument("N"), complete(magic), group("hi"))]
         config: Option<u64>
     };
     let output = quote! {
@@ -542,6 +542,7 @@ fn optional_argument_with_name_complete() {
             .argument::<u64>("N")
             .optional()
             .complete(magic)
+            .group("hi")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

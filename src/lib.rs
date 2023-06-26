@@ -1174,7 +1174,11 @@ pub trait Parser<T> {
         F: Fn(&T) -> Vec<(M, Option<M>)>,
         Self: Sized + Parser<T>,
     {
-        ParseComp { inner: self, op }
+        ParseComp {
+            inner: self,
+            op,
+            group: None,
+        }
     }
     // }}}
 

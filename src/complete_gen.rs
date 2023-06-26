@@ -178,17 +178,14 @@ impl Complete {
         &mut self,
         body: String,
         help: Option<String>,
+        group: Option<String>,
         depth: usize,
         is_argument: bool,
     ) {
         self.comps.push(Comp::Value {
             body,
             is_argument,
-            extra: CompExtra {
-                depth,
-                group: None,
-                help,
-            },
+            extra: CompExtra { depth, group, help },
         });
     }
 
