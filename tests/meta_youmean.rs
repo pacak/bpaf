@@ -275,8 +275,6 @@ Available options:
 
 Available commands:
     lines       Multi
-                Line
-                Comment
     arguments
 ";
     assert_eq!(r, expected);

@@ -96,7 +96,7 @@ Available options:
 
 Available commands:
     add         Add a new TODO item
-    no-action   Does nothing in two lines
+    no-action   Does nothing
 ";
     assert_eq!(expected_help, help);
 }

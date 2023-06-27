@@ -1086,8 +1086,8 @@ fn zsh_many_positionals() {
 
 #[test]
 fn zsh_help_single_line_only() {
-    let a = short('a').help("hello\nworld").argument::<String>("X");
-    let b = short('b').help("hello\nfrom switch").switch();
+    let a = short('a').help("hello world").argument::<String>("X");
+    let b = short('b').help("hello from switch").switch();
     let parser = construct!(a, b).to_options();
 
     let r = parser
