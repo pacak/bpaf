@@ -94,15 +94,18 @@ impl Doc {
             let prefix = &buf.payload[0..bytes];
             if let Some((a, b)) = prefix.split_once('\n') {
                 self.emphasis(a);
+                self.tokens.push(Token::BlockStart(Block::Block));
                 self.tokens.push(Token::BlockStart(Block::Section3));
                 self.text(b);
+
+                if buf.tokens.len() > 1 {
+                    self.tokens.extend(&buf.tokens[1..]);
+                    self.payload.push_str(&buf.payload[bytes..]);
+                }
                 self.tokens.push(Token::BlockEnd(Block::Section3));
+                self.tokens.push(Token::BlockEnd(Block::Block));
             } else {
                 self.emphasis(prefix);
-            }
-            if buf.tokens.len() > 1 {
-                self.tokens.extend(&buf.tokens[1..]);
-                self.payload.push_str(&buf.payload[bytes..]);
             }
         } else {
             self.tokens.extend(&buf.tokens);

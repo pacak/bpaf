@@ -166,7 +166,80 @@ fn main() {
 
 <details><summary>Output</summary>
 
+Example defines this parser
 
+
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--manifest-path</b></tt>=<tt><i>PATH</i></tt>] [<tt><b>--target-dir</b></tt>=<tt><i>DIR</i></tt>] [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>] [<tt><b>--lib</b></tt> | <tt><b>--test</b></tt>=<tt><i>TEST</i></tt> | <tt><b>--bench</b></tt>=<tt><i>BENCH</i></tt> | <tt><b>--example</b></tt>=<tt><i>EXAMPLE</i></tt> | <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt>] [<tt><b>--dry</b></tt>] [<tt><b>--frozen</b></tt>] [<tt><b>--locked</b></tt>] [<tt><b>--offline</b></tt>] [<tt><b>--rust</b></tt>] [<tt><b>--color</b></tt> | <tt><b>--no-color</b></tt>] [<tt><b>--full-name</b></tt>] [<tt><b>--intel</b></tt> | <tt><b>--att</b></tt>] [<tt><i>FUNCTION</i></tt>] [<tt><i>INDEX</i></tt>]</p><p><div>
+<b>Select artifact to use for analysis</b><p> Only one is valid</p></div><dl><dt><tt><b>    --lib</b></tt></dt>
+<dd>Show results from library code</dd>
+<dt><tt><b>    --test</b></tt>=<tt><i>TEST</i></tt></dt>
+<dd>Show results from a test</dd>
+<dt><tt><b>    --bench</b></tt>=<tt><i>BENCH</i></tt></dt>
+<dd>Show results from a benchmark</dd>
+<dt><tt><b>    --example</b></tt>=<tt><i>EXAMPLE</i></tt></dt>
+<dd>Show results from an example</dd>
+<dt><tt><b>    --bin</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Show results from a binary</dd>
+</dl>
+</p><p><div>
+<b>How to render output</b></div><dl><dt><tt><b>    --rust</b></tt></dt>
+<dd>Print interleaved Rust code</dd>
+<dt><tt><b>    --color</b></tt></dt>
+<dd>Enable color highlighting</dd>
+<dt><tt><b>    --no-color</b></tt></dt>
+<dd>Disable color highlighting</dd>
+<dt><tt><b>    --full-name</b></tt></dt>
+<dd>include full demangled name instead of just prefix</dd>
+</dl>
+</p><p><div>
+<b>Pick output type</b><p> included help</p></div><dl><dt><tt><b>    --intel</b></tt></dt>
+<dd>Generate assembly using Intel style</dd>
+<dt><tt><b>    --att</b></tt></dt>
+<dd>Generate assembly using AT&T style</dd>
+</dl>
+</p><p><div>
+<b>Item to pick from the output</b></div><dl><dt><tt><i>FUNCTION</i></tt></dt>
+<dd>Complete or partial function name to filter</dd>
+<dt><tt><i>INDEX</i></tt></dt>
+<dd>Select nth item from a filtered list</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --manifest-path</b></tt>=<tt><i>PATH</i></tt></dt>
+<dd>Path to Cargo.toml</dd>
+<dt><tt><b>    --target-dir</b></tt>=<tt><i>DIR</i></tt></dt>
+<dd>Custom target directory for generated artifacts</dd>
+<dt><tt><b>-p</b></tt>, <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to use if ambigous</dd>
+<dt><tt><b>    --dry</b></tt></dt>
+<dd>Produce a build plan instead of actually building</dd>
+<dt><tt><b>    --frozen</b></tt></dt>
+<dd>Requires Cargo.lock and cache are up to date</dd>
+<dt><tt><b>    --locked</b></tt></dt>
+<dd>Requires Cargo.lock is up to date</dd>
+<dt><tt><b>    --offline</b></tt></dt>
+<dd>Run without accessing the network</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: mono;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+
+
+By default completion system lists all possible cases
 
 
 <pre>
@@ -198,6 +271,27 @@ FUNCTION: Complete or partial function name to filter
 </pre>
 
 
+But when user tries to complete example name - it only lists examples produced by
+`comp_examples` function
 
-asfwe
+
+<pre>
+% derive_show_asm --example \t
+% derive_show_asm --example
+Select artifact to use for analysis
+EXAMPLE: Show results from an example
+derive_show_asm
+coreutils
+comonad
+</pre>
+
+
+And completes the full name when user gives enough information
+
+
+<pre>
+% derive_show_asm --example cor\t
+% derive_show_asm --example coreutils
+</pre>
+
 </details>
