@@ -81,6 +81,36 @@ impl Doc {
         self.payload.push_str(&buf.payload);
         self.tokens.push(Token::BlockEnd(Block::InlineBlock));
     }
+
+    /// Append a `Doc` to [`Doc`] for plaintext documents try to format
+    /// first line as a help section header
+    pub fn em_doc(&mut self, buf: &Doc) {
+        self.tokens.push(Token::BlockStart(Block::InlineBlock));
+        if let Some(Token::Text {
+            bytes,
+            style: Style::Text,
+        }) = buf.tokens.first().copied()
+        {
+            let prefix = &buf.payload[0..bytes];
+            if let Some((a, b)) = prefix.split_once('\n') {
+                self.emphasis(a);
+                self.tokens.push(Token::BlockStart(Block::Section3));
+                self.text(b);
+                self.tokens.push(Token::BlockEnd(Block::Section3));
+            } else {
+                self.emphasis(prefix);
+            }
+            if buf.tokens.len() > 1 {
+                self.tokens.extend(&buf.tokens[1..]);
+                self.payload.push_str(&buf.payload[bytes..]);
+            }
+        } else {
+            self.tokens.extend(&buf.tokens);
+            self.payload.push_str(&buf.payload);
+        }
+
+        self.tokens.push(Token::BlockEnd(Block::InlineBlock));
+    }
 }
 
 impl Doc {
@@ -312,11 +342,19 @@ impl Doc {
 
         for &t in &self.tokens {
             match t {
-                Token::Text { bytes, style: _ } => {
-                    // TODO -
-                    res.tokens.push(t);
-                    res.payload.push_str(&self.payload[cur..cur + bytes]);
-                    cur += bytes;
+                Token::Text { bytes, style } => {
+                    let payload = &self.payload[cur..cur + bytes];
+                    if let Some((first, _)) = payload.split_once('\n') {
+                        res.tokens.push(Token::Text {
+                            bytes: first.len(),
+                            style,
+                        });
+                        res.payload.push_str(first);
+                    } else {
+                        res.tokens.push(t);
+                        res.payload.push_str(&self.payload[cur..cur + bytes]);
+                        cur += bytes;
+                    }
                 }
                 _ => break,
             }

@@ -149,8 +149,7 @@ impl State {
     }
 
     /// Insert a bunch of items
-    pub(crate) fn push_with_group(&mut self, group: Option<Doc>, comps: &mut Vec<Comp>) {
-        let group = group.map(|g| g.monochrome(true));
+    pub(crate) fn push_with_group(&mut self, group: Option<String>, comps: &mut Vec<Comp>) {
         if let Some(comp) = self.comp_mut() {
             for mut item in comps.drain(..) {
                 if let Some(group) = group.as_ref() {

@@ -71,7 +71,7 @@ where
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comp_items);
         #[cfg(feature = "autocomplete")]
-        args.push_with_group(self.message.first_line(), &mut comp_items);
+        args.push_with_group(self.message.to_completion(), &mut comp_items);
 
         res
     }

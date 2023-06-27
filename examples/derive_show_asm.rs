@@ -79,6 +79,12 @@ pub struct Format {
 }
 
 #[derive(Debug, Clone, Bpaf)]
+/// Pick output type
+///
+/// included help
+///
+///
+/// Extended help
 pub enum Syntax {
     /// Generate assembly using Intel style
     Intel,
@@ -116,6 +122,8 @@ fn comp_examples(prefix: &String) -> Vec<(String, Option<String>)> {
 
 #[derive(Debug, Clone, Bpaf)]
 /// Select artifact to use for analysis
+///
+/// Only one is valid
 pub enum Focus {
     /// Show results from library code
     Lib,

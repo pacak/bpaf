@@ -167,7 +167,7 @@ Available options:
 #[test]
 fn enum_with_docs() {
     #[derive(Debug, Clone, Bpaf)]
-    /// group help
+    /// Pick mode:
     enum Mode {
         /// help
         ///
@@ -189,11 +189,11 @@ fn enum_with_docs() {
     let expected = "\
 Usage: (--intel | --att)
 
-Available options:
-  group help
+Pick mode:
         --intel  help
         --att    help
 
+Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(r, expected);
@@ -440,11 +440,11 @@ fn with_group_help() {
     let expected = "\
 Usage: [-a] [-b] [-c]
 
-Available options:
-  Uses either of those [-a] [-b]
+Uses either of those [-a] [-b]
     -a          option a
     -b          option b
 
+Available options:
     -c          option c
     -h, --help  Prints help information
 ";

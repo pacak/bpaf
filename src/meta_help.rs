@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use crate::{
     buffer::{Block, Doc, Style, Token},
     info::Info,
@@ -15,11 +17,11 @@ pub(crate) enum HelpItem<'a> {
         help: &'a Doc,
         ty: HiTy,
     },
-    DecorHeader {
+    GroupStart {
         help: &'a Doc,
         ty: HiTy,
     },
-    DecorBlank {
+    GroupEnd {
         ty: HiTy,
     },
     Any {
@@ -66,8 +68,8 @@ impl HelpItem<'_> {
             | HelpItem::Flag { help, .. }
             | HelpItem::Any { help, .. }
             | HelpItem::Argument { help, .. } => help.is_some(),
-            HelpItem::DecorHeader { .. } | HelpItem::DecorSuffix { .. } => true,
-            HelpItem::DecorBlank { .. }
+            HelpItem::GroupStart { .. } | HelpItem::DecorSuffix { .. } => true,
+            HelpItem::GroupEnd { .. }
             | HelpItem::AnywhereStart { .. }
             | HelpItem::AnywhereStop { .. } => false,
         }
@@ -75,9 +77,9 @@ impl HelpItem<'_> {
 
     fn ty(&self) -> HiTy {
         match self {
-            HelpItem::DecorHeader { ty, .. }
+            HelpItem::GroupStart { ty, .. }
             | HelpItem::DecorSuffix { ty, .. }
-            | HelpItem::DecorBlank { ty }
+            | HelpItem::GroupEnd { ty }
             | HelpItem::AnywhereStart { ty, .. }
             | HelpItem::AnywhereStop { ty } => *ty,
             HelpItem::Any {
@@ -133,11 +135,11 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
                     self.block = ItemBlock::Anywhere(*ty);
                     *ty == self.target
                 }
-                HelpItem::DecorHeader { ty, .. } => {
+                HelpItem::GroupStart { ty, .. } => {
                     self.block = ItemBlock::Decor(*ty);
                     *ty == self.target
                 }
-                HelpItem::DecorBlank { ty, .. } | HelpItem::AnywhereStop { ty, .. } => {
+                HelpItem::GroupEnd { ty, .. } | HelpItem::AnywhereStop { ty, .. } => {
                     self.block = ItemBlock::No;
                     *ty == self.target
                 }
@@ -224,9 +226,9 @@ impl<'a> HelpItems<'a> {
             }
             Meta::Subsection(m, help) => {
                 if let Some(ty) = m.peek_front_ty() {
-                    self.items.push(HelpItem::DecorHeader { help, ty });
+                    self.items.push(HelpItem::GroupStart { help, ty });
                     self.append_meta(m);
-                    self.items.push(HelpItem::DecorBlank { ty });
+                    self.items.push(HelpItem::GroupEnd { ty });
                 }
             }
             Meta::Suffix(m, help) => {
@@ -237,6 +239,18 @@ impl<'a> HelpItems<'a> {
             }
             Meta::Skip => (),
         }
+    }
+
+    fn find_group(&self) -> Option<Range<usize>> {
+        let start = self
+            .items
+            .iter()
+            .position(|i| matches!(i, HelpItem::GroupStart { .. }))?;
+        let end = self
+            .items
+            .iter()
+            .position(|i| matches!(i, HelpItem::GroupEnd { .. }))?;
+        Some(start..end + 1)
     }
 }
 
@@ -335,10 +349,16 @@ impl Doc {
 #[allow(clippy::too_many_lines)] // lines are _very_ boring
 fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
     match item {
-        HelpItem::DecorHeader { help, .. } => {
-            buf.token(Token::BlockStart(Block::Section3));
-            buf.doc(help);
-            buf.token(Token::BlockEnd(Block::Section3));
+        HelpItem::GroupStart { help, .. } => {
+            buf.token(Token::BlockStart(Block::Block));
+            buf.token(Token::BlockStart(Block::Section2));
+            buf.em_doc(help);
+            buf.token(Token::BlockEnd(Block::Section2));
+            buf.token(Token::BlockStart(Block::DefinitionList));
+        }
+        HelpItem::GroupEnd { .. } => {
+            buf.token(Token::BlockEnd(Block::DefinitionList));
+            buf.token(Token::BlockEnd(Block::Block));
         }
         HelpItem::DecorSuffix { help, .. } => {
             buf.token(Token::BlockStart(Block::ItemTerm));
@@ -346,10 +366,6 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
             buf.token(Token::BlockStart(Block::ItemBody));
             buf.doc(help);
             buf.token(Token::BlockEnd(Block::ItemBody));
-        }
-        HelpItem::DecorBlank { .. } | HelpItem::AnywhereStop { .. } => {
-            buf.token(Token::BlockStart(Block::Block));
-            buf.token(Token::BlockEnd(Block::Block));
         }
         HelpItem::Any {
             metavar,
@@ -470,6 +486,10 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
             buf.write_meta(inner, true);
             buf.token(Token::BlockEnd(Block::Section3));
         }
+        HelpItem::AnywhereStop { .. } => {
+            buf.token(Token::BlockStart(Block::Block));
+            buf.token(Token::BlockEnd(Block::Block));
+        }
     }
 }
 
@@ -531,7 +551,7 @@ pub(crate) fn render_help(
     items.append_meta(parser_meta);
     items.append_meta(help_meta);
 
-    buf.write_help_item_groups(&items, include_env);
+    buf.write_help_item_groups(items, include_env);
 
     if let Some(footer) = &info.footer {
         buf.token(Token::BlockStart(Block::Block));
@@ -543,13 +563,19 @@ pub(crate) fn render_help(
 
 impl Doc {
     #[inline(never)]
-    pub(crate) fn write_help_item_groups(&mut self, items: &HelpItems, include_env: bool) {
+    pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems, include_env: bool) {
+        while let Some(range) = items.find_group() {
+            for item in items.items.drain(range) {
+                write_help_item(self, &item, include_env);
+            }
+        }
+
         for (ty, name) in [
             (HiTy::Positional, "Available positional items:"),
             (HiTy::Flag, "Available options:"),
             (HiTy::Command, "Available commands:"),
         ] {
-            self.write_help_items(items, ty, name, include_env);
+            self.write_help_items(&items, ty, name, include_env);
         }
     }
 

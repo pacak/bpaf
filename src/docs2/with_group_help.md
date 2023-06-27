@@ -61,13 +61,15 @@ that contanis only the first paragraph for each block:
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
-<dd>important argument</dd>
-The app takes a rectangle defined by width and height<dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<b>The app takes a rectangle defined by width and height</b> You can customize the screen size using [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>] parameters</div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
 <dd>Width of the rectangle</dd>
 <dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
 <dd>Height of the rectangle</dd>
-<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
 </p>
@@ -93,14 +95,15 @@ descriptions added
 <div class='bpaf-doc'>
 $ app --help --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
-<dd>important argument</dd>
-The app takes a rectangle defined by width and height<br>
-You can customize the screen size using [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>] parameters<dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<b>The app takes a rectangle defined by width and height</b> You can customize the screen size using [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>] parameters</div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
 <dd>Width of the rectangle</dd>
 <dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
 <dd>Height of the rectangle</dd>
-<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
 </p>

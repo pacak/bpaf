@@ -78,6 +78,14 @@ Application generates help message as usual
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--crate</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--dependencies</b></tt>] [<tt><b>--json</b></tt> | <tt><b>--xml</b></tt> | <tt><b>--text</b></tt>] [<tt><i>URL</i></tt>]</p><p><div>
+<b>Format for generated report</b></div><dl><dt><tt><b>    --json</b></tt></dt>
+<dd>Generate report in JSON format</dd>
+<dt><tt><b>    --xml</b></tt></dt>
+<dd>Generate report in XML format</dd>
+<dt><tt><b>    --text</b></tt></dt>
+<dd>Generate report in plaintext format</dd>
+</dl>
+</p><p><div>
 <b>Available positional items:</b></div><dl><dt><tt><i>URL</i></tt></dt>
 <dd>Upload report to a url</dd>
 </dl>
@@ -86,13 +94,7 @@ $ app --help<br>
 <dd>Select crate for analysis</dd>
 <dt><tt><b>    --dependencies</b></tt></dt>
 <dd>Include dependencies into report</dd>
-Format for generated report<dt><tt><b>    --json</b></tt></dt>
-<dd>Generate report in JSON format</dd>
-<dt><tt><b>    --xml</b></tt></dt>
-<dd>Generate report in XML format</dd>
-<dt><tt><b>    --text</b></tt></dt>
-<dd>Generate report in plaintext format</dd>
-<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
 </p>

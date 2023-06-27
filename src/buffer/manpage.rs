@@ -126,7 +126,7 @@ impl<T> OptionParser<T> {
             items.append_meta(section.meta);
             let help_meta = section.info.meta();
             items.append_meta(&help_meta);
-            buf.write_help_item_groups(&items, false);
+            buf.write_help_item_groups(items, false);
 
             if let Some(footer) = &section.info.footer {
                 buf.token(Token::BlockStart(Block::Block));

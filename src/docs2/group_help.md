@@ -72,13 +72,15 @@ pub struct Options {
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
-<dd>important argument</dd>
-Takes a rectangle<dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<b>Takes a rectangle</b></div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
 <dd>Width of the rectangle</dd>
 <dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
 <dd>Height of the rectangle</dd>
-<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
 </p>

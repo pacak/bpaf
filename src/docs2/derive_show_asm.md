@@ -82,6 +82,12 @@ pub struct Format {
 }
 
 #[derive(Debug, Clone, Bpaf)]
+/// Pick output type
+///
+/// included help
+///
+///
+/// Extended help
 pub enum Syntax {
     /// Generate assembly using Intel style
     Intel,
@@ -119,6 +125,8 @@ fn comp_examples(prefix: &String) -> Vec<(String, Option<String>)> {
 
 #[derive(Debug, Clone, Bpaf)]
 /// Select artifact to use for analysis
+///
+/// Only one is valid
 pub enum Focus {
     /// Show results from library code
     Lib,
@@ -171,8 +179,6 @@ fn main() {
 --frozen                 -- Requires Cargo.lock and cache are up to date
 --locked                 -- Requires Cargo.lock is up to date
 --offline                -- Run without accessing the network
---intel                  -- Generate assembly using Intel style
---att                    -- Generate assembly using AT&T style
 Select artifact to use for analysis
 --lib                    -- Show results from library code
 --test=TEST              -- Show results from a test
@@ -184,6 +190,9 @@ How to render output
 --color                  -- Enable color highlighting
 --no-color               -- Disable color highlighting
 --full-name              -- include full demangled name instead of just prefix
+Pick output type
+--intel                  -- Generate assembly using Intel style
+--att                    -- Generate assembly using AT&T style
 Item to pick from the output
 FUNCTION: Complete or partial function name to filter
 </pre>

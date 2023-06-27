@@ -69,8 +69,7 @@ fn positional_argument() {
     let expected = "\
 Usage: FILE
 
-Available positional items:
-  File to process
+File to process
     FILE        file name
 
 Available options:
