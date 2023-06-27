@@ -1,6 +1,29 @@
 <details><summary>Combinatoric example</summary>
 
 ```no_run
+const BINARY_USAGE: &[(&str, Style)] = &[
+    ("--binary", Style::Literal),
+    ("=", Style::Text),
+    ("BINARY", Style::Metavar),
+];
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    /// Binary to run
+    #[bpaf(short, long, argument("BIN"), custom_usage(BINARY_USAGE))]
+    binary: Option<String>,
+
+    /// Package to check
+    #[bpaf(short, long, argument("PACKAGE"))]
+    package: Option<String>,
+}
+```
+
+</details>
+<details><summary>Derive example</summary>
+
+```no_run
 #[derive(Debug, Clone)]
 pub struct Options {
     binary: Option<String>,

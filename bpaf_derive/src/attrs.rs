@@ -235,6 +235,7 @@ impl ToTokens for PostDecor {
             PostDecor::GroupHelp { doc, .. } => quote!(group_help(#doc)),
             PostDecor::Guard { check, msg, .. } => quote!(guard(#check, #msg)),
             PostDecor::Hide { .. } => quote!(hide()),
+            PostDecor::CustomUsage { usage, .. } => quote!(custom_usage(#usage)),
             PostDecor::HideUsage { .. } => quote!(hide_usage()),
         }
         .to_tokens(tokens);
@@ -312,6 +313,10 @@ pub(crate) enum PostDecor {
     Hide {
         span: Span,
     },
+    CustomUsage {
+        usage: Box<Expr>,
+        span: Span,
+    },
     HideUsage {
         span: Span,
     },
@@ -330,6 +335,7 @@ impl PostDecor {
             | Self::GroupHelp { span, .. }
             | Self::Guard { span, .. }
             | Self::Hide { span }
+            | Self::CustomUsage { span, .. }
             | Self::HideUsage { span } => *span,
         }
     }
@@ -507,6 +513,9 @@ impl PostDecor {
             Self::Hide { span }
         } else if kw == "hide_usage" {
             Self::HideUsage { span }
+        } else if kw == "custom_usage" {
+            let usage = parse_arg(input)?;
+            Self::CustomUsage { usage, span }
         } else {
             return Ok(None);
         }))
