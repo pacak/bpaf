@@ -46,7 +46,7 @@ $ app --help<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -75,7 +75,7 @@ $ app -H<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -96,7 +96,7 @@ $ app -h<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -118,7 +118,7 @@ Version: 0.42
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -137,7 +137,7 @@ Version: 0.42
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }

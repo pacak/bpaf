@@ -68,7 +68,7 @@ $ app --help<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -100,7 +100,7 @@ No such flag: <b>--verbos</b>, did you mean <tt><b>--verbose</b></tt>?
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -121,7 +121,7 @@ $ app -o best.txt -s 10 --detaile<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -163,7 +163,7 @@ Expected <tt><b>--output</b></tt>=<tt><i>PATH</i></tt> or <tt><b>--output</b></t
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }

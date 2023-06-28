@@ -104,7 +104,7 @@ $ app --help<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -142,7 +142,7 @@ Expected <tt><b>--width</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -162,7 +162,7 @@ Expected <tt><b>--height</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }

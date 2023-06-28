@@ -82,7 +82,7 @@ $ app --help<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -113,7 +113,7 @@ $ app --verbose --no-default-features --detailed<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -135,7 +135,7 @@ Argument <tt><b>--no-default-features</b></tt> cannot be used multiple times in 
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }

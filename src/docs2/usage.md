@@ -61,7 +61,7 @@ $ app --help<br>
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
@@ -82,7 +82,7 @@ Expected <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt>, pass <tt><b>--help</b></t
 div.bpaf-doc {
     padding: 14px;
     background-color:var(--code-block-background-color);
-    font-family: mono;
+    font-family: "Source Code Pro", monospace;
     margin-bottom: 0.75em;
 }
 div.bpaf-doc dt { margin-left: 1em; }
