@@ -236,23 +236,6 @@ mod inner {
         cur: usize,
     }
 
-    /// Create [`State`] out of static values - for tests only
-    ///
-    /// # Panics
-    /// This will panic on invalid input (-foo=bar), use for tests only
-    #[allow(clippy::fallible_impl_from)] // this is for tests only, panic is okay
-    impl<const N: usize> From<&'static [&'static str; N]> for State {
-        fn from(value: &'static [&'static str; N]) -> Self {
-            let args = Args::from(value);
-            let mut msg = None;
-            let res = State::construct(args, &[], &[], &mut msg);
-            if let Some(err) = &msg {
-                panic!("Couldn't construct state: {:?}/{:?}", err, res);
-            }
-            res
-        }
-    }
-
     impl State {
         #[cfg(feature = "autocomplete")]
         pub(crate) fn check_no_pos_ahead(&self) -> bool {
@@ -728,6 +711,19 @@ mod tests {
     use crate::meta_help::Metavar;
     use crate::{long, short};
     const M: Metavar = Metavar("M");
+
+    #[allow(clippy::fallible_impl_from)] // this is for tests only, panic is okay
+    impl<const N: usize> From<&'static [&'static str; N]> for State {
+        fn from(value: &'static [&'static str; N]) -> Self {
+            let args = Args::from(value);
+            let mut msg = None;
+            let res = State::construct(args, &[], &[], &mut msg);
+            if let Some(err) = &msg {
+                panic!("Couldn't construct state: {:?}/{:?}", err, res);
+            }
+            res
+        }
+    }
 
     #[test]
     fn long_arg() {
