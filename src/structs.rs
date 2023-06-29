@@ -827,12 +827,8 @@ impl<T> ParseCon<T> {
     ///
     /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It's
     /// best not to have complex inter-fields verification since they might trip up the detection
-    /// logic: instead of destricting, for example "sum of two fields to be 5 or greater" *inside* the
+    /// logic: instead of restricting, for example "sum of two fields to be 5 or greater" *inside* the
     /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
-    ///
-    /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
-    /// use it on something other than [`command`](crate::OptionParser::command) or [`construct!`](crate::construct!)
-    /// encasing several fields.
     ///
     /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
@@ -1043,23 +1039,11 @@ where
     }
 }
 
-/// Create boxed parser
-///
-/// Boxed parser doesn't expose internal representation in it's type and allows to return
-/// different parsers in different conditional branches
-///
-/// You can create it with a single argument `construct` macro or by using `boxed` annotation
-#[doc = include_str!("docs/boxed.md")]
-pub struct ParseBox<T> {
-    /// Boxed inner parser
-    pub inner: Box<dyn Parser<T>>,
-}
-
-impl<T> Parser<T> for ParseBox<T> {
+impl<T> Parser<T> for Box<dyn Parser<T>> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        self.inner.eval(args)
+        self.as_ref().eval(args)
     }
     fn meta(&self) -> Meta {
-        self.inner.meta()
+        self.as_ref().meta()
     }
 }

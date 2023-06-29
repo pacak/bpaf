@@ -401,7 +401,8 @@ fn group_help_commands() {
         .switch()
         .to_options()
         .command("cmd_b")
-        .help("command that does B");
+        .help("command that does B")
+        .boxed();
     let c = short('a')
         .switch()
         .to_options()

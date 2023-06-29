@@ -143,7 +143,7 @@
 //!   <div class="code-wrap">
 //!   <pre>
 //!   cat <span style="font-weight: bold">/etc/passwd</span>
-//!   rm -rf test <span style="font-weight: bold">target</span>
+//!   rm -rf <span style="font-weight: bold">target</span>
 //!   man <span style="font-weight: bold">gcc</span>
 //!   </pre>
 //!   </div>
@@ -182,23 +182,23 @@
 //! find documentation with more examples following those links.
 //!
 //! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
-//!   [`long`] and [`env`](crate::env). At the same point you can attach
+//!   [`long`] and [`env`](crate::env). At the same time you can attach
 //!   [`help`](NamedArg::help).
-//! - [`switch`](NamedArg::switch) - simple switch that returns `true` if it's present on a command
+//! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
 //!   line and `false` otherwise.
-//! - [`flag`](NamedArg::flag) - a variant of `switch` that lets you return one of two custom
+//! - [`NamedArg::flag`] - a variant of `switch` that lets you return one of two custom
 //!   values, for example `Color::On` and `Color::Off`.
-//! - [`req_flag`](NamedArg::req_flag) - a variant of `switch` that only only succeeds when it's name
+//! - [`NamedArg::req_flag`] - a variant of `switch` that only only succeeds when it's name
 //!   is present on a command line
-//! - [`argument`](NamedArg::argument) - named argument containing a value, you can further
-//! customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
+//! - [`NamedArg::argument`] - named argument containing a value, you can further
+//!   customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
 //! - [`positional`] - positional argument, you can further customize it with
 //!   [`strict`](ParsePositional::strict)
-//! - [`command`](OptionParser::command) - command parser, you need to define [`OptionParser`]
-//!   for the nested parser first.
+//! - [`OptionParser::command`] - subcommand parser.
 //! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
-//!   not fitting into usual classification
-//! - [`pure`] and [`pure_with`] - a way to skip
+//!   not fitting into usual classification.
+//! - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
+//!   it from the command line.
 //!
 //! ## 3. Transforming and changing parsers
 //!
@@ -316,8 +316,7 @@ pub mod parsers {
     pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
     #[doc(inline)]
     pub use crate::structs::{
-        ParseBox, ParseCon, ParseCount, ParseFallback, ParseLast, ParseMany, ParseOptional,
-        ParseSome,
+        ParseCon, ParseCount, ParseFallback, ParseLast, ParseMany, ParseOptional, ParseSome,
     };
 }
 
@@ -328,12 +327,7 @@ pub use crate::{args::Args, buffer::Doc, error::ParseFailure, info::OptionParser
 
 #[doc(hidden)]
 // used by construct macro, not part of public API
-pub use crate::{
-    args::State,
-    error::Error,
-    meta::Meta,
-    structs::{ParseBox, ParseCon},
-};
+pub use crate::{args::State, error::Error, meta::Meta, structs::ParseCon};
 
 use std::{marker::PhantomData, str::FromStr};
 
@@ -451,7 +445,7 @@ pub use bpaf_derive::Bpaf;
 ///
 /// // You can create boxed version of parsers so the type matches as long
 /// // as return type is the same - can be useful for all sort of dynamic parsers
-/// fn boxed() -> impl Parser<u32> {
+/// fn boxed() -> Box<dyn Parser<u32>> {
 ///     let a = short('a').argument::<u32>("n");
 ///     construct!(a)
 /// }
@@ -567,7 +561,10 @@ macro_rules! __cons_prepare {
     ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
     ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+    ([pos] [$field:ident]) => {{
+        use $crate::Parser;
+        $field.boxed()
+    }};
 
     ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
@@ -590,7 +587,10 @@ macro_rules! __cons_prepare {
     ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
     ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-    ([pos] [$field:ident]) => { $crate::ParseBox { inner: Box::new($field) } };
+    ([pos] [$field:ident]) => {{
+        use $crate::Parser;
+        $field.boxed()
+    }};
 
     ($ty:tt [$($fields:ident)+]) => {{
         use $crate::Parser;
@@ -1270,17 +1270,20 @@ pub trait Parser<T> {
         self.to_options().run()
     }
 
-    #[doc(hidden)]
     /// Create a boxed representation for a parser
     ///
     ///
-    fn boxed(self) -> ParseBox<T>
+
+    /// Boxed parser doesn't expose internal representation in it's type and allows to return
+    /// different parsers in different conditional branches
+    ///
+    /// You can create it with a single argument `construct` macro or by using `boxed` annotation
+    #[doc = include_str!("docs/boxed.md")]
+    fn boxed(self) -> Box<dyn Parser<T>>
     where
         Self: Sized + Parser<T> + 'static,
     {
-        ParseBox {
-            inner: Box::new(self),
-        }
+        Box::new(self)
     }
 }
 

@@ -20,7 +20,7 @@ mod boilerplate {
     }
 
     pub struct ParseLast<T> {
-        inner: ParseBox<T>,
+        inner: Box<dyn Parser<T>>,
     }
 
     impl<T, P> ExtraParsers<T> for P
@@ -32,9 +32,7 @@ mod boilerplate {
             let p = self
                 .some("need to specify at least once")
                 .map(|mut xs| xs.pop().unwrap());
-            ParseLast {
-                inner: construct!(p),
-            }
+            ParseLast { inner: p.boxed() }
         }
     }
 }
