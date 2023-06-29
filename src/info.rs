@@ -193,6 +193,8 @@ impl<T> OptionParser<T> {
         self.inner
             .meta()
             .collect_shorts(&mut short_flags, &mut short_args);
+        short_flags.extend(&self.info.help_arg.short);
+        short_flags.extend(&self.info.version_arg.short);
         let mut err = None;
         let mut state = State::construct(args.into(), &short_flags, &short_args, &mut err);
 
