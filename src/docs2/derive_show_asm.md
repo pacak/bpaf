@@ -172,7 +172,7 @@ Example defines this parser
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--manifest-path</b></tt>=<tt><i>PATH</i></tt>] [<tt><b>--target-dir</b></tt>=<tt><i>DIR</i></tt>] [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>] [<tt><b>--lib</b></tt> | <tt><b>--test</b></tt>=<tt><i>TEST</i></tt> | <tt><b>--bench</b></tt>=<tt><i>BENCH</i></tt> | <tt><b>--example</b></tt>=<tt><i>EXAMPLE</i></tt> | <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt>] [<tt><b>--dry</b></tt>] [<tt><b>--frozen</b></tt>] [<tt><b>--locked</b></tt>] [<tt><b>--offline</b></tt>] [<tt><b>--rust</b></tt>] [<tt><b>--color</b></tt> | <tt><b>--no-color</b></tt>] [<tt><b>--full-name</b></tt>] [<tt><b>--intel</b></tt> | <tt><b>--att</b></tt>] [<tt><i>FUNCTION</i></tt>] [<tt><i>INDEX</i></tt>]</p><p><div>
-<b>Select artifact to use for analysis</b><p> Only one is valid</p></div><dl><dt><tt><b>    --lib</b></tt></dt>
+<b>Select artifact to use for analysis</b><div style='padding-left: 0.5em'> Only one is valid</div></div><dl><dt><tt><b>    --lib</b></tt></dt>
 <dd>Show results from library code</dd>
 <dt><tt><b>    --test</b></tt>=<tt><i>TEST</i></tt></dt>
 <dd>Show results from a test</dd>
@@ -194,7 +194,7 @@ $ app --help<br>
 <dd>include full demangled name instead of just prefix</dd>
 </dl>
 </p><p><div>
-<b>Pick output type</b><p> included help</p></div><dl><dt><tt><b>    --intel</b></tt></dt>
+<b>Pick output type</b><div style='padding-left: 0.5em'> included help</div></div><dl><dt><tt><b>    --intel</b></tt></dt>
 <dd>Generate assembly using Intel style</dd>
 <dt><tt><b>    --att</b></tt></dt>
 <dd>Generate assembly using AT&T style</dd>

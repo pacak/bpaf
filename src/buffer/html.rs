@@ -203,7 +203,8 @@ impl Doc {
                             res.push_str("<p>");
                         }
                         Block::Meta => todo!(),
-                        Block::Section3 | Block::TermRef => {}
+                        Block::Section3 => res.push_str("<div style='padding-left: 0.5em'>"),
+                        Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
                         }
@@ -238,7 +239,8 @@ impl Doc {
                             //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),
-                        Block::Section3 | Block::TermRef => {}
+                        Block::TermRef => {}
+                        Block::Section3 => res.push_str("</div>"),
                     }
                 }
             }

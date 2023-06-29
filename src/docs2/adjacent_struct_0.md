@@ -78,7 +78,7 @@ Fields can have different types, including `Option` or `Vec`, in this example th
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt> <tt><i>X</i></tt> <tt><i>Y</i></tt> <tt><i>Z</i></tt>]... [<tt><b>-r</b></tt>]</p><p><div>
-<b>Available options:</b></div><dl><tt><b>-p</b></tt> <tt><i>X</i></tt> <tt><i>Y</i></tt> <tt><i>Z</i></tt><dt><tt><b>-p</b></tt>, <tt><b>--point</b></tt></dt>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-p</b></tt> <tt><i>X</i></tt> <tt><i>Y</i></tt> <tt><i>Z</i></tt></div><dt><tt><b>-p</b></tt>, <tt><b>--point</b></tt></dt>
 <dd>Point coordinates</dd>
 <dt><tt><i>X</i></tt></dt>
 <dd>X coordinate of a point</dd>

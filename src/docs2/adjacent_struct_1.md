@@ -86,7 +86,7 @@ prefixed with `--rect`
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--rect</b></tt> <tt><b>-w</b></tt>=<tt><i>PX</i></tt> <tt><b>-h</b></tt>=<tt><i>PX</i></tt> [<tt><b>-p</b></tt>]]... [<tt><b>--mirror</b></tt>]</p><p><div>
-<b>Available options:</b></div><dl><tt><b>--rect</b></tt> <tt><b>-w</b></tt>=<tt><i>PX</i></tt> <tt><b>-h</b></tt>=<tt><i>PX</i></tt> [<tt><b>-p</b></tt>]<dt><tt><b>    --rect</b></tt></dt>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>--rect</b></tt> <tt><b>-w</b></tt>=<tt><i>PX</i></tt> <tt><b>-h</b></tt>=<tt><i>PX</i></tt> [<tt><b>-p</b></tt>]</div><dt><tt><b>    --rect</b></tt></dt>
 <dd>Define a new rectangle</dd>
 <dt><tt><b>-w</b></tt>, <tt><b>--width</b></tt>=<tt><i>PX</i></tt></dt>
 <dd>Rectangle width in pixels</dd>

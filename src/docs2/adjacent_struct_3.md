@@ -93,7 +93,7 @@ Generated `--help` message is somewhat descriptive of the purpose
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--exec</b></tt> <tt><i>COMMAND</i></tt>... <tt><b>;</b></tt>] [<tt><b>-s</b></tt>]</p><p><div>
-<b>Available options:</b></div><dl><tt><b>--exec</b></tt> <tt><i>COMMAND</i></tt>... <tt><b>;</b></tt><dt><tt><b>    --exec</b></tt></dt>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>--exec</b></tt> <tt><i>COMMAND</i></tt>... <tt><b>;</b></tt></div><dt><tt><b>    --exec</b></tt></dt>
 <dd>Spawn a process for each file found</dd>
 <dt><tt><i>COMMAND</i></tt></dt>
 <dd>Command and arguments, {} will be replaced with a file name</dd>

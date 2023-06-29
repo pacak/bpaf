@@ -55,7 +55,7 @@ pub fn options() -> OptionParser<Options> {
 <div class='bpaf-doc'>
 $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-o</b></tt> [<tt><b>--spicy</b></tt>=<tt><i>SPICY</i></tt>] [<tt><b>--drink</b></tt>] <tt><i>DISH</i></tt>]... [<tt><b>-p</b></tt>]</p><p><div>
-<b>Available options:</b></div><dl><tt><b>-o</b></tt> [<tt><b>--spicy</b></tt>=<tt><i>SPICY</i></tt>] [<tt><b>--drink</b></tt>] <tt><i>DISH</i></tt><dt><tt><b>-o</b></tt>, <tt><b>--meal</b></tt></dt>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-o</b></tt> [<tt><b>--spicy</b></tt>=<tt><i>SPICY</i></tt>] [<tt><b>--drink</b></tt>] <tt><i>DISH</i></tt></div><dt><tt><b>-o</b></tt>, <tt><b>--meal</b></tt></dt>
 <dd>A meal [o]rder consists of a main dish with an optional drink</dd>
 <dt><tt><b>    --spicy</b></tt>=<tt><i>SPICY</i></tt></dt>
 <dd>On a scale from 1 to a lot, how spicy do you want your meal?</dd>
