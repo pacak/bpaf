@@ -423,6 +423,27 @@ Available options:
 }
 
 #[test]
+fn nested_group_help() {
+    let a = short('a').switch().group_help("inner");
+    let b = short('b').switch();
+
+    let parser = construct!(a, b).group_help("outer").to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [-a] [-b]
+
+outer
+    -a
+    -b
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn with_group_help() {
     let a = short('a').help("option a").switch();
     let b = short('b').help("option b").switch();

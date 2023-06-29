@@ -197,48 +197,55 @@ impl Meta {
 impl<'a> HelpItems<'a> {
     /// Recursively classify contents of the Meta
     pub(crate) fn append_meta(&mut self, meta: &'a Meta) {
-        match meta {
-            Meta::And(xs) | Meta::Or(xs) => {
-                for x in xs {
-                    self.append_meta(x);
+        fn go<'a>(hi: &mut HelpItems<'a>, meta: &'a Meta, no_ss: bool) {
+            match meta {
+                Meta::And(xs) | Meta::Or(xs) => {
+                    for x in xs {
+                        go(hi, x, no_ss);
+                    }
                 }
-            }
-            Meta::Adjacent(m) => {
-                if let Some(ty) = m.peek_front_ty() {
-                    self.items.push(HelpItem::AnywhereStart {
-                        inner: m.as_ref(),
-                        ty,
-                    });
-                    self.append_meta(m);
-                    self.items.push(HelpItem::AnywhereStop { ty });
+                Meta::Adjacent(m) => {
+                    if let Some(ty) = m.peek_front_ty() {
+                        hi.items.push(HelpItem::AnywhereStart {
+                            inner: m.as_ref(),
+                            ty,
+                        });
+                        go(hi, m, no_ss);
+                        hi.items.push(HelpItem::AnywhereStop { ty });
+                    }
                 }
-            }
-            Meta::CustomUsage(x, _)
-            | Meta::Required(x)
-            | Meta::Optional(x)
-            | Meta::Many(x)
-            | Meta::Strict(x) => self.append_meta(x),
-            Meta::Item(item) => {
-                if matches!(item.as_ref(), Item::Positional { help: None, .. }) {
-                    return;
+                Meta::CustomUsage(x, _)
+                | Meta::Required(x)
+                | Meta::Optional(x)
+                | Meta::Many(x)
+                | Meta::Strict(x) => go(hi, x, no_ss),
+                Meta::Item(item) => {
+                    if matches!(item.as_ref(), Item::Positional { help: None, .. }) {
+                        return;
+                    }
+                    hi.items.push(HelpItem::from(item.as_ref()));
                 }
-                self.items.push(HelpItem::from(item.as_ref()));
-            }
-            Meta::Subsection(m, help) => {
-                if let Some(ty) = m.peek_front_ty() {
-                    self.items.push(HelpItem::GroupStart { help, ty });
-                    self.append_meta(m);
-                    self.items.push(HelpItem::GroupEnd { ty });
+                Meta::Subsection(m, help) => {
+                    if let Some(ty) = m.peek_front_ty() {
+                        if no_ss {
+                            go(hi, m, true);
+                        } else {
+                            hi.items.push(HelpItem::GroupStart { help, ty });
+                            go(hi, m, true);
+                            hi.items.push(HelpItem::GroupEnd { ty });
+                        }
+                    }
                 }
-            }
-            Meta::Suffix(m, help) => {
-                if let Some(ty) = m.peek_front_ty() {
-                    self.append_meta(m);
-                    self.items.push(HelpItem::DecorSuffix { help, ty });
+                Meta::Suffix(m, help) => {
+                    if let Some(ty) = m.peek_front_ty() {
+                        go(hi, m, no_ss);
+                        hi.items.push(HelpItem::DecorSuffix { help, ty });
+                    }
                 }
+                Meta::Skip => (),
             }
-            Meta::Skip => (),
         }
+        go(self, meta, false)
     }
 
     fn find_group(&self) -> Option<Range<usize>> {
