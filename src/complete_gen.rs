@@ -78,7 +78,7 @@ impl State {
 
     /// Add a new completion hint for metadata, if needed
     ///
-    /// is_meta is set to true when we are trying to parse the value and false if
+    /// `is_argument` is set to true when we are trying to parse the value and false if
     /// when meta
     pub(crate) fn push_metavar(
         &mut self,
@@ -98,7 +98,7 @@ impl State {
                 extra,
                 meta,
                 is_argument,
-            })
+            });
         }
     }
 
@@ -149,7 +149,7 @@ impl State {
     }
 
     /// Insert a bunch of items
-    pub(crate) fn push_with_group(&mut self, group: Option<String>, comps: &mut Vec<Comp>) {
+    pub(crate) fn push_with_group(&mut self, group: &Option<String>, comps: &mut Vec<Comp>) {
         if let Some(comp) = self.comp_mut() {
             for mut item in comps.drain(..) {
                 if let Some(group) = group.as_ref() {
@@ -567,9 +567,9 @@ impl Complete {
                         continue;
                     }
                     items.push(ShowComp {
-                        extra,
-                        pretty: meta.to_string(),
                         subst: String::new(),
+                        pretty: (*meta).to_string(),
+                        extra,
                     });
                 }
 

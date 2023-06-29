@@ -236,7 +236,6 @@ impl Doc {
                         Block::DefinitionList => res.push_str("</dl>\n"),
                         Block::Block => {
                             res.push_str("</p>");
-                            //                            blank_line(&mut res);
                         }
                         Block::Meta => todo!(),
                         Block::TermRef => {}

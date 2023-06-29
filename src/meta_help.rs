@@ -1,5 +1,3 @@
-use std::ops::Range;
-
 use crate::{
     buffer::{Block, Doc, Style, Token},
     info::Info,
@@ -245,10 +243,10 @@ impl<'a> HelpItems<'a> {
                 Meta::Skip => (),
             }
         }
-        go(self, meta, false)
+        go(self, meta, false);
     }
 
-    fn find_group(&self) -> Option<Range<usize>> {
+    fn find_group(&self) -> Option<std::ops::RangeInclusive<usize>> {
         let start = self
             .items
             .iter()
@@ -257,7 +255,7 @@ impl<'a> HelpItems<'a> {
             .items
             .iter()
             .position(|i| matches!(i, HelpItem::GroupEnd { .. }))?;
-        Some(start..end + 1)
+        Some(start..=end)
     }
 }
 

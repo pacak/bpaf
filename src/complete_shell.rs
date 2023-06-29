@@ -113,7 +113,7 @@ pub(crate) fn render_zsh(
             ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g '{}'", mask),
             ShellComp::Raw { zsh, .. } => writeln!(res, "{}", zsh),
             ShellComp::Nothing => Ok(()),
-        }?
+        }?;
     }
 
     if items.len() == 1 {
@@ -151,9 +151,6 @@ pub(crate) fn render_bash(
     ops: &[ShellComp],
     full_lit: &str,
 ) -> Result<String, std::fmt::Error> {
-    use std::fmt::Write;
-    let mut res = String::new();
-
     // Bash is strange when it comes to completion - rather than taking
     // a glob - _filedir takes an extension which it later to include uppercase
     // version as well and to include "*." in front. For compatibility with
@@ -161,6 +158,9 @@ pub(crate) fn render_bash(
     fn bashmask(i: &str) -> &str {
         i.strip_prefix("*.").unwrap_or(i)
     }
+
+    use std::fmt::Write;
+    let mut res = String::new();
 
     if items.is_empty() && ops.is_empty() {
         return Ok(format!("COMPREPLY += ( {:?})\n", full_lit));
@@ -232,7 +232,7 @@ pub(crate) fn render_test(
     }
     writeln!(res)?;
     for op in ops {
-        writeln!(res, "{:?}", op)?
+        writeln!(res, "{:?}", op)?;
     }
 
     Ok(res)
