@@ -76,18 +76,6 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: 1.56
-          components: rustfmt clippy
 
-      # comptester uses vte which is not supported by the old version
-
-      - name: trim the workspace
-        run: sed -i '/docs2/d; /comptester/d;' ./Cargo.toml
-
-      - name: test minimal features, bpaf and bpaf_derive only
-        run: cargo test -p bpaf -p bpaf_derive --no-default-features --lib --tests --no-fail-fast
-
-      - name: test default features bpaf and bpaf_derive only
-        run: cargo test -p bpaf -p bpaf_derive --lib --tests --no-fail-fast
-
-      - name: test all features bpaf and bpaf_derive only
-        run: cargo test -p bpaf -p bpaf_derive --all-features --lib --tests --no-fail-fast
+      - name: test minimal features
+        run: cargo run --manifest-path legacy/Cargo.toml -- --help

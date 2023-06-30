@@ -4,3 +4,4 @@ Cargo.lock
 /docs/src/*.rs
 /tarp
 /dotfiles
+/legacy/target
