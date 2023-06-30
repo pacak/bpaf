@@ -23,6 +23,16 @@ impl From<&[(&str, Style)]> for Doc {
     }
 }
 
+impl<const N: usize> From<&'static [(&'static str, Style); N]> for Doc {
+    fn from(val: &'static [(&'static str, Style); N]) -> Self {
+        let mut res = Doc::default();
+        for (text, style) in val {
+            res.write_str(text, *style);
+        }
+        res
+    }
+}
+
 /// Parser metainformation
 ///
 ///

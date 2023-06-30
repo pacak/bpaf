@@ -12,13 +12,11 @@ pub fn options() -> OptionParser<Options> {
         .help("Binary to run")
         .argument("BIN")
         .optional()
-        .custom_usage(
-            &[
-                ("--binary", Style::Literal),
-                ("=", Style::Text),
-                ("BINARY", Style::Metavar),
-            ][..],
-        );
+        .custom_usage(&[
+            ("--binary", Style::Literal),
+            ("=", Style::Text),
+            ("BINARY", Style::Metavar),
+        ]);
 
     let package = short('p')
         .long("package")
