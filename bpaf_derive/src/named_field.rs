@@ -281,13 +281,17 @@ impl StructField {
             match shape {
                 Shape::Optional(_) => postpr.insert(0, Post::Parse(PostParse::Optional { span })),
                 Shape::Multiple(_) => postpr.insert(0, Post::Parse(PostParse::Many { span })),
-                Shape::Bool if name.is_none() => {
-                    let err = Error::new_spanned(ty,
-                            "Can't derive consumer for unnamed boolean field, try adding a #[bpaf(positional)] annotation to it",
-                        );
-                    return Err(err);
+                Shape::Bool => {
+                    if name.is_none()
+                        && naming.is_empty()
+                        && matches!(cons, Consumer::Switch { .. })
+                    {
+                        let msg = "Can't derive consumer for unnamed boolean field, try adding one of #[bpaf(positional)], #[bpaf(long(\"name\")] or #[bpaf(short('n'))] annotations to it";
+                        let err = Error::new_spanned(ty, msg);
+                        return Err(err);
+                    }
                 }
-                Shape::Bool | Shape::Unit | Shape::Direct(_) => {}
+                Shape::Unit | Shape::Direct(_) => {}
             }
         }
 

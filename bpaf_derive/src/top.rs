@@ -462,8 +462,9 @@ impl Branch {
     fn push_help(&mut self, help: Help) {
         if let FieldSet::Unit(_, h) = &mut self.fields {
             *h = Some(help);
-        } else {
-            todo!("use GroupHelp here");
+            //        } else {
+            //            todo!("use GroupHelp here");
+            // TODO use GroupHelp here?
         }
     }
 }

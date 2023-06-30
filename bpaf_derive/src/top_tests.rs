@@ -678,6 +678,29 @@ fn fallback_for_options() {
 }
 
 #[test]
+fn implicitly_named_switch() {
+    let top: Top = parse_quote! {
+        #[bpaf(options, fallback(Opts::Dummy))]
+        struct Opts (#[bpaf(long("release"), switch)] bool);
+    };
+
+    let expected = quote! {
+        fn opts() -> ::bpaf::OptionParser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let f0 = ::bpaf::long("release").switch();
+                ::bpaf::construct!(Opts(f0,))
+            }
+            .fallback(Opts::Dummy)
+            .to_options()
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn fallback_for_enum() {
     let top: Top = parse_quote! {
         #[bpaf(fallback(Decision::No))]
