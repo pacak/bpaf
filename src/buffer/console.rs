@@ -182,6 +182,8 @@ impl Doc {
         // a double newline, unless one exists
         let mut pending_blank_line = false;
 
+        let mut pending_margin = false;
+
         for token in self.tokens.iter().copied() {
             match token {
                 Token::Text { bytes, style } => {
@@ -191,6 +193,7 @@ impl Doc {
                     if skip.enabled() {
                         continue;
                     }
+
                     for chunk in split(input) {
                         match chunk {
                             Chunk::Raw(s, w) => {
@@ -215,13 +218,19 @@ impl Doc {
                                     }
                                 }
 
-                                pending_newline = false;
-                                pending_blank_line = false;
-
                                 if let Some(missing) = margin.checked_sub(char_pos) {
                                     res.push_str(&PADDING[..missing]);
                                     char_pos = margin;
                                 }
+                                if pending_margin && char_pos >= MAX_TAB + 4 {
+                                    res.push_str("  ");
+                                    char_pos += 2;
+                                }
+
+                                pending_newline = false;
+                                pending_blank_line = false;
+                                pending_margin = false;
+
                                 #[cfg(feature = "color")]
                                 {
                                     color.push_str(style, &mut res, s);
@@ -269,6 +278,7 @@ impl Doc {
                         }
                         Block::ItemBody => {
                             margins.push(margin + tabstop + 2);
+                            pending_margin = true;
                         }
                         Block::InlineBlock => {
                             skip.push();
@@ -291,11 +301,13 @@ impl Doc {
 
                     margins.pop();
                     match block {
+                        Block::ItemBody => {
+                            pending_margin = false;
+                        }
                         Block::Header
                         | Block::Section2
                         | Block::Section3
                         | Block::ItemTerm
-                        | Block::ItemBody
                         | Block::DefinitionList
                         | Block::Meta => {}
                         Block::InlineBlock => {

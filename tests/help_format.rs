@@ -56,6 +56,27 @@ footer
 }
 
 #[test]
+fn very_long_switch() {
+    let a = short('p')
+        .long("ppppppppppppppppppppppppppppppppppppp")
+        .help("this is help for megapotato")
+        .argument::<usize>("MEGAPOTATO");
+    let b = short('b').long("batman").help("help for batman").switch();
+    let p = construct!(a, b).to_options();
+
+    let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: -p=MEGAPOTATO [-b]
+
+Available options:
+    -p, --ppppppppppppppppppppppppppppppppppppp=MEGAPOTATO  this is help for megapotato
+    -b, --batman  help for batman
+    -h, --help    Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn duplicate_items_same_help() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
