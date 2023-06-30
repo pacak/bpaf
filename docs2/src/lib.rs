@@ -78,7 +78,7 @@ $ app {all_args}<br>
 </div>
 "
         )?,
-        Err(ParseFailure::Stdout(buf, full) | ParseFailure::Stderr(buf, full)) => writeln!(
+        Err(ParseFailure::Stdout(buf, full)) => writeln!(
             res,
             "
 <div class='bpaf-doc'>
@@ -87,6 +87,16 @@ $ app {all_args}<br>
 </div>
 ",
             buf.render_html(full, true)
+        )?,
+        Err(ParseFailure::Stderr(buf)) => writeln!(
+            res,
+            "
+<div class='bpaf-doc'>
+$ app {all_args}<br>
+{}
+</div>
+",
+            buf.render_html(true, true)
         )?,
         Err(ParseFailure::Completion(_)) => todo!(),
     };

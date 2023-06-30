@@ -155,7 +155,7 @@ pub enum ParseFailure {
     /// this cannot be Doc because completion needs more control about rendering
     Completion(String),
     /// Print this to stderr and exit with failure code
-    Stderr(Doc, bool),
+    Stderr(Doc),
 }
 
 impl ParseFailure {
@@ -168,7 +168,7 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
-            Self::Stderr(err, full) => err.monochrome(full),
+            Self::Stderr(err) => err.monochrome(true),
             Self::Completion(..) | Self::Stdout(..) => panic!("not an stderr: {:?}", self),
         }
     }
@@ -203,8 +203,8 @@ impl ParseFailure {
                 print!("{}", s);
                 0
             }
-            ParseFailure::Stderr(msg, full) => {
-                eprintln!("{}", msg.render_console(full, color));
+            ParseFailure::Stderr(msg) => {
+                eprintln!("{}", msg.render_console(true, color));
                 1
             }
         }
@@ -540,7 +540,7 @@ impl Message {
             }
         };
 
-        ParseFailure::Stderr(doc, true)
+        ParseFailure::Stderr(doc)
     }
 }
 

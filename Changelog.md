@@ -5,7 +5,7 @@
 - more errors are now passed as ADTs rather than plain strings
 - conflicts are now tracked with indices rather than parser meta
 - documentation improvements
-- better errormessages
+- better error messages
 - smaller generated binary
 
 ### Breaking changes

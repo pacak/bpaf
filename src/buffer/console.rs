@@ -128,6 +128,9 @@ const PADDING: &str = "                                                  ";
 
 impl Doc {
     /// Render a monochrome version of the document
+    ///
+    /// `full` indicates if full message should be rendered, this makes
+    /// difference for rendered help message, otherwise you can pass `true`.
     #[must_use]
     pub fn monochrome(&self, full: bool) -> String {
         self.render_console(full, Color::Monochrome)

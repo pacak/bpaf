@@ -120,8 +120,8 @@ impl<T> OptionParser<T> {
     ///             print!("{}", msg);
     ///             None
     ///         }
-    ///         Err(ParseFailure::Stderr(buf, full)) => {
-    ///             eprintln!("{}", buf.monochrome(full));
+    ///         Err(ParseFailure::Stderr(buf)) => {
+    ///             eprintln!("{}", buf.monochrome(true));
     ///             None
     ///         }
     ///     };
