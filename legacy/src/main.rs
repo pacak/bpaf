@@ -1,4 +1,3 @@
-
 //! Parsing snippet from cargo-show-asm
 //! Derive + typed fallback + external both with and without name
 
@@ -106,7 +105,7 @@ fn color_detection() -> impl Parser<bool> {
     })
 }
 
-fn comp_examples(prefix: &str) -> Vec<(String, Option<String>)> {
+fn comp_examples(prefix: &String) -> Vec<(String, Option<String>)> {
     // in the actual app we can ask cargo-metadata for this info
     let examples = ["derive_show_asm", "coreutils", "comonad"];
     examples
