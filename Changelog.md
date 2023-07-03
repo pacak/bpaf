@@ -1,7 +1,7 @@
 # Change Log
 
 
-## bpaf [0.9.0] - Unreleased
+## bpaf [0.9.0] - 2023-07-03
 - more errors are now passed as ADTs rather than plain strings
 - conflicts are now tracked with indices rather than parser meta
 - documentation improvements
@@ -16,7 +16,7 @@
 -  hidden no-op helper type `FromUtf8` was removed
 
 
-## bpaf_derive [0.5.0] - Unreleased
+## bpaf_derive [0.5.0] - 2023-07-03
 
 should be faster to compile and a bit more flexible with respect to what is accepted
 

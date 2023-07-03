@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.8.1"
+version = "0.9.0"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -10,7 +10,12 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
 rust-version = "1.56"
-exclude = [".github/workflows", "tarp.sh"]
+include = [
+  "src/**/*",
+  "Cargo.toml",
+  "README.md",
+  "examples/**/*"
+]
 
 
 [dependencies]
