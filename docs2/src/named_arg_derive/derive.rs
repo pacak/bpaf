@@ -36,7 +36,7 @@ pub struct Options {
     /// Read information from the database
     #[bpaf(env(DB))]
     // Annotation for `env` does not affect annotation for names
-    // this
+    // so `bpaf` makes `--database` flag too
     pub database: String,
 
     /// Only print essential information

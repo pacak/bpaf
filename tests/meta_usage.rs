@@ -275,6 +275,16 @@ fn positionals_in_branches_are_okay() {
 }
 
 #[test]
+fn optional_last_of_many() {
+    let a = short('a').req_flag(true);
+    let b = short('b').req_flag(false);
+    let ab = construct!([a, b]).last().fallback(false);
+    let parser = ab.to_options();
+
+    assert_usage(parser, "[-a | -b]...");
+}
+
+#[test]
 fn hidden_fallback_branch() {
     #[derive(Debug, Clone, Bpaf)]
     #[allow(dead_code)]

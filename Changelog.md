@@ -18,7 +18,7 @@
 
 ## bpaf_derive [0.5.0] - Unreleased
 
-should be faster to compile and a bit more flexible with respect to what is accepted when
+should be faster to compile and a bit more flexible with respect to what is accepted
 
 ### Braking changes
 - explicit `construct` annotation is gone and used by default if `options` and `command` are

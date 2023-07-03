@@ -633,6 +633,36 @@ macro_rules! __cons_prepare {
 /// strictly typed and correct value while user gets immediate feedback on what's wrong with the
 /// arguments they pass.
 ///
+/// Order of operations matters, each subsequent parser gets output of the earlier one. Both
+/// parsers `a` and `b` would consume multiple numeric values, each less than 10, but `a`
+/// validates a single value then consumes multiple of them already validated, while `b` first
+/// consumes and them performs validation. Former approach is usually more readable.
+/// ```rust
+/// # use bpaf::*;
+/// # fn simple() {
+/// let a = short('a').argument::<usize>("N")
+///     .guard(|&a| a < 10, "`a` must be below 10")
+///     .many();
+/// let b = short('b').argument::<usize>("N")
+///     .many()
+///     .guard(|bs| bs.iter().all(|&b| b < 10), "`b` must be below 10");
+/// # }
+/// ```
+///
+/// Same logic applies to derive API - current type depends on the order of annotations:
+/// ```rust
+/// # use bpaf::*;
+/// # fn less_than_10(a: &usize) -> bool { true }
+/// # fn all_less_than_10(a: &Vec<usize>) -> bool { true }
+/// #[derive(Bpaf, Debug, Clone)]
+/// struct Simple {
+///     #[bpaf(argument("N"), guard(less_than_10, "`a` must be below 10"), many)]
+///     a: Vec<usize>,
+///     #[bpaf(argument("N"), many, guard(all_less_than_10, "`b` must be below 10"))]
+///     b: Vec<usize>,
+/// }
+/// ```
+///
 /// For example suppose your program needs user to specify a dimensions of a rectangle, with sides
 /// being 1..20 units long and the total area must not exceed 200 units square. A parser that
 /// consumes it might look like this:

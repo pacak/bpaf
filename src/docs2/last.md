@@ -96,7 +96,7 @@ In `--help` message `last` shows that inner parser can run multiple times
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>)... [(<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>)...]</p><p><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>)... [<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>]...</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --intel</b></tt></dt>
 <dd>Show assembly using Intel style</dd>
 <dt><tt><b>    --att</b></tt></dt>

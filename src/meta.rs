@@ -241,6 +241,11 @@ impl Meta {
                     // Optional(Required(m)) => Optional(m)
                     // Optional(Optional(m)) => Optional(m)
                     *m = std::mem::take(mm);
+                } else if let Meta::Many(many) = m.as_mut() {
+                    // Optional(Many(Required(m))) => Many(Optional(m))
+                    if let Meta::Required(x) = many.as_mut() {
+                        *self = Meta::Many(Box::new(Meta::Optional(std::mem::take(x))))
+                    }
                 }
             }
             Meta::Required(m) => {

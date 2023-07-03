@@ -214,7 +214,7 @@ impl NamedArg {
     ///
     /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but would only
     /// succeed if user specifies its name on a command line.
-    /// Wworks best in combination with other parsers.
+    /// Works best in combination with other parsers.
     ///
     /// In derive style API `bpaf` would transform field-less enum variants into a parser
     /// that accepts one of it's variant names as `req_flag`. Additionally `bpaf` handles `()`
