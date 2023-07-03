@@ -45,22 +45,6 @@ bright-color = ["color"]
 dull-color = ["color"]
 docgen = []
 
-[[test]]
-name = "completion"
-required-features = ["autocomplete"]
-
-[[test]]
-name = "derive"
-required-features = ["derive"]
-
-[[test]]
-name = "batteries"
-required-features = ["batteries"]
-
-[[example]]
-name = "csample"
-required-features = ["autocomplete"]
-
 [workspace.metadata.cauwugo]
 bpaf = true
 
