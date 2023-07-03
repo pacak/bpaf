@@ -23,7 +23,8 @@ fn main() {
         .to_options()
         .descr("This command will try to do foo given a bar argument");
 
-    let opt = command("foo", bar_cmd)
+    let opt = bar_cmd
+        .command("foo")
         .help("command for doing foo")
         .map(Command::Foo)
         .to_options()

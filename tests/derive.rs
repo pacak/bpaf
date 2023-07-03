@@ -1,52 +1,55 @@
-#![allow(deprecated)]
-use bpaf::*;
+//#![allow(deprecated)]
+use bpaf::{Bpaf, Parser};
 
 #[test]
 fn help_with_default_parse() {
-    set_override(false);
-    use bpaf::Parser;
     #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options, fallback(Action::CheckConnection))]
     enum Action {
         /// Add a new TODO item
         #[bpaf(command)]
-        Add(String),
+        Add(
+            /// Item to track
+            #[bpaf(positional("ITEM"))]
+            String,
+        ),
 
-        /// Does nothing
+        /// Test connection to the server
         #[bpaf(command)]
-        NoAction,
+        CheckConnection,
     }
 
-    let parser = action().or_else(bpaf::pure(Action::NoAction)).to_options();
+    let parser = action();
 
     let help = parser
-        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .run_inner(&["add", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
     let expected_help = "\
 Add a new TODO item
 
-Usage: <ARG>
+Usage: add ITEM
+
+Available positional items:
+    ITEM        Item to track
 
 Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
-Usage: COMMAND ...
+Usage: [COMMAND ...]
 
 Available options:
-    -h, --help  Prints help information
+    -h, --help        Prints help information
 
 Available commands:
-    add        Add a new TODO item
-    no_action  Does nothing
+    add               Add a new TODO item
+    check-connection  Test connection to the server
 ";
     assert_eq!(expected_help, help);
 }
@@ -69,24 +72,21 @@ fn command_and_fallback() {
     let parser = action().fallback(Action::NoAction).to_options();
 
     let help = parser
-        .run_inner(bpaf::Args::from(&["add", "--help"]))
+        .run_inner(&["add", "--help"])
         .unwrap_err()
         .unwrap_stdout();
 
     let expected_help = "\
 Add a new TODO item
 
-Usage: <ARG>
+Usage: add ARG
 
 Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Usage: [COMMAND ...]
@@ -95,8 +95,8 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    add        Add a new TODO item
-    no_action  Does nothing in two lines
+    add         Add a new TODO item
+    no-action   Does nothing
 ";
     assert_eq!(expected_help, help);
 }
@@ -108,10 +108,7 @@ fn single_unit_command() {
     struct One;
 
     let parser = one().to_options();
-    let help = parser
-        .run_inner(bpaf::Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: COMMAND ...
 
@@ -123,6 +120,6 @@ Available commands:
 ";
     assert_eq!(help, expected);
 
-    let r = parser.run_inner(bpaf::Args::from(&["one"])).unwrap();
+    let r = parser.run_inner(&["one"]).unwrap();
     assert_eq!(r, One);
 }

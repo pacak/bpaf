@@ -35,23 +35,20 @@ fn main() {
 
     // start with defining 3 commands: simple, complex1 and complex2
     let simple_parser = pure(PreCommand::Simple).to_options();
-    let simple = command("simple", simple_parser);
+    let simple = simple_parser.command("simple");
 
     let complex1_parser = positional::<i32>("ARG");
-    let complex1 = command(
-        "complex1",
-        construct!(PreCommand::Complex1(complex1_parser))
-            .to_options()
-            .descr("This is complex command 1"),
-    );
+    let complex1 = construct!(PreCommand::Complex1(complex1_parser))
+        .to_options()
+        .descr("This is complex command 1")
+        .command("complex1");
 
     let complex2_parser = positional::<i16>("ARG");
-    let complex2 = command(
-        "complex1",
-        construct!(PreCommand::Complex2(complex2_parser))
-            .to_options()
-            .descr("This is complex command 2"),
-    );
+
+    let complex2 = construct!(PreCommand::Complex2(complex2_parser))
+        .to_options()
+        .descr("This is complex command 2")
+        .command("complex2");
 
     // compose then to accept any of those
     let preparser = construct!([simple, complex1, complex2]);

@@ -1,13 +1,11 @@
 //! Structures that implement different methods on [`Parser`] trait
 use crate::{
+    args::State,
+    buffer::MetaInfo,
     error::{Message, MissingItem},
-    meta::DecorPlace,
-    Args, Error, Meta, Parser,
+    Doc, Error, Meta, Parser,
 };
 use std::marker::PhantomData;
-
-#[cfg(feature = "autocomplete")]
-use crate::CompleteDecor;
 
 /// Parser that substitutes missing value with a function results but not parser
 /// failure, created with [`fallback_with`](Parser::fallback_with).
@@ -24,23 +22,23 @@ where
     F: Fn() -> Result<T, E>,
     E: ToString,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut clone = args.clone();
         match self.inner.eval(&mut clone) {
             Ok(ok) => {
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            Err(e) => {
+            Err(Error(e)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
                 if e.can_catch() {
                     match (self.fallback)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+                        Err(e) => Err(Error(Message::PureFailed(e.to_string()))),
                     }
                 } else {
-                    Err(e)
+                    Err(Error(e))
                 }
             }
         }
@@ -54,20 +52,56 @@ where
 /// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
 pub struct ParseGroupHelp<P> {
     pub(crate) inner: P,
-    pub(crate) message: String,
+    pub(crate) message: Doc,
 }
 
 impl<T, P> Parser<T> for ParseGroupHelp<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.eval(args)
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        #[cfg(feature = "autocomplete")]
+        let mut comp_items = Vec::new();
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps_with(&mut comp_items);
+
+        #[allow(clippy::let_and_return)]
+        let res = self.inner.eval(args);
+
+        #[cfg(feature = "autocomplete")]
+        args.swap_comps_with(&mut comp_items);
+        #[cfg(feature = "autocomplete")]
+        args.push_with_group(&self.message.to_completion(), &mut comp_items);
+
+        res
     }
 
     fn meta(&self) -> Meta {
         let meta = Box::new(self.inner.meta());
-        Meta::Decorated(meta, self.message.clone(), DecorPlace::Header)
+        Meta::Subsection(meta, Box::new(self.message.clone()))
+    }
+}
+
+/// Parser with attached message to several fields, created with [`group_help`](Parser::group_help).
+pub struct ParseWithGroupHelp<P, F> {
+    pub(crate) inner: P,
+    pub(crate) f: F,
+}
+
+impl<T, P, F> Parser<T> for ParseWithGroupHelp<P, F>
+where
+    P: Parser<T>,
+    F: Fn(MetaInfo) -> Doc,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        self.inner.eval(args)
+    }
+
+    fn meta(&self) -> Meta {
+        let meta = self.inner.meta();
+        let buf = (self.f)(MetaInfo(&meta));
+
+        Meta::Subsection(Box::new(meta), Box::new(buf))
     }
 }
 
@@ -90,7 +124,7 @@ impl<P> ParseSome<P> {
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
@@ -101,7 +135,7 @@ impl<T, P> Parser<Vec<T>> for ParseSome<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
 
@@ -117,7 +151,7 @@ where
         }
 
         if res.is_empty() {
-            Err(Error::Message(Message::ParseSome(self.message)))
+            Err(Error(Message::ParseSome(self.message)))
         } else {
             Ok(res)
         }
@@ -138,7 +172,7 @@ impl<T, P> Parser<T> for ParseHide<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         #[cfg(feature = "autocomplete")]
         let mut comps = Vec::new();
 
@@ -150,8 +184,8 @@ where
 
         #[cfg(feature = "autocomplete")]
         args.swap_comps_with(&mut comps);
-        if let Err(Error::Missing(_)) = res {
-            Err(Error::Missing(Vec::new()))
+        if let Err(Error(Message::Missing(_))) = res {
+            Err(Error(Message::Missing(Vec::new())))
         } else {
             res
         }
@@ -165,19 +199,20 @@ where
 /// Parser that hides inner parser from usage line
 ///
 /// No other changes to the inner parser
-pub struct ParseHideUsage<P> {
+pub struct ParseUsage<P> {
     pub(crate) inner: P,
+    pub(crate) usage: Doc,
 }
-impl<T, P> Parser<T> for ParseHideUsage<P>
+impl<T, P> Parser<T> for ParseUsage<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         self.inner.eval(args)
     }
 
     fn meta(&self) -> Meta {
-        Meta::HideUsage(Box::new(self.inner.meta()))
+        Meta::CustomUsage(Box::new(self.inner.meta()), Box::new(self.usage.clone()))
     }
 }
 
@@ -189,7 +224,7 @@ pub struct ParseOrElse<T> {
 }
 
 impl<T> Parser<T> for ParseOrElse<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         #[cfg(feature = "autocomplete")]
         let mut comp_items = Vec::new();
         #[cfg(feature = "autocomplete")]
@@ -241,15 +276,15 @@ impl<T> Parser<T> for ParseOrElse<T> {
 fn this_or_that_picks_first(
     err_a: Option<Error>,
     err_b: Option<Error>,
-    args: &mut Args,
-    args_a: &mut Args,
-    args_b: &mut Args,
+    args: &mut State,
+    args_a: &mut State,
+    args_b: &mut State,
 
     #[cfg(feature = "autocomplete")] mut comp_stash: Vec<crate::complete_gen::Comp>,
 ) -> Result<bool, Error> {
     // if higher depth parser succeeds - it takes a priority
     // completion from different depths should never mix either
-    match Ord::cmp(&args_a.depth, &args_b.depth) {
+    match Ord::cmp(&args_a.depth(), &args_b.depth()) {
         std::cmp::Ordering::Less => {
             std::mem::swap(args, args_b);
             #[cfg(feature = "autocomplete")]
@@ -275,12 +310,6 @@ fn this_or_that_picks_first(
         }
     }
 
-    #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
-        comp_stash.extend(a.drain_comps());
-        comp_stash.extend(b.drain_comps());
-    }
-
     // otherwise pick based on the left most or successful one
     #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
@@ -295,6 +324,33 @@ fn this_or_that_picks_first(
         // otherwise either a or b are success, true means a is success
         (a_ok, _) => Ok((a_ok.is_none(), None)),
     };
+
+    #[cfg(feature = "autocomplete")]
+    let len_a = args_a.len();
+
+    #[cfg(feature = "autocomplete")]
+    let len_b = args_b.len();
+
+    #[cfg(feature = "autocomplete")]
+    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
+        // if both parsers managed to consume the same amount - including 0, keep
+        // results from both, otherwise keep results from one that consumed more
+        let (keep_a, keep_b) = match res {
+            Ok((true, _)) => (true, false),
+            Ok((false, _)) => (false, true),
+            Err(_) => match len_a.cmp(&len_b) {
+                std::cmp::Ordering::Less => (true, false),
+                std::cmp::Ordering::Equal => (true, true),
+                std::cmp::Ordering::Greater => (false, true),
+            },
+        };
+        if keep_a {
+            comp_stash.extend(a.drain_comps());
+        }
+        if keep_b {
+            comp_stash.extend(b.drain_comps());
+        }
+    }
 
     match res {
         Ok((true, ix)) => {
@@ -337,14 +393,11 @@ where
     F: Fn(T) -> Result<R, E>,
     E: ToString,
 {
-    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+    fn eval(&self, args: &mut State) -> Result<R, Error> {
         let t = self.inner.eval(args)?;
         match (self.parse_fn)(t) {
             Ok(r) => Ok(r),
-            Err(e) => Err(Error::Message(Message::ParseFailed(
-                args.current,
-                e.to_string(),
-            ))),
+            Err(e) => Err(Error(Message::ParseFailed(args.current, e.to_string()))),
         }
     }
 
@@ -366,20 +419,20 @@ where
     P: Parser<T>,
     T: Clone,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut clone = args.clone();
         match self.inner.eval(&mut clone) {
             Ok(ok) => {
                 std::mem::swap(args, &mut clone);
                 Ok(ok)
             }
-            Err(e) => {
+            Err(Error(e)) => {
                 #[cfg(feature = "autocomplete")]
                 args.swap_comps(&mut clone);
                 if e.can_catch() {
                     Ok(self.value.clone())
                 } else {
-                    Err(e)
+                    Err(Error(e))
                 }
             }
         }
@@ -390,11 +443,8 @@ where
         if self.value_str.is_empty() {
             m
         } else {
-            Meta::Decorated(
-                Box::from(m),
-                self.value_str.clone(),
-                crate::meta::DecorPlace::Suffix,
-            )
+            let buf = Doc::from(self.value_str.as_str());
+            Meta::Suffix(Box::new(m), Box::new(buf))
         }
     }
 }
@@ -402,6 +452,8 @@ where
 impl<P, T: std::fmt::Display> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
     /// representation
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
     #[must_use]
     pub fn display_fallback(mut self) -> Self {
         self.value_str = format!("[default: {}]", self.value);
@@ -412,6 +464,8 @@ impl<P, T: std::fmt::Display> ParseFallback<P, T> {
 impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
     /// representation
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
@@ -431,20 +485,78 @@ where
     P: Parser<T>,
     F: Fn(&T) -> bool,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let t = self.inner.eval(args)?;
         if (self.check)(&t) {
             Ok(t)
         } else {
-            Err(Error::Message(Message::ValidateFailed(
-                args.current,
-                self.message.to_string(),
-            )))
+            Err(Error(Message::GuardFailed(args.current, self.message)))
         }
     }
 
     fn meta(&self) -> Meta {
         self.inner.meta()
+    }
+}
+
+/// Apply inner parser as many times as it succeeds while consuming something and return this
+/// number
+pub struct ParseCount<P, T> {
+    pub(crate) inner: P,
+    pub(crate) ctx: PhantomData<T>,
+}
+
+impl<T, P> Parser<usize> for ParseCount<P, T>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<usize, Error> {
+        let mut res = 0;
+        let mut current = args.len();
+        while (parse_option(&self.inner, args, false)?).is_some() {
+            res += 1;
+            if current == args.len() {
+                break;
+            }
+            current = args.len();
+        }
+        Ok(res)
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Optional(Box::new(self.inner.meta()))))
+    }
+}
+
+/// Apply inner parser as many times as it succeeds while consuming something and return this
+/// number
+pub struct ParseLast<P> {
+    pub(crate) inner: P,
+}
+
+impl<T, P> Parser<T> for ParseLast<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        let mut last = None;
+        let mut current = args.len();
+        while let Some(val) = parse_option(&self.inner, args, false)? {
+            last = Some(val);
+            if current == args.len() {
+                break;
+            }
+            current = args.len();
+        }
+        if let Some(last) = last {
+            Ok(last)
+        } else {
+            self.inner.eval(args)
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Required(Box::new(self.inner.meta()))))
     }
 }
 
@@ -460,7 +572,7 @@ impl<T, P> Parser<Option<T>> for ParseOptional<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Option<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Option<T>, Error> {
         parse_option(&self.inner, args, self.catch)
     }
 
@@ -471,15 +583,19 @@ where
 
 impl<P> ParseOptional<P> {
     #[must_use]
-    /// Handle parse failures
+    /// Handle parse failures for optional parsers
     ///
-    /// Can be useful to decide to skip parsing of some items on a command line
+    /// Can be useful to decide to skip parsing of some items on a command line.
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    ///
+    /// Those examples are very artificial and designed to show what difference `catch` makes, to
+    /// actually parse arguments like in examples you should [`parse`](Parser::parse) or construct
+    /// enum with alternative branches
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
@@ -503,7 +619,7 @@ impl<P> ParseMany<P> {
     ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
-    #[doc = include_str!("docs/catch.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/many_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.catch = true;
         self
@@ -511,14 +627,14 @@ impl<P> ParseMany<P> {
 }
 
 /// try to parse
-fn parse_option<P, T>(parser: &P, args: &mut Args, catch: bool) -> Result<Option<T>, Error>
+fn parse_option<P, T>(parser: &P, args: &mut State, catch: bool) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
     let mut orig_args = args.clone();
     match parser.eval(args) {
         Ok(val) => Ok(Some(val)),
-        Err(err) => {
+        Err(Error(err)) => {
             // this is safe to return Ok(None) in following scenarios
             // when inner parser never consumed anything and
             // 1. produced Error::Missing
@@ -530,32 +646,19 @@ where
             // When parser returns Ok(None) we should return the original arguments so if there's
             // anything left unconsumed - this won't be lost.
 
-            let res = match &err {
-                Error::Message(msg) => {
-                    if msg.can_catch() || catch {
-                        Ok(None)
-                    } else {
-                        Err(err)
-                    }
-                }
-                Error::ParseFailure(_) => Err(err),
-                Error::Missing(_) => {
-                    if orig_args.len() == args.len() || catch {
-                        Ok(None)
-                    } else {
-                        Err(err)
-                    }
-                }
-            };
-            if res.is_ok() {
-                std::mem::swap(&mut orig_args, args);
+            let missing = matches!(err, Message::Missing(_));
 
+            if catch || (missing && orig_args.len() == args.len()) || (!missing && err.can_catch())
+            {
+                std::mem::swap(&mut orig_args, args);
                 #[cfg(feature = "autocomplete")]
                 if orig_args.comp_mut().is_some() {
                     args.swap_comps(&mut orig_args);
                 }
+                Ok(None)
+            } else {
+                Err(Error(err))
             }
-            res
         }
     }
 }
@@ -564,7 +667,7 @@ impl<T, P> Parser<Vec<T>> for ParseMany<P>
 where
     P: Parser<T>,
 {
-    fn eval(&self, args: &mut Args) -> Result<Vec<T>, Error> {
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
         let mut len = args.len();
         while let Some(val) = parse_option(&self.inner, args, self.catch)? {
@@ -589,7 +692,7 @@ where
 /// [`pure`](crate::pure).
 pub struct ParsePure<T>(pub(crate) T);
 impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
         Ok(self.0.clone())
     }
@@ -606,10 +709,10 @@ where
 impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
     for ParsePureWith<T, F, E>
 {
-    fn eval(&self, _args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, _args: &mut State) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),
-            Err(e) => Err(Error::Message(Message::PureFailed(e.to_string()))),
+            Err(e) => Err(Error(Message::PureFailed(e.to_string()))),
         }
     }
 
@@ -624,9 +727,9 @@ pub struct ParseFail<T> {
     pub(crate) field2: PhantomData<T>,
 }
 impl<T> Parser<T> for ParseFail<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
-        Err(Error::Message(Message::ParseFail(self.field1)))
+        Err(Error(Message::ParseFail(self.field1)))
     }
 
     fn meta(&self) -> Meta {
@@ -646,7 +749,7 @@ where
     F: Fn(T) -> R,
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<R, Error> {
+    fn eval(&self, args: &mut State) -> Result<R, Error> {
         let t = self.inner.eval(args)?;
         Ok((self.map_fn)(t))
     }
@@ -666,9 +769,9 @@ pub struct ParseCon<P> {
 
 impl<T, P> Parser<T> for ParseCon<P>
 where
-    P: Fn(&mut Args) -> Result<T, Error>,
+    P: Fn(&mut State) -> Result<T, Error>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let res = (self.inner)(args);
         args.current = None;
         res
@@ -691,25 +794,25 @@ impl<T> ParseCon<T> {
     ///
     /// # Multi-value arguments
     ///
-    /// Parsing things like `--foo ARG1 ARG2 ARG3`
-    #[doc = include_str!("docs/adjacent_0.md")]
+    /// Parsing things like `--point X Y Z`
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_0.md"))]
     ///
     /// # Structure groups
     ///
-    /// Parsing things like `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-    #[doc = include_str!("docs/adjacent_1.md")]
+    /// Parsing things like `--rect --width W --height H --rect --height H --width W`
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_1.md"))]
     ///
     /// # Chaining commands
-    ///
+    /// This example explains [`adjacent`](crate::params::ParseCommand::adjacent), but the same idea holds.
     /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
     ///
-    #[doc = include_str!("docs/adjacent_2.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     ///
-    /// # Start and end markers
+    /// # Capturing everything between markers
     ///
     /// Parsing things like `find . --exec foo {} -bar ; --more`
     ///
-    #[doc = include_str!("docs/adjacent_3.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_3.md"))]
     ///
     /// # Multi-value arguments with optional flags
     ///
@@ -718,18 +821,14 @@ impl<T> ParseCon<T> {
     /// So you can parse things while parsing things. Not sure why you might need this, but you can
     /// :)
     ///
-    #[doc = include_str!("docs/adjacent_4.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_4.md"))]
     ///
     /// # Performance and other considerations
     ///
     /// `bpaf` can run adjacently restricted parsers multiple times to refine the guesses. It's
     /// best not to have complex inter-fields verification since they might trip up the detection
-    /// logic: instead of destricting, for example "sum of two fields to be 5 or greater" *inside* the
+    /// logic: instead of restricting, for example "sum of two fields to be 5 or greater" *inside* the
     /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
-    ///
-    /// `adjacent` is available on a trait for better discoverability, it doesn't make much sense to
-    /// use it on something other than [`command`](crate::OptionParser::command) or [`construct!`](crate::construct!)
-    /// encasing several fields.
     ///
     /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
@@ -744,6 +843,17 @@ impl<T> ParseCon<T> {
 pub struct ParseComp<P, F> {
     pub(crate) inner: P,
     pub(crate) op: F,
+    pub(crate) group: Option<String>,
+}
+
+#[cfg(feature = "autocomplete")]
+impl<P, F> ParseComp<P, F> {
+    #[must_use]
+    /// Attach group name to parsed values
+    pub fn group(mut self, group: impl Into<String>) -> Self {
+        self.group = Some(group.into());
+        self
+    }
 }
 
 #[cfg(feature = "autocomplete")]
@@ -753,7 +863,7 @@ where
     M: Into<String>,
     F: Fn(&T) -> Vec<(M, Option<M>)>,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         // stash old
         let mut comp_items = Vec::new();
         args.swap_comps_with(&mut comp_items);
@@ -774,14 +884,22 @@ where
 
         // completion function generates suggestions based on the parsed inner value, for
         // that `res` must contain a parsed value
-        let depth = args.depth;
+        let depth = args.depth();
         if let Some(comp) = &mut args.comp_mut() {
             for ci in comp_items {
-                if let Some(is_arg) = ci.meta_type() {
-                    for (replacement, description) in (self.op)(&res) {
+                let is_meta = ci.is_metavar();
+                if let Some(is_arg) = is_meta {
+                    let suggestions = (self.op)(&res);
+                    // strip metavar when completion makes a single good suggestion
+                    if suggestions.len() != 1 {
+                        comp.push_comp(ci);
+                    }
+                    for (replacement, description) in suggestions {
+                        let group = self.group.clone();
                         comp.push_value(
                             replacement.into(),
                             description.map(Into::into),
+                            group,
                             depth,
                             is_arg,
                         );
@@ -799,6 +917,7 @@ where
     }
 }
 
+/*
 #[cfg(feature = "autocomplete")]
 pub struct ParseCompStyle<P> {
     pub(crate) inner: P,
@@ -810,7 +929,7 @@ impl<P, T> Parser<T> for ParseCompStyle<P>
 where
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut comp_items = Vec::new();
         args.swap_comps_with(&mut comp_items);
         let res = self.inner.eval(args);
@@ -822,7 +941,7 @@ where
     fn meta(&self) -> Meta {
         self.inner.meta()
     }
-}
+}*/
 
 pub struct ParseAdjacent<P> {
     pub(crate) inner: P,
@@ -831,7 +950,7 @@ impl<P, T> Parser<T> for ParseAdjacent<P>
 where
     P: Parser<T> + Sized,
 {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
         let original_scope = args.scope();
 
         let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
@@ -840,7 +959,7 @@ where
                 position: original_scope.start,
                 scope: original_scope.clone(),
             };
-            Error::Missing(vec![missing_item])
+            Message::Missing(vec![missing_item])
         } else {
             unreachable!("bpaf usage BUG: adjacent should start with a required argument");
         };
@@ -857,6 +976,7 @@ where
             // consider examples "42 -n" and "-n 42"
             // without multi step approach first command line also parses into 42
             let mut scratch = this_arg.clone();
+            #[allow(clippy::range_plus_one)] // clippy suggests wrong type
             scratch.set_scope(start..start + 1);
             let before = scratch.len();
 
@@ -880,11 +1000,7 @@ where
             // values consumed by adjacent must be actually adjacent - if a scope contains
             // already parsed values inside we need to trim it
             if original_scope.end - start > before {
-                if let Some(adj_scope) = this_arg.adjacently_available_from(start) {
-                    this_arg.set_scope(adj_scope);
-                } else {
-                    continue;
-                }
+                this_arg.set_scope(this_arg.adjacently_available_from(start));
             }
 
             loop {
@@ -900,7 +1016,7 @@ where
                             return Ok(res);
                         }
                     }
-                    Err(err) => {
+                    Err(Error(err)) => {
                         let consumed = before - this_arg.len();
                         if consumed > best_consumed {
                             best_consumed = consumed;
@@ -914,7 +1030,7 @@ where
         }
 
         std::mem::swap(args, &mut best_args);
-        Err(best_error)
+        Err(Error(best_error))
     }
 
     fn meta(&self) -> Meta {
@@ -923,23 +1039,11 @@ where
     }
 }
 
-/// Create boxed parser
-///
-/// Boxed parser doesn't expose internal representation in it's type and allows to return
-/// different parsers in different conditional branches
-///
-/// You can create it with a single argument `construct` macro or by using `boxed` annotation
-#[doc = include_str!("docs/boxed.md")]
-pub struct ParseBox<T> {
-    /// Boxed inner parser
-    pub inner: Box<dyn Parser<T>>,
-}
-
-impl<T> Parser<T> for ParseBox<T> {
-    fn eval(&self, args: &mut Args) -> Result<T, Error> {
-        self.inner.eval(args)
+impl<T> Parser<T> for Box<dyn Parser<T>> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        self.as_ref().eval(args)
     }
     fn meta(&self) -> Meta {
-        self.inner.meta()
+        self.as_ref().meta()
     }
 }

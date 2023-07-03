@@ -23,8 +23,3 @@ where
         }
     }
 }
-
-#[doc(hidden)]
-/// This is a no-op and only exists to avoid breaking existing code
-/// that relies on it. I'll deprecate/drop it somewhere in 2023
-pub type FromUtf8<T> = T;

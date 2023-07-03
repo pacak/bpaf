@@ -1,13 +1,5 @@
-use crate::item::Item;
+use crate::{buffer::Doc, item::Item};
 
-#[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
-pub enum DecorPlace {
-    /// Text is placed 2 spaces after the start of the line
-    Header,
-    /// Text is placed after the tabstop
-    Suffix,
-}
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub enum Meta {
@@ -25,89 +17,58 @@ pub enum Meta {
     Item(Box<Item>),
     /// Accepts multiple arguments
     Many(Box<Meta>),
-    Decorated(Box<Meta>, String, DecorPlace),
+    /// Arguments form a subsection with buffer being it's header
+    ///
+    /// whole set of arguments go into the same section as the first one
+    Subsection(Box<Meta>, Box<Doc>),
+    /// Buffer is rendered after
+    Suffix(Box<Meta>, Box<Doc>),
+    /// This item is not rendered in the help message
     Skip,
-    HideUsage(Box<Meta>),
+    /// TODO make it Option<Box<Doc>>
+    CustomUsage(Box<Meta>, Box<Doc>),
+    /// this meta must be prefixed with -- in unsage group
+    Strict(Box<Meta>),
 }
 
+// to get std::mem::take to work
 impl Default for Meta {
     fn default() -> Self {
         Meta::Skip
     }
 }
 
-impl std::fmt::Display for Meta {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        fn go(meta: &Meta, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            // this macro does nothing other than
-            // stopping you from using Display impl of Meta since it would lose alternative state
-            #[allow(unused_macros)]
-            macro_rules! write {{} => {}}
+// Meta::Strict should bubble up to one of 3 places:
+// - top level
+// - one of "and" elements
+// - one of "or" elements
+#[derive(Debug, Clone, Copy)]
+enum StrictNorm {
+    /// starting at the top and looking for Strict inside
+    Pull,
+    Push,
+    /// Already accounted for one, can strip the rest
+    Strip,
+}
 
-            match meta {
-                Meta::And(xs) => {
-                    for (ix, x) in xs.iter().enumerate() {
-                        if ix != 0 {
-                            f.write_str(" ")?;
-                        }
-                        go(x, f)?;
-                    }
-                    Ok(())
-                }
-                Meta::Or(xs) => {
-                    for (ix, x) in xs.iter().enumerate() {
-                        if ix != 0 {
-                            f.write_str(" | ")?;
-                        }
-                        go(x, f)?;
-                    }
-                    Ok(())
-                }
-                Meta::Optional(m) => {
-                    f.write_str("[")?;
-                    go(m, f)?;
-                    f.write_str("]")
-                }
-                Meta::Required(m) => {
-                    f.write_str("(")?;
-                    go(m, f)?;
-                    f.write_str(")")
-                }
-                Meta::Item(i) => i.fmt(f),
-                Meta::Many(m) => {
-                    go(m, f)?;
-                    f.write_str("...")
-                }
-
-                // hmm... Do I want to use special syntax here?
-                Meta::Adjacent(m) => go(m, f),
-                Meta::Decorated(m, _, _) => go(m, f),
-                Meta::Skip => f.write_str("no parameters expected"),
-                Meta::HideUsage(m) => {
-                    if !f.alternate() {
-                        go(m, f)?;
-                    }
-                    Ok(())
-                }
-            }
+impl StrictNorm {
+    fn push(&mut self) {
+        match *self {
+            StrictNorm::Pull => *self = StrictNorm::Push,
+            StrictNorm::Push | StrictNorm::Strip => {}
         }
-
-        let meta = self.normalized(f.alternate());
-        go(&meta, f)
     }
 }
 
 impl Meta {
+    /// Used by normalization function to collapse duplicated commands.
+    /// It seems to be fine to strip section information but not anything else
     fn is_command(&self) -> bool {
-        if let Meta::Item(item) = self {
-            if let Item::Command { .. } = item.as_ref() {
-                return true;
-            }
-        } else if let Meta::Decorated(m, _, _) = self {
-            return m.is_command();
+        match self {
+            Meta::Item(i) => matches!(i.as_ref(), Item::Command { .. }),
+            Meta::Subsection(m, _) => m.is_command(),
+            _ => false,
         }
-
-        false
     }
 
     /// do a nested invariant check
@@ -149,14 +110,22 @@ impl Meta {
                     }
                 }
                 Meta::Adjacent(m) => {
-                    let mut inner = false;
-                    go(m, &mut inner, v);
+                    if let Some(i) = Meta::first_item(m) {
+                        if i.is_pos() {
+                            go(m, is_pos, v);
+                        } else {
+                            let mut inner = false;
+                            go(m, &mut inner, v);
+                        }
+                    }
                 }
                 Meta::Optional(m)
                 | Meta::Required(m)
                 | Meta::Many(m)
-                | Meta::HideUsage(m)
-                | Meta::Decorated(m, _, _) => go(m, is_pos, v),
+                | Meta::CustomUsage(m, _)
+                | Meta::Subsection(m, _)
+                | Meta::Strict(m)
+                | Meta::Suffix(m, _) => go(m, is_pos, v),
                 Meta::Skip => {}
             }
         }
@@ -169,7 +138,8 @@ impl Meta {
 
     pub(crate) fn normalized(&self, for_usage: bool) -> Meta {
         let mut m = self.clone();
-        m.normalize(for_usage);
+        let mut norm = StrictNorm::Pull;
+        m.normalize(for_usage, &mut norm);
         // stip outer () around meta unless inner
         if let Meta::Required(i) = m {
             m = *i;
@@ -177,28 +147,58 @@ impl Meta {
         if matches!(m, Meta::Or(_)) {
             m = Meta::Required(Box::new(m));
         }
+        if matches!(norm, StrictNorm::Push) {
+            m = Meta::Strict(Box::new(m));
+        }
         m
     }
 
+    /// Used by adjacent parsers since it inherits behavior of the front item
     pub(crate) fn first_item(meta: &Meta) -> Option<Item> {
         match meta {
             Meta::And(xs) => xs.first().and_then(Self::first_item),
             Meta::Item(item) => Some(*item.clone()),
             Meta::Skip | Meta::Or(_) => None,
             Meta::Optional(x)
+            | Meta::Strict(x)
             | Meta::Required(x)
             | Meta::Adjacent(x)
             | Meta::Many(x)
-            | Meta::Decorated(x, _, _)
-            | Meta::HideUsage(x) => Self::first_item(x),
+            | Meta::Subsection(x, _)
+            | Meta::Suffix(x, _)
+            | Meta::CustomUsage(x, _) => Self::first_item(x),
         }
     }
 
     /// Normalize meta info for display as usage. Required propagates outwards
-    fn normalize(&mut self, for_usage: bool) {
-        fn normalize_vec(xs: &mut Vec<Meta>, for_usage: bool) -> Option<Meta> {
-            xs.iter_mut().for_each(|m| m.normalize(for_usage));
+    fn normalize(&mut self, for_usage: bool, norm: &mut StrictNorm) {
+        fn normalize_vec(
+            xs: &mut Vec<Meta>,
+            for_usage: bool,
+            norm: &mut StrictNorm,
+            or: bool,
+        ) -> Option<Meta> {
+            let mut final_norm = *norm;
+            for m in xs.iter_mut() {
+                let mut this_norm = *norm;
+                m.normalize(for_usage, &mut this_norm);
+                let target: &mut StrictNorm = if or { &mut final_norm } else { norm };
+
+                match (*target, this_norm) {
+                    (_, StrictNorm::Pull) | (StrictNorm::Strip, _) => {}
+                    (StrictNorm::Pull, StrictNorm::Push) => {
+                        *m = Meta::Strict(Box::new(std::mem::take(m)));
+                        *target = StrictNorm::Strip;
+                    }
+                    _ => {
+                        *target = this_norm;
+                    }
+                }
+            }
             xs.retain(|m| !matches!(m, Meta::Skip));
+
+            *norm = final_norm;
+
             match xs.len() {
                 0 => Some(Meta::Skip),
                 1 => Some(xs.remove(0)),
@@ -208,13 +208,13 @@ impl Meta {
 
         match self {
             Meta::And(xs) => {
-                if let Some(replacement) = normalize_vec(xs, for_usage) {
+                if let Some(replacement) = normalize_vec(xs, for_usage, norm, false) {
                     *self = replacement;
                 }
             }
             // or should have either () or [] around it
             Meta::Or(xs) => {
-                if let Some(replacement) = normalize_vec(xs, for_usage) {
+                if let Some(replacement) = normalize_vec(xs, for_usage, norm, true) {
                     *self = replacement;
                 } else {
                     let mut saw_cmd = false;
@@ -233,51 +233,62 @@ impl Meta {
                 }
             }
             Meta::Optional(m) => {
-                m.normalize(for_usage);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
+                    // Optional(Skip) => Skip
                     *self = Meta::Skip;
                 } else if let Meta::Required(mm) | Meta::Optional(mm) = m.as_mut() {
                     // Optional(Required(m)) => Optional(m)
                     // Optional(Optional(m)) => Optional(m)
                     *m = std::mem::take(mm);
+                } else if let Meta::Many(many) = m.as_mut() {
+                    // Optional(Many(Required(m))) => Many(Optional(m))
+                    if let Meta::Required(x) = many.as_mut() {
+                        *self = Meta::Many(Box::new(Meta::Optional(std::mem::take(x))))
+                    }
                 }
             }
             Meta::Required(m) => {
-                m.normalize(for_usage);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
+                    // Required(Skip) => Skip
                     *self = Meta::Skip;
                 } else if matches!(**m, Meta::And(_) | Meta::Or(_)) {
                     // keep () around composite parsers
                 } else {
-                    // Required(Required(m)) => Required(m)
-                    // Required(Optional(m)) => Optional(m)
+                    // and strip them elsewhere
                     *self = std::mem::take(m);
                 }
             }
             Meta::Many(m) => {
-                m.normalize(for_usage);
+                m.normalize(for_usage, norm);
                 if matches!(**m, Meta::Skip) {
                     *self = Meta::Skip;
                 }
             }
-            Meta::Decorated(m, _, _) => {
-                m.normalize(for_usage);
+            Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
+                m.normalize(for_usage, norm);
                 *self = std::mem::take(m);
             }
-            Meta::Adjacent(m) => {
-                m.normalize(for_usage);
-                if matches!(**m, Meta::Skip) {
-                    *self = Meta::Skip;
-                }
-            }
-            Meta::Item(_) | Meta::Skip => {
+            Meta::Item(i) => i.normalize(for_usage),
+            Meta::Skip => {
                 // nothing to do with items and skip just bubbles upwards
             }
-            Meta::HideUsage(m) => {
-                m.normalize(for_usage);
-                if for_usage || matches!(**m, Meta::Skip) {
-                    *self = Meta::Skip;
+            Meta::CustomUsage(m, u) => {
+                m.normalize(for_usage, norm);
+                // strip CustomUsage if we are not in usage so writer can simply render it
+                if for_usage {
+                    if u.is_empty() {
+                        *self = Meta::Skip;
+                    }
+                } else {
+                    *self = std::mem::take(m);
                 }
+            }
+            Meta::Strict(m) => {
+                m.normalize(for_usage, norm);
+                norm.push();
+                *self = std::mem::take(m);
             }
         }
     }
@@ -318,19 +329,23 @@ impl Meta {
                 }
             }
             Meta::Item(m) => match &**m {
-                Item::Positional { .. } | Item::Command { .. } => {}
+                Item::Any { .. } | Item::Positional { .. } => {}
+                Item::Command { meta, .. } => {
+                    meta.collect_shorts(flags, args);
+                }
                 Item::Flag { shorts, .. } => flags.extend(shorts),
                 Item::Argument { shorts, .. } => args.extend(shorts),
             },
-            Meta::HideUsage(m)
+            Meta::CustomUsage(m, _)
             | Meta::Required(m)
             | Meta::Optional(m)
             | Meta::Adjacent(m)
-            | Meta::Many(m)
-            | Meta::Decorated(m, _, _) => {
+            | Meta::Subsection(m, _)
+            | Meta::Suffix(m, _)
+            | Meta::Many(m) => {
                 m.collect_shorts(flags, args);
             }
-            Meta::Skip => {}
+            Meta::Skip | Meta::Strict(_) => {}
         }
     }
 }

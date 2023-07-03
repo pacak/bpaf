@@ -1,404 +1,479 @@
-//! String builder, renders a string assembled from styled blocks
-//!
-//!
+use crate::{
+    info::Info,
+    item::{Item, ShortLong},
+    meta_help::{HelpItem, HelpItems},
+    Meta,
+};
+
+mod console;
+mod html;
+mod manpage;
+mod splitter;
+
+pub(crate) use self::console::Color;
+pub use manpage::Section;
+
+impl From<&[(&str, Style)]> for Doc {
+    fn from(val: &[(&str, Style)]) -> Self {
+        let mut res = Doc::default();
+        for (text, style) in val {
+            res.write_str(text, *style);
+        }
+        res
+    }
+}
+
+impl<const N: usize> From<&'static [(&'static str, Style); N]> for Doc {
+    fn from(val: &'static [(&'static str, Style); N]) -> Self {
+        let mut res = Doc::default();
+        for (text, style) in val {
+            res.write_str(text, *style);
+        }
+        res
+    }
+}
+
+/// Parser metainformation
+///
+///
+/// This is a newtype around internal parser metainfo representation, generated
+/// with [`Parser::with_group_help`](crate::Parser::with_group_help) and consumed by
+/// [`Doc::meta`](Doc::meta)
+#[derive(Copy, Clone)]
+pub struct MetaInfo<'a>(pub(crate) &'a Meta);
+
+impl Doc {
+    #[inline]
+    /// Append a fragment of plain text to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn text(&mut self, text: &str) {
+        self.write_str(text, Style::Text);
+    }
+
+    #[inline]
+    /// Append a fragment of literal text to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn literal(&mut self, text: &str) {
+        self.write_str(text, Style::Literal);
+    }
+
+    #[inline]
+    /// Append a fragment of text with emphasis to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn emphasis(&mut self, text: &str) {
+        self.write_str(text, Style::Emphasis);
+    }
+
+    #[inline]
+    /// Append a fragment of unexpected user input to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn invalid(&mut self, text: &str) {
+        self.write_str(text, Style::Invalid);
+    }
+
+    /// Append a fragment of parser metadata to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn meta(&mut self, meta: MetaInfo, for_usage: bool) {
+        self.write_meta(meta.0, for_usage);
+    }
+
+    /// Append a `Doc` to [`Doc`]
+    ///
+    /// See [`Doc`] for usage examples
+    pub fn doc(&mut self, buf: &Doc) {
+        self.tokens.push(Token::BlockStart(Block::InlineBlock));
+        self.tokens.extend(&buf.tokens);
+        self.payload.push_str(&buf.payload);
+        self.tokens.push(Token::BlockEnd(Block::InlineBlock));
+    }
+
+    /// Append a `Doc` to [`Doc`] for plaintext documents try to format
+    /// first line as a help section header
+    pub fn em_doc(&mut self, buf: &Doc) {
+        self.tokens.push(Token::BlockStart(Block::InlineBlock));
+        if let Some(Token::Text {
+            bytes,
+            style: Style::Text,
+        }) = buf.tokens.first().copied()
+        {
+            let prefix = &buf.payload[0..bytes];
+            if let Some((a, b)) = prefix.split_once('\n') {
+                self.emphasis(a);
+                self.tokens.push(Token::BlockStart(Block::Section3));
+                self.text(b);
+
+                if buf.tokens.len() > 1 {
+                    self.tokens.extend(&buf.tokens[1..]);
+                    self.payload.push_str(&buf.payload[bytes..]);
+                }
+                self.tokens.push(Token::BlockEnd(Block::Section3));
+            } else {
+                self.emphasis(prefix);
+            }
+        } else {
+            self.tokens.extend(&buf.tokens);
+            self.payload.push_str(&buf.payload);
+        }
+
+        self.tokens.push(Token::BlockEnd(Block::InlineBlock));
+    }
+}
+
+impl Doc {
+    pub(crate) fn write_shortlong(&mut self, name: &ShortLong) {
+        match name {
+            ShortLong::Short(s) => {
+                self.write_char('-', Style::Literal);
+                self.write_char(*s, Style::Literal);
+            }
+            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
+                self.write_str("--", Style::Literal);
+                self.write_str(l, Style::Literal);
+            }
+        }
+    }
+
+    pub(crate) fn write_item(&mut self, item: &Item) {
+        match item {
+            Item::Positional { metavar, help: _ } => {
+                self.metavar(*metavar);
+            }
+            Item::Command {
+                name: _,
+                short: _,
+                help: _,
+                meta: _,
+                info: _,
+            } => {
+                self.write_str("COMMAND ...", Style::Metavar);
+            }
+            Item::Flag {
+                name,
+                shorts: _,
+                env: _,
+                help: _,
+            } => self.write_shortlong(name),
+            Item::Argument {
+                name,
+                shorts: _,
+                metavar,
+                env: _,
+                help: _,
+            } => {
+                self.write_shortlong(name);
+                self.write_char('=', Style::Text);
+                self.metavar(*metavar);
+            }
+            Item::Any {
+                metavar,
+                anywhere: _,
+                help: _,
+            } => {
+                self.doc(metavar);
+            }
+        }
+    }
+
+    pub(crate) fn write_meta(&mut self, meta: &Meta, for_usage: bool) {
+        fn go(meta: &Meta, f: &mut Doc) {
+            match meta {
+                Meta::And(xs) => {
+                    for (ix, x) in xs.iter().enumerate() {
+                        if ix != 0 {
+                            f.write_str(" ", Style::Text);
+                        }
+                        go(x, f);
+                    }
+                }
+                Meta::Or(xs) => {
+                    for (ix, x) in xs.iter().enumerate() {
+                        if ix != 0 {
+                            f.write_str(" | ", Style::Text);
+                        }
+                        go(x, f);
+                    }
+                }
+                Meta::Optional(m) => {
+                    f.write_str("[", Style::Text);
+                    go(m, f);
+                    f.write_str("]", Style::Text);
+                }
+                Meta::Required(m) => {
+                    f.write_str("(", Style::Text);
+                    go(m, f);
+                    f.write_str(")", Style::Text);
+                }
+                Meta::Item(i) => f.write_item(i),
+                Meta::Many(m) => {
+                    go(m, f);
+                    f.write_str("...", Style::Text);
+                }
+
+                Meta::Adjacent(m) | Meta::Subsection(m, _) | Meta::Suffix(m, _) => {
+                    go(m, f);
+                }
+                Meta::Skip => {} // => f.write_str("no parameters expected", Style::Text),
+                Meta::CustomUsage(_, u) => {
+                    f.doc(u);
+                }
+                Meta::Strict(m) => {
+                    f.write_str("--", Style::Literal);
+                    f.write_str(" ", Style::Text);
+                    go(m, f);
+                }
+            }
+        }
+
+        let meta = meta.normalized(for_usage);
+        go(&meta, self);
+    }
+}
+
+/// Style of a text fragment inside of [`Doc`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub(crate) enum Style {
-    /// Plain text, no extra decorations
+pub enum Style {
+    /// Plain text, no decorations
     Text,
-    /// Section title
-    Section,
-    /// Flag name
-    Label,
+
+    /// Word with emphasis - things like "Usage", "Available options", etc
+    Emphasis,
+
+    /// Something user needs to type literally - command names, etc
+    Literal,
+
+    /// Metavavar placeholder - something user needs to replace with own input
+    Metavar,
+
+    /// Invalid input given by user - used to display invalid parts of the input
+    Invalid,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) enum Block {
+    /// level 1 section header, block for separate command inside manpage, not used in --help
+    Header,
+
+    Section2,
+
+    // 2 margin
+    /// level 3 section header, "group_help" header, etc.
+    Section3,
+
+    // inline, 4 margin, no nesting
+    /// -h, --help
+    ItemTerm,
+
+    // widest term up below 20 margin margin plus two, but at least 4.
+    /// print usage information, but also items inside Numbered/Unnumbered lists
+    ItemBody,
+
+    // 0 margin
+    /// Definition list,
+    DefinitionList,
+
+    /// block of text, blocks are separated by a blank line in man or help
+    /// can contain headers or other items inside
+    Block,
+
+    /// inserted when block is written into a block. single blank line in the input
+    /// fast forward until the end of current inline block
+    InlineBlock,
+
+    // inline
+    /// displayed with `` in monochrome or not when rendered with colors.
+    /// In markdown this becomes a link to a term if one is defined
+    TermRef,
+
+    Meta,
 }
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) enum Token {
     Text { bytes: usize, style: Style },
-    LineBreak,
-    TabStop,
-    Margin(usize),
+    BlockStart(Block),
+    BlockEnd(Block),
 }
+
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Buffer {
+/// String with styled segments.
+///
+/// You can add style information to generated documentation and help messages
+/// For simpliest possible results you can also pass a string slice in all the places
+/// that require `impl Into<Doc>`
+pub struct Doc {
     /// string info saved here
     payload: String,
+
     /// string meta info tokens
     tokens: Vec<Token>,
-    /// help listing separates keys from help info
-    /// by a single two space wide gap arranging them two columns
-    /// tab stop shows right most position of the second column start seen so far
-    tabstop: usize,
-
-    /// current char and margin are used to calculate tabstop
-    current_margin: usize,
-    current_char: usize,
-
-    /// Should the help contain full string or only up to the first newline
-    pub(crate) complete: bool,
 }
 
-impl Buffer {
-    pub(crate) fn clear(&mut self) {
-        self.payload.clear();
-        self.tokens.clear();
-        self.tabstop = 0;
-        self.current_margin = 0;
-        self.current_char = 0;
-        self.complete = false;
+impl std::fmt::Display for Doc {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.monochrome(true))
     }
+}
 
-    pub(crate) fn tabstop(&mut self) {
-        let max = self.tabstop.max(self.current_char);
-        if max <= MAX_TAB {
-            self.tabstop = max;
+#[derive(Debug, Clone, Copy, Default)]
+struct Skip(usize);
+impl Skip {
+    fn enabled(self) -> bool {
+        self.0 > 0
+    }
+    fn enable(&mut self) {
+        self.0 = 1;
+    }
+    fn push(&mut self) {
+        if self.0 > 0 {
+            self.0 += 1;
         }
-        self.tokens.push(Token::TabStop);
+    }
+    fn pop(&mut self) {
+        self.0 = self.0.saturating_sub(1);
+    }
+}
+
+impl Doc {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.tokens.is_empty()
     }
 
-    pub(crate) fn margin(&mut self, margin: usize) {
-        self.current_margin = margin;
-        self.tokens.push(Token::Margin(margin));
+    pub(crate) fn first_line(&self) -> Option<Doc> {
+        if self.tokens.is_empty() {
+            return None;
+        }
+
+        let mut res = Doc::default();
+        let mut cur = 0;
+
+        for &t in &self.tokens {
+            match t {
+                Token::Text { bytes, style } => {
+                    let payload = &self.payload[cur..cur + bytes];
+                    if let Some((first, _)) = payload.split_once('\n') {
+                        res.tokens.push(Token::Text {
+                            bytes: first.len(),
+                            style,
+                        });
+                        res.payload.push_str(first);
+                    } else {
+                        res.tokens.push(t);
+                        res.payload.push_str(&self.payload[cur..cur + bytes]);
+                        cur += bytes;
+                    }
+                }
+                _ => break,
+            }
+        }
+        Some(res)
     }
 
-    pub(crate) fn newline(&mut self) {
-        self.current_char = 0;
-        self.tokens.push(Token::LineBreak);
+    #[cfg(feature = "autocomplete")]
+    pub(crate) fn to_completion(&self) -> Option<String> {
+        let mut s = self.first_line()?.monochrome(false);
+        s.truncate(s.trim_end().len());
+        Some(s)
+    }
+}
+
+impl From<&str> for Doc {
+    fn from(value: &str) -> Self {
+        let mut buf = Doc::default();
+        buf.write_str(value, Style::Text);
+        buf
+    }
+}
+
+impl Doc {
+    //    #[cfg(test)]
+    //    pub(crate) fn clear(&mut self) {
+    //        self.payload.clear();
+    //        self.tokens.clear();
+    //    }
+
+    #[inline(never)]
+    pub(crate) fn token(&mut self, token: Token) {
+        self.tokens.push(token);
+    }
+
+    pub(crate) fn write<T>(&mut self, input: T, style: Style)
+    where
+        T: std::fmt::Display,
+    {
+        use std::fmt::Write;
+        let old_len = self.payload.len();
+        let _ = write!(self.payload, "{}", input);
+        self.set_style(self.payload.len() - old_len, style);
+    }
+
+    #[inline(never)]
+    fn set_style(&mut self, len: usize, style: Style) {
+        // buffer chunks are unified with previous chunks of the same type
+        // [metavar]"foo" + [metavar]"bar" => [metavar]"foobar"
+        match self.tokens.last_mut() {
+            Some(Token::Text {
+                bytes: prev_bytes,
+                style: prev_style,
+            }) if *prev_style == style => {
+                *prev_bytes += len;
+            }
+            _ => {
+                self.tokens.push(Token::Text { bytes: len, style });
+            }
+        }
     }
 
     #[inline(never)]
     pub(crate) fn write_str(&mut self, input: &str, style: Style) {
-        if self.current_char == 0 {
-            self.current_char = self.current_margin;
-        }
-
-        let bytes = input.len();
-        let chars = input.chars().count();
-
-        self.current_char += chars;
         self.payload.push_str(input);
-        match self.tokens.last_mut() {
-            Some(Token::Text {
-                bytes: pb,
-                style: ps,
-            }) if *ps == style => {
-                *pb += bytes;
-            }
-            _ => {
-                self.tokens.push(Token::Text { bytes, style });
-            }
-        }
+        self.set_style(input.len(), style);
     }
 
     #[inline(never)]
     pub(crate) fn write_char(&mut self, c: char, style: Style) {
         self.write_str(c.encode_utf8(&mut [0; 4]), style);
     }
+}
 
-    pub(crate) fn checkpoint(&self) -> Checkpoint {
-        Checkpoint {
-            tokens: self.tokens.len(),
-            payload: self.payload.len(),
+#[derive(Debug, Clone)]
+struct DocSection<'a> {
+    /// Path name to the command name starting from the application
+    path: Vec<String>,
+    info: &'a Info,
+    meta: &'a Meta,
+}
+
+fn extract_sections<'a>(
+    meta: &'a Meta,
+    info: &'a Info,
+    path: &mut Vec<String>,
+    sections: &mut Vec<DocSection<'a>>,
+) {
+    sections.push(DocSection {
+        path: path.clone(),
+        info,
+        meta,
+    });
+    let mut hi = HelpItems::default();
+    hi.append_meta(meta);
+    for item in &hi.items {
+        if let HelpItem::Command {
+            name,
+            short: _,
+            help: _,
+            meta,
+            #[cfg(feature = "manpage")]
+            info,
+        } = item
+        {
+            path.push((*name).to_string());
+            extract_sections(meta, info, path, sections);
+            path.pop();
         }
     }
-
-    pub(crate) fn rollback(&mut self, checkpoint: Checkpoint) {
-        self.tokens.truncate(checkpoint.tokens);
-        self.payload.truncate(checkpoint.payload);
-    }
-    pub(crate) fn content_since(&self, checkpoint: Checkpoint) -> &str {
-        &self.payload[checkpoint.payload..]
-    }
-}
-
-#[derive(Copy, Clone)]
-pub(crate) struct Checkpoint {
-    tokens: usize,
-    payload: usize,
-}
-
-const MAX_TAB: usize = 24;
-const MAX_WIDTH: usize = 100;
-
-fn padding(f: &mut std::fmt::Formatter<'_>, width: usize) {
-    write!(f, "{:width$}", "", width = width).unwrap();
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum Sep {
-    Space,
-    Newline,
-    No,
-}
-
-impl std::fmt::Display for Buffer {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // byte offset to a start of not consumed portion of a string
-        let mut byte_offset = 0;
-        // character offset frmo the beginning of the line
-        let mut line_offset = 0;
-        // current margin value
-        let mut margin = 0;
-        // are we to the right of the tabstop?
-        let mut after_tabstop = false;
-        let mut immediate_tabstop = false;
-        let mut prev = Sep::No;
-
-        for token in &self.tokens {
-            match *token {
-                Token::Text { bytes, style } => {
-                    // no matter what text should stay to the right of this position
-                    let min_offset = if after_tabstop {
-                        std::cmp::max(margin, self.tabstop + 2)
-                    } else {
-                        margin
-                    };
-
-                    if immediate_tabstop {
-                        immediate_tabstop = false;
-                        line_offset += 2;
-                        padding(f, 2);
-                    }
-
-                    // the idea is to break lines into chunks up to MAX_WIDTH and
-                    // allow parser to have longer names without affecting the layout
-                    // of the whole document:
-                    //
-                    // --very-long-name-goes-here <ARG-IS-LONG-TOO> description starts
-                    //                    here and resumes here, can contain multiple
-                    //                    lines as well - all broken automatically
-                    // -h, --help         Render help
-                    // -v, --version      Show version
-                    //
-                    // app should follow two additional rules:
-                    // - lines that start with a space retain linebreak (and consume the space)
-                    // - double line breaks split help into separate blocks, only first block
-                    //   visible without extra flags
-                    //
-                    //  "--help hello\nworld" => "--help hello world"
-                    //  "--help hello\n world" => "--help hello\nworld"
-                    //  "--help hello\n\nworld" => "--help hello" or "--help hello\nworld"
-
-                    // split a string by words, lay them out between min_offset and MAX_WIDTH
-                    for word in self.payload[byte_offset..byte_offset + bytes]
-                        .split_inclusive(|c| c == ' ' || c == '\n')
-                    {
-                        #[allow(clippy::manual_strip)]
-                        let (word, this) = if word.ends_with(' ') {
-                            (&word[..word.len() - 1], Sep::Space)
-                        } else if word.ends_with('\n') {
-                            (&word[..word.len() - 1], Sep::Newline)
-                        } else {
-                            (word, Sep::No)
-                        };
-                        let chars = word.chars().count();
-
-                        if chars == 0 && prev == Sep::Newline {
-                            if this == Sep::Newline && !self.complete {
-                                return Ok(());
-                            }
-                            writeln!(f)?;
-                            prev = Sep::No;
-                            line_offset = 0;
-                        } else {
-                            // overflow?
-                            if line_offset + chars > MAX_WIDTH {
-                                writeln!(f)?;
-                                line_offset = 0;
-                            } else if prev != Sep::No {
-                                padding(f, 1);
-                                line_offset += 1;
-                            }
-
-                            if min_offset > line_offset {
-                                padding(f, min_offset - line_offset);
-                                line_offset = min_offset;
-                            }
-
-                            match style {
-                                Style::Text => write!(f, "{}", word),
-                                Style::Section => w_section!(f, word),
-                                Style::Label => write!(f, "{}", w_flag!(word)),
-                            }?;
-                            line_offset += chars;
-                            prev = this;
-                        }
-                    }
-                    byte_offset += bytes;
-                }
-                Token::LineBreak => {
-                    line_offset = 0;
-                    writeln!(f)?;
-                    after_tabstop = false;
-                    immediate_tabstop = false;
-                }
-                Token::TabStop => {
-                    after_tabstop = true;
-                    immediate_tabstop = true;
-                }
-                Token::Margin(new_margin) => {
-                    margin = new_margin;
-                }
-            }
-        }
-        if prev == Sep::Space {
-            padding(f, 1);
-        }
-        Ok(())
-    }
-}
-
-#[test]
-fn tabstop_works() {
-    // tabstop followed by newline
-    let mut m = Buffer::default();
-    m.write_str("aa", Style::Text);
-    m.tabstop();
-    m.newline();
-    m.write_str("b", Style::Text);
-    m.tabstop();
-    m.write_str("c", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "aa\nb   c\n");
-
-    // plain, narrow first
-    let mut m = Buffer::default();
-    m.write_str("1", Style::Text);
-    m.tabstop();
-    m.write_str("22", Style::Text);
-    m.newline();
-    m.write_str("33", Style::Text);
-    m.tabstop();
-    m.write_str("4", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "1   22\n33  4\n");
-
-    // plain, wide first
-    let mut m = Buffer::default();
-    m.write_str("aa", Style::Text);
-    m.tabstop();
-    m.write_str("b", Style::Text);
-    m.newline();
-    m.write_str("c", Style::Text);
-    m.tabstop();
-    m.write_str("dd", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "aa  b\nc   dd\n");
-
-    // two different styles first
-    let mut m = Buffer::default();
-    m.write_str("a", Style::Text);
-    m.write_str("b", Style::Label);
-    m.tabstop();
-    m.write_str("c", Style::Label);
-    m.newline();
-    m.write_str("d", Style::Text);
-    m.tabstop();
-    m.write_str("e", Style::Label);
-    m.newline();
-    assert_eq!(m.to_string(), "ab  c\nd   e\n");
-
-    // two different styles with margin first
-    let mut m = Buffer::default();
-    m.margin(2);
-    m.write_str("a", Style::Text);
-    m.write_str("b", Style::Label);
-    m.tabstop();
-    m.write_str("c", Style::Label);
-    m.margin(0);
-    m.newline();
-    m.write_str("d", Style::Text);
-    m.tabstop();
-    m.write_str("e", Style::Label);
-    m.newline();
-    assert_eq!(m.to_string(), "  ab  c\nd     e\n");
-}
-
-#[test]
-fn margin_works() {
-    let mut m = Buffer::default();
-    m.margin(2);
-    m.write_str("a", Style::Text);
-    m.newline();
-    m.write_str("b", Style::Text);
-    m.newline();
-    m.write_str("c", Style::Text);
-    m.newline();
-    assert_eq!(m.to_string(), "  a\n  b\n  c\n");
-}
-
-#[test]
-fn linewrap_works() {
-    let mut m = Buffer::default();
-    m.write_str("--hello", Style::Label);
-    m.tabstop();
-    for _ in 0..15 {
-        m.write_str("word and word ", Style::Text)
-    }
-    m.write_str("and word", Style::Text);
-    m.newline();
-
-    let expected = "\
---hello  word and word word and word word and word word and word word and word word and word word and
-         word word and word word and word word and word word and word word and word word and word
-         word and word word and word and word
-";
-
-    assert_eq!(m.to_string(), expected);
-}
-
-#[test]
-fn very_long_tabstop() {
-    let mut m = Buffer::default();
-    m.write_str(
-        "--this-is-a-very-long-option <DON'T DO THIS AT HOME>",
-        Style::Label,
-    );
-    m.tabstop();
-    for _ in 0..15 {
-        m.write_str("word and word ", Style::Text)
-    }
-    m.write_str("and word", Style::Text);
-    m.newline();
-
-    let expected = "\
---this-is-a-very-long-option <DON'T DO THIS AT HOME>  word and word word and word word and word word
-  and word word and word word and word word and word word and word word and word word and word word
-  and word word and word word and word word and word word and word and word
-";
-
-    assert_eq!(m.to_string(), expected);
-}
-
-#[test]
-fn line_breaking_rules() {
-    let mut m = Buffer::default();
-    m.write_str("hello ", Style::Text);
-    assert_eq!(m.to_string(), "hello ");
-
-    let mut m = Buffer::default();
-    m.write_str("hello\n world\n", Style::Text);
-    assert_eq!(m.to_string(), "hello\nworld");
-
-    let mut m = Buffer::default();
-    m.write_str("hello\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello world");
-
-    let mut m = Buffer::default();
-    m.write_str("hello\nworld\n", Style::Text);
-    assert_eq!(m.to_string(), "hello world");
-
-    let mut m = Buffer {
-        complete: false,
-        ..Buffer::default()
-    };
-    m.write_str("hello\n\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello");
-
-    let mut m = Buffer {
-        complete: true,
-        ..Buffer::default()
-    };
-
-    m.write_str("hello\n\nworld", Style::Text);
-    assert_eq!(m.to_string(), "hello\nworld");
 }

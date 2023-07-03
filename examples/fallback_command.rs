@@ -21,7 +21,7 @@ struct Fallback {
     #[bpaf(positional("COMMAND"))]
     name: String,
 
-    #[bpaf(any("ARG"))]
+    #[bpaf(any("ARG", Some))]
     args: Vec<OsString>,
 }
 

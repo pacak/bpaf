@@ -98,8 +98,7 @@ pub fn parse_runnable(package: Rc<RefCell<Option<&'static str>>>) -> impl Parser
                 ),
                 &name,
             )
-        })
-        .complete_style(CompleteDecor::VisibleGroup("Binaries and examples"));
+        });
 
     construct!([pos, bin, example])
 }

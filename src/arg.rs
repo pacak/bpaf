@@ -1,26 +1,23 @@
-use std::ffi::OsString;
+use std::ffi::{OsStr, OsString};
 
 /// Preprocessed command line argument
 ///
 /// [`OsString`] in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) enum Arg {
-    /// ambiguity between group of short options and a short option with an argument
-    /// `-abc` can be either equivalent of `-a -b -c` or `-a=bc`
-    ///
-    /// OsString is always valid utf8 here
-    Ambiguity(Vec<char>, OsString),
-
     /// short flag: `-f`
     ///
     /// bool indicates if following item is also part of this Short (created
     Short(char, bool, OsString),
 
     /// long flag: `--flag`
-    ///
+    /// bool tells if it looks like --key=val or not
     Long(String, bool, OsString),
 
-    /// separate word that can be command, positional or an argument to a flag
+    /// "val" part of --key=val -k=val -kval
+    ArgWord(OsString),
+
+    /// separate word that can be command, positional or a separate argument to a flag
     ///
     /// Can start with `-` or `--`, doesn't have to be valid utf8
     ///
@@ -31,6 +28,32 @@ pub(crate) enum Arg {
     ///
     /// Can start with `-` or `--`, doesn't have to be valid utf8
     PosWord(OsString),
+}
+
+impl Arg {
+    pub(crate) fn os_str(&self) -> &OsStr {
+        match self {
+            Arg::Short(_, _, s)
+            | Arg::Long(_, _, s)
+            | Arg::ArgWord(s)
+            | Arg::Word(s)
+            | Arg::PosWord(s) => s.as_ref(),
+        }
+    }
+
+    pub(crate) fn match_short(&self, val: char) -> bool {
+        match self {
+            Arg::Short(s, _, _) => *s == val,
+            Arg::ArgWord(_) | Arg::Long(_, _, _) | Arg::Word(_) | Arg::PosWord(_) => false,
+        }
+    }
+
+    pub(crate) fn match_long(&self, val: &str) -> bool {
+        match self {
+            Arg::Long(s, _, _) => *s == val,
+            Arg::Short(_, _, _) | Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
+        }
+    }
 }
 
 // short flag disambiguations:
@@ -50,74 +73,14 @@ pub(crate) enum Arg {
 // 2. collect short flag/arg when entering the subparsre
 // 3. when reaching ambi
 //
+
 impl std::fmt::Display for Arg {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Arg::Short(s, _, _) => write!(f, "-{}", s),
             Arg::Long(l, _, _) => write!(f, "--{}", l),
-            Arg::Ambiguity(_, w) | Arg::Word(w) | Arg::PosWord(w) => {
+            Arg::ArgWord(w) | Arg::Word(w) | Arg::PosWord(w) => {
                 write!(f, "{}", w.to_string_lossy())
-            }
-        }
-    }
-}
-
-pub(crate) fn push_vec(vec: &mut Vec<Arg>, os: OsString, pos_only: &mut bool) {
-    if *pos_only {
-        return vec.push(Arg::PosWord(os));
-    }
-
-    let val = split_os_argument(&os);
-    #[cfg(test)]
-    {
-        if os.to_str().is_some() {
-            let fallback = split_os_argument_fallback(&os);
-            assert_eq!(val, fallback, "while parsing {:?}", os);
-        }
-    }
-    match val {
-        // -f and -fbar
-        Some((ArgType::Short, short, None)) => {
-            let mut chars = short.chars();
-            let mut prev = chars.next();
-            let mut ambig = Vec::new();
-            for c in chars {
-                if let Some(prev) = std::mem::take(&mut prev) {
-                    ambig.push(prev);
-                }
-                ambig.push(c);
-            }
-            match prev {
-                Some(p) => vec.push(Arg::Short(p, false, os)),
-                None => {
-                    vec.push(Arg::Ambiguity(ambig, os));
-                }
-            }
-        }
-        // -f=a
-        Some((ArgType::Short, short, Some(arg))) => {
-            assert_eq!(
-                short.len(),
-                1,
-                "short flag with an argument must have only one key"
-            );
-            let key = short.chars().next().unwrap();
-            vec.push(Arg::Short(key, true, os));
-            vec.push(arg);
-        }
-        Some((ArgType::Long, long, None)) => {
-            vec.push(Arg::Long(long, false, os));
-        }
-        Some((ArgType::Long, long, Some(arg))) => {
-            vec.push(Arg::Long(long, true, os));
-            vec.push(arg);
-        }
-        _ => {
-            *pos_only = os == "--";
-            if *pos_only {
-                vec.push(Arg::PosWord(os));
-            } else {
-                vec.push(Arg::Word(os));
             }
         }
     }
@@ -222,7 +185,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
                         body.push(EQUALS);
                         body.extend(items);
                         name.truncate(1);
-                        let os = Arg::Word(os_from_vec(body));
+                        let os = Arg::ArgWord(os_from_vec(body));
                         return Some((ty, str_from_vec(name)?, Some(os)));
                     }
                     break;
@@ -240,7 +203,7 @@ pub(crate) fn split_os_argument(input: &std::ffi::OsStr) -> Option<(ArgType, Str
         let name = str_from_vec(name)?;
         let word = {
             let os = os_from_vec(items.collect());
-            Arg::Word(os)
+            Arg::ArgWord(os)
         };
         Some((ty, name, Some(word)))
     }
@@ -287,7 +250,7 @@ pub(crate) fn split_os_argument_fallback(
                     body.push('=');
                     body.extend(chars);
                     name.truncate(1);
-                    let os = Arg::Word(OsString::from(body));
+                    let os = Arg::ArgWord(OsString::from(body));
                     return Some((ty, name, Some(os)));
                 }
                 break;
@@ -306,6 +269,6 @@ pub(crate) fn split_os_argument_fallback(
     Some((
         ty,
         name,
-        Some(Arg::Word(OsString::from(chars.collect::<String>()))),
+        Some(Arg::ArgWord(OsString::from(chars.collect::<String>()))),
     ))
 }

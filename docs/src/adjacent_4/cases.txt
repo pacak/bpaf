@@ -1,9 +1,0 @@
-? Let's start simple - a single flag accepts a bunch of stuff, and eveything is present
-> -m 330 --arg 10 --flag
-OK
-Options { multi: [Multi { m: (), pos: 330, flag: true, arg: Some(10) }], switch: false }
-
-? You can omit some parts, but also have multiple groups thank to `many`
-> -m 100 --flag    -m 30 --arg 10    -m 50
-OK
-Options { multi: [Multi { m: (), pos: 100, flag: true, arg: None }, Multi { m: (), pos: 30, flag: false, arg: Some(10) }, Multi { m: (), pos: 50, flag: false, arg: None }], switch: false }

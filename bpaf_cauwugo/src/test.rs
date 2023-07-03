@@ -121,13 +121,11 @@ pub fn parse_specific() -> impl Parser<Test> {
                     Ok(exec)
                 }
             }
-        })
-        .complete_style(CompleteDecor::VisibleGroup("Bins, tests, examples"));
+        });
 
     let name = positional::<String>("NAME")
         .help("Test name in a file")
         .complete(move |i| complete_subtest_name(i, *cur_exec2.borrow()))
-        .complete_style(CompleteDecor::VisibleGroup("Available test names"))
         .optional();
 
     construct!(Specific { test, name }).map(Test::Specific)

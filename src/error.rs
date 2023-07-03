@@ -1,23 +1,28 @@
 use std::ops::Range;
 
-use crate::{item::Item, meta_help::Metavar};
+use crate::{
+    args::{Arg, State},
+    buffer::{Block, Color, Doc, Style, Token},
+    item::Item,
+    item::ShortLong,
+    meta_help::Metavar,
+    meta_youmean::{Suggestion, Variant},
+    Meta,
+};
 
 /// Unsuccessful command line parsing outcome, internal representation
 #[derive(Debug)]
-pub enum Error {
-    /// Parsing failed, it is still possible to improve the error message
-    /// Some messages can be caught with .fallback or variants
-    Message(Message),
-    /// Parsing failed and this is the final output
-    ParseFailure(ParseFailure),
-    /// Expected one of those values
-    ///
-    /// Used internally to generate better error messages
-    Missing(Vec<MissingItem>),
+pub struct Error(pub(crate) Message);
+
+impl Error {
+    pub(crate) fn combine_with(self, other: Self) -> Self {
+        Error(self.0.combine_with(other.0))
+    }
 }
 
 #[derive(Debug)]
-pub enum Message {
+pub(crate) enum Message {
+    // those can be caught ---------------------------------------------------------------
     /// Tried to consume an env variable with no fallback, variable was not set
     NoEnv(&'static str),
 
@@ -30,25 +35,50 @@ pub enum Message {
     /// pure_with failed to parse a value
     PureFailed(String),
 
+    /// Expected one of those values
+    ///
+    /// Used internally to generate better error messages
+    Missing(Vec<MissingItem>),
+
+    // those cannot be caught-------------------------------------------------------------
+    /// Parsing failed and this is the final output
+    ParseFailure(ParseFailure),
     /// Tried to consume a strict positional argument, value was present but was not strictly
     /// positional
-    StrictPos(Metavar),
-
-    /// User specified guard failed
-    Guard(&'static str),
+    StrictPos(usize, Metavar),
 
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
 
     /// Parser provided by user failed to validate a value
-    ValidateFailed(Option<usize>, String),
+    GuardFailed(Option<usize>, &'static str),
 
     /// Argument requres a value but something else was passed,
     /// required: --foo <BAR>
     /// given: --foo --bar
     ///        --foo -- bar
     ///        --foo
-    NoArgument(usize),
+    NoArgument(usize, Metavar),
+
+    /// Parser is expected to consume all the things from the command line
+    /// this item will contain an index of the unconsumed value
+    Unconsumed(/* TODO - unused? */ usize),
+
+    /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
+    Ambiguity(usize, String),
+
+    /// Suggested fixes for typos or missing input
+    Suggestion(usize, Suggestion),
+
+    /// Two arguments are mutually exclusive
+    /// --release --dev
+    Conflict(/* winner */ usize, usize),
+
+    /// Expected one or more items in the scope, got someting else if any
+    Expected(Vec<Item>, Option<usize>),
+
+    /// Parameter is accepted but only once
+    OnlyOnce(/* winner */ usize, usize),
 }
 
 impl Message {
@@ -57,12 +87,19 @@ impl Message {
             Message::NoEnv(_)
             | Message::ParseSome(_)
             | Message::ParseFail(_)
+            | Message::Missing(_)
             | Message::PureFailed(_) => true,
-            Message::StrictPos(_)
-            | Message::Guard(_)
+            Message::StrictPos(_, _)
             | Message::ParseFailed(_, _)
-            | Message::ValidateFailed(_, _)
-            | Message::NoArgument(_) => false,
+            | Message::GuardFailed(_, _)
+            | Message::Unconsumed(_)
+            | Message::Ambiguity(_, _)
+            | Message::Suggestion(_, _)
+            | Message::Conflict(_, _)
+            | Message::ParseFailure(_)
+            | Message::Expected(_, _)
+            | Message::OnlyOnce(_, _)
+            | Message::NoArgument(_, _) => false,
         }
     }
 }
@@ -79,31 +116,29 @@ pub struct MissingItem {
     pub(crate) scope: Range<usize>,
 }
 
-impl Error {
+impl Message {
     #[must_use]
     pub(crate) fn combine_with(self, other: Self) -> Self {
         #[allow(clippy::match_same_arms)]
         match (self, other) {
             // help output takes priority
-            (a @ Error::ParseFailure(_), _) => a,
-            (_, b @ Error::ParseFailure(_)) => b,
-
-            // unconditional parsing failure takes priority
-            (a @ Error::Message(_), _) => a,
-            (_, b @ Error::Message(_)) => b,
+            (a @ Message::ParseFailure(_), _) => a,
+            (_, b @ Message::ParseFailure(_)) => b,
 
             // combine missing elements
-            (Error::Missing(mut a), Error::Missing(mut b)) => {
+            (Message::Missing(mut a), Message::Missing(mut b)) => {
                 a.append(&mut b);
-                Error::Missing(a)
+                Message::Missing(a)
             }
-        }
-    }
-    pub(crate) fn can_catch(&self) -> bool {
-        match self {
-            Error::Message(msg) => msg.can_catch(),
-            Error::ParseFailure(_) => false,
-            Error::Missing(_) => true,
+
+            // otherwise earliest wins
+            (a, b) => {
+                if a.can_catch() {
+                    b
+                } else {
+                    a
+                }
+            }
         }
     }
 }
@@ -115,9 +150,12 @@ impl Error {
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
     /// Print this to stdout and exit with success code
-    Stdout(String),
+    Stdout(Doc, bool),
+    /// This also goes to stdout with exit code of 0,
+    /// this cannot be Doc because completion needs more control about rendering
+    Completion(String),
     /// Print this to stderr and exit with failure code
-    Stderr(String),
+    Stderr(Doc),
 }
 
 impl ParseFailure {
@@ -130,10 +168,8 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
-            Self::Stderr(err) => err,
-            Self::Stdout(_) => {
-                panic!("not an stderr: {:?}", self)
-            }
+            Self::Stderr(err) => err.monochrome(true),
+            Self::Completion(..) | Self::Stdout(..) => panic!("not an stderr: {:?}", self),
         }
     }
 
@@ -146,10 +182,9 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
-            Self::Stdout(err) => err,
-            Self::Stderr(_) => {
-                panic!("not an stdout: {:?}", self)
-            }
+            Self::Stdout(err, full) => err.monochrome(full),
+            Self::Completion(s) => s,
+            Self::Stderr(..) => panic!("not an stdout: {:?}", self),
         }
     }
 
@@ -158,15 +193,400 @@ impl ParseFailure {
     /// Prints a message to `stdout` or `stderr` and returns the exit code
     #[allow(clippy::must_use_candidate)]
     pub fn exit_code(self) -> i32 {
+        let color = Color::default();
         match self {
-            ParseFailure::Stdout(msg) => {
-                print!("{}", msg); // completions are sad otherwise
+            ParseFailure::Stdout(msg, full) => {
+                println!("{}", msg.render_console(full, color));
+                0
+            }
+            ParseFailure::Completion(s) => {
+                print!("{}", s);
                 0
             }
             ParseFailure::Stderr(msg) => {
-                eprintln!("{}", msg);
+                eprintln!("{}", msg.render_console(true, color));
                 1
             }
         }
     }
 }
+
+fn check_conflicts(args: &State) -> Option<Message> {
+    let (loser, winner) = args.conflict()?;
+    Some(Message::Conflict(winner, loser))
+}
+
+fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
+    match args.items.get(ix?)? {
+        Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
+        Arg::ArgWord(s) | Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy()),
+    }
+}
+
+fn only_once(args: &State, cur: usize) -> Option<usize> {
+    if cur == 0 {
+        return None;
+    }
+    let mut iter = args.items[..cur].iter().rev();
+    let offset = match args.items.get(cur)? {
+        Arg::Short(s, _, _) => iter.position(|a| a.match_short(*s)),
+        Arg::Long(l, _, _) => iter.position(|a| a.match_long(l)),
+        Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => None,
+    };
+    Some(cur - offset? - 1)
+}
+
+impl Message {
+    #[allow(clippy::too_many_lines)] // it's a huge match with lots of simple cases
+    pub(crate) fn render(mut self, args: &State, meta: &Meta) -> ParseFailure {
+        // try to come up with a better error message for a few cases
+        match self {
+            Message::Unconsumed(ix) => {
+                if let Some(conflict) = check_conflicts(args) {
+                    self = conflict;
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, meta) {
+                    self = Message::Suggestion(ix, suggestion);
+                } else if let Some(prev_ix) = only_once(args, ix) {
+                    self = Message::OnlyOnce(prev_ix, ix);
+                }
+            }
+            Message::Missing(xs) => {
+                self = summarize_missing(&xs, meta, args);
+            }
+            _ => {}
+        }
+
+        let mut doc = Doc::default();
+
+        match self {
+            // already rendered
+            Message::ParseFailure(f) => return f,
+
+            // it is possible to have both missing and unconsumed
+            Message::Missing(_) => {
+                // this one is unreachable
+            }
+
+            Message::Unconsumed(ix) => {
+                let item = &args.items[ix];
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(item, Style::Invalid);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" is not expected in this context");
+            }
+
+            Message::NoEnv(name) => {
+                doc.text("Environment variable ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.invalid(name);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" is not set");
+            }
+            Message::StrictPos(_ix, metavar) => {
+                doc.text("Expected ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.metavar(metavar);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" to be on the right side of ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("--");
+                doc.token(Token::BlockEnd(Block::TermRef));
+            }
+            Message::ParseSome(s) | Message::ParseFail(s) => {
+                doc.text(s);
+            }
+            Message::ParseFailed(mix, s) => {
+                doc.text("Couldn't parse");
+                if let Some(field) = textual_part(args, mix) {
+                    doc.text(" ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.invalid(&field);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                }
+                doc.text(": ");
+                doc.text(&s);
+            }
+            Message::GuardFailed(mix, s) => {
+                if let Some(field) = textual_part(args, mix) {
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.invalid(&field);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(": ");
+                } else {
+                    doc.text("Check failed: ");
+                }
+                doc.text(s);
+            }
+            Message::NoArgument(x, mv) => match args.get(x + 1) {
+                Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
+                    let arg = &args.items[x];
+                    let os = &os.to_string_lossy();
+
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" requires an argument ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.metavar(mv);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(", got a flag ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(os, Style::Invalid);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(", try ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.literal("=");
+                    doc.write(os, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" to use it as an argument");
+                }
+                // "Some" part of this branch is actually unreachable
+                Some(Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_)) | None => {
+                    let arg = &args.items[x];
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.write(arg, Style::Literal);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.text(" requires an argument ");
+                    doc.token(Token::BlockStart(Block::TermRef));
+                    doc.metavar(mv);
+                    doc.token(Token::BlockEnd(Block::TermRef));
+                }
+            },
+            Message::PureFailed(s) => {
+                doc.text(&s);
+            }
+            Message::Ambiguity(ix, name) => {
+                let mut chars = name.chars();
+                let first = chars.next().unwrap();
+                let rest = chars.as_str();
+                let second = chars.next().unwrap();
+                let s = args.items[ix].os_str().to_str().unwrap();
+
+                if let Some(name) = args.path.first() {
+                    doc.literal(name);
+                    doc.text("supports ");
+                } else {
+                    doc.text("App supports ");
+                }
+
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" as both an option and an option-argument, try to split ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(s, Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" into individual options (");
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.literal(" -");
+                doc.write_char(second, Style::Literal);
+                doc.literal(" ..");
+                doc.text(") or use ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("-");
+                doc.write_char(first, Style::Literal);
+                doc.literal("=");
+                doc.literal(rest);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" syntax to disambiguate");
+            }
+            Message::Suggestion(ix, suggestion) => {
+                let actual = &args.items[ix].to_string();
+                match suggestion {
+                    Suggestion::Variant(v) => {
+                        let ty = match &args.items[ix] {
+                            _ if actual.starts_with('-') => "flag",
+                            Arg::Short(_, _, _) | Arg::Long(_, _, _) => "flag",
+                            Arg::ArgWord(_) => "argument value",
+                            Arg::Word(_) | Arg::PosWord(_) => "command or positional",
+                        };
+
+                        doc.text("No such ");
+                        doc.text(ty);
+                        doc.text(": ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.invalid(actual);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+
+                        match v {
+                            Variant::CommandLong(name) => doc.literal(name),
+                            Variant::Flag(ShortLong::Long(l) | ShortLong::ShortLong(_, l)) => {
+                                doc.literal("--");
+                                doc.literal(l);
+                            }
+                            Variant::Flag(ShortLong::Short(s)) => {
+                                doc.literal("-");
+                                doc.write_char(s, Style::Literal);
+                            }
+                        };
+
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
+                    }
+                    Suggestion::MissingDash(name) => {
+                        doc.text("No such flag: ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("-");
+                        doc.literal(name);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" (with one dash), did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("--");
+                        doc.literal(name);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
+                    }
+                    Suggestion::ExtraDash(name) => {
+                        doc.text("No such flag: ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("--");
+                        doc.write_char(name, Style::Literal);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" (with two dashes), did you mean ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal("-");
+                        doc.write_char(name, Style::Literal);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
+                    }
+                    Suggestion::Nested(x, v) => {
+                        let ty = match v {
+                            Variant::CommandLong(_) => "Subcommand",
+                            Variant::Flag(_) => "Flag",
+                        };
+                        doc.text(ty);
+                        doc.text(" ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal(actual);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(
+                            " is not valid in this context, did you mean to pass it to command ",
+                        );
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.literal(&x);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text("?");
+                    }
+                }
+            }
+            Message::Expected(exp, actual) => {
+                doc.text("Expected ");
+                match exp.len() {
+                    0 => {
+                        doc.text("Expected no arguments");
+                    }
+                    1 => {
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                    }
+                    2 => {
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(" or ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[1]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                    }
+                    _ => {
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[0]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write_item(&exp[1]);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(", or more");
+                    }
+                }
+                match actual {
+                    Some(actual) => {
+                        doc.text(", got ");
+                        doc.token(Token::BlockStart(Block::TermRef));
+                        doc.write(&args.items[actual], Style::Invalid);
+                        doc.token(Token::BlockEnd(Block::TermRef));
+                        doc.text(". Pass ");
+                    }
+                    None => {
+                        doc.text(", pass ");
+                    }
+                }
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("--help");
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" for usage information");
+            }
+            Message::Conflict(winner, loser) => {
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[loser], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" cannot be used at the same time as ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[winner], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+            }
+            Message::OnlyOnce(_winner, loser) => {
+                doc.text("Argument ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.write(&args.items[loser], Style::Literal);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" cannot be used multiple times in this context");
+            }
+        };
+
+        ParseFailure::Stderr(doc)
+    }
+}
+
+/// go over all the missing items, pick the left most scope
+pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &State) -> Message {
+    // missing items can belong to different scopes, pick the best scope to work with
+    let best_item = items
+        .iter()
+        .max_by_key(|item| (item.position, item.scope.start))
+        .unwrap();
+    let mut best_scope = best_item.scope.clone();
+
+    let mut saw_command = false;
+    let expected = items
+        .iter()
+        .filter_map(|i| {
+            let cmd = matches!(i.item, Item::Command { .. });
+            if i.scope == best_scope && !(saw_command && cmd) {
+                saw_command |= cmd;
+                Some(i.item.clone())
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<_>>();
+
+    best_scope.start = best_scope.start.max(best_item.position);
+    let mut args = args.clone();
+    args.set_scope(best_scope);
+    if let Some((ix, _arg)) = args.items_iter().next() {
+        if let Some((ix, sugg)) = crate::meta_youmean::suggest(&args, inner) {
+            Message::Suggestion(ix, sugg)
+        } else {
+            Message::Expected(expected, Some(ix))
+        }
+    } else {
+        Message::Expected(expected, None)
+    }
+}
+
+/*
+#[inline(never)]
+/// the idea is to post some context for the error
+fn snip(buffer: &mut Buffer, args: &State, items: &[usize]) {
+    for ix in args.scope() {
+        buffer.write(ix, Style::Text);
+    }
+}
+*/

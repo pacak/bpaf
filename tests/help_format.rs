@@ -1,42 +1,78 @@
 use bpaf::*;
 
 #[test]
+fn fancy_meta() {
+    let a = long("trailing-comma").argument::<String>("all|es5|none");
+    let b = long("stdin-file-path").argument::<String>("PATH");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: --trailing-comma=<all|es5|none> --stdin-file-path=PATH
+
+Available options:
+        --trailing-comma=<all|es5|none>
+        --stdin-file-path=PATH
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn decorations() {
-    set_override(false);
     let p = short('p')
         .long("parser")
         .env("BPAF_VARIABLE")
         .argument::<String>("ARG")
         .to_options()
-        .descr("descr\ndescr")
-        .header("header\nheader")
-        .footer("footer\nfooter")
+        .descr("descr\n descr")
+        .header("header\n header")
+        .footer("footer\n footer")
         .version("version")
-        .usage("custom {usage}");
+        .usage("custom usage");
 
-    let r = p
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 descr
 descr
 
-custom -p ARG
+custom usage
 
 header
 header
 
 Available options:
-    -p, --parser <ARG>  [env:BPAF_VARIABLE: N/A]
-    -h, --help          Prints help information
-    -V, --version       Prints version information
+    -p, --parser=ARG  [env:BPAF_VARIABLE: N/A]
+    -h, --help        Prints help information
+    -V, --version     Prints version information
 
 footer
 footer
 ";
 
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn very_long_switch() {
+    let a = short('p')
+        .long("ppppppppppppppppppppppppppppppppppppp")
+        .help("this is help for megapotato")
+        .argument::<usize>("MEGAPOTATO");
+    let b = short('b').long("batman").help("help for batman").switch();
+    let p = construct!(a, b).to_options();
+
+    let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: -p=MEGAPOTATO [-b]
+
+Available options:
+    -p, --ppppppppppppppppppppppppppppppppppppp=MEGAPOTATO  this is help for megapotato
+    -b, --batman  help for batman
+    -h, --help    Prints help information
+";
     assert_eq!(r, expected);
 }
 
@@ -50,10 +86,7 @@ fn duplicate_items_same_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a [-c] | -b [-c])
@@ -62,6 +95,7 @@ Available options:
     -a
     -c          c
     -b
+    -c          c
     -h, --help  Prints help information
 ";
 
@@ -78,10 +112,7 @@ fn duplicate_items_dif_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a [-c] | -b [-c])
@@ -98,6 +129,7 @@ Available options:
 }
 
 #[test]
+// no longer deduplicated
 fn duplicate_pos_items_same_help() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
@@ -107,16 +139,14 @@ fn duplicate_pos_items_same_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: (-a <C> | -b <C>)
+Usage: (-a C | -b C)
 
 Available positional items:
-    <C>  C
+    C           C
+    C           C
 
 Available options:
     -a
@@ -137,17 +167,14 @@ fn duplicate_pos_items_diff_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: (-a <C> | -b <C>)
+Usage: (-a C | -b C)
 
 Available positional items:
-    <C>  C1
-    <C>  C2
+    C           C1
+    C           C2
 
 Available options:
     -a
@@ -161,7 +188,7 @@ Available options:
 #[test]
 fn enum_with_docs() {
     #[derive(Debug, Clone, Bpaf)]
-    /// group help
+    /// Pick mode:
     enum Mode {
         /// help
         ///
@@ -176,18 +203,18 @@ fn enum_with_docs() {
 
     let r = mode()
         .to_options()
-        .run_inner(Args::from(&["--help"]))
+        .run_inner(&["--help"])
         .unwrap_err()
         .unwrap_stdout();
 
     let expected = "\
 Usage: (--intel | --att)
 
-Available options:
-  group help
+Pick mode:
         --intel  help
         --att    help
 
+Available options:
     -h, --help   Prints help information
 ";
     assert_eq!(r, expected);
@@ -213,22 +240,19 @@ fn anywhere_invariant_check() {
     let parser = construct!(a, fooo(), b).to_options();
 
     let expected = "\
-Usage: [-a] --tag <NAME> <VAL> [-b]
+Usage: [-a] --tag NAME VAL [-b]
 
 Available options:
     -a          help for a
-  --tag <NAME> <VAL>
-    <NAME>      help for name
-    <VAL>       help for val
+  --tag NAME VAL
+    NAME        help for name
+    VAL         help for val
 
     -b          help for b
     -h, --help  Prints help information
 ";
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     assert_eq!(r, expected);
 
     // this shouldn't crash
@@ -246,21 +270,18 @@ fn multi_arg_help() {
     let detailed = long("detailed").short('d').help("detailed").switch();
     let parser = construct!(verbose, combo, detailed).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-v] [-f [-e] <NAME> <STATE>] [-d]
+Usage: [-v] [-f [-e] NAME STATE] [-d]
 
 Available options:
     -v, --verbose   verbose
-  -f [-e] <NAME> <STATE>
+  -f [-e] NAME STATE
     -f, --flag      flag help
     -e, --extra     extra strange
-    <NAME>          pos1 help
-    <STATE>         pos2 help
+    NAME            pos1 help
+    STATE           pos2 help
 
     -d, --detailed  detailed
     -h, --help      Prints help information
@@ -276,19 +297,15 @@ fn multi_pos_help() {
     let combo = construct!(a, b).adjacent();
     let verbose = short('v').long("verbose").switch();
     let parser = construct!(verbose, combo).to_options();
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-v] <NAME> <VAL>
+Usage: [-v] NAME VAL
 
 Available positional items:
-  <NAME> <VAL>
-    <NAME>  name help
-    <VAL>   val help
-
+  NAME VAL
+    NAME           name help
+    VAL            val help
 
 Available options:
     -v, --verbose
@@ -306,17 +323,14 @@ fn fallback_display_simple_arg() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [--a NUM]
+Usage: [--a=NUM]
 
 Available options:
-        --a <NUM>  help for a
-                   [default: 42]
-    -h, --help     Prints help information
+        --a=NUM  help for a
+                 [default: 42]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -330,17 +344,14 @@ fn fallback_display_simple_pos() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [<NUM>]
+Usage: [NUM]
 
 Available positional items:
-    <NUM>  help for pos
-           [default: 42]
+    NUM         help for pos
+                [default: 42]
 
 Available options:
     -h, --help  Prints help information
@@ -367,19 +378,16 @@ fn fallback_display_tuple() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [--a NUM --b NUM]
+Usage: [--a=NUM --b=NUM]
 
 Available options:
-        --a <NUM>  help for a
-        --b <NUM>  help for b
-                   [default: Pair 42, 333]
-    -h, --help     Prints help information
+        --a=NUM  help for a
+        --b=NUM  help for b
+                 [default: Pair 42, 333]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -393,17 +401,14 @@ fn fallback_display_no_help() {
         .display_fallback()
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [--a NUM]
+Usage: [--a=NUM]
 
 Available options:
-        --a <NUM>
-                   [default: 42]
-    -h, --help     Prints help information
+        --a=NUM
+                 [default: 42]
+    -h, --help   Prints help information
 ";
 
     assert_eq!(r, expected);
@@ -423,20 +428,86 @@ fn env_fallback_visible() {
         .switch();
     let parser = construct!(fonts_dir, system_fonts).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["--help"]))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [--fonts DIR] [--system-fonts]
+Usage: [--fonts=DIR] [--system-fonts]
 
 Available options:
-        --fonts <DIR>   [env:OIKOS_FONTS: N/A]
-                        Load fonts from this directory
-        --system-fonts  [env:OIKOS_SYSTEM_FONTS: not set]
-                        Search for additional fonts in system directories
+        --fonts=DIR     Load fonts from this directory
+                        [env:OIKOS_FONTS: N/A]
+        --system-fonts  Search for additional fonts in system directories
+                        [env:OIKOS_SYSTEM_FONTS: not set]
     -h, --help          Prints help information
 ";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn nested_group_help() {
+    let a = short('a').switch().group_help("inner");
+    let b = short('b').switch();
+
+    let parser = construct!(a, b).group_help("outer").to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [-a] [-b]
+
+outer
+    -a
+    -b
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn with_group_help() {
+    let a = short('a').help("option a").switch();
+    let b = short('b').help("option b").switch();
+    let c = short('c').help("option c").switch();
+
+    let ab = construct!(a, b).with_group_help(|meta| {
+        let mut b = Doc::default();
+        b.emphasis("Uses either of those ");
+        b.meta(meta, false);
+        b
+    });
+    let parser = construct!(ab, c).to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [-a] [-b] [-c]
+
+Uses either of those [-a] [-b]
+    -a          option a
+    -b          option b
+
+Available options:
+    -c          option c
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(&["-a", "-c"]).unwrap();
+    assert_eq!(r, ((true, false), true));
+}
+
+#[test]
+fn custom_help_and_version() {
+    let h = short('H').long("halp").help("halps you");
+    let v = short('v').long("release").help("prints release id");
+    let a = short('a').switch();
+    let parser = a.to_options().help_parser(h).version_parser(v);
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`--help` is not expected in this context");
+
+    let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
+    let expected = "Usage: [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
     assert_eq!(r, expected);
 }

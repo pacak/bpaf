@@ -1,28 +1,56 @@
 //! Help message generation and rendering
 
-use crate::{args::Args, parsers::ParseCommand, Error, ParseFailure, Parser};
+use crate::{
+    args::{Args, State},
+    error::Message,
+    meta_help::render_help,
+    parsers::NamedArg,
+    short, Doc, Error, Meta, ParseFailure, Parser,
+};
 
 /// Information about the parser
 ///
 /// No longer public, users are only interacting with it via [`OptionParser`]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 #[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]
-    pub version: Option<&'static str>,
+    pub version: Option<Doc>,
     /// Custom description field, see [`descr`][Info::descr]
-    pub descr: Option<&'static str>,
+    pub descr: Option<Doc>,
     /// Custom header field, see [`header`][Info::header]
-    pub header: Option<&'static str>,
+    pub header: Option<Doc>,
     /// Custom footer field, see [`footer`][Info::footer]
-    pub footer: Option<&'static str>,
+    pub footer: Option<Doc>,
     /// Custom usage field, see [`usage`][Info::usage]
-    pub usage: Option<&'static str>,
+    pub usage: Option<Doc>,
+    pub help_arg: NamedArg,
+    pub version_arg: NamedArg,
+}
+
+impl Default for Info {
+    fn default() -> Self {
+        Self {
+            version: None,
+            descr: None,
+            header: None,
+            footer: None,
+            usage: None,
+            help_arg: short('h').long("help").help("Prints help information"),
+            version_arg: short('V')
+                .long("version")
+                .help("Prints version information"),
+        }
+    }
 }
 
 /// Ready to run [`Parser`] with additional information attached
 ///
 /// Created with [`to_options`](Parser::to_options)
+///
+/// In addition to the inner parser `OptionParser` contains documentation about a program or a
+/// subcommand as a whole, version, custom usage, if specified, and handles custom parsers for
+/// `--version` and `--help` flags.
 pub struct OptionParser<T> {
     pub(crate) inner: Box<dyn Parser<T>>,
     pub(crate) info: Info,
@@ -84,12 +112,16 @@ impl<T> OptionParser<T> {
     /// fn main() {
     ///     let verbosity: Option<usize> = match verbosity().try_run() {
     ///         Ok(v) => Some(v),
-    ///         Err(ParseFailure::Stdout(msg)) => {
-    ///             print!("{}", msg); // completions are sad otherwise
+    ///         Err(ParseFailure::Stdout(buf, full)) => {
+    ///             print!("{}", buf.monochrome(full));
     ///             None
     ///         }
-    ///         Err(ParseFailure::Stderr(msg)) => {
-    ///             eprintln!("{}", msg);
+    ///         Err(ParseFailure::Completion(msg)) => {
+    ///             print!("{}", msg);
+    ///             None
+    ///         }
+    ///         Err(ParseFailure::Stderr(buf)) => {
+    ///             eprintln!("{}", buf.monochrome(true));
     ///             None
     ///         }
     ///     };
@@ -124,14 +156,14 @@ impl<T> OptionParser<T> {
     ///             .to_options();
     ///
     ///     let help = parser
-    ///         .run_inner(Args::from(&["--help"]))
+    ///         .run_inner(&["--help"])
     ///         .unwrap_err()
     ///         .unwrap_stdout();
     ///     let expected_help = "\
-    /// Usage: <FILE>
+    /// Usage: FILE
     ///
     /// Available positional items:
-    ///     <FILE>  File to process
+    ///     FILE        File to process
     ///
     /// Available options:
     ///     -h, --help  Prints help information
@@ -155,26 +187,31 @@ impl<T> OptionParser<T> {
     /// [`parse`](Parser::parse), stdout/stderr isn't actually captured.
     ///
     /// Exact string reperentations may change between versions including minor releases.
-    pub fn run_inner(&self, mut args: Args) -> Result<T, ParseFailure>
+    pub fn run_inner<'a>(&self, args: impl Into<Args<'a>>) -> Result<T, ParseFailure>
     where
         Self: Sized,
     {
-        let mut avail_flags = Vec::new();
-        let mut avail_args = Vec::new();
+        // prepare available short flags and arguments for disambiguation
+        let mut short_flags = Vec::new();
+        let mut short_args = Vec::new();
         self.inner
             .meta()
-            .collect_shorts(&mut avail_flags, &mut avail_args);
+            .collect_shorts(&mut short_flags, &mut short_args);
+        short_flags.extend(&self.info.help_arg.short);
+        short_flags.extend(&self.info.version_arg.short);
+        let mut err = None;
+        let mut state = State::construct(args.into(), &short_flags, &short_args, &mut err);
 
-        args.disambiguate(&avail_flags, &avail_args)?;
-        match self.run_subparser(&mut args) {
-            Ok(t) if args.is_empty() => Ok(t),
-            Ok(_) => Err(ParseFailure::Stderr(format!("unexpected {:?}", args))),
-            Err(err) => Err(err),
+        // this only handles disambiguation failure in construct
+        if let Some(msg) = err {
+            return Err(msg.render(&state, &self.inner.meta()));
         }
+
+        self.run_subparser(&mut state)
     }
 
     /// Run subparser, implementation detail
-    pub(crate) fn run_subparser(&self, args: &mut Args) -> Result<T, ParseFailure> {
+    pub(crate) fn run_subparser(&self, args: &mut State) -> Result<T, ParseFailure> {
         // process should work like this:
         // - inner parser is evaluated, it returns Error
         // - if error is finalized (ParseFailure) - it is simply propagated outwards,
@@ -188,33 +225,57 @@ impl<T> OptionParser<T> {
         // outer parser gets value in ParseFailure format
 
         let res = self.inner.eval(args);
-        if let Err(Error::ParseFailure(failure)) = res {
+        if let Err(Error(Message::ParseFailure(failure))) = res {
             return Err(failure);
         }
         #[cfg(feature = "autocomplete")]
         if let Some(comp) = args.check_complete() {
-            return Err(ParseFailure::Stdout(comp));
+            return Err(ParseFailure::Completion(comp));
         }
 
-        if args.is_empty() {
-            if let Ok(ok) = res {
-                return Ok(ok);
+        let err = match res {
+            Ok(ok) => {
+                if let Some((ix, _)) = args.items_iter().next() {
+                    Message::Unconsumed(ix)
+                } else {
+                    return Ok(ok);
+                }
             }
+            Err(Error(err)) => err,
+        };
+
+        // handle --help and --version messages
+        if let Ok(extra) = self.info.eval(args) {
+            let mut detailed = false;
+            let buffer = match extra {
+                ExtraParams::Help(d) => {
+                    detailed = d;
+                    render_help(
+                        &args.path,
+                        &self.info,
+                        &self.inner.meta(),
+                        &self.info.meta(),
+                        true,
+                    )
+                }
+                ExtraParams::Version(v) => {
+                    let mut buffer = Doc::default();
+                    buffer.text("Version: ");
+                    buffer.doc(&v);
+                    buffer
+                }
+            };
+            return Err(ParseFailure::Stdout(buffer, detailed));
         }
-        Err((args.improve_error.0)(
-            args,
-            &self.info,
-            &self.inner.meta(),
-            res.err(),
-        ))
+        Err(err.render(args, &self.inner.meta()))
     }
 
     /// Get first line of description if Available
     ///
     /// Used internally to avoid duplicating description for [`command`].
     #[must_use]
-    pub(crate) fn short_descr(&self) -> Option<&'static str> {
-        self.info.descr.and_then(|descr| descr.lines().next())
+    pub(crate) fn short_descr(&self) -> Option<Doc> {
+        self.info.descr.as_ref().and_then(Doc::first_line)
     }
 
     /// Set the version field.
@@ -254,8 +315,8 @@ impl<T> OptionParser<T> {
     /// Version: 0.5.0
     /// ```
     #[must_use]
-    pub fn version(mut self, version: &'static str) -> Self {
-        self.info.version = Some(version);
+    pub fn version<B: Into<Doc>>(mut self, version: B) -> Self {
+        self.info.version = Some(version.into());
         self
     }
     /// Set the description field
@@ -319,8 +380,8 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn descr(mut self, descr: &'static str) -> Self {
-        self.info.descr = Some(descr);
+    pub fn descr<B: Into<Doc>>(mut self, descr: B) -> Self {
+        self.info.descr = Some(descr.into());
         self
     }
     /// Set the header field
@@ -383,8 +444,8 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn header(mut self, header: &'static str) -> Self {
-        self.info.header = Some(header);
+    pub fn header<B: Into<Doc>>(mut self, header: B) -> Self {
+        self.info.header = Some(header.into());
         self
     }
     /// Set the footer field
@@ -447,55 +508,57 @@ impl<T> OptionParser<T> {
     /// This is a footer
     /// ```
     #[must_use]
-    pub fn footer(mut self, footer: &'static str) -> Self {
-        self.info.footer = Some(footer);
+    pub fn footer<M: Into<Doc>>(mut self, footer: M) -> Self {
+        self.info.footer = Some(footer.into());
         self
     }
     /// Set custom usage field
     ///
-    /// Custom usage field to use instead of one derived by `bpaf`. Custom message should contain
-    /// `"Usage: "` prefix if you want to display one.
-    ///
-    /// Before using it `bpaf` would replace `"{usage}"` tokens inside a custom usage string with
-    /// automatically generated usage.
-    ///
-    /// # Combinatoric usage
-    /// ```rust
-    /// # use bpaf::*;
-    /// fn options() -> OptionParser<bool>  {
-    ///    short('s')
-    ///        .switch()
-    ///        .to_options()
-    ///        .usage("Usage: my_program: {usage}")
-    /// }
-    /// ```
-    ///
-    /// # Derive usage
-    ///
-    /// ```rust
-    /// # use bpaf::*;
-    /// #[derive(Debug, Clone, Bpaf)]
-    /// #[bpaf(options, usage("Usage: my_program: {usage}"))]
-    /// struct Options {
-    ///     #[bpaf(short)]
-    ///     switch: bool
-    /// }
-    /// ```
+    /// Custom usage field to use instead of one derived by `bpaf`.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/usage.md"))]
     #[must_use]
-    pub fn usage(mut self, usage: &'static str) -> Self {
-        self.info.usage = Some(usage);
+    pub fn usage<B>(mut self, usage: B) -> Self
+    where
+        B: Into<Doc>,
+    {
+        self.info.usage = Some(usage.into());
         self
     }
 
-    /// Turn `OptionParser` into subcommand parser
+    /// Generate new usage line using automatically derived usage
     ///
-    /// This is identical to [`command`](crate::params::command)
+    /// You can customize the surroundings of the usage line while still
+    /// having part that frequently changes generated by bpaf
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/with_usage.md"))]
+    ///
+    /// At the moment this method is not directly supported by derive API,
+    /// but since it gives you an object of [`OptionParser<T>`](OptionParser)
+    /// type you can alter it using Combinatoric API:
+    /// ```text
+    /// #[derive(Debug, Clone, Bpaf)] {
+    /// pub struct Options {
+    ///     ...
+    /// }
+    ///
+    /// fn my_decor(usage: Doc) -> Doc {
+    ///     ...
+    /// }
+    ///
+    /// fn main() {
+    ///     let options = options().with_usage(my_decor).run();
+    ///     ...
+    /// }
+    /// ```
     #[must_use]
-    pub fn command(self, name: &'static str) -> ParseCommand<T>
+    pub fn with_usage<F>(mut self, f: F) -> Self
     where
-        T: 'static,
+        F: Fn(Doc) -> Doc,
     {
-        crate::params::command(name, self)
+        let mut buf = Doc::default();
+        buf.write_meta(&self.inner.meta(), true);
+        self.info.usage = Some(f(buf));
+        self
     }
 
     /// Check the invariants `bpaf` relies on for normal operations
@@ -519,4 +582,73 @@ impl<T> OptionParser<T> {
     pub fn check_invariants(&self, _cosmetic: bool) {
         self.inner.meta().positional_invariant_check(true);
     }
+
+    /// Customize parser for `--help`
+    ///
+    /// By default `bpaf` displays help when program is called with either `--help` or `-h`, you
+    /// can customize those names and description in the help message
+    ///
+    /// Note, `--help` is something user expects to work
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
+    #[must_use]
+    pub fn help_parser(mut self, parser: NamedArg) -> Self {
+        self.info.help_arg = parser;
+        self
+    }
+
+    /// Customize parser for `--version`
+    ///
+    /// By default `bpaf` displays version information when program is called with either `--version`
+    /// or `-V` (and version is available), you can customize those names and description in the help message
+    ///
+    /// Note, `--version` is something user expects to work
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
+    #[must_use]
+    pub fn version_parser(mut self, parser: NamedArg) -> Self {
+        self.info.version_arg = parser;
+        self
+    }
+}
+
+impl Info {
+    #[inline(never)]
+    fn mk_help_parser(&self) -> impl Parser<()> {
+        self.help_arg.clone().req_flag(())
+    }
+    #[inline(never)]
+    fn mk_version_parser(&self) -> impl Parser<()> {
+        self.version_arg.clone().req_flag(())
+    }
+}
+
+impl Parser<ExtraParams> for Info {
+    fn eval(&self, args: &mut State) -> Result<ExtraParams, Error> {
+        let help = self.mk_help_parser();
+        if help.eval(args).is_ok() {
+            return Ok(ExtraParams::Help(help.eval(args).is_ok()));
+        }
+
+        if let Some(version) = &self.version {
+            if self.mk_version_parser().eval(args).is_ok() {
+                return Ok(ExtraParams::Version(version.clone()));
+            }
+        }
+
+        // error message is not actually used anywhere
+        Err(Error(Message::ParseFail("not a version or help")))
+    }
+
+    fn meta(&self) -> Meta {
+        let help = self.mk_help_parser().meta();
+        match &self.version {
+            Some(_) => Meta::And(vec![help, self.mk_version_parser().meta()]),
+            None => help,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum ExtraParams {
+    Help(bool),
+    Version(Doc),
 }

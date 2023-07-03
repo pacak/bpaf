@@ -1,7 +1,65 @@
-use proc_macro2::Ident;
-use syn::Attribute;
+use syn::{
+    parenthesized,
+    parse::{Parse, ParseStream},
+    token, Attribute, Expr, LitChar, LitStr, Path, Result,
+};
 
-pub fn doc_comment(attr: &Attribute) -> Option<String> {
+pub(crate) fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
+    let content;
+    let _ = parenthesized!(content in input);
+    content.parse::<T>()
+}
+
+pub(crate) fn parse_opt_arg<T: Parse>(input: ParseStream) -> Result<Option<T>> {
+    if input.peek(token::Paren) {
+        let content;
+        let _ = parenthesized!(content in input);
+        Ok(Some(content.parse::<T>()?))
+    } else {
+        Ok(None)
+    }
+}
+
+pub(crate) fn parse_arg2<A: Parse, B: Parse>(input: ParseStream) -> Result<(A, B)> {
+    let content;
+    let _ = parenthesized!(content in input);
+    let a = content.parse::<A>()?;
+    let _ = content.parse::<token::Comma>()?;
+    let b = content.parse::<B>()?;
+    Ok((a, b))
+}
+
+#[inline(never)]
+pub(crate) fn parse_lit_char(input: ParseStream) -> Result<LitChar> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+pub(crate) fn parse_lit_str(input: ParseStream) -> Result<LitStr> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+pub(crate) fn parse_path(input: ParseStream) -> Result<Path> {
+    parse_arg(input)
+}
+
+#[inline(never)]
+pub(crate) fn parse_expr(input: ParseStream) -> Result<Box<Expr>> {
+    Ok(Box::new(parse_arg(input)?))
+}
+
+pub(crate) fn parse_opt_metavar(input: ParseStream) -> Result<Option<LitStr>> {
+    let content;
+    Ok(if input.peek(syn::token::Paren) {
+        let _ = parenthesized!(content in input);
+        Some(content.parse::<LitStr>()?)
+    } else {
+        None
+    })
+}
+
+pub(crate) fn doc_comment(attr: &Attribute) -> Option<String> {
     match &attr.meta {
         syn::Meta::NameValue(syn::MetaNameValue {
             value:
@@ -21,18 +79,18 @@ pub fn doc_comment(attr: &Attribute) -> Option<String> {
     }
 }
 
-pub fn to_snake_case(input: &str) -> String {
+pub(crate) fn to_snake_case(input: &str) -> String {
     to_custom_case(input, '_')
 }
 
-pub fn to_kebab_case(input: &str) -> String {
+pub(crate) fn to_kebab_case(input: &str) -> String {
     to_custom_case(input, '-')
 }
 
-pub fn to_custom_case(input: &str, sep: char) -> String {
+pub(crate) fn to_custom_case(input: &str, sep: char) -> String {
     let mut res = String::with_capacity(input.len() * 2);
     for c in input.chars() {
-        if c >= 'A' && c <= 'Z' {
+        if c.is_ascii_uppercase() {
             if !res.is_empty() {
                 res.push(sep);
             }
@@ -44,10 +102,6 @@ pub fn to_custom_case(input: &str, sep: char) -> String {
         }
     }
     res
-}
-
-pub fn snake_case_ident(input: &Ident) -> Ident {
-    Ident::new(&to_snake_case(&input.to_string()), input.span())
 }
 
 #[test]
@@ -65,8 +119,8 @@ fn check_to_snake_case() {
 /// - single empty lines are stripped and used to represent logical blocks:
 ///   ["foo", "bar", "", "baz"] => ["foo\nbar", "baz"]
 /// strip single empty lines,
-pub struct LineIter<'a> {
-    strings: std::slice::Iter<'a, String>,
+pub(crate) struct LineIter<'a> {
+    strings: std::str::Lines<'a>,
     prev_empty: bool,
     current: String,
 }
@@ -78,12 +132,27 @@ impl<'a> LineIter<'a> {
         std::mem::swap(&mut self.current, &mut string);
         string
     }
+
+    pub(crate) fn rest(&mut self) -> Option<String> {
+        let mut res = String::new();
+        for t in self {
+            if !res.is_empty() {
+                res.push('\n');
+            }
+            res.push_str(&t);
+        }
+        if res.is_empty() {
+            None
+        } else {
+            Some(res)
+        }
+    }
 }
 
-impl<'a> From<&'a [String]> for LineIter<'a> {
-    fn from(strings: &'a [String]) -> Self {
+impl<'a> From<&'a str> for LineIter<'a> {
+    fn from(strings: &'a str) -> Self {
         Self {
-            strings: strings.iter(),
+            strings: strings.lines(),
             prev_empty: false,
             current: String::new(),
         }
@@ -95,25 +164,22 @@ impl Iterator for LineIter<'_> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match self.strings.next() {
-                Some(line) => {
-                    if line.is_empty() {
-                        if self.prev_empty {
-                            self.prev_empty = false;
-                            return Some(self.take());
-                        }
-                        self.prev_empty = true;
-                    } else {
-                        self.current.push_str(line);
-                        self.current.push('\n');
+            if let Some(line) = self.strings.next() {
+                if line.is_empty() {
+                    if self.prev_empty {
+                        self.prev_empty = false;
+                        return Some(self.take());
                     }
+                    self.prev_empty = true;
+                } else {
+                    self.current.push_str(line);
+                    self.current.push('\n');
                 }
-                None => {
-                    if self.current.is_empty() {
-                        return None;
-                    }
-                    return Some(self.take());
+            } else {
+                if self.current.is_empty() {
+                    return None;
                 }
+                return Some(self.take());
             }
         }
     }

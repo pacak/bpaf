@@ -1,8 +1,31 @@
 # Change Log
 
-## bpaf [0.8.2] - Unreleased
+
+## bpaf [0.9.0] - 2023-07-03
 - more errors are now passed as ADTs rather than plain strings
 - conflicts are now tracked with indices rather than parser meta
+- documentation improvements
+- better error messages
+- smaller generated binary
+
+### Breaking changes
+- `bpaf_derive 0.5.0` comes with some breaking changes
+-  documentation generation now comes under `docgen` feature instead of `manpage` and some
+   things are renamed
+-  standalone `command` function was deprecated in favor of `.command` method on `OptionParser`
+-  hidden no-op helper type `FromUtf8` was removed
+
+
+## bpaf_derive [0.5.0] - 2023-07-03
+
+should be faster to compile and a bit more flexible with respect to what is accepted
+
+### Braking changes
+- explicit `construct` annotation is gone and used by default if `options` and `command` are
+  missing
+- `options` and `command` now must be specified at the beginning of `#[bpaf(...` macro
+- `default` annotation for enum variants is gone, you can use `fallback` on top instead
+
 
 ## bpaf [0.8.1], bpaf_derive [0.4.1] - 2023-05-30
 - combination of `command` and `hide` now works as expected in `bpaf_derive`

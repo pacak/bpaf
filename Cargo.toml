@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.8.1"
+version = "0.9.0"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -10,21 +10,27 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
 rust-version = "1.56"
-exclude = [".github/workflows", "tarp.sh"]
+include = [
+  "src/**/*",
+  "Cargo.toml",
+  "README.md",
+  "examples/**/*"
+]
 
 
 [dependencies]
-bpaf_derive = { path = "./bpaf_derive", version = "=0.4.1", optional = true }
-owo-colors = { version = "3.5.0", features = ["supports-colors"], optional = true }
-roff = { version = "0.2.1", optional = true }
+bpaf_derive = { path = "./bpaf_derive", version = "=0.5.0", optional = true }
+owo-colors = { version = "3.5.0", default-features = false, optional = true }
+supports-color = { version = "2.0.0", optional = true }
 
 [dev-dependencies]
-bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "manpage", "batteries"] }
+bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "docgen", "batteries", "dull-color"] }
 
 
 [package.metadata.docs.rs]
 features = ["derive", "extradocs", "autocomplete", "batteries"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
+rustdoc-args = ["--cfg", "docsrs"]
 
 
 [features]
@@ -32,10 +38,12 @@ derive = ["bpaf_derive"]
 extradocs = []
 batteries = []
 autocomplete = []
-color = ["owo-colors"] # used internally to switch between different code generation
+# this feature used internally to switch between different code generation,
+# users should pick between bright-color or dull-color
+color = ["supports-color", "owo-colors"]
 bright-color = ["color"]
 dull-color = ["color"]
-manpage = ["roff"]
+docgen = []
 
 [[test]]
 name = "completion"
@@ -53,8 +61,14 @@ required-features = ["batteries"]
 name = "csample"
 required-features = ["autocomplete"]
 
-[workspace]
-members = [".", "./bpaf_derive", "./bpaf_cauwugo", "docs"]
-
 [workspace.metadata.cauwugo]
 bpaf = true
+
+[workspace]
+members =  [
+    ".",
+    "./bpaf_derive",
+    "./bpaf_cauwugo",
+    "./docs2",
+    "./comptester",
+]

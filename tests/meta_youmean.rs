@@ -4,7 +4,6 @@ use bpaf::*;
 
 #[test]
 fn ambiguity() {
-    set_override(false);
     #[derive(Debug, Clone)]
     enum A {
         V(Vec<bool>),
@@ -15,22 +14,16 @@ fn ambiguity() {
     let a1 = short('a').argument::<String>("AAAAAA").map(A::W);
     let parser = construct!([a0, a1]).to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["-aaaaaa"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "Parser supports -a as both option and option-argument, try to split -aaaaaa into individual options (-a -a ..) or use -a=aaaaa syntax to disambiguate");
+    let r = parser.run_inner(&["-aaaaaa"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "App supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual options\n(-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
 
-    let r = parser
-        .run_inner(Args::from(&["-b"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-b`, did you mean `-a`?");
+    let r = parser.run_inner(&["-b"]).unwrap_err().unwrap_stderr();
+    // single char typos are too random
+    assert_eq!(r, "`-b` is not expected in this context");
 }
 
 #[test]
 fn short_cmd() {
-    set_override(false);
     let parser = long("alpha")
         .req_flag(())
         .to_options()
@@ -38,14 +31,11 @@ fn short_cmd() {
         .short('b')
         .to_options();
 
-    let r = parser
-        .run_inner(Args::from(&["c"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner(&["c"]).unwrap_err().unwrap_stderr();
 
     assert_eq!(
         r,
-        "No such command or positional: `c`, did you mean `beta`?"
+        "Expected `COMMAND ...`, got `c`. Pass `--help` for usage information"
     );
 }
 
@@ -60,14 +50,11 @@ fn double_dashes_no_fallback() {
         Dummy,
     }
 
-    let r = opts()
-        .run_inner(Args::from(&["-llvm"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = opts().run_inner(&["-llvm"]).unwrap_err().unwrap_stderr();
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -81,14 +68,11 @@ fn double_dashes_fallback() {
         Dummy,
     }
 
-    let r = opts()
-        .run_inner(Args::from(&["-llvm"]))
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = opts().run_inner(&["-llvm"]).unwrap_err().unwrap_stderr();
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -106,13 +90,13 @@ fn double_dash_with_optional_positional() {
     let parser = construct!(opts(), pos).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["make", "-llvm"]))
+        .run_inner(&["make", "-llvm"])
         .unwrap_err()
         .unwrap_stderr();
 
     assert_eq!(
         r,
-        "No such flag: -llvm (with one dash), did you mean `--llvm`?"
+        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -128,16 +112,19 @@ fn inside_out_command_parser() {
         },
     }
 
-    let ok = cmd().run_inner(Args::from(&["log", "--oneline"])).unwrap();
+    let ok = cmd().run_inner(&["log", "--oneline"]).unwrap();
     assert_eq!(ok, Cmd::Log { oneline: true });
 
     // Can't parse "--oneline log" because oneline could be an argument instead of a flag
     // so log might not be a command, but we can try to make a better suggestion.
     let r = cmd()
-        .run_inner(Args::from(&["--oneline", "log"]))
+        .run_inner(&["--oneline", "log"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "flag: `--oneline` is not valid in this context, did you mean to pass it to command \"log\"?");
+    assert_eq!(
+        r,
+        "Flag `--oneline` is not valid in this context, did you mean to pass it to command `log`?"
+    );
 }
 
 #[test]
@@ -145,10 +132,13 @@ fn flag_specified_twice() {
     let parser = long("flag").switch().to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--flag", "--flag"]))
+        .run_inner(&["--flag", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(
+        r,
+        "Argument `--flag` cannot be used multiple times in this context"
+    );
 }
 
 #[test]
@@ -171,31 +161,31 @@ fn ux_discussion() {
     let parser = construct!(config_set_bool(), aa).to_options();
 
     let r = parser
-        .run_inner(Args::from(&["--setBool", "key", "tru"]))
+        .run_inner(&["--setBool", "key", "tru"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
         r,
         // everything before ":" comes from bpaf, after ":" - it's an error specific
         // to FromStr instance.
-        "Couldn't parse \"tru\": provided string was not `true` or `false`"
+        "Couldn't parse `tru`: provided string was not `true` or `false`"
     );
 
     let r = parser
-        .run_inner(Args::from(&["--bool-fla"]))
+        .run_inner(&["--bool-fla"])
         .unwrap_err()
         .unwrap_stderr();
 
     assert_eq!(r, "No such flag: `--bool-fla`, did you mean `--bool-flag`?");
 
     let r = parser
-        .run_inner(Args::from(&["--bool-flag", "--bool-flag"]))
+        .run_inner(&["--bool-flag", "--bool-flag"])
         .unwrap_err()
         .unwrap_stderr();
 
     assert_eq!(
         r,
-        "Expected --setBool, got \"--bool-flag\". Pass --help for usage information"
+        "Expected `--setBool`, got `--bool-flag`. Pass `--help` for usage information"
     );
 }
 
@@ -203,23 +193,23 @@ fn ux_discussion() {
 fn suggest_typo_fix() {
     let p = long("flag").switch().to_options();
 
+    let r = p.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+
     let r = p
-        .run_inner(Args::from(&["--fla"]))
+        .run_inner(&["--fla", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
 
     let r = p
-        .run_inner(Args::from(&["--fla", "--fla"]))
+        .run_inner(&["--flag", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
-
-    let r = p
-        .run_inner(Args::from(&["--flag", "--flag"]))
-        .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "--flag is not expected in this context");
+    assert_eq!(
+        r,
+        "Argument `--flag` cannot be used multiple times in this context"
+    );
 }
 
 #[test]
@@ -248,33 +238,33 @@ fn better_error_message_with_typos() {
 
     let r = arguments()
         .to_options()
-        .run_inner(Args::from(&["-a", "erg"]))
+        .run_inner(&["-a", "erg"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-a`, did you mean `-e`?");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = commands()
-        .run_inner(Args::from(&["arguments", "-a", "erg"]))
+        .run_inner(&["arguments", "-a", "erg"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `-a`, did you mean `-e`?");
+    assert_eq!(r, "`-a` is not expected in this context");
 
     let r = arguments()
         .to_options()
-        .run_inner(Args::from(&["--help"]))
+        .run_inner(&["--help"])
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
-Usage: [-e Arg]... [<POS>]...
+Usage: [-e=<Arg>]... [POS]...
 
 Available options:
-    -e <Arg>
+    -e=<Arg>
     -h, --help  Prints help information
 ";
     assert_eq!(r, expected);
 
     let r = commands()
-        .run_inner(Args::from(&["--help"]))
+        .run_inner(&["--help"])
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
@@ -284,9 +274,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    lines      Multi
-               Line
-               Comment
+    lines       Multi
     arguments
 ";
     assert_eq!(r, expected);
@@ -302,10 +290,10 @@ fn big_conflict() {
     let cd = construct!(c, d);
     let parser = construct!([ab, cd]).to_options();
     let r = parser
-        .run_inner(Args::from(&["-a", "-b", "-c", "-d"]))
+        .run_inner(&["-a", "-b", "-c", "-d"])
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "\"-c\" cannot be used at the same time as \"-a\"";
+    let expected = "`-c` cannot be used at the same time as `-a`";
     assert_eq!(r, expected);
 }
 
@@ -314,8 +302,8 @@ fn pure_conflict() {
     let a = short('a').switch();
     let b = pure(false);
     let parser = construct!([a, b]).to_options();
-    let r = parser.run_inner(Args::from(&[])).unwrap();
+    let r = parser.run_inner(&[]).unwrap();
     assert!(!r);
-    let r = parser.run_inner(Args::from(&["-a"])).unwrap();
+    let r = parser.run_inner(&["-a"]).unwrap();
     assert!(r);
 }

@@ -22,15 +22,15 @@
 
 //! Combinatoric and derive APIs share the documentation and most of the names, recommended reading order:
 //! 1. [`construct!`] - what combinations are and how you should read the examples
-//! 2. [`NamedArg`], [`positional`] and [`command`] - on consuming data
+//! 2. [`NamedArg`], [`positional`] and [`command`](OptionParser::command) - on consuming data
 //! 3. [`Parser`] - on transforming the data
 //! 4. [`OptionParser`] - on running the result
 
 //! # Getting started
 
 //! 1. Define primitive field parsers using builder pattern starting with [`short`], [`long`],
-//! [`command`], [`positional`] or [`any`], add more information using [`help`](NamedArg::help),
-//! [`env`](NamedArg::env) and other member functions.
+//!    [`command`](OptionParser::command), [`positional`] or [`any`], add more information
+//!    using [`help`](NamedArg::help), [`env`](NamedArg::env) and other member functions.
 //!
 //!    For some constructors you end up with parser objects right away,
 //!    some require finalization with [`argument`](NamedArg::argument), [`flag`](NamedArg::flag)
