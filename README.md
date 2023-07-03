@@ -34,7 +34,8 @@ contains examples for both combinatoric and derive style.
 
 <details>
 <summary style="display: list-item;">Derive style API, click to expand</summary>
- 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+
+1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 
 
 	```toml
@@ -42,7 +43,7 @@ contains examples for both combinatoric and derive style.
 	bpaf = { version = "0.9", features = ["derive"] }
 	```
 
- 1. Define a structure containing command line attributes and run generated function
+2. Define a structure containing command line attributes and run generated function
 
 
 	```rust
@@ -66,7 +67,7 @@ contains examples for both combinatoric and derive style.
 	```
 
 
- 1. Try to run the app
+3. Try to run the app
 
 
 	```console
@@ -92,14 +93,16 @@ contains examples for both combinatoric and derive style.
 	```
 
 
- 1. You can check the [derive tutorial][__link7] for more detailed information.
+4. You can check the [derive tutorial][__link7] for more detailed information.
 
 
 
 </details>
+
 <details>
 <summary style="display: list-item;">Combinatoric style API, click to expand</summary>
- 1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
+
+1. Add `bpaf` under `[dependencies]` in your `Cargo.toml`
 
 
 	```toml
@@ -107,7 +110,7 @@ contains examples for both combinatoric and derive style.
 	bpaf = "0.9"
 
 
- 1. Declare parsers for components, combine them and run it
+2. Declare parsers for components, combine them and run it
 
 
 	```rust
@@ -145,7 +148,7 @@ contains examples for both combinatoric and derive style.
 	```
 
 
- 1. Try to run the app
+3. Try to run the app
 
 
 	```console
@@ -171,7 +174,7 @@ contains examples for both combinatoric and derive style.
 	```
 
 
- 1. You can check the [combinatoric tutorial][__link8] for more detailed information.
+4. You can check the [combinatoric tutorial][__link8] for more detailed information.
 
 </details>
 
@@ -272,30 +275,25 @@ consume them as last arguments in derive API.
 `bpaf` implements shell completion to allow to automatically fill in not only flag and command
 names, but also argument and positional item values.
 
- 1. Enable `autocomplete` feature:
+1. Enable `autocomplete` feature:
 
 
 	```toml
-	bpaf = { version = "0.7", features = ["autocomplete"] }
+	bpaf = { version = "0.9", features = ["autocomplete"] }
 	```
 
 
- 1. Decorate [`argument`][__link14] and [`positional`][__link15] parsers with
+2. Decorate [`argument`][__link14] and [`positional`][__link15] parsers with
     [`complete`][__link16] to autocomplete argument values
 
 
- 1. Depending on your shell generate appropriate completion file and place it to whereever your
+3. Depending on your shell generate appropriate completion file and place it to whereever your
     shell is going to look for it, name of the file should correspond in some way to name of
     your program. Consult manual for your shell for the location and named conventions:
 
-	 1. **bash**: for the first `bpaf` completion you need to install the whole script
+	 1. **bash**
 		```console
 		$ your_program --bpaf-complete-style-bash >> ~/.bash_completion
-		```
-
-		but since the script doesn’t depend on a program name - it’s enough to do this for each next program
-		```console
-		echo "complete -F _bpaf_dynamic_completion your_program" >> ~/.bash_completion
 		```
 
 
@@ -311,20 +309,20 @@ names, but also argument and positional item values.
 		```
 
 
-	 1. **elvish** - not sure where to put it, documentation is a bit cryptic
+	 1. **elvish**
 		```console
-		$ your_program --bpaf-complete-style-elvish
+		$ your_program --bpaf-complete-style-elvish >> ~/.config/elvish/rc.elv
 		```
 
 
 
 
- 1. Restart your shell - you need to done it only once or optionally after bpaf major version
+4. Restart your shell - you need to done it only once or optionally after bpaf major version
     upgrade: generated completion files contain only instructions how to ask your program for
     possible completions and don’t change even if options are different.
 
 
- 1. Generated scripts rely on your program being accessible in $PATH
+5. Generated scripts rely on your program being accessible in $PATH
 
 
 
@@ -361,7 +359,7 @@ fn test_my_options() {
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
-Usage --user <ARG>
+Usage --user=ARG
 <skip>
 ";
 
@@ -401,7 +399,7 @@ Usage --user <ARG>
 	Disabled by default.
 
 
- - `manpage`: generate man page from help declaration, see [`OptionParser::as_manpage`][__link21]. Disabled by default.
+ - `docgen`: generate documentation from help declaration, see [`OptionParser::render_html`][__link21]. Disabled by default.
 
 
 
@@ -418,7 +416,7 @@ Usage --user <ARG>
  [__link16]: https://docs.rs/bpaf/0.9.0/bpaf/?search=bpaf::Parser::complete
  [__link18]: https://docs.rs/bpaf/0.9.0/bpaf/?search=info::OptionParser::run_inner
  [__link2]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_unusual
- [__link21]: https://docs.rs/bpaf/0.9.0/bpaf/?search=info::OptionParser::as_manpage
+ [__link21]: https://docs.rs/bpaf/0.9.0/bpaf/?search=info::OptionParser::render_html
  [__link3]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_applicative
  [__link4]: https://rustmagazine.org/issue-2/applicative-parsing/
  [__link5]: https://docs.rs/bpaf/0.9.0/bpaf/?search=batteries
