@@ -54,10 +54,16 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
     buf
 }
 
+
 impl<T> OptionParser<T> {
     /// Render command line documentation for the app into html/markdown mix
     pub fn render_html(&self, app: impl Into<String>) -> String {
         collect_html(app.into(), &self.inner.meta(), &self.info).render_html(true, false)
+    }
+
+    /// Render command line documentation for the app into Markdown
+    pub fn render_markdown(&self, app: impl Into<String>) -> String {
+        collect_html(app.into(), &self.inner.meta(), &self.info).render_markdown(true, false)
     }
 }
 
@@ -112,6 +118,30 @@ fn change_style(res: &mut String, cur: &mut Styles, new: Styles) {
     }
     if new.italic {
         res.push_str("<i>");
+    }
+    *cur = new;
+}
+
+fn change_to_markdown_style(res: &mut String, cur: &mut Styles, new: Styles) {
+    if cur.mono {
+        res.push_str("`");
+    }
+
+    if cur.bold {
+        res.push_str("**");
+    }
+    if cur.italic {
+        res.push_str("_");
+    }
+    if new.italic {
+        res.push_str("_");
+    }
+    if new.bold {
+        res.push_str("**");
+    }
+
+    if new.mono {
+        res.push_str("`");
     }
     *cur = new;
 }
@@ -250,7 +280,122 @@ impl Doc {
         }
         res
     }
+
+
+    /// Render doc into markdown document, used by documentation sample generator
+    #[must_use]
+    pub fn render_markdown(&self, full: bool, include_css: bool) -> String {
+        let mut res = String::new();
+        let mut byte_pos = 0;
+        let mut cur_style = Styles::default();
+
+        let mut skip = Skip::default();
+        let mut stack = Vec::new();
+        for token in self.tokens.iter().copied() {
+            match token {
+                Token::Text { bytes, style } => {
+                    let input = &self.payload[byte_pos..byte_pos + bytes];
+                    byte_pos += bytes;
+                    if skip.enabled() {
+                        continue;
+                    }
+
+                    change_to_markdown_style(&mut res, &mut cur_style, Styles::from(style));
+
+                    for chunk in split(input) {
+                        match chunk {
+                            Chunk::Raw(input, _) => {
+                                let input = input.replace('<', "&lt;").replace('>', "&gt;");
+                                res.push_str(&input);
+                            }
+                            Chunk::Paragraph => {
+                                if full {
+                                    res.push_str("\n");
+                                } else {
+                                    skip.enable();
+                                    break;
+                                }
+                            }
+                            Chunk::LineBreak => res.push_str("\n"),
+                        }
+                    }
+                }
+                Token::BlockStart(b) => {
+                    change_to_markdown_style(&mut res, &mut cur_style, Styles::default());
+                    match b {
+                        Block::Header => {
+                            blank_line(&mut res);
+                            res.push_str("# ");
+                        }
+                        Block::Section2 => {
+                            res.push_str("");
+                        }
+                        Block::ItemTerm => res.push_str("- "),
+                        Block::ItemBody => {
+                            if stack.last().copied() == Some(Block::DefinitionList) {
+                                res.push_str("");
+                            } else {
+                                res.push_str("");
+                            }
+                        }
+                        Block::DefinitionList => {
+                            res.push_str("");
+                        }
+                        Block::Block => {
+                            res.push_str("\n");
+                        }
+                        Block::Meta => todo!(),
+                        Block::Section3 => res.push_str("### "),
+                        Block::TermRef => {}
+                        Block::InlineBlock => {
+                            skip.push();
+                        }
+                    }
+                    stack.push(b);
+                }
+                Token::BlockEnd(b) => {
+                    change_to_markdown_style(&mut res, &mut cur_style, Styles::default());
+                    stack.pop();
+                    match b {
+                        Block::Header => {
+                            res.push_str("\n")
+                        }
+                        Block::Section2 => {
+                            res.push_str("\n");
+                        }
+
+                        Block::InlineBlock => {
+                            skip.pop();
+                        }
+                        Block::ItemTerm => res.push_str(": "),
+                        Block::ItemBody => {
+                            if stack.last().copied() == Some(Block::DefinitionList) {
+                                res.push_str("\n");
+                            } else {
+                                res.push_str("");
+                            }
+                        }
+                        Block::DefinitionList => res.push_str("\n"),
+                        Block::Block => {
+                            res.push_str("\n");
+                        }
+                        Block::Meta => todo!(),
+                        Block::TermRef => {}
+                        Block::Section3 => res.push_str("\n"),
+                    }
+                }
+            }
+        }
+        change_to_markdown_style(&mut res, &mut cur_style, Styles::default());
+        if include_css {
+            res.push_str(CSS);
+        }
+        res
+    }
+
 }
+
+
 
 #[cfg(test)]
 mod tests {
