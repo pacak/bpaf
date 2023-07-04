@@ -1,7 +1,7 @@
 use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Doc, Meta};
 
 #[doc(hidden)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Item {
     Any {
         metavar: Doc,
@@ -60,7 +60,7 @@ impl Item {
 }
 
 #[doc(hidden)]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd, Ord, Eq)]
 pub enum ShortLong {
     Short(char),
     Long(&'static str),

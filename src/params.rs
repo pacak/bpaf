@@ -103,7 +103,7 @@ use crate::{any, command, env, long, positional, short};
 ///    rules 1..3 `bpaf` would also parse environment variable `arg` which can be a string literal
 ///    or an expression.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_derive.md"))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
