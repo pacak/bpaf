@@ -14,6 +14,7 @@
    things are renamed
 -  standalone `command` function was deprecated in favor of `.command` method on `OptionParser`
 -  hidden no-op helper type `FromUtf8` was removed
+-  "{usage}" override is removed in favor of new `OptionParser::with_usage`
 
 
 ## bpaf_derive [0.5.0] - 2023-07-03

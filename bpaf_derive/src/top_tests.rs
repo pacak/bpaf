@@ -92,7 +92,7 @@ fn top_struct_options1() {
 #[test]
 fn options_with_custom_usage() {
     let top: Top = parse_quote! {
-        #[bpaf(options, usage("App: {usage}"))]
+        #[bpaf(options, usage("App: usage"))]
         struct Opt {}
     };
 
@@ -104,7 +104,7 @@ fn options_with_custom_usage() {
                     ::bpaf::construct!(Opt {})
                 }
                 .to_options()
-                .usage("App: {usage}")
+                .usage("App: usage")
         }
     };
 

@@ -11,7 +11,13 @@ fn main() {
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here")
-        .usage("You can call it with following flags: {usage}")
+        .with_usage(|doc| {
+            let mut u = Doc::default();
+            u.emphasis("You can call it with following flags:");
+            u.text(" ");
+            u.doc(&doc);
+            u
+        })
         .run();
 
     println!("{:?}", opt);
