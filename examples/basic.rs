@@ -73,6 +73,6 @@ fn opts() -> OptionParser<Out> {
 }
 
 fn main() {
-    let opts = opts().run();
+    let opts = opts().fallback_to_usage().run();
     println!("{:#?}", opts);
 }
