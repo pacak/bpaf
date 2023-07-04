@@ -210,6 +210,9 @@ impl Parse for TopInfo {
                 break;
             }
             input.parse::<token::Comma>()?;
+            if input.is_empty() {
+                break;
+            }
         }
 
         Ok(TopInfo {
@@ -289,6 +292,9 @@ impl Parse for Ed {
                 break;
             }
             input.parse::<token::Comma>()?;
+            if input.is_empty() {
+                break;
+            }
         }
 
         Ok(Ed { skip, attrs })

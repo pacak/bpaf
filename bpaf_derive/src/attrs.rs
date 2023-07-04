@@ -296,7 +296,7 @@ pub(crate) enum PostDecor {
     },
     FallbackWith {
         span: Span,
-        f: Box<Path>,
+        f: Box<Expr>,
     },
     Last {
         span: Span,
@@ -501,7 +501,7 @@ impl PostDecor {
         } else if kw == "last" {
             Self::Last { span }
         } else if kw == "fallback_with" {
-            let f = Box::new(parse_path(input)?);
+            let f = parse_expr(input)?;
             Self::FallbackWith { span, f }
         } else if kw == "group_help" {
             let doc = parse_expr(input)?;
@@ -577,6 +577,9 @@ impl Parse for FieldAttrs {
                 break;
             }
             input.parse::<token::Comma>()?;
+            if input.is_empty() {
+                break;
+            }
         }
         res.validate()?;
         Ok(res)
