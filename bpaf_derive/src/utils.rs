@@ -1,7 +1,7 @@
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    token, Attribute, Expr, LitChar, LitStr, Path, Result,
+    token, Attribute, Expr, LitChar, LitStr, Result,
 };
 
 pub(crate) fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
@@ -36,11 +36,6 @@ pub(crate) fn parse_lit_char(input: ParseStream) -> Result<LitChar> {
 
 #[inline(never)]
 pub(crate) fn parse_lit_str(input: ParseStream) -> Result<LitStr> {
-    parse_arg(input)
-}
-
-#[inline(never)]
-pub(crate) fn parse_path(input: ParseStream) -> Result<Path> {
     parse_arg(input)
 }
 
