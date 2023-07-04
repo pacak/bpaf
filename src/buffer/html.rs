@@ -57,7 +57,7 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
 impl<T> OptionParser<T> {
     /// Render command line documentation for the app into html/markdown mix
     pub fn render_html(&self, app: impl Into<String>) -> String {
-        collect_html(app.into(), &self.inner.meta(), &self.info).render_html(true, true)
+        collect_html(app.into(), &self.inner.meta(), &self.info).render_html(true, false)
     }
 }
 

@@ -844,12 +844,32 @@ fn argument_with_manual_parse() {
 #[test]
 fn optional_external_strange() {
     let input: NamedField = parse_quote! {
-        #[bpaf(optional, external(seed))]
+        #[bpaf(optional, external(seed),)]
         number: u32
     };
 
     let output = quote! {
         seed().optional()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn fallback_with_lambda() {
+    let input: NamedField = parse_quote! {
+        /// help
+        #[bpaf(
+            argument::<String>("FLAGS"),
+            fallback_with(|| Ok::<_, ()>("http-only")),
+        )]
+        session_flags: String
+    };
+
+    let output = quote! {
+        ::bpaf::long("session-flags")
+            .help("help")
+            .argument::<String>("FLAGS")
+            .fallback_with(| | Ok::<_,()>("http-only"))
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

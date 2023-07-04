@@ -9,7 +9,7 @@ use crate::{
     help::Help,
     utils::{
         doc_comment, parse_arg, parse_arg2, parse_expr, parse_lit_char, parse_lit_str,
-        parse_opt_metavar, parse_path, to_kebab_case,
+        parse_opt_metavar, to_kebab_case,
     },
 };
 
@@ -248,10 +248,10 @@ pub(crate) enum PostParse {
     Catch { span: Span },
     Many { span: Span },
     Count { span: Span },
-    Some_ { span: Span, msg: LitStr },
-    Map { span: Span, f: Path },
+    Some_ { span: Span, msg: Box<Expr> },
+    Map { span: Span, f: Box<Expr> },
     Optional { span: Span },
-    Parse { span: Span, f: Path },
+    Parse { span: Span, f: Box<Expr> },
     Strict { span: Span },
 }
 impl PostParse {
@@ -274,7 +274,7 @@ impl PostParse {
 pub(crate) enum PostDecor {
     Complete {
         span: Span,
-        f: Path,
+        f: Box<Expr>,
     },
     CompleteGroup {
         span: Span,
@@ -296,7 +296,7 @@ pub(crate) enum PostDecor {
     },
     FallbackWith {
         span: Span,
-        f: Box<Path>,
+        f: Box<Expr>,
     },
     Last {
         span: Span,
@@ -307,7 +307,7 @@ pub(crate) enum PostDecor {
     },
     Guard {
         span: Span,
-        check: Path,
+        check: Box<Expr>,
         msg: Box<Expr>,
     },
     Hide {
@@ -461,17 +461,17 @@ impl PostParse {
         } else if kw == "count" {
             Self::Count { span }
         } else if kw == "map" {
-            let f = parse_path(input)?;
+            let f = parse_arg(input)?;
             Self::Map { span, f }
         } else if kw == "optional" {
             Self::Optional { span }
         } else if kw == "parse" {
-            let f = parse_path(input)?;
+            let f = parse_arg(input)?;
             Self::Parse { span, f }
         } else if kw == "strict" {
             Self::Strict { span }
         } else if kw == "some" {
-            let msg = parse_lit_str(input)?;
+            let msg = parse_arg(input)?;
             Self::Some_ { span, msg }
         } else {
             return Ok(None);
@@ -483,7 +483,7 @@ impl PostDecor {
     pub(crate) fn parse(input: ParseStream, kw: &Ident) -> Result<Option<Self>> {
         let span = kw.span();
         Ok(Some(if kw == "complete" {
-            let f = parse_path(input)?;
+            let f = parse_arg(input)?;
             Self::Complete { span, f }
         } else if kw == "group" {
             let group = parse_lit_str(input)?;
@@ -501,7 +501,7 @@ impl PostDecor {
         } else if kw == "last" {
             Self::Last { span }
         } else if kw == "fallback_with" {
-            let f = Box::new(parse_path(input)?);
+            let f = parse_expr(input)?;
             Self::FallbackWith { span, f }
         } else if kw == "group_help" {
             let doc = parse_expr(input)?;
@@ -577,6 +577,9 @@ impl Parse for FieldAttrs {
                 break;
             }
             input.parse::<token::Comma>()?;
+            if input.is_empty() {
+                break;
+            }
         }
         res.validate()?;
         Ok(res)

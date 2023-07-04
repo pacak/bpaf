@@ -680,8 +680,8 @@ fn fallback_for_options() {
 #[test]
 fn implicitly_named_switch() {
     let top: Top = parse_quote! {
-        #[bpaf(options, fallback(Opts::Dummy))]
-        struct Opts (#[bpaf(long("release"), switch)] bool);
+        #[bpaf(options, fallback(Opts::Dummy),)]
+        struct Opts (#[bpaf(long("release"), switch,)] bool);
     };
 
     let expected = quote! {
@@ -703,12 +703,12 @@ fn implicitly_named_switch() {
 #[test]
 fn fallback_for_enum() {
     let top: Top = parse_quote! {
-        #[bpaf(fallback(Decision::No))]
+        #[bpaf(fallback(Decision::No),)]
         enum Decision {
             Yes,
-            #[bpaf(short, long("nay"))]
+            #[bpaf(short, long("nay"),)]
             No,
-            #[bpaf(skip)]
+            #[bpaf(skip,)]
             Undecided,
         }
     };
@@ -843,7 +843,7 @@ fn single_unit_command() {
 #[test]
 fn single_unit_adjacent_command() {
     let top: Top = parse_quote! {
-        #[bpaf(command, adjacent)]
+        #[bpaf(command, adjacent,)]
         struct One;
     };
 
