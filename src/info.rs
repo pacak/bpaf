@@ -26,6 +26,7 @@ pub struct Info {
     pub usage: Option<Doc>,
     pub help_arg: NamedArg,
     pub version_arg: NamedArg,
+    pub help_if_no_args: bool,
 }
 
 impl Default for Info {
@@ -40,6 +41,7 @@ impl Default for Info {
             version_arg: short('V')
                 .long("version")
                 .help("Prints version information"),
+            help_if_no_args: false,
         }
     }
 }
@@ -199,8 +201,14 @@ impl<T> OptionParser<T> {
             .collect_shorts(&mut short_flags, &mut short_args);
         short_flags.extend(&self.info.help_arg.short);
         short_flags.extend(&self.info.version_arg.short);
+        let args = args.into();
         let mut err = None;
-        let mut state = State::construct(args.into(), &short_flags, &short_args, &mut err);
+        let help = if self.info.help_if_no_args {
+            Some(&self.info.help_arg)
+        } else {
+            None
+        };
+        let mut state = State::construct(args, &short_flags, &short_args, &mut err, help);
 
         // this only handles disambiguation failure in construct
         if let Some(msg) = err {
@@ -384,6 +392,7 @@ impl<T> OptionParser<T> {
         self.info.descr = Some(descr.into());
         self
     }
+
     /// Set the header field
     ///
     /// `bpaf` displays the header between the usage line and a list of the available options in `--help` output
@@ -448,6 +457,7 @@ impl<T> OptionParser<T> {
         self.info.header = Some(header.into());
         self
     }
+
     /// Set the footer field
     ///
     /// `bpaf` displays the footer after list of the available options in `--help` output
@@ -512,6 +522,7 @@ impl<T> OptionParser<T> {
         self.info.footer = Some(footer.into());
         self
     }
+
     /// Set custom usage field
     ///
     /// Custom usage field to use instead of one derived by `bpaf`.
@@ -606,6 +617,25 @@ impl<T> OptionParser<T> {
     #[must_use]
     pub fn version_parser(mut self, parser: NamedArg) -> Self {
         self.info.version_arg = parser;
+        self
+    }
+
+    /// Print help if app was called with no parameters
+    ///
+    /// By default `bpaf` tries to parse command line options and displays the best possible
+    /// error it can come up with. If application requires a subcommand or some argument
+    /// and user specified none - it might be a better experience for user to print
+    /// the help message.
+    ///
+    /// ```rust
+    /// # use bpaf::*;
+    /// # fn options() -> OptionParser<bool> { short('a').switch().to_options() }
+    /// // create option parser in a usual way, derive or combinatoric API
+    /// let opts = options().fallback_to_usage().run();
+    /// ```
+    #[must_use]
+    pub fn fallback_to_usage(mut self) -> Self {
+        self.info.help_if_no_args = true;
         self
     }
 }

@@ -185,7 +185,7 @@ pub use inner::State;
 mod inner {
     use std::{ops::Range, rc::Rc};
 
-    use crate::{error::Message, Args};
+    use crate::{error::Message, parsers::NamedArg, Args};
 
     use super::{split_os_argument, Arg, ArgType, ItemState};
     #[derive(Clone, Debug)]
@@ -255,6 +255,7 @@ mod inner {
             short_flags: &[char],
             short_args: &[char],
             err: &mut Option<Message>,
+            help: Option<&NamedArg>,
         ) -> State {
             let mut items = Vec::new();
             let mut pos_only = false;
@@ -356,6 +357,15 @@ mod inner {
                             Arg::Word(os)
                         });
                     }
+                }
+            }
+            if items.is_empty() {
+                if let Some(help) = help.and_then(|h| h.long.first()) {
+                    items.push(Arg::Long(
+                        (*help).to_owned(),
+                        false,
+                        std::ffi::OsString::new(),
+                    ))
                 }
             }
 
@@ -717,7 +727,7 @@ mod tests {
         fn from(value: &'static [&'static str; N]) -> Self {
             let args = Args::from(value);
             let mut msg = None;
-            let res = State::construct(args, &[], &[], &mut msg);
+            let res = State::construct(args, &[], &[], &mut msg, None);
             if let Some(err) = &msg {
                 panic!("Couldn't construct state: {:?}/{:?}", err, res);
             }
@@ -747,7 +757,7 @@ mod tests {
     fn multiple_short_flags() {
         let args = Args::from(&["-vvv"]);
         let mut err = None;
-        let mut a = State::construct(args, &['v'], &[], &mut err);
+        let mut a = State::construct(args, &['v'], &[], &mut err, None);
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
         assert!(a.take_flag(&short('v')));
@@ -871,7 +881,7 @@ mod tests {
     fn ambiguity_towards_flag() {
         let args = Args::from(&["-abc"]);
         let mut err = None;
-        let mut a = State::construct(args, &['a', 'b', 'c'], &[], &mut err);
+        let mut a = State::construct(args, &['a', 'b', 'c'], &[], &mut err, None);
 
         assert!(a.take_flag(&short('a')));
         assert!(a.take_flag(&short('b')));
@@ -882,7 +892,7 @@ mod tests {
     fn ambiguity_towards_argument() {
         let args = Args::from(&["-abc"]);
         let mut err = None;
-        let mut a = State::construct(args, &[], &['a'], &mut err);
+        let mut a = State::construct(args, &[], &['a'], &mut err, None);
 
         let r = a.take_arg(&short('a'), false, M).unwrap().unwrap();
         assert_eq!(r, "bc");
@@ -892,7 +902,7 @@ mod tests {
     fn ambiguity_towards_error() {
         let args = Args::from(&["-abc"]);
         let mut err = None;
-        let _a = State::construct(args, &['a', 'b', 'c'], &['a'], &mut err);
+        let _a = State::construct(args, &['a', 'b', 'c'], &['a'], &mut err, None);
         assert!(err.is_some());
     }
 
