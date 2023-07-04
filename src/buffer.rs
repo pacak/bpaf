@@ -235,7 +235,7 @@ impl Doc {
 }
 
 /// Style of a text fragment inside of [`Doc`]
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub enum Style {
     /// Plain text, no decorations
     Text,
@@ -253,7 +253,7 @@ pub enum Style {
     Invalid,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub(crate) enum Block {
     /// level 1 section header, block for separate command inside manpage, not used in --help
     Header,
@@ -292,14 +292,14 @@ pub(crate) enum Block {
     Meta,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub(crate) enum Token {
     Text { bytes: usize, style: Style },
     BlockStart(Block),
     BlockEnd(Block),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// String with styled segments.
 ///
 /// You can add style information to generated documentation and help messages
