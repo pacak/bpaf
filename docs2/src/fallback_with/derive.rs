@@ -7,7 +7,7 @@ fn try_to_get_version() -> Result<usize, &'static str> {
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub struct Options {
-    #[bpaf(argument("VERS"), fallback_with(try_to_get_version))]
+    #[bpaf(argument("VERS"), fallback_with(try_to_get_version), display_fallback)]
     /// Specify protocol version
     version: usize,
 }

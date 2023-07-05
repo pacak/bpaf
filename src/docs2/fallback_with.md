@@ -14,7 +14,8 @@ pub fn options() -> OptionParser<Options> {
     let version = long("version")
         .help("Specify protocol version")
         .argument("VERS")
-        .fallback_with(try_to_get_version);
+        .fallback_with(try_to_get_version)
+        .display_fallback();
     construct!(Options { version }).to_options()
 }
 ```
@@ -30,7 +31,7 @@ fn try_to_get_version() -> Result<usize, &'static str> {
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub struct Options {
-    #[bpaf(argument("VERS"), fallback_with(try_to_get_version))]
+    #[bpaf(argument("VERS"), fallback_with(try_to_get_version), display_fallback)]
     /// Specify protocol version
     version: usize,
 }
@@ -87,6 +88,8 @@ $ app --help<br>
 <p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--version</b></tt>=<tt><i>VERS</i></tt>]</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --version</b></tt>=<tt><i>VERS</i></tt></dt>
 <dd>Specify protocol version</dd>
+<dt></dt>
+<dd>[default: 42]</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
