@@ -11,7 +11,7 @@ use crate::{
 /// Information about the parser
 ///
 /// No longer public, users are only interacting with it via [`OptionParser`]
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone)]
 #[doc(hidden)]
 pub struct Info {
     /// version field, see [`version`][Info::version]

@@ -1,10 +1,11 @@
 # Change Log
 
-## bpaf [0.9.1] - 2023-07-04, bpaf_derive [0.5.1]
+## bpaf [0.9.1] - 2023-07-05, bpaf_derive [0.5.1]
 - add a way to print usage when called with no argument_os
 - since 0.9.0 bpaf splits help messages into "full" and "partial", displaying
   full only when `--help` flag is passed twice or when rendering the documentation,
   see https://docs.rs/bpaf/0.9.0/bpaf/parsers/struct.NamedArg.html#method.help
+- `display_fallback` and `debug_fallback` now can be used with `fallback_with`
 - regression fixes
 
 ## bpaf [0.9.0] - 2023-07-03

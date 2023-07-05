@@ -72,7 +72,7 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
                         }
                         HelpItem::Flag { name: nname, .. }
                         | HelpItem::Argument { name: nname, .. } => {
-                            if *nname == actual.as_str() {
+                            if *nname == &actual {
                                 nest = Some((name, Variant::Flag(*nname)));
                             }
                         }

@@ -8,10 +8,10 @@ use crate::{
 };
 
 #[doc(hidden)]
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Metavar(pub(crate) &'static str);
 
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
         help: &'a Doc,
@@ -102,7 +102,7 @@ pub(crate) struct HelpItems<'a> {
     pub(crate) items: Vec<HelpItem<'a>>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum HiTy {
     Flag,
     Command,
@@ -568,13 +568,61 @@ pub(crate) fn render_help(
     buf
 }
 
+#[derive(Default)]
+struct Dedup {
+    items: BTreeSet<String>,
+    keep: bool,
+}
+
+impl Dedup {
+    fn check(&mut self, item: &HelpItem) -> bool {
+        match item {
+            HelpItem::DecorSuffix { .. } => std::mem::take(&mut self.keep),
+            HelpItem::GroupStart { .. }
+            | HelpItem::GroupEnd { .. }
+            | HelpItem::AnywhereStart { .. }
+            | HelpItem::AnywhereStop { .. } => {
+                self.keep = true;
+                true
+            }
+            HelpItem::Any { metavar, help, .. } => {
+                self.keep = self.items.insert(format!("{:?} {:?}", metavar, help));
+                self.keep
+            }
+            HelpItem::Positional { metavar, help } => {
+                self.keep = self.items.insert(format!("{:?} {:?}", metavar.0, help));
+                self.keep
+            }
+            HelpItem::Command { name, help, .. } => {
+                self.keep = self.items.insert(format!("{:?} {:?}", name, help));
+                self.keep
+            }
+            HelpItem::Flag { name, help, .. } => {
+                self.keep = self.items.insert(format!("{:?} {:?}", name, help));
+                self.keep
+            }
+            HelpItem::Argument {
+                name,
+                metavar,
+                help,
+                ..
+            } => {
+                self.keep = self
+                    .items
+                    .insert(format!("{:?} {} {:?}", name, metavar.0, help));
+                self.keep
+            }
+        }
+    }
+}
+
 impl Doc {
     #[inline(never)]
     pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems, include_env: bool) {
         while let Some(range) = items.find_group() {
-            let mut s = BTreeSet::new();
+            let mut dd = Dedup::default();
             for item in items.items.drain(range) {
-                if s.insert(item) {
+                if dd.check(&item) {
                     write_help_item(self, &item, include_env);
                 }
             }
@@ -598,9 +646,9 @@ impl Doc {
             self.write_str(name, Style::Emphasis);
             self.token(Token::BlockEnd(Block::Section2));
             self.token(Token::BlockStart(Block::DefinitionList));
-            let mut s = BTreeSet::new();
+            let mut dd = Dedup::default();
             for item in xs {
-                if s.insert(item) {
+                if dd.check(item) {
                     write_help_item(self, item, include_env);
                 }
             }

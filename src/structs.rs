@@ -13,6 +13,7 @@ pub struct ParseFallbackWith<T, P, F, E> {
     pub(crate) inner: P,
     pub(crate) inner_res: PhantomData<T>,
     pub(crate) fallback: F,
+    pub(crate) value_str: String,
     pub(crate) err: PhantomData<E>,
 }
 
@@ -45,7 +46,13 @@ where
     }
 
     fn meta(&self) -> Meta {
-        Meta::Optional(Box::new(self.inner.meta()))
+        let m = Meta::Optional(Box::new(self.inner.meta()));
+        if self.value_str.is_empty() {
+            m
+        } else {
+            let buf = Doc::from(self.value_str.as_str());
+            Meta::Suffix(Box::new(m), Box::new(buf))
+        }
     }
 }
 
@@ -465,10 +472,48 @@ impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
     /// representation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
+        self
+    }
+}
+
+impl<P, T: std::fmt::Display, F, E> ParseFallbackWith<T, P, F, E>
+where
+    F: Fn() -> Result<T, E>,
+{
+    /// Show [`fallback_with`](Parser::fallback_with) value in `--help` using [`Display`](std::fmt::Display)
+    /// representation
+    ///
+    /// If fallback function fails - no value will show up
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
+    #[must_use]
+    pub fn display_fallback(mut self) -> Self {
+        if let Ok(val) = (self.fallback)() {
+            self.value_str = format!("[default: {}]", val);
+        }
+        self
+    }
+}
+
+impl<P, T: std::fmt::Debug, F, E> ParseFallbackWith<T, P, F, E>
+where
+    F: Fn() -> Result<T, E>,
+{
+    /// Show [`fallback_with`](Parser::fallback_with) value in `--help` using [`Debug`](std::fmt::Debug)
+    /// representation
+    ///
+    /// If fallback function fails - no value will show up
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[must_use]
+    pub fn debug_fallback(mut self) -> Self {
+        if let Ok(val) = (self.fallback)() {
+            self.value_str = format!("[default: {:?}]", val);
+        }
         self
     }
 }

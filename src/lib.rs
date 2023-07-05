@@ -316,7 +316,8 @@ pub mod parsers {
     pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
     #[doc(inline)]
     pub use crate::structs::{
-        ParseCon, ParseCount, ParseFallback, ParseLast, ParseMany, ParseOptional, ParseSome,
+        ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
+        ParseOptional, ParseSome,
     };
 }
 
@@ -985,6 +986,9 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.
+    /// By default fallback value will not be shown in the `--help` output, you can change that by using
+    /// [`display_fallback`](ParseFallbackWith::display_fallback) and
+    /// [`debug_fallback`](ParseFallbackWith::debug_fallback).
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
     where
@@ -996,6 +1000,7 @@ pub trait Parser<T> {
             inner: self,
             inner_res: PhantomData,
             fallback,
+            value_str: String::new(),
             err: PhantomData,
         }
     }
