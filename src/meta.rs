@@ -1,7 +1,7 @@
 use crate::{buffer::Doc, item::Item};
 
 #[doc(hidden)]
-#[derive(Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Debug)]
 pub enum Meta {
     /// All arguments listed in a vector must be present
     And(Vec<Meta>),
@@ -244,7 +244,7 @@ impl Meta {
                 } else if let Meta::Many(many) = m.as_mut() {
                     // Optional(Many(Required(m))) => Many(Optional(m))
                     if let Meta::Required(x) = many.as_mut() {
-                        *self = Meta::Many(Box::new(Meta::Optional(std::mem::take(x))));
+                        *self = Meta::Many(Box::new(Meta::Optional(std::mem::take(x))))
                     }
                 }
             }

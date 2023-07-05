@@ -95,6 +95,7 @@ Available options:
     -a
     -c          c
     -b
+    -c          c
     -h, --help  Prints help information
 ";
 
@@ -128,6 +129,7 @@ Available options:
 }
 
 #[test]
+// no longer deduplicated
 fn duplicate_pos_items_same_help() {
     let a = short('a').req_flag(());
     let b = short('b').req_flag(());
@@ -143,6 +145,7 @@ fn duplicate_pos_items_same_help() {
 Usage: (-a C | -b C)
 
 Available positional items:
+    C           C
     C           C
 
 Available options:

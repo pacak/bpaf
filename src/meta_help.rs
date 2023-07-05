@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use crate::{
     buffer::{Block, Doc, Style, Token},
     info::Info,
@@ -8,10 +6,10 @@ use crate::{
 };
 
 #[doc(hidden)]
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Metavar(pub(crate) &'static str);
 
-#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub(crate) enum HelpItem<'a> {
     DecorSuffix {
         help: &'a Doc,
@@ -102,7 +100,7 @@ pub(crate) struct HelpItems<'a> {
     pub(crate) items: Vec<HelpItem<'a>>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug, PartialOrd, Ord)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub(crate) enum HiTy {
     Flag,
     Command,
@@ -572,11 +570,8 @@ impl Doc {
     #[inline(never)]
     pub(crate) fn write_help_item_groups(&mut self, mut items: HelpItems, include_env: bool) {
         while let Some(range) = items.find_group() {
-            let mut s = BTreeSet::new();
             for item in items.items.drain(range) {
-                if s.insert(item) {
-                    write_help_item(self, &item, include_env);
-                }
+                write_help_item(self, &item, include_env);
             }
         }
 
@@ -598,11 +593,8 @@ impl Doc {
             self.write_str(name, Style::Emphasis);
             self.token(Token::BlockEnd(Block::Section2));
             self.token(Token::BlockStart(Block::DefinitionList));
-            let mut s = BTreeSet::new();
             for item in xs {
-                if s.insert(item) {
-                    write_help_item(self, item, include_env);
-                }
+                write_help_item(self, item, include_env);
             }
             self.token(Token::BlockEnd(Block::DefinitionList));
             self.token(Token::BlockEnd(Block::Block));
