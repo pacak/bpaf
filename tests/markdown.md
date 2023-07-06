@@ -9,7 +9,7 @@ Sometimes they even work.
 **Available options:**
 - **`-d`**, **`--kraken`**: Unleash the kraken
 - **`    --user`**=_`USER`_: Log in as this user
-- : Uses environment variable **`USER`**
+    Uses environment variable **`USER`**
 - **`-h`**, **`--help`**: Prints help information
 
 
