@@ -77,7 +77,7 @@ And fails with the error message on higher values:
 
 <div class='bpaf-doc'>
 $ app --number 11<br>
-<b>11</b>: Values greater than 10 are only available in the DLC pack!
+<b>11</b>: Values greater than 10 are only available in the DLC pack!<p></p><tt><b>app</b></tt> <tt><b>--number</b></tt> THIS -&gt; <b>11</b>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -100,7 +100,7 @@ in some way
 
 <div class='bpaf-doc'>
 $ app --number ten<br>
-Couldn't parse <b>ten</b>: invalid digit found in string
+Couldn't parse <b>ten</b>: invalid digit found in string<p></p><tt><b>app</b></tt> <tt><b>--number</b></tt> THIS -&gt; <b>ten</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -108,7 +108,7 @@ When value is present - `switch` returns `true`, `flag` returns first value.
 
 <div class='bpaf-doc'>
 $ app --verbose --no-default-features --detailed<br>
-<b>--detailed</b> is not expected in this context
+<b>--detailed</b> is not expected in this context<p></p><tt><b>app</b></tt> <tt><b>--verbose</b></tt> <tt><b>--no-default-features</b></tt> THIS -&gt; <b>--detailed</b>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -130,7 +130,7 @@ command line:
 
 <div class='bpaf-doc'>
 $ app --no-default-features --no-default-features<br>
-Argument <tt><b>--no-default-features</b></tt> cannot be used multiple times in this context
+Argument <tt><b>--no-default-features</b></tt> cannot be used multiple times in this context<p></p><tt><b>app</b></tt> <tt><b>--no-default-features</b></tt> UNEXPECTED -&gt; <b>--no-default-features</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

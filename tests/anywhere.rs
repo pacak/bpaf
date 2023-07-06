@@ -45,7 +45,10 @@ fn parse_anywhere_no_catch() {
         .run_inner(&["-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(
+        r,
+        "Couldn't parse `221b`: invalid digit found in string\n\n-a THIS -> 221b"
+    );
 
     let r = parser.run_inner(&["-c", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Expected `X`, pass `--help` for usage information");
@@ -54,19 +57,25 @@ fn parse_anywhere_no_catch() {
         .run_inner(&["-c", "-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(
+        r,
+        "Couldn't parse `221b`: invalid digit found in string\n\n-a THIS -> 221b"
+    );
 
     let r = parser.run_inner(&["-a", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `X`, got `-c`. Pass `--help` for usage information"
+        "Expected `X`, got `-c`. Pass `--help` for usage information\n\n-a STRANGE -> -c"
     );
 
     let r = parser
         .run_inner(&["-a", "221b", "-c"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(
+        r,
+        "Couldn't parse `221b`: invalid digit found in string\n\n-a THIS -> 221b -c"
+    );
 }
 
 #[test]
@@ -139,31 +148,37 @@ fn parse_anywhere_catch_optional() {
         .run_inner(&["-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context\n\nTHIS -> -a 221b");
 
     let r = parser.run_inner(&["3", "-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`3` is not expected in this context");
+    assert_eq!(r, "`3` is not expected in this context\n\nTHIS -> 3 -a");
 
     let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context\n\nTHIS -> -a");
 
     let r = parser.run_inner(&["-c", "-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context\n\n-c THIS -> -a");
 
     let r = parser
         .run_inner(&["-c", "-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(
+        r,
+        "`-a` is not expected in this context\n\n-c THIS -> -a 221b"
+    );
 
     let r = parser.run_inner(&["-a", "-c"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(r, "`-a` is not expected in this context\n\nTHIS -> -a -c");
 
     let r = parser
         .run_inner(&["-a", "221b", "-c"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(
+        r,
+        "`-a` is not expected in this context\n\nTHIS -> -a 221b -c"
+    );
 }
 
 #[test]

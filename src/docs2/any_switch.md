@@ -169,7 +169,7 @@ doesn't really knows what the function inside `any` is going to consume
 
 <div class='bpaf-doc'>
 $ app --turbo -xinerama +backin<br>
-<b>+backin</b> is not expected in this context
+<b>+backin</b> is not expected in this context<p></p><tt><b>app</b></tt> <tt><b>--turbo</b></tt> <tt><b>-xinerama</b></tt> THIS -&gt; <b>+backin</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

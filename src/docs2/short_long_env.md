@@ -118,7 +118,7 @@ you can specify them multiple times:
 
 <div class='bpaf-doc'>
 $ app -A 42 -a 330 -u Bobert<br>
-<b>-a</b> is not expected in this context
+<b>-a</b> is not expected in this context<p></p><tt><b>app</b></tt> <tt><b>-A</b></tt> <tt><b>42</b></tt> THIS -&gt; <b>-a</b> <tt><b>330</b></tt> <tt><b>-u</b></tt> <tt><b>Bobert</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -140,7 +140,7 @@ won't show up anywhere else in completions or error messages
 
 <div class='bpaf-doc'>
 $ app -a 42 -A 330 -u Bobert<br>
-<b>-A</b> is not expected in this context
+<b>-A</b> is not expected in this context<p></p><tt><b>app</b></tt> <tt><b>-a</b></tt> <tt><b>42</b></tt> THIS -&gt; <b>-A</b> <tt><b>330</b></tt> <tt><b>-u</b></tt> <tt><b>Bobert</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;

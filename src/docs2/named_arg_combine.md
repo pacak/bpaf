@@ -95,7 +95,7 @@ valid _visible_ argument
 
 <div class='bpaf-doc'>
 $ app -o best.txt -s 10 --verbos<br>
-No such flag: <b>--verbos</b>, did you mean <tt><b>--verbose</b></tt>?
+No such flag: <b>--verbos</b>, did you mean <tt><b>--verbose</b></tt>?<p></p><tt><b>app</b></tt> <tt><b>-o</b></tt> <tt><b>best.txt</b></tt> <tt><b>-s</b></tt> <tt><b>10</b></tt> THIS -&gt; <b>--verbos</b>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -116,7 +116,7 @@ It will not do so for hidden aliases
 
 <div class='bpaf-doc'>
 $ app -o best.txt -s 10 --detaile<br>
-<b>--detaile</b> is not expected in this context
+<b>--detaile</b> is not expected in this context<p></p><tt><b>app</b></tt> <tt><b>-o</b></tt> <tt><b>best.txt</b></tt> <tt><b>-s</b></tt> <tt><b>10</b></tt> THIS -&gt; <b>--detaile</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

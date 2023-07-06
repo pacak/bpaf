@@ -70,7 +70,7 @@ fn adjacent_error_message_arg_single() {
     let r = parser.run_inner(&["-a", "10"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
+        "Expected `-b=B`, got `10`. Pass `--help` for usage information\n\n-a STRANGE -> 10"
     );
 }
 
@@ -100,7 +100,7 @@ fn adjacent_error_message_arg_many() {
     // this should ask for -b or -c and complain on 10...
     assert_eq!(
         r,
-        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
+        "Expected `-b=B`, got `10`. Pass `--help` for usage information\n\n-a STRANGE -> 10"
     );
 }
 

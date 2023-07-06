@@ -273,6 +273,7 @@ impl Message {
                 doc.write(item, Style::Invalid);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" is not expected in this context");
+                doc.snip(args, &[("THIS ->", ix, Style::Invalid)]);
             }
 
             Message::NoEnv(name) => {
@@ -282,7 +283,7 @@ impl Message {
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" is not set");
             }
-            Message::StrictPos(_ix, metavar) => {
+            Message::StrictPos(ix, metavar) => {
                 doc.text("Expected ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.metavar(metavar);
@@ -291,6 +292,7 @@ impl Message {
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.literal("--");
                 doc.token(Token::BlockEnd(Block::TermRef));
+                doc.snip(args, &[("THIS ->", ix, Style::Invalid)]);
             }
             Message::ParseSome(s) | Message::ParseFail(s) => {
                 doc.text(s);
@@ -305,6 +307,9 @@ impl Message {
                 }
                 doc.text(": ");
                 doc.text(&s);
+                if let Some(ix) = mix {
+                    doc.snip(args, &[("THIS ->", ix, Style::Invalid)]);
+                }
             }
             Message::GuardFailed(mix, s) => {
                 if let Some(field) = textual_part(args, mix) {
@@ -316,6 +321,9 @@ impl Message {
                     doc.text("Check failed: ");
                 }
                 doc.text(s);
+                if let Some(ix) = mix {
+                    doc.snip(args, &[("THIS ->", ix, Style::Invalid)]);
+                }
             }
             Message::NoArgument(x, mv) => match args.get(x + 1) {
                 Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
@@ -340,6 +348,7 @@ impl Message {
                     doc.write(os, Style::Literal);
                     doc.token(Token::BlockEnd(Block::TermRef));
                     doc.text(" to use it as an argument");
+                    doc.snip(args, &[("THIS ->", x + 1, Style::Invalid)]);
                 }
                 // "Some" part of this branch is actually unreachable
                 Some(Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_)) | None => {
@@ -351,6 +360,7 @@ impl Message {
                     doc.token(Token::BlockStart(Block::TermRef));
                     doc.metavar(mv);
                     doc.token(Token::BlockEnd(Block::TermRef));
+                    doc.snip(args, &[("<- HERE", x + 1, Style::Invalid)]);
                 }
             },
             Message::PureFailed(s) => {
@@ -392,6 +402,7 @@ impl Message {
                 doc.literal(rest);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" syntax to disambiguate");
+                doc.snip(args, &[("STRANGE ->", ix, Style::Invalid)]);
             }
             Message::Suggestion(ix, suggestion) => {
                 let actual = &args.items[ix].to_string();
@@ -473,6 +484,7 @@ impl Message {
                         doc.text("?");
                     }
                 }
+                doc.snip(args, &[("THIS ->", ix, Style::Invalid)]);
             }
             Message::Expected(exp, actual) => {
                 doc.text("Expected ");
@@ -521,6 +533,9 @@ impl Message {
                 doc.literal("--help");
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" for usage information");
+                if let Some(ix) = actual {
+                    doc.snip(args, &[("STRANGE ->", ix, Style::Invalid)]);
+                }
             }
             Message::Conflict(winner, loser) => {
                 doc.token(Token::BlockStart(Block::TermRef));
@@ -530,6 +545,13 @@ impl Message {
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.write(&args.items[winner], Style::Literal);
                 doc.token(Token::BlockEnd(Block::TermRef));
+                doc.snip(
+                    args,
+                    &[
+                        ("WIN ->", winner, Style::Literal),
+                        ("CONFLICT ->", loser, Style::Invalid),
+                    ],
+                );
             }
             Message::OnlyOnce(_winner, loser) => {
                 doc.text("Argument ");
@@ -537,6 +559,7 @@ impl Message {
                 doc.write(&args.items[loser], Style::Literal);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" cannot be used multiple times in this context");
+                doc.snip(args, &[("UNEXPECTED ->", loser, Style::Invalid)]);
             }
         };
 
@@ -581,12 +604,52 @@ pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &Stat
     }
 }
 
-/*
-#[inline(never)]
-/// the idea is to post some context for the error
-fn snip(buffer: &mut Buffer, args: &State, items: &[usize]) {
-    for ix in args.scope() {
-        buffer.write(ix, Style::Text);
+impl Doc {
+    #[inline(never)]
+    /// the idea is to post some context for the error
+    fn snip(&mut self, args: &State, mut items: &[(&str, usize, Style)]) {
+        // inserts newline
+        self.token(Token::BlockStart(Block::Block));
+        self.token(Token::BlockEnd(Block::Block));
+
+        let mut needs_space = false;
+        if let Some(f) = args.path.first() {
+            self.write(f, Style::Literal);
+            needs_space = true;
+        }
+        let mut style;
+        for ix in args.scope() {
+            if needs_space {
+                self.write(" ", Style::Text);
+            }
+            style = Style::Literal;
+            if let Some((label, jx, s)) = items.first().copied() {
+                if jx == ix {
+                    self.write(label, Style::Text);
+                    self.write(" ", Style::Text);
+                    style = s;
+                    items = &items[1..];
+                }
+            }
+            match &args.items[ix] {
+                Arg::Short(c, _, _) => {
+                    self.write_char('-', style);
+                    self.write_char(*c, style);
+                }
+                Arg::Long(s, _, _) => {
+                    self.write("--", style);
+                    self.write(s, style);
+                }
+                Arg::ArgWord(w) | Arg::Word(w) | Arg::PosWord(w) => {
+                    self.write(w.to_string_lossy(), style)
+                }
+            }
+            //            self.write(format!("{:?}", args.items[ix]), Style::Text);
+            needs_space = true;
+        }
+        if let Some((label, _, _)) = items.first() {
+            self.write(" ", Style::Text);
+            self.write(label, Style::Text);
+        }
     }
 }
-*/

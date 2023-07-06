@@ -196,7 +196,7 @@ While parser for `style` takes any posted output - it won't take multiple of the
 
 <div class='bpaf-doc'>
 $ app --agree --att --llvm<br>
-<tt><b>--llvm</b></tt> cannot be used at the same time as <tt><b>--att</b></tt>
+<tt><b>--llvm</b></tt> cannot be used at the same time as <tt><b>--att</b></tt><p></p><tt><b>app</b></tt> <tt><b>--agree</b></tt> WIN -&gt; <tt><b>--att</b></tt> CONFLICT -&gt; <b>--llvm</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -134,7 +134,7 @@ optional.
 
 <div class='bpaf-doc'>
 $ app --exec ;<br>
-<b>--exec</b> is not expected in this context
+<b>--exec</b> is not expected in this context<p></p><tt><b>app</b></tt> THIS -&gt; <b>--exec</b> <tt><b>;</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;

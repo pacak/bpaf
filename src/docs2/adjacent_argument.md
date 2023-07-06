@@ -101,7 +101,7 @@ Separating them by space results in parse failure
 
 <div class='bpaf-doc'>
 $ app --package htb<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
+Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information<p></p><tt><b>app</b></tt> STRANGE -&gt; <b>--package</b> <tt><b>htb</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -119,7 +119,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app -p htb<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>-p</b>. Pass <tt><b>--help</b></tt> for usage information
+Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>-p</b>. Pass <tt><b>--help</b></tt> for usage information<p></p><tt><b>app</b></tt> STRANGE -&gt; <b>-p</b> <tt><b>htb</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -137,7 +137,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app --package<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
+Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information<p></p><tt><b>app</b></tt> STRANGE -&gt; <b>--package</b>
 <style>
 div.bpaf-doc {
     padding: 14px;

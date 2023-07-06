@@ -83,7 +83,7 @@ Any attempts to do so would result in an error :)
 
 <div class='bpaf-doc'>
 $ app --money 100000 --name Hackerman<br>
-<b>--money</b> is not expected in this context
+<b>--money</b> is not expected in this context<p></p><tt><b>app</b></tt> THIS -&gt; <b>--money</b> <tt><b>100000</b></tt> <tt><b>--name</b></tt> <tt><b>Hackerman</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;

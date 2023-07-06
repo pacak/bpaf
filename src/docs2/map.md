@@ -50,7 +50,7 @@ in some way. In fact here execution never reaches `map` function -
 
 <div class='bpaf-doc'>
 $ app --number ten<br>
-Couldn't parse <b>ten</b>: invalid digit found in string
+Couldn't parse <b>ten</b>: invalid digit found in string<p></p><tt><b>app</b></tt> <tt><b>--number</b></tt> THIS -&gt; <b>ten</b>
 <style>
 div.bpaf-doc {
     padding: 14px;
