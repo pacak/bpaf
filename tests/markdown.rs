@@ -20,7 +20,6 @@ fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::R
     }
 }
 
-
 #[test]
 fn simple() {
     let kraken = short('d')
@@ -38,9 +37,7 @@ fn simple() {
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")
         .footer("Beware `-d`, dragons be here");
-    let roff = options.render_markdown(
-        "simple",
-    );
+    let roff = options.render_markdown("simple");
 
     #[cfg(unix)]
     assert!(write_updated(&roff, "tests/markdown.md").unwrap());

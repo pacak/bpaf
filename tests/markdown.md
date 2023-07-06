@@ -7,10 +7,14 @@ I am a program and I do things
 Sometimes they even work.
 
 **Available options:**
-- **`-d`**, **`--kraken`**: Unleash the kraken
-- **`    --user`**=_`USER`_: Log in as this user
-    Uses environment variable **`USER`**
-- **`-h`**, **`--help`**: Prints help information
+- **`-d`**, **`--kraken`** &mdash; 
+Unleash the kraken
+- **`    --user`**=_`USER`_ &mdash; 
+Log in as this user
+   
+Uses environment variable **`USER`**
+- **`-h`**, **`--help`** &mdash; 
+Prints help information
 
 
 
