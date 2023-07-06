@@ -161,8 +161,8 @@ fn blank_markdown_line(res: &mut String) {
 
 /// Make it so new text is separated by an empty line
 fn new_markdown_line(res: &mut String) {
-    if !(res.is_empty() || res.ends_with("\n")) {
-        res.push_str("\n");
+    if !(res.is_empty() || res.ends_with('\n')) {
+        res.push('\n');
     }
 }
 
@@ -323,10 +323,7 @@ impl Doc {
 
                     for chunk in split(input) {
                         match chunk {
-                            Chunk::Raw(input, _) => {
-                                let input = input.replace('<', "&lt;").replace('>', "&gt;");
-                                res.push_str(&input);
-                            }
+                            Chunk::Raw(input, _) => res.push_str(input),
                             Chunk::Paragraph => {
                                 if full {
                                     res.push('\n');
