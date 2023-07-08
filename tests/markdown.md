@@ -8,13 +8,13 @@ Sometimes they even work.
 
 **Available options:**
 - **`-d`**, **`--kraken`** &mdash; 
-Unleash the kraken
+  Unleash the kraken
 - **`    --user`**=_`USER`_ &mdash; 
-Log in as this user
+  Log in as this user
    
-Uses environment variable **`USER`**
+  Uses environment variable **`USER`**
 - **`-h`**, **`--help`** &mdash; 
-Prints help information
+  Prints help information
 
 
 

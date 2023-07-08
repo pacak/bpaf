@@ -320,6 +320,7 @@ impl Doc {
         let mut stack = Vec::new();
         let mut empty_term = false;
         let mut mono = 0;
+        let mut def_list = false;
         for (ix, token) in self.tokens.iter().copied().enumerate() {
             match token {
                 Token::Text { bytes, style } => {
@@ -344,6 +345,9 @@ impl Doc {
                             Chunk::Paragraph => {
                                 if full {
                                     res.push_str("\n\n");
+                                    if def_list {
+                                        res.push_str("  ");
+                                    }
                                 } else {
                                     skip.enable();
                                     break;
@@ -372,8 +376,10 @@ impl Doc {
                         }
                         Block::ItemBody => {
                             new_markdown_line(&mut res);
+                            res.push_str("  ");
                         }
                         Block::DefinitionList => {
+                            def_list = true;
                             res.push_str("");
                         }
                         Block::Block => {
@@ -405,11 +411,14 @@ impl Doc {
                         }
                         Block::ItemTerm => res.push_str(if empty_term { " " } else { " &mdash; " }),
                         Block::ItemBody => {
-                            if stack.last().copied() == Some(Block::DefinitionList) {
+                            if def_list {
                                 res.push('\n');
                             }
                         }
-                        Block::DefinitionList => res.push('\n'),
+                        Block::DefinitionList => {
+                            def_list = false;
+                            res.push('\n');
+                        }
                         Block::Block => {
                             res.push('\n');
                         }

@@ -68,9 +68,9 @@ fn nested() {
 
 # Command summary
 
-* [`options`↴](#options)
-* [`options alpha`↴](#options-alpha)
-* [`options beta`↴](#options-beta)
+  * [`options`↴](#options)
+  * [`options alpha`↴](#options-alpha)
+  * [`options beta`↴](#options-beta)
 
 # options
 
@@ -79,13 +79,13 @@ Options
 **Usage**: **`options`** _`COMMAND ...`_
 
 **Available options:**
-- **`-h`**, **`--help`** &mdash; \nPrints help information
+- **`-h`**, **`--help`** &mdash; \n  Prints help information
 
 
 
 **Available commands:**
-- **`alpha`** &mdash; \nAlpha
-- **`beta`** &mdash; \nBeta
+- **`alpha`** &mdash; \n  Alpha
+- **`beta`** &mdash; \n  Beta
 
 
 # options alpha
@@ -94,7 +94,7 @@ Alpha
 
 **Usage**: **`options`** **`alpha`** \n
 **Available options:**
-- **`-h`**, **`--help`** &mdash; \nPrints help information
+- **`-h`**, **`--help`** &mdash; \n  Prints help information
 
 
 # options beta
@@ -106,7 +106,28 @@ More Beta
 Even More Beta
 
 **Usage**: **`options`** **`beta`** \n
-**Available options:**\n- **`-h`**, **`--help`** &mdash; \nPrints help information
+**Available options:**\n- **`-h`**, **`--help`** &mdash; \n  Prints help information
+
+
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn multi_line_help() {
+    let opts = short('a').help("help\n\nmore help").switch().to_options();
+    let r = opts.render_markdown("ml");
+
+    let expected = "\
+# ml
+
+**Usage**: **`ml`** \\[**`-a`**\\]
+
+**Available options:**
+- **`-a`** &mdash; \n  help
+
+  more help
+- **`-h`**, **`--help`** &mdash; \n  Prints help information
 
 
 ";
