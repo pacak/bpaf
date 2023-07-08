@@ -230,7 +230,9 @@ impl Doc {
         }
 
         let meta = meta.normalized(for_usage);
+        self.token(Token::BlockStart(Block::Mono));
         go(&meta, self);
+        self.token(Token::BlockEnd(Block::Mono));
     }
 }
 
@@ -290,7 +292,13 @@ pub(crate) enum Block {
     /// In markdown this becomes a link to a term if one is defined
     TermRef,
 
+    /// Surrounds metavars block in manpage
+    ///
+    /// used only inside render_manpage at the moment
     Meta,
+
+    /// Monospaced font that goes around [`Meta`]
+    Mono,
 }
 
 #[derive(Debug, Copy, Clone)]

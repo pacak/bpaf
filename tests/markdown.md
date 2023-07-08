@@ -2,7 +2,7 @@
 
 I am a program and I do things
 
-**Usage**: **`simple`** [**`-d`**] **`--user`**=_`USER`_
+**Usage**: **`simple`** \[**`-d`**\] **`--user`**=_`USER`_
 
 Sometimes they even work.
 

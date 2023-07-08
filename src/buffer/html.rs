@@ -138,7 +138,6 @@ fn change_to_markdown_style(res: &mut String, cur: &mut Styles, new: Styles) {
     if new.bold {
         res.push_str("**");
     }
-
     if new.mono {
         res.push('`');
     }
@@ -253,6 +252,7 @@ impl Doc {
                         }
                         Block::Meta => todo!(),
                         Block::Section3 => res.push_str("<div style='padding-left: 0.5em'>"),
+                        Block::Mono => {}
                         Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
@@ -286,6 +286,7 @@ impl Doc {
                         Block::Block => {
                             res.push_str("</p>");
                         }
+                        Block::Mono => {}
                         Block::Meta => todo!(),
                         Block::TermRef => {}
                         Block::Section3 => res.push_str("</div>"),
@@ -310,6 +311,7 @@ impl Doc {
         let mut skip = Skip::default();
         let mut stack = Vec::new();
         let mut empty_term = false;
+        let mut mono = 0;
         for (ix, token) in self.tokens.iter().copied().enumerate() {
             match token {
                 Token::Text { bytes, style } => {
@@ -323,7 +325,14 @@ impl Doc {
 
                     for chunk in split(input) {
                         match chunk {
-                            Chunk::Raw(input, _) => res.push_str(input),
+                            Chunk::Raw(input, _) => {
+                                if mono > 0 {
+                                    let input = input.replace('[', "\\[").replace(']', "\\]");
+                                    res.push_str(&input);
+                                } else {
+                                    res.push_str(input);
+                                }
+                            }
                             Chunk::Paragraph => {
                                 if full {
                                     res.push('\n');
@@ -363,6 +372,9 @@ impl Doc {
                             res.push('\n');
                         }
                         Block::Meta => todo!(),
+                        Block::Mono => {
+                            mono += 1;
+                        }
                         Block::Section3 => res.push_str("### "),
                         Block::TermRef => {}
                         Block::InlineBlock => {
@@ -392,6 +404,9 @@ impl Doc {
                         Block::DefinitionList => res.push('\n'),
                         Block::Block => {
                             res.push('\n');
+                        }
+                        Block::Mono => {
+                            mono -= 1;
                         }
                         Block::Meta => todo!(),
                         Block::TermRef => {}

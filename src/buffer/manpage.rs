@@ -196,7 +196,10 @@ impl Doc {
                         Block::ItemTerm => {
                             roff.control0("TP").strip_newlines(true);
                         }
-                        Block::ItemBody | Block::DefinitionList | Block::InlineBlock => {}
+                        Block::Mono
+                        | Block::ItemBody
+                        | Block::DefinitionList
+                        | Block::InlineBlock => {}
                         Block::Block => {
                             roff.control0("PP");
                         }
@@ -226,7 +229,8 @@ impl Doc {
                         Block::ItemBody => {
                             roff.control0("PP").strip_newlines(false);
                         }
-                        Block::DefinitionList | Block::Block | Block::InlineBlock => {}
+                        Block::Mono | Block::DefinitionList | Block::Block | Block::InlineBlock => {
+                        }
                         Block::Meta => {
                             roff.control0("fi");
                         }

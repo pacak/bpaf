@@ -543,8 +543,10 @@ pub(crate) fn render_help(
     } else {
         buf.write_str("Usage", Style::Emphasis);
         buf.write_str(": ", Style::Text);
+        buf.token(Token::BlockStart(Block::Mono));
         buf.write_path(path);
         buf.write_meta(parser_meta, true);
+        buf.token(Token::BlockEnd(Block::Mono));
     }
     buf.token(Token::BlockEnd(Block::Block));
 

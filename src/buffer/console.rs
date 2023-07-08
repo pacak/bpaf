@@ -286,7 +286,7 @@ impl Doc {
                         Block::Block => {
                             margins.push(margin);
                         }
-                        Block::DefinitionList | Block::Meta => {}
+                        Block::DefinitionList | Block::Meta | Block::Mono => {}
                         Block::TermRef => {
                             if color == Color::Monochrome {
                                 res.push('`');
@@ -309,7 +309,8 @@ impl Doc {
                         | Block::Section3
                         | Block::ItemTerm
                         | Block::DefinitionList
-                        | Block::Meta => {}
+                        | Block::Meta
+                        | Block::Mono => {}
                         Block::InlineBlock => {
                             skip.pop();
                         }
