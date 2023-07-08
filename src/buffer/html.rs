@@ -376,6 +376,7 @@ impl Doc {
                             res.push_str(if empty_term { "  " } else { "- " });
                         }
                         Block::ItemBody => {
+                            res.push_str(if empty_term { " " } else { " &mdash; " });
                             new_markdown_line(&mut res);
                             res.push_str("  ");
                         }
@@ -410,7 +411,7 @@ impl Doc {
                         Block::InlineBlock => {
                             skip.pop();
                         }
-                        Block::ItemTerm => res.push_str(if empty_term { " " } else { " &mdash; " }),
+                        Block::ItemTerm => {}
                         Block::ItemBody => {
                             if def_list {
                                 res.push('\n');

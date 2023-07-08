@@ -149,7 +149,7 @@ fn no_help() {
 
 **Available options:**
 - **`-a`** &mdash; \n  help
-- **`-b`** &mdash; \n- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
+- **`-b`**\n- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
 
     assert_eq!(r, expected);
 }
