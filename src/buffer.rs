@@ -236,6 +236,7 @@ impl Doc {
 
 /// Style of a text fragment inside of [`Doc`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Style {
     /// Plain text, no decorations
     Text,
