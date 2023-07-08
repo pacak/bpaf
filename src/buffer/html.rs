@@ -368,6 +368,7 @@ impl Doc {
                             res.push_str("");
                         }
                         Block::ItemTerm => {
+                            new_markdown_line(&mut res);
                             empty_term = matches!(
                                 self.tokens.get(ix + 1),
                                 Some(Token::BlockEnd(Block::ItemTerm))

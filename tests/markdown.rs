@@ -133,3 +133,23 @@ fn multi_line_help() {
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn no_help() {
+    let a = short('a').help("help").switch();
+    let b = short('b').switch();
+    let opts = construct!(a, b).to_options();
+
+    let r = opts.render_markdown("ml");
+
+    let expected = "\
+# ml
+
+**Usage**: **`ml`** \\[**`-a`**\\] \\[**`-b`**\\]
+
+**Available options:**
+- **`-a`** &mdash; \n  help
+- **`-b`** &mdash; \n- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
+
+    assert_eq!(r, expected);
+}
