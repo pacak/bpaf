@@ -657,7 +657,6 @@ impl Doc {
         }
     }
 
-    // TODO - use this
     pub(crate) fn write_path(&mut self, path: &[String]) {
         for item in path {
             self.write_str(item, Style::Literal);
