@@ -1,7 +1,7 @@
 # Change Log
 
 ## bpaf [0.9.2] - Unreleased
-- with `docgen` feature you can render documentation as markdownc
+- with `docgen` feature you can render documentation as markdown
 
 ## bpaf [0.9.1] - 2023-07-05, bpaf_derive [0.5.1]
 - add a way to print usage when called with no argument_os
