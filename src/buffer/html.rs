@@ -343,7 +343,7 @@ impl Doc {
                             }
                             Chunk::Paragraph => {
                                 if full {
-                                    res.push('\n');
+                                    res.push_str("\n\n");
                                 } else {
                                     skip.enable();
                                     break;

@@ -55,6 +55,10 @@ fn nested() {
 
         #[bpaf(command)]
         /// Beta
+        ///
+        /// More Beta
+        ///
+        /// Even More Beta
         Beta,
     }
 
@@ -96,6 +100,10 @@ Alpha
 # options beta
 
 Beta
+
+More Beta
+
+Even More Beta
 
 **Usage**: **`options`** **`beta`** \n
 **Available options:**\n- **`-h`**, **`--help`** &mdash; \nPrints help information
