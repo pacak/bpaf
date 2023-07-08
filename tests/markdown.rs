@@ -1,3 +1,5 @@
+#![cfg(feature = "docgen")]
+
 use bpaf::*;
 
 fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::Result<bool> {

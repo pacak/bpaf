@@ -376,7 +376,9 @@ impl Doc {
                             res.push_str(if empty_term { "  " } else { "- " });
                         }
                         Block::ItemBody => {
-                            res.push_str(if empty_term { " " } else { " &mdash; " });
+                            if def_list {
+                                res.push_str(if empty_term { " " } else { " &mdash; " });
+                            }
                             new_markdown_line(&mut res);
                             res.push_str("  ");
                         }
