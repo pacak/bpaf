@@ -38,7 +38,7 @@ pub(crate) enum HelpItem<'a> {
         short: Option<char>,
         help: Option<&'a Doc>,
         meta: &'a Meta,
-        #[cfg(feature = "manpage")]
+        #[cfg(feature = "docgen")]
         info: &'a Info,
     },
     Flag {
@@ -289,16 +289,16 @@ impl<'a> From<&'a Item> for HelpItem<'a> {
                 short,
                 help,
                 meta,
-                #[cfg(feature = "manpage")]
+                #[cfg(feature = "docgen")]
                 info,
-                #[cfg(not(feature = "manpage"))]
+                #[cfg(not(feature = "docgen"))]
                     info: _,
             } => Self::Command {
                 name,
                 short: *short,
                 help: help.as_ref(),
                 meta,
-                #[cfg(feature = "manpage")]
+                #[cfg(feature = "docgen")]
                 info,
             },
             Item::Flag {
@@ -403,7 +403,7 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
             short,
             help,
             meta: _,
-            #[cfg(feature = "manpage")]
+            #[cfg(feature = "docgen")]
                 info: _,
         } => {
             buf.token(Token::BlockStart(Block::ItemTerm));

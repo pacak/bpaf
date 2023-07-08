@@ -42,3 +42,65 @@ fn simple() {
     #[cfg(unix)]
     assert!(write_updated(&roff, "tests/markdown.md").unwrap());
 }
+
+#[test]
+fn nested() {
+    #[derive(Debug, Clone, Bpaf)]
+    /// Options
+    #[bpaf(options)]
+    enum Options {
+        #[bpaf(command)]
+        /// Alpha
+        Alpha,
+
+        #[bpaf(command)]
+        /// Beta
+        Beta,
+    }
+
+    let r = options().render_markdown("options");
+    let expected = "
+
+
+# Command summary
+
+* [`options`↴](#options)
+* [`options alpha`↴](#options-alpha)
+* [`options beta`↴](#options-beta)
+
+# options
+
+Options
+
+**Usage**: **`options`** _`COMMAND ...`_
+
+**Available options:**
+- **`-h`**, **`--help`** &mdash; \nPrints help information
+
+
+
+**Available commands:**
+- **`alpha`** &mdash; \nAlpha
+- **`beta`** &mdash; \nBeta
+
+
+# options alpha
+
+Alpha
+
+**Usage**: **`options`** **`alpha`** \n
+**Available options:**
+- **`-h`**, **`--help`** &mdash; \nPrints help information
+
+
+# options beta
+
+Beta
+
+**Usage**: **`options`** **`beta`** \n
+**Available options:**\n- **`-h`**, **`--help`** &mdash; \nPrints help information
+
+
+";
+    assert_eq!(r, expected);
+}

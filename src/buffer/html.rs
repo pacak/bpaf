@@ -1,14 +1,20 @@
 use crate::{
     buffer::{
-        extract_sections,
         splitter::{split, Chunk},
-        Block, Info, Meta, Skip, Style, Token,
+        Block, Skip, Style, Token,
     },
+    Doc, OptionParser,
+};
+
+#[cfg(feature = "docgen")]
+use crate::{
+    buffer::{extract_sections, Info, Meta},
     meta_help::render_help,
-    Doc, OptionParser, Parser,
+    Parser,
 };
 
 #[inline(never)]
+#[cfg(feature = "docgen")]
 fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
     let mut sections = Vec::new();
     let root = meta;
@@ -56,11 +62,13 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
 
 impl<T> OptionParser<T> {
     /// Render command line documentation for the app into html/markdown mix
+    #[cfg(feature = "docgen")]
     pub fn render_html(&self, app: impl Into<String>) -> String {
         collect_html(app.into(), &self.inner.meta(), &self.info).render_html(true, false)
     }
 
     /// Render command line documentation for the app into Markdown
+    #[cfg(feature = "docgen")]
     pub fn render_markdown(&self, app: impl Into<String>) -> String {
         collect_html(app.into(), &self.inner.meta(), &self.info).render_markdown(true)
     }

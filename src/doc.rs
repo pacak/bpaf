@@ -46,7 +46,11 @@
 //! ```
 
 #[doc(inline)]
-pub use crate::buffer::{Doc, MetaInfo, Section, Style};
+pub use crate::buffer::{Doc, MetaInfo, Style};
+
+#[doc(inline)]
+#[cfg(feature = "docgen")]
+pub use crate::buffer::Section;
 
 #[cfg(doc)]
 use crate::*;
