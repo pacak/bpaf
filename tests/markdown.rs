@@ -1,4 +1,5 @@
 #![cfg(feature = "docgen")]
+#![allow(dead_code)]
 
 use bpaf::*;
 
@@ -152,6 +153,34 @@ fn no_help() {
 **Available options:**
 - **`-a`** &mdash; \n  help
 - **`-b`**\n- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn codeblock_help() {
+    #[derive(Bpaf, Clone, Debug)]
+    #[bpaf(options)]
+    struct Options {
+        /// Verbose help
+        ///
+        ///     block
+        ///     of
+        ///     code
+        verbose: bool,
+    }
+
+    let r = options().run_inner(&["-hh"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--verbose]
+
+Available options:
+        --verbose  Verbose help
+                   block
+                   of
+                   code
+    -h, --help     Prints help information
+";
 
     assert_eq!(r, expected);
 }

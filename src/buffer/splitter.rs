@@ -21,9 +21,15 @@ impl<'a> Iterator for Splitter<'a> {
     fn next(&mut self) -> Option<Self::Item> {
         if self.input.is_empty() {
             None
+        } else if let Some(tail) = self.input.strip_prefix("\n\n    ") {
+            self.input = tail;
+            Some(Chunk::Paragraph)
         } else if let Some(tail) = self.input.strip_prefix("\n\n") {
             self.input = tail;
             Some(Chunk::Paragraph)
+        } else if let Some(tail) = self.input.strip_prefix("\n    ") {
+            self.input = tail;
+            Some(Chunk::LineBreak)
         } else if let Some(tail) = self.input.strip_prefix("\n ") {
             self.input = tail;
             Some(Chunk::LineBreak)
