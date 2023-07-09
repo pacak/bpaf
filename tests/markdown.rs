@@ -214,8 +214,8 @@ fn codeblock_ticks_help() {
         ///
         /// ```text
         /// block
-        /// of
-        /// code
+        ///     of
+        ///     code
         /// ```
         verbose: bool,
     }
@@ -228,8 +228,8 @@ Available options:
         --verbose  Verbose help
                    ```text
                    block
-                   of
-                   code
+                       of
+                       code
                    ```
     -h, --help     Prints help information
 ";
@@ -246,8 +246,8 @@ Available options:
 
   \n  ```text
   block
-  of
-  code
+      of
+      code
   ```
 
 - **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";

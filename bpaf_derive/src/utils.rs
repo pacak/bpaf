@@ -167,6 +167,9 @@ impl Iterator for LineIter<'_> {
                     }
                     self.prev_empty = true;
                 } else {
+                    if self.prev_empty {
+                        self.current.push('\n');
+                    }
                     self.current.push_str(line);
                     self.current.push('\n');
                 }
@@ -178,4 +181,20 @@ impl Iterator for LineIter<'_> {
             }
         }
     }
+}
+
+#[test]
+fn splitter_preserves_line_breaks() {
+    fn split(input: &str) -> LineIter {
+        LineIter::from(input)
+    }
+
+    let x = split("a\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a\nb"]);
+
+    let x = split("a\n\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a\n\nb"]);
+
+    let x = split("a\n\n\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a", "b"]);
 }

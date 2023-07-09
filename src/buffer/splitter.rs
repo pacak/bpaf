@@ -135,7 +135,7 @@ impl<'a> Iterator for Splitter<'a> {
 #[test]
 fn space_code_block() {
     use Chunk::*;
-    let xs = split("a\n\n    a\n    b\n\ndf").collect::<Vec<_>>();
+    let xs = split("a\n\n    a\n    b\n\ndf\n\n    c\n    d\n").collect::<Vec<_>>();
     assert_eq!(
         xs,
         [
@@ -144,7 +144,11 @@ fn space_code_block() {
             Raw("a", 1000000),
             Raw("b", 1000000),
             Paragraph,
-            Raw("df", 2)
+            Raw("df", 2),
+            Paragraph,
+            Raw("c", 1000000),
+            Raw("d", 1000000),
+            Raw(" ", 1),
         ]
     );
 }
@@ -152,7 +156,7 @@ fn space_code_block() {
 #[test]
 fn ticks_code_block() {
     use Chunk::*;
-    let a = "a\n\n```text\na\nb\n```\n\ndf";
+    let a = "a\n\n```text\na\nb\n```\n\ndf\n\n```\nc\nd\n```\n";
     let xs = split(a).collect::<Vec<_>>();
     assert_eq!(
         xs,
@@ -164,7 +168,12 @@ fn ticks_code_block() {
             Raw("b", Chunk::TICKED_CODE),
             Raw("```", Chunk::TICKED_CODE),
             Paragraph,
-            Raw("df", 2)
+            Raw("df", 2),
+            Paragraph,
+            Raw("```", Chunk::TICKED_CODE),
+            Raw("c", Chunk::TICKED_CODE),
+            Raw("d", Chunk::TICKED_CODE),
+            Raw("```", Chunk::TICKED_CODE),
         ],
     );
 }
