@@ -158,7 +158,7 @@ fn no_help() {
 }
 
 #[test]
-fn codeblock_help() {
+fn codeblock_space_help() {
     #[derive(Bpaf, Clone, Debug)]
     #[bpaf(options)]
     struct Options {
@@ -181,6 +181,76 @@ Available options:
                    code
     -h, --help     Prints help information
 ";
+
+    assert_eq!(r, expected);
+
+    let r = options().render_markdown("ml");
+    let expected = "\
+# ml
+
+**Usage**: **`ml`** \\[**`--verbose`**\\]
+
+**Available options:**
+- **`    --verbose`** &mdash; \n  Verbose help
+
+  \n
+  ```text
+  block
+  of
+  code
+  ```
+
+- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn codeblock_ticks_help() {
+    #[derive(Bpaf, Clone, Debug)]
+    #[bpaf(options)]
+    struct Options {
+        /// Verbose help
+        ///
+        /// ```text
+        /// block
+        /// of
+        /// code
+        /// ```
+        verbose: bool,
+    }
+
+    let r = options().run_inner(&["-hh"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--verbose]
+
+Available options:
+        --verbose  Verbose help
+                   ```text
+                   block
+                   of
+                   code
+                   ```
+    -h, --help     Prints help information
+";
+    assert_eq!(r, expected);
+
+    let r = options().render_markdown("ml");
+    let expected = "\
+# ml
+
+**Usage**: **`ml`** \\[**`--verbose`**\\]
+
+**Available options:**
+- **`    --verbose`** &mdash; \n  Verbose help
+
+  \n  ```text
+  block
+  of
+  code
+  ```
+
+- **`-h`**, **`--help`** &mdash; \n  Prints help information\n\n\n";
 
     assert_eq!(r, expected);
 }

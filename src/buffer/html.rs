@@ -321,6 +321,7 @@ impl Doc {
         let mut empty_term = false;
         let mut mono = 0;
         let mut def_list = false;
+        let mut code_block = false;
         for (ix, token) in self.tokens.iter().copied().enumerate() {
             match token {
                 Token::Text { bytes, style } => {
@@ -334,12 +335,31 @@ impl Doc {
 
                     for chunk in split(input) {
                         match chunk {
-                            Chunk::Raw(input, _) => {
-                                if mono > 0 {
-                                    let input = input.replace('[', "\\[").replace(']', "\\]");
-                                    res.push_str(&input);
-                                } else {
+                            Chunk::Raw(input, w) => {
+                                if w == Chunk::TICKED_CODE {
+                                    new_markdown_line(&mut res);
+                                    res.push_str("  ");
                                     res.push_str(input);
+                                    res.push('\n');
+                                } else if w == Chunk::CODE {
+                                    if !code_block {
+                                        res.push_str("\n\n  ```text\n");
+                                    }
+                                    code_block = true;
+                                    res.push_str("  ");
+                                    res.push_str(input);
+                                    res.push('\n');
+                                } else {
+                                    if code_block {
+                                        res.push_str("\n  ```\n");
+                                        code_block = false;
+                                    }
+                                    if mono > 0 {
+                                        let input = input.replace('[', "\\[").replace(']', "\\]");
+                                        res.push_str(&input);
+                                    } else {
+                                        res.push_str(input);
+                                    }
                                 }
                             }
                             Chunk::Paragraph => {
@@ -355,6 +375,11 @@ impl Doc {
                             }
                             Chunk::LineBreak => res.push('\n'),
                         }
+                    }
+
+                    if code_block {
+                        res.push_str("  ```\n");
+                        code_block = false;
                     }
                 }
                 Token::BlockStart(b) => {
