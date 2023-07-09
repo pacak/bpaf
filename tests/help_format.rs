@@ -508,3 +508,79 @@ fn custom_help_and_version() {
     let expected = "Usage: [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn various_name_lengths_under() {
+    let parser = short('a')
+        .long("123456789012345")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --123456789012345  A
+    -h, --help             Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_at() {
+    let parser = short('a')
+        .long("1234567890123456")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --1234567890123456  A
+    -h, --help              Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_over1() {
+    let parser = short('a')
+        .long("12345678901234567")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --12345678901234567  A
+    -h, --help               Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_over2() {
+    let parser = short('a')
+        .long("1234567890123456789")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --1234567890123456789  A
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}

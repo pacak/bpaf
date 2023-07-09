@@ -218,13 +218,16 @@ impl Doc {
                                     }
                                 }
 
+                                let mut pushed = 0;
                                 if let Some(missing) = margin.checked_sub(char_pos) {
                                     res.push_str(&PADDING[..missing]);
                                     char_pos = margin;
+                                    pushed = missing;
                                 }
-                                if pending_margin && char_pos >= MAX_TAB + 4 {
-                                    res.push_str("  ");
-                                    char_pos += 2;
+                                if pending_margin && char_pos >= MAX_TAB + 4 && pushed < 2 {
+                                    let missing = 2 - pushed;
+                                    res.push_str(&PADDING[..missing]);
+                                    char_pos += missing;
                                 }
 
                                 pending_newline = false;
