@@ -200,6 +200,12 @@ fn enum_command() {
         enum Opt {
             #[bpaf(command("foo"))]
             /// foo doc
+            ///
+            ///
+            /// header
+            ///
+            ///
+            /// footer
             Foo { field: usize },
             /// bar doc
             #[bpaf(command, adjacent)]
@@ -218,6 +224,8 @@ fn enum_command() {
                 }
                 .to_options()
                 .descr("foo doc")
+                .header("header")
+                .footer("footer")
                 .command("foo");
 
                 let alt1 = {

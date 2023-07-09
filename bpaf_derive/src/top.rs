@@ -78,23 +78,7 @@ impl Parse for Top {
                     attrs.push(attr);
 
                     if let Some(h) = std::mem::take(&mut help) {
-                        match &h {
-                            Help::Custom(_) => attrs.push(TopAttr::Descr(h)),
-                            Help::Doc(c) => {
-                                let mut chunks = LineIter::from(c.as_str());
-                                if let Some(s) = chunks.next() {
-                                    attrs.push(TopAttr::Descr(Help::Doc(s)));
-                                }
-                                if let Some(s) = chunks.next() {
-                                    if !s.is_empty() {
-                                        attrs.push(TopAttr::Header(Help::Doc(s)));
-                                    }
-                                }
-                                if let Some(s) = chunks.rest() {
-                                    attrs.push(TopAttr::Footer(Help::Doc(s)));
-                                }
-                            }
-                        }
+                        split_help_into(h, &mut attrs);
                     }
                 }
                 TopAttr::Usage(_)
@@ -111,7 +95,7 @@ impl Parse for Top {
                     attrs.push(TopAttr::ToOptions);
 
                     if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(TopAttr::Descr(h));
+                        split_help_into(h, &mut attrs);
                     }
 
                     attrs.push(attr);
@@ -158,6 +142,46 @@ impl Parse for Top {
             boxed,
             cargo_helper,
         })
+    }
+}
+
+fn split_help_into(h: Help, attrs: &mut Vec<TopAttr>) {
+    match &h {
+        Help::Custom(_) => attrs.push(TopAttr::Descr(h)),
+        Help::Doc(c) => {
+            let mut chunks = LineIter::from(c.as_str());
+            if let Some(s) = chunks.next() {
+                attrs.push(TopAttr::Descr(Help::Doc(s)));
+            }
+            if let Some(s) = chunks.next() {
+                if !s.is_empty() {
+                    attrs.push(TopAttr::Header(Help::Doc(s)));
+                }
+            }
+            if let Some(s) = chunks.rest() {
+                attrs.push(TopAttr::Footer(Help::Doc(s)));
+            }
+        }
+    }
+}
+
+fn split_ehelp_into(h: Help, attrs: &mut Vec<EAttr>) {
+    match &h {
+        Help::Custom(_) => attrs.push(EAttr::Descr(h)),
+        Help::Doc(c) => {
+            let mut chunks = LineIter::from(c.as_str());
+            if let Some(s) = chunks.next() {
+                attrs.push(EAttr::Descr(Help::Doc(s)));
+            }
+            if let Some(s) = chunks.next() {
+                if !s.is_empty() {
+                    attrs.push(EAttr::Header(Help::Doc(s)));
+                }
+            }
+            if let Some(s) = chunks.rest() {
+                attrs.push(EAttr::Footer(Help::Doc(s)));
+            }
+        }
     }
 }
 
@@ -346,7 +370,7 @@ impl ParsedEnumBranch {
                     branch.set_command();
                     attrs.push(EAttr::ToOptions);
                     if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(EAttr::Descr(h));
+                        split_ehelp_into(h, &mut attrs);
                     }
                     attrs.push(attr);
                 }
@@ -355,7 +379,7 @@ impl ParsedEnumBranch {
                     attrs.push(EAttr::ToOptions);
 
                     if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(EAttr::Descr(h));
+                        split_ehelp_into(h, &mut attrs);
                     }
 
                     attrs.push(EAttr::NamedCommand(ident_to_long(&branch.ident)));
@@ -378,8 +402,12 @@ impl ParsedEnumBranch {
                         unreachable!();
                     }
                 }
-                EAttr::Adjacent | EAttr::Hide => attrs.push(attr),
-                EAttr::ToOptions | EAttr::Descr(_) => unreachable!(),
+                EAttr::Adjacent
+                | EAttr::Hide
+                | EAttr::Header(_)
+                | EAttr::Footer(_)
+                | EAttr::Descr(_) => attrs.push(attr),
+                EAttr::ToOptions => unreachable!(),
             }
         }
         branch.set_inplicit_name();
@@ -546,24 +574,3 @@ pub(crate) enum FieldSet {
     Unit(Vec<StrictName>, Option<Help>),
     Pure(Box<Expr>),
 }
-
-/*
-impl ToTokens for FieldSet {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            FieldSet::Named(n) => {
-                let names = n.iter().enumerate().map(|(ix, field)| field.var_name(ix));
-                let items = n.iter();
-                quote! {{
-                    #( let #names = #items; )*
-                }}
-            }
-            FieldSet::Unnamed(_) => todo!(),
-            FieldSet::Unit => quote!(),
-            FieldSet::Pure(_) => todo!(),
-        }
-        .to_tokens(tokens)
-    }
-}
-*/
-// }}}
