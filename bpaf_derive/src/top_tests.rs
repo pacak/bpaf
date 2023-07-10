@@ -70,7 +70,13 @@ fn top_enum_construct() {
 fn top_struct_options1() {
     let top: Top = parse_quote! {
         /// those are options
-        #[bpaf(options)]
+        ///
+        ///
+        /// header
+        ///
+        ///
+        /// footer
+        #[bpaf(options, header(h), footer(f))]
         struct Opt {}
     };
 
@@ -83,6 +89,10 @@ fn top_struct_options1() {
                 }
                 .to_options()
                 .descr("those are options")
+                .header("header")
+                .footer("footer")
+                .header(h)
+                .footer(f)
         }
     };
 
@@ -194,16 +204,22 @@ fn empty_enum() {
 */
 
 #[test]
-fn enum_command() {
+fn enum_markdownish() {
     let input: Top = parse_quote! {
-        // those are options
         enum Opt {
-            #[bpaf(command("foo"))]
-            /// foo doc
-            Foo { field: usize },
-            /// bar doc
-            #[bpaf(command, adjacent)]
-            Bar { field: bool }
+            /// Make a tree
+            ///
+            ///
+            ///
+            ///
+            /// Examples:
+            ///
+            /// ```sh
+            /// cargo 1
+            /// cargo 2
+            /// ```
+            #[bpaf(command, header("x"))]
+            Opt { field: bool },
         }
     };
 
@@ -212,11 +228,53 @@ fn enum_command() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
+                let field = ::bpaf::long("field").switch();
+                ::bpaf::construct!(Opt::Opt { field ,})
+            }
+            .to_options()
+            .footer("Examples:\n\n```sh\ncargo 1\ncargo 2\n```")
+            .descr("Make a tree")
+            .header("x")
+            .command("opt")
+        }
+    };
+
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_command() {
+    let input: Top = parse_quote! {
+        // those are options
+        #[bpaf(options, header(h), footer(f))]
+        enum Opt {
+            #[bpaf(command("foo"))]
+            /// foo doc
+            ///
+            ///
+            /// header
+            ///
+            ///
+            /// footer
+            Foo { field: usize },
+            /// bar doc
+            #[bpaf(command, adjacent)]
+            Bar { field: bool }
+        }
+    };
+
+    let expected = quote! {
+        fn opt() -> ::bpaf::OptionParser<Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
                 let alt0 = {
                     let field = ::bpaf::long("field").argument::<usize>("ARG");
                     ::bpaf::construct!(Opt::Foo { field, })
                 }
                 .to_options()
+                .footer("footer")
+                .header("header")
                 .descr("foo doc")
                 .command("foo");
 
@@ -230,6 +288,9 @@ fn enum_command() {
                 .adjacent();
                 ::bpaf::construct!([alt0, alt1, ])
             }
+            .to_options()
+            .header(h)
+            .footer(f)
         }
     };
     assert_eq!(input.to_token_stream().to_string(), expected.to_string());

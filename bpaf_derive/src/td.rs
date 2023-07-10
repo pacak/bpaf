@@ -194,6 +194,10 @@ impl Parse for TopInfo {
             } else if kw == "long" {
                 command(&kw, mode)?;
                 attrs.push(TopAttr::CommandLong(parse_arg(input)?));
+            } else if kw == "header" {
+                attrs.push(TopAttr::Header(Help::Custom(parse_arg(input)?)));
+            } else if kw == "footer" {
+                attrs.push(TopAttr::Footer(Help::Custom(parse_arg(input)?)));
             } else if kw == "usage" {
                 options(&kw, mode).or_else(|_| command(&kw, mode))?;
                 attrs.push(TopAttr::Usage(parse_arg(input)?));
@@ -279,6 +283,10 @@ impl Parse for Ed {
                 attrs.push(EAttr::Adjacent);
             } else if kw == "usage" {
                 attrs.push(EAttr::Usage(parse_arg(input)?));
+            } else if kw == "header" {
+                attrs.push(EAttr::Header(Help::Custom(parse_arg(input)?)));
+            } else if kw == "footer" {
+                attrs.push(EAttr::Footer(Help::Custom(parse_arg(input)?)));
             } else if kw == "env" {
                 attrs.push(EAttr::Env(parse_arg(input)?));
             } else {
@@ -313,6 +321,8 @@ pub(crate) enum EAttr {
     UnitShort(Option<LitChar>),
     UnitLong(Option<LitStr>),
     Descr(Help),
+    Header(Help),
+    Footer(Help),
     Usage(Box<Expr>),
     Env(Box<Expr>),
     ToOptions,
@@ -327,6 +337,8 @@ impl ToTokens for EAttr {
             Self::CommandLong(n) => quote!(long(#n)),
             Self::Adjacent => quote!(adjacent()),
             Self::Descr(d) => quote!(descr(#d)),
+            Self::Header(d) => quote!(header(#d)),
+            Self::Footer(d) => quote!(footer(#d)),
             Self::Usage(u) => quote!(usage(#u)),
             Self::Env(e) => quote!(env(#e)),
             Self::Hide => quote!(hide()),

@@ -218,13 +218,16 @@ impl Doc {
                                     }
                                 }
 
+                                let mut pushed = 0;
                                 if let Some(missing) = margin.checked_sub(char_pos) {
                                     res.push_str(&PADDING[..missing]);
                                     char_pos = margin;
+                                    pushed = missing;
                                 }
-                                if pending_margin && char_pos >= MAX_TAB + 4 {
-                                    res.push_str("  ");
-                                    char_pos += 2;
+                                if pending_margin && char_pos >= MAX_TAB + 4 && pushed < 2 {
+                                    let missing = 2 - pushed;
+                                    res.push_str(&PADDING[..missing]);
+                                    char_pos += missing;
                                 }
 
                                 pending_newline = false;
@@ -286,7 +289,7 @@ impl Doc {
                         Block::Block => {
                             margins.push(margin);
                         }
-                        Block::DefinitionList | Block::Meta => {}
+                        Block::DefinitionList | Block::Meta | Block::Mono => {}
                         Block::TermRef => {
                             if color == Color::Monochrome {
                                 res.push('`');
@@ -309,7 +312,8 @@ impl Doc {
                         | Block::Section3
                         | Block::ItemTerm
                         | Block::DefinitionList
-                        | Block::Meta => {}
+                        | Block::Meta
+                        | Block::Mono => {}
                         Block::InlineBlock => {
                             skip.pop();
                         }

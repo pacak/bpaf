@@ -1,16 +1,21 @@
+#[cfg(feature = "docgen")]
 use crate::{
     info::Info,
-    item::{Item, ShortLong},
     meta_help::{HelpItem, HelpItems},
+};
+use crate::{
+    item::{Item, ShortLong},
     Meta,
 };
 
 mod console;
 mod html;
+#[cfg(feature = "docgen")]
 mod manpage;
 mod splitter;
 
 pub(crate) use self::console::Color;
+#[cfg(feature = "docgen")]
 pub use manpage::Section;
 
 impl From<&[(&str, Style)]> for Doc {
@@ -230,12 +235,15 @@ impl Doc {
         }
 
         let meta = meta.normalized(for_usage);
+        self.token(Token::BlockStart(Block::Mono));
         go(&meta, self);
+        self.token(Token::BlockEnd(Block::Mono));
     }
 }
 
 /// Style of a text fragment inside of [`Doc`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[non_exhaustive]
 pub enum Style {
     /// Plain text, no decorations
     Text,
@@ -254,6 +262,7 @@ pub enum Style {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+
 pub(crate) enum Block {
     /// level 1 section header, block for separate command inside manpage, not used in --help
     Header,
@@ -289,7 +298,13 @@ pub(crate) enum Block {
     /// In markdown this becomes a link to a term if one is defined
     TermRef,
 
+    /// Surrounds metavars block in manpage
+    ///
+    /// used only inside render_manpage at the moment
     Meta,
+
+    /// Monospaced font that goes around [`Meta`]
+    Mono,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -440,6 +455,7 @@ impl Doc {
     }
 }
 
+#[cfg(feature = "docgen")]
 #[derive(Debug, Clone)]
 struct DocSection<'a> {
     /// Path name to the command name starting from the application
@@ -448,6 +464,7 @@ struct DocSection<'a> {
     meta: &'a Meta,
 }
 
+#[cfg(feature = "docgen")]
 fn extract_sections<'a>(
     meta: &'a Meta,
     info: &'a Info,
@@ -467,7 +484,6 @@ fn extract_sections<'a>(
             short: _,
             help: _,
             meta,
-            #[cfg(feature = "manpage")]
             info,
         } = item
         {

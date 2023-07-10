@@ -167,8 +167,12 @@ impl Iterator for LineIter<'_> {
                     }
                     self.prev_empty = true;
                 } else {
+                    if self.prev_empty {
+                        self.current.push('\n');
+                    }
                     self.current.push_str(line);
                     self.current.push('\n');
+                    self.prev_empty = false;
                 }
             } else {
                 if self.current.is_empty() {
@@ -178,4 +182,35 @@ impl Iterator for LineIter<'_> {
             }
         }
     }
+}
+
+#[cfg(test)]
+fn split(input: &str) -> LineIter {
+    LineIter::from(input)
+}
+
+#[test]
+fn splitter_preserves_line_breaks() {
+    let x = split("a\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a\nb"]);
+
+    let x = split("a\n\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a\n\nb"]);
+
+    let x = split("a\n\n\nb").collect::<Vec<_>>();
+    assert_eq!(x, ["a", "b"]);
+}
+
+#[test]
+fn splitter_with_code_blocks() {
+    let input = "Make a tree\n\n\n\n\nExamples:\n\n```sh\ncargo 1\ncargo 2\n```";
+    let out = split(input).collect::<Vec<_>>();
+    assert_eq!(
+        out,
+        [
+            "Make a tree",
+            "",
+            "Examples:\n\n```sh\ncargo 1\ncargo 2\n```"
+        ]
+    );
 }

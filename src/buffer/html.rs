@@ -1,14 +1,20 @@
 use crate::{
     buffer::{
-        extract_sections,
         splitter::{split, Chunk},
-        Block, Info, Meta, Skip, Style, Token,
+        Block, Skip, Style, Token,
     },
+    Doc, OptionParser,
+};
+
+#[cfg(feature = "docgen")]
+use crate::{
+    buffer::{extract_sections, Info, Meta},
     meta_help::render_help,
-    Doc, OptionParser, Parser,
+    Parser,
 };
 
 #[inline(never)]
+#[cfg(feature = "docgen")]
 fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
     let mut sections = Vec::new();
     let root = meta;
@@ -56,11 +62,13 @@ fn collect_html(app: String, meta: &Meta, info: &Info) -> Doc {
 
 impl<T> OptionParser<T> {
     /// Render command line documentation for the app into html/markdown mix
+    #[cfg(feature = "docgen")]
     pub fn render_html(&self, app: impl Into<String>) -> String {
         collect_html(app.into(), &self.inner.meta(), &self.info).render_html(true, false)
     }
 
     /// Render command line documentation for the app into Markdown
+    #[cfg(feature = "docgen")]
     pub fn render_markdown(&self, app: impl Into<String>) -> String {
         collect_html(app.into(), &self.inner.meta(), &self.info).render_markdown(true)
     }
@@ -138,7 +146,6 @@ fn change_to_markdown_style(res: &mut String, cur: &mut Styles, new: Styles) {
     if new.bold {
         res.push_str("**");
     }
-
     if new.mono {
         res.push('`');
     }
@@ -253,6 +260,7 @@ impl Doc {
                         }
                         Block::Meta => todo!(),
                         Block::Section3 => res.push_str("<div style='padding-left: 0.5em'>"),
+                        Block::Mono => {}
                         Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
@@ -286,6 +294,7 @@ impl Doc {
                         Block::Block => {
                             res.push_str("</p>");
                         }
+                        Block::Mono => {}
                         Block::Meta => todo!(),
                         Block::TermRef => {}
                         Block::Section3 => res.push_str("</div>"),
@@ -310,6 +319,9 @@ impl Doc {
         let mut skip = Skip::default();
         let mut stack = Vec::new();
         let mut empty_term = false;
+        let mut mono = 0;
+        let mut def_list = false;
+        let mut code_block = false;
         for (ix, token) in self.tokens.iter().copied().enumerate() {
             match token {
                 Token::Text { bytes, style } => {
@@ -323,10 +335,39 @@ impl Doc {
 
                     for chunk in split(input) {
                         match chunk {
-                            Chunk::Raw(input, _) => res.push_str(input),
+                            Chunk::Raw(input, w) => {
+                                if w == Chunk::TICKED_CODE {
+                                    new_markdown_line(&mut res);
+                                    res.push_str("  ");
+                                    res.push_str(input);
+                                    res.push('\n');
+                                } else if w == Chunk::CODE {
+                                    if !code_block {
+                                        res.push_str("\n\n  ```text\n");
+                                    }
+                                    code_block = true;
+                                    res.push_str("  ");
+                                    res.push_str(input);
+                                    res.push('\n');
+                                } else {
+                                    if code_block {
+                                        res.push_str("\n  ```\n");
+                                        code_block = false;
+                                    }
+                                    if mono > 0 {
+                                        let input = input.replace('[', "\\[").replace(']', "\\]");
+                                        res.push_str(&input);
+                                    } else {
+                                        res.push_str(input);
+                                    }
+                                }
+                            }
                             Chunk::Paragraph => {
                                 if full {
-                                    res.push('\n');
+                                    res.push_str("\n\n");
+                                    if def_list {
+                                        res.push_str("  ");
+                                    }
                                 } else {
                                     skip.enable();
                                     break;
@@ -334,6 +375,11 @@ impl Doc {
                             }
                             Chunk::LineBreak => res.push('\n'),
                         }
+                    }
+
+                    if code_block {
+                        res.push_str("  ```\n");
+                        code_block = false;
                     }
                 }
                 Token::BlockStart(b) => {
@@ -347,6 +393,7 @@ impl Doc {
                             res.push_str("");
                         }
                         Block::ItemTerm => {
+                            new_markdown_line(&mut res);
                             empty_term = matches!(
                                 self.tokens.get(ix + 1),
                                 Some(Token::BlockEnd(Block::ItemTerm))
@@ -354,15 +401,23 @@ impl Doc {
                             res.push_str(if empty_term { "  " } else { "- " });
                         }
                         Block::ItemBody => {
+                            if def_list {
+                                res.push_str(if empty_term { " " } else { " &mdash; " });
+                            }
                             new_markdown_line(&mut res);
+                            res.push_str("  ");
                         }
                         Block::DefinitionList => {
+                            def_list = true;
                             res.push_str("");
                         }
                         Block::Block => {
                             res.push('\n');
                         }
                         Block::Meta => todo!(),
+                        Block::Mono => {
+                            mono += 1;
+                        }
                         Block::Section3 => res.push_str("### "),
                         Block::TermRef => {}
                         Block::InlineBlock => {
@@ -383,15 +438,21 @@ impl Doc {
                         Block::InlineBlock => {
                             skip.pop();
                         }
-                        Block::ItemTerm => res.push_str(if empty_term { " " } else { " &mdash; " }),
+                        Block::ItemTerm => {}
                         Block::ItemBody => {
-                            if stack.last().copied() == Some(Block::DefinitionList) {
+                            if def_list {
                                 res.push('\n');
                             }
                         }
-                        Block::DefinitionList => res.push('\n'),
+                        Block::DefinitionList => {
+                            def_list = false;
+                            res.push('\n');
+                        }
                         Block::Block => {
                             res.push('\n');
+                        }
+                        Block::Mono => {
+                            mono -= 1;
                         }
                         Block::Meta => todo!(),
                         Block::TermRef => {}
