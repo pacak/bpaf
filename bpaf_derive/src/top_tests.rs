@@ -197,7 +197,7 @@ fn empty_enum() {
 fn enum_markdownish() {
     let input: Top = parse_quote! {
         enum Opt {
-            /// Make a tree out of dependencies
+            /// Make a tree
             ///
             ///
             ///
@@ -222,7 +222,7 @@ fn enum_markdownish() {
                 ::bpaf::construct!(Opt::Opt { field ,})
             }
             .to_options()
-            .descr("Make a tree out of dependencies")
+            .descr("Make a tree")
             .footer("Examples:\n\n```sh\ncargo 1\ncargo 2\n```")
             .command("opt")
         }
