@@ -194,6 +194,44 @@ fn empty_enum() {
 */
 
 #[test]
+fn enum_markdownish() {
+    let input: Top = parse_quote! {
+        enum Opt {
+            /// Make a tree out of dependencies
+            ///
+            ///
+            ///
+            ///
+            /// Examples:
+            ///
+            /// ```sh
+            /// cargo 1
+            /// cargo 2
+            /// ```
+            #[bpaf(command)]
+            Opt { field: bool },
+        }
+    };
+
+    let expected = quote! {
+        fn opt() -> impl ::bpaf::Parser<Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let field = ::bpaf::long("field").switch();
+                ::bpaf::construct!(Opt::Opt { field ,})
+            }
+            .to_options()
+            .descr("Make a tree out of dependencies")
+            .footer("Examples:\n\n```sh\ncargo 1\ncargo 2\n```")
+            .command("opt")
+        }
+    };
+
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn enum_command() {
     let input: Top = parse_quote! {
         // those are options
