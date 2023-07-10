@@ -70,7 +70,13 @@ fn top_enum_construct() {
 fn top_struct_options1() {
     let top: Top = parse_quote! {
         /// those are options
-        #[bpaf(options)]
+        ///
+        ///
+        /// header
+        ///
+        ///
+        /// footer
+        #[bpaf(options, header(h), footer(f))]
         struct Opt {}
     };
 
@@ -83,6 +89,10 @@ fn top_struct_options1() {
                 }
                 .to_options()
                 .descr("those are options")
+                .header("header")
+                .footer("footer")
+                .header(h)
+                .footer(f)
         }
     };
 
@@ -208,7 +218,7 @@ fn enum_markdownish() {
             /// cargo 1
             /// cargo 2
             /// ```
-            #[bpaf(command)]
+            #[bpaf(command, header("x"))]
             Opt { field: bool },
         }
     };
@@ -222,8 +232,9 @@ fn enum_markdownish() {
                 ::bpaf::construct!(Opt::Opt { field ,})
             }
             .to_options()
-            .descr("Make a tree")
             .footer("Examples:\n\n```sh\ncargo 1\ncargo 2\n```")
+            .descr("Make a tree")
+            .header("x")
             .command("opt")
         }
     };
@@ -235,6 +246,7 @@ fn enum_markdownish() {
 fn enum_command() {
     let input: Top = parse_quote! {
         // those are options
+        #[bpaf(options, header(h), footer(f))]
         enum Opt {
             #[bpaf(command("foo"))]
             /// foo doc
@@ -252,7 +264,7 @@ fn enum_command() {
     };
 
     let expected = quote! {
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -261,9 +273,9 @@ fn enum_command() {
                     ::bpaf::construct!(Opt::Foo { field, })
                 }
                 .to_options()
-                .descr("foo doc")
-                .header("header")
                 .footer("footer")
+                .header("header")
+                .descr("foo doc")
                 .command("foo");
 
                 let alt1 = {
@@ -276,6 +288,9 @@ fn enum_command() {
                 .adjacent();
                 ::bpaf::construct!([alt0, alt1, ])
             }
+            .to_options()
+            .header(h)
+            .footer(f)
         }
     };
     assert_eq!(input.to_token_stream().to_string(), expected.to_string());

@@ -194,6 +194,10 @@ impl Parse for TopInfo {
             } else if kw == "long" {
                 command(&kw, mode)?;
                 attrs.push(TopAttr::CommandLong(parse_arg(input)?));
+            } else if kw == "header" {
+                attrs.push(TopAttr::Header(Help::Custom(parse_arg(input)?)));
+            } else if kw == "footer" {
+                attrs.push(TopAttr::Footer(Help::Custom(parse_arg(input)?)));
             } else if kw == "usage" {
                 options(&kw, mode).or_else(|_| command(&kw, mode))?;
                 attrs.push(TopAttr::Usage(parse_arg(input)?));
@@ -279,6 +283,10 @@ impl Parse for Ed {
                 attrs.push(EAttr::Adjacent);
             } else if kw == "usage" {
                 attrs.push(EAttr::Usage(parse_arg(input)?));
+            } else if kw == "header" {
+                attrs.push(EAttr::Header(Help::Custom(parse_arg(input)?)));
+            } else if kw == "footer" {
+                attrs.push(EAttr::Footer(Help::Custom(parse_arg(input)?)));
             } else if kw == "env" {
                 attrs.push(EAttr::Env(parse_arg(input)?));
             } else {

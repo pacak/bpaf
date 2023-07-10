@@ -165,21 +165,21 @@ fn split_help_into(h: Help, attrs: &mut Vec<TopAttr>) {
     }
 }
 
-fn split_ehelp_into(h: Help, attrs: &mut Vec<EAttr>) {
+fn split_ehelp_into(h: Help, opts_at: usize, attrs: &mut Vec<EAttr>) {
     match &h {
         Help::Custom(_) => attrs.push(EAttr::Descr(h)),
         Help::Doc(c) => {
             let mut chunks = LineIter::from(c.as_str());
             if let Some(s) = chunks.next() {
-                attrs.push(EAttr::Descr(Help::Doc(s)));
+                attrs.insert(opts_at, EAttr::Descr(Help::Doc(s)));
             }
             if let Some(s) = chunks.next() {
                 if !s.is_empty() {
-                    attrs.push(EAttr::Header(Help::Doc(s)));
+                    attrs.insert(opts_at, EAttr::Header(Help::Doc(s)));
                 }
             }
             if let Some(s) = chunks.rest() {
-                attrs.push(EAttr::Footer(Help::Doc(s)));
+                attrs.insert(opts_at, EAttr::Footer(Help::Doc(s)));
             }
         }
     }
@@ -363,25 +363,20 @@ impl ParsedEnumBranch {
         }
 
         let mut attrs = Vec::with_capacity(ea.len());
+        let mut has_options = None;
 
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
                     branch.set_command();
                     attrs.push(EAttr::ToOptions);
-                    if let Some(h) = std::mem::take(&mut help) {
-                        split_ehelp_into(h, &mut attrs);
-                    }
+                    has_options = Some(attrs.len());
                     attrs.push(attr);
                 }
                 EAttr::UnnamedCommand => {
                     branch.set_command();
                     attrs.push(EAttr::ToOptions);
-
-                    if let Some(h) = std::mem::take(&mut help) {
-                        split_ehelp_into(h, &mut attrs);
-                    }
-
+                    has_options = Some(attrs.len());
                     attrs.push(EAttr::NamedCommand(ident_to_long(&branch.ident)));
                 }
 
@@ -402,12 +397,19 @@ impl ParsedEnumBranch {
                         unreachable!();
                     }
                 }
-                EAttr::Adjacent
-                | EAttr::Hide
-                | EAttr::Header(_)
-                | EAttr::Footer(_)
-                | EAttr::Descr(_) => attrs.push(attr),
+                EAttr::Adjacent | EAttr::Hide => attrs.push(attr),
+                EAttr::Header(_) | EAttr::Footer(_) | EAttr::Descr(_) => {
+                    if let Some(o) = attrs.iter().position(|i| matches!(i, EAttr::ToOptions)) {
+                        attrs.insert(o + 1, attr);
+                    }
+                }
                 EAttr::ToOptions => unreachable!(),
+            }
+        }
+
+        if let Some(opts_at) = has_options {
+            if let Some(h) = std::mem::take(&mut help) {
+                split_ehelp_into(h, opts_at, &mut attrs);
             }
         }
         branch.set_inplicit_name();
