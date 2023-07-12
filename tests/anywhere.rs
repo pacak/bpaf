@@ -36,37 +36,37 @@ fn parse_anywhere_no_catch() {
     // Usage: -a <x> [-c],
 
     let r = parser.run_inner(&["3", "-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
+    assert_eq!(r, "expected `X`, pass `--help` for usage information");
 
     let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
+    assert_eq!(r, "expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(&["-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `221b`: invalid digit found in string");
 
     let r = parser.run_inner(&["-c", "-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
+    assert_eq!(r, "expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(&["-c", "-a", "221b"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `221b`: invalid digit found in string");
 
     let r = parser.run_inner(&["-a", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `X`, got `-c`. Pass `--help` for usage information"
+        "expected `X`, got `-c`. Pass `--help` for usage information"
     );
 
     let r = parser
         .run_inner(&["-a", "221b", "-c"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `221b`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `221b`: invalid digit found in string");
 }
 
 #[test]

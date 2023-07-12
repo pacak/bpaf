@@ -183,7 +183,7 @@ adjacent
 
 <div class='bpaf-doc'>
 $ app sleep --time 10 eat --premium 'Bak Kut Teh' drink<br>
-Expected <tt><i>FOOD</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><i>FOOD</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

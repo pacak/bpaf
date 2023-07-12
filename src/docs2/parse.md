@@ -77,7 +77,7 @@ in some other way
 
 <div class='bpaf-doc'>
 $ app --number ten<br>
-Couldn't parse <b>ten</b>: invalid digit found in string
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
 <style>
 div.bpaf-doc {
     padding: 14px;

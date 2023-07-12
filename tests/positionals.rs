@@ -50,11 +50,11 @@ fn dash_is_positional() {
 #[test]
 fn helpful_error_message() {
     let parser = positional::<String>("FOO")
-        .some("You need to specify at least one FOO")
+        .some("you need to specify at least one FOO")
         .to_options();
 
     let err = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!("You need to specify at least one FOO", err);
+    assert_eq!("you need to specify at least one FOO", err);
 }
 
 #[test]
@@ -133,14 +133,14 @@ fn strictly_positional() {
     );
 
     let r = parser.run_inner(&["a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `A` to be on the right side of `--`");
+    assert_eq!(r, "expected `A` to be on the right side of `--`");
 
     let r = parser.run_inner(&["--", "a"]).unwrap();
     assert_eq!(r, "a");
 
     let r = parser.run_inner(&["a", "--"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `A` to be on the right side of `--`");
+    assert_eq!(r, "expected `A` to be on the right side of `--`");
 
     let r = parser.run_inner(&["--"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `A`, pass `--help` for usage information");
+    assert_eq!(r, "expected `A`, pass `--help` for usage information");
 }

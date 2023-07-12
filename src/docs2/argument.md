@@ -123,7 +123,7 @@ stops and argument begins:
 
 <div class='bpaf-doc'>
 $ app --age12<br>
-No such flag: <b>--age12</b>, did you mean <tt><b>--age</b></tt>?
+<b>Error:</b> no such flag: <b>--age12</b>, did you mean <tt><b>--age</b></tt>?
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -144,7 +144,7 @@ Either way - value is required, passing just the argument name results in parse 
 
 <div class='bpaf-doc'>
 $ app --name<br>
-<tt><b>--name</b></tt> requires an argument <tt><i>NAME</i></tt>
+<b>Error:</b> <tt><b>--name</b></tt> requires an argument <tt><i>NAME</i></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;

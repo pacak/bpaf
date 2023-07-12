@@ -204,7 +204,20 @@ impl ParseFailure {
                 0
             }
             ParseFailure::Stderr(msg) => {
-                eprintln!("{}", msg.render_console(true, color));
+                #[allow(unused_mut)]
+                let mut error;
+                #[cfg(not(feature = "color"))]
+                {
+                    error = "Error: ";
+                }
+
+                #[cfg(feature = "color")]
+                {
+                    error = String::new();
+                    color.push_str(Style::Invalid, &mut error, "Error: ")
+                }
+
+                eprintln!("{}{}", error, msg.render_console(true, color));
                 1
             }
         }
@@ -257,16 +270,16 @@ impl Message {
         }
 
         let mut doc = Doc::default();
-
         match self {
             // already rendered
             Message::ParseFailure(f) => return f,
 
-            // it is possible to have both missing and unconsumed
+            // this case is handled above
             Message::Missing(_) => {
                 // this one is unreachable
             }
 
+            // Error: --foo is not expected in this context
             Message::Unconsumed(ix) => {
                 let item = &args.items[ix];
                 doc.token(Token::BlockStart(Block::TermRef));
@@ -275,15 +288,18 @@ impl Message {
                 doc.text(" is not expected in this context");
             }
 
+            // Error: environment variable FOO is not set
             Message::NoEnv(name) => {
-                doc.text("Environment variable ");
+                doc.text("environment variable ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.invalid(name);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" is not set");
             }
+
+            // Error: FOO expected to be  in the right side of --
             Message::StrictPos(_ix, metavar) => {
-                doc.text("Expected ");
+                doc.text("expected ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.metavar(metavar);
                 doc.token(Token::BlockEnd(Block::TermRef));
@@ -292,11 +308,15 @@ impl Message {
                 doc.literal("--");
                 doc.token(Token::BlockEnd(Block::TermRef));
             }
+
+            // Error: <message from some or fail>
             Message::ParseSome(s) | Message::ParseFail(s) => {
                 doc.text(s);
             }
+
+            // Error: couldn't parse FIELD: <FromStr message>
             Message::ParseFailed(mix, s) => {
-                doc.text("Couldn't parse");
+                doc.text("couldn't parse");
                 if let Some(field) = textual_part(args, mix) {
                     doc.text(" ");
                     doc.token(Token::BlockStart(Block::TermRef));
@@ -306,6 +326,8 @@ impl Message {
                 doc.text(": ");
                 doc.text(&s);
             }
+
+            // Error: ( FIELD:  | check failed: ) <message from guard>
             Message::GuardFailed(mix, s) => {
                 if let Some(field) = textual_part(args, mix) {
                     doc.token(Token::BlockStart(Block::TermRef));
@@ -313,10 +335,13 @@ impl Message {
                     doc.token(Token::BlockEnd(Block::TermRef));
                     doc.text(": ");
                 } else {
-                    doc.text("Check failed: ");
+                    doc.text("check failed: ");
                 }
                 doc.text(s);
             }
+
+            // Error: --foo requires an argument FOO, got a flag --bar, try --foo=-bar to use it as an argument
+            // Error: --foo requires an argument FOO
             Message::NoArgument(x, mv) => match args.get(x + 1) {
                 Some(Arg::Short(_, _, os) | Arg::Long(_, _, os)) => {
                     let arg = &args.items[x];
@@ -353,9 +378,12 @@ impl Message {
                     doc.token(Token::BlockEnd(Block::TermRef));
                 }
             },
+            // Error: <message from pure_with>
             Message::PureFailed(s) => {
                 doc.text(&s);
             }
+            // Error: app supports -f as both an option and an option-argument, try to split -foo
+            // into invididual options (-f -o ..) or use -f=oo syntax to disambiguate
             Message::Ambiguity(ix, name) => {
                 let mut chars = name.chars();
                 let first = chars.next().unwrap();
@@ -367,7 +395,7 @@ impl Message {
                     doc.literal(name);
                     doc.text("supports ");
                 } else {
-                    doc.text("App supports ");
+                    doc.text("app supports ");
                 }
 
                 doc.token(Token::BlockStart(Block::TermRef));
@@ -393,6 +421,7 @@ impl Message {
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" syntax to disambiguate");
             }
+            // Error: No such (flag|argument|command), did you mean  ...
             Message::Suggestion(ix, suggestion) => {
                 let actual = &args.items[ix].to_string();
                 match suggestion {
@@ -404,7 +433,7 @@ impl Message {
                             Arg::Word(_) | Arg::PosWord(_) => "command or positional",
                         };
 
-                        doc.text("No such ");
+                        doc.text("no such ");
                         doc.text(ty);
                         doc.text(": ");
                         doc.token(Token::BlockStart(Block::TermRef));
@@ -429,7 +458,7 @@ impl Message {
                         doc.text("?");
                     }
                     Suggestion::MissingDash(name) => {
-                        doc.text("No such flag: ");
+                        doc.text("no such flag: ");
                         doc.token(Token::BlockStart(Block::TermRef));
                         doc.literal("-");
                         doc.literal(name);
@@ -442,7 +471,7 @@ impl Message {
                         doc.text("?");
                     }
                     Suggestion::ExtraDash(name) => {
-                        doc.text("No such flag: ");
+                        doc.text("no such flag: ");
                         doc.token(Token::BlockStart(Block::TermRef));
                         doc.literal("--");
                         doc.write_char(name, Style::Literal);
@@ -456,8 +485,8 @@ impl Message {
                     }
                     Suggestion::Nested(x, v) => {
                         let ty = match v {
-                            Variant::CommandLong(_) => "Subcommand",
-                            Variant::Flag(_) => "Flag",
+                            Variant::CommandLong(_) => "subcommand",
+                            Variant::Flag(_) => "flag",
                         };
                         doc.text(ty);
                         doc.text(" ");
@@ -474,11 +503,12 @@ impl Message {
                     }
                 }
             }
+            // Error: Expected (no arguments|--foo), got ..., pass --help
             Message::Expected(exp, actual) => {
-                doc.text("Expected ");
+                doc.text("expected ");
                 match exp.len() {
                     0 => {
-                        doc.text("Expected no arguments");
+                        doc.text("no arguments");
                     }
                     1 => {
                         doc.token(Token::BlockStart(Block::TermRef));
@@ -522,6 +552,8 @@ impl Message {
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" for usage information");
             }
+
+            // Error: --intel cannot be used at the same time as --att
             Message::Conflict(winner, loser) => {
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.write(&args.items[loser], Style::Literal);
@@ -531,8 +563,10 @@ impl Message {
                 doc.write(&args.items[winner], Style::Literal);
                 doc.token(Token::BlockEnd(Block::TermRef));
             }
+
+            // Error: argument FOO cannot be used multiple times in this context
             Message::OnlyOnce(_winner, loser) => {
-                doc.text("Argument ");
+                doc.text("argument ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.write(&args.items[loser], Style::Literal);
                 doc.token(Token::BlockEnd(Block::TermRef));

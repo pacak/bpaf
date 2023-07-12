@@ -91,7 +91,7 @@ and old short name no longer works.
 
 <div class='bpaf-doc'>
 $ app -h<br>
-<b>-h</b> is not expected in this context
+<b>Error:</b> <b>-h</b> is not expected in this context
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -83,7 +83,7 @@ With not enough parameters to satisfy both parsers at least once - it fails
 
 <div class='bpaf-doc'>
 $ app <br>
-want at least one argument
+<b>Error:</b> want at least one argument
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -104,7 +104,7 @@ both parsers need to succeed to create a struct
 
 <div class='bpaf-doc'>
 $ app --argument 10<br>
-want at least one switch
+<b>Error:</b> want at least one switch
 <style>
 div.bpaf-doc {
     padding: 14px;

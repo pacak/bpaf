@@ -125,7 +125,7 @@ Error messages should be somewhat descriptive
 
 <div class='bpaf-doc'>
 $ app --meal --drink --spicy 500<br>
-Expected <tt><i>DISH</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><i>DISH</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

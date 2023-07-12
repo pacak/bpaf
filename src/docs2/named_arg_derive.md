@@ -116,7 +116,7 @@ valid _visible_ argument
 
 <div class='bpaf-doc'>
 $ app --database default --quie<br>
-No such flag: <b>--quie</b>, did you mean <tt><b>--quiet</b></tt>?
+<b>Error:</b> no such flag: <b>--quie</b>, did you mean <tt><b>--quiet</b></tt>?
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -137,7 +137,7 @@ It will not do so for hidden aliases
 
 <div class='bpaf-doc'>
 $ app --database default --essentia<br>
-<b>--essentia</b> is not expected in this context
+<b>Error:</b> <b>--essentia</b> is not expected in this context
 <style>
 div.bpaf-doc {
     padding: 14px;

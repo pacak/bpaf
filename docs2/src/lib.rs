@@ -93,7 +93,7 @@ $ app {all_args}<br>
             "
 <div class='bpaf-doc'>
 $ app {all_args}<br>
-{}
+<b>Error:</b> {}
 </div>
 ",
             buf.render_html(true, true)

@@ -131,7 +131,7 @@ Options { point: [Point { point: (), x: 10, y: 20, z: 3.1415 }, Point { point: (
 
 <div class='bpaf-doc'>
 $ app --point 10 20 --rotate 3.1415<br>
-Expected <tt><i>Z</i></tt>, got <b>--rotate</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><i>Z</i></tt>, got <b>--rotate</b>. Pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

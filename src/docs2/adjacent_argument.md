@@ -65,7 +65,7 @@ As with regular [`argument`](NamedArg::argument) its `adjacent` variant is requi
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -101,7 +101,7 @@ Separating them by space results in parse failure
 
 <div class='bpaf-doc'>
 $ app --package htb<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -119,7 +119,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app -p htb<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>-p</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>-p</b>. Pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -137,7 +137,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app --package<br>
-Expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt>, got <b>--package</b>. Pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
