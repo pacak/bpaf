@@ -77,7 +77,7 @@ It doesn't alter parser's behavior otherwise
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

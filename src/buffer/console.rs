@@ -91,7 +91,7 @@ impl Default for Color {
 
 #[cfg(feature = "color")]
 impl Color {
-    fn push_str(self, style: Style, res: &mut String, item: &str) {
+    pub(crate) fn push_str(self, style: Style, res: &mut String, item: &str) {
         use owo_colors::OwoColorize;
         use std::fmt::Write;
         match self {

@@ -15,7 +15,7 @@ fn ambiguity() {
     let parser = construct!([a0, a1]).to_options();
 
     let r = parser.run_inner(&["-aaaaaa"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "App supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual options\n(-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
+    assert_eq!(r, "app supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual options\n(-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
 
     let r = parser.run_inner(&["-b"]).unwrap_err().unwrap_stderr();
     // single char typos are too random
@@ -35,7 +35,7 @@ fn short_cmd() {
 
     assert_eq!(
         r,
-        "Expected `COMMAND ...`, got `c`. Pass `--help` for usage information"
+        "expected `COMMAND ...`, got `c`. Pass `--help` for usage information"
     );
 }
 
@@ -54,7 +54,7 @@ fn double_dashes_no_fallback() {
 
     assert_eq!(
         r,
-        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -72,7 +72,7 @@ fn double_dashes_fallback() {
 
     assert_eq!(
         r,
-        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -96,7 +96,7 @@ fn double_dash_with_optional_positional() {
 
     assert_eq!(
         r,
-        "No such flag: `-llvm` (with one dash), did you mean `--llvm`?"
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
 
@@ -123,7 +123,7 @@ fn inside_out_command_parser() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Flag `--oneline` is not valid in this context, did you mean to pass it to command `log`?"
+        "flag `--oneline` is not valid in this context, did you mean to pass it to command `log`?"
     );
 }
 
@@ -137,7 +137,7 @@ fn flag_specified_twice() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Argument `--flag` cannot be used multiple times in this context"
+        "argument `--flag` cannot be used multiple times in this context"
     );
 }
 
@@ -168,7 +168,7 @@ fn ux_discussion() {
         r,
         // everything before ":" comes from bpaf, after ":" - it's an error specific
         // to FromStr instance.
-        "Couldn't parse `tru`: provided string was not `true` or `false`"
+        "couldn't parse `tru`: provided string was not `true` or `false`"
     );
 
     let r = parser
@@ -176,7 +176,7 @@ fn ux_discussion() {
         .unwrap_err()
         .unwrap_stderr();
 
-    assert_eq!(r, "No such flag: `--bool-fla`, did you mean `--bool-flag`?");
+    assert_eq!(r, "no such flag: `--bool-fla`, did you mean `--bool-flag`?");
 
     let r = parser
         .run_inner(&["--bool-flag", "--bool-flag"])
@@ -185,7 +185,7 @@ fn ux_discussion() {
 
     assert_eq!(
         r,
-        "Expected `--setBool`, got `--bool-flag`. Pass `--help` for usage information"
+        "expected `--setBool`, got `--bool-flag`. Pass `--help` for usage information"
     );
 }
 
@@ -194,13 +194,13 @@ fn suggest_typo_fix() {
     let p = long("flag").switch().to_options();
 
     let r = p.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
     let r = p
         .run_inner(&["--fla", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
     let r = p
         .run_inner(&["--flag", "--flag"])
@@ -208,7 +208,7 @@ fn suggest_typo_fix() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Argument `--flag` cannot be used multiple times in this context"
+        "argument `--flag` cannot be used multiple times in this context"
     );
 }
 

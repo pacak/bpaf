@@ -2,6 +2,7 @@
 
 ## bpaf [0.9.2], bpaf_derive [0.5.2] - Unreleased
 - with `docgen` feature you can render documentation as markdown
+- cosmetic changes to error messages
 
 ## bpaf [0.9.1], bpaf_derive [0.5.1] - 2023-07-05
 - add a way to print usage when called with no argument_os

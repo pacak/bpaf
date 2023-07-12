@@ -141,19 +141,19 @@ fn cannot_be_used_twice() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "Argument `-a` cannot be used multiple times in this context"
+        "argument `-a` cannot be used multiple times in this context"
     );
 
     let r = parser.run_inner(&["-a", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Argument `-a` cannot be used multiple times in this context"
+        "argument `-a` cannot be used multiple times in this context"
     );
 
     let r = parser.run_inner(&["-abba"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Argument `-a` cannot be used multiple times in this context"
+        "argument `-a` cannot be used multiple times in this context"
     );
 }
 
@@ -168,13 +168,13 @@ fn should_not_split_adjacent_options() {
     let r = parser.run_inner(&["-a=hello"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
+        "expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
     );
 
     let r = parser.run_inner(&["-ahello"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
+        "expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
     );
 
     // this one is okay
@@ -189,5 +189,5 @@ fn adjacent_option_complains_to() {
     let r = parser.run_inner(&["-ayam"]).unwrap_err().unwrap_stderr();
 
     // TODO - this should point to the whole "-ayam" thing
-    assert_eq!(r, "Couldn't parse `yam`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `yam`: invalid digit found in string");
 }

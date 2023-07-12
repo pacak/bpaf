@@ -137,7 +137,7 @@ But with `adjacent` they cannot interleave
 
 <div class='bpaf-doc'>
 $ app --rect --rect --width 10 --painted --height 10 --height 10 --width 10<br>
-Expected <tt><b>--width</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--width</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -157,7 +157,7 @@ Or have items that don't belong to the group inside them
 
 <div class='bpaf-doc'>
 $ app --rect --width 10 --mirror --painted --height 10 --rect --height 10 --width 10<br>
-Expected <tt><b>--height</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--height</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

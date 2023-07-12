@@ -55,7 +55,7 @@ fn adjacent_error_message_pos_single() {
     let parser = construct!(adj, d).to_options();
 
     let r = parser.run_inner(&["-a", "10"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `C`, pass `--help` for usage information");
+    assert_eq!(r, "expected `C`, pass `--help` for usage information");
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn adjacent_error_message_arg_single() {
     let r = parser.run_inner(&["-a", "10"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
+        "expected `-b=B`, got `10`. Pass `--help` for usage information"
     );
 }
 
@@ -84,7 +84,7 @@ fn adjacent_error_message_pos_many() {
     let parser = construct!(adj, d).to_options();
 
     let r = parser.run_inner(&["-a", "10"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `C`, pass `--help` for usage information");
+    assert_eq!(r, "expected `C`, pass `--help` for usage information");
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn adjacent_error_message_arg_many() {
     // this should ask for -b or -c and complain on 10...
     assert_eq!(
         r,
-        "Expected `-b=B`, got `10`. Pass `--help` for usage information"
+        "expected `-b=B`, got `10`. Pass `--help` for usage information"
     );
 }
 
@@ -114,7 +114,7 @@ fn adjacent_is_adjacent() {
         .run_inner(&["-a", "-a", "10", "20"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected `B`, pass `--help` for usage information");
+    assert_eq!(r, "expected `B`, pass `--help` for usage information");
 
     let r = parser.run_inner(&["-a", "10", "-a", "20"]).unwrap();
     assert_eq!(r, [10, 20]);

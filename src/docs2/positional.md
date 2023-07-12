@@ -141,7 +141,7 @@ Without using `--` `bpaf` would only accept items that don't start with `-` as p
 
 <div class='bpaf-doc'>
 $ app --detailed<br>
-Expected <tt><i>CRATE</i></tt>, got <b>--detailed</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, got <b>--detailed</b>. Pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -159,7 +159,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app --verbose<br>
-Expected <tt><i>CRATE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

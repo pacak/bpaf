@@ -980,7 +980,7 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 }
 
 #[test]
-#[should_panic(expected = "App supports ")]
+#[should_panic(expected = "app supports ")]
 fn ambiguity_no_resolve() {
     let a0 = short('a').switch().count();
     let a1 = short('a').argument::<usize>("AAAAAA");

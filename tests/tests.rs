@@ -66,7 +66,7 @@ fn simple_two_optional_flags() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
-        "Argument `-a` cannot be used multiple times in this context",
+        "argument `-a` cannot be used multiple times in this context",
         err
     );
 
@@ -104,7 +104,7 @@ fn simple_two_optional_flags_with_one_hidden() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
-        "Argument `-a` cannot be used multiple times in this context",
+        "argument `-a` cannot be used multiple times in this context",
         err
     );
 
@@ -151,7 +151,7 @@ Available options:
     // must specify one of the required flags
     let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
-        "Expected `-a`, `-b`, or more, pass `--help` for usage information",
+        "expected `-a`, `-b`, or more, pass `--help` for usage information",
         err
     );
 }
@@ -184,7 +184,7 @@ Available options:
     // must specify one of the required flags
     let err = decorated.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(
-        "Expected `-a`, `-b`, or more, pass `--help` for usage information",
+        "expected `-a`, `-b`, or more, pass `--help` for usage information",
         err
     );
 }
@@ -244,7 +244,7 @@ fn fallback_with_err() {
     assert_eq!(r, 1);
 
     let r = parser.run_inner(&["-a", "x"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `x`: invalid digit found in string");
 
     let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "nope");
@@ -269,7 +269,7 @@ Available options:
         .run_inner(&["-a", "x12"])
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Couldn't parse `x12`: invalid digit found in string";
+    let expected_err = "couldn't parse `x12`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
     let err = decorated.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
@@ -285,14 +285,14 @@ fn parse_errors() {
         .run_inner(&["-a", "123x"])
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Couldn't parse `123x`: invalid digit found in string";
+    let expected_err = "couldn't parse `123x`: invalid digit found in string";
     assert_eq!(expected_err, err);
 
     let err = decorated
         .run_inner(&["-b", "123x"])
         .unwrap_err()
         .unwrap_stderr();
-    let expected_err = "Expected `-a=ARG`, got `-b`. Pass `--help` for usage information";
+    let expected_err = "expected `-a=ARG`, got `-b`. Pass `--help` for usage information";
     assert_eq!(expected_err, err);
 
     let err = decorated
@@ -566,7 +566,7 @@ mod git {
     fn no_command() {
         let parser = setup();
 
-        let expected_err = "Expected `COMMAND ...`, pass `--help` for usage information";
+        let expected_err = "expected `COMMAND ...`, pass `--help` for usage information";
         assert_eq!(
             expected_err,
             parser.run_inner(&[]).unwrap_err().unwrap_stderr()
@@ -724,7 +724,7 @@ fn simple_cargo_helper() {
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
-        "Argument `-a` cannot be used multiple times in this context",
+        "argument `-a` cannot be used multiple times in this context",
         err
     );
 
@@ -775,7 +775,7 @@ Available options:
     assert_eq!(help, expected);
 
     let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Environment variable `BPAF_SECRET_API_KEY2` is not set");
+    assert_eq!(r, "environment variable `BPAF_SECRET_API_KEY2` is not set");
 }
 
 #[test]
@@ -1006,12 +1006,12 @@ fn command_preserves_custom_failure_message() {
     let inner = fail::<()>(msg).to_options();
 
     let err = inner.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!(err, msg);
+    assert_eq!(err, "need more cheese");
 
     let outer = inner.command("feed").to_options();
 
     let err = outer.run_inner(&["feed"]).unwrap_err().unwrap_stderr();
-    assert_eq!(err, msg);
+    assert_eq!(err, "need more cheese");
 }
 
 #[test]
@@ -1025,7 +1025,7 @@ fn optional_error_handling() {
     assert_eq!(res, Some(3));
 
     let res = p.run_inner(&["-p", "pi"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
+    assert_eq!(res, "couldn't parse `pi`: invalid digit found in string");
 }
 
 #[test]
@@ -1039,7 +1039,7 @@ fn many_error_handling() {
     assert_eq!(res, vec![3]);
 
     let res = p.run_inner(&["-p", "pi"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `pi`: invalid digit found in string");
+    assert_eq!(res, "couldn't parse `pi`: invalid digit found in string");
 }
 
 #[test]
@@ -1049,7 +1049,7 @@ fn failure_is_not_stupid_1() {
     let parser = construct!(a, b).to_options();
 
     let res = parser.run_inner(&["-a", "42"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Couldn't parse: nope");
+    assert_eq!(res, "couldn't parse: nope");
 }
 
 #[test]
@@ -1064,7 +1064,7 @@ fn failure_is_not_stupid_2() {
         .run_inner(&["-a", "42", "-b", "42"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse: nope");
+    assert_eq!(res, "couldn't parse: nope");
 }
 
 #[test]
@@ -1074,7 +1074,7 @@ fn no_fallback_out_of_command_parser() {
     let parser = construct!([alt1, alt2]).to_options();
 
     let res = parser.run_inner(&["cmd"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Expected `NAME`, pass `--help` for usage information");
+    assert_eq!(res, "expected `NAME`, pass `--help` for usage information");
 
     let res = parser.run_inner(&["cmd", "a"]).unwrap();
     assert_eq!(res, "a");
@@ -1090,21 +1090,21 @@ fn did_you_mean_switch() {
     let parser = construct!([a, b]).to_options();
 
     let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--fla`, did you mean `--flag`?");
 
     let res = parser.run_inner(&["flag"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "No such command or positional: `flag`, did you mean `--flag`?"
+        "no such command or positional: `flag`, did you mean `--flag`?"
     );
 
     let res = parser.run_inner(&["--pla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--pla`, did you mean `--plag`?");
+    assert_eq!(res, "no such flag: `--pla`, did you mean `--plag`?");
 
     let res = parser.run_inner(&["--p"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "No such flag: `--p` (with two dashes), did you mean `-p`?"
+        "no such flag: `--p` (with two dashes), did you mean `-p`?"
     );
 }
 
@@ -1112,7 +1112,7 @@ fn did_you_mean_switch() {
 fn did_you_mean_req_flag() {
     let parser = long("flag").req_flag(()).to_options();
     let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--fla`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1120,13 +1120,13 @@ fn did_you_mean_argument() {
     let parser = long("flag").argument::<String>("VAL").to_options();
 
     let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--fla`, did you mean `--flag`?");
 
     let res = parser
         .run_inner(&["--flg=hellop"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "No such flag: `--flg`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--flg`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1140,11 +1140,11 @@ fn did_you_mean_command() {
     let res = parser.run_inner(&["comman"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "No such command or positional: `comman`, did you mean `command`?"
+        "no such command or positional: `comman`, did you mean `command`?"
     );
 
     let res = parser.run_inner(&["--comman"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--comman`, did you mean `command`?");
+    assert_eq!(res, "no such flag: `--comman`, did you mean `command`?");
 }
 
 #[test]
@@ -1157,22 +1157,22 @@ fn did_you_mean_two_and_arguments() {
         .run_inner(&["--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["--flag", "--paramet=value"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--paramet`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--paramet`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["--parameter", "--flg"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--flg`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--flg`, did you mean `--flag`?");
 
     let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1182,19 +1182,19 @@ fn did_you_mean_two_or_arguments() {
     let parser = cargo_helper("cmd", construct!([a, b])).to_options();
 
     let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
     let r = parser
         .run_inner(&["--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["--parametr", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["--parameter", "--flag"])
@@ -1252,10 +1252,10 @@ fn cargo_show_asm_issue_from_str() {
         .run_inner(&["asm", "-t", "x"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
+    assert_eq!(res, "couldn't parse `x`: invalid digit found in string");
 
     let res = parser.run_inner(&["-t", "x"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `x`: invalid digit found in string");
+    assert_eq!(res, "couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1272,10 +1272,10 @@ fn cargo_show_asm_issue_parse() {
         .run_inner(&["asm", "-t", "x"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `x`: nope");
+    assert_eq!(res, "couldn't parse `x`: nope");
 
     let res = parser.run_inner(&["-t", "x"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "Couldn't parse `x`: nope");
+    assert_eq!(res, "couldn't parse `x`: nope");
 }
 
 // problematic case looks something like this:
@@ -1294,10 +1294,10 @@ fn cargo_show_asm_issue_unknown_switch() {
         .run_inner(&["asm", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--fla`, did you mean `--flag`?");
 
     let res = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(res, "no such flag: `--fla`, did you mean `--flag`?");
 }
 
 #[test]
@@ -1309,26 +1309,26 @@ fn did_you_mean_inside_command() {
     let r = parser.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "Expected `COMMAND ...`, got `--fla`. Pass `--help` for usage information"
+        "expected `COMMAND ...`, got `--fla`. Pass `--help` for usage information"
     );
 
     let r = parser
         .run_inner(&["cmd", "--fla"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--fla`, did you mean `--flag`?");
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
     let r = parser
         .run_inner(&["cmd", "--flag", "--parametr"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["cmd", "--parametr", "--flag"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "No such flag: `--parametr`, did you mean `--parameter`?");
+    assert_eq!(r, "no such flag: `--parametr`, did you mean `--parameter`?");
 
     let r = parser
         .run_inner(&["cmd", "--parameter", "--flag"])
@@ -1367,7 +1367,7 @@ fn parse_many_errors_positional() {
     assert_eq!(r, vec![1, 2, 3]);
 
     let r = p.run_inner(&["1", "2", "x"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1381,7 +1381,7 @@ fn parse_many_errors_flag() {
         .run_inner(&["-p", "1", "-p", "x"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Couldn't parse `x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `x`: invalid digit found in string");
 }
 
 #[test]
@@ -1393,7 +1393,7 @@ fn command_with_req_parameters() {
         .to_options();
 
     let r = p.run_inner(&["cmd"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `X`, pass `--help` for usage information");
+    assert_eq!(r, "expected `X`, pass `--help` for usage information");
 }
 
 #[test]
@@ -1709,7 +1709,7 @@ fn option_requires_other_option1() {
     let parser = construct!(a, b).optional().to_options();
 
     let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected `-b=B`, pass `--help` for usage information");
+    assert_eq!(r, "expected `-b=B`, pass `--help` for usage information");
 }
 
 #[test]

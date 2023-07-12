@@ -64,7 +64,7 @@ Parsing errors are preserved and preserved to user
 
 <div class='bpaf-doc'>
 $ app --version ten<br>
-Couldn't parse <b>ten</b>: invalid digit found in string
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
 <style>
 div.bpaf-doc {
     padding: 14px;

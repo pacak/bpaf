@@ -167,7 +167,7 @@ Output file is required in this parser, other values are optional
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>of=</b></tt><tt><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>of=</b></tt><tt><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

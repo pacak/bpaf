@@ -5,6 +5,7 @@ pub(super) struct Splitter<'a> {
     code: Code,
 }
 
+#[cfg(feature = "docgen")]
 enum Code {
     No,
     First,

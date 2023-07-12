@@ -95,7 +95,7 @@ valid _visible_ argument
 
 <div class='bpaf-doc'>
 $ app -o best.txt -s 10 --verbos<br>
-No such flag: <b>--verbos</b>, did you mean <tt><b>--verbose</b></tt>?
+<b>Error:</b> no such flag: <b>--verbos</b>, did you mean <tt><b>--verbose</b></tt>?
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -116,7 +116,7 @@ It will not do so for hidden aliases
 
 <div class='bpaf-doc'>
 $ app -o best.txt -s 10 --detaile<br>
-<b>--detaile</b> is not expected in this context
+<b>Error:</b> <b>--detaile</b> is not expected in this context
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -158,7 +158,7 @@ If neither is present - it fails - parser for `output` expects one of its branch
 
 <div class='bpaf-doc'>
 $ app -s 330<br>
-Expected <tt><b>--output</b></tt>=<tt><i>PATH</i></tt> or <tt><b>--output</b></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--output</b></tt>=<tt><i>PATH</i></tt> or <tt><b>--output</b></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

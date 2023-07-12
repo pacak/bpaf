@@ -95,7 +95,7 @@ Other than that `bpaf` tries its best to provide a helpful error messages
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>-i</b></tt>=<tt><i>ARG</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>-i</b></tt>=<tt><i>ARG</i></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;

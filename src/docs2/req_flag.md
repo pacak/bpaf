@@ -143,7 +143,7 @@ Example contains two parsers that fails without any input: `agree` requires pass
 
 <div class='bpaf-doc'>
 $ app <br>
-Expected <tt><b>--agree</b></tt>, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--agree</b></tt>, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -164,7 +164,7 @@ While `style` takes one of several possible values
 
 <div class='bpaf-doc'>
 $ app --agree<br>
-Expected <tt><b>--intel</b></tt>, <tt><b>--att</b></tt>, or more, pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> expected <tt><b>--intel</b></tt>, <tt><b>--att</b></tt>, or more, pass <tt><b>--help</b></tt> for usage information
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -196,7 +196,7 @@ While parser for `style` takes any posted output - it won't take multiple of the
 
 <div class='bpaf-doc'>
 $ app --agree --att --llvm<br>
-<tt><b>--llvm</b></tt> cannot be used at the same time as <tt><b>--att</b></tt>
+<b>Error:</b> <tt><b>--llvm</b></tt> cannot be used at the same time as <tt><b>--att</b></tt>
 <style>
 div.bpaf-doc {
     padding: 14px;

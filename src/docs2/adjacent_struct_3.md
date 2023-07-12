@@ -134,7 +134,7 @@ optional.
 
 <div class='bpaf-doc'>
 $ app --exec ;<br>
-<b>--exec</b> is not expected in this context
+<b>Error:</b> <b>--exec</b> is not expected in this context
 <style>
 div.bpaf-doc {
     padding: 14px;

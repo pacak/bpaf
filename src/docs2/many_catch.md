@@ -130,7 +130,7 @@ In case of wrong `--width` - parser `width` fails, parser for `many` sees this a
 
 <div class='bpaf-doc'>
 $ app --width ten<br>
-Couldn't parse <b>ten</b>: invalid digit found in string
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
 <style>
 div.bpaf-doc {
     padding: 14px;
