@@ -1,6 +1,6 @@
 # Change Log
 
-## bpaf [0.9.2], bpaf_derive [0.5.2] - Unreleased
+## bpaf [0.9.2], bpaf_derive [0.5.2] - 2023-07-13
 - with `docgen` feature you can render documentation as markdown
 - cosmetic changes to error messages
 
