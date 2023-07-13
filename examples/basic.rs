@@ -1,4 +1,4 @@
-//! A somewhat comprehensive example of a typical combinatoric `bpaf` usage.
+//! A somewhat comprehensive example of a typical combinatoric `bpaf` usage in combinatoric mode
 
 use bpaf::*;
 use std::path::PathBuf;
@@ -37,7 +37,8 @@ fn opts() -> OptionParser<Out> {
         .long("speed")
         .help("Set speed")
         .argument::<f64>("SPEED") // you can specify a type to parse
-        .fallback(42.0);
+        .fallback(42.0)
+        .display_fallback();
 
     let output = short('o')
         .long("output")
@@ -46,7 +47,12 @@ fn opts() -> OptionParser<Out> {
         .complete_shell(ShellComp::File { mask: None });
 
     // no magical name transmogrifications in combinatoric API,
-    let nb_cars = short('n').long("nb-cars").argument::<u32>("N");
+    let nb_cars = short('n')
+        .long("nb-cars")
+        .help("Number of items to process")
+        .argument::<u32>("N")
+        .fallback(1)
+        .display_fallback();
 
     // a parser that consumes one argument
     // you can build the inner parser in one go or as multiple steps giving each step a name

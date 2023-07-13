@@ -1762,3 +1762,28 @@ fn fallback_for_some() {
     let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, vec![1, 2, 3]);
 }
+
+#[test]
+fn flag_like_commands() {
+    let a = short('a').req_flag(1).to_options().command("--add");
+    let b = short('b').req_flag(2).to_options().command("remove");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner(&["--add", "-a"]).unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner(&["remove", "-b"]).unwrap();
+    assert_eq!(r, 2);
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "Usage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    --add\n    remove\n";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner(&["--add", "--help"])
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected =
+        "Usage: --add -a\n\nAvailable options:\n    -a\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
+}

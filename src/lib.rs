@@ -257,9 +257,10 @@
 //!
 //! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
 //!
-//! And finally you can generate documentation for command line in html-markdown mix and manpage
-//! formats using [`render_html`](OptionParser::render_html) and
-//! [`render_manpage`](OptionParser::render_manpage), for more detailed info see [`doc`] module
+//! And finally you can generate documentation for command line in markdown, html and manpage
+//! formats using [`render_markdown`](OptionParser::render_markdown),
+//! [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
+//! for more detailed info see [`doc`] module
 //!
 //! ## 6. Testing your parsers and running them
 //! - You can [`OptionParser::run`] the parser on the arguments passed on the command line

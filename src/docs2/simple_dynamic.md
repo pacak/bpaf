@@ -1,6 +1,8 @@
 <details><summary><tt>examples/simple_dynamic.rs</tt></summary>
 
 ```no_run
+//! Simple dynamic completion example
+
 #![allow(dead_code)]
 use bpaf::*;
 

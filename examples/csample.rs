@@ -1,3 +1,5 @@
+//! This example shows dynamic shell completion features
+
 fn complete_calculator(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     let items = ["alpha", "beta", "banana", "cat", "durian"];
     items
@@ -23,12 +25,12 @@ fn main() {
         .footer(
             "\
     bpaf supports dynamic autocompletion for a few shells, make sure your binary is in $PATH
-    and try using one of those this output should go into a file that depends on your shell:
+     and try using one of those this output should go into a file that depends on your shell:
     $ csample --bpaf-complete-style-bash
     $ csample --bpaf-complete-style-zsh
     $ csample --bpaf-complete-style-fish
     $ csample --bpaf-complete-style-elvish",
         );
 
-    println!("{:?}", parser.run());
+    println!("{:?}", parser.fallback_to_usage().run());
 }

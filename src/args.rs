@@ -698,7 +698,9 @@ impl State {
 
     /// take a static string argument from the first present argument
     pub(crate) fn take_cmd(&mut self, word: &str) -> bool {
-        if let Some((ix, Arg::Word(w))) = self.items_iter().next() {
+        if let Some((ix, Arg::Word(w) | Arg::Short(_, _, w) | Arg::Long(_, false, w))) =
+            self.items_iter().next()
+        {
             if w == word {
                 self.remove(ix);
                 self.current = Some(ix);
