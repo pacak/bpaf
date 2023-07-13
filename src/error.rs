@@ -214,7 +214,7 @@ impl ParseFailure {
                 #[cfg(feature = "color")]
                 {
                     error = String::new();
-                    color.push_str(Style::Invalid, &mut error, "Error: ")
+                    color.push_str(Style::Invalid, &mut error, "Error: ");
                 }
 
                 eprintln!("{}{}", error, msg.render_console(true, color));
