@@ -262,7 +262,7 @@ pub enum Style {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-
+#[allow(dead_code)]
 pub(crate) enum Block {
     /// level 1 section header, block for separate command inside manpage, not used in --help
     Header,

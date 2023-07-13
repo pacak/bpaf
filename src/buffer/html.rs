@@ -260,8 +260,7 @@ impl Doc {
                         }
                         Block::Meta => todo!(),
                         Block::Section3 => res.push_str("<div style='padding-left: 0.5em'>"),
-                        Block::Mono => {}
-                        Block::TermRef => {}
+                        Block::Mono | Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
                         }
@@ -294,10 +293,9 @@ impl Doc {
                         Block::Block => {
                             res.push_str("</p>");
                         }
-                        Block::Mono => {}
-                        Block::Meta => todo!(),
-                        Block::TermRef => {}
+                        Block::Mono | Block::TermRef => {}
                         Block::Section3 => res.push_str("</div>"),
+                        Block::Meta => todo!(),
                     }
                 }
             }
@@ -317,7 +315,6 @@ impl Doc {
         let mut cur_style = Styles::default();
 
         let mut skip = Skip::default();
-        let mut stack = Vec::new();
         let mut empty_term = false;
         let mut mono = 0;
         let mut def_list = false;
@@ -424,21 +421,18 @@ impl Doc {
                             skip.push();
                         }
                     }
-                    stack.push(b);
                 }
                 Token::BlockEnd(b) => {
                     change_to_markdown_style(&mut res, &mut cur_style, Styles::default());
-                    stack.pop();
                     match b {
-                        Block::Header => res.push('\n'),
-                        Block::Section2 => {
+                        Block::Header | Block::Block | Block::Section3 | Block::Section2 => {
                             res.push('\n');
                         }
 
                         Block::InlineBlock => {
                             skip.pop();
                         }
-                        Block::ItemTerm => {}
+                        Block::ItemTerm | Block::TermRef => {}
                         Block::ItemBody => {
                             if def_list {
                                 res.push('\n');
@@ -448,15 +442,10 @@ impl Doc {
                             def_list = false;
                             res.push('\n');
                         }
-                        Block::Block => {
-                            res.push('\n');
-                        }
                         Block::Mono => {
                             mono -= 1;
                         }
                         Block::Meta => todo!(),
-                        Block::TermRef => {}
-                        Block::Section3 => res.push('\n'),
                     }
                 }
             }
