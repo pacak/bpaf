@@ -29,12 +29,10 @@ fn verbose() -> impl Parser<LevelFilter> {
     short('v')
         .help("Verbosity level, use multiple times for more verbosity")
         .req_flag(())
-        .many()
-        .map(|v| {
+        .count()
+        .map(|l| {
             use LevelFilter::*;
-            *[Off, Error, Warn, Info, Debug, Trace]
-                .get(v.len())
-                .unwrap_or(&Trace)
+            [Off, Error, Warn, Info, Debug, Trace][l.max(5)]
         })
 }
 

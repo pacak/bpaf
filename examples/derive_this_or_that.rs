@@ -1,5 +1,5 @@
-//! deriving for tri-state enabled/disabled/undecided switch, non derive version would use
-//! combination of `req_flag` and `construct!([on, off, undecined])`
+//! deriving for tri-state enabled/disabled/undecided switch, combinatoric version would use
+//! combination of `req_flag` and `construct!([on, off])`
 
 #![allow(dead_code)]
 use bpaf::Bpaf;
@@ -15,7 +15,7 @@ enum Opts {
     /// disabled
     Off,
     /// undecined
-    #[bpaf(hide)]
+    #[bpaf(skip)]
     Undecided,
 }
 

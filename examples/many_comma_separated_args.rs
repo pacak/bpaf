@@ -1,3 +1,4 @@
+/// To parse comma separated values it's easier to treat them as strings
 use bpaf::*;
 use std::str::FromStr;
 
@@ -7,8 +8,8 @@ fn args() -> impl Parser<Vec<u16>> {
         .help("Comma separated list of ports")
         .argument::<String>("PORTS")
         .parse(|s| {
-            s.split(",")
-                .map(|c| u16::from_str(c))
+            s.split(',')
+                .map(u16::from_str)
                 .collect::<Result<Vec<_>, _>>()
         })
         .many()

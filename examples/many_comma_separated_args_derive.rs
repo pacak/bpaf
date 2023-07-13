@@ -1,9 +1,10 @@
+/// To parse comma separated values it's easier to treat them as strings
 use bpaf::*;
 use std::{num::ParseIntError, str::FromStr};
 
 fn split_and_parse(s: String) -> Result<Vec<u16>, ParseIntError> {
-    s.split(",")
-        .map(|c| u16::from_str(c))
+    s.split(',')
+        .map(u16::from_str)
         .collect::<Result<Vec<_>, _>>()
 }
 

@@ -1,3 +1,5 @@
+//! Simple dynamic completion example
+
 #![allow(dead_code)]
 use bpaf::*;
 

@@ -19,12 +19,8 @@ fn main() {
     // and fails otherwise;
     let verbose = short('v').long("verbose").req_flag(());
 
-    // .many() tries to appy parser as many times as possible and collects the results.
-    // We can't use non failing parse with .many() since it will loop forever.
-    let verbose = verbose.many();
-
-    // Then count how many times parser succeeded
-    let verbose = verbose.map(|v| v.len());
+    // Try to apply the inner parser as many times as it succeeds, return the number
+    let verbose = verbose.count();
 
     // And add a simple sanity checker.
     // By this time when this parser succeeds - it will contain verbosity in 0..3 range, inclusive.

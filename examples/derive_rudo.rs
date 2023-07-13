@@ -1,4 +1,5 @@
 /// parser inspired by https://github.com/hood/rudo/blob/e448942b752c56dd2be2e2bb5026ced45e215ed6/src/main.rs
+///
 use bpaf::*;
 
 #[derive(Debug, Clone, Bpaf)]

@@ -1,4 +1,5 @@
-/// WIP
+//! This example implements parsers for a few coreutils tools - they tend to have complicated CLI
+//! rules due to historical reasons
 use bpaf::*;
 
 mod boilerplate {

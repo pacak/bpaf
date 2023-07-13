@@ -1,3 +1,14 @@
+/// You can parse multiple positional elements with earlier being optional as well
+/// This example takes two - optional numeric prefix and a command name:
+///
+/// > numeric_prefix 8 work
+/// Options { prefix: Some(8), command: "work" }
+///
+/// > numeric_prefix sleep
+/// Options { prefix: None, command: "sleep" }
+///
+/// Generated usage reflects that:
+/// Usage: numeric_prefix [PREFIX] COMMAND
 use bpaf::*;
 
 #[derive(Debug, Clone)]

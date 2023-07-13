@@ -1,3 +1,4 @@
+/// A way to represent xorg like flags, not a typical usage
 use bpaf::*;
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
