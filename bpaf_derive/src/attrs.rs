@@ -210,6 +210,7 @@ impl ToTokens for PostParse {
             PostParse::Adjacent { .. } => quote!(adjacent()),
             PostParse::Catch { .. } => quote!(catch()),
             PostParse::Many { .. } => quote!(many()),
+            PostParse::Collect { .. } => quote!(collect()),
             PostParse::Count { .. } => quote!(count()),
             PostParse::Some_ { msg, .. } => quote!(some(#msg)),
             PostParse::Map { f, .. } => quote!(map(#f)),
@@ -247,6 +248,7 @@ pub(crate) enum PostParse {
     Adjacent { span: Span },
     Catch { span: Span },
     Many { span: Span },
+    Collect { span: Span },
     Count { span: Span },
     Some_ { span: Span, msg: Box<Expr> },
     Map { span: Span, f: Box<Expr> },
@@ -260,6 +262,7 @@ impl PostParse {
             Self::Adjacent { span }
             | Self::Catch { span }
             | Self::Many { span }
+            | Self::Collect { span }
             | Self::Count { span }
             | Self::Some_ { span, .. }
             | Self::Map { span, .. }
@@ -458,6 +461,8 @@ impl PostParse {
             Self::Catch { span }
         } else if kw == "many" {
             Self::Many { span }
+        } else if kw == "collect" {
+            Self::Collect { span }
         } else if kw == "count" {
             Self::Count { span }
         } else if kw == "map" {

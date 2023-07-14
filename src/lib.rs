@@ -317,7 +317,7 @@ pub mod parsers {
     pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
     #[doc(inline)]
     pub use crate::structs::{
-        ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
+        ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
         ParseOptional, ParseSome,
     };
 }
@@ -339,9 +339,9 @@ use crate::{
     params::build_positional,
     parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
     structs::{
-        ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp, ParseGuard,
-        ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse, ParsePure,
-        ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp,
+        ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
+        ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
+        ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp,
     },
 };
 
@@ -764,7 +764,8 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
-    /// element to succeed
+    /// element to succeed, [`collect`](Parser::collect) collects results into a [`FromIterator`]
+    /// structure
     fn many(self) -> ParseMany<Self>
     where
         Self: Sized,
@@ -772,6 +773,34 @@ pub trait Parser<T> {
         ParseMany {
             inner: self,
             catch: false,
+        }
+    }
+    // }}}
+
+    // {{{ collect
+    /// Transform parser into a collection parser
+    ///
+    /// A generic variant of [`many`](Parser::many), instead of collecting into a vector
+    /// it collects into any collection that implements [`FromIterator`] trait
+    ///
+    /// `collect` preserves any parsing falures and propagates them outwards, with extra
+    /// [`catch`](ParseCollect::catch) statement you can instead stop at the first value
+    /// that failed to parse and ignore it and all the subsequent ones.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/collect.md"))]
+    ///
+    /// `collect` will collect at most one result that does not consume anything from the argument
+    /// list allowing using it in combination of any parsers with a fallback. After the first one
+    /// it will keep collecting the results as long as they consume something.
+    fn collect<C>(self) -> ParseCollect<Self, C, T>
+    where
+        C: FromIterator<T>,
+        Self: Sized,
+    {
+        ParseCollect {
+            inner: self,
+            catch: false,
+            ctx: PhantomData,
         }
     }
     // }}}
@@ -793,7 +822,9 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`many`](Parser::many) also collects results to a vector but succeeds with
-    /// no matching values
+    /// no matching values. [`collect`](Parser::collect) collects results into a [`FromIterator`]
+    /// structure
+
     #[must_use]
     fn some(self, message: &'static str) -> ParseSome<Self>
     where
