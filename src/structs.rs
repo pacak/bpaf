@@ -144,17 +144,10 @@ where
 {
     fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut res = Vec::new();
-        let mut len = args.len();
+        let mut len = usize::MAX;
 
-        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
-            // we keep including values for as long as we consume values from the argument
-            // list or at least one value
-            if args.len() < len || res.is_empty() {
-                len = args.len();
-                res.push(val);
-            } else {
-                break;
-            }
+        while let Some(val) = parse_option(&self.inner, &mut len, args, self.catch)? {
+            res.push(val);
         }
 
         if res.is_empty() {
@@ -162,6 +155,48 @@ where
         } else {
             Ok(res)
         }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Required(Box::new(self.inner.meta()))))
+    }
+}
+
+/// Apply inner parser several times and collect results into `FromIterator`, created with
+/// [`collect`](Parser::collect),
+/// Implements [`catch`](ParseCollect::catch)
+pub struct ParseCollect<P, C, T> {
+    pub(crate) inner: P,
+    pub(crate) catch: bool,
+    pub(crate) ctx: PhantomData<(C, T)>,
+}
+
+impl<T, C, P> ParseCollect<P, C, T> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
+}
+
+impl<T, C, P> Parser<C> for ParseCollect<P, C, T>
+where
+    P: Parser<T>,
+    C: FromIterator<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<C, Error> {
+        let mut len = usize::MAX;
+        std::iter::from_fn(|| parse_option(&self.inner, &mut len, args, self.catch).transpose())
+            .collect::<Result<C, Error>>()
     }
 
     fn meta(&self) -> Meta {
@@ -558,7 +593,8 @@ where
     fn eval(&self, args: &mut State) -> Result<usize, Error> {
         let mut res = 0;
         let mut current = args.len();
-        while (parse_option(&self.inner, args, false)?).is_some() {
+        let mut len = usize::MAX;
+        while (parse_option(&self.inner, &mut len, args, false)?).is_some() {
             res += 1;
             if current == args.len() {
                 break;
@@ -586,7 +622,8 @@ where
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         let mut last = None;
         let mut current = args.len();
-        while let Some(val) = parse_option(&self.inner, args, false)? {
+        let mut len = usize::MAX;
+        while let Some(val) = parse_option(&self.inner, &mut len, args, false)? {
             last = Some(val);
             if current == args.len() {
                 break;
@@ -618,7 +655,8 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut State) -> Result<Option<T>, Error> {
-        parse_option(&self.inner, args, self.catch)
+        let mut len = usize::MAX;
+        parse_option(&self.inner, &mut len, args, self.catch)
     }
 
     fn meta(&self) -> Meta {
@@ -672,13 +710,25 @@ impl<P> ParseMany<P> {
 }
 
 /// try to parse
-fn parse_option<P, T>(parser: &P, args: &mut State, catch: bool) -> Result<Option<T>, Error>
+fn parse_option<P, T>(
+    parser: &P,
+    len: &mut usize,
+    args: &mut State,
+    catch: bool,
+) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
 {
     let mut orig_args = args.clone();
     match parser.eval(args) {
-        Ok(val) => Ok(Some(val)),
+        // we keep including values for as long as we consume values from the argument
+        // list or at least one value
+        Ok(val) => Ok(if args.len() < *len {
+            *len = args.len();
+            Some(val)
+        } else {
+            None
+        }),
         Err(Error(err)) => {
             // this is safe to return Ok(None) in following scenarios
             // when inner parser never consumed anything and
@@ -713,19 +763,9 @@ where
     P: Parser<T>,
 {
     fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
-        let mut res = Vec::new();
-        let mut len = args.len();
-        while let Some(val) = parse_option(&self.inner, args, self.catch)? {
-            // we keep including values for as long as we consume values from the argument
-            // list or at least one value
-            if args.len() < len || res.is_empty() {
-                len = args.len();
-                res.push(val);
-            } else {
-                break;
-            }
-        }
-        Ok(res)
+        let mut len = usize::MAX;
+        std::iter::from_fn(|| parse_option(&self.inner, &mut len, args, self.catch).transpose())
+            .collect::<Result<Vec<T>, Error>>()
     }
 
     fn meta(&self) -> Meta {

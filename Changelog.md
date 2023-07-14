@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.9.3], bpaf_derive [0.5.3] - Unreleased
+- `Parser::collect` allows to collect multiple items into an arbitrary `FromIterator` collection
+
 ## bpaf [0.9.2], bpaf_derive [0.5.2] - 2023-07-13
 - with `docgen` feature you can render documentation as markdown
 - cosmetic changes to error messages

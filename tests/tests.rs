@@ -1371,6 +1371,23 @@ fn parse_many_errors_positional() {
 }
 
 #[test]
+fn parse_collect_flag() {
+    let p = short('p')
+        .argument::<u32>("N")
+        .collect::<Vec<_>>()
+        .to_options();
+
+    let r = p.run_inner(&["-p", "1", "-p", "2"]).unwrap();
+    assert_eq!(r, vec![1, 2]);
+
+    let r = p
+        .run_inner(&["-p", "1", "-p", "x"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "couldn't parse `x`: invalid digit found in string");
+}
+
+#[test]
 fn parse_many_errors_flag() {
     let p = short('p').argument::<u32>("N").many().to_options();
 
