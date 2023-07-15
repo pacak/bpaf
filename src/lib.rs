@@ -218,8 +218,9 @@
 //!   [`debug_fallback`](ParseFallback::debug_fallback) .
 //! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
 //!   also [`catch`](ParseOptional::catch) .
-//! - [`many`](Parser::many) and [`some`](Parser::some) - collect multiple values into a vector,
-//!   see their respective [`catch`](ParseMany::catch) and [`catch`](ParseSome).
+//! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
+//!   multiple values into a collection, usually a vector, see their respective
+//!   [`catch`](ParseMany::catch), [`catch`](ParseSome::catch) and [`catch`](ParseCollect::catch).
 //! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
 //!   and/or validate value produced by a parser
 //! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
