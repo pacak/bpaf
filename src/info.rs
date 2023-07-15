@@ -203,12 +203,7 @@ impl<T> OptionParser<T> {
         short_flags.extend(&self.info.version_arg.short);
         let args = args.into();
         let mut err = None;
-        let help = if self.info.help_if_no_args {
-            Some(&self.info.help_arg)
-        } else {
-            None
-        };
-        let mut state = State::construct(args, &short_flags, &short_args, &mut err, help);
+        let mut state = State::construct(args, &short_flags, &short_args, &mut err);
 
         // this only handles disambiguation failure in construct
         if let Some(msg) = err {
@@ -231,6 +226,17 @@ impl<T> OptionParser<T> {
         // - Try to improve error message and finalize it otherwise
         //
         // outer parser gets value in ParseFailure format
+
+        if self.info.help_if_no_args && args.is_empty() {
+            let buffer = render_help(
+                &args.path,
+                &self.info,
+                &self.inner.meta(),
+                &self.info.meta(),
+                true,
+            );
+            return Err(ParseFailure::Stdout(buffer, false));
+        };
 
         let res = self.inner.eval(args);
         if let Err(Error(Message::ParseFailure(failure))) = res {
