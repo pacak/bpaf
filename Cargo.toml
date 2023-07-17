@@ -30,7 +30,7 @@ bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "docgen
 [package.metadata.docs.rs]
 features = ["derive", "extradocs", "autocomplete", "batteries"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
-rustdoc-args = ["--cfg", "docsrs"]
+rustdoc-args = ["--generate-link-to-definition"]
 
 
 [features]
