@@ -35,6 +35,10 @@ Output detailed help information, you can specify it multiple times
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -59,6 +63,10 @@ pub struct Options {
     #[bpaf(positional("OUTPUT"))]
     /// Save output to a file
     output: Option<String>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

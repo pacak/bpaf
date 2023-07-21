@@ -25,6 +25,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -43,6 +47,10 @@ pub struct Options {
     #[bpaf(positional("ARG"), strict, many)]
     /// Arguments for the binary
     args: Vec<String>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

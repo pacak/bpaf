@@ -18,6 +18,10 @@ pub fn options() -> OptionParser<Options> {
         .some("want at least one switch");
     construct!(Options { argument, switches }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -33,6 +37,10 @@ pub struct Options {
     /// some switch
     #[bpaf(long("switch"), req_flag(true), some("want at least one switch"))]
     switches: Vec<bool>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

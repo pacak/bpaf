@@ -46,6 +46,10 @@ pub fn options() -> OptionParser<Options> {
     let meal = meal().many();
     construct!(Options { meal, premium }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>

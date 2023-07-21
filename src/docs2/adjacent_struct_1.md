@@ -43,6 +43,10 @@ pub fn options() -> OptionParser<Options> {
     let rect = rect().many();
     construct!(Options { rect, mirror }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -72,6 +76,10 @@ struct Rect {
     #[bpaf(short, long)]
     /// Should rectangle be filled?
     painted: bool,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

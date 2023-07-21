@@ -1,43 +1,21 @@
 <details><summary>Combinatoric example</summary>
 
 ```no_run
+use bpaf::*;
+
 #[derive(Debug, Clone)]
 pub struct Options {
-    argument: u32,
-    switch: bool,
+    argument: Vec<u32>,
+    switches: Vec<bool>,
 }
 
 pub fn options() -> OptionParser<Options> {
     let argument = long("argument")
         .help("important argument")
         .argument("ARG")
-        .fallback(30);
-    let switch = long("switch")
-        .help("not that important switch")
-        .switch()
-        .hide_usage();
-    construct!(Options { argument, switch }).to_options()
-}
-
-fn main() {
-    println!("{:?}", options().run())
-}
-```
-
-</details>
-<details><summary>Derive example</summary>
-
-```no_run
-#[allow(dead_code)]
-#[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
-pub struct Options {
-    /// important argument
-    #[bpaf(fallback(30))]
-    argument: u32,
-    /// not that important switch
-    #[bpaf(hide_usage)]
-    switch: bool,
+        .many();
+    let switches = long("switch").help("some switch").switch().many();
+    construct!(Options { argument, switches }).to_options()
 }
 
 fn main() {
@@ -48,16 +26,15 @@ fn main() {
 </details>
 <details><summary>Output</summary>
 
-`hide_usage` hides the inner parser from the generated usage line, but not from the rest of the help or completion
-
+Help message describes all the parser combined
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]</p><p><div>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]... [<tt><b>--switch</b></tt>]...</p><p><div>
 <b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
 <dd>important argument</dd>
 <dt><tt><b>    --switch</b></tt></dt>
-<dd>not that important switch</dd>
+<dd>some switch</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
@@ -77,19 +54,24 @@ div.bpaf-doc  { padding-left: 1em; }
 </div>
 
 
-But doesn’t change the parsing behavior in any way otherwise
+And users can pass any combinations of options, resulting parser will handle them as long as they are valid
 
 
 <div class='bpaf-doc'>
-$ app --argument 32<br>
-Options { argument: 32, switch: false }
+$ app --argument 10 --argument 20<br>
+Options { argument: [10, 20], switches: [false] }
 </div>
 
 
+<div class='bpaf-doc'>
+$ app --switch<br>
+Options { argument: [], switches: [true] }
+</div>
+
 
 <div class='bpaf-doc'>
-$ app --argument 32 --switch<br>
-Options { argument: 32, switch: true }
+$ app --switch --switch --argument 20<br>
+Options { argument: [20], switches: [true, true] }
 </div>
 
 </details>

@@ -18,6 +18,10 @@ pub struct Options {
     #[bpaf(short, long, argument("PACKAGE"))]
     package: Option<String>,
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -49,6 +53,10 @@ pub fn options() -> OptionParser<Options> {
         .optional();
 
     construct!(Options { binary, package }).to_options()
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

@@ -50,6 +50,10 @@ pub fn options() -> OptionParser<Options> {
     let commands = cmd().many();
     construct!(Options { premium, commands }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -83,6 +87,10 @@ pub enum Cmd {
         #[bpaf(argument("HOURS"))]
         time: usize,
     },
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

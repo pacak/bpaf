@@ -14,6 +14,10 @@ pub fn options() -> OptionParser<Options> {
     let money = pure(330);
     construct!(Options { name, money }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -28,6 +32,10 @@ pub struct Options {
     name: String,
     #[bpaf(pure(330))]
     money: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

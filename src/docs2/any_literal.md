@@ -54,6 +54,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -121,6 +125,10 @@ where
         // At this point parser produces `String` while consumer might expect some other
         // type. [`parse`](Parser::parse) handles that
         .parse(|s| s.parse())
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

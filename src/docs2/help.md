@@ -17,6 +17,10 @@ pub fn options() -> OptionParser<Options> {
         .argument::<u32>("N");
     construct!(Options { number }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -34,6 +38,10 @@ const ARG: &[(&str, Style)] = &[
 pub struct Options {
     #[bpaf(argument("N"), help(ARG))]
     number: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

@@ -25,6 +25,10 @@ pub fn options() -> OptionParser<Options> {
 
     construct!(Options { name, age }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -44,6 +48,10 @@ pub struct Options {
     #[bpaf(argument("AGE"), fallback(18), display_fallback)]
     /// Specify user age
     age: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

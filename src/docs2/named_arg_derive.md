@@ -49,6 +49,10 @@ pub struct Options {
     #[bpaf(env("USER"))]
     pub user: String,
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>

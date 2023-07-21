@@ -40,6 +40,11 @@ fn import_escaped_source(res: &mut String, path: impl AsRef<std::path::Path>, ti
             writeln!(res, "{}", line).unwrap();
         }
     }
+    writeln!(
+        res,
+        "\nfn main() {{\n    println!(\"{{:?}}\", options().run())\n}}"
+    )
+    .unwrap();
     writeln!(res, "```\n").unwrap();
     writeln!(res, "</details>").unwrap();
 }

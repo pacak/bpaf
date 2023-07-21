@@ -35,6 +35,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -57,6 +61,10 @@ pub struct Options {
 
     #[bpaf(long("width"), argument("PX"), optional, hide)]
     width_str: Option<String>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

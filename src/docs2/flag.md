@@ -22,6 +22,10 @@ pub fn options() -> OptionParser<Options> {
     let decision = parse_decision();
     construct!(Options { decision }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -40,6 +44,10 @@ pub struct Options {
 pub enum Decision {
     Yes,
     No,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

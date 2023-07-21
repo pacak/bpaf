@@ -15,6 +15,10 @@ pub fn options() -> OptionParser<Options> {
     let switch = long("switch").help("secret switch").switch().hide();
     construct!(Options { argument, switch }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -30,6 +34,10 @@ pub struct Options {
     /// secret switch
     #[bpaf(hide)]
     switch: bool,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

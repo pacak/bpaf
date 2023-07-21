@@ -17,6 +17,10 @@ pub fn options() -> OptionParser<Options> {
     let switches = long("switch").help("some switch").switch().collect();
     construct!(Options { argument, switches }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -34,6 +38,10 @@ pub struct Options {
     /// some switch
     #[bpaf(long("switch"), switch, collect)]
     switches: BTreeSet<bool>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

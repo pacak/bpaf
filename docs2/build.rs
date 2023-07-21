@@ -133,7 +133,11 @@ fn import_example(example: &Path, name: &str) -> Result<String> {
     let test_source = std::fs::read_to_string(&example)?;
     let mut cases = String::new();
 
-    for line in std::fs::read_to_string(PathBuf::from("src").join(name).join("cases.md"))?.lines() {
+    let file = PathBuf::from("src").join(name).join("cases.md");
+    if !file.exists() {
+        return Err(format!("File does not exist: {file:?}").into());
+    }
+    for line in std::fs::read_to_string(file)?.lines() {
         if let Some(all_args) = line.strip_prefix("> ") {
             let args = shell_words::split(all_args)?;
             write_scenario(&mut cases, &args, all_args, None)?;
