@@ -45,6 +45,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>

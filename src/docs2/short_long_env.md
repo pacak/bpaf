@@ -36,6 +36,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -54,6 +58,10 @@ pub struct Options {
     #[bpaf(short, long("user"), env("USER1"), argument("USER"))]
     /// Custom user name
     username: String,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

@@ -46,6 +46,10 @@ pub fn options() -> OptionParser<Options> {
 
     construct!(Options { style, report }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -85,6 +89,10 @@ pub struct Options {
     // here reference is implicit and derived from field name: `report`
     #[bpaf(external)]
     report: Report,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

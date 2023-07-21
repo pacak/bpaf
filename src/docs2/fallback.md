@@ -14,6 +14,10 @@ pub fn options() -> OptionParser<Options> {
         .display_fallback();
     construct!(Options { jobs }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -27,6 +31,10 @@ pub struct Options {
     /// Number of jobs
     #[bpaf(argument("JOBS"), fallback(42), display_fallback)]
     jobs: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

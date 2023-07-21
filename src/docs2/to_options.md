@@ -15,6 +15,10 @@ pub fn options() -> OptionParser<Options> {
         .header("It can contain multiple blocks, this block goes before options")
         .footer("This one goes after")
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -33,6 +37,10 @@ pub fn options() -> OptionParser<Options> {
 pub struct Options {
     #[bpaf(short('i'))]
     argument: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

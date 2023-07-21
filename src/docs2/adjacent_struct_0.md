@@ -34,6 +34,10 @@ pub fn options() -> OptionParser<Options> {
     let point = point().many();
     construct!(Options { point, rotate }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -65,6 +69,10 @@ struct Point {
     #[bpaf(positional("Z"))]
     /// Height of a point above the plane
     z: f64,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

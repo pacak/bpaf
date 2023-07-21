@@ -18,6 +18,10 @@ pub fn options() -> OptionParser<Options> {
         .hide_usage();
     construct!(Options { argument, switch }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -34,6 +38,10 @@ pub struct Options {
     /// not that important switch
     #[bpaf(hide_usage)]
     switch: bool,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

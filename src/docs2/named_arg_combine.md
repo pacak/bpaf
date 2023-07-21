@@ -40,6 +40,10 @@ pub fn options() -> OptionParser<(usize, Output, bool)> {
 
     construct!(size, output, verbose).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>

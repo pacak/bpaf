@@ -32,6 +32,10 @@ pub fn options() -> OptionParser<Options> {
         .switch();
     construct!(Options { flag, cmd() }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -57,6 +61,10 @@ pub struct Options {
     flag: bool,
     #[bpaf(external)]
     cmd: Cmd,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

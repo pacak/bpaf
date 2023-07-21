@@ -18,6 +18,10 @@ pub fn options() -> OptionParser<Options> {
     let money = pure_with(starting_money);
     construct!(Options { name, money }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -36,6 +40,10 @@ pub struct Options {
 
 fn starting_money() -> Result<u32, &'static str> {
     Ok(330)
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

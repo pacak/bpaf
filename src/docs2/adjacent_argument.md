@@ -17,6 +17,10 @@ fn package() -> impl Parser<String> {
 pub fn options() -> OptionParser<Options> {
     construct!(Options { package() }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -29,6 +33,10 @@ pub struct Options {
     #[bpaf(short, long, argument("SPEC"), adjacent)]
     /// Package to use
     package: String,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

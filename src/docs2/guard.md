@@ -13,6 +13,10 @@ pub fn options() -> OptionParser<Options> {
     );
     construct!(Options { number }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -30,6 +34,10 @@ const DLC_NEEDED: &str = "Values greater than 10 are only available in the DLC p
 pub struct Options {
     #[bpaf(argument("N"), guard(dlc_check, DLC_NEEDED))]
     number: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

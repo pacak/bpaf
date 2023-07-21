@@ -11,6 +11,10 @@ pub fn options() -> OptionParser<Options> {
     let feature = long("feature").argument("FEAT").optional();
     construct!(Options { version, feature }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -24,6 +28,10 @@ pub struct Options {
     version: Option<usize>,
     #[bpaf(argument("FEAT"))]
     feature: Option<String>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

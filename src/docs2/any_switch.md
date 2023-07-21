@@ -53,6 +53,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -104,6 +108,10 @@ fn backing() -> impl Parser<bool> {
 
 fn xinerama() -> impl Parser<bool> {
     toggle_option("xinerama", "enable or disable Xinerama")
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

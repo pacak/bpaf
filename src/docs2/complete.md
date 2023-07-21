@@ -23,6 +23,10 @@ pub fn options() -> OptionParser<Options> {
         .complete(completer);
     construct!(Options { name }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -45,6 +49,10 @@ pub struct Options {
     #[bpaf(short, long, argument("NAME"), complete(completer))]
     /// Specify character's name
     name: String,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

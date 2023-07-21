@@ -15,6 +15,10 @@ pub fn options() -> OptionParser<Options> {
     let switches = long("switch").help("some switch").switch().many();
     construct!(Options { argument, switches }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -29,6 +33,10 @@ pub struct Options {
     /// some switch
     #[bpaf(long("switch"), switch)]
     switches: Vec<bool>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

@@ -35,6 +35,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -60,6 +64,10 @@ pub struct Options {
     /// secret switch
     #[bpaf(external, group_help("Takes a rectangle"))]
     rectangle: Rectangle,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

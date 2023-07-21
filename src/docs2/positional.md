@@ -29,6 +29,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -51,6 +55,10 @@ pub struct Options {
     #[bpaf(positional("FEATURE"))]
     /// Display information about this feature
     feature_name: Option<String>,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

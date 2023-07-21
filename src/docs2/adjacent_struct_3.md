@@ -36,6 +36,10 @@ pub fn options() -> OptionParser<Options> {
         .switch();
     construct!(Options { exec(), switch }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -81,6 +85,10 @@ fn is_semi() -> impl Parser<()> {
 // a different alternative would be to put a singular Exec
 fn execs() -> impl Parser<Option<Vec<OsString>>> {
     exec().map(|e| e.body).optional()
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

@@ -18,6 +18,10 @@ pub fn options() -> OptionParser<Options> {
         .display_fallback();
     construct!(Options { version }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -34,6 +38,10 @@ pub struct Options {
     #[bpaf(argument("VERS"), fallback_with(try_to_get_version), display_fallback)]
     /// Specify protocol version
     version: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

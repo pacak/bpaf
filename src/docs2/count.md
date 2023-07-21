@@ -15,6 +15,10 @@ pub fn options() -> OptionParser<Options> {
 
     construct!(Options { verbosity }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -27,6 +31,10 @@ pub struct Options {
     /// Increase the verbosity level
     #[bpaf(short('v'), long("verbose"), req_flag(()), count)]
     verbosity: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

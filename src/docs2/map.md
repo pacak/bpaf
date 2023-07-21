@@ -9,6 +9,10 @@ pub fn options() -> OptionParser<Options> {
     let number = long("number").argument::<u32>("N").map(|x| x * 2);
     construct!(Options { number }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -24,6 +28,10 @@ fn twice_the_num(n: u32) -> u32 {
 pub struct Options {
     #[bpaf(argument::<u32>("N"), map(twice_the_num))]
     number: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

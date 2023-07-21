@@ -14,6 +14,10 @@ pub fn options() -> OptionParser<Options> {
         .parse::<_, _, ParseIntError>(|s| Ok(u32::from_str(&s)? * 2));
     construct!(Options { number }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -29,6 +33,10 @@ fn twice_the_num(s: String) -> Result<u32, ParseIntError> {
 pub struct Options {
     #[bpaf(argument::<String>("N"), parse(twice_the_num))]
     number: u32,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

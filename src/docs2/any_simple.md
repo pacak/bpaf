@@ -17,6 +17,10 @@ pub fn options() -> OptionParser<Options> {
         .many();
     construct!(Options { turbo, rest }).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -40,6 +44,10 @@ fn not_help(s: OsString) -> Option<OsString> {
     } else {
         Some(s)
     }
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

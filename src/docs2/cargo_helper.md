@@ -16,6 +16,10 @@ pub fn options() -> OptionParser<Options> {
 
     cargo_helper("pretty", options).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -30,6 +34,10 @@ pub struct Options {
     /// A switch
     #[bpaf(short)]
     switch: bool,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

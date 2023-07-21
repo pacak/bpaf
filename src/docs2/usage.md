@@ -22,6 +22,10 @@ pub fn options() -> OptionParser<Options> {
         .to_options()
         .usage("Usage: my_program [--release] [--binary=BIN] ...")
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -37,6 +41,10 @@ pub struct Options {
     #[bpaf(short, long, argument("BIN"))]
     /// Use this binary
     binary: String,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

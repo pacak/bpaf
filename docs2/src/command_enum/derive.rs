@@ -20,6 +20,7 @@ pub enum Options {
         #[bpaf(argument("BIN"))]
         /// Name of a binary to build
         bin: String,
+
         /// Compile the binary in release mode
         release: bool,
     },

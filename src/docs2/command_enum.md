@@ -15,6 +15,7 @@ pub enum Options {
     Build {
         /// Name of a binary to build
         bin: String,
+
         /// Compile the binary in release mode
         release: bool,
     },
@@ -47,6 +48,10 @@ pub fn options() -> OptionParser<Options> {
 
     construct!([run, build]).to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -73,9 +78,14 @@ pub enum Options {
         #[bpaf(argument("BIN"))]
         /// Name of a binary to build
         bin: String,
+
         /// Compile the binary in release mode
         release: bool,
     },
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 

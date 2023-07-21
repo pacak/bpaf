@@ -23,6 +23,10 @@ pub fn options() -> OptionParser<Options> {
         .help_parser(help)
         .version_parser(version)
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>

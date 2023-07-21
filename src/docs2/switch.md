@@ -29,6 +29,10 @@ pub fn options() -> OptionParser<Options> {
     })
     .to_options()
 }
+
+fn main() {
+    println!("{:?}", options().run())
+}
 ```
 
 </details>
@@ -56,6 +60,10 @@ pub struct Options {
     // producing `true` when value is absent
     #[bpaf(long("no-default-features"), flag(false, true))]
     default_features: bool,
+}
+
+fn main() {
+    println!("{:?}", options().run())
 }
 ```
 
