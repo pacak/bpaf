@@ -299,6 +299,8 @@
 #![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
 
 #[cfg(feature = "extradocs")]
+#[rustfmt::skip]
+#[allow(unused_imports)]
 pub mod _documentation;
 
 #[cfg(feature = "extradocs")]

@@ -7,17 +7,22 @@
 //! - [Theory explanation](_4_explanation) - Theoretical information about abstractions used by the library, oriented for understanding
 //!
     pub mod _0_intro {
+        //! &nbsp;
         //! 
-        //! ---
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
+        //! [Tutorials &rarr;](super::_1_tutorials)
         //! 
-        //! [&rarr; Tutorials](super::_1_tutorials)
-        //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         //! #### Introduction and design goals
         //! ##### A quick intro. What, why and how
@@ -99,35 +104,45 @@
         //! for shell completion, `man` pages and markdown documentation for web
         //!
         //!
+        //! &nbsp;
         //! 
-        //! ---
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
+        //! [Tutorials &rarr;](super::_1_tutorials)
         //! 
-        //! [&rarr; Tutorials](super::_1_tutorials)
-        //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
     use crate::*;
     }
     pub mod _1_tutorials {
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Introduction and design goals](super::_0_intro)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; HowTo](super::_2_howto)
+        //! [HowTo &rarr;](super::_2_howto)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         //! #### Tutorials
         //! ##### practical, learning oriented guides
@@ -135,36 +150,50 @@
         //! - [Types of arguments](_0_types_of_arguments) - common types of line options and conventions
         //! - [Combinatoric API](_1_combinatoric_api) - parse without using proc macros
         //!
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Introduction and design goals](super::_0_intro)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; HowTo](super::_2_howto)
+        //! [HowTo &rarr;](super::_2_howto)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         pub mod _0_types_of_arguments {
+            //! &nbsp;
             //! 
-            //! ---
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
-            //! [&uarr; Tutorials](super::super::_1_tutorials)
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
             //! 
+            //! [Combinatoric API &rarr;](super::_1_combinatoric_api)
             //! 
-            //! [&rarr; Combinatoric API](super::_1_combinatoric_api)
-            //! 
-            //! 
-            //! ---
+            //!   </td>
+            //! </tr></table>
             //! 
             //! #### Types of arguments
             //! ##### common types of line options and conventions
+            //! 
+            //! This chapter serves as an introduction to available command line options and tries to set the
+            //! terminology. If you are familiar with command line argument parsers in general - feel free top
+            //! skip it.
             //! 
             //! If you ever used any software from a command line (say `cargo`) you used command line options.
             //! Let's recap how you might run tests for a crate in your rust project:
@@ -188,30 +217,40 @@
             //! - [Commands or subcommands](_3_command)
             //! - [Exotic schemas](_4_exotic)
             //!
+            //! &nbsp;
             //! 
-            //! ---
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
-            //! [&uarr; Tutorials](super::super::_1_tutorials)
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
             //! 
+            //! [Combinatoric API &rarr;](super::_1_combinatoric_api)
             //! 
-            //! [&rarr; Combinatoric API](super::_1_combinatoric_api)
-            //! 
-            //! 
-            //! ---
+            //!   </td>
+            //! </tr></table>
             //! 
             pub mod _0_switch {
+                //! &nbsp;
                 //! 
-                //! ---
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
+                //! [Option arguments or arguments &rarr;](super::_1_argument)
                 //! 
-                //! [&rarr; Option arguments or arguments](super::_1_argument)
-                //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Options, switches or flags
                 //! 
@@ -235,35 +274,45 @@
                 //! [`NamedArg::flag`]
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
+                //! [Option arguments or arguments &rarr;](super::_1_argument)
                 //! 
-                //! [&rarr; Option arguments or arguments](super::_1_argument)
-                //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _1_argument {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Options, switches or flags](super::_0_switch)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Operands or positional items](super::_2_positional)
+                //! [Operands or positional items &rarr;](super::_2_positional)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Option arguments or arguments
                 //! 
@@ -288,38 +337,48 @@
                 //! For more detailed info see [`NamedArg::argument`]
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Options, switches or flags](super::_0_switch)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Operands or positional items](super::_2_positional)
+                //! [Operands or positional items &rarr;](super::_2_positional)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _2_positional {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Option arguments or arguments](super::_1_argument)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Commands or subcommands](super::_3_command)
+                //! [Commands or subcommands &rarr;](super::_3_command)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Operands or positional items
                 //! 
@@ -340,38 +399,48 @@
                 //! For more detailed info see [`positional`](crate::positional) and
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Option arguments or arguments](super::_1_argument)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Commands or subcommands](super::_3_command)
+                //! [Commands or subcommands &rarr;](super::_3_command)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _3_command {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Operands or positional items](super::_2_positional)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Exotic schemas](super::_4_exotic)
+                //! [Exotic schemas &rarr;](super::_4_exotic)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Commands or subcommands
                 //! 
@@ -393,35 +462,45 @@
                 //! For more detailed info see [`OptionParser::command`]
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Operands or positional items](super::_2_positional)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Exotic schemas](super::_4_exotic)
+                //! [Exotic schemas &rarr;](super::_4_exotic)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _4_exotic {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Commands or subcommands](super::_3_command)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Exotic schemas
                 //! 
@@ -462,34 +541,44 @@
                 //! </pre></div>
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Commands or subcommands](super::_3_command)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Types of arguments](super::super::_0_types_of_arguments)
+                //! [&uarr; Types of arguments &uarr;](super::super::_0_types_of_arguments)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
         use crate::*;
         }
         pub mod _1_combinatoric_api {
+            //! &nbsp;
             //! 
-            //! ---
-            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
             //! 
             //! [&larr; Types of arguments](super::_0_types_of_arguments)
             //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Tutorials](super::super::_1_tutorials)
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
-            //! 
-            //! ---
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
             //! 
             //! #### Combinatoric API
             //! ##### parse without using proc macros
@@ -510,30 +599,40 @@
             //! - [Subcommand parsers](_3_subcommands)
             //! - [Improving the user experience](_4_decorating)
             //!
+            //! &nbsp;
             //! 
-            //! ---
-            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
             //! 
             //! [&larr; Types of arguments](super::_0_types_of_arguments)
             //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Tutorials](super::super::_1_tutorials)
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
-            //! 
-            //! ---
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
             //! 
             pub mod _0_simple_parser {
+                //! &nbsp;
                 //! 
-                //! ---
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
+                //! [Transforming parsers &rarr;](super::_1_chaining)
                 //! 
-                //! [&rarr; Transforming parsers](super::_1_chaining)
-                //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Making a simple parser
                 //! 
@@ -543,30 +642,40 @@
                 //! - [Argument parser](_1_argument)
                 //! - [Positional item parser](_2_positional)
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
+                //! [Transforming parsers &rarr;](super::_1_chaining)
                 //! 
-                //! [&rarr; Transforming parsers](super::_1_chaining)
-                //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 pub mod _0_switch {
+                    //! &nbsp;
                     //! 
-                    //! ---
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
                     //! 
+                    //! [Argument parser &rarr;](super::_1_argument)
                     //! 
-                    //! [&rarr; Argument parser](super::_1_argument)
-                    //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                     //! #### Switch parser
                     //! 
@@ -578,12 +687,14 @@
                     //! 
                     //! ```rust
                     //! # use bpaf::*;
+                    //! use bpaf::parsers::NamedArg;
                     //! fn simple_switch() -> NamedArg {
                     //!     short('s').long("simple")
                     //! }
                     //! ```
                     //! 
-                    //! From `NamedArg` you make a switch parser by calling [`NamedArg::switch`].
+                    //! From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually you do it
+                    //! right away without assigning `NamedArg` to a variable.
                     //! 
                     //! ```rust
                     //! # use bpaf::*;
@@ -602,35 +713,45 @@
                     //! With [`NamedArg::help`] you can attach a help message that will be used in `--help` output.
                     //!
                     //!
+                    //! &nbsp;
                     //! 
-                    //! ---
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
                     //! 
+                    //! [Argument parser &rarr;](super::_1_argument)
                     //! 
-                    //! [&rarr; Argument parser](super::_1_argument)
-                    //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                 use crate::*;
                 }
                 pub mod _1_argument {
+                    //! &nbsp;
                     //! 
-                    //! ---
-                    //! 
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
                     //! 
                     //! [&larr; Switch parser](super::_0_switch)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
                     //! 
-                    //! [&rarr; Positional item parser](super::_2_positional)
+                    //! [Positional item parser &rarr;](super::_2_positional)
                     //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                     //! #### Argument parser
                     //! 
@@ -641,6 +762,8 @@
                     //! several ways to do it:
                     //! 
                     //! ```rust
+                    //! # use bpaf::*;
+                    //! # use std::path::PathBuf;
                     //! fn simple_argument_1() -> impl Parser<u32> {
                     //!     long("number").argument("NUM")
                     //! }
@@ -661,35 +784,45 @@
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
                     //!
                     //!
+                    //! &nbsp;
                     //! 
-                    //! ---
-                    //! 
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
                     //! 
                     //! [&larr; Switch parser](super::_0_switch)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
                     //! 
-                    //! [&rarr; Positional item parser](super::_2_positional)
+                    //! [Positional item parser &rarr;](super::_2_positional)
                     //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                 use crate::*;
                 }
                 pub mod _2_positional {
+                    //! &nbsp;
                     //! 
-                    //! ---
-                    //! 
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
                     //! 
                     //! [&larr; Argument parser](super::_1_argument)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                     //! #### Positional item parser
                     //! 
@@ -702,37 +835,47 @@
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_positional.md"))]
                     //!
                     //!
+                    //! &nbsp;
                     //! 
-                    //! ---
-                    //! 
+                    //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                    //!   <td style='width: 33%; text-align: left;'>
                     //! 
                     //! [&larr; Argument parser](super::_1_argument)
                     //! 
+                    //!   </td>
+                    //!   <td style='width: 34%; text-align: center;'>
                     //! 
-                    //! [&uarr; Making a simple parser](super::super::_0_simple_parser)
+                    //! [&uarr; Making a simple parser &uarr;](super::super::_0_simple_parser)
                     //! 
-                    //! 
-                    //! ---
+                    //!   </td>
+                    //!   <td style='width: 33%; text-align: right;'>
+                    //!   </td>
+                    //! </tr></table>
                     //! 
                 use crate::*;
                 }
             use crate::*;
             }
             pub mod _1_chaining {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Making a simple parser](super::_0_simple_parser)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Combining multiple simple parsers](super::_2_combining)
+                //! [Combining multiple simple parsers &rarr;](super::_2_combining)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Transforming parsers
                 //! 
@@ -744,6 +887,7 @@
                 //! `cargo test` replacement
                 //! 
                 //! ```rust
+                //! use bpaf::*;
                 //! fn krate() -> impl Parser<String> {
                 //!     long("crate").help("Crate name to process").argument("CRATE")
                 //! }
@@ -755,6 +899,7 @@
                 //! 
                 //! 
                 //! ```rust
+                //! use bpaf::*;
                 //! fn maybe_krate() -> impl Parser<Option<String>> {
                 //!     long("crate")
                 //!         .help("Crate name to process")
@@ -781,38 +926,48 @@
                 //! being shown in `--help` output, adding additional validation and parsing on top and so on.
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Making a simple parser](super::_0_simple_parser)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Combining multiple simple parsers](super::_2_combining)
+                //! [Combining multiple simple parsers &rarr;](super::_2_combining)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _2_combining {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Transforming parsers](super::_1_chaining)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Subcommand parsers](super::_3_subcommands)
+                //! [Subcommand parsers &rarr;](super::_3_subcommands)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Combining multiple simple parsers
                 //! 
@@ -861,40 +1016,69 @@
                 //! should go first since `bpaf` picks earlier parser if everything else is equal, otherwise it
                 //! does not matter. In this example `construct!([miles, km])` produces the same results as
                 //! `construct!([km, miles])` and only `--help` message is going to be different.
+                //! 
+                //! Parsers created with [`construct!`] still implement [`Parser`] trait so you can apply more
+                //! transformation on top. For example same as you can make a simple parser optional - you can make
+                //! composite parser optional. Such parser will succeed iff both `--alpha` and `--beta` are
+                //! present.
+                //! 
+                //! ```rust
+                //! # use bpaf::*;
+                //! struct Options {
+                //!     alpha: usize,
+                //!     beta: usize
+                //! }
+                //! 
+                //! fn parser() -> impl Parser<Option<Options>> {
+                //!     let alpha = long("alpha").argument("ALPHA");
+                //!     let beta = long("beta").argument("BETA");
+                //!     construct!(Options { alpha, beta }).optional()
+                //! }
+                //! ```
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Transforming parsers](super::_1_chaining)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Subcommand parsers](super::_3_subcommands)
+                //! [Subcommand parsers &rarr;](super::_3_subcommands)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _3_subcommands {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Combining multiple simple parsers](super::_2_combining)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Improving the user experience](super::_4_decorating)
+                //! [Improving the user experience &rarr;](super::_4_decorating)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Subcommand parsers
                 //! 
@@ -907,35 +1091,45 @@
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_command.md"))]
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Combining multiple simple parsers](super::_2_combining)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [&rarr; Improving the user experience](super::_4_decorating)
+                //! [Improving the user experience &rarr;](super::_4_decorating)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
             pub mod _4_decorating {
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Subcommand parsers](super::_3_subcommands)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
                 //! 
                 //! #### Improving the user experience
                 //! 
@@ -957,17 +1151,22 @@
                 //!   [`OptionParser::render_manpage] and [`OptionParser::render_markdown`]
                 //!
                 //!
+                //! &nbsp;
                 //! 
-                //! ---
-                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
                 //! 
                 //! [&larr; Subcommand parsers](super::_3_subcommands)
                 //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
                 //! 
-                //! [&uarr; Combinatoric API](super::super::_1_combinatoric_api)
+                //! [&uarr; Combinatoric API &uarr;](super::super::_1_combinatoric_api)
                 //! 
-                //! 
-                //! ---
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
                 //! 
             use crate::*;
             }
@@ -976,135 +1175,174 @@
     use crate::*;
     }
     pub mod _2_howto {
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Tutorials](super::_1_tutorials)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; Structured API reference](super::_3_reference)
+        //! [Structured API reference &rarr;](super::_3_reference)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         //! #### HowTo
         //! ##### Practical solutions to common problems
         //!
         //! - [Parsing exotic options](_1_exotic) - If you need it
         //!
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Tutorials](super::_1_tutorials)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; Structured API reference](super::_3_reference)
+        //! [Structured API reference &rarr;](super::_3_reference)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         pub mod _1_exotic {
+            //! &nbsp;
             //! 
-            //! ---
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
+            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
             //! 
-            //! [&uarr; HowTo](super::super::_2_howto)
-            //! 
-            //! 
-            //! ---
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
             //! 
             //! #### Parsing exotic options
             //! ##### If you need it
             //!
             //!
+            //! &nbsp;
             //! 
-            //! ---
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
             //! 
+            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
             //! 
-            //! [&uarr; HowTo](super::super::_2_howto)
-            //! 
-            //! 
-            //! ---
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
             //! 
         use crate::*;
         }
     use crate::*;
     }
     pub mod _3_reference {
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; HowTo](super::_2_howto)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; Theory explanation](super::_4_explanation)
+        //! [Theory explanation &rarr;](super::_4_explanation)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
         //! #### Structured API reference
         //! ##### A better overview of available functions
         //!
         //!
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; HowTo](super::_2_howto)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [&rarr; Theory explanation](super::_4_explanation)
+        //! [Theory explanation &rarr;](super::_4_explanation)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //! </tr></table>
         //! 
     use crate::*;
     }
     pub mod _4_explanation {
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Structured API reference](super::_3_reference)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
+        //!   </td>
+        //! </tr></table>
         //! 
         //! #### Theory explanation
         //! ##### Theoretical information about abstractions used by the library, oriented for understanding
         //!
         //!
+        //! &nbsp;
         //! 
-        //! ---
-        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
         //! 
         //! [&larr; Structured API reference](super::_3_reference)
         //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
         //! 
-        //! [&uarr; Project documentation](super::super::_documentation)
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
         //! 
-        //! 
-        //! ---
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
+        //!   </td>
+        //! </tr></table>
         //! 
     use crate::*;
     }
 use crate::*;
-
