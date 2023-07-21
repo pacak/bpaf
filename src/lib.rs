@@ -274,6 +274,33 @@
 //!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
 //!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
 
+//! # Quick links
+//! - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
+//! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
+//!   examples to get you started
+//! - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
+//!   explains how to concrete tasks
+//! - [Reference](_documentation::_3_reference) - a quick overview of API surface showing how parts
+//!   interact with each other
+//! - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
+//!   used by the library, oriented for understanding
+//! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
+
+//! # A quick start
+//!
+//! Add `bpaf`, optionally with derive enabled
+//!
+//! ```text
+//! $ cargo add bpaf -F derive,dull_color
+//! ```
+//!
+//! Use either derive or combinatoric API and try running it
+//!
+#![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
+
+#[cfg(feature = "extradocs")]
+pub mod _documentation;
+
 #[cfg(feature = "extradocs")]
 pub mod _applicative;
 #[cfg(feature = "extradocs")]
