@@ -482,6 +482,70 @@ fn hidden_command() {
 }
 
 #[test]
+fn req_flag_struct() {
+    let top: Top = parse_quote! {
+        struct Foo;
+    };
+
+    let expected = quote! {
+        fn foo() -> impl ::bpaf::Parser<Foo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("foo").req_flag(Foo)
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn generate_parser() {
+    let top: Top = parse_quote! {
+            #[bpaf(generate(oof))]
+            struct Foo;
+    };
+    let expected = quote! {
+        fn oof() -> impl ::bpaf::Parser<Foo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("foo").req_flag(Foo)
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn generate_options() {
+    let top: Top = parse_quote! {
+            #[bpaf(options, generate(oof))]
+            struct Foo;
+    };
+    let expected = quote! {
+        fn oof() -> ::bpaf::OptionParser<Foo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("foo").req_flag(Foo).to_options()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn generate_command() {
+    let top: Top = parse_quote! {
+            #[bpaf(command, generate(oof))]
+            struct Foo;
+    };
+    let expected = quote! {
+        fn oof() -> impl ::bpaf::Parser<Foo> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Foo).to_options().command("foo")
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn command_with_aliases() {
     let top: Top = parse_quote! {
         #[bpaf(command, short('c'), long("long"), long("long2"))]

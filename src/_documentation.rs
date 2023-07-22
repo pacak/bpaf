@@ -149,6 +149,7 @@
         //!
         //! - [Types of arguments](_0_types_of_arguments) - common types of line options and conventions
         //! - [Combinatoric API](_1_combinatoric_api) - parse without using proc macros
+        //! - [Derive API tutorial](_2_derive_api) - create a parser by defining a structure
         //!
         //! &nbsp;
         //! 
@@ -577,6 +578,9 @@
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Derive API tutorial &rarr;](super::_2_derive_api)
+            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -613,6 +617,9 @@
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Derive API tutorial &rarr;](super::_2_derive_api)
+            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -924,6 +931,37 @@
                 //! Transformations available in the `Parser` trait things like adding fallback values, making
                 //! parser optional, making it so it consumes many but at least one value, changing how it is
                 //! being shown in `--help` output, adding additional validation and parsing on top and so on.
+                //! 
+                //! Order of those chained transformations matters and for some operations using the right order
+                //! makes code cleaner. For example suppose you are trying to write a parser that takes an even
+                //! number and this parser should be optional. There's two ways to write it:
+                //! 
+                //! Validation first:
+                //! 
+                //! ```rust
+                //! # use bpaf::*;
+                //! fn even() -> impl Parser<Option<usize>> {
+                //!     long("even")
+                //!         .argument("N")
+                //!         .guard(|&n| n % 2 == 0, "number must be even")
+                //!         .optional()
+                //! }
+                //! ```
+                //! 
+                //! Optional first:
+                //! 
+                //! ```rust
+                //! # use bpaf::*;
+                //! fn even() -> impl Parser<Option<usize>> {
+                //!     long("even")
+                //!         .argument("N")
+                //!         .optional()
+                //!         .guard(|&n| n.map_or(true, |n| n % 2 == 0), "number must be even")
+                //! }
+                //! ```
+                //! 
+                //! In later case validation function must deal with a possibility where number is absent, for this
+                //! specific example it makes code less readable.
                 //!
                 //!
                 //! &nbsp;
@@ -1170,6 +1208,335 @@
                 //! 
             use crate::*;
             }
+        use crate::*;
+        }
+        pub mod _2_derive_api {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Combinatoric API](super::_1_combinatoric_api)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Derive API tutorial
+            //! ##### create a parser by defining a structure
+            //! 
+            //! 
+            //! When making a parser using Derive API you should go though approximately following steps:
+            //! 
+            //! 
+            //! 1. Design data type your application will receive
+            //! 2. Design command line options user will have to pass
+            //! 3. Add `#[derive(Bpaf, Debug, Clone)]` on top of your type or types
+            //! 4. Add #[bpaf(xxx)] annotations on types and fields
+            //! 5. And `#[bpaf(options)]` to the top type
+            //! 6. Run the resulting parser
+            //! 
+            //! Let's take a look at a simple example
+            //! 
+            //! # Getting started with derive macro
+            //! 
+            //! ```no_run
+            //! use bpaf::*;
+            //! 
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     /// A custom switch
+            //!     switch: bool,
+            //! 
+            //!     /// A custom argument
+            //!     argument: usize,
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts)
+            //! }
+            //! ```
+            //! 
+            //! `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
+            //! pick up types, doc comment, presence or absence of names, but it is possible to customize all
+            //! of it, add custom transformations, validations and more.
+            //! 
+            //! 
+            //! # Customizing flag and argument names
+            //! 
+            //! By default names for flag names are taken directly from the field names so usually you don't
+            //! have to do anything about it, but you can change it with annotations on the fields themselves:
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     /// A custom switch
+            //!     #[bpaf(short, long)]
+            //!     switch: bool,
+            //! 
+            //!     /// A custom argument
+            //!     #[bpaf(long("my-argument"), short('A'))]
+            //!     argument: usize,
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! Rules for picking the name are:
+            //! 
+            //! 1. With no annotations field name longer than a single character becomes a long name,
+            //!    single character name becomes a short name
+            //! 2. Adding either `long` or `short` disables item 1, so adding `short` disables long name
+            //! 3. `long` or `short` annotation without a parameter derives a value from a field name
+            //! 4. `long` or `short` with a parameter uses that instead
+            //! 5. You can have multiples `long` and `short` annotations, first of each type becomes a
+            //!    visible name, remaining are used as hidden aliases
+            //! 
+            //! And if you decide to add names - they should go to the left side of the annotation list
+            //! 
+            //! # Customizing the consumers
+            //! 
+            //! By default `bpaf` picks parsers depending on a field type according to those rules:
+            //! 
+            //! 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
+            //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as req_flag
+            //!    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
+            //!    them for parser to succeed
+            //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
+            //!    smart way, so Non-utf8 `PathBuf`/`OsString` are working as expected.
+            //! 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
+            //!    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
+            //! 
+            //! You can change it with annotations like `switch`, `argument` or `positional`
+            //! 
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     /// A custom switch
+            //!     #[bpaf(short, switch)]
+            //!     switch: bool,
+            //! 
+            //!     /// A custom argument
+            //!     #[bpaf(positional("NAME"))]
+            //!     argument: usize,
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! With arguments that consume a value you can specify its type using turbofish-line syntax
+            //! 
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     /// A custom argument
+            //!     #[bpaf(positional::<usize>("LENGTH"))]
+            //!     argument: usize,
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts)
+            //! }
+            //! ```
+            //! 
+            //! See [the API reference](crate::_documentation::_3_reference) for a complete list
+            //! 
+            //! 
+            //! # Applying transformations to parsed values
+            //! 
+            //! Once field have a consumer you can start applying transformations from [`Parser`] trait.
+            //! Annotation share the same names and follow the same composition rules as in Combinatoric API.
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! fn small(size: &usize) -> bool {
+            //!     *size < 10
+            //! }
+            //! 
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     // double the width
+            //!     #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
+            //!     width: usize,
+            //! 
+            //!     // make sure the hight is below 10
+            //!     #[bpaf(argument::<usize>("LENGTH"), guard(small, "must be less than 10"))]
+            //!     height: usize,
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! 
+            //! # Parsing structs and enums
+            //! 
+            //! To produce a struct bpaf needs for all the field parsers to succeed. If you are planning to use
+            //! it for some other purpose as well and want to skip them during parsing you can use [`pure`].
+            //! 
+            //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
+            //! succeed.
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub enum Input {
+            //!     File {
+            //!         /// Read input from a file
+            //!         name: String,
+            //!     },
+            //! 
+            //!     Url {
+            //!         /// Read input from URL
+            //!         url: String,
+            //!         /// Authentication method to use for the URL
+            //!         auth_method: String,
+            //!     }
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = input().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! 
+            //! # What gets generated
+            //! 
+            //! Usually calling derive macro on a type generates code to derive a trait implementation for this
+            //! type. With bpaf it's slightly different. It instead generates a function with a name that
+            //! depends on the name of the type and gives either a composable parser (`Parser`) or option parser
+            //! (`OptionParser`) back.
+            //! 
+            //! You can customize the function name with `generate` annotation at the top level:
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options, generate(my_options))]
+            //! pub struct Options {
+            //!     /// A simple switch
+            //!     switch: bool
+            //! }
+            //! 
+            //! 
+            //! fn main() {
+            //!     let opts = my_options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! # Making nested parsers
+            //! 
+            //! Up to this point we've been looking at cases where fields of a structure are all simple
+            //! parsers, possibly wrapped in `Option` or `Vec`, but it also possible to nest derived parsers
+            //! too:
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! pub enum Format {
+            //!     /// Produce output in HTML format
+            //!     Html,
+            //!     /// Produce output in Markdown format
+            //!     Markdown,
+            //!     /// Produce output in manpage format
+            //!     Manpage
+            //! }
+            //! 
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     /// File to process
+            //!     input: String,
+            //!     #[bpaf(external(format))]
+            //!     format: Format
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //! 
+            //! `external` annotation replaces the consumer and parameter it takes is a function name created
+            //! either manually with combinatoric API or derived with `#[derive(Bpaf)]`. If parameter is
+            //! omitted then it would default to the field name. In example above since both function and field
+            //! are called `format` - annotation `#[bpaf(external)]` would be sufficient.
+            //! 
+            //! # Parsing subcommands
+            //! 
+            //! Easiest way to define a group of subcommands is to have them inside the same enum with variant
+            //! constructors annotated with `#[bpaf(command("name"))]` with or without the name
+            //! 
+            //! ```no_run
+            //! # use bpaf::*;
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! enum Options {
+            //!     #[bpaf(command("run"))]
+            //!     /// Run a binary
+            //!     Run {
+            //!         /// Name of a binary crate
+            //!         name: String
+            //!     },
+            //! 
+            //!     /// Run a self test
+            //!     #[bpaf(command)]
+            //!     Test
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = options().run();
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Combinatoric API](super::_1_combinatoric_api)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
         use crate::*;
         }
     use crate::*;

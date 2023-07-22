@@ -458,7 +458,7 @@ pub struct Branch {
 
 impl Branch {
     fn set_command(&mut self) {
-        if let FieldSet::Unit(_, _) = self.fields {
+        if let FieldSet::Unit(_, _, _) = self.fields {
             let ident = &self.ident;
             let enum_name = &self.enum_name;
             self.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
@@ -466,19 +466,19 @@ impl Branch {
     }
 
     fn set_unnamed_command(&mut self) {
-        if let FieldSet::Unit(_, _) = self.fields {
+        if let FieldSet::Unit(_, _, _) = self.fields {
             self.set_command();
         }
     }
 
     fn set_unit_name(&mut self, name: StrictName) {
-        if let FieldSet::Unit(names, _) = &mut self.fields {
+        if let FieldSet::Unit(_, names, _) = &mut self.fields {
             names.push(name);
         }
     }
 
     fn set_inplicit_name(&mut self) {
-        if let FieldSet::Unit(names, _) = &mut self.fields {
+        if let FieldSet::Unit(_, names, _) = &mut self.fields {
             if !names
                 .iter()
                 .any(|n| matches!(n, StrictName::Long { .. } | StrictName::Short { .. }))
@@ -490,7 +490,7 @@ impl Branch {
         }
     }
     fn push_help(&mut self, help: Help) {
-        if let FieldSet::Unit(_, h) = &mut self.fields {
+        if let FieldSet::Unit(_, _, h) = &mut self.fields {
             *h = Some(help);
             //        } else {
             //            todo!("use GroupHelp here");
@@ -513,7 +513,7 @@ impl Parse for Branch {
             if input.peek(token::Semi) {
                 input.parse::<token::Semi>()?;
             }
-            FieldSet::Unit(Vec::new(), None)
+            FieldSet::Unit(ident.clone(), Vec::new(), None)
         };
 
         Ok(Branch {
@@ -557,9 +557,16 @@ impl ToTokens for Branch {
                     ::bpaf::construct!( #enum_name #ident ( #( #result , )* ))
                 }}
             }
-            FieldSet::Unit(names, help) => {
+            FieldSet::Unit(ident, names, help) => {
                 let help = help.iter();
-                quote!(::bpaf:: #( #names .)* #(help(#help).)* req_flag(#enum_name #ident))
+                if names.is_empty() {
+                    let name = StrictName::Long {
+                        name: ident_to_long(ident),
+                    };
+                    quote!(::bpaf:: #name.#(help(#help).)* req_flag(#enum_name #ident))
+                } else {
+                    quote!(::bpaf:: #( #names .)* #(help(#help).)* req_flag(#enum_name #ident))
+                }
             }
             FieldSet::Pure(x) => quote!(#x),
         }
@@ -573,6 +580,6 @@ pub(crate) enum FieldSet {
     // {{{
     Named(Punctuated<StructField, token::Comma>),
     Unnamed(Punctuated<StructField, token::Comma>),
-    Unit(Vec<StrictName>, Option<Help>),
+    Unit(Ident, Vec<StrictName>, Option<Help>),
     Pure(Box<Expr>),
 }
