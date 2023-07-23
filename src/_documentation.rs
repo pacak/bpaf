@@ -1,9 +1,11 @@
 //! #### Project documentation
+//! 
+//! See [official website](https://pacak.github.io/bpaf/bpaf/_documentation/index.html) for more up to date version.
 //!
 //! - [Introduction and design goals](_0_intro) - A quick intro. What, why and how
 //! - [Tutorials](_1_tutorials) - practical, learning oriented guides
 //! - [HowTo](_2_howto) - Practical solutions to common problems
-//! - [Structured API reference](_3_reference) - A better overview of available functions
+//! - [Structured API reference](_3_reference)
 //! - [Theory explanation](_4_explanation) - Theoretical information about abstractions used by the library, oriented for understanding
 //!
     pub mod _0_intro {
@@ -25,9 +27,9 @@
         //! </tr></table>
         //! 
         //! #### Introduction and design goals
-        //! ##### A quick intro. What, why and how
+        //! A quick intro. What, why and how
         //! 
-        //! Bpaf is a lightweight and flexible command line parser that uses both combinatoric and derive
+        //! `bpaf` is a lightweight and flexible command line parser that uses both combinatoric and derive
         //! style API
         //! 
         //! Combinatoric API usually means a bit more typing but no dependency on proc macros and more help
@@ -101,7 +103,7 @@
         //! ## User friendly
         //! 
         //! `bpaf` tries to provide user friendly error messages, suggestions for typos but also scripts
-        //! for shell completion, `man` pages and markdown documentation for web
+        //! for shell completion, `man` pages and markdown documentation for web.
         //!
         //!
         //! &nbsp;
@@ -145,11 +147,11 @@
         //! </tr></table>
         //! 
         //! #### Tutorials
-        //! ##### practical, learning oriented guides
+        //! practical, learning oriented guides
         //!
         //! - [Types of arguments](_0_types_of_arguments) - common types of line options and conventions
-        //! - [Combinatoric API](_1_combinatoric_api) - parse without using proc macros
-        //! - [Derive API tutorial](_2_derive_api) - create a parser by defining a structure
+        //! - [Combinatoric API](_1_combinatoric_api) - Parse arguments without using proc macros
+        //! - [Derive API tutorial](_2_derive_api) - Create a parser by defining a structure
         //!
         //! &nbsp;
         //! 
@@ -190,7 +192,7 @@
             //! </tr></table>
             //! 
             //! #### Types of arguments
-            //! ##### common types of line options and conventions
+            //! common types of line options and conventions
             //! 
             //! This chapter serves as an introduction to available command line options and tries to set the
             //! terminology. If you are familiar with command line argument parsers in general - feel free top
@@ -585,7 +587,7 @@
             //! </tr></table>
             //! 
             //! #### Combinatoric API
-            //! ##### parse without using proc macros
+            //! Parse arguments without using proc macros
             //! 
             //! When making parser in the Combinatoric style API you usually go though those steps
             //! 
@@ -1034,9 +1036,6 @@
                 //! }
                 //! ```
                 //! 
-                //! What you get back also implements a `Parser` trait so you can keep combining or applying extra
-                //! transformations on top.
-                //! 
                 //! Full example:
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_construct.md"))]
                 //! 
@@ -1057,8 +1056,8 @@
                 //! 
                 //! Parsers created with [`construct!`] still implement [`Parser`] trait so you can apply more
                 //! transformation on top. For example same as you can make a simple parser optional - you can make
-                //! composite parser optional. Such parser will succeed iff both `--alpha` and `--beta` are
-                //! present.
+                //! composite parser optional. Such parser will succeed if both `--alpha` and `--beta` are
+                //! present or neither of them:
                 //! 
                 //! ```rust
                 //! # use bpaf::*;
@@ -1229,11 +1228,10 @@
             //! </tr></table>
             //! 
             //! #### Derive API tutorial
-            //! ##### create a parser by defining a structure
+            //! Create a parser by defining a structure
             //! 
             //! 
             //! When making a parser using Derive API you should go though approximately following steps:
-            //! 
             //! 
             //! 1. Design data type your application will receive
             //! 2. Design command line options user will have to pass
@@ -1242,283 +1240,18 @@
             //! 5. And `#[bpaf(options)]` to the top type
             //! 6. Run the resulting parser
             //! 
-            //! Let's take a look at a simple example
             //! 
-            //! # Getting started with derive macro
-            //! 
-            //! ```no_run
-            //! use bpaf::*;
-            //! 
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     /// A custom switch
-            //!     switch: bool,
-            //! 
-            //!     /// A custom argument
-            //!     argument: usize,
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts)
-            //! }
-            //! ```
-            //! 
-            //! `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
-            //! pick up types, doc comment, presence or absence of names, but it is possible to customize all
-            //! of it, add custom transformations, validations and more.
-            //! 
-            //! 
-            //! # Customizing flag and argument names
-            //! 
-            //! By default names for flag names are taken directly from the field names so usually you don't
-            //! have to do anything about it, but you can change it with annotations on the fields themselves:
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     /// A custom switch
-            //!     #[bpaf(short, long)]
-            //!     switch: bool,
-            //! 
-            //!     /// A custom argument
-            //!     #[bpaf(long("my-argument"), short('A'))]
-            //!     argument: usize,
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! Rules for picking the name are:
-            //! 
-            //! 1. With no annotations field name longer than a single character becomes a long name,
-            //!    single character name becomes a short name
-            //! 2. Adding either `long` or `short` disables item 1, so adding `short` disables long name
-            //! 3. `long` or `short` annotation without a parameter derives a value from a field name
-            //! 4. `long` or `short` with a parameter uses that instead
-            //! 5. You can have multiples `long` and `short` annotations, first of each type becomes a
-            //!    visible name, remaining are used as hidden aliases
-            //! 
-            //! And if you decide to add names - they should go to the left side of the annotation list
-            //! 
-            //! # Customizing the consumers
-            //! 
-            //! By default `bpaf` picks parsers depending on a field type according to those rules:
-            //! 
-            //! 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
-            //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as req_flag
-            //!    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
-            //!    them for parser to succeed
-            //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
-            //!    smart way, so Non-utf8 `PathBuf`/`OsString` are working as expected.
-            //! 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
-            //!    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
-            //! 
-            //! You can change it with annotations like `switch`, `argument` or `positional`
-            //! 
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     /// A custom switch
-            //!     #[bpaf(short, switch)]
-            //!     switch: bool,
-            //! 
-            //!     /// A custom argument
-            //!     #[bpaf(positional("NAME"))]
-            //!     argument: usize,
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! With arguments that consume a value you can specify its type using turbofish-line syntax
-            //! 
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     /// A custom argument
-            //!     #[bpaf(positional::<usize>("LENGTH"))]
-            //!     argument: usize,
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts)
-            //! }
-            //! ```
-            //! 
-            //! See [the API reference](crate::_documentation::_3_reference) for a complete list
-            //! 
-            //! 
-            //! # Applying transformations to parsed values
-            //! 
-            //! Once field have a consumer you can start applying transformations from [`Parser`] trait.
-            //! Annotation share the same names and follow the same composition rules as in Combinatoric API.
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! fn small(size: &usize) -> bool {
-            //!     *size < 10
-            //! }
-            //! 
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     // double the width
-            //!     #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
-            //!     width: usize,
-            //! 
-            //!     // make sure the hight is below 10
-            //!     #[bpaf(argument::<usize>("LENGTH"), guard(small, "must be less than 10"))]
-            //!     height: usize,
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! 
-            //! # Parsing structs and enums
-            //! 
-            //! To produce a struct bpaf needs for all the field parsers to succeed. If you are planning to use
-            //! it for some other purpose as well and want to skip them during parsing you can use [`pure`].
-            //! 
-            //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
-            //! succeed.
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub enum Input {
-            //!     File {
-            //!         /// Read input from a file
-            //!         name: String,
-            //!     },
-            //! 
-            //!     Url {
-            //!         /// Read input from URL
-            //!         url: String,
-            //!         /// Authentication method to use for the URL
-            //!         auth_method: String,
-            //!     }
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = input().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! 
-            //! # What gets generated
-            //! 
-            //! Usually calling derive macro on a type generates code to derive a trait implementation for this
-            //! type. With bpaf it's slightly different. It instead generates a function with a name that
-            //! depends on the name of the type and gives either a composable parser (`Parser`) or option parser
-            //! (`OptionParser`) back.
-            //! 
-            //! You can customize the function name with `generate` annotation at the top level:
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options, generate(my_options))]
-            //! pub struct Options {
-            //!     /// A simple switch
-            //!     switch: bool
-            //! }
-            //! 
-            //! 
-            //! fn main() {
-            //!     let opts = my_options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! # Making nested parsers
-            //! 
-            //! Up to this point we've been looking at cases where fields of a structure are all simple
-            //! parsers, possibly wrapped in `Option` or `Vec`, but it also possible to nest derived parsers
-            //! too:
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! pub enum Format {
-            //!     /// Produce output in HTML format
-            //!     Html,
-            //!     /// Produce output in Markdown format
-            //!     Markdown,
-            //!     /// Produce output in manpage format
-            //!     Manpage
-            //! }
-            //! 
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! pub struct Options {
-            //!     /// File to process
-            //!     input: String,
-            //!     #[bpaf(external(format))]
-            //!     format: Format
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
-            //! 
-            //! `external` annotation replaces the consumer and parameter it takes is a function name created
-            //! either manually with combinatoric API or derived with `#[derive(Bpaf)]`. If parameter is
-            //! omitted then it would default to the field name. In example above since both function and field
-            //! are called `format` - annotation `#[bpaf(external)]` would be sufficient.
-            //! 
-            //! # Parsing subcommands
-            //! 
-            //! Easiest way to define a group of subcommands is to have them inside the same enum with variant
-            //! constructors annotated with `#[bpaf(command("name"))]` with or without the name
-            //! 
-            //! ```no_run
-            //! # use bpaf::*;
-            //! #[derive(Debug, Clone, Bpaf)]
-            //! #[bpaf(options)]
-            //! enum Options {
-            //!     #[bpaf(command("run"))]
-            //!     /// Run a binary
-            //!     Run {
-            //!         /// Name of a binary crate
-            //!         name: String
-            //!     },
-            //! 
-            //!     /// Run a self test
-            //!     #[bpaf(command)]
-            //!     Test
-            //! }
-            //! 
-            //! fn main() {
-            //!     let opts = options().run();
-            //!     println!("{:?}", opts);
-            //! }
-            //! ```
+            //! Let’s go though some of them in more details:
             //!
+            //! - [Getting started with derive macro](_0_intro)
+            //! - [Customizing flag and argument names](_1_custom_names)
+            //! - [Customizing the consumers](_2_custom_consumers)
+            //! - [Applying transformations to parsed values](_3_postpr)
+            //! - [Parsing structs and enums](_4_enums_and_structs)
+            //! - [What gets generated](_5_generate)
+            //! - [Making nested parsers](_6_nesting)
+            //! - [Parsing subcommands](_7_commands)
+            //! - [Making a cargo command](_8_cargo)
             //!
             //! &nbsp;
             //! 
@@ -1537,6 +1270,685 @@
             //!   </td>
             //! </tr></table>
             //! 
+            pub mod _0_intro {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Customizing flag and argument names &rarr;](super::_1_custom_names)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Getting started with derive macro
+                //! 
+                //! Let's take a look at a simple example
+                //! 
+                //! ```no_run
+                //! use bpaf::*;
+                //! 
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// A custom switch
+                //!     switch: bool,
+                //! 
+                //!     /// A custom argument
+                //!     argument: usize,
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts)
+                //! }
+                //! ```
+                //! 
+                //! `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
+                //! pick up types, doc comment, presence or absence of names, but it is possible to customize all
+                //! of it, add custom transformations, validations and more.
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Customizing flag and argument names &rarr;](super::_1_custom_names)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _1_custom_names {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Getting started with derive macro](super::_0_intro)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Customizing the consumers &rarr;](super::_2_custom_consumers)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Customizing flag and argument names
+                //! 
+                //! By default names for flag names are taken directly from the field names so usually you don't
+                //! have to do anything about it, but you can change it with annotations on the fields themselves:
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// A custom switch
+                //!     #[bpaf(short, long)]
+                //!     switch: bool,
+                //! 
+                //!     /// A custom argument
+                //!     #[bpaf(long("my-argument"), short('A'))]
+                //!     argument: usize,
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //! 
+                //! Rules for picking the name are:
+                //! 
+                //! 1. With no annotations field name longer than a single character becomes a long name,
+                //!    single character name becomes a short name
+                //! 2. Adding either `long` or `short` disables item 1, so adding `short` disables long name
+                //! 3. `long` or `short` annotation without a parameter derives a value from a field name
+                //! 4. `long` or `short` with a parameter uses that instead
+                //! 5. You can have multiples `long` and `short` annotations, first of each type becomes a
+                //!    visible name, remaining are used as hidden aliases
+                //! 
+                //! And if you decide to add names - they should go to the left side of the annotation list
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Getting started with derive macro](super::_0_intro)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Customizing the consumers &rarr;](super::_2_custom_consumers)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _2_custom_consumers {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Customizing flag and argument names](super::_1_custom_names)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Applying transformations to parsed values &rarr;](super::_3_postpr)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Customizing the consumers
+                //! 
+                //! By default `bpaf` picks parsers depending on a field type according to those rules:
+                //! 
+                //! 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
+                //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as req_flag
+                //!    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
+                //!    them for parser to succeed
+                //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
+                //!    smart way, so Non-utf8 `PathBuf`/`OsString` are working as expected.
+                //! 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
+                //!    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
+                //! 
+                //! You can change it with annotations like `switch`, `argument` or `positional`
+                //! 
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// A custom switch
+                //!     #[bpaf(short, switch)]
+                //!     switch: bool,
+                //! 
+                //!     /// A custom argument
+                //!     #[bpaf(positional("NAME"))]
+                //!     argument: usize,
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //! 
+                //! With arguments that consume a value you can specify its type using turbofish-line syntax
+                //! 
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// A custom argument
+                //!     #[bpaf(positional::<usize>("LENGTH"))]
+                //!     argument: usize,
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts)
+                //! }
+                //! ```
+                //! 
+                //! See [the API reference](crate::_documentation::_3_reference) for a complete list
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Customizing flag and argument names](super::_1_custom_names)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Applying transformations to parsed values &rarr;](super::_3_postpr)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _3_postpr {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Customizing the consumers](super::_2_custom_consumers)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Parsing structs and enums &rarr;](super::_4_enums_and_structs)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Applying transformations to parsed values
+                //! 
+                //! Once field have a consumer you can start applying transformations from [`Parser`] trait.
+                //! Annotation share the same names and follow the same composition rules as in Combinatoric API.
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! fn small(size: &usize) -> bool {
+                //!     *size < 10
+                //! }
+                //! 
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     // double the width
+                //!     #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
+                //!     width: usize,
+                //! 
+                //!     // make sure the hight is below 10
+                //!     #[bpaf(argument::<usize>("LENGTH"), guard(small, "must be less than 10"))]
+                //!     height: usize,
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Customizing the consumers](super::_2_custom_consumers)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Parsing structs and enums &rarr;](super::_4_enums_and_structs)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _4_enums_and_structs {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Applying transformations to parsed values](super::_3_postpr)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [What gets generated &rarr;](super::_5_generate)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Parsing structs and enums
+                //! 
+                //! To produce a struct bpaf needs for all the field parsers to succeed. If you are planning to use
+                //! it for some other purpose as well and want to skip them during parsing you can use [`pure`].
+                //! 
+                //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
+                //! succeed.
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub enum Input {
+                //!     File {
+                //!         /// Read input from a file
+                //!         name: String,
+                //!     },
+                //! 
+                //!     Url {
+                //!         /// Read input from URL
+                //!         url: String,
+                //!         /// Authentication method to use for the URL
+                //!         auth_method: String,
+                //!     }
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = input().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Applying transformations to parsed values](super::_3_postpr)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [What gets generated &rarr;](super::_5_generate)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _5_generate {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Parsing structs and enums](super::_4_enums_and_structs)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Making nested parsers &rarr;](super::_6_nesting)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### What gets generated
+                //! 
+                //! Usually calling derive macro on a type generates code to derive a trait implementation for this
+                //! type. With bpaf it's slightly different. It instead generates a function with a name that
+                //! depends on the name of the type and gives either a composable parser (`Parser`) or option parser
+                //! (`OptionParser`) back.
+                //! 
+                //! You can customize the function name with `generate` annotation at the top level:
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options, generate(my_options))]
+                //! pub struct Options {
+                //!     /// A simple switch
+                //!     switch: bool
+                //! }
+                //! 
+                //! 
+                //! fn main() {
+                //!     let opts = my_options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Parsing structs and enums](super::_4_enums_and_structs)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Making nested parsers &rarr;](super::_6_nesting)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _6_nesting {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; What gets generated](super::_5_generate)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Parsing subcommands &rarr;](super::_7_commands)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Making nested parsers
+                //! 
+                //! Up to this point we've been looking at cases where fields of a structure are all simple
+                //! parsers, possibly wrapped in `Option` or `Vec`, but it also possible to nest derived parsers
+                //! too:
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! pub enum Format {
+                //!     /// Produce output in HTML format
+                //!     Html,
+                //!     /// Produce output in Markdown format
+                //!     Markdown,
+                //!     /// Produce output in manpage format
+                //!     Manpage
+                //! }
+                //! 
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// File to process
+                //!     input: String,
+                //!     #[bpaf(external(format))]
+                //!     format: Format
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //! 
+                //! `external` annotation replaces the consumer and parameter it takes is a function name created
+                //! either manually with combinatoric API or derived with `#[derive(Bpaf)]`. If parameter is
+                //! omitted then it would default to the field name. In example above since both function and field
+                //! are called `format` - annotation `#[bpaf(external)]` would be sufficient.
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; What gets generated](super::_5_generate)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Parsing subcommands &rarr;](super::_7_commands)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _7_commands {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Making nested parsers](super::_6_nesting)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Making a cargo command &rarr;](super::_8_cargo)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Parsing subcommands
+                //! 
+                //! Easiest way to define a group of subcommands is to have them inside the same enum with variant
+                //! constructors annotated with `#[bpaf(command("name"))]` with or without the name
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! enum Options {
+                //!     #[bpaf(command("run"))]
+                //!     /// Run a binary
+                //!     Run {
+                //!         /// Name of a binary crate
+                //!         name: String
+                //!     },
+                //! 
+                //!     /// Run a self test
+                //!     #[bpaf(command)]
+                //!     Test
+                //! }
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Making nested parsers](super::_6_nesting)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Making a cargo command &rarr;](super::_8_cargo)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _8_cargo {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Parsing subcommands](super::_7_commands)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Making a cargo command
+                //! 
+                //! To make a cargo command you should pass its name as a parameter to `options`. In this example
+                //! `bpaf` will parse extra parameter cargo passes and you will be able to use it either directly
+                //! with `cargo run` from the repository, running it by `cargo-asm` name or with `cargo asm` name.
+                //! 
+                //! ```no_run
+                //! # use bpaf::*;
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options("asm"))]
+                //! pub struct Options {
+                //!     /// A simple switch
+                //!     switch: bool
+                //! }
+                //! 
+                //! 
+                //! fn main() {
+                //!     let opts = options().run();
+                //!     println!("{:?}", opts);
+                //! }
+                //! ```
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Parsing subcommands](super::_7_commands)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Derive API tutorial &uarr;](super::super::_2_derive_api)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
         use crate::*;
         }
     use crate::*;
@@ -1563,9 +1975,10 @@
         //! </tr></table>
         //! 
         //! #### HowTo
-        //! ##### Practical solutions to common problems
+        //! Practical solutions to common problems
         //!
-        //! - [Parsing exotic options](_1_exotic) - If you need it
+        //! - [Designing a good datatype](_0_picking_type) - bpaf allows you to reduce the size of legal values to valid ones
+        //! - [Parsing exotic options](_1_exotic) - You can parse a lot of unusual types of options - for legacy compatibility or other reasons
         //!
         //! &nbsp;
         //! 
@@ -1587,11 +2000,177 @@
         //!   </td>
         //! </tr></table>
         //! 
+        pub mod _0_picking_type {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Parsing exotic options &rarr;](super::_1_exotic)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Designing a good datatype
+            //! bpaf allows you to reduce the size of legal values to valid ones
+            //! 
+            //! Parsing usually starts from deciding what kind of data your application wants to get from the user.
+            //! You should try to take advantage of Rust typesystem, try to represent the result such that more
+            //! validation can be done during parsing.
+            //! 
+            //! Data types can represent a set of *legal* states - for example for u8 this is all the numbers
+            //! from 0 to 255, while your app logic may only operate correctly only on some set of *valid*
+            //! states: if this u8 represents a fill ratio for something in percents - only valid numbers are
+            //! from 0 to 100. You can try to narrow down set of legal states to valid states with [newtype
+            //! pattern](https://doc.rust-lang.org/rust-by-example/generics/new_types.html). This newtype will
+            //! indicate though the type when you've already done validation. For fill ratio example you can
+            //! implement a newtype along with `FromStr` implementation to get validation for free during
+            //! parsing.
+            //! 
+            //! 
+            //! ```rust
+            //! use std::str::FromStr;
+            //! 
+            //! #[derive(Debug, Clone, Copy)]
+            //! pub struct Ratio(u8);
+            //! 
+            //! impl FromStr for Ratio {
+            //!     type Err = &'static str;
+            //! 
+            //!     fn from_str(s: &str) -> Result<Self, Self::Err> {
+            //!         match s.parse() {
+            //!             Ok(n) if n <= 100 => Ok(Ratio(n)),
+            //!             _ => Err("Invalid fill ratio")
+            //!         }
+            //!     }
+            //! }
+            //! ```
+            //! 
+            //! 
+            //! Try using enums instead of structs for mutually exclusive options:
+            //! 
+            //! ```no_check
+            //! /// Good format selection
+            //! enum OutputFormat {
+            //!     Intel,
+            //!     Att,
+            //!     Llvm
+            //! }
+            //! 
+            //! fn main() {
+            //!     ...
+            //!     // `rustc` ensures you handle each case, parser won't try to consume
+            //!     // combinations of flags it can't represent. For example it won't accept
+            //!     // both `--intel` and `--att` at once
+            //!     // (unless it can collect multiple of them in a vector)
+            //!     match format {
+            //!         OutputFormat::Intel => ...,
+            //!         OutputFormat::Att => ...,
+            //!         OutputFormat::Llvm => ...,
+            //!     }
+            //! }
+            //! ```
+            //! 
+            //! While it's easy to see how flags like `--intel` and `--att` maps to each of those bools,
+            //! consuming inside your app is more fragile
+            //! 
+            //! ```no_check
+            //! /// Bad format selection
+            //! struct OutputFormat {
+            //!     intel: bool,
+            //!     att: bool,
+            //!     llvm: bool,
+            //! }
+            //! 
+            //! fn main() {
+            //!     ...
+            //!     // what happens when none matches? Or all of them?
+            //!     // What happens when you add a new output format?
+            //!     if format.intel {
+            //!         ...
+            //!     } else if format.att {
+            //!         ...
+            //!     } else if format.llvm {
+            //!         ...
+            //!     } else {
+            //!         // can this branch be reached?
+            //!     }
+            //! }
+            //! ```
+            //! 
+            //! Mutually exclusive things are not limited to just flags. For example if your program can take
+            //! input from several different sources such as file, database or interactive input it's a good
+            //! idea to use enum as well:
+            //! 
+            //! ```no_check
+            //! /// Good input selection
+            //! enum Input {
+            //!     File {
+            //!         filepath: PathBuf,
+            //!     }
+            //!     Database {
+            //!         user: String,
+            //!         password: String.
+            //!     }
+            //!     Interactive,
+            //! }
+            //! ```
+            //! 
+            //! If your codebase uses newtype pattern - it's a good idea to use it starting from the command
+            //! options:
+            //! 
+            //! ```no_check
+            //! struct Options {
+            //!     // better than taking a String and parsing internally
+            //!     date: NaiveDate,
+            //!     // f64 might work too, but you can start from some basic sanity checks
+            //!     speed: Speed
+            //!     ...
+            //! }
+            //! ```
+            //! 
+            //! 
+            //! # More reading
+            //! 
+            //! - <https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/>
+            //! - <https://geeklaunch.io/blog/make-invalid-states-unrepresentable/>
+            //! - <https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/>
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Parsing exotic options &rarr;](super::_1_exotic)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
         pub mod _1_exotic {
             //! &nbsp;
             //! 
             //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
             //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Designing a good datatype](super::_0_picking_type)
+            //! 
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
@@ -1603,13 +2182,33 @@
             //! </tr></table>
             //! 
             //! #### Parsing exotic options
-            //! ##### If you need it
+            //! You can parse a lot of unusual types of options - for legacy compatibility or other reasons
+            //! 
+            //! 
+            //! # Some of the more unusual examples
+            //! 
+            //! While `bpaf`'s design tries to cover most common use cases, mostly
+            //! [posix conventions](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html),
+            //! it can also handle some more unusual requirements. It might come at a cost of having to write
+            //! more code, more confusing error messages or worse performance, but it will get the job done.
             //!
+            //! - [`find(1)`: `find -exec commands -flags terminated by \;`](_00_find)
+            //! - [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](_01_dd)
+            //! - [`Xorg(1)`: `Xorg +xinerama +extension name`](_02_xorg)
+            //! - [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](_03_command_chaining)
+            //! - [Multi-value arguments: `--foo ARG1 ARG2 ARG3`](_04_multi_value)
+            //! - [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](_05_struct_groups)
+            //! - [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](_06_multi_flag)
+            //! - [Skipping optional positional items if parsing or validation fails](_07_skip_positional)
+            //! - [Implementing cargo commands](_08_cargo_helper)
             //!
             //! &nbsp;
             //! 
             //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
             //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Designing a good datatype](super::_0_picking_type)
+            //! 
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
@@ -1620,6 +2219,527 @@
             //!   </td>
             //! </tr></table>
             //! 
+            pub mod _00_find {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### `find(1)`: `find -exec commands -flags terminated by \;`
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/find.md"))]
+                //! 
+                //! 
+                //! 
+                //! ## `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
+                //! 
+                //! 
+                //! 
+                //! ## `Xorg(1)`: `Xorg +xinerama +extension name`
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
+                //! 
+                //! 
+                //! ## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
+                //! 
+                //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
+                //! `bpaf` allows you to have several commands side by side instead of being nested.
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+                //! 
+                //! 
+                //! ## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+                //! 
+                //! By default arguments take at most one value, you can create multi value options by using
+                //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
+                //! 
+                //! 
+                //! ## Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+                //! 
+                //! Groups of options that can be specified multiple times. All such groups should be kept without
+                //! overwriting previous one.
+                //! 
+                //! ```console
+                //!  $ prometheus_sensors_exporter \
+                //!      \
+                //!      `# 2 physical sensors located on physycial different i2c bus or address` \
+                //!      --sensor \
+                //!          --sensor-device=tmp102 \
+                //!          --sensor-name="temperature_tmp102_outdoor" \
+                //!          --sensor-i2c-bus=0 \
+                //!          --sensor-i2c-address=0x48 \
+                //!      --sensor \
+                //!          --sensor-device=tmp102 \
+                //!          --sensor-name="temperature_tmp102_indoor" \
+                //!          --sensor-i2c-bus=1 \
+                //!          --sensor-i2c-address=0x49 \
+                //! ```
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+                //! 
+                //! 
+                //! # Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
+                //! 
+                //! So you can parse things while parsing things. Not sure why you might need this, but you can
+                //! :)
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+                //! 
+                //! 
+                //! # Skipping optional positional items if parsing or validation fails
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
+                //! 
+                //! # Implementing cargo commands
+                //! 
+                //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _01_dd {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _02_xorg {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist` &rarr;](super::_03_command_chaining)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### `Xorg(1)`: `Xorg +xinerama +extension name`
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist` &rarr;](super::_03_command_chaining)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _03_command_chaining {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
+                //! 
+                //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
+                //! `bpaf` allows you to have several commands side by side instead of being nested.
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _04_multi_value {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](super::_03_command_chaining)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+                //! 
+                //! By default arguments take at most one value, you can create multi value options by using
+                //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](super::_03_command_chaining)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _05_struct_groups {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+                //! 
+                //! Groups of options that can be specified multiple times. All such groups should be kept without
+                //! overwriting previous one.
+                //! 
+                //! ```console
+                //!  $ prometheus_sensors_exporter \
+                //!      \
+                //!      `# 2 physical sensors located on physycial different i2c bus or address` \
+                //!      --sensor \
+                //!          --sensor-device=tmp102 \
+                //!          --sensor-name="temperature_tmp102_outdoor" \
+                //!          --sensor-i2c-bus=0 \
+                //!          --sensor-i2c-address=0x48 \
+                //!      --sensor \
+                //!          --sensor-device=tmp102 \
+                //!          --sensor-name="temperature_tmp102_indoor" \
+                //!          --sensor-i2c-bus=1 \
+                //!          --sensor-i2c-address=0x49 \
+                //! ```
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _06_multi_flag {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
+                //! 
+                //! So you can parse things while parsing things. Not sure why you might need this, but you can
+                //! :)
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _07_skip_positional {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Skipping optional positional items if parsing or validation fails
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //! 
+                //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
+                //! 
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
+            pub mod _08_cargo_helper {
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
+                //! 
+                //! #### Implementing cargo commands
+                //! 
+                //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
+                //! 
+                #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
+                //!
+                //!
+                //! &nbsp;
+                //! 
+                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+                //!   <td style='width: 33%; text-align: left;'>
+                //! 
+                //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
+                //! 
+                //!   </td>
+                //!   <td style='width: 34%; text-align: center;'>
+                //! 
+                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
+                //! 
+                //!   </td>
+                //!   <td style='width: 33%; text-align: right;'>
+                //!   </td>
+                //! </tr></table>
+                //! 
+            use crate::*;
+            }
         use crate::*;
         }
     use crate::*;
@@ -1646,7 +2766,185 @@
         //! </tr></table>
         //! 
         //! #### Structured API reference
-        //! ##### A better overview of available functions
+        //! 
+        //! # Primitive items on the command line
+        //! 
+        //! If we are not talking about exotic cases most of the command line arguments can be narrowed
+        //! down to a few items:
+        //! <details>
+        //! <summary>An overview of primitive parser shapes</summary>
+        //! 
+        //! - an option with a short or a long name: `-v` or `--verbose`, short options can sometimes be
+        //!   squashed together: `-vvv` can be parsed the same as `-v -v -v` passed separately.
+        //!   If such option is parsed into a `bool` `bpaf` documentation calls them *switches*, if it
+        //!   parses into some fixed value - it's a *flag*.
+        //! 
+        //!   <details>
+        //!   <summary>Examples of flags and switches</summary>
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   cargo build <span style="font-weight: bold">--release</span>
+        //!   cargo test <span style="font-weight: bold">-q</span>
+        //!   cargo asm <span style="font-weight: bold">--intel</span>
+        //!   </pre>
+        //!   </div>
+        //!   </details>
+        //! 
+        //! - an option with a short or a long name with extra value attached: `-p PACKAGE` or
+        //!   `--package PACKAGE`. Value can also be separated by `=` sign from the name or, in case
+        //!   of a short name, be adjacent to it: `--package=bpaf` and `-pbpaf`.
+        //!   `bpaf` documentation calls them *arguments*.
+        //! 
+        //! 
+        //!   <details>
+        //!   <summary>Examples of arguments</summary>
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   cargo build <span style="font-weight: bold">--package bpaf</span>
+        //!   cargo test <span style="font-weight: bold">-j2</span>
+        //!   cargo check <span style="font-weight: bold">--bin=megapotato</span>
+        //!   </pre>
+        //!   </div>
+        //!   </details>
+        //! 
+        //! - value taken from a command line just by being in the correct position and not being a flag.
+        //!   `bpaf` documentation calls them *positionals*.
+        //! 
+        //!   <details>
+        //!   <summary>Examples of positionals</summary>
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   cat <span style="font-weight: bold">/etc/passwd</span>
+        //!   rm -rf <span style="font-weight: bold">target</span>
+        //!   man <span style="font-weight: bold">gcc</span>
+        //!   </pre>
+        //!   </div>
+        //!   </details>
+        //! 
+        //! - a positional item that starts a whole new set of options with a separate help message.
+        //!   `bpaf` documentation calls them *commands* or *subcommands*.
+        //! 
+        //!   <details>
+        //!   <summary>Examples of subcommands</summary>
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   cargo <span style="font-weight: bold">build --release</span>
+        //!   cargo <span style="font-weight: bold">clippy</span>
+        //!   cargo <span style="font-weight: bold">asm --intel --everything</span>
+        //!   </pre>
+        //!   </div>
+        //!   </details>
+        //! 
+        //! - value can be taken from an environment variable.
+        //! 
+        //!   <details>
+        //!   <summary>Examples of environment variable</summary>
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   <span style="font-weight: bold">CARGO_TARGET_DIR=~/shared</span> cargo build --release
+        //!   <span style="font-weight: bold">PASSWORD=secret</span> encrypt file
+        //!   </pre>
+        //!   </div>
+        //!   </details>
+        //! 
+        //!   </details>
+        //! 
+        //! `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
+        //! Both APIs can achieve the same results, you can use one that better suits your needs. You can
+        //! find documentation with more examples following those links.
+        //! 
+        //! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
+        //!   [`long`] and [`env`](crate::env). At the same time you can attach
+        //!   [`help`](NamedArg::help).
+        //! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
+        //!   line and `false` otherwise.
+        //! - [`NamedArg::flag`] - a variant of `switch` that lets you return one of two custom
+        //!   values, for example `Color::On` and `Color::Off`.
+        //! - [`NamedArg::req_flag`] - a variant of `switch` that only only succeeds when it's name
+        //!   is present on a command line
+        //! - [`NamedArg::argument`] - named argument containing a value, you can further
+        //!   customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
+        //! - [`positional`] - positional argument, you can further customize it with
+        //!   [`strict`](ParsePositional::strict)
+        //! - [`OptionParser::command`] - subcommand parser.
+        //! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
+        //!   not fitting into usual classification.
+        //! - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
+        //!   it from the command line.
+        //! 
+        //! ## 3. Transforming and changing parsers
+        //! 
+        //! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
+        //! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
+        //! [`Parser`] trait, some of those methods are applied automagically if you are using derive API.
+        //! 
+        //! `bpaf` distinguishes two types of parse failures - "value is absent" and
+        //! "value is present but invalid", most parsers listed in this section only handle the first
+        //! type of falure by default, but you can use their respective `catch` method to handle the later
+        //! one.
+        //! 
+        //! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
+        //!   different value if parser fails to find what it is looking for. Generated help for former
+        //!   can be updated to include default value using
+        //!   [`display_fallback`](ParseFallback::display_fallback) and
+        //!   [`debug_fallback`](ParseFallback::debug_fallback) .
+        //! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
+        //!   also [`catch`](ParseOptional::catch) .
+        //! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
+        //!   multiple values into a collection, usually a vector, see their respective
+        //!   [`catch`](ParseMany::catch), [`catch`](ParseSome::catch) and [`catch`](ParseCollect::catch).
+        //! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
+        //!   and/or validate value produced by a parser
+        //! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
+        //! 
+        //! ## 4. Combining multiple parsers together
+        //! 
+        //! Once you have parsers for all the primitive fields figured out you can start combining them
+        //! together to produce a parser for a final result - data type you designed in the step one.
+        //! For derive API you apply annotations to data types with `#[derive(Bpaf)`] and `#[bpaf(..)]`,
+        //! with combinatoric API you use [`construct!`](crate::construct!) macro.
+        //! 
+        //! All fields in a struct needs to be successfully parsed in order for the parser to succeed
+        //! and only one variant from enum will consume its values at a time.
+        //! 
+        //! You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
+        //! group allowing for more unusual scenarios such as multiple value arguments or chained commands.
+        //! 
+        //! ## 5. Improving user experience
+        //! 
+        //! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
+        //! in various `help` methods to generate `--help` documentation, you can further improve it
+        //! using those methods:
+        //! 
+        //! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
+        //!   generated *Usage* line or whole generated help
+        //! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
+        //!   add a common description shared by several parsers
+        //! - [`custom_usage`](Parser::custom_usage) - customize usage for a primitive or composite parser
+        //! - [`usage`](OptionParser::usage) and [`with_usage`](OptionParser::with_usage) lets you to
+        //!   customize whole usage line as a whole either by completely overriding it or by building around it.
+        //! 
+        //! By default with completion enabled `bpaf` would complete names for flags, arguments and
+        //! commands. You can also generate completion for argument values, possible positionals, etc.
+        //! This requires enabling **autocomplete** cargo feature.
+        //! 
+        //! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
+        //! 
+        //! And finally you can generate documentation for command line in markdown, html and manpage
+        //! formats using [`render_markdown`](OptionParser::render_markdown),
+        //! [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
+        //! for more detailed info see [`doc`] module
+        //! 
+        //! ## 6. Testing your parsers and running them
+        //! - You can [`OptionParser::run`] the parser on the arguments passed on the command line
+        //! - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
+        //!   parser `bpaf` relies on
+        //! - [`run_inner`](OptionParser::run_inner) runs the parser with custom [`Args`] you can create
+        //!   either explicitly or implicitly using one of the [`From`] implementations, `Args` can be
+        //!   customized with [`set_comp`](Args::set_comp) and [`set_name`](Args::set_name).
+        //! - [`ParseFailure`] contains the parse outcome, you can consume it either by hands or using one
+        //!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
+        //!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
         //!
         //!
         //! &nbsp;
@@ -1690,7 +2988,245 @@
         //! </tr></table>
         //! 
         //! #### Theory explanation
-        //! ##### Theoretical information about abstractions used by the library, oriented for understanding
+        //! Theoretical information about abstractions used by the library, oriented for understanding
+        //! 
+        //! 
+        //! # Applicative functors? What is it about?
+        //! 
+        //! You don't need to read/understand this chapter in order to use the library but it might
+        //! help to understand what makes it tick.
+        //! 
+        //! ## Category theory
+        //! 
+        //! Category theory, also called Abstract Nonsense, is a general theory about mathematical
+        //! structures and their relations. *Category* in CT constists of two sorts of abstractions:
+        //! *objects* and *morphisms* along with some extra rules:
+        //! - objects don't expose any information other than the name and only serve as start and end points for morphisms
+        //! - morphisms must compose with associative composition
+        //! - there must be an *identity morphism* for every object that maps the object to itself
+        //! 
+        //! A simple example of a category would be a category where objects are Rust types (here: `u8` ..
+        //! `u64`) and morphisms are functions between those types (here: `a`, `b` and `c`):
+        //! 
+        //! ```rust
+        //! fn a(i: u8) -> u16 {
+        //!     3000 + i as u16
+        //! }
+        //! 
+        //! fn b(i: u16) -> u32 {
+        //!     40000 + i as u32
+        //! }
+        //! 
+        //! fn c(i: u32) -> u64 {
+        //!     40000 + i as u64
+        //! }
+        //! 
+        //! /// Identity morphism
+        //! fn id<T>(i: T) -> T {
+        //!     i
+        //! }
+        //! 
+        //! /// morphism composition:
+        //! /// `comp (a, comp(b, c))` gives the same results as `comp(comp(a, b), c)`
+        //! fn comp<F, G, A, B, C>(f: F, g: G) -> impl Fn(A) -> C
+        //! where
+        //!     F: Fn(A) -> B,
+        //!     G: Fn(B) -> C,
+        //! {
+        //!     move |i| g(f(i))
+        //! }
+        //! ```
+        //! 
+        //! ## Composition and decomposition
+        //! 
+        //! Decomposition is one of the keys to solving big problems - you break down big problem into a
+        //! bunch of small problems, solve them separately and compose back a solution. Decomposition is
+        //! not required by computers but makes it easier to think about a problem: magical number for
+        //! human short term memory is 7 plus minus 2 objects. Category theory, studies relations and
+        //! composition can be a valuable tool: after all decomposition only makes sense when you can
+        //! combine components back into a solution. Imperative algorithms that operate in terms of
+        //! mutating variables are harder decompose - individual pieces need to be aware of the variables,
+        //! functional and declarative approaches make it easier: calculating a sum of all the numbers in a
+        //! vector can be decomposed into running an iterator over it and applying `fold` to it: `fold`
+        //! doesn't need to know about iteration shape, iterator doesn't need to know about how values are
+        //! used.
+        //! 
+        //! In category theory you are not allowed to look inside the objects at all and can distinguish
+        //! between them only by means of the composition so as long as implemented API obeys the
+        //! restrictions set by category theory - it should be very composable.
+        //! 
+        //! ## Functors
+        //! 
+        //! Let's start by talking about what a `Functor` is. Wikipedia defines it as a "design pattern
+        //! that allows for a generic type to apply a function inside without changing the structure of
+        //! the generic type". Sounds scary, but in Rust terms it's a trait that takes a value or values
+        //! in a container (or more general *value in a context* ) such as `Option<A>` and a function
+        //! `fn(A) -> B` and gives you `Option<B>` back.
+        //! 
+        //! Closest analogy in a real code you can write in Rust right now would be modifying an `Option`
+        //! using only `Option::map`:
+        //! ```rust
+        //! fn plus_one(input: Option<u32>) -> Option<u32> {
+        //!     input.map(|i| i + 1)
+        //! }
+        //! 
+        //! let present = Some(10);
+        //! let absent = None;
+        //! 
+        //! assert_eq!(plus_one(present), Some(11));
+        //! assert_eq!(plus_one(absent), None);
+        //! ```
+        //! 
+        //! `Vec`, `Result` and other types that implement `map` are `Functors` as well, but `Functor`
+        //! is not limited just to containers - you don't have to have a value inside to be able to
+        //! manipulate it. In fact a regular rust function is also a `Functor` if you squint hard enough.
+        //! Consider `Reader` that allows you to perform transformations on a *value in a context* `T`
+        //! without having any value until it the execution time:
+        //! 
+        //! ```rust
+        //! struct Reader<T>(Box<dyn Fn(T) -> T>);
+        //! impl<T: 'static> Reader<T> {
+        //!     /// Initialize an new value in a context
+        //!     fn new() -> Self {
+        //!         Self(Box::new(|x| x))
+        //!     }
+        //! 
+        //!     /// Modify a value in a context
+        //!     fn map<F:  Fn(T) -> T + 'static>(self, f: F) -> Self {
+        //!         Self(Box::new(move |x| f((self.0)(x))))
+        //!     }
+        //! 
+        //!     /// Apply the changes by giving it the initial value
+        //!     fn run(self, input: T) -> T {
+        //!         (self.0)(input)
+        //!     }
+        //! }
+        //! 
+        //! let val = Reader::<u32>::new();
+        //! let val = val.map(|x| x + 1);
+        //! let res = val.run(10);
+        //! assert_eq!(res, 11);
+        //! ```
+        //! 
+        //! Not all the collections are `Functors` - by `Functor` laws mapping the *value in context*
+        //! shouldn't change the shape so any collections where shape depends on a value, such as `HashSet`
+        //! or `BTreeSet` are out.
+        //! 
+        //! ## Applicative Functors
+        //! 
+        //! `map` in `Functor` is limited to a single *value in a context*, `Applicative Functor` extends it
+        //! to operations combining multiple values, closest Rust analogy would be doing computations on
+        //! `Option` or `Result` using only `?`, having `Some`/`Ok` around the whole expression and not using `return`.
+        //! ```rust
+        //! fn add_numbers(input_a: Option<u32>, input_b: Option<u32>) -> Option<u32> {
+        //!     Some(input_a? + input_b?)
+        //! }
+        //! 
+        //! let present_1 = Some(10);
+        //! let present_2 = Some(20);
+        //! let absent = None;
+        //! 
+        //! assert_eq!(add_numbers(present_1, present_2), Some(30));
+        //! assert_eq!(add_numbers(present_1, absent), None);
+        //! assert_eq!(add_numbers(absent, absent), None);
+        //! ```
+        //! 
+        //! Similarly to `Functors`, `Applicative Functors` are not limited to containers and can
+        //! represent *a value in an arbitrary context*.
+        //! 
+        //! `Try` trait (`?`) for `Option` and `Result` short circuits when it finds a missing value,
+        //! but `Applicative Functors` in general don't have to - in fact to implement dynamic completion
+        //! `bpaf` needs to check items past the first failure point to collect all the possible
+        //! completions.
+        //! 
+        //! ## Alternative Functors
+        //! 
+        //! So far `Applicative Functors` allow us to create structs containing multiple fields out of
+        //! individual parsers for each field. `Alternative` extends `Applicative` with two extra
+        //! things: one for combining two *values in a context* into one and and an idenity element
+        //! for this operation. In Rust a closest analogy would be `Option::or` and `Option::None`:
+        //! 
+        //! ```rust
+        //! fn pick_number(a: Option<u32>, b: Option<u32>) -> Option<u32> {
+        //!     a.or(b)
+        //! }
+        //! 
+        //! let present_1 = Some(10);
+        //! let present_2 = Some(20);
+        //! let empty = None;
+        //! assert_eq!(pick_number(present_1, present_2), present_1);
+        //! assert_eq!(pick_number(present_1, empty), present_1);
+        //! assert_eq!(pick_number(empty, present_1), present_1);
+        //! assert_eq!(pick_number(empty, empty), empty);
+        //! ```
+        //! 
+        //! ## `Parser` trait and `construct!` macro
+        //! 
+        //! [`Parser`] trait defines a context for values and gives access to `Functor` laws and [`construct!`]
+        //! macro allows to compose several values according to `Applicative` and `Alternative` laws.
+        //! 
+        //! ## So why use `Applicative Functors` then?
+        //! 
+        //! As a user I want to be able to express requirements using full power of Rust algebraic
+        //! datatypes: `struct` for product types and `enum` for sum types. To give an example -
+        //! `cargo-show-asm` asks user to specify what to output - Intel or AT&T asm, LLVM or Rust's MIR
+        //! and opts to represent it as one of four flags: `--intel`, `--att`, `--llvm` and `--mir`. While
+        //! each flag can be though of a boolean value - present/absent - consuming it as an `enum` with four
+        //! possible values is much more convenient compared to a struct-like thing that can have any
+        //! combination of the flags inside:
+        //! 
+        //! ```no_check
+        //! /// Format selection as enum - program needs to deal with just one format
+        //! enum Format {
+        //!     Intel,
+        //!     Att,
+        //!     Llvm,
+        //!     Mir
+        //! }
+        //! 
+        //! /// Format selection as struct - can represent any possible combination of formats
+        //! struct Formats {
+        //!     intel: bool,
+        //!     att: bool,
+        //!     llvm: bool,
+        //!     mir: bool,
+        //! }
+        //! ```
+        //! 
+        //! `Applicative` interface gives just enough power to compose simple parsers as an arbitrary tree
+        //! ready for consumption.
+        //! 
+        //! As a library author I need to be able to extract information from the tree constructed by user
+        //! to generate `--help` information and do command line completion. As long as the tree uses only
+        //! `Applicative` powers - it is possible to evaluate it without giving it any input.
+        //! Adding `Monadic` powers (deciding what to parse next depending on the previous input) would
+        //! make this impossible.
+        //! 
+        //! So `Applicative Functors` sits right in the middle between what users want to express and
+        //! library can consume.
+        //! 
+        //! To recap - all sorts of Functors listed here only define laws to how individual parts are
+        //! composed, how values in context can be transformed and how pure values can be turned into a
+        //! functor, but not how the values are parsed or how they can be extracted.
+        //! 
+        //! ## Putting the values into a context
+        //! 
+        //! Similarly to how `Reader` defined above `bpaf`'s `Parsers` don't actually have values inside
+        //! until they are executed. Instead starting points ([`flag`](NamedArg::flag), [`positional`],
+        //! [`argument`](NamedArg::argument), etc) define what exactly needs to be consumed, various mapping
+        //! functions define transformations, [`construct!`] composes them and defines the relative order
+        //! values should be consumed. Not everything present inside [`Parser`] can be repesented in terms
+        //! of plain applicative functors - specifically [`parse`](Parser::parse) is not and it is best
+        //! though of as a function that takes one applicative and gives a different applicative back.
+        //! The actual values will show up inside once `bpaf` starts running the [`OptionParser`] with
+        //! [`run`](OptionParser::run).
+        //! 
+        //! ## Taking the results out
+        //! 
+        //! The rest of the execution is relatively simple: getting console arguments from OS, doing the
+        //! initial split into short/long flags and standalone words, disambiguating groups of short
+        //! options from short options with attached values and applying all the transformations like
+        //! `Reader::run` above would do.
         //!
         //!
         //! &nbsp;

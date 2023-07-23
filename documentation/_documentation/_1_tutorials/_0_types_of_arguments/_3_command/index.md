@@ -1,0 +1,18 @@
+#### Commands or subcommands
+
+Commands are similar to positional items, but instead of representing an item they represent
+a new parser, usually with its own help and other arguments. Commands allow a single
+applications to perform multiple different functions. Command parser will be able to parse all
+the command line options to the right of the command name
+
+<div class="code-wrap">
+<pre>
+$ cargo <span style="font-weight: bold">build --release</span>
+$ cargo <span style="font-weight: bold">clippy</span>
+$ cargo <span style="font-weight: bold">asm --intel --everything</span>
+</pre>
+</div>
+
+#![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
+
+For more detailed info see [`OptionParser::command`]
