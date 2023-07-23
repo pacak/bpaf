@@ -55,4 +55,5 @@ members =  [
     "./bpaf_cauwugo",
     "./docs2",
     "./comptester",
+    "./documentation",
 ]
