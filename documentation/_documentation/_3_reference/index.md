@@ -1,86 +1,7 @@
 #### Structured API reference
+Links to all the functions groupped by purpose
 
-# Primitive items on the command line
-
-If we are not talking about exotic cases most of the command line arguments can be narrowed
-down to a few items:
-<details>
-<summary>An overview of primitive parser shapes</summary>
-
-- an option with a short or a long name: `-v` or `--verbose`, short options can sometimes be
-  squashed together: `-vvv` can be parsed the same as `-v -v -v` passed separately.
-  If such option is parsed into a `bool` `bpaf` documentation calls them *switches*, if it
-  parses into some fixed value - it's a *flag*.
-
-  <details>
-  <summary>Examples of flags and switches</summary>
-  <div class="code-wrap">
-  <pre>
-  cargo build <span style="font-weight: bold">--release</span>
-  cargo test <span style="font-weight: bold">-q</span>
-  cargo asm <span style="font-weight: bold">--intel</span>
-  </pre>
-  </div>
-  </details>
-
-- an option with a short or a long name with extra value attached: `-p PACKAGE` or
-  `--package PACKAGE`. Value can also be separated by `=` sign from the name or, in case
-  of a short name, be adjacent to it: `--package=bpaf` and `-pbpaf`.
-  `bpaf` documentation calls them *arguments*.
-
-
-  <details>
-  <summary>Examples of arguments</summary>
-  <div class="code-wrap">
-  <pre>
-  cargo build <span style="font-weight: bold">--package bpaf</span>
-  cargo test <span style="font-weight: bold">-j2</span>
-  cargo check <span style="font-weight: bold">--bin=megapotato</span>
-  </pre>
-  </div>
-  </details>
-
-- value taken from a command line just by being in the correct position and not being a flag.
-  `bpaf` documentation calls them *positionals*.
-
-  <details>
-  <summary>Examples of positionals</summary>
-  <div class="code-wrap">
-  <pre>
-  cat <span style="font-weight: bold">/etc/passwd</span>
-  rm -rf <span style="font-weight: bold">target</span>
-  man <span style="font-weight: bold">gcc</span>
-  </pre>
-  </div>
-  </details>
-
-- a positional item that starts a whole new set of options with a separate help message.
-  `bpaf` documentation calls them *commands* or *subcommands*.
-
-  <details>
-  <summary>Examples of subcommands</summary>
-  <div class="code-wrap">
-  <pre>
-  cargo <span style="font-weight: bold">build --release</span>
-  cargo <span style="font-weight: bold">clippy</span>
-  cargo <span style="font-weight: bold">asm --intel --everything</span>
-  </pre>
-  </div>
-  </details>
-
-- value can be taken from an environment variable.
-
-  <details>
-  <summary>Examples of environment variable</summary>
-  <div class="code-wrap">
-  <pre>
-  <span style="font-weight: bold">CARGO_TARGET_DIR=~/shared</span> cargo build --release
-  <span style="font-weight: bold">PASSWORD=secret</span> encrypt file
-  </pre>
-  </div>
-  </details>
-
-  </details>
+## Consuming items - making `Parser`
 
 `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
 Both APIs can achieve the same results, you can use one that better suits your needs. You can
@@ -105,7 +26,7 @@ find documentation with more examples following those links.
 - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
   it from the command line.
 
-## 3. Transforming and changing parsers
+## Transforming and changing parsers
 
 By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
 value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
@@ -130,7 +51,7 @@ one.
   and/or validate value produced by a parser
 - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
 
-## 4. Combining multiple parsers together
+## Combining multiple parsers together
 
 Once you have parsers for all the primitive fields figured out you can start combining them
 together to produce a parser for a final result - data type you designed in the step one.
@@ -143,7 +64,7 @@ and only one variant from enum will consume its values at a time.
 You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
 group allowing for more unusual scenarios such as multiple value arguments or chained commands.
 
-## 5. Improving user experience
+## Improving user experience
 
 `bpaf` would use doc comments on fields and structures in derive mode and and values passed
 in various `help` methods to generate `--help` documentation, you can further improve it
@@ -168,7 +89,7 @@ formats using [`render_markdown`](OptionParser::render_markdown),
 [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
 for more detailed info see [`doc`] module
 
-## 6. Testing your parsers and running them
+## Testing your parsers and running them
 - You can [`OptionParser::run`] the parser on the arguments passed on the command line
 - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
   parser `bpaf` relies on

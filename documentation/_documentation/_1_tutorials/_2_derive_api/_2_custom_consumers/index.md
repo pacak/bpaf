@@ -14,25 +14,7 @@ By default `bpaf` picks parsers depending on a field type according to those rul
 You can change it with annotations like `switch`, `argument` or `positional`
 
 
-```no_run
-# use bpaf::*;
-#[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
-pub struct Options {
-    /// A custom switch
-    #[bpaf(short, switch)]
-    switch: bool,
-
-    /// A custom argument
-    #[bpaf(positional("NAME"))]
-    argument: usize,
-}
-
-fn main() {
-    let opts = options().run();
-    println!("{:?}", opts);
-}
-```
+#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_custom_consumer.md"))]
 
 With arguments that consume a value you can specify its type using turbofish-line syntax
 

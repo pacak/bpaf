@@ -5,7 +5,7 @@
 //! - [Introduction and design goals](_0_intro) - A quick intro. What, why and how
 //! - [Tutorials](_1_tutorials) - practical, learning oriented guides
 //! - [HowTo](_2_howto) - Practical solutions to common problems
-//! - [Structured API reference](_3_reference)
+//! - [Structured API reference](_3_reference) - Links to all the functions groupped by purpose
 //! - [Theory explanation](_4_explanation) - Theoretical information about abstractions used by the library, oriented for understanding
 //!
     pub mod _0_intro {
@@ -1246,7 +1246,7 @@
             //! - [Getting started with derive macro](_0_intro)
             //! - [Customizing flag and argument names](_1_custom_names)
             //! - [Customizing the consumers](_2_custom_consumers)
-            //! - [Applying transformations to parsed values](_3_postpr)
+            //! - [Transforming parsed values](_3_postpr)
             //! - [Parsing structs and enums](_4_enums_and_structs)
             //! - [What gets generated](_5_generate)
             //! - [Making nested parsers](_6_nesting)
@@ -1292,24 +1292,7 @@
                 //! 
                 //! Let's take a look at a simple example
                 //! 
-                //! ```no_run
-                //! use bpaf::*;
-                //! 
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub struct Options {
-                //!     /// A custom switch
-                //!     switch: bool,
-                //! 
-                //!     /// A custom argument
-                //!     argument: usize,
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts)
-                //! }
-                //! ```
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_intro.md"))]
                 //! 
                 //! `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
                 //! pick up types, doc comment, presence or absence of names, but it is possible to customize all
@@ -1361,25 +1344,7 @@
                 //! By default names for flag names are taken directly from the field names so usually you don't
                 //! have to do anything about it, but you can change it with annotations on the fields themselves:
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub struct Options {
-                //!     /// A custom switch
-                //!     #[bpaf(short, long)]
-                //!     switch: bool,
-                //! 
-                //!     /// A custom argument
-                //!     #[bpaf(long("my-argument"), short('A'))]
-                //!     argument: usize,
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_custom_name.md"))]
                 //! 
                 //! Rules for picking the name are:
                 //! 
@@ -1432,7 +1397,7 @@
                 //!   </td>
                 //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [Applying transformations to parsed values &rarr;](super::_3_postpr)
+                //! [Transforming parsed values &rarr;](super::_3_postpr)
                 //! 
                 //!   </td>
                 //! </tr></table>
@@ -1453,25 +1418,7 @@
                 //! You can change it with annotations like `switch`, `argument` or `positional`
                 //! 
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub struct Options {
-                //!     /// A custom switch
-                //!     #[bpaf(short, switch)]
-                //!     switch: bool,
-                //! 
-                //!     /// A custom argument
-                //!     #[bpaf(positional("NAME"))]
-                //!     argument: usize,
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_custom_consumer.md"))]
                 //! 
                 //! With arguments that consume a value you can specify its type using turbofish-line syntax
                 //! 
@@ -1510,7 +1457,7 @@
                 //!   </td>
                 //!   <td style='width: 33%; text-align: right;'>
                 //! 
-                //! [Applying transformations to parsed values &rarr;](super::_3_postpr)
+                //! [Transforming parsed values &rarr;](super::_3_postpr)
                 //! 
                 //!   </td>
                 //! </tr></table>
@@ -1538,34 +1485,14 @@
                 //!   </td>
                 //! </tr></table>
                 //! 
-                //! #### Applying transformations to parsed values
+                //! #### Transforming parsed values
                 //! 
                 //! Once field have a consumer you can start applying transformations from [`Parser`] trait.
                 //! Annotation share the same names and follow the same composition rules as in Combinatoric API.
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! fn small(size: &usize) -> bool {
-                //!     *size < 10
-                //! }
                 //! 
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub struct Options {
-                //!     // double the width
-                //!     #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
-                //!     width: usize,
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_postpr.md"))]
                 //! 
-                //!     // make sure the hight is below 10
-                //!     #[bpaf(argument::<usize>("LENGTH"), guard(small, "must be less than 10"))]
-                //!     height: usize,
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
                 //!
                 //!
                 //! &nbsp;
@@ -1596,7 +1523,7 @@
                 //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
                 //!   <td style='width: 33%; text-align: left;'>
                 //! 
-                //! [&larr; Applying transformations to parsed values](super::_3_postpr)
+                //! [&larr; Transforming parsed values](super::_3_postpr)
                 //! 
                 //!   </td>
                 //!   <td style='width: 34%; text-align: center;'>
@@ -1619,29 +1546,7 @@
                 //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
                 //! succeed.
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub enum Input {
-                //!     File {
-                //!         /// Read input from a file
-                //!         name: String,
-                //!     },
-                //! 
-                //!     Url {
-                //!         /// Read input from URL
-                //!         url: String,
-                //!         /// Authentication method to use for the URL
-                //!         auth_method: String,
-                //!     }
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = input().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))]
                 //!
                 //!
                 //! &nbsp;
@@ -1649,7 +1554,7 @@
                 //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
                 //!   <td style='width: 33%; text-align: left;'>
                 //! 
-                //! [&larr; Applying transformations to parsed values](super::_3_postpr)
+                //! [&larr; Transforming parsed values](super::_3_postpr)
                 //! 
                 //!   </td>
                 //!   <td style='width: 34%; text-align: center;'>
@@ -1762,37 +1667,7 @@
                 //! parsers, possibly wrapped in `Option` or `Vec`, but it also possible to nest derived parsers
                 //! too:
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! pub enum Format {
-                //!     /// Produce output in HTML format
-                //!     Html,
-                //!     /// Produce output in Markdown format
-                //!     Markdown,
-                //!     /// Produce output in manpage format
-                //!     Manpage
-                //! }
-                //! 
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! pub struct Options {
-                //!     /// File to process
-                //!     input: String,
-                //!     #[bpaf(external(format))]
-                //!     format: Format
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
-                //! 
-                //! `external` annotation replaces the consumer and parameter it takes is a function name created
-                //! either manually with combinatoric API or derived with `#[derive(Bpaf)]`. If parameter is
-                //! omitted then it would default to the field name. In example above since both function and field
-                //! are called `format` - annotation `#[bpaf(external)]` would be sufficient.
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_nesting.md"))]
                 //!
                 //!
                 //! &nbsp;
@@ -1843,28 +1718,8 @@
                 //! Easiest way to define a group of subcommands is to have them inside the same enum with variant
                 //! constructors annotated with `#[bpaf(command("name"))]` with or without the name
                 //! 
-                //! ```no_run
-                //! # use bpaf::*;
-                //! #[derive(Debug, Clone, Bpaf)]
-                //! #[bpaf(options)]
-                //! enum Options {
-                //!     #[bpaf(command("run"))]
-                //!     /// Run a binary
-                //!     Run {
-                //!         /// Name of a binary crate
-                //!         name: String
-                //!     },
                 //! 
-                //!     /// Run a self test
-                //!     #[bpaf(command)]
-                //!     Test
-                //! }
-                //! 
-                //! fn main() {
-                //!     let opts = options().run();
-                //!     println!("{:?}", opts);
-                //! }
-                //! ```
+                #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_commands.md"))]
                 //!
                 //!
                 //! &nbsp;
@@ -2766,88 +2621,9 @@
         //! </tr></table>
         //! 
         //! #### Structured API reference
+        //! Links to all the functions groupped by purpose
         //! 
-        //! # Primitive items on the command line
-        //! 
-        //! If we are not talking about exotic cases most of the command line arguments can be narrowed
-        //! down to a few items:
-        //! <details>
-        //! <summary>An overview of primitive parser shapes</summary>
-        //! 
-        //! - an option with a short or a long name: `-v` or `--verbose`, short options can sometimes be
-        //!   squashed together: `-vvv` can be parsed the same as `-v -v -v` passed separately.
-        //!   If such option is parsed into a `bool` `bpaf` documentation calls them *switches*, if it
-        //!   parses into some fixed value - it's a *flag*.
-        //! 
-        //!   <details>
-        //!   <summary>Examples of flags and switches</summary>
-        //!   <div class="code-wrap">
-        //!   <pre>
-        //!   cargo build <span style="font-weight: bold">--release</span>
-        //!   cargo test <span style="font-weight: bold">-q</span>
-        //!   cargo asm <span style="font-weight: bold">--intel</span>
-        //!   </pre>
-        //!   </div>
-        //!   </details>
-        //! 
-        //! - an option with a short or a long name with extra value attached: `-p PACKAGE` or
-        //!   `--package PACKAGE`. Value can also be separated by `=` sign from the name or, in case
-        //!   of a short name, be adjacent to it: `--package=bpaf` and `-pbpaf`.
-        //!   `bpaf` documentation calls them *arguments*.
-        //! 
-        //! 
-        //!   <details>
-        //!   <summary>Examples of arguments</summary>
-        //!   <div class="code-wrap">
-        //!   <pre>
-        //!   cargo build <span style="font-weight: bold">--package bpaf</span>
-        //!   cargo test <span style="font-weight: bold">-j2</span>
-        //!   cargo check <span style="font-weight: bold">--bin=megapotato</span>
-        //!   </pre>
-        //!   </div>
-        //!   </details>
-        //! 
-        //! - value taken from a command line just by being in the correct position and not being a flag.
-        //!   `bpaf` documentation calls them *positionals*.
-        //! 
-        //!   <details>
-        //!   <summary>Examples of positionals</summary>
-        //!   <div class="code-wrap">
-        //!   <pre>
-        //!   cat <span style="font-weight: bold">/etc/passwd</span>
-        //!   rm -rf <span style="font-weight: bold">target</span>
-        //!   man <span style="font-weight: bold">gcc</span>
-        //!   </pre>
-        //!   </div>
-        //!   </details>
-        //! 
-        //! - a positional item that starts a whole new set of options with a separate help message.
-        //!   `bpaf` documentation calls them *commands* or *subcommands*.
-        //! 
-        //!   <details>
-        //!   <summary>Examples of subcommands</summary>
-        //!   <div class="code-wrap">
-        //!   <pre>
-        //!   cargo <span style="font-weight: bold">build --release</span>
-        //!   cargo <span style="font-weight: bold">clippy</span>
-        //!   cargo <span style="font-weight: bold">asm --intel --everything</span>
-        //!   </pre>
-        //!   </div>
-        //!   </details>
-        //! 
-        //! - value can be taken from an environment variable.
-        //! 
-        //!   <details>
-        //!   <summary>Examples of environment variable</summary>
-        //!   <div class="code-wrap">
-        //!   <pre>
-        //!   <span style="font-weight: bold">CARGO_TARGET_DIR=~/shared</span> cargo build --release
-        //!   <span style="font-weight: bold">PASSWORD=secret</span> encrypt file
-        //!   </pre>
-        //!   </div>
-        //!   </details>
-        //! 
-        //!   </details>
+        //! ## Consuming items - making `Parser`
         //! 
         //! `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
         //! Both APIs can achieve the same results, you can use one that better suits your needs. You can
@@ -2872,7 +2648,7 @@
         //! - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
         //!   it from the command line.
         //! 
-        //! ## 3. Transforming and changing parsers
+        //! ## Transforming and changing parsers
         //! 
         //! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
         //! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
@@ -2897,7 +2673,7 @@
         //!   and/or validate value produced by a parser
         //! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
         //! 
-        //! ## 4. Combining multiple parsers together
+        //! ## Combining multiple parsers together
         //! 
         //! Once you have parsers for all the primitive fields figured out you can start combining them
         //! together to produce a parser for a final result - data type you designed in the step one.
@@ -2910,7 +2686,7 @@
         //! You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
         //! group allowing for more unusual scenarios such as multiple value arguments or chained commands.
         //! 
-        //! ## 5. Improving user experience
+        //! ## Improving user experience
         //! 
         //! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
         //! in various `help` methods to generate `--help` documentation, you can further improve it
@@ -2935,7 +2711,7 @@
         //! [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
         //! for more detailed info see [`doc`] module
         //! 
-        //! ## 6. Testing your parsers and running them
+        //! ## Testing your parsers and running them
         //! - You can [`OptionParser::run`] the parser on the arguments passed on the command line
         //! - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
         //!   parser `bpaf` relies on
