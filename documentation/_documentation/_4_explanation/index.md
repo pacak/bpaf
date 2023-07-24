@@ -2,10 +2,15 @@
 Theoretical information about abstractions used by the library, oriented for understanding
 
 
-# Applicative functors? What is it about?
+# Applicative functors, Category Theory? What is it about?
 
 You don't need to read/understand this chapter in order to use the library but it might
 help to understand what makes it tick.
+
+`bpaf` uses ideas from functional proggramming, specifically Functor, Applicative and
+Alternative to create a composable interface. Exposed API and the fact that individual
+components obey certain laws ensures that any composition of parsers is valid even if it
+doesn't make any sense.
 
 ## Category theory
 

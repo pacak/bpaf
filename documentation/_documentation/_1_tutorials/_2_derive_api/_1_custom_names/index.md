@@ -3,25 +3,7 @@
 By default names for flag names are taken directly from the field names so usually you don't
 have to do anything about it, but you can change it with annotations on the fields themselves:
 
-```no_run
-# use bpaf::*;
-#[derive(Debug, Clone, Bpaf)]
-#[bpaf(options)]
-pub struct Options {
-    /// A custom switch
-    #[bpaf(short, long)]
-    switch: bool,
-
-    /// A custom argument
-    #[bpaf(long("my-argument"), short('A'))]
-    argument: usize,
-}
-
-fn main() {
-    let opts = options().run();
-    println!("{:?}", opts);
-}
-```
+#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_custom_name.md"))]
 
 Rules for picking the name are:
 
