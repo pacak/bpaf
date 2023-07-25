@@ -715,7 +715,7 @@
                     //! Switch parser we just implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
                     //! [`Parser::to_options`] and run it with [`OptionParser::run`]
                     //! 
-                    //! Full example with some sample inputs and outputs, click to open
+                    //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_switch.md"))]
                     //! 
                     //! 
@@ -789,7 +789,7 @@
                     //! You can use any type for as long as it implements [`FromStr`]. See the next chapter about
                     //! parsing items that don't implement [`FromStr`]
                     //! 
-                    //! Full example with some sample inputs and outputs, click to open
+                    //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
                     //!
                     //!

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 use bpaf::*;
@@ -16,7 +15,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 By default all arguments are required so running with no arguments produces an error

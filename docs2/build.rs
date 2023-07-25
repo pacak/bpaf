@@ -35,12 +35,12 @@ fn write_compare(doc_res: &mut String, args: &[String]) -> Result<()> {
     )?)
 }
 
-fn import_source(dir: &Path, name: &str, header: &str) -> Result<(String, String)> {
+fn import_source(dir: &Path, both: bool, name: &str, header: &str) -> Result<(String, String)> {
     let file = dir.join(name);
     Ok(if file.exists() {
         (
             std::fs::read_to_string(&file)?,
-            format!("import_escaped_source(&mut res, {file:?}, {header:?});"),
+            format!("import_escaped_source(&mut res, {both}, {file:?}, {header:?});"),
         )
     } else {
         (String::new(), String::new())
@@ -52,8 +52,10 @@ fn import_case(name: &str) -> Result<String> {
     use std::fmt::Write;
     let dir = PathBuf::from("src").join(name);
 
-    let (c_source, c_import) = import_source(&dir, "combine.rs", "Combinatoric example")?;
-    let (d_source, d_import) = import_source(&dir, "derive.rs", "Derive example")?;
+    let both = dir.join("combine.rs").exists() && dir.join("derive.rs").exists();
+
+    let (c_source, c_import) = import_source(&dir, both, "combine.rs", "Combinatoric example")?;
+    let (d_source, d_import) = import_source(&dir, both, "derive.rs", "Derive example")?;
 
     let mut cases = String::new();
 

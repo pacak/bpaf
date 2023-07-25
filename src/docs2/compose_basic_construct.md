@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 use bpaf::*;
@@ -23,7 +22,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 Help message describes all the parser combined

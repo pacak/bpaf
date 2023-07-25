@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 #[derive(Debug, Clone)]
@@ -35,7 +34,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 `with_usage` lets you to place some custom text around generated usage line

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 #[derive(Debug, Clone)]
@@ -21,7 +20,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 In addition to all the arguments specified by user `bpaf` adds a few more. One of them is

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 use bpaf::*;
@@ -16,7 +15,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 Run inner parser as many times as possible collecting all the new results

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 use bpaf::doc::*;
@@ -51,7 +50,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 `with_group_help` lets you write longer description for group of options that can also refer to

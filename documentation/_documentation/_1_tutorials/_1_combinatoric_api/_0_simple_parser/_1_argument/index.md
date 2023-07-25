@@ -25,5 +25,5 @@ fn file_parser() -> OptionParser<PathBuf> {
 You can use any type for as long as it implements [`FromStr`]. See the next chapter about
 parsing items that don't implement [`FromStr`]
 
-Full example with some sample inputs and outputs, click to open
+Full example with some sample inputs and outputs:
 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
