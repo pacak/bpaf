@@ -1,4 +1,3 @@
-<details><summary>Derive example</summary>
 
 ```no_run
 fn small(size: &usize) -> bool {
@@ -22,7 +21,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 Help as usual

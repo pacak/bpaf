@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 #[derive(Debug, Clone)]
@@ -29,7 +28,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 This example replaces description and short name for `--help` parser. Long name works as is

@@ -1,4 +1,3 @@
-<details><summary>Derive example</summary>
 
 ```no_run
 #[derive(Debug, Clone, Bpaf)]
@@ -18,7 +17,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 `bpaf` uses custom names in help message

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 use bpaf::*;
@@ -13,7 +12,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 Same as with argument by default there's no fallback so with no arguments parser fails

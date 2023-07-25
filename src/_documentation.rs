@@ -4,8 +4,7 @@
 //!
 //! - [Introduction and design goals](_0_intro) - A quick intro. What, why and how
 //! - [Tutorials](_1_tutorials) - practical, learning oriented guides
-//! - [HowTo](_2_howto) - Practical solutions to common problems
-//! - [Structured API reference](_3_reference) - Links to all the functions groupped by purpose
+//! - [Parsing cookbook](_2_howto)
 //! - [Theory explanation](_4_explanation) - Theoretical information about abstractions used by the library, oriented for understanding
 //!
     pub mod _0_intro {
@@ -141,7 +140,7 @@
         //!   </td>
         //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [HowTo &rarr;](super::_2_howto)
+        //! [Parsing cookbook &rarr;](super::_2_howto)
         //! 
         //!   </td>
         //! </tr></table>
@@ -152,6 +151,7 @@
         //! - [Types of arguments](_0_types_of_arguments) - common types of line options and conventions
         //! - [Combinatoric API](_1_combinatoric_api) - Parse arguments without using proc macros
         //! - [Derive API tutorial](_2_derive_api) - Create a parser by defining a structure
+        //! - [Designing a good datatype](_3_picking_type) - bpaf allows you to reduce the size of legal values to valid ones
         //!
         //! &nbsp;
         //! 
@@ -168,7 +168,7 @@
         //!   </td>
         //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [HowTo &rarr;](super::_2_howto)
+        //! [Parsing cookbook &rarr;](super::_2_howto)
         //! 
         //!   </td>
         //! </tr></table>
@@ -509,7 +509,7 @@
                 //! 
                 //! While modern software tends to use just the options listed above you can still encounter
                 //! programs created before those options became norm and they use something complitely different,
-                //! let me give a few examples, see [exotic howto](crate::_documentation::_2_howto::_1_exotic)
+                //! let me give a few examples, see [exotic howto](crate::_documentation::_2_howto)
                 //! about actually parsing them
                 //! 
                 //! `su` takes an option that consists of a single dash `-`
@@ -715,7 +715,7 @@
                     //! Switch parser we just implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
                     //! [`Parser::to_options`] and run it with [`OptionParser::run`]
                     //! 
-                    //! Full example with some sample inputs and outputs, click to open
+                    //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_switch.md"))]
                     //! 
                     //! 
@@ -789,7 +789,7 @@
                     //! You can use any type for as long as it implements [`FromStr`]. See the next chapter about
                     //! parsing items that don't implement [`FromStr`]
                     //! 
-                    //! Full example with some sample inputs and outputs, click to open
+                    //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
                     //!
                     //!
@@ -1224,6 +1224,9 @@
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Designing a good datatype &rarr;](super::_3_picking_type)
+            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -1267,6 +1270,9 @@
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Designing a good datatype &rarr;](super::_3_picking_type)
+            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -1438,8 +1444,6 @@
                 //!     println!("{:?}", opts)
                 //! }
                 //! ```
-                //! 
-                //! See [the API reference](crate::_documentation::_3_reference) for a complete list
                 //!
                 //!
                 //! &nbsp;
@@ -1806,70 +1810,21 @@
             }
         use crate::*;
         }
-    use crate::*;
-    }
-    pub mod _2_howto {
-        //! &nbsp;
-        //! 
-        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-        //!   <td style='width: 33%; text-align: left;'>
-        //! 
-        //! [&larr; Tutorials](super::_1_tutorials)
-        //! 
-        //!   </td>
-        //!   <td style='width: 34%; text-align: center;'>
-        //! 
-        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
-        //! 
-        //!   </td>
-        //!   <td style='width: 33%; text-align: right;'>
-        //! 
-        //! [Structured API reference &rarr;](super::_3_reference)
-        //! 
-        //!   </td>
-        //! </tr></table>
-        //! 
-        //! #### HowTo
-        //! Practical solutions to common problems
-        //!
-        //! - [Designing a good datatype](_0_picking_type) - bpaf allows you to reduce the size of legal values to valid ones
-        //! - [Parsing exotic options](_1_exotic) - You can parse a lot of unusual types of options - for legacy compatibility or other reasons
-        //!
-        //! &nbsp;
-        //! 
-        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-        //!   <td style='width: 33%; text-align: left;'>
-        //! 
-        //! [&larr; Tutorials](super::_1_tutorials)
-        //! 
-        //!   </td>
-        //!   <td style='width: 34%; text-align: center;'>
-        //! 
-        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
-        //! 
-        //!   </td>
-        //!   <td style='width: 33%; text-align: right;'>
-        //! 
-        //! [Structured API reference &rarr;](super::_3_reference)
-        //! 
-        //!   </td>
-        //! </tr></table>
-        //! 
-        pub mod _0_picking_type {
+        pub mod _3_picking_type {
             //! &nbsp;
             //! 
             //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
             //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Derive API tutorial](super::_2_derive_api)
+            //! 
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
-            //! 
-            //! [Parsing exotic options &rarr;](super::_1_exotic)
-            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -2003,609 +1958,30 @@
             //! 
             //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
             //!   <td style='width: 33%; text-align: left;'>
-            //!   </td>
-            //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
-            //! 
-            //!   </td>
-            //!   <td style='width: 33%; text-align: right;'>
-            //! 
-            //! [Parsing exotic options &rarr;](super::_1_exotic)
-            //! 
-            //!   </td>
-            //! </tr></table>
-            //! 
-        use crate::*;
-        }
-        pub mod _1_exotic {
-            //! &nbsp;
-            //! 
-            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-            //!   <td style='width: 33%; text-align: left;'>
-            //! 
-            //! [&larr; Designing a good datatype](super::_0_picking_type)
+            //! [&larr; Derive API tutorial](super::_2_derive_api)
             //! 
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
+            //! [&uarr; Tutorials &uarr;](super::super::_1_tutorials)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
             //!   </td>
             //! </tr></table>
             //! 
-            //! #### Parsing exotic options
-            //! You can parse a lot of unusual types of options - for legacy compatibility or other reasons
-            //! 
-            //! 
-            //! # Some of the more unusual examples
-            //! 
-            //! While `bpaf`'s design tries to cover most common use cases, mostly
-            //! [posix conventions](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html),
-            //! it can also handle some more unusual requirements. It might come at a cost of having to write
-            //! more code, more confusing error messages or worse performance, but it will get the job done.
-            //!
-            //! - [`find(1)`: `find -exec commands -flags terminated by \;`](_00_find)
-            //! - [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](_01_dd)
-            //! - [`Xorg(1)`: `Xorg +xinerama +extension name`](_02_xorg)
-            //! - [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](_03_command_chaining)
-            //! - [Multi-value arguments: `--foo ARG1 ARG2 ARG3`](_04_multi_value)
-            //! - [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](_05_struct_groups)
-            //! - [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](_06_multi_flag)
-            //! - [Skipping optional positional items if parsing or validation fails](_07_skip_positional)
-            //! - [Implementing cargo commands](_08_cargo_helper)
-            //!
-            //! &nbsp;
-            //! 
-            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-            //!   <td style='width: 33%; text-align: left;'>
-            //! 
-            //! [&larr; Designing a good datatype](super::_0_picking_type)
-            //! 
-            //!   </td>
-            //!   <td style='width: 34%; text-align: center;'>
-            //! 
-            //! [&uarr; HowTo &uarr;](super::super::_2_howto)
-            //! 
-            //!   </td>
-            //!   <td style='width: 33%; text-align: right;'>
-            //!   </td>
-            //! </tr></table>
-            //! 
-            pub mod _00_find {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### `find(1)`: `find -exec commands -flags terminated by \;`
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/find.md"))]
-                //! 
-                //! 
-                //! 
-                //! ## `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
-                //! 
-                //! 
-                //! 
-                //! ## `Xorg(1)`: `Xorg +xinerama +extension name`
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
-                //! 
-                //! 
-                //! ## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
-                //! 
-                //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
-                //! `bpaf` allows you to have several commands side by side instead of being nested.
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
-                //! 
-                //! 
-                //! ## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
-                //! 
-                //! By default arguments take at most one value, you can create multi value options by using
-                //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
-                //! 
-                //! 
-                //! ## Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-                //! 
-                //! Groups of options that can be specified multiple times. All such groups should be kept without
-                //! overwriting previous one.
-                //! 
-                //! ```console
-                //!  $ prometheus_sensors_exporter \
-                //!      \
-                //!      `# 2 physical sensors located on physycial different i2c bus or address` \
-                //!      --sensor \
-                //!          --sensor-device=tmp102 \
-                //!          --sensor-name="temperature_tmp102_outdoor" \
-                //!          --sensor-i2c-bus=0 \
-                //!          --sensor-i2c-address=0x48 \
-                //!      --sensor \
-                //!          --sensor-device=tmp102 \
-                //!          --sensor-name="temperature_tmp102_indoor" \
-                //!          --sensor-i2c-bus=1 \
-                //!          --sensor-i2c-address=0x49 \
-                //! ```
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
-                //! 
-                //! 
-                //! # Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
-                //! 
-                //! So you can parse things while parsing things. Not sure why you might need this, but you can
-                //! :)
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
-                //! 
-                //! 
-                //! # Skipping optional positional items if parsing or validation fails
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
-                //! 
-                //! # Implementing cargo commands
-                //! 
-                //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _01_dd {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _02_xorg {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist` &rarr;](super::_03_command_chaining)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### `Xorg(1)`: `Xorg +xinerama +extension name`
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [[Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist` &rarr;](super::_03_command_chaining)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _03_command_chaining {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
-                //! 
-                //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
-                //! `bpaf` allows you to have several commands side by side instead of being nested.
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _04_multi_value {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](super::_03_command_chaining)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### Multi-value arguments: `--foo ARG1 ARG2 ARG3`
-                //! 
-                //! By default arguments take at most one value, you can create multi value options by using
-                //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`](super::_03_command_chaining)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _05_struct_groups {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-                //! 
-                //! Groups of options that can be specified multiple times. All such groups should be kept without
-                //! overwriting previous one.
-                //! 
-                //! ```console
-                //!  $ prometheus_sensors_exporter \
-                //!      \
-                //!      `# 2 physical sensors located on physycial different i2c bus or address` \
-                //!      --sensor \
-                //!          --sensor-device=tmp102 \
-                //!          --sensor-name="temperature_tmp102_outdoor" \
-                //!          --sensor-i2c-bus=0 \
-                //!          --sensor-i2c-address=0x48 \
-                //!      --sensor \
-                //!          --sensor-device=tmp102 \
-                //!          --sensor-name="temperature_tmp102_indoor" \
-                //!          --sensor-i2c-bus=1 \
-                //!          --sensor-i2c-address=0x49 \
-                //! ```
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _06_multi_flag {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
-                //! 
-                //! So you can parse things while parsing things. Not sure why you might need this, but you can
-                //! :)
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _07_skip_positional {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### Skipping optional positional items if parsing or validation fails
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //! 
-                //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
-                //! 
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
-            pub mod _08_cargo_helper {
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //!   </td>
-                //! </tr></table>
-                //! 
-                //! #### Implementing cargo commands
-                //! 
-                //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
-                //! 
-                #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
-                //!
-                //!
-                //! &nbsp;
-                //! 
-                //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-                //!   <td style='width: 33%; text-align: left;'>
-                //! 
-                //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
-                //! 
-                //!   </td>
-                //!   <td style='width: 34%; text-align: center;'>
-                //! 
-                //! [&uarr; Parsing exotic options &uarr;](super::super::_1_exotic)
-                //! 
-                //!   </td>
-                //!   <td style='width: 33%; text-align: right;'>
-                //!   </td>
-                //! </tr></table>
-                //! 
-            use crate::*;
-            }
         use crate::*;
         }
     use crate::*;
     }
-    pub mod _3_reference {
+    pub mod _2_howto {
         //! &nbsp;
         //! 
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; HowTo](super::_2_howto)
+        //! [&larr; Tutorials](super::_1_tutorials)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
@@ -2620,115 +1996,30 @@
         //!   </td>
         //! </tr></table>
         //! 
-        //! #### Structured API reference
-        //! Links to all the functions groupped by purpose
+        //! #### Parsing cookbook
         //! 
-        //! ## Consuming items - making `Parser`
         //! 
-        //! `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
-        //! Both APIs can achieve the same results, you can use one that better suits your needs. You can
-        //! find documentation with more examples following those links.
-        //! 
-        //! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
-        //!   [`long`] and [`env`](crate::env). At the same time you can attach
-        //!   [`help`](NamedArg::help).
-        //! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
-        //!   line and `false` otherwise.
-        //! - [`NamedArg::flag`] - a variant of `switch` that lets you return one of two custom
-        //!   values, for example `Color::On` and `Color::Off`.
-        //! - [`NamedArg::req_flag`] - a variant of `switch` that only only succeeds when it's name
-        //!   is present on a command line
-        //! - [`NamedArg::argument`] - named argument containing a value, you can further
-        //!   customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
-        //! - [`positional`] - positional argument, you can further customize it with
-        //!   [`strict`](ParsePositional::strict)
-        //! - [`OptionParser::command`] - subcommand parser.
-        //! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
-        //!   not fitting into usual classification.
-        //! - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
-        //!   it from the command line.
-        //! 
-        //! ## Transforming and changing parsers
-        //! 
-        //! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
-        //! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
-        //! [`Parser`] trait, some of those methods are applied automagically if you are using derive API.
-        //! 
-        //! `bpaf` distinguishes two types of parse failures - "value is absent" and
-        //! "value is present but invalid", most parsers listed in this section only handle the first
-        //! type of falure by default, but you can use their respective `catch` method to handle the later
-        //! one.
-        //! 
-        //! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
-        //!   different value if parser fails to find what it is looking for. Generated help for former
-        //!   can be updated to include default value using
-        //!   [`display_fallback`](ParseFallback::display_fallback) and
-        //!   [`debug_fallback`](ParseFallback::debug_fallback) .
-        //! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
-        //!   also [`catch`](ParseOptional::catch) .
-        //! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
-        //!   multiple values into a collection, usually a vector, see their respective
-        //!   [`catch`](ParseMany::catch), [`catch`](ParseSome::catch) and [`catch`](ParseCollect::catch).
-        //! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
-        //!   and/or validate value produced by a parser
-        //! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
-        //! 
-        //! ## Combining multiple parsers together
-        //! 
-        //! Once you have parsers for all the primitive fields figured out you can start combining them
-        //! together to produce a parser for a final result - data type you designed in the step one.
-        //! For derive API you apply annotations to data types with `#[derive(Bpaf)`] and `#[bpaf(..)]`,
-        //! with combinatoric API you use [`construct!`](crate::construct!) macro.
-        //! 
-        //! All fields in a struct needs to be successfully parsed in order for the parser to succeed
-        //! and only one variant from enum will consume its values at a time.
-        //! 
-        //! You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
-        //! group allowing for more unusual scenarios such as multiple value arguments or chained commands.
-        //! 
-        //! ## Improving user experience
-        //! 
-        //! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
-        //! in various `help` methods to generate `--help` documentation, you can further improve it
-        //! using those methods:
-        //! 
-        //! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
-        //!   generated *Usage* line or whole generated help
-        //! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
-        //!   add a common description shared by several parsers
-        //! - [`custom_usage`](Parser::custom_usage) - customize usage for a primitive or composite parser
-        //! - [`usage`](OptionParser::usage) and [`with_usage`](OptionParser::with_usage) lets you to
-        //!   customize whole usage line as a whole either by completely overriding it or by building around it.
-        //! 
-        //! By default with completion enabled `bpaf` would complete names for flags, arguments and
-        //! commands. You can also generate completion for argument values, possible positionals, etc.
-        //! This requires enabling **autocomplete** cargo feature.
-        //! 
-        //! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
-        //! 
-        //! And finally you can generate documentation for command line in markdown, html and manpage
-        //! formats using [`render_markdown`](OptionParser::render_markdown),
-        //! [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
-        //! for more detailed info see [`doc`] module
-        //! 
-        //! ## Testing your parsers and running them
-        //! - You can [`OptionParser::run`] the parser on the arguments passed on the command line
-        //! - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
-        //!   parser `bpaf` relies on
-        //! - [`run_inner`](OptionParser::run_inner) runs the parser with custom [`Args`] you can create
-        //!   either explicitly or implicitly using one of the [`From`] implementations, `Args` can be
-        //!   customized with [`set_comp`](Args::set_comp) and [`set_name`](Args::set_name).
-        //! - [`ParseFailure`] contains the parse outcome, you can consume it either by hands or using one
-        //!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
-        //!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
+        //! While `bpaf`'s design tries to cover most common use cases, mostly
+        //! [posix conventions](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html),
+        //! it can also handle some more unusual requirements. It might come at a cost of having to write
+        //! more code, more confusing error messages or worse performance, but it will get the job done.
         //!
+        //! - [`find(1)`: `find -exec commands -flags terminated by \;`](_00_find)
+        //! - [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](_01_dd)
+        //! - [`Xorg(1)`: `Xorg +xinerama +extension name`](_02_xorg)
+        //! - [Command chaining](_03_command_chaining) - Lets you do things like `setup.py sdist bdist`: [command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining)
+        //! - [Multi-value arguments: `--foo ARG1 ARG2 ARG3`](_04_multi_value)
+        //! - [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](_05_struct_groups)
+        //! - [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](_06_multi_flag)
+        //! - [Skipping optional positional items if parsing or validation fails](_07_skip_positional)
+        //! - [Implementing cargo commands](_08_cargo_helper)
         //!
         //! &nbsp;
         //! 
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; HowTo](super::_2_howto)
+        //! [&larr; Tutorials](super::_1_tutorials)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
@@ -2743,6 +2034,528 @@
         //!   </td>
         //! </tr></table>
         //! 
+        pub mod _00_find {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### `find(1)`: `find -exec commands -flags terminated by \;`
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/find.md"))]
+            //! 
+            //! 
+            //! 
+            //! ## `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
+            //! 
+            //! 
+            //! 
+            //! ## `Xorg(1)`: `Xorg +xinerama +extension name`
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
+            //! 
+            //! 
+            //! ## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
+            //! 
+            //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
+            //! `bpaf` allows you to have several commands side by side instead of being nested.
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+            //! 
+            //! 
+            //! ## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+            //! 
+            //! By default arguments take at most one value, you can create multi value options by using
+            //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
+            //! 
+            //! 
+            //! ## Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+            //! 
+            //! Groups of options that can be specified multiple times. All such groups should be kept without
+            //! overwriting previous one.
+            //! 
+            //! ```console
+            //!  $ prometheus_sensors_exporter \
+            //!      \
+            //!      `# 2 physical sensors located on physycial different i2c bus or address` \
+            //!      --sensor \
+            //!          --sensor-device=tmp102 \
+            //!          --sensor-name="temperature_tmp102_outdoor" \
+            //!          --sensor-i2c-bus=0 \
+            //!          --sensor-i2c-address=0x48 \
+            //!      --sensor \
+            //!          --sensor-device=tmp102 \
+            //!          --sensor-name="temperature_tmp102_indoor" \
+            //!          --sensor-i2c-bus=1 \
+            //!          --sensor-i2c-address=0x49 \
+            //! ```
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+            //! 
+            //! 
+            //! # Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
+            //! 
+            //! So you can parse things while parsing things. Not sure why you might need this, but you can
+            //! :)
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+            //! 
+            //! 
+            //! # Skipping optional positional items if parsing or validation fails
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
+            //! 
+            //! # Implementing cargo commands
+            //! 
+            //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [`dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000` &rarr;](super::_01_dd)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _01_dd {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `find(1)`: `find -exec commands -flags terminated by \;`](super::_00_find)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [`Xorg(1)`: `Xorg +xinerama +extension name` &rarr;](super::_02_xorg)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _02_xorg {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Command chaining &rarr;](super::_03_command_chaining)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### `Xorg(1)`: `Xorg +xinerama +extension name`
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`](super::_01_dd)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Command chaining &rarr;](super::_03_command_chaining)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _03_command_chaining {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Command chaining
+            //! Lets you do things like `setup.py sdist bdist`: [command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining)
+            //! 
+            //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
+            //! `bpaf` allows you to have several commands side by side instead of being nested.
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; `Xorg(1)`: `Xorg +xinerama +extension name`](super::_02_xorg)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Multi-value arguments: `--foo ARG1 ARG2 ARG3` &rarr;](super::_04_multi_value)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _04_multi_value {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Command chaining](super::_03_command_chaining)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Multi-value arguments: `--foo ARG1 ARG2 ARG3`
+            //! 
+            //! By default arguments take at most one value, you can create multi value options by using
+            //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Command chaining](super::_03_command_chaining)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3` &rarr;](super::_05_struct_groups)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _05_struct_groups {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
+            //! 
+            //! Groups of options that can be specified multiple times. All such groups should be kept without
+            //! overwriting previous one.
+            //! 
+            //! ```console
+            //!  $ prometheus_sensors_exporter \
+            //!      \
+            //!      `# 2 physical sensors located on physycial different i2c bus or address` \
+            //!      --sensor \
+            //!          --sensor-device=tmp102 \
+            //!          --sensor-name="temperature_tmp102_outdoor" \
+            //!          --sensor-i2c-bus=0 \
+            //!          --sensor-i2c-address=0x48 \
+            //!      --sensor \
+            //!          --sensor-device=tmp102 \
+            //!          --sensor-name="temperature_tmp102_indoor" \
+            //!          --sensor-i2c-bus=1 \
+            //!          --sensor-i2c-address=0x49 \
+            //! ```
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Multi-value arguments: `--foo ARG1 ARG2 ARG3`](super::_04_multi_value)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2` &rarr;](super::_06_multi_flag)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _06_multi_flag {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
+            //! 
+            //! So you can parse things while parsing things. Not sure why you might need this, but you can
+            //! :)
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`](super::_05_struct_groups)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Skipping optional positional items if parsing or validation fails &rarr;](super::_07_skip_positional)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _07_skip_positional {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Skipping optional positional items if parsing or validation fails
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](super::_06_multi_flag)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Implementing cargo commands &rarr;](super::_08_cargo_helper)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _08_cargo_helper {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Implementing cargo commands
+            //! 
+            //! With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
+            //! 
+            #![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
     use crate::*;
     }
     pub mod _4_explanation {
@@ -2751,7 +2564,7 @@
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; Structured API reference](super::_3_reference)
+        //! [&larr; Parsing cookbook](super::_2_howto)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
@@ -3015,7 +2828,7 @@
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; Structured API reference](super::_3_reference)
+        //! [&larr; Parsing cookbook](super::_2_howto)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>

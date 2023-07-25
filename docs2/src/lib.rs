@@ -25,10 +25,17 @@ fn write_updated(new_val: String, path: impl AsRef<std::path::Path>) -> std::io:
     Ok(())
 }
 
-fn import_escaped_source(res: &mut String, path: impl AsRef<std::path::Path>, title: &str) {
+fn import_escaped_source(
+    res: &mut String,
+    both: bool,
+    path: impl AsRef<std::path::Path>,
+    title: &str,
+) {
     use std::fmt::Write;
 
-    writeln!(res, "<details><summary>{title}</summary>").unwrap();
+    if both {
+        writeln!(res, "<details><summary>{title}</summary>").unwrap();
+    }
     writeln!(res, "\n```no_run").unwrap();
     let mut skip = false;
     for line in std::fs::read_to_string(path).unwrap().lines() {
@@ -46,7 +53,9 @@ fn import_escaped_source(res: &mut String, path: impl AsRef<std::path::Path>, ti
     )
     .unwrap();
     writeln!(res, "```\n").unwrap();
-    writeln!(res, "</details>").unwrap();
+    if both {
+        writeln!(res, "</details>").unwrap();
+    }
 }
 
 fn run_and_render<T: std::fmt::Debug>(

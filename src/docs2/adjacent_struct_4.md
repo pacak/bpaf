@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 #[derive(Debug, Clone)]
@@ -52,7 +51,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 

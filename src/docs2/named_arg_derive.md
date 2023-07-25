@@ -1,4 +1,3 @@
-<details><summary>Derive example</summary>
 
 ```no_run
 const DB: &str = "DATABASE_VAR";
@@ -55,7 +54,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 `--help` output will contain first short and first long names that are present and won't have

@@ -1,4 +1,3 @@
-<details><summary>Combinatoric example</summary>
 
 ```no_run
 #[derive(Debug, Clone)]
@@ -54,7 +53,6 @@ fn main() {
 }
 ```
 
-</details>
 <details><summary>Output</summary>
 
 Help contains both commands, bpaf takes short command description from the inner command
