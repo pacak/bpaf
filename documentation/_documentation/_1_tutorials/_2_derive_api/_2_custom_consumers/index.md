@@ -34,5 +34,3 @@ fn main() {
     println!("{:?}", opts)
 }
 ```
-
-See [the API reference](crate::_documentation::_3_reference) for a complete list

@@ -8,10 +8,14 @@
 //! - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
 //! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
 //!   examples to get you started
+//!   + [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
+//!     common types of line options and conventions (optional)
+//!   + [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
+//!     Parse arguments without using proc macros
+//!   + [Derive API](_documentation::_1_tutorials::_2_derive_api) -
+//!     Create a parser by defining a structure
 //! - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
 //!   explains how to concrete tasks
-//! - [Reference](_documentation::_3_reference) - a quick overview of API surface showing how parts
-//!   interact with each other
 //! - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
 //!   used by the library, oriented for understanding
 //! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
@@ -27,6 +31,106 @@
 //! Use either derive or combinatoric API and try running it
 //!
 #![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
+
+//!
+//! ## Consuming items - making `Parser`
+//!
+//! `bpaf` allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
+//! Both APIs can achieve the same results, you can use one that better suits your needs. You can
+//! find documentation with more examples following those links.
+//!
+//! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
+//!   [`long`] and [`env`](crate::env). At the same time you can attach
+//!   [`help`](NamedArg::help).
+//! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
+//!   line and `false` otherwise.
+//! - [`NamedArg::flag`] - a variant of `switch` that lets you return one of two custom
+//!   values, for example `Color::On` and `Color::Off`.
+//! - [`NamedArg::req_flag`] - a variant of `switch` that only only succeeds when it's name
+//!   is present on a command line
+//! - [`NamedArg::argument`] - named argument containing a value, you can further
+//!   customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
+//! - [`positional`] - positional argument, you can further customize it with
+//!   [`strict`](ParsePositional::strict)
+//! - [`OptionParser::command`] - subcommand parser.
+//! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
+//!   not fitting into usual classification.
+//! - [`pure`] and [`pure_with`] - a way to generate a value that can be composed without parsing
+//!   it from the command line.
+//!
+//! ## Transforming and changing parsers
+//!
+//! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
+//! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
+//! [`Parser`] trait, some of those methods are applied automagically if you are using derive API.
+//!
+//! `bpaf` distinguishes two types of parse failures - "value is absent" and
+//! "value is present but invalid", most parsers listed in this section only handle the first
+//! type of falure by default, but you can use their respective `catch` method to handle the later
+//! one.
+//!
+//! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
+//!   different value if parser fails to find what it is looking for. Generated help for former
+//!   can be updated to include default value using
+//!   [`display_fallback`](ParseFallback::display_fallback) and
+//!   [`debug_fallback`](ParseFallback::debug_fallback) .
+//! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
+//!   also [`catch`](ParseOptional::catch) .
+//! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
+//!   multiple values into a collection, usually a vector, see their respective
+//!   [`catch`](ParseMany::catch), [`catch`](ParseSome::catch) and [`catch`](ParseCollect::catch).
+//! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
+//!   and/or validate value produced by a parser
+//! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it
+//!
+//! ## Combining multiple parsers together
+//!
+//! Once you have parsers for all the primitive fields figured out you can start combining them
+//! together to produce a parser for a final result - data type you designed in the step one.
+//! For derive API you apply annotations to data types with `#[derive(Bpaf)`] and `#[bpaf(..)]`,
+//! with combinatoric API you use [`construct!`](crate::construct!) macro.
+//!
+//! All fields in a struct needs to be successfully parsed in order for the parser to succeed
+//! and only one variant from enum will consume its values at a time.
+//!
+//! You can use [`adjacent`](ParseCon::adjacent) annotation to parse multiple flags as an adjacent
+//! group allowing for more unusual scenarios such as multiple value arguments or chained commands.
+//!
+//! ## Improving user experience
+//!
+//! `bpaf` would use doc comments on fields and structures in derive mode and and values passed
+//! in various `help` methods to generate `--help` documentation, you can further improve it
+//! using those methods:
+//!
+//! - [`hide_usage`](Parser::hide_usage) and [`hide`](Parser::hide) - hide the parser from
+//!   generated *Usage* line or whole generated help
+//! - [`group_help`](Parser::group_help) and [`with_group_help`](Parser::with_group_help) -
+//!   add a common description shared by several parsers
+//! - [`custom_usage`](Parser::custom_usage) - customize usage for a primitive or composite parser
+//! - [`usage`](OptionParser::usage) and [`with_usage`](OptionParser::with_usage) lets you to
+//!   customize whole usage line as a whole either by completely overriding it or by building around it.
+//!
+//! By default with completion enabled `bpaf` would complete names for flags, arguments and
+//! commands. You can also generate completion for argument values, possible positionals, etc.
+//! This requires enabling **autocomplete** cargo feature.
+//!
+//! - [`complete`](Parser::complete) and [`complete_shell`](Parser::complete_shell)
+//!
+//! And finally you can generate documentation for command line in markdown, html and manpage
+//! formats using [`render_markdown`](OptionParser::render_markdown),
+//! [`render_html`](OptionParser::render_html) and [`render_manpage`](OptionParser::render_manpage),
+//! for more detailed info see [`doc`] module
+//!
+//! ## Testing your parsers and running them
+//! - You can [`OptionParser::run`] the parser on the arguments passed on the command line
+//! - [`check_invariants`](OptionParser::check_invariants) checks for a few invariants in the
+//!   parser `bpaf` relies on
+//! - [`run_inner`](OptionParser::run_inner) runs the parser with custom [`Args`] you can create
+//!   either explicitly or implicitly using one of the [`From`] implementations, `Args` can be
+//!   customized with [`set_comp`](Args::set_comp) and [`set_name`](Args::set_name).
+//! - [`ParseFailure`] contains the parse outcome, you can consume it either by hands or using one
+//!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
+//!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
 
 #[cfg(feature = "extradocs")]
 #[rustfmt::skip]
