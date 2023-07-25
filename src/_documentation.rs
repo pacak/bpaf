@@ -2013,6 +2013,7 @@
         //! - [Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`](_06_multi_flag)
         //! - [Skipping optional positional items if parsing or validation fails](_07_skip_positional)
         //! - [Implementing cargo commands](_08_cargo_helper)
+        //! - [Numeric flags - compression levels like in zip](_09_numeric_flags)
         //!
         //! &nbsp;
         //! 
@@ -2527,6 +2528,9 @@
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Numeric flags - compression levels like in zip &rarr;](super::_09_numeric_flags)
+            //! 
             //!   </td>
             //! </tr></table>
             //! 
@@ -2543,6 +2547,79 @@
             //!   <td style='width: 33%; text-align: left;'>
             //! 
             //! [&larr; Skipping optional positional items if parsing or validation fails](super::_07_skip_positional)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Numeric flags - compression levels like in zip &rarr;](super::_09_numeric_flags)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _09_numeric_flags {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Implementing cargo commands](super::_08_cargo_helper)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Numeric flags - compression levels like in zip
+            //! 
+            //! While you can add flags in a usual way for compression levels using `short(1)`, `short(2)`, etc
+            //! combined with `req_flag`, you can also parse all of then using [`any`]
+            //! 
+            //! ```rust
+            //! use bpaf::{doc::Style, *};
+            //! 
+            //! fn compression() -> impl Parser<usize> {
+            //!     any::<isize, _, _>("COMP", |x: isize| {
+            //!         if (-9..=-1).contains(&x) {
+            //!             Some(x.abs().try_into().unwrap())
+            //!         } else {
+            //!             None
+            //!         }
+            //!     })
+            //!     .metavar(&[
+            //!         ("-1", Style::Literal),
+            //!         (" to ", Style::Text),
+            //!         ("-9", Style::Literal),
+            //!     ])
+            //!     .help("Compression level")
+            //!     .anywhere()
+            //! }
+            //! 
+            //! fn main() {
+            //!     let opts = compression().to_options().run();
+            //! 
+            //!     println!("{:?}", opts);
+            //! }
+            //! ```
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Implementing cargo commands](super::_08_cargo_helper)
             //! 
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
