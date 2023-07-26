@@ -19,17 +19,6 @@ contains examples for both combinatoric and derive style.
 `bpaf` supports dynamic shell completion for `bash`, `zsh`, `fish` and `elvish`.
 
 
-## Quick links
-
- - [Derive tutorial][__link0]
- - [Combinatoric tutorial][__link1]
- - [Dealing with unusual cases][__link2]
- - [Applicative functors? What is it all about][__link3]
- - [Applicative parsing intro][__link4]
- - [Batteries included][__link5]
- - [Q&A][__link6]
-
-
 ## Quick start - combinatoric and derive APIs
 
 <details>
@@ -91,12 +80,6 @@ contains examples for both combinatoric and derive style.
 	% very_basic --version
 	Version: 0.9.0 (taken from Cargo.toml by default)
 	```
-
-
-4. You can check the [derive tutorial][__link7] for more detailed information.
-
-
-
 </details>
 
 <details>
@@ -173,9 +156,6 @@ contains examples for both combinatoric and derive style.
 	Version: 0.5.0 (taken from Cargo.toml by default)
 	```
 
-
-4. You can check the [combinatoric tutorial][__link8] for more detailed information.
-
 </details>
 
 ## Design goals: flexibility, reusability, correctness
@@ -240,8 +220,7 @@ derive APIs.
 
 The main restricting library sets is that you can’t use parsed values (but not the fact that
 parser succeeded or failed) to decide how to parse subsequent values. In other words parsers
-don’t have the monadic strength, only the applicative one - for more detailed explanation see
-[Applicative functors? What is it all about][__link9].
+don’t have the monadic strength, only the applicative one.
 
 To give an example, you can implement this description:
 
@@ -399,28 +378,18 @@ Usage --user=ARG
 	Disabled by default.
 
 
- - `docgen`: generate documentation from help declaration, see [`OptionParser::render_html`][__link21]. Disabled by default.
+ - `docgen`: generate documentation from help declaration, see [`OptionParser::render_markdown`][__link21]. Disabled by default.
 
 
 
 
  [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG67Vn_d8EgCjGwx1q1eGjg8OG62q7Al6912tG9tijfvWADwPYWSBgmRicGFmZTAuOC4w
- [__link0]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_derive_tutorial
- [__link1]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_combinatoric_tutorial
- [__link10]: https://docs.rs/bpaf/0.9.0/bpaf/?search=bpaf::Parser::fallback
- [__link11]: https://docs.rs/bpaf/0.9.0/bpaf/?search=parsers::NamedArg::switch
- [__link12]: https://docs.rs/bpaf/0.9.0/bpaf/?search=parsers::NamedArg::argument
- [__link13]: https://docs.rs/bpaf/0.9.0/bpaf/?search=params::positional
- [__link14]: https://docs.rs/bpaf/0.9.0/bpaf/?search=parsers::NamedArg::argument
- [__link15]: https://docs.rs/bpaf/0.9.0/bpaf/?search=params::positional
- [__link16]: https://docs.rs/bpaf/0.9.0/bpaf/?search=bpaf::Parser::complete
- [__link18]: https://docs.rs/bpaf/0.9.0/bpaf/?search=info::OptionParser::run_inner
- [__link2]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_unusual
- [__link21]: https://docs.rs/bpaf/0.9.0/bpaf/?search=info::OptionParser::render_html
- [__link3]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_applicative
- [__link4]: https://rustmagazine.org/issue-2/applicative-parsing/
- [__link5]: https://docs.rs/bpaf/0.9.0/bpaf/?search=batteries
- [__link6]: https://github.com/pacak/bpaf/discussions/categories/q-a
- [__link7]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_derive_tutorial
- [__link8]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_combinatoric_tutorial
- [__link9]: https://docs.rs/bpaf/0.9.0/bpaf/?search=_applicative
+ [__link10]: https://docs.rs/bpaf/0.9.3/bpaf/?search=bpaf::Parser::fallback
+ [__link11]: https://docs.rs/bpaf/0.9.3/bpaf/?search=parsers::NamedArg::switch
+ [__link12]: https://docs.rs/bpaf/0.9.3/bpaf/?search=parsers::NamedArg::argument
+ [__link13]: https://docs.rs/bpaf/0.9.3/bpaf/?search=params::positional
+ [__link14]: https://docs.rs/bpaf/0.9.3/bpaf/?search=parsers::NamedArg::argument
+ [__link15]: https://docs.rs/bpaf/0.9.3/bpaf/?search=params::positional
+ [__link16]: https://docs.rs/bpaf/0.9.3/bpaf/?search=bpaf::Parser::complete
+ [__link18]: https://docs.rs/bpaf/0.9.3/bpaf/?search=info::OptionParser::run_inner
+ [__link21]: https://docs.rs/bpaf/0.9.3/bpaf/?search=info::OptionParser::render_markdown
