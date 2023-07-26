@@ -334,7 +334,7 @@ pub struct Options {
 #[test]
 fn test_my_options() {
     let help = options()
-        .run_inner(Args::from(&["--help"]))
+        .run_inner(&["--help"])
         .unwrap_err()
         .unwrap_stdout();
     let expected_help = "\
