@@ -2586,7 +2586,7 @@
             //! While you can add flags in a usual way for compression levels using `short(1)`, `short(2)`, etc
             //! combined with `req_flag`, you can also parse all of then using [`any`]
             //! 
-            //! ```rust
+            //! ```no_run
             //! use bpaf::{doc::Style, *};
             //! 
             //! fn compression() -> impl Parser<usize> {
