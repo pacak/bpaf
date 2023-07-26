@@ -131,6 +131,31 @@
 //! - [`ParseFailure`] contains the parse outcome, you can consume it either by hands or using one
 //!   of [`exit_code`](ParseFailure::exit_code), [`unwrap_stdout`](ParseFailure::unwrap_stdout) and
 //!   [`unwrap_stderr`](ParseFailure::unwrap_stderr)
+//!
+//! ## Cargo features
+//!
+//!  - `derive`: adds a dependency on `bpaf_derive` crate and reexport `Bpaf` derive macro. You
+//!     need to enable it to use derive API. Disabled by default.
+//!
+//!  - `batteries`: helpers implemented with public `bpaf` API. Disabled by default.
+//!
+//!  - `autocomplete`: enables support for shell autocompletion. Disabled by default.
+//!
+//!
+//! - `bright-color`, `dull-color`: use more colors when printing `--help` and such. Enabling
+//!   either color feature adds some extra dependencies and might raise MRSV. If you are planning
+//!   to use this feature in a published app - it’s best to expose them as feature flags:
+//!
+//!    ```toml
+//!    [features]
+//!    bright-color = ["bpaf/bright-color"]
+//!    dull-color = ["bpaf/dull-color"]
+//!    ```
+//!    Disabled by default.
+//!
+//!  - `docgen`: generate documentation from help declaration, see [`OptionParser::render_markdown`] and [`doc`](crate::doc). Disabled by default.
+
+
 
 #[cfg(feature = "extradocs")]
 #[rustfmt::skip]
