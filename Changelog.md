@@ -1,9 +1,9 @@
 # Change Log
 
-## bpaf [0.9.3], bpaf_derive [0.5.3] - Unreleased
+## bpaf [0.9.3], bpaf_derive [0.5.3] - 2023-07-26
 - `Parser::collect` allows to collect multiple items into an arbitrary `FromIterator` collection
 - Bugfix in parsing for unit structs
-- documentation update
+- docs.rs documentation update
 
 ## bpaf [0.9.2], bpaf_derive [0.5.2] - 2023-07-13
 - with `docgen` feature you can render documentation as markdown
