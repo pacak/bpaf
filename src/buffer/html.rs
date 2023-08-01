@@ -319,6 +319,7 @@ impl Doc {
         let mut mono = 0;
         let mut def_list = false;
         let mut code_block = false;
+        let mut app_name_seen = false;
         for (ix, token) in self.tokens.iter().copied().enumerate() {
             match token {
                 Token::Text { bytes, style } => {
@@ -384,7 +385,12 @@ impl Doc {
                     match b {
                         Block::Header => {
                             blank_markdown_line(&mut res);
-                            res.push_str("# ");
+                            if app_name_seen {
+                                res.push_str("## ");
+                            } else {
+                                res.push_str("# ");
+                                app_name_seen = true
+                            }
                         }
                         Block::Section2 => {
                             res.push_str("");

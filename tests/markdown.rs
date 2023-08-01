@@ -75,7 +75,7 @@ fn nested() {
   * [`options alpha`↴](#options-alpha)
   * [`options beta`↴](#options-beta)
 
-# options
+## options
 
 Options
 
@@ -91,7 +91,7 @@ Options
 - **`beta`** &mdash; \n  Beta
 
 
-# options alpha
+## options alpha
 
 Alpha
 
@@ -100,7 +100,7 @@ Alpha
 - **`-h`**, **`--help`** &mdash; \n  Prints help information
 
 
-# options beta
+## options beta
 
 Beta
 
