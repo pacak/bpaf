@@ -1,6 +1,14 @@
 use bpaf::*;
 
 #[test]
+fn help_after_switch() {
+    let parser = short('a').switch().help("this is help").to_options();
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected =   "Usage: [-a]\n\nAvailable options:\n    -a          this is help\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn fancy_meta() {
     let a = long("trailing-comma").argument::<String>("all|es5|none");
     let b = long("stdin-file-path").argument::<String>("PATH");

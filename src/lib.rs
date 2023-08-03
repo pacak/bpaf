@@ -195,7 +195,9 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
     #[doc(inline)]
-    pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
+    pub use crate::params::{
+        NamedArg, ParseAny, ParseArgument, ParseCommand, ParseFlag, ParsePositional,
+    };
     #[doc(inline)]
     pub use crate::structs::{
         ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
