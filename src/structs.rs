@@ -495,7 +495,7 @@ impl<P, T: std::fmt::Display> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
     /// representation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback.md"))]
     #[must_use]
     pub fn display_fallback(mut self) -> Self {
         self.value_str = format!("[default: {}]", self.value);
@@ -507,7 +507,7 @@ impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Debug`](std::fmt::Debug)
     /// representation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/deb_fallback_with.md"))]
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
@@ -524,7 +524,7 @@ where
     ///
     /// If fallback function fails - no value will show up
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback_with.md"))]
     #[must_use]
     pub fn display_fallback(mut self) -> Self {
         if let Ok(val) = (self.fallback)() {
@@ -543,7 +543,7 @@ where
     ///
     /// If fallback function fails - no value will show up
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/deb_fallback.md"))]
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         if let Ok(val) = (self.fallback)() {

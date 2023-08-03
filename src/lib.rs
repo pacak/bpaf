@@ -871,7 +871,7 @@ pub trait Parser<T> {
     ///
     /// Parser would still fail if value is present but failure comes from some transformation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback.md"))]
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
@@ -897,7 +897,7 @@ pub trait Parser<T> {
     ///
     /// Would still fail if value is present but failure comes from some earlier transformation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback_with.md"))]
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.
