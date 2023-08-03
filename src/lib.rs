@@ -1211,8 +1211,18 @@ pub trait Parser<T> {
     }
     // }}}
 
-    #[doc(hidden)]
-    #[deprecated = "You should finalize the parser first: see Parser::to_options"]
+    /// Finalize and run the parser
+    ///
+    /// Generally you'd want to use [`Parser::to_options`] to finalize the parser and [`OptionParser::run`],
+    /// but this also works for simple cases:
+    ///
+    /// ```no_run
+    /// # use bpaf::*;
+    /// fn main() {
+    ///     let name = short('n').long("name").argument::<String>("USER").run();
+    ///     // do things with name
+    /// }
+    /// ```
     fn run(self) -> T
     where
         Self: Sized + Parser<T> + 'static,
@@ -1224,7 +1234,7 @@ pub trait Parser<T> {
     ///
     ///
 
-    /// Boxed parser doesn't expose internal representation in it's type and allows to return
+    /// Boxed parser doesn't expose internal representation in its type and allows to return
     /// different parsers in different conditional branches
     ///
     /// You can create it with a single argument `construct` macro or by using `boxed` annotation
