@@ -193,7 +193,7 @@ impl NamedArg {
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     #[must_use]
-    pub fn switch(self) -> impl Parser<bool> {
+    pub fn switch(self) -> ParseFlag<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
@@ -203,7 +203,7 @@ impl NamedArg {
     /// [`bool`].
     #[cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
     #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> impl Parser<T>
+    pub fn flag<T>(self, present: T, absent: T) -> ParseFlag<T>
     where
         T: Clone + 'static,
     {
@@ -514,7 +514,8 @@ where
 }
 
 #[derive(Clone)]
-struct ParseFlag<T> {
+/// Parser for a named switch, created with [`NamedArg::flag`] or [`NamedArg::switch`]
+pub struct ParseFlag<T> {
     present: T,
     absent: Option<T>,
     named: NamedArg,
@@ -548,6 +549,34 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
 
     fn meta(&self) -> Meta {
         self.named.flag_item().required(self.absent.is_none())
+    }
+}
+
+impl<T> ParseFlag<T> {
+    /// Add a help message to `flag`
+    ///
+    /// See [`NamedArg::help`]
+    #[must_use]
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<Doc>,
+    {
+        self.named.help = Some(help.into());
+        self
+    }
+}
+
+impl<T> ParseArgument<T> {
+    /// Add a help message to an `argument`
+    ///
+    /// See [`NamedArg::help`]
+    #[must_use]
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<Doc>,
+    {
+        self.named.help = Some(help.into());
+        self
     }
 }
 

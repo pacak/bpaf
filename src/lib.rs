@@ -195,7 +195,9 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
     #[doc(inline)]
-    pub use crate::params::{NamedArg, ParseAny, ParseArgument, ParseCommand, ParsePositional};
+    pub use crate::params::{
+        NamedArg, ParseAny, ParseArgument, ParseCommand, ParseFlag, ParsePositional,
+    };
     #[doc(inline)]
     pub use crate::structs::{
         ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
@@ -869,7 +871,7 @@ pub trait Parser<T> {
     ///
     /// Parser would still fail if value is present but failure comes from some transformation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback.md"))]
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
@@ -895,7 +897,7 @@ pub trait Parser<T> {
     ///
     /// Would still fail if value is present but failure comes from some earlier transformation
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/fallback_with.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/dis_fallback_with.md"))]
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.
@@ -1209,8 +1211,18 @@ pub trait Parser<T> {
     }
     // }}}
 
-    #[doc(hidden)]
-    #[deprecated = "You should finalize the parser first: see Parser::to_options"]
+    /// Finalize and run the parser
+    ///
+    /// Generally you'd want to use [`Parser::to_options`] to finalize the parser and [`OptionParser::run`],
+    /// but this also works for simple cases:
+    ///
+    /// ```no_run
+    /// # use bpaf::*;
+    /// fn main() {
+    ///     let name = short('n').long("name").argument::<String>("USER").run();
+    ///     // do things with name
+    /// }
+    /// ```
     fn run(self) -> T
     where
         Self: Sized + Parser<T> + 'static,
@@ -1222,7 +1234,7 @@ pub trait Parser<T> {
     ///
     ///
 
-    /// Boxed parser doesn't expose internal representation in it's type and allows to return
+    /// Boxed parser doesn't expose internal representation in its type and allows to return
     /// different parsers in different conditional branches
     ///
     /// You can create it with a single argument `construct` macro or by using `boxed` annotation

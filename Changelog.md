@@ -1,5 +1,11 @@
 # Change Log
 
+## bpaf [0.9.4] - Unreleased
+- add `help` to `ParseFlag` and `ParseArgument `
+- stop deprecating `Parser::run`
+- documentation
+- changes to rendered markdown
+
 ## bpaf [0.9.3], bpaf_derive [0.5.3] - 2023-07-26
 - `Parser::collect` allows to collect multiple items into an arbitrary `FromIterator` collection
 - Bugfix in parsing for unit structs
