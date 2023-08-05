@@ -860,6 +860,11 @@ impl<T, I, F> ParseAny<T, I, F> {
     }
 
     /// Try to apply the parser to each unconsumed element instead of just the front one
+    ///
+    /// By default `any` tries to parse just the front unconsumed item behaving similar to
+    /// [`positional`] parser, `anywhere` changes it so it applies to every unconsumed item,
+    /// similar to argument parser.
+    ///
     /// See examples in [`any`]
     #[must_use]
     pub fn anywhere(mut self) -> Self {

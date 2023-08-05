@@ -1,74 +1,25 @@
 #### `find(1)`: `find -exec commands -flags terminated by \;`
 
-#![cfg_attr(not(doctest), doc = include_str!("docs/find.md"))]
+Example for `find` shows how to implement 3 different unusual options:
 
+- an option with a long name but single dash as a prefix: `-user bob`
+- an option that captures everything until the next fixed character
+- an option that takes a set of characters: `-mode -rw`, `mode /rw`
 
+In all cases long name with a single dash is implementedby [`literal`] with
+[`ParseAny::anywhere`](crate::parsers::ParseAny::anywhere) with some items made `adjacent` to it.
 
-## `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
+To parse `-user bob` this is simply literal `-user` adjacent to a positional item with `map` to
+focus on the interesting part.
 
-#![cfg_attr(not(doctest), doc = include_str!("docs/dd.md"))]
+For `-exec more things here ;` this is a combination of literal `-exec`, followed by `many`
+items that are not `;` parsed positionally with `any` followed by `;` - again with `any`, but
+`literal` works too.
 
+And lastly to parse mode - after the tag we accept `any` to be able to handle combination of
+modes that may or may not start with `-` and use [`Parser::parse`] to parse them or fail.
 
+All special cases are made optional with [`Parser::optional`], but [`Parser::fallback`] also
+works.
 
-## `Xorg(1)`: `Xorg +xinerama +extension name`
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/xorg.md"))]
-
-
-## [Command chaining](https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining): `setup.py sdist bdist`
-
-With [`adjacent`](crate::parsers::ParseCommand::adjacent)
-`bpaf` allows you to have several commands side by side instead of being nested.
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
-
-
-## Multi-value arguments: `--foo ARG1 ARG2 ARG3`
-
-By default arguments take at most one value, you can create multi value options by using
-[`adjacent`](crate::parsers::ParseCon::adjacent) modifier
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
-
-
-## Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`
-
-Groups of options that can be specified multiple times. All such groups should be kept without
-overwriting previous one.
-
-```console
- $ prometheus_sensors_exporter \
-     \
-     `# 2 physical sensors located on physycial different i2c bus or address` \
-     --sensor \
-         --sensor-device=tmp102 \
-         --sensor-name="temperature_tmp102_outdoor" \
-         --sensor-i2c-bus=0 \
-         --sensor-i2c-address=0x48 \
-     --sensor \
-         --sensor-device=tmp102 \
-         --sensor-name="temperature_tmp102_indoor" \
-         --sensor-i2c-bus=1 \
-         --sensor-i2c-address=0x49 \
-```
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
-
-
-# Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`
-
-So you can parse things while parsing things. Not sure why you might need this, but you can
-:)
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
-
-
-# Skipping optional positional items if parsing or validation fails
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/numeric_prefix.md"))]
-
-# Implementing cargo commands
-
-With [`cargo_helper`](crate::batteries::cargo_helper) you can use your application as a `cargo` command
-
-#![cfg_attr(not(doctest), doc = include_str!("docs/cargo_helper.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/find.md"))]
