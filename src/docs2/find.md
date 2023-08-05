@@ -1,5 +1,8 @@
+<details><summary><tt>examples/find.rs</tt></summary>
+
 ```no_run
-//! This is not a typical bpaf usage, but you should be able to replicate command line used by find
+//! This is not a typical bpaf usage,
+//! but you should be able to replicate command line used by find
 
 use bpaf::*;
 use std::{ffi::OsString, path::PathBuf};
@@ -72,7 +75,7 @@ fn perm() -> impl Parser<Option<Perm>> {
         Ok(perms)
     }
 
-    let tag = any::<String, _, _>("-mode", |s| (s == "-mode").then_some(())).anywhere();
+    let tag = literal("-mode").anywhere();
 
     // `any` here is used to parse an arbitrary string that can also start with dash (-)
     // regular positional parser won't work here
@@ -111,61 +114,92 @@ fn main() {
 }
 
 ```
-<details>
-<summary style="display: list-item;">Examples</summary>
 
+</details>
+
+<details><summary>Output</summary>
 
 Usually `find` takes a path where to look, the rest is optional
-```console
-% app src tests
+
+
+<div class='bpaf-doc'>
+$ app src tests<br>
 Options { paths: ["src", "tests"], exec: None, user: None, perm: None }
-```
+</div>
+
 
 In addition to paths `find` can take some more options, typically unusual: username, note a
 single dash with a long name:
-```console
-% app -user bob
+
+
+<div class='bpaf-doc'>
+$ app -user bob<br>
 Options { paths: [], exec: None, user: Some("bob"), perm: None }
-```
+</div>
+
+
 
 Permissions, in an unusual format:
-```console
-% app -mode /x
+
+
+<div class='bpaf-doc'>
+$ app -mode /x<br>
 Options { paths: [], exec: None, user: None, perm: Some(Any(Perms { read: false, write: false, exec: true })) }
-```
+</div>
+
 
 And the most interesting one is `-exec` which takes multiple arbitrary parameters terminated
 by `;` (in shell you have to escape it as `\\;`)
-```console
-% app -exec cat -A '{}' \;
+
+
+<div class='bpaf-doc'>
+$ app -exec cat -A '{}' \;<br>
 Options { paths: [], exec: Some(["cat", "-A", "{}"]), user: None, perm: None }
-```
+</div>
+
 
 As usuall you can mix them and order doesn't matter
-```console
-% app src -mode -r -user bob -exec rustc '{}' \;
+
+
+<div class='bpaf-doc'>
+$ app src -mode -r -user bob -exec rustc '{}' \;<br>
 Options { paths: ["src"], exec: Some(["rustc", "{}"]), user: Some("bob"), perm: Some(All(Perms { read: true, write: false, exec: false })) }
-```
+</div>
+
 
 While `bpaf` takes some effort to render the help even for custom stuff - you can always
 bypass it by hiding options and substituting your own with custom `header`/`footer`.
-```console
-% app --help
-Usage: [-exec [<ITEM>]... ;] [-user <USER>] [-mode <MODE>] [<PATH>]...
 
-Available options:
-  -exec [<ITEM>]... ;
-    -exec       for every file find finds execute a separate shell command
-    <ITEM>      command with its arguments, find will replace {} with a file name
-    ;           anything after literal ";" will be considered a regular option again
 
-  -user <USER>
-    <USER>      User name
-
-  -mode <MODE>
-    <MODE>      (perm | -perm | /perm), where perm is any subset of rwx characters, ex +rw
-
-    -h, --help  Prints help information
-```
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-exec</b></tt> [<tt><i>ITEM</i></tt>]... <tt><i>;</i></tt>] [<tt><b>-user</b></tt> <tt><i>USER</i></tt>] [<tt><b>-mode</b></tt> <tt><i>MODE</i></tt>] [<tt><i>PATH</i></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-exec</b></tt> [<tt><i>ITEM</i></tt>]... <tt><i>;</i></tt></div><dt><tt><b>-exec</b></tt></dt>
+<dd>for every file find finds execute a separate shell command</dd>
+<dt><tt><i>ITEM</i></tt></dt>
+<dd>command with its arguments, find will replace {} with a file name</dd>
+<dt><tt><i>;</i></tt></dt>
+<dd>anything after literal ";" will be considered a regular option again</dd>
+<p></p><div style='padding-left: 0.5em'><tt><b>-user</b></tt> <tt><i>USER</i></tt></div><dt><tt><i>USER</i></tt></dt>
+<dd>User name</dd>
+<p></p><div style='padding-left: 0.5em'><tt><b>-mode</b></tt> <tt><i>MODE</i></tt></div><dt><tt><i>MODE</i></tt></dt>
+<dd>(perm | -perm | /perm), where perm is any subset of rwx characters, ex +rw</dd>
+<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
 
 </details>

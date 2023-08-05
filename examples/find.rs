@@ -1,4 +1,5 @@
-//! This is not a typical bpaf usage, but you should be able to replicate command line used by find
+//! This is not a typical bpaf usage,
+//! but you should be able to replicate command line used by find
 
 use bpaf::*;
 use std::{ffi::OsString, path::PathBuf};
@@ -71,7 +72,7 @@ fn perm() -> impl Parser<Option<Perm>> {
         Ok(perms)
     }
 
-    let tag = any::<String, _, _>("-mode", |s| (s == "-mode").then_some(())).anywhere();
+    let tag = literal("-mode").anywhere();
 
     // `any` here is used to parse an arbitrary string that can also start with dash (-)
     // regular positional parser won't work here
