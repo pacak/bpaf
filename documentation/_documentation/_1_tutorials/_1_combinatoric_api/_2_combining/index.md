@@ -29,7 +29,7 @@ Full example:
 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_construct.md"))]
 
 If you are using positional parsers - they must go to the right most side and will run in
-order you specify them. For named parsers order affects only the --help` message.
+order you specify them. For named parsers order affects only the `--help` message.
 
 Second type of composition `construct!` offers is a parallel composition. You pass multiple
 parsers that produce the same result type and `bpaf` runs one that fits best with the data user

@@ -786,8 +786,9 @@
                     //! }
                     //! ```
                     //! 
-                    //! You can use any type for as long as it implements [`FromStr`]. See the next chapter about
-                    //! parsing items that don't implement [`FromStr`]
+                    //! You can use any type for as long as it implements [`FromStr`]. To parse items that don't
+                    //! implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
+                    //! [the next chapter](super::super::_1_chaining) how to do that.
                     //! 
                     //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
@@ -964,6 +965,30 @@
                 //! 
                 //! In later case validation function must deal with a possibility where number is absent, for this
                 //! specific example it makes code less readable.
+                //! 
+                //! One of the important types of transformations you can apply is a set of failing
+                //! transformations. Suppose your application operates with numbers and uses `newtype` pattern to
+                //! keep track what numbers are odd or even. Parser that consumes an even number can use
+                //! [`Parser::parse`] and look like this:
+                //! 
+                //! ```rust
+                //! # use bpaf::*;
+                //! pub struct Even(usize);
+                //! 
+                //! fn mk_even(n: usize) -> Result<Even, &'static str> {
+                //!     if n % 2 == 0 {
+                //!         Ok(Even(n))
+                //!     } else {
+                //!         Err("Not an even number")
+                //!     }
+                //! }
+                //! 
+                //! fn even() -> impl Parser<Even> {
+                //!     long("even")
+                //!         .argument::<usize>("N")
+                //!         .parse(mk_even)
+                //! }
+                //! ```
                 //!
                 //!
                 //! &nbsp;
@@ -1040,7 +1065,7 @@
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_construct.md"))]
                 //! 
                 //! If you are using positional parsers - they must go to the right most side and will run in
-                //! order you specify them. For named parsers order affects only the --help` message.
+                //! order you specify them. For named parsers order affects only the `--help` message.
                 //! 
                 //! Second type of composition `construct!` offers is a parallel composition. You pass multiple
                 //! parsers that produce the same result type and `bpaf` runs one that fits best with the data user
@@ -1952,6 +1977,7 @@
             //! - <https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/>
             //! - <https://geeklaunch.io/blog/make-invalid-states-unrepresentable/>
             //! - <https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/>
+            //! - <https://khalilstemmler.com/articles/typescript-domain-driven-design/make-illegal-states-unrepresentable/>
             //!
             //!
             //! &nbsp;
