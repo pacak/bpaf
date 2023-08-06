@@ -1238,7 +1238,7 @@ pub trait Parser<T> {
     /// different parsers in different conditional branches
     ///
     /// You can create it with a single argument `construct` macro or by using `boxed` annotation
-    #[doc = include_str!("docs/boxed.md")]
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/boxed.md"))]
     fn boxed(self) -> Box<dyn Parser<T>>
     where
         Self: Sized + Parser<T> + 'static,

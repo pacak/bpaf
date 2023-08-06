@@ -4,4 +4,4 @@ Lets you do things like `setup.py sdist bdist`: [command chaining](https://click
 With [`adjacent`](crate::parsers::ParseCommand::adjacent)
 `bpaf` allows you to have several commands side by side instead of being nested.
 
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]

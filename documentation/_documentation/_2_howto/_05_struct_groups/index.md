@@ -19,4 +19,4 @@ overwriting previous one.
          --sensor-i2c-address=0x49 \
 ```
 
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_1.md"))]

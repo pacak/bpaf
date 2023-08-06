@@ -3,4 +3,4 @@
 So you can parse things while parsing things. Not sure why you might need this, but you can
 :)
 
-#![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_4.md"))]
