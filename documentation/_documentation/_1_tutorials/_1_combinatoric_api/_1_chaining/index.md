@@ -76,3 +76,27 @@ fn even() -> impl Parser<Option<usize>> {
 
 In later case validation function must deal with a possibility where number is absent, for this
 specific example it makes code less readable.
+
+One of the important types of transformations you can apply is a set of failing
+transformations. Suppose your application operates with numbers and uses `newtype` pattern to
+keep track what numbers are odd or even. Parser that consumes an even number can use
+[`Parser::parse`] and look like this:
+
+```rust
+# use bpaf::*;
+pub struct Even(usize);
+
+fn mk_even(n: usize) -> Result<Even, &'static str> {
+    if n % 2 == 0 {
+        Ok(Even(n))
+    } else {
+        Err("Not an even number")
+    }
+}
+
+fn even() -> impl Parser<Even> {
+    long("even")
+        .argument::<usize>("N")
+        .parse(mk_even)
+}
+```

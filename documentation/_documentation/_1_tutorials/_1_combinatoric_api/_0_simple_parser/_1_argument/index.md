@@ -22,8 +22,9 @@ fn file_parser() -> OptionParser<PathBuf> {
 }
 ```
 
-You can use any type for as long as it implements [`FromStr`]. See the next chapter about
-parsing items that don't implement [`FromStr`]
+You can use any type for as long as it implements [`FromStr`]. To parse items that don't
+implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
+[the next chapter](super::super::_1_chaining) how to do that.
 
 Full example with some sample inputs and outputs:
 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]

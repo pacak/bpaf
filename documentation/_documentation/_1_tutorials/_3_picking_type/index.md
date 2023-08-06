@@ -122,3 +122,4 @@ struct Options {
 - <https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/>
 - <https://geeklaunch.io/blog/make-invalid-states-unrepresentable/>
 - <https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/>
+- <https://khalilstemmler.com/articles/typescript-domain-driven-design/make-illegal-states-unrepresentable/>
