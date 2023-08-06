@@ -2246,7 +2246,7 @@
             //! With [`adjacent`](crate::parsers::ParseCommand::adjacent)
             //! `bpaf` allows you to have several commands side by side instead of being nested.
             //! 
-            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_2.md"))]
+            #![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
             //!
             //!
             //! &nbsp;
@@ -2297,7 +2297,7 @@
             //! By default arguments take at most one value, you can create multi value options by using
             //! [`adjacent`](crate::parsers::ParseCon::adjacent) modifier
             //! 
-            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_0.md"))]
+            #![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_0.md"))]
             //!
             //!
             //! &nbsp;
@@ -2364,7 +2364,7 @@
             //!          --sensor-i2c-address=0x49 \
             //! ```
             //! 
-            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_1.md"))]
+            #![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_1.md"))]
             //!
             //!
             //! &nbsp;
@@ -2415,7 +2415,7 @@
             //! So you can parse things while parsing things. Not sure why you might need this, but you can
             //! :)
             //! 
-            #![cfg_attr(not(doctest), doc = include_str!("docs/adjacent_4.md"))]
+            #![cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_4.md"))]
             //!
             //!
             //! &nbsp;
