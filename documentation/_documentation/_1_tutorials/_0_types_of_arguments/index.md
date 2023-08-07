@@ -15,8 +15,7 @@ $ cargo test -p my_project --verbose
 </div>
 
 `cargo` here is an executable name, everything to the right of it separated by spaces are the
-q!
 options.
 
 Nowdays programs share mostly similar conventions about what a command line argument is, it
-wasn't the case before though. Let's cover the basic types
+wasn't the case before though. Let's cover the basic types.

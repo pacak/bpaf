@@ -15,9 +15,9 @@ implement a newtype along with `FromStr` implementation to get validation for fr
 parsing.
 
 
-```rust
-use std::str::FromStr;
-
+```no_run
+# use std::str::FromStr;
+# use bpaf::*;
 #[derive(Debug, Clone, Copy)]
 pub struct Ratio(u8);
 
@@ -31,6 +31,17 @@ impl FromStr for Ratio {
         }
     }
 }
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+struct Options {
+    /// Fill ratio
+    ratio: Ratio
+}
+
+fn main() {
+    println!("{:?}", options().run());
+}
 ```
 
 
@@ -38,6 +49,8 @@ Try using enums instead of structs for mutually exclusive options:
 
 ```no_check
 /// Good format selection
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
 enum OutputFormat {
     Intel,
     Att,
@@ -45,7 +58,8 @@ enum OutputFormat {
 }
 
 fn main() {
-    ...
+    let format = output_format().run();
+
     // `rustc` ensures you handle each case, parser won't try to consume
     // combinations of flags it can't represent. For example it won't accept
     // both `--intel` and `--att` at once
@@ -63,6 +77,8 @@ consuming inside your app is more fragile
 
 ```no_check
 /// Bad format selection
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
 struct OutputFormat {
     intel: bool,
     att: bool,
@@ -70,7 +86,7 @@ struct OutputFormat {
 }
 
 fn main() {
-    ...
+    let format = output_format().run();
     // what happens when none matches? Or all of them?
     // What happens when you add a new output format?
     if format.intel {
@@ -91,6 +107,7 @@ idea to use enum as well:
 
 ```no_check
 /// Good input selection
+#[derive(Debug, Clone, Bpaf)]
 enum Input {
     File {
         filepath: PathBuf,
@@ -107,12 +124,12 @@ If your codebase uses newtype pattern - it's a good idea to use it starting from
 options:
 
 ```no_check
+#[derive(Debug, Clone, Bpaf)]
 struct Options {
     // better than taking a String and parsing internally
     date: NaiveDate,
     // f64 might work too, but you can start from some basic sanity checks
     speed: Speed
-    ...
 }
 ```
 

@@ -1,7 +1,7 @@
 #### Commands or subcommands
 
-Commands are similar to positional items, but instead of representing an item they represent
-a new parser, usually with its own help and other arguments. Commands allow a single
+Commands are similar to positional items, but instead of representing an item they start
+a whole new parser, usually with its own help and other arguments. Commands allow a single
 applications to perform multiple different functions. Command parser will be able to parse all
 the command line options to the right of the command name
 

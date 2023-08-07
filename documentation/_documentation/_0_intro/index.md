@@ -18,7 +18,7 @@ and match both in a single parser
 ## Parse, don't validate
 
 `bpaf` tries hard to let you to move as much invariants about the user input you are
-trying to parse into rust type: for mutually exclusive options you can get `enum` with
+trying to parse into rust types: for mutually exclusive options you can get `enum` with
 exclusive items going into separate branches, you can collect results into types like
 [`BTreeSet`](std::collections::BTreeSet), or whatever custom type you might have with
 custom parsing. Ideas for
@@ -26,14 +26,14 @@ custom parsing. Ideas for
 and [using parsing over validation](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/)
 are not new.
 
-That said you can also validate your inputs if this fits your problem better. If you want to
+That said you can also validate your inputs if this fits your situation better. If you want to
 ensure that sum of every numeric fields must be divisible by both 3 and 5, but only when it's
 Thursday - you can do that too.
 
 ## Flexibility
 
 While aiming to be a general purpose command line parser `bpaf` offers a few backdoors that
-allow to parse pretty much anything you want: chained commands, custom blocks of options, DOS
+allow you to parse pretty much anything you want: chained commands, custom blocks of options, DOS
 style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. Similar idea applies
 for what the parser can produce - your app operates with boxed string slices internally? `bpaf`
 will give you `Box<str>` instead of `String` if you ask it to.
@@ -62,7 +62,7 @@ Or to make it so parser runs multiple times and collects results into a `Vec`.
 ## Performance
 
 While performance is an explicit non goal - `bpaf` does nothing that would pessimize it either,
-so performance is on par or better compared to fully featured parsers.
+so performance is on par or better compared to other fully featured parsers.
 
 ## Correctness
 
