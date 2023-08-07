@@ -15,4 +15,4 @@ There's a few other things you can do:
 - add a test to make sure that bpaf internal invariants are satisfied with
   [`OptionParser::check_invariants`]
 - generate user documentation in manpage and markdown formats with
-  [`OptionParser::render_manpage] and [`OptionParser::render_markdown`]
+  [`OptionParser::render_manpage`] and [`OptionParser::render_markdown`]

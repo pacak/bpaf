@@ -406,6 +406,16 @@ impl<P> ParseCommand<P> {
     /// allowing only "vertical" chaining of commands. `adjacent` modifier lets command parser to
     /// succeed if there are leftovers for as long as all comsumed items form a single adjacent
     /// block. This opens possibilities to chain commands sequentially.
+    ///
+    /// Let's consider two examples with consumed items marked in bold :
+    ///
+    /// - <code>**cmd** **-a** -b **-c** -d</code>
+    /// - <code>**cmd** **-a** **-c** -b -d</code>
+    ///
+    /// In the first example `-b` breaks the adjacency for all the consumed items so parsing will fail,
+    /// while here in the second one the name and all the consumed items are adjacent to each other so
+    /// parsing will succeed.
+    ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     #[must_use]
     pub fn adjacent(mut self) -> Self {

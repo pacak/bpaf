@@ -45,7 +45,7 @@
         //! ## Parse, don't validate
         //! 
         //! `bpaf` tries hard to let you to move as much invariants about the user input you are
-        //! trying to parse into rust type: for mutually exclusive options you can get `enum` with
+        //! trying to parse into rust types: for mutually exclusive options you can get `enum` with
         //! exclusive items going into separate branches, you can collect results into types like
         //! [`BTreeSet`](std::collections::BTreeSet), or whatever custom type you might have with
         //! custom parsing. Ideas for
@@ -53,14 +53,14 @@
         //! and [using parsing over validation](https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/)
         //! are not new.
         //! 
-        //! That said you can also validate your inputs if this fits your problem better. If you want to
+        //! That said you can also validate your inputs if this fits your situation better. If you want to
         //! ensure that sum of every numeric fields must be divisible by both 3 and 5, but only when it's
         //! Thursday - you can do that too.
         //! 
         //! ## Flexibility
         //! 
         //! While aiming to be a general purpose command line parser `bpaf` offers a few backdoors that
-        //! allow to parse pretty much anything you want: chained commands, custom blocks of options, DOS
+        //! allow you to parse pretty much anything you want: chained commands, custom blocks of options, DOS
         //! style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. Similar idea applies
         //! for what the parser can produce - your app operates with boxed string slices internally? `bpaf`
         //! will give you `Box<str>` instead of `String` if you ask it to.
@@ -89,7 +89,7 @@
         //! ## Performance
         //! 
         //! While performance is an explicit non goal - `bpaf` does nothing that would pessimize it either,
-        //! so performance is on par or better compared to fully featured parsers.
+        //! so performance is on par or better compared to other fully featured parsers.
         //! 
         //! ## Correctness
         //! 
@@ -208,11 +208,10 @@
             //! </div>
             //! 
             //! `cargo` here is an executable name, everything to the right of it separated by spaces are the
-            //! q!
             //! options.
             //! 
             //! Nowdays programs share mostly similar conventions about what a command line argument is, it
-            //! wasn't the case before though. Let's cover the basic types
+            //! wasn't the case before though. Let's cover the basic types.
             //!
             //! - [Options, switches or flags](_0_switch)
             //! - [Option arguments or arguments](_1_argument)
@@ -258,7 +257,7 @@
                 //! #### Options, switches or flags
                 //! 
                 //! Options or flags usually starts with a dash, single dash for short options and double dash for
-                //! long one. Several short options usually can be squashed together with a single dash between
+                //! long one. Several short options can usually be squashed together with a single dash in front of
                 //! them to save on typing: `-vvv` can be parsed the same as `-v -v -v`. Options don't have any
                 //! other information apart from being there or not. Relative position usually does not matter and
                 //! `--alpha --beta` should parse the same as `--beta --alpha`.
@@ -447,8 +446,8 @@
                 //! 
                 //! #### Commands or subcommands
                 //! 
-                //! Commands are similar to positional items, but instead of representing an item they represent
-                //! a new parser, usually with its own help and other arguments. Commands allow a single
+                //! Commands are similar to positional items, but instead of representing an item they start
+                //! a whole new parser, usually with its own help and other arguments. Commands allow a single
                 //! applications to perform multiple different functions. Command parser will be able to parse all
                 //! the command line options to the right of the command name
                 //! 
@@ -509,7 +508,7 @@
                 //! 
                 //! While modern software tends to use just the options listed above you can still encounter
                 //! programs created before those options became norm and they use something complitely different,
-                //! let me give a few examples, see [exotic howto](crate::_documentation::_2_howto)
+                //! let me give a few examples, see [the parsing cookbook](crate::_documentation::_2_howto)
                 //! about actually parsing them
                 //! 
                 //! `su` takes an option that consists of a single dash `-`
@@ -774,14 +773,18 @@
                     //! # use bpaf::*;
                     //! # use std::path::PathBuf;
                     //! fn simple_argument_1() -> impl Parser<u32> {
+                    //!     // rustc figures out the type from returned value
                     //!     long("number").argument("NUM")
                     //! }
                     //! 
                     //! fn simple_argument_2() -> impl Parser<String> {
+                    //!     // type is specified explicitly with turbofish
                     //!     long("name").argument::<String>("NAME")
                     //! }
                     //! 
                     //! fn file_parser() -> OptionParser<PathBuf> {
+                    //!     // OptionParser is a type for finalized parser, at this point you can
+                    //!     // start adding extra information to the `--help` message
                     //!     long("file").argument::<PathBuf>("FILE").to_options()
                     //! }
                     //! ```
@@ -837,9 +840,9 @@
                     //! #### Positional item parser
                     //! 
                     //! And the last simple option type is parser for positional items. Since there's no name you use
-                    //! [`positional`] method directly which behaves similarly to [`NamedArg::argument`] - takes
-                    //! metavariable name and a type parameter in some form. You can also attach help message directly
-                    //! to it thanks to [`ParsePositional::help`]
+                    //! [`positional`] method directly. Similar to [`NamedArg::argument`] this method takes
+                    //! metavariable name and a type parameter in some form. You can also attach the help message
+                    //! thanks to [`ParsePositional::help`]
                     //! 
                     //! Full example:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_positional.md"))]
@@ -969,7 +972,7 @@
                 //! One of the important types of transformations you can apply is a set of failing
                 //! transformations. Suppose your application operates with numbers and uses `newtype` pattern to
                 //! keep track what numbers are odd or even. Parser that consumes an even number can use
-                //! [`Parser::parse`] and look like this:
+                //! [`Parser::parse`] and may look like this:
                 //! 
                 //! ```rust
                 //! # use bpaf::*;
@@ -1057,6 +1060,8 @@
                 //! 
                 //! fn both() -> impl Parser<Options> {
                 //!     let beta = long("beta").argument("BETA");
+                //!     // call `alpha` function, and use result to make parser
+                //!     // for field `alpha`, use parser `beta` for field `beta`
                 //!     construct!(Options { alpha(), beta })
                 //! }
                 //! ```
@@ -1068,8 +1073,8 @@
                 //! order you specify them. For named parsers order affects only the `--help` message.
                 //! 
                 //! Second type of composition `construct!` offers is a parallel composition. You pass multiple
-                //! parsers that produce the same result type and `bpaf` runs one that fits best with the data user
-                //! gave.
+                //! parsers that produce the same result type in `[]` and `bpaf` selects one that fits best with
+                //! the data user gave.
                 //! 
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_choice.md"))]
@@ -1210,7 +1215,7 @@
                 //! - add a test to make sure that bpaf internal invariants are satisfied with
                 //!   [`OptionParser::check_invariants`]
                 //! - generate user documentation in manpage and markdown formats with
-                //!   [`OptionParser::render_manpage] and [`OptionParser::render_markdown`]
+                //!   [`OptionParser::render_manpage`] and [`OptionParser::render_markdown`]
                 //!
                 //!
                 //! &nbsp;
@@ -1264,7 +1269,7 @@
             //! 1. Design data type your application will receive
             //! 2. Design command line options user will have to pass
             //! 3. Add `#[derive(Bpaf, Debug, Clone)]` on top of your type or types
-            //! 4. Add #[bpaf(xxx)] annotations on types and fields
+            //! 4. Add `#[bpaf(xxx)]` annotations on types and fields
             //! 5. And `#[bpaf(options)]` to the top type
             //! 6. Run the resulting parser
             //! 
@@ -1438,11 +1443,11 @@
                 //! By default `bpaf` picks parsers depending on a field type according to those rules:
                 //! 
                 //! 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
-                //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as req_flag
+                //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as
                 //!    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
                 //!    them for parser to succeed
                 //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
-                //!    smart way, so Non-utf8 `PathBuf`/`OsString` are working as expected.
+                //!    smart way, so non-utf8 `PathBuf`/`OsString` are working as expected.
                 //! 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
                 //!    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
                 //! 
@@ -1570,7 +1575,9 @@
                 //! #### Parsing structs and enums
                 //! 
                 //! To produce a struct bpaf needs for all the field parsers to succeed. If you are planning to use
-                //! it for some other purpose as well and want to skip them during parsing you can use [`pure`].
+                //! it for some other purpose as well and want to skip them during parsing you can use [`pure`] to
+                //! fill in values in member fields and `#[bpaf(skip)]` on enum variants you want to ignore, see
+                //! combinatoric example in [`Parser::last`].
                 //! 
                 //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
                 //! succeed.
@@ -1697,6 +1704,33 @@
                 //! too:
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_nesting.md"))]
+                //! 
+                //! 
+                //! `external` takes an optional function name and will call that function to make the parser for
+                //! the field. You can chain more transformations after the `external` and if name is absent -
+                //! `bpaf` would use field name instead, so you can also write the example above as
+                //! 
+                //! 
+                //! ```rust
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! pub enum Format {
+                //!     /// Produce output in HTML format
+                //!     Html,
+                //!     /// Produce output in Markdown format
+                //!     Markdown,
+                //!     /// Produce output in manpage format
+                //!     Manpage,
+                //! }
+                //! 
+                //! #[derive(Debug, Clone, Bpaf)]
+                //! #[bpaf(options)]
+                //! pub struct Options {
+                //!     /// File to process
+                //!     input: String,
+                //!     #[bpaf(external)]
+                //!     format: Format,
+                //! }
+                //! ```
                 //!
                 //!
                 //! &nbsp;
@@ -1870,9 +1904,9 @@
             //! parsing.
             //! 
             //! 
-            //! ```rust
-            //! use std::str::FromStr;
-            //! 
+            //! ```no_run
+            //! # use std::str::FromStr;
+            //! # use bpaf::*;
             //! #[derive(Debug, Clone, Copy)]
             //! pub struct Ratio(u8);
             //! 
@@ -1886,6 +1920,17 @@
             //!         }
             //!     }
             //! }
+            //! 
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! struct Options {
+            //!     /// Fill ratio
+            //!     ratio: Ratio
+            //! }
+            //! 
+            //! fn main() {
+            //!     println!("{:?}", options().run());
+            //! }
             //! ```
             //! 
             //! 
@@ -1893,6 +1938,8 @@
             //! 
             //! ```no_check
             //! /// Good format selection
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
             //! enum OutputFormat {
             //!     Intel,
             //!     Att,
@@ -1900,7 +1947,8 @@
             //! }
             //! 
             //! fn main() {
-            //!     ...
+            //!     let format = output_format().run();
+            //! 
             //!     // `rustc` ensures you handle each case, parser won't try to consume
             //!     // combinations of flags it can't represent. For example it won't accept
             //!     // both `--intel` and `--att` at once
@@ -1918,6 +1966,8 @@
             //! 
             //! ```no_check
             //! /// Bad format selection
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
             //! struct OutputFormat {
             //!     intel: bool,
             //!     att: bool,
@@ -1925,7 +1975,7 @@
             //! }
             //! 
             //! fn main() {
-            //!     ...
+            //!     let format = output_format().run();
             //!     // what happens when none matches? Or all of them?
             //!     // What happens when you add a new output format?
             //!     if format.intel {
@@ -1946,6 +1996,7 @@
             //! 
             //! ```no_check
             //! /// Good input selection
+            //! #[derive(Debug, Clone, Bpaf)]
             //! enum Input {
             //!     File {
             //!         filepath: PathBuf,
@@ -1962,12 +2013,12 @@
             //! options:
             //! 
             //! ```no_check
+            //! #[derive(Debug, Clone, Bpaf)]
             //! struct Options {
             //!     // better than taking a String and parsing internally
             //!     date: NaiveDate,
             //!     // f64 might work too, but you can start from some basic sanity checks
             //!     speed: Speed
-            //!     ...
             //! }
             //! ```
             //! 

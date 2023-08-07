@@ -3,11 +3,11 @@
 By default `bpaf` picks parsers depending on a field type according to those rules:
 
 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
-2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as req_flag
+2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as
    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
    them for parser to succeed
 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
-   smart way, so Non-utf8 `PathBuf`/`OsString` are working as expected.
+   smart way, so non-utf8 `PathBuf`/`OsString` are working as expected.
 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
 

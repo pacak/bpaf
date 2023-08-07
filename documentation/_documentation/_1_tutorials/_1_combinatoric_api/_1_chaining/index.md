@@ -80,7 +80,7 @@ specific example it makes code less readable.
 One of the important types of transformations you can apply is a set of failing
 transformations. Suppose your application operates with numbers and uses `newtype` pattern to
 keep track what numbers are odd or even. Parser that consumes an even number can use
-[`Parser::parse`] and look like this:
+[`Parser::parse`] and may look like this:
 
 ```rust
 # use bpaf::*;

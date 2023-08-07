@@ -877,6 +877,16 @@ impl<T> ParseCon<T> {
     /// sequential subset of arguments - `adjacent` might be able to help you. Check the examples
     /// for better intuition.
     ///
+    /// Let's consider two examples with consumed items marked in bold and constructor containing
+    /// parsers for `-c` and `-d`.
+    ///
+    /// - <code>**-a** -b **-c** -d</code>
+    /// - <code>**-a** **-c** -b -d</code>
+    ///
+    /// In the first example `-b` breaks the adjacency for all the consumed items so parsing will fail,
+    /// while here in the second one all the consumed items are adjacent to each other so
+    /// parsing will succeed.
+    ///
     /// # Multi-value arguments
     ///
     /// Parsing things like `--point X Y Z`

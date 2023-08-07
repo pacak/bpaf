@@ -10,14 +10,18 @@ several ways to do it:
 # use bpaf::*;
 # use std::path::PathBuf;
 fn simple_argument_1() -> impl Parser<u32> {
+    // rustc figures out the type from returned value
     long("number").argument("NUM")
 }
 
 fn simple_argument_2() -> impl Parser<String> {
+    // type is specified explicitly with turbofish
     long("name").argument::<String>("NAME")
 }
 
 fn file_parser() -> OptionParser<PathBuf> {
+    // OptionParser is a type for finalized parser, at this point you can
+    // start adding extra information to the `--help` message
     long("file").argument::<PathBuf>("FILE").to_options()
 }
 ```
