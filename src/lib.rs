@@ -4,8 +4,22 @@
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
+//!
+//! ----
 //! # Quick links
-//! - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
+//! - [Introduction](_docs::intro) - features, design goals, restrictions
+//! - [Types of arguments](_docs::types_of_arguments) - common types of command line options and
+//!   conventions (optional)
+//! - [Derive API tutorial](_docs::derive_api) - create a parser by defining a structure
+//! - [Combinatoric API tutorial](_docs::combinatoric_api) - Parse arguments without using proc
+//!   macros
+//! - [Picking a good datatype](_docs::picking_type) - suggestions on representing user input
+//! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
+//! ----
+//!
+
+//! # Quick links
+//! - [x][Introduction](_documentation::_0_intro) - features, design goals, restrictions
 //! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
 //!   examples to get you started
 //!   + [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
@@ -161,6 +175,11 @@
 #[rustfmt::skip]
 #[allow(unused_imports)]
 pub mod _documentation;
+
+#[cfg(feature = "extradocs")]
+#[rustfmt::skip]
+#[allow(unused_imports)]
+pub mod _docs;
 
 mod arg;
 mod args;
@@ -1318,12 +1337,15 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
     }
 }
 
+#[cfg_attr(not(doctest), doc = include_str!("docs/short.md"))]
+///
 /// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
 /// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
+///
 #[must_use]
 pub fn short(short: char) -> NamedArg {
     NamedArg {

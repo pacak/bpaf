@@ -53,6 +53,8 @@ members =  [
     ".",
     "./bpaf_derive",
     "./bpaf_cauwugo",
+    "./md-eval",
+    "./docs",
     "./docs2",
     "./comptester",
     "./documentation",
