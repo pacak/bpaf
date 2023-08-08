@@ -2,7 +2,7 @@
 Create a parser by defining a structure
 
 
-When making a parser using Derive API you should go though approximately following steps:
+When making a parser using Derive API you should go through approximately following steps:
 
 1. Design data type your application will receive
 2. Design command line options user will have to pass
@@ -12,4 +12,4 @@ When making a parser using Derive API you should go though approximately followi
 6. Run the resulting parser
 
 
-Let’s go though some of them in more details:
+Let’s go through some of them in more detail:

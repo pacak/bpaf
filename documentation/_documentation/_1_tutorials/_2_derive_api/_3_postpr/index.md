@@ -1,6 +1,6 @@
 #### Transforming parsed values
 
-Once field have a consumer you can start applying transformations from [`Parser`] trait.
+Once the field has a consumer you can start applying transformations from the [`Parser`] trait.
 Annotation share the same names and follow the same composition rules as in Combinatoric API.
 
 

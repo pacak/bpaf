@@ -1,16 +1,16 @@
 #### Designing a good datatype
 bpaf allows you to reduce the size of legal values to valid ones
 
-Parsing usually starts from deciding what kind of data your application wants to get from the user.
-You should try to take advantage of Rust typesystem, try to represent the result such that more
+Parsing usually starts with deciding what kind of data your application wants to get from the user.
+You should try to take advantage of the Rust type system, try to represent the result such that more
 validation can be done during parsing.
 
-Data types can represent a set of *legal* states - for example for u8 this is all the numbers
+Data types can represent a set of *legal* states - for example, for u8 this is all the numbers
 from 0 to 255, while your app logic may only operate correctly only on some set of *valid*
 states: if this u8 represents a fill ratio for something in percents - only valid numbers are
-from 0 to 100. You can try to narrow down set of legal states to valid states with [newtype
+from 0 to 100. You can try to narrow down the set of legal states to valid states with [newtype
 pattern](https://doc.rust-lang.org/rust-by-example/generics/new_types.html). This newtype will
-indicate though the type when you've already done validation. For fill ratio example you can
+indicate through the type when you've already done validation. For the fill ratio example you can
 implement a newtype along with `FromStr` implementation to get validation for free during
 parsing.
 

@@ -1,9 +1,9 @@
 #### Argument parser
 
 Next in complexity would be a parser to consume a named argument, such as `-p my_crate`. Same
-as with switch parser it starts from a `NamedArg` but next method is [`NamedArg::argument`].
-Method takes a metavariable name - a short description that will be used in the `--help`
-output. `rustc` also needs to know the type of a variable you are trying to parse, there's
+as with the switch parser it starts from a `NamedArg` but the next method is [`NamedArg::argument`].
+This method takes a metavariable name - a short description that will be used in the `--help`
+output. `rustc` also needs to know the parameter type you are trying to parse, there are
 several ways to do it:
 
 ```rust
@@ -28,7 +28,7 @@ fn file_parser() -> OptionParser<PathBuf> {
 
 You can use any type for as long as it implements [`FromStr`]. To parse items that don't
 implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
-[the next chapter](super::super::_1_chaining) how to do that.
+[the next chapter](super::super::_1_chaining) on how to do that.
 
 Full example with some sample inputs and outputs:
 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]

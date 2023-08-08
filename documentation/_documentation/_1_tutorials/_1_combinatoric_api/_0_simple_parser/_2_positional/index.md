@@ -1,8 +1,8 @@
 #### Positional item parser
 
-And the last simple option type is parser for positional items. Since there's no name you use
-[`positional`] method directly. Similar to [`NamedArg::argument`] this method takes
-metavariable name and a type parameter in some form. You can also attach the help message
+And the last simple option type is a parser for positional items. Since there's no name you use
+the [`positional`] function directly. Similar to [`NamedArg::argument`] this method takes
+a metavariable name and a type parameter in some form. You can also attach the help message
 thanks to [`ParsePositional::help`]
 
 Full example:

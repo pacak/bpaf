@@ -1,6 +1,6 @@
 #### Options, switches or flags
 
-Options or flags usually starts with a dash, single dash for short options and double dash for
+Options or flags usually starts with a dash, a single dash for short options and a double dash for
 long one. Several short options can usually be squashed together with a single dash in front of
 them to save on typing: `-vvv` can be parsed the same as `-v -v -v`. Options don't have any
 other information apart from being there or not. Relative position usually does not matter and
