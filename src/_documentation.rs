@@ -1713,6 +1713,7 @@
                 //! 
                 //! 
                 //! ```rust
+                //! # use bpaf::*;
                 //! #[derive(Debug, Clone, Bpaf)]
                 //! pub enum Format {
                 //!     /// Produce output in HTML format
@@ -2122,6 +2123,7 @@
             //! You can test values your parser produces and expected output
             //! 
             //! ```no_run
+            //! # use bpaf::*;
             //! #[derive(Debug, Clone, Bpaf)]
             //! #[bpaf(options)]
             //! pub struct Options {

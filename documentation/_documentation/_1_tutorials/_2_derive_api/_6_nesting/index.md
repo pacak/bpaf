@@ -13,6 +13,7 @@ the field. You can chain more transformations after the `external` and if the na
 
 
 ```rust
+# use bpaf::*;
 #[derive(Debug, Clone, Bpaf)]
 pub enum Format {
     /// Produce output in HTML format
