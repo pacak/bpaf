@@ -4,7 +4,8 @@
 //!
 //! - [Introduction and design goals](_0_intro) - A quick intro. What, why and how
 //! - [Tutorials](_1_tutorials) - practical, learning oriented guides
-//! - [Parsing cookbook](_2_howto)
+//! - [HOWTO - practical, oriented to solving problems guides](_2_howto)
+//! - [Parsing cookbook](_3_cookbook) - How to parse less frequent combinations
 //! - [Theory explanation](_4_explanation) - Theoretical information about abstractions used by the library, oriented for understanding
 //!
     pub mod _0_intro {
@@ -140,7 +141,7 @@
         //!   </td>
         //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [Parsing cookbook &rarr;](super::_2_howto)
+        //! [HOWTO - practical, oriented to solving problems guides &rarr;](super::_2_howto)
         //! 
         //!   </td>
         //! </tr></table>
@@ -168,7 +169,7 @@
         //!   </td>
         //!   <td style='width: 33%; text-align: right;'>
         //! 
-        //! [Parsing cookbook &rarr;](super::_2_howto)
+        //! [HOWTO - practical, oriented to solving problems guides &rarr;](super::_2_howto)
         //! 
         //!   </td>
         //! </tr></table>
@@ -2068,13 +2069,231 @@
         //!   </td>
         //!   <td style='width: 33%; text-align: right;'>
         //! 
+        //! [Parsing cookbook &rarr;](super::_3_cookbook)
+        //! 
+        //!   </td>
+        //! </tr></table>
+        //! 
+        //! #### HOWTO - practical, oriented to solving problems guides
+        //!
+        //! - [Testing your parsers](_0_testing)
+        //! - [Dynamic shell completion](_1_completion)
+        //!
+        //! &nbsp;
+        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
+        //! 
+        //! [&larr; Tutorials](super::_1_tutorials)
+        //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
+        //! 
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
+        //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
+        //! 
+        //! [Parsing cookbook &rarr;](super::_3_cookbook)
+        //! 
+        //!   </td>
+        //! </tr></table>
+        //! 
+        pub mod _0_testing {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HOWTO - practical, oriented to solving problems guides &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Dynamic shell completion &rarr;](super::_1_completion)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Testing your parsers
+            //! 
+            //! You can test values your parser produces and expected output
+            //! 
+            //! ```no_run
+            //! #[derive(Debug, Clone, Bpaf)]
+            //! #[bpaf(options)]
+            //! pub struct Options {
+            //!     pub user: String
+            //! }
+            //! 
+            //! #[test]
+            //! fn test_my_options() {
+            //!     let help = options()
+            //!         .run_inner(&["--help"])
+            //!         .unwrap_err()
+            //!         .unwrap_stdout();
+            //!     let expected_help = "\
+            //! Usage --user=ARG
+            //! <skip>
+            //! ";
+            //! 
+            //!     assert_eq!(help, expected_help);
+            //! }
+            //! 
+            //! #[test]
+            //! fn test_value() {
+            //!     let value = options()
+            //!          .run_inner(&["--user", "Bob"])
+            //!          .unwrap();
+            //!     assert_eq!(value.user, "Bob");
+            //! }
+            //! ```
+            //! 
+            //! [`OptionParser::run_inner`] takes [`Args`] or anything that can be converted to it, in most
+            //! cases using a static slice with strings is enough.
+            //! 
+            //! Easiest way to consume [`ParseFailure`] for testing purposes is with
+            //! [`ParseFailure::unwrap_stderr`] and [`ParseFailure::unwrap_stdout`] - result will lack any colors
+            //! even with them enabled which makes testing easier.
+            //! 
+            //! Successful result parse produces a value, "failed" parse produces stdout or stderr outputs -
+            //! stdout to print help message or version number and stderr to print the error message.
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HOWTO - practical, oriented to solving problems guides &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //! 
+            //! [Dynamic shell completion &rarr;](super::_1_completion)
+            //! 
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+        pub mod _1_completion {
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Testing your parsers](super::_0_testing)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HOWTO - practical, oriented to solving problems guides &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+            //! #### Dynamic shell completion
+            //! 
+            //! `bpaf` implements shell completion to allow to automatically fill in not only flag and command
+            //! names, but also argument and positional item values.
+            //! 
+            //! 1. Enable `autocomplete` feature:
+            //! 
+            //! 
+            //! 	```toml
+            //! 	bpaf = { version = "0.9", features = ["autocomplete"] }
+            //! 	```
+            //! 
+            //! 2. Decorate [`argument`](crate::parsers::NamedArg::argument) and [`positional`] parsers with
+            //!     [`Parser::complete`] to provide completion functions for arguments
+            //! 
+            //! 
+            //! 3. Depending on your shell generate appropriate completion file and place it to whereever your
+            //!     shell is going to look for it, name of the file should correspond in some way to name of
+            //!     your program. Consult manual for your shell for the location and named conventions:
+            //! 
+            //! 	 1. **bash**
+            //! 		```console
+            //! 		$ your_program --bpaf-complete-style-bash >> ~/.bash_completion
+            //! 		```
+            //! 
+            //! 	 1. **zsh**: note `_` at the beginning of the filename
+            //! 		```console
+            //! 		$ your_program --bpaf-complete-style-zsh > ~/.zsh/_your_program
+            //! 		```
+            //! 
+            //! 	 1. **fish**
+            //! 		```console
+            //! 		$ your_program --bpaf-complete-style-fish > ~/.config/fish/completions/your_program.fish
+            //! 		```
+            //! 
+            //! 	 1. **elvish**
+            //! 		```console
+            //! 		$ your_program --bpaf-complete-style-elvish >> ~/.config/elvish/rc.elv
+            //! 		```
+            //! 
+            //! 4. Restart your shell - you need to done it only once or optionally after bpaf major version
+            //!     upgrade: generated completion files contain only instructions how to ask your program for
+            //!     possible completions and don’t change even if options are different.
+            //! 
+            //! 
+            //! 5. Generated scripts rely on your program being accessible in $PATH
+            //! 
+            //! 
+            //! 
+            //!
+            //!
+            //! &nbsp;
+            //! 
+            //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+            //!   <td style='width: 33%; text-align: left;'>
+            //! 
+            //! [&larr; Testing your parsers](super::_0_testing)
+            //! 
+            //!   </td>
+            //!   <td style='width: 34%; text-align: center;'>
+            //! 
+            //! [&uarr; HOWTO - practical, oriented to solving problems guides &uarr;](super::super::_2_howto)
+            //! 
+            //!   </td>
+            //!   <td style='width: 33%; text-align: right;'>
+            //!   </td>
+            //! </tr></table>
+            //! 
+        use crate::*;
+        }
+    use crate::*;
+    }
+    pub mod _3_cookbook {
+        //! &nbsp;
+        //! 
+        //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+        //!   <td style='width: 33%; text-align: left;'>
+        //! 
+        //! [&larr; HOWTO - practical, oriented to solving problems guides](super::_2_howto)
+        //! 
+        //!   </td>
+        //!   <td style='width: 34%; text-align: center;'>
+        //! 
+        //! [&uarr; Project documentation &uarr;](super::super::_documentation)
+        //! 
+        //!   </td>
+        //!   <td style='width: 33%; text-align: right;'>
+        //! 
         //! [Theory explanation &rarr;](super::_4_explanation)
         //! 
         //!   </td>
         //! </tr></table>
         //! 
         //! #### Parsing cookbook
-        //! 
+        //! How to parse less frequent combinations
         //! 
         //! While `bpaf`'s design tries to cover the most common use cases, mostly
         //! [posix conventions](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html),
@@ -2097,7 +2316,7 @@
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; Tutorials](super::_1_tutorials)
+        //! [&larr; HOWTO - practical, oriented to solving problems guides](super::_2_howto)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
@@ -2120,7 +2339,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2164,7 +2383,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2187,7 +2406,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2225,7 +2444,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2248,7 +2467,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2284,7 +2503,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2307,7 +2526,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2336,7 +2555,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2359,7 +2578,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2387,7 +2606,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2410,7 +2629,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2454,7 +2673,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2477,7 +2696,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2505,7 +2724,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2528,7 +2747,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2557,7 +2776,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2580,7 +2799,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2608,7 +2827,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2631,7 +2850,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2681,7 +2900,7 @@
             //!   </td>
             //!   <td style='width: 34%; text-align: center;'>
             //! 
-            //! [&uarr; Parsing cookbook &uarr;](super::super::_2_howto)
+            //! [&uarr; Parsing cookbook &uarr;](super::super::_3_cookbook)
             //! 
             //!   </td>
             //!   <td style='width: 33%; text-align: right;'>
@@ -2698,7 +2917,7 @@
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; Parsing cookbook](super::_2_howto)
+        //! [&larr; Parsing cookbook](super::_3_cookbook)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
@@ -2962,7 +3181,7 @@
         //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
         //!   <td style='width: 33%; text-align: left;'>
         //! 
-        //! [&larr; Parsing cookbook](super::_2_howto)
+        //! [&larr; Parsing cookbook](super::_3_cookbook)
         //! 
         //!   </td>
         //!   <td style='width: 34%; text-align: center;'>
