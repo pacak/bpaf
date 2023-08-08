@@ -9,7 +9,7 @@ from the IDE, derive API uses proc macro to save on typing but your IDE will be 
 help you. Picking one API style does not lock you out from using the other style, you can mix
 and match both in a single parser
 
-# Examples for both styles
+# Examples of both styles
 
 #![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
 
@@ -17,9 +17,9 @@ and match both in a single parser
 
 ## Parse, don't validate
 
-`bpaf` tries hard to let you to move as much invariants about the user input you are
+`bpaf` tries hard to let you move as many invariants about the user input you are
 trying to parse into rust types: for mutually exclusive options you can get `enum` with
-exclusive items going into separate branches, you can collect results into types like
+exclusive items going into separate branches, and you can collect results into types like
 [`BTreeSet`](std::collections::BTreeSet), or whatever custom type you might have with
 custom parsing. Ideas for
 [making invalid states unrepresentable](https://geeklaunch.io/blog/make-invalid-states-unrepresentable/)
@@ -27,29 +27,29 @@ and [using parsing over validation](https://lexi-lambda.github.io/blog/2019/11/0
 are not new.
 
 That said you can also validate your inputs if this fits your situation better. If you want to
-ensure that sum of every numeric fields must be divisible by both 3 and 5, but only when it's
+ensure that the sum of every numeric field must be divisible by both 3 and 5, but only when it's
 Thursday - you can do that too.
 
 ## Flexibility
 
-While aiming to be a general purpose command line parser `bpaf` offers a few backdoors that
-allow you to parse pretty much anything you want: chained commands, custom blocks of options, DOS
-style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. Similar idea applies
-for what the parser can produce - your app operates with boxed string slices internally? `bpaf`
+While aiming to be a general-purpose command line parser `bpaf` offers a few backdoors that
+allow you to parse pretty much anything you want: chained commands, custom blocks of options,
+DOS-style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. A similar idea applies
+to what the parser can produce - if your app operates with boxed string slices internally - `bpaf`
 will give you `Box<str>` instead of `String` if you ask it to.
 
-The only restriction being that you cannot use information from items parsed earlier (but not
+The only restriction is that you cannot use information from items parsed earlier (but not
 the fact that something was parsed successfully or not) to decide to how to parse further
-options, and even then you can side step this restrictions by passing some shared state as a
+options, and even then you can side step this restriction by passing some shared state as a
 parameter to the parsers.
 
 ## Reusability
 
 Parsers in `bpaf` are not monolithic and you can share their parts across multiple binaries,
-workspace members or even independent projects. Say you have a multiple binaries in a workspace
+workspace members or even independent projects. Say you have multiple binaries in a workspace
 that perform different operations on some input. You can declare a parser for the input
 specifically, along with all the validations, help messages or shell dynamic completion
-functions you need and use it across all the binaries alongside with the arguments specific to
+functions you need and use it across all the binaries alongside the arguments specific to
 those binaries.
 
 ## Composition, transformation
@@ -61,7 +61,7 @@ Or to make it so parser runs multiple times and collects results into a `Vec`.
 
 ## Performance
 
-While performance is an explicit non goal - `bpaf` does nothing that would pessimize it either,
+While performance is an explicit non-goal - `bpaf` does nothing that would pessimize it either,
 so performance is on par or better compared to other fully featured parsers.
 
 ## Correctness
@@ -69,10 +69,10 @@ so performance is on par or better compared to other fully featured parsers.
 `bpaf` would parse only items it can represent and will reject anything it cannot represent
 in the output. Say your parser accepts both `--intel` and `--att` flags, but encodes the result
 into `enum Style { Intel, Att }`, `bpaf` will accept those flags separately, but not if they
-are used both at once. If parser later collects multipe styles into a `Vec<Style>` then it
+are used both at once. If the parser later collects multiple styles into a `Vec<Style>` then it
 will accept any combinationof those flags.
 
 ## User friendly
 
-`bpaf` tries to provide user friendly error messages, suggestions for typos but also scripts
-for shell completion, `man` pages and markdown documentation for web.
+`bpaf` tries to provide user-friendly error messages, and suggestions for typos but also scripts
+for shell completion, `man` pages and markdown documentation for the web.

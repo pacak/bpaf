@@ -5,7 +5,7 @@ it for some other purpose as well and want to skip them during parsing you can u
 fill in values in member fields and `#[bpaf(skip)]` on enum variants you want to ignore, see
 combinatoric example in [`Parser::last`].
 
-If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
+If you use `#[derive(Bpaf)]` on an enum parser will produce a variant for which all the parsers
 succeed.
 
 #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))]

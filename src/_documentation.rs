@@ -36,7 +36,7 @@
         //! help you. Picking one API style does not lock you out from using the other style, you can mix
         //! and match both in a single parser
         //! 
-        //! # Examples for both styles
+        //! # Examples of both styles
         //! 
         #![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
         //! 
@@ -44,9 +44,9 @@
         //! 
         //! ## Parse, don't validate
         //! 
-        //! `bpaf` tries hard to let you to move as much invariants about the user input you are
+        //! `bpaf` tries hard to let you move as many invariants about the user input you are
         //! trying to parse into rust types: for mutually exclusive options you can get `enum` with
-        //! exclusive items going into separate branches, you can collect results into types like
+        //! exclusive items going into separate branches, and you can collect results into types like
         //! [`BTreeSet`](std::collections::BTreeSet), or whatever custom type you might have with
         //! custom parsing. Ideas for
         //! [making invalid states unrepresentable](https://geeklaunch.io/blog/make-invalid-states-unrepresentable/)
@@ -54,29 +54,29 @@
         //! are not new.
         //! 
         //! That said you can also validate your inputs if this fits your situation better. If you want to
-        //! ensure that sum of every numeric fields must be divisible by both 3 and 5, but only when it's
+        //! ensure that the sum of every numeric field must be divisible by both 3 and 5, but only when it's
         //! Thursday - you can do that too.
         //! 
         //! ## Flexibility
         //! 
-        //! While aiming to be a general purpose command line parser `bpaf` offers a few backdoors that
-        //! allow you to parse pretty much anything you want: chained commands, custom blocks of options, DOS
-        //! style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. Similar idea applies
-        //! for what the parser can produce - your app operates with boxed string slices internally? `bpaf`
+        //! While aiming to be a general-purpose command line parser `bpaf` offers a few backdoors that
+        //! allow you to parse pretty much anything you want: chained commands, custom blocks of options,
+        //! DOS-style options (`/ofile.pas`), `dd` style options (`if=file of=out`), etc. A similar idea applies
+        //! to what the parser can produce - if your app operates with boxed string slices internally - `bpaf`
         //! will give you `Box<str>` instead of `String` if you ask it to.
         //! 
-        //! The only restriction being that you cannot use information from items parsed earlier (but not
+        //! The only restriction is that you cannot use information from items parsed earlier (but not
         //! the fact that something was parsed successfully or not) to decide to how to parse further
-        //! options, and even then you can side step this restrictions by passing some shared state as a
+        //! options, and even then you can side step this restriction by passing some shared state as a
         //! parameter to the parsers.
         //! 
         //! ## Reusability
         //! 
         //! Parsers in `bpaf` are not monolithic and you can share their parts across multiple binaries,
-        //! workspace members or even independent projects. Say you have a multiple binaries in a workspace
+        //! workspace members or even independent projects. Say you have multiple binaries in a workspace
         //! that perform different operations on some input. You can declare a parser for the input
         //! specifically, along with all the validations, help messages or shell dynamic completion
-        //! functions you need and use it across all the binaries alongside with the arguments specific to
+        //! functions you need and use it across all the binaries alongside the arguments specific to
         //! those binaries.
         //! 
         //! ## Composition, transformation
@@ -88,7 +88,7 @@
         //! 
         //! ## Performance
         //! 
-        //! While performance is an explicit non goal - `bpaf` does nothing that would pessimize it either,
+        //! While performance is an explicit non-goal - `bpaf` does nothing that would pessimize it either,
         //! so performance is on par or better compared to other fully featured parsers.
         //! 
         //! ## Correctness
@@ -96,13 +96,13 @@
         //! `bpaf` would parse only items it can represent and will reject anything it cannot represent
         //! in the output. Say your parser accepts both `--intel` and `--att` flags, but encodes the result
         //! into `enum Style { Intel, Att }`, `bpaf` will accept those flags separately, but not if they
-        //! are used both at once. If parser later collects multipe styles into a `Vec<Style>` then it
+        //! are used both at once. If the parser later collects multiple styles into a `Vec<Style>` then it
         //! will accept any combinationof those flags.
         //! 
         //! ## User friendly
         //! 
-        //! `bpaf` tries to provide user friendly error messages, suggestions for typos but also scripts
-        //! for shell completion, `man` pages and markdown documentation for web.
+        //! `bpaf` tries to provide user-friendly error messages, and suggestions for typos but also scripts
+        //! for shell completion, `man` pages and markdown documentation for the web.
         //!
         //!
         //! &nbsp;
@@ -195,7 +195,7 @@
             //! common types of line options and conventions
             //! 
             //! This chapter serves as an introduction to available command line options and tries to set the
-            //! terminology. If you are familiar with command line argument parsers in general - feel free top
+            //! terminology. If you are familiar with command line argument parsers in general - feel free to
             //! skip it.
             //! 
             //! If you ever used any software from a command line (say `cargo`) you used command line options.
@@ -210,7 +210,7 @@
             //! `cargo` here is an executable name, everything to the right of it separated by spaces are the
             //! options.
             //! 
-            //! Nowdays programs share mostly similar conventions about what a command line argument is, it
+            //! Nowadays programs share mostly similar conventions about what a command line argument is, it
             //! wasn't the case before though. Let's cover the basic types.
             //!
             //! - [Options, switches or flags](_0_switch)
@@ -256,7 +256,7 @@
                 //! 
                 //! #### Options, switches or flags
                 //! 
-                //! Options or flags usually starts with a dash, single dash for short options and double dash for
+                //! Options or flags usually starts with a dash, a single dash for short options and a double dash for
                 //! long one. Several short options can usually be squashed together with a single dash in front of
                 //! them to save on typing: `-vvv` can be parsed the same as `-v -v -v`. Options don't have any
                 //! other information apart from being there or not. Relative position usually does not matter and
@@ -320,7 +320,7 @@
                 //! 
                 //! Option arguments are similar to regular options but they come with an extra value attached.
                 //! Value can be separated by a space, `=` or directly adjacent to a short name. Same as with
-                //! options - relative position usually doesn't matter.
+                //! options - their relative position usually doesn't matter.
                 //! 
                 //! <div class="code-wrap">
                 //! <pre>
@@ -331,7 +331,7 @@
                 //! </div>
                 //! 
                 //! In the generated help message or documentation they come with a placeholder metavariable,
-                //! usually a short, all caps word describing what the value means: `NAME`, `AGE`, `SPEC`, `CODE`
+                //! usually a short, all-caps word describing what the value means: `NAME`, `AGE`, `SPEC`, and `CODE`
                 //! are all valid examples.
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
@@ -447,8 +447,8 @@
                 //! #### Commands or subcommands
                 //! 
                 //! Commands are similar to positional items, but instead of representing an item they start
-                //! a whole new parser, usually with its own help and other arguments. Commands allow a single
-                //! applications to perform multiple different functions. Command parser will be able to parse all
+                //! a whole new parser, usually with its help and other arguments. Commands allow a single
+                //! application to perform multiple different functions. The command parser will be able to parse all
                 //! the command line options to the right of the command name
                 //! 
                 //! <div class="code-wrap">
@@ -507,7 +507,7 @@
                 //! #### Exotic schemas
                 //! 
                 //! While modern software tends to use just the options listed above you can still encounter
-                //! programs created before those options became norm and they use something complitely different,
+                //! programs created before those options became the norm and they use something completely different,
                 //! let me give a few examples, see [the parsing cookbook](crate::_documentation::_2_howto)
                 //! about actually parsing them
                 //! 
@@ -524,19 +524,19 @@
                 //! $ find /etc --exec ls -l '{}' \;
                 //! </pre></div>
                 //! 
-                //! `Xorg` and related tools use flag like items that start with a single `+` to enable a
+                //! `Xorg` and related tools use flag-like items that start with a single `+` to enable a
                 //! feature and with `-` to disable it.
                 //! 
                 //! <div class="code-wrap"><pre>
                 //! $ xorg -backing +xinerama
                 //! </pre></div>
                 //! 
-                //! `dd` takes several key value pairs, this would create a 100M file
+                //! `dd` takes several key-value pairs, this would create a 100M file
                 //! <div class="code-wrap"><pre>
                 //! $ dd if=/dev/zero of=dummy.bin bs=1M count=100
                 //! </pre></div>
                 //! 
-                //! Most of the command line arguments in Turbo C++ 3.0 start with `/`. For example option
+                //! Most of the command line arguments in Turbo C++ 3.0 start with `/`. For example, option
                 //! `/x` tells it to use all available extended memory, while `/x[=n]` limits it to n kilobytes
                 //! <div class="code-wrap"><pre>
                 //! C:\PROJECT>TC /x=200
@@ -588,15 +588,15 @@
             //! #### Combinatoric API
             //! Parse arguments without using proc macros
             //! 
-            //! When making parser in the Combinatoric style API you usually go though those steps
+            //! When making a parser in the Combinatoric style API you usually go through those steps
             //! 
             //! 1. Design data type your application will receive
             //! 2. Design command line options user will have to pass
             //! 3. Create a set of simple parsers
             //! 4. Combine and transform simple parsers to create the final data type
-            //! 5. Transform resulting [`Parser`] into [`OptionParser`] and run it
+            //! 5. Transform the resulting [`Parser`] into [`OptionParser`] and run it
             //! 
-            //! Let's go though some of them in more details:
+            //! Let's go through some of them in more detail:
             //!
             //! - [Making a simple parser](_0_simple_parser)
             //! - [Transforming parsers](_1_chaining)
@@ -687,11 +687,11 @@
                     //! 
                     //! #### Switch parser
                     //! 
-                    //! Let's start with the simpliest possible one - a simple switch that gets parsed into a `bool`.
+                    //! Let's start with the simplest possible one - a simple switch that gets parsed into a `bool`.
                     //! 
-                    //! First of all - switch needs a name - you can start with [`short`] or [`long`] and add more
+                    //! First of all - the switch needs a name - you can start with [`short`] or [`long`] and add more
                     //! names if you want: `long("simple")` or `short('s').long("simple")`. This gives something with
-                    //! type [`NamedArg`]:
+                    //! the type [`NamedArg`]:
                     //! 
                     //! ```rust
                     //! # use bpaf::*;
@@ -701,7 +701,7 @@
                     //! }
                     //! ```
                     //! 
-                    //! From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually you do it
+                    //! From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually, you do it
                     //! right away without assigning `NamedArg` to a variable.
                     //! 
                     //! ```rust
@@ -711,7 +711,7 @@
                     //! }
                     //! ```
                     //! 
-                    //! Switch parser we just implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
+                    //! The switch parser we just made implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
                     //! [`Parser::to_options`] and run it with [`OptionParser::run`]
                     //! 
                     //! Full example with some sample inputs and outputs:
@@ -764,9 +764,9 @@
                     //! #### Argument parser
                     //! 
                     //! Next in complexity would be a parser to consume a named argument, such as `-p my_crate`. Same
-                    //! as with switch parser it starts from a `NamedArg` but next method is [`NamedArg::argument`].
-                    //! Method takes a metavariable name - a short description that will be used in the `--help`
-                    //! output. `rustc` also needs to know the type of a variable you are trying to parse, there's
+                    //! as with the switch parser it starts from a `NamedArg` but the next method is [`NamedArg::argument`].
+                    //! This method takes a metavariable name - a short description that will be used in the `--help`
+                    //! output. `rustc` also needs to know the parameter type you are trying to parse, there are
                     //! several ways to do it:
                     //! 
                     //! ```rust
@@ -791,7 +791,7 @@
                     //! 
                     //! You can use any type for as long as it implements [`FromStr`]. To parse items that don't
                     //! implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
-                    //! [the next chapter](super::super::_1_chaining) how to do that.
+                    //! [the next chapter](super::super::_1_chaining) on how to do that.
                     //! 
                     //! Full example with some sample inputs and outputs:
                     #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
@@ -839,9 +839,9 @@
                     //! 
                     //! #### Positional item parser
                     //! 
-                    //! And the last simple option type is parser for positional items. Since there's no name you use
-                    //! [`positional`] method directly. Similar to [`NamedArg::argument`] this method takes
-                    //! metavariable name and a type parameter in some form. You can also attach the help message
+                    //! And the last simple option type is a parser for positional items. Since there's no name you use
+                    //! the [`positional`] function directly. Similar to [`NamedArg::argument`] this method takes
+                    //! a metavariable name and a type parameter in some form. You can also attach the help message
                     //! thanks to [`ParsePositional::help`]
                     //! 
                     //! Full example:
@@ -896,7 +896,7 @@
                 //! values, or change them to consume multiple items, etc. Every primitive (or composite) parser
                 //! implements [`Parser`] so most of the transformations are coming from this trait.
                 //! 
-                //! Say you a parser that takes a crate name as a required argument you want to use in you own
+                //! Say you have a parser that takes a crate name as a required argument you want to use in your own
                 //! `cargo test` replacement
                 //! 
                 //! ```rust
@@ -906,8 +906,8 @@
                 //! }
                 //! ```
                 //! 
-                //! You can turn it into, for example, optional argument - something that returns
-                //! `Some("my_crate")` if specified or `None` if it wasn't. Or to let user to pass multiple
+                //! You can turn it into, for example, an optional argument - something that returns
+                //! `Some("my_crate")` if specified or `None` if it wasn't. Or to let the user to pass a multiple
                 //! of them and collect them all into a `Vec`
                 //! 
                 //! 
@@ -931,16 +931,16 @@
                 //! A complete example:
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_many.md"))]
                 //! 
-                //! Transforming a parser with a method from `Parser` trait usually gives you a new parser back and
+                //! Transforming a parser with a method from the `Parser` trait usually gives you a new parser back and
                 //! you can chain as many transformations as you need.
                 //! 
                 //! Transformations available in the `Parser` trait things like adding fallback values, making
-                //! parser optional, making it so it consumes many but at least one value, changing how it is
+                //! the parser optional, making it so it consumes many but at least one value, changing how it is
                 //! being shown in `--help` output, adding additional validation and parsing on top and so on.
                 //! 
-                //! Order of those chained transformations matters and for some operations using the right order
-                //! makes code cleaner. For example suppose you are trying to write a parser that takes an even
-                //! number and this parser should be optional. There's two ways to write it:
+                //! The order of those chained transformations matters and for some operations using the right order
+                //! makes code cleaner. For example, suppose you are trying to write a parser that takes an even
+                //! number and this parser should be optional. There are two ways to write it:
                 //! 
                 //! Validation first:
                 //! 
@@ -966,12 +966,12 @@
                 //! }
                 //! ```
                 //! 
-                //! In later case validation function must deal with a possibility where number is absent, for this
+                //! In later case validation function must deal with a possibility where a number is absent, for this
                 //! specific example it makes code less readable.
                 //! 
                 //! One of the important types of transformations you can apply is a set of failing
                 //! transformations. Suppose your application operates with numbers and uses `newtype` pattern to
-                //! keep track what numbers are odd or even. Parser that consumes an even number can use
+                //! keep track of what numbers are odd or even. A parser that consumes an even number can use
                 //! [`Parser::parse`] and may look like this:
                 //! 
                 //! ```rust
@@ -1039,12 +1039,12 @@
                 //! 
                 //! #### Combining multiple simple parsers
                 //! 
-                //! A single item option parser can only get you so far. Fortunately you can combine multiple
-                //! parsers together with [`construct!`] macro.
+                //! A single-item option parser can only get you so far. Fortunately, you can combine multiple
+                //! parsers with [`construct!`] macro.
                 //! 
                 //! For sequential composition (all the fields must be present) you write your code as if you are
                 //! constructing a structure, enum variant or a tuple and wrap it with `construct!`. Both
-                //! constructor and parsers must be present in scope. If instead of a parser you have a function
+                //! a constructor and parsers must be present in the scope. If instead of a parser you have a function
                 //! that creates one - just add `()` after the name:
                 //! 
                 //! ```rust
@@ -1069,25 +1069,25 @@
                 //! Full example:
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_construct.md"))]
                 //! 
-                //! If you are using positional parsers - they must go to the right most side and will run in
-                //! order you specify them. For named parsers order affects only the `--help` message.
+                //! If you are using positional parsers - they must go to the right-most side and will run in
+                //! the order you specify them. For named parsers order affects only the `--help` message.
                 //! 
-                //! Second type of composition `construct!` offers is a parallel composition. You pass multiple
+                //! The second type of composition `construct!` offers is a parallel composition. You pass multiple
                 //! parsers that produce the same result type in `[]` and `bpaf` selects one that fits best with
                 //! the data user gave.
                 //! 
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_choice.md"))]
                 //! 
-                //! If parsers inside parallel composition can parse the same object - longest possible match
-                //! should go first since `bpaf` picks earlier parser if everything else is equal, otherwise it
+                //! If parsers inside parallel composition can parse the same object - the longest possible match
+                //! should go first since `bpaf` picks an earlier parser if everything else is equal, otherwise it
                 //! does not matter. In this example `construct!([miles, km])` produces the same results as
                 //! `construct!([km, miles])` and only `--help` message is going to be different.
                 //! 
-                //! Parsers created with [`construct!`] still implement [`Parser`] trait so you can apply more
+                //! Parsers created with [`construct!`] still implement the [`Parser`] trait so you can apply more
                 //! transformation on top. For example same as you can make a simple parser optional - you can make
-                //! composite parser optional. Such parser will succeed if both `--alpha` and `--beta` are
-                //! present or neither of them:
+                //! a composite parser optional. Parser transformed this way will succeed if both `--alpha` and
+                //! `--beta` are present or neither of them:
                 //! 
                 //! ```rust
                 //! # use bpaf::*;
@@ -1200,17 +1200,17 @@
                 //! 
                 //! #### Improving the user experience
                 //! 
-                //! Once you have the final parser done there's still a few ways you can improve user experience.
+                //! Once you have the final parser done there are still a few ways you can improve user experience.
                 //! [`OptionParser`] comes equipped with a few methods that let you set version number,
                 //! description, help message header and footer and so on.
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_to_options.md"))]
                 //! 
-                //! There's a few other things you can do:
+                //! There are a few other things you can do:
                 //! 
                 //! - group some of the primitive parsers into logical blocks for `--help` message with
                 //!   [`Parser::group_help`]
-                //! - add tests to make sure important combinations are handled the way they supposed to
+                //! - add tests to make sure important combinations are handled the way they are supposed to
                 //!   after any future refactors with [`OptionParser::run_inner`]
                 //! - add a test to make sure that bpaf internal invariants are satisfied with
                 //!   [`OptionParser::check_invariants`]
@@ -1264,7 +1264,7 @@
             //! Create a parser by defining a structure
             //! 
             //! 
-            //! When making a parser using Derive API you should go though approximately following steps:
+            //! When making a parser using Derive API you should go through approximately following steps:
             //! 
             //! 1. Design data type your application will receive
             //! 2. Design command line options user will have to pass
@@ -1274,7 +1274,7 @@
             //! 6. Run the resulting parser
             //! 
             //! 
-            //! Let’s go though some of them in more details:
+            //! Let’s go through some of them in more detail:
             //!
             //! - [Getting started with derive macro](_0_intro)
             //! - [Customizing flag and argument names](_1_custom_names)
@@ -1331,7 +1331,7 @@
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_intro.md"))]
                 //! 
                 //! `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
-                //! pick up types, doc comment, presence or absence of names, but it is possible to customize all
+                //! pick up types, doc comments, presence or absence of names, but it is possible to customize all
                 //! of it, add custom transformations, validations and more.
                 //!
                 //!
@@ -1386,10 +1386,10 @@
                 //! 
                 //! 1. With no annotations field name longer than a single character becomes a long name,
                 //!    single character name becomes a short name
-                //! 2. Adding either `long` or `short` disables item 1, so adding `short` disables long name
+                //! 2. Adding either `long` or `short` disables item 1, so adding `short` disables the long name
                 //! 3. `long` or `short` annotation without a parameter derives a value from a field name
                 //! 4. `long` or `short` with a parameter uses that instead
-                //! 5. You can have multiples `long` and `short` annotations, first of each type becomes a
+                //! 5. You can have multiple `long` and `short` annotations, the first of each type becomes a
                 //!    visible name, remaining are used as hidden aliases
                 //! 
                 //! And if you decide to add names - they should go to the left side of the annotation list
@@ -1440,15 +1440,15 @@
                 //! 
                 //! #### Customizing the consumers
                 //! 
-                //! By default `bpaf` picks parsers depending on a field type according to those rules:
+                //! By default, `bpaf` picks parsers depending on a field type according to those rules:
                 //! 
                 //! 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
-                //! 2. `()` (unit) fields, unit variants of enum or unit structs themselves are handled as
+                //! 2. `()` (unit) fields, unit variants of an enum or unit structs themselves are handled as
                 //!    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
-                //!    them for parser to succeed
-                //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but in a
-                //!    smart way, so non-utf8 `PathBuf`/`OsString` are working as expected.
-                //! 4. For values wrapped in `Option` or `Vec` bpaf derives inner parser and then applies
+                //!    them for the parser to succeed
+                //! 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
+                //!    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.
+                //! 4. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
                 //!    applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
                 //! 
                 //! You can change it with annotations like `switch`, `argument` or `positional`
@@ -1521,7 +1521,7 @@
                 //! 
                 //! #### Transforming parsed values
                 //! 
-                //! Once field have a consumer you can start applying transformations from [`Parser`] trait.
+                //! Once the field has a consumer you can start applying transformations from the [`Parser`] trait.
                 //! Annotation share the same names and follow the same composition rules as in Combinatoric API.
                 //! 
                 //! 
@@ -1579,7 +1579,7 @@
                 //! fill in values in member fields and `#[bpaf(skip)]` on enum variants you want to ignore, see
                 //! combinatoric example in [`Parser::last`].
                 //! 
-                //! If you use `#[derive(Bpaf)]` on enum parser will produce variant for which all the parsers
+                //! If you use `#[derive(Bpaf)]` on an enum parser will produce a variant for which all the parsers
                 //! succeed.
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))]
@@ -1699,16 +1699,16 @@
                 //! 
                 //! #### Making nested parsers
                 //! 
-                //! Up to this point we've been looking at cases where fields of a structure are all simple
-                //! parsers, possibly wrapped in `Option` or `Vec`, but it also possible to nest derived parsers
+                //! Up to this point, we've been looking at cases where fields of a structure are all simple
+                //! parsers, possibly wrapped in `Option` or `Vec`, but it is also possible to nest derived parsers
                 //! too:
                 //! 
                 #![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_nesting.md"))]
                 //! 
                 //! 
                 //! `external` takes an optional function name and will call that function to make the parser for
-                //! the field. You can chain more transformations after the `external` and if name is absent -
-                //! `bpaf` would use field name instead, so you can also write the example above as
+                //! the field. You can chain more transformations after the `external` and if the name is absent -
+                //! `bpaf` would use the field name instead, so you can also write the example above as
                 //! 
                 //! 
                 //! ```rust
@@ -1778,7 +1778,7 @@
                 //! 
                 //! #### Parsing subcommands
                 //! 
-                //! Easiest way to define a group of subcommands is to have them inside the same enum with variant
+                //! The easiest way to define a group of subcommands is to have them inside the same enum with variant
                 //! constructors annotated with `#[bpaf(command("name"))]` with or without the name
                 //! 
                 //! 
@@ -1827,7 +1827,7 @@
                 //! 
                 //! #### Making a cargo command
                 //! 
-                //! To make a cargo command you should pass its name as a parameter to `options`. In this example
+                //! To make a cargo command you should pass its name as a parameter to `options`. In this example,
                 //! `bpaf` will parse extra parameter cargo passes and you will be able to use it either directly
                 //! with `cargo run` from the repository, running it by `cargo-asm` name or with `cargo asm` name.
                 //! 
@@ -1890,16 +1890,16 @@
             //! #### Designing a good datatype
             //! bpaf allows you to reduce the size of legal values to valid ones
             //! 
-            //! Parsing usually starts from deciding what kind of data your application wants to get from the user.
-            //! You should try to take advantage of Rust typesystem, try to represent the result such that more
+            //! Parsing usually starts with deciding what kind of data your application wants to get from the user.
+            //! You should try to take advantage of the Rust type system, try to represent the result such that more
             //! validation can be done during parsing.
             //! 
-            //! Data types can represent a set of *legal* states - for example for u8 this is all the numbers
+            //! Data types can represent a set of *legal* states - for example, for u8 this is all the numbers
             //! from 0 to 255, while your app logic may only operate correctly only on some set of *valid*
             //! states: if this u8 represents a fill ratio for something in percents - only valid numbers are
-            //! from 0 to 100. You can try to narrow down set of legal states to valid states with [newtype
+            //! from 0 to 100. You can try to narrow down the set of legal states to valid states with [newtype
             //! pattern](https://doc.rust-lang.org/rust-by-example/generics/new_types.html). This newtype will
-            //! indicate though the type when you've already done validation. For fill ratio example you can
+            //! indicate through the type when you've already done validation. For the fill ratio example you can
             //! implement a newtype along with `FromStr` implementation to get validation for free during
             //! parsing.
             //! 
@@ -2076,9 +2076,9 @@
         //! #### Parsing cookbook
         //! 
         //! 
-        //! While `bpaf`'s design tries to cover most common use cases, mostly
+        //! While `bpaf`'s design tries to cover the most common use cases, mostly
         //! [posix conventions](https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html),
-        //! it can also handle some more unusual requirements. It might come at a cost of having to write
+        //! it can also handle some more unusual requirements. It might come at the cost of having to write
         //! more code, more confusing error messages or worse performance, but it will get the job done.
         //!
         //! - [`find(1)`: `find -exec commands -flags terminated by \;`](_00_find)
@@ -2132,13 +2132,13 @@
             //! 
             //! #### `find(1)`: `find -exec commands -flags terminated by \;`
             //! 
-            //! Example for `find` shows how to implement 3 different unusual options:
+            //! An Example for `find` shows how to implement 3 different unusual options:
             //! 
-            //! - an option with a long name but single dash as a prefix: `-user bob`
+            //! - an option with a long name but a single dash as a prefix: `-user bob`
             //! - an option that captures everything until the next fixed character
             //! - an option that takes a set of characters: `-mode -rw`, `mode /rw`
             //! 
-            //! In all cases long name with a single dash is implementedby [`literal`] with
+            //! In all cases, long name with a single dash is implemented by the [`literal`] with
             //! [`ParseAny::anywhere`](crate::parsers::ParseAny::anywhere) with some items made `adjacent` to it.
             //! 
             //! To parse `-user bob` this is simply literal `-user` adjacent to a positional item with `map` to
@@ -2148,7 +2148,7 @@
             //! items that are not `;` parsed positionally with `any` followed by `;` - again with `any`, but
             //! `literal` works too.
             //! 
-            //! And lastly to parse mode - after the tag we accept `any` to be able to handle combination of
+            //! And lastly to parse mode - after the tag, we accept `any` to be able to handle a combination of
             //! modes that may or may not start with `-` and use [`Parser::parse`] to parse them or fail.
             //! 
             //! All special cases are made optional with [`Parser::optional`], but [`Parser::fallback`] also
@@ -2199,11 +2199,11 @@
             //! 
             //! #### `dd(1)`: `dd if=/dev/zero of=/dev/null bs=1000`
             //! 
-            //! This example implements syntax similar to `dd` command. Main idea is to implement something to
+            //! This example implements syntax similar to `dd` command. The main idea is to implement something to
             //! make it simple to make parsers for `PREFIX=SUFFIX`, where prefix is fixed for each parser - for
             //! example `if=` or `of=` and suffix is parsed with usual [`FromStr`](std::str::FromStr) trait.
             //! 
-            //! Function `tag` serves this purpose. It contains following steps:
+            //! The function `tag` serves this purpose. It performs the following steps:
             //! 
             //! - consume any item that starts with a prefix at any argument position with [`any`] and
             //!   [`ParseAny::anywhere`]
@@ -2263,10 +2263,10 @@
             //! This example implements syntax similar to used by `Xorg` or similar programs. As usual with
             //! strange examples [`any`] serves an important role.
             //! 
-            //! Example implements following parsers:
+            //! The example implements the following parsers:
             //! 
             //! - enable or disable an extension using `+ext name` and `-ext name` like syntax
-            //! - enable or disable specific extension with syntax like `-xinerama` or `+backing`
+            //! - enable or disable specific extensions with syntax like `-xinerama` or `+backing`
             //! 
             //! Both parsers use [`any`] with [`ParseAny::anywhere`]
             //! 

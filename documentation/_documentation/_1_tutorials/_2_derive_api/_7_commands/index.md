@@ -1,6 +1,6 @@
 #### Parsing subcommands
 
-Easiest way to define a group of subcommands is to have them inside the same enum with variant
+The easiest way to define a group of subcommands is to have them inside the same enum with variant
 constructors annotated with `#[bpaf(command("name"))]` with or without the name
 
 

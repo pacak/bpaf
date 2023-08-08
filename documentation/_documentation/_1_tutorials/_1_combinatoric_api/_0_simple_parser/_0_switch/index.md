@@ -1,10 +1,10 @@
 #### Switch parser
 
-Let's start with the simpliest possible one - a simple switch that gets parsed into a `bool`.
+Let's start with the simplest possible one - a simple switch that gets parsed into a `bool`.
 
-First of all - switch needs a name - you can start with [`short`] or [`long`] and add more
+First of all - the switch needs a name - you can start with [`short`] or [`long`] and add more
 names if you want: `long("simple")` or `short('s').long("simple")`. This gives something with
-type [`NamedArg`]:
+the type [`NamedArg`]:
 
 ```rust
 # use bpaf::*;
@@ -14,7 +14,7 @@ fn simple_switch() -> NamedArg {
 }
 ```
 
-From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually you do it
+From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually, you do it
 right away without assigning `NamedArg` to a variable.
 
 ```rust
@@ -24,7 +24,7 @@ fn simple_switch() -> impl Parser<bool> {
 }
 ```
 
-Switch parser we just implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
+The switch parser we just made implements trait [`Parser`] and to run it you convert it to [`OptionParser`] with
 [`Parser::to_options`] and run it with [`OptionParser::run`]
 
 Full example with some sample inputs and outputs:

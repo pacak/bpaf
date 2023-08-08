@@ -4,7 +4,7 @@ Once you have your primitive parsers done you might want to improve them a bit -
 values, or change them to consume multiple items, etc. Every primitive (or composite) parser
 implements [`Parser`] so most of the transformations are coming from this trait.
 
-Say you a parser that takes a crate name as a required argument you want to use in you own
+Say you have a parser that takes a crate name as a required argument you want to use in your own
 `cargo test` replacement
 
 ```rust
@@ -14,8 +14,8 @@ fn krate() -> impl Parser<String> {
 }
 ```
 
-You can turn it into, for example, optional argument - something that returns
-`Some("my_crate")` if specified or `None` if it wasn't. Or to let user to pass multiple
+You can turn it into, for example, an optional argument - something that returns
+`Some("my_crate")` if specified or `None` if it wasn't. Or to let the user to pass a multiple
 of them and collect them all into a `Vec`
 
 
@@ -39,16 +39,16 @@ fn krates() -> impl Parser<Vec<String>> {
 A complete example:
 #![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_many.md"))]
 
-Transforming a parser with a method from `Parser` trait usually gives you a new parser back and
+Transforming a parser with a method from the `Parser` trait usually gives you a new parser back and
 you can chain as many transformations as you need.
 
 Transformations available in the `Parser` trait things like adding fallback values, making
-parser optional, making it so it consumes many but at least one value, changing how it is
+the parser optional, making it so it consumes many but at least one value, changing how it is
 being shown in `--help` output, adding additional validation and parsing on top and so on.
 
-Order of those chained transformations matters and for some operations using the right order
-makes code cleaner. For example suppose you are trying to write a parser that takes an even
-number and this parser should be optional. There's two ways to write it:
+The order of those chained transformations matters and for some operations using the right order
+makes code cleaner. For example, suppose you are trying to write a parser that takes an even
+number and this parser should be optional. There are two ways to write it:
 
 Validation first:
 
@@ -74,12 +74,12 @@ fn even() -> impl Parser<Option<usize>> {
 }
 ```
 
-In later case validation function must deal with a possibility where number is absent, for this
+In later case validation function must deal with a possibility where a number is absent, for this
 specific example it makes code less readable.
 
 One of the important types of transformations you can apply is a set of failing
 transformations. Suppose your application operates with numbers and uses `newtype` pattern to
-keep track what numbers are odd or even. Parser that consumes an even number can use
+keep track of what numbers are odd or even. A parser that consumes an even number can use
 [`Parser::parse`] and may look like this:
 
 ```rust
