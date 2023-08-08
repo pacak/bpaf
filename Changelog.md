@@ -1,9 +1,9 @@
 # Change Log
 
-## bpaf [0.9.4] - Unreleased
-- add `help` to `ParseFlag` and `ParseArgument `
+## bpaf [0.9.4] - 2023-08-08
+- add `help` to `ParseFlag` and `ParseArgument`
 - stop deprecating `Parser::run`
-- documentation
+- Lots of docs.rs documentation improvements
 - changes to rendered markdown
 
 ## bpaf [0.9.3], bpaf_derive [0.5.3] - 2023-07-26
