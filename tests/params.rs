@@ -77,3 +77,28 @@ fn from_str_works_with_parse() {
     let r = parser.run_inner(&["42"]).unwrap();
     assert_eq!(r, 42);
 }
+
+#[test]
+fn squashed_short_names() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).to_options();
+
+    // For now instead of supporting I parse "-Obits=2048" instead as "-O" with "bits=2048" body
+    // https://github.com/pacak/bpaf/issues/121
+    //
+    // let r = parser.run_inner(&["-ab=foo"]).unwrap();
+    // assert_eq!(r.1, "foo");
+
+    // an odd one, short flag a is squashed with short argument b
+    let r = parser.run_inner(&["-ab", "foo"]).unwrap();
+    assert_eq!(r.1, "foo");
+
+    // same, but body for b is adjacent as well
+    let r = parser.run_inner(&["-abfoo"]).unwrap();
+    assert_eq!(r.1, "foo");
+
+    // normal
+    let r = parser.run_inner(&["-a", "-bfoo"]).unwrap();
+    assert_eq!(r.1, "foo");
+}
