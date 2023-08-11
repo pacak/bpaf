@@ -159,6 +159,17 @@ fn cannot_be_used_twice() {
 
 #[test]
 fn should_not_split_adjacent_options() {
+    let a = short('a').req_flag(0);
+    let b = pure(()).to_options().command("hello");
+    let parser = construct!(a, b).to_options();
+    let r = parser.run_inner(&["-ahello"]).unwrap_err().unwrap_stderr();
+    // can probably suggest splitting here too: `-a` `hello`
+    let expected = "no such flag: `-ahello`, did you mean `hello`?";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn should_not_split_adjacent_ambig_options() {
     let a1 = short('a').req_flag(0);
     let a2 = short('a').argument::<usize>("x");
     let a = construct!([a2, a1]);
@@ -166,18 +177,15 @@ fn should_not_split_adjacent_options() {
     let parser = construct!(a, c).to_options();
 
     let r = parser.run_inner(&["-a=hello"]).unwrap_err().unwrap_stderr();
-    assert_eq!(
-        r,
-        "expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
-    );
+    let expected = "expected `COMMAND ...`, got `hello`. Pass `--help` for usage information";
+    assert_eq!(r, expected);
 
     let r = parser.run_inner(&["-ahello"]).unwrap_err().unwrap_stderr();
-    assert_eq!(
-        r,
-        "expected `COMMAND ...`, got `hello`. Pass `--help` for usage information"
-    );
+    let expected = "app supports `-a` as both an option and an option-argument, try to split `-ahello` into individual options\n(-a -h ..) or use `-a=hello` syntax to disambiguate";
+    assert_eq!(r, expected);
 
-    // this one is okay
+    // this one is okay, try to parse -a as argument - it fails because "hello" is not a number, then
+    // try to parse -a as a flag - this works
     let r = parser.run_inner(&["-a", "hello"]).unwrap();
     assert_eq!(r, (0, ()));
 }

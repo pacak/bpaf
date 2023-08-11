@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.9.5] - Unreleased
+- fancier squashing: parse `-abfoo` as `-a -b=foo` if b is a short argument
+
 ## bpaf [0.9.4] - 2023-08-08
 - add `help` to `ParseFlag` and `ParseArgument`
 - stop deprecating `Parser::run`

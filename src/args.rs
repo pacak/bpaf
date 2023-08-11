@@ -180,6 +180,66 @@ impl ItemState {
     }
 }
 
+fn disambiguate_short(
+    mut os: OsString,
+    short: String,
+    short_flags: &[char],
+    short_args: &[char],
+    items: &mut Vec<Arg>,
+) -> Option<Message> {
+    // block can start with 0 or more short flags
+    // followed by zero or one short argument, possibly with a body
+
+    // keep the old length around so we can trimp items to it and push a Arg::Word
+    // if we decide to give up
+    let original = items.len();
+
+    // first flag contains the original os string for error message and anywhere purposes
+    let mut first_flag = os.clone();
+
+    for (ix, c) in short.char_indices() {
+        let tail_ix = ix + c.len_utf8();
+        let rest = &short[tail_ix..];
+
+        // shortcircuit single character short options
+        if ix == 0 && rest.is_empty() {
+            items.push(Arg::Short(c, false, std::mem::take(&mut first_flag)));
+            return None;
+        }
+        match (short_flags.contains(&c), short_args.contains(&c)) {
+            // short name that can be flag
+            (true, false) => {
+                items.push(Arg::Short(c, false, std::mem::take(&mut first_flag)));
+            }
+
+            // short name that can be argument
+            (false, true) => {
+                let adjacent_body = !rest.is_empty();
+                items.push(Arg::Short(c, adjacent_body, std::mem::take(&mut os)));
+                if adjacent_body {
+                    items.push(Arg::Word(rest.into()));
+                }
+                return None;
+            }
+
+            // neither is valid and there's more than one character. fallback to using it as a Word
+            (false, false) => {
+                items.truncate(original);
+                items.push(Arg::Word(os));
+                return None;
+            }
+
+            // ambiguity, this is bad
+            (true, true) => {
+                let msg = Message::Ambiguity(items.len(), short);
+                items.push(Arg::Word(std::mem::take(&mut os)));
+                return Some(msg);
+            }
+        }
+    }
+    None
+}
+
 pub use inner::State;
 /// Hides [`State`] internal implementation
 mod inner {
@@ -266,7 +326,7 @@ mod inner {
                 name: args.name.as_deref(),
             };
 
-            for mut os in args.items {
+            for os in args.items {
                 if pos_only {
                     items.push(Arg::PosWord(os));
                     continue;
@@ -280,55 +340,15 @@ mod inner {
                 match split_os_argument(&os) {
                     // -f and -fbar, but also -vvvvv
                     Some((ArgType::Short, short, None)) => {
-                        // this scenario can be ambiguous: -fbar can mean one of
-                        // several one char: -f -b -a -r
-                        // a single short flag -f with attached value "bar"
-                        // bpaf applies following logic:
-                        // - it can be a collection of separate flags if all the names
-                        //   are valid flag name
-                        // - it can be a short flag with a value if first character is
-                        //   a valid argument name
-                        //
-                        // if both variants are correct - we complain, if just one is correct we go
-                        // with that option, otherwise this is a strange positional.
-
-                        let mut can_be_arg = true;
-                        let mut can_be_flags = true;
-                        let mut total = 0;
-                        for (ix, c) in short.chars().enumerate() {
-                            can_be_flags &= short_flags.contains(&c);
-                            if ix == 0 {
-                                can_be_arg = short_args.contains(&c);
-                            }
-                            total = ix;
-                        }
-                        // there's no body so
-                        if total == 0 {
-                            items.push(Arg::Short(short.chars().next().unwrap(), false, os));
-                            continue;
-                        }
-
-                        match (can_be_flags, can_be_arg) {
-                            (true, true) => {
-                                *err = Some(Message::Ambiguity(items.len(), short));
-                                items.push(Arg::Word(os));
-
-                                break;
-                            }
-                            (true, false) => {
-                                for c in short.chars() {
-                                    // first gets the os, rest gets the empty
-                                    items.push(Arg::Short(c, false, std::mem::take(&mut os)));
-                                }
-                            }
-                            (false, true) => {
-                                let mut chars = short.chars();
-                                let first = chars.next().unwrap();
-                                let rest = chars.as_str();
-                                items.push(Arg::Short(first, true, os));
-                                items.push(Arg::ArgWord(rest.into()));
-                            }
-                            (false, false) => items.push(Arg::Word(os)),
+                        if let Some(msg) = super::disambiguate_short(
+                            os,
+                            short,
+                            short_flags,
+                            short_args,
+                            &mut items,
+                        ) {
+                            *err = Some(msg);
+                            break;
                         }
                     }
                     Some((ArgType::Short, short, Some(arg))) => {
