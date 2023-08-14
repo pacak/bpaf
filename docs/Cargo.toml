@@ -6,6 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.71"
-bpaf = { version = "0.9.3", features = ["dull-color", "derive"] }
-comrak = { version = "0.18", default-features = false }
+bpaf = { path = "../" }
+md-eval = { path = "../md-eval" }
+
+[build-dependencies]
+md-eval = { path = "../md-eval" }
+
+[profile.dev.build-override]
+opt-level = 3

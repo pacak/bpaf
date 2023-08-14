@@ -16,22 +16,46 @@
 //    _documentation
 
 use bpaf::*;
-use docs::*;
+use md_eval::*;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 struct Options {
+    #[bpaf(short, long)]
+    pretty: bool,
     //    completion: bool,
     #[bpaf(positional)]
     target: PathBuf,
 }
 
+fn pretty_print(rendered: &str) -> anyhow::Result<String> {
+    let parsed = syn::parse_file(rendered)?;
+    Ok(prettyplease::unparse(&parsed))
+}
+
 fn main() -> anyhow::Result<()> {
-    let opts = options().run();
+    let opts = options().fallback_to_usage().run();
 
-    let x = import(&opts.target)?;
+    /*
+        let module = import_module(&opts.target)?;
 
-    println!("{x}");
+        if opts.pretty {
+            let rendered = module.to_string();
+            let parsed = syn::parse_file(&rendered)?;
+            let module = prettyplease::unparse(&parsed);
+            println!("{module}");
+        } else {
+            println!("{module}");
+        }
+    */
+    let md = render_module(
+        &opts.target,
+        &["results are here".into(), "x".into(), "asdf".into()],
+    )?;
+    //    let md = pretty_print(&md)?;
+    println!("{md}");
+    println!("{:?}", opts.target);
+
     Ok(())
 }
