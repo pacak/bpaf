@@ -12,14 +12,10 @@ mod module;
 mod types;
 pub use crate::{document::*, module::*, types::*};
 
-// import needs to run twice - once to extract code snippets to run and once to substitute the
-// results into final markdown file
+// TODO:
 //
-// alternatively it can create a program that once executed markdown with everything in it...
-
-// workflow: from documentation system run it on a directory of markdown files to generate a
-// directory of sources to be included
-// as tests
+// - run it via binary instead of a test?
+// - generate environment and run completion tests
 
 fn read_comrak<'a>(
     arena: &'a Arena<Node<'a, RefCell<Ast>>>,

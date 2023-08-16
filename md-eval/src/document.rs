@@ -1,4 +1,9 @@
+use std::ops::DerefMut;
+
 use crate::*;
+use comrak::nodes::{NodeHtmlBlock, NodeValue};
+
+const STYLE: &str = "padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;";
 
 #[derive(Debug, Clone, Default)]
 pub struct Document {
@@ -15,22 +20,43 @@ pub fn render_module(file: impl AsRef<Path>, results: &[String]) -> anyhow::Resu
     render_module_inner(file.as_ref(), results)
 }
 
+fn fold(title: &str, contents: &str) -> String {
+    format!("<details><summary>{title}</summary>\n\n{contents}\n\n</details>")
+}
+
+fn fold_source(title: &str, contents: &str) -> String {
+    format!("<details><summary>{title}</summary>\n\n```rust\n{contents}```\n\n</details>")
+}
+
+fn html(literal: String) -> NodeValue {
+    NodeValue::HtmlBlock(NodeHtmlBlock {
+        literal,
+        block_type: 0,
+    })
+}
+
 fn render_module_inner(file: &Path, results: &[String]) -> anyhow::Result<Document> {
     let arena = Arena::new();
     let root = read_comrak(&arena, &get_md_path(file)?)?;
     let name = file2mod(file);
 
     let mut execs = 0;
-    for edge in root.traverse() {
-        if let arena_tree::NodeEdge::Start(n) = edge {
-            let ast = &mut n.data.borrow_mut();
-            if let nodes::NodeValue::CodeBlock(code) = &mut ast.value {
-                if let Ok(toks) = CodeTok::parse(code) {
-                    if toks.get(0).copied() == Some(CodeTok::Runner) {
-                        code.literal = results[execs].clone();
-                        execs += 1;
+
+    for (block, mut ast) in crate::module::codeblocks(root) {
+        match block? {
+            Block::Code(_id, code) => {
+                if let Some(title) = code.title.as_ref() {
+                    if let NodeValue::CodeBlock(lit) = ast.deref_mut() {
+                        *ast = html(fold_source(title, &lit.literal))
                     }
                 }
+            }
+            Block::Exec(_exec) => {
+                *ast = html(format!(
+                    "<div style=\"{STYLE}\">\n{}\n</div>",
+                    &results[execs]
+                ));
+                execs += 1;
             }
         }
     }

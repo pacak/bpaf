@@ -3,7 +3,7 @@
 
 asdf
 
-```rust,id:1
+```rust,id:1,fold:"asdf fefe"
 # use bpaf::*;
 fn parser() -> impl Parser<bool> {
     short('s')

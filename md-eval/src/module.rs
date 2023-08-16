@@ -1,3 +1,5 @@
+use comrak::nodes::{NodeCodeBlock, NodeValue};
+
 use crate::*;
 
 #[derive(Debug, Clone, Default)]
@@ -5,6 +7,7 @@ pub struct Module {
     pub(crate) path: PathBuf,
     pub(crate) name: String,
     pub(crate) code: BTreeMap<usize, Code>,
+    pub(crate) typecheck: Vec<Code>,
     pub(crate) exec: Vec<Exec>,
     pub(crate) nested: bool,
 }
@@ -16,6 +19,15 @@ impl std::fmt::Display for Module {
         // write down code blocks as modules
         for (id, code) in &self.code {
             writeln!(f, "  mod b{id} {{\n  {}\n  }}", code.text)?;
+        }
+
+        // Don't care about unused code, just typecheck it
+        for (id, code) in self.typecheck.iter().enumerate() {
+            writeln!(
+                f,
+                "  mod t{id} {{\n#![allow(dead_code)]\n  {}\n  }}",
+                code.text
+            )?;
         }
 
         writeln!(f, "#[test]")?;
@@ -58,6 +70,27 @@ impl std::fmt::Display for Module {
     }
 }
 
+pub(crate) fn codeblocks<'a>(
+    root: &'a Node<'a, RefCell<Ast>>,
+) -> impl Iterator<Item = (anyhow::Result<Block>, std::cell::RefMut<'a, NodeValue>)> {
+    //) -> impl Iterator<Item = (anyhow::Result<Block>, RefMut<&'a mut NodeCodeBlock)> {
+    root.traverse().filter_map(|edge| match edge {
+        arena_tree::NodeEdge::Start(node) => {
+            let mut ast = node.data.borrow_mut();
+            let pos = ast.sourcepos;
+            if let nodes::NodeValue::CodeBlock(code) = &mut ast.value {
+                Some((
+                    Block::parse(pos, code),
+                    std::cell::RefMut::map(ast, |a| &mut a.value),
+                ))
+            } else {
+                None
+            }
+        }
+        arena_tree::NodeEdge::End(_) => None,
+    })
+}
+
 /// Import a single documentation module or a directory
 pub fn import_module(file: &Path) -> anyhow::Result<Module> {
     let arena = Arena::new();
@@ -67,23 +100,18 @@ pub fn import_module(file: &Path) -> anyhow::Result<Module> {
     let mut module = Module {
         name,
         path: file.to_owned(),
-
         ..Module::default()
     };
 
-    for edge in root.traverse() {
-        if let arena_tree::NodeEdge::Start(n) = edge {
-            let ast = &n.data.borrow();
-            let pos = ast.sourcepos;
-            if let nodes::NodeValue::CodeBlock(code) = &ast.value {
-                match Block::parse(pos, code)? {
-                    Block::Code(Some(id), c) => {
-                        module.code.insert(id, c);
-                    }
-                    Block::Code(None, _) => {}
-                    Block::Exec(e) => module.exec.push(e),
-                }
+    for (block, _ast) in codeblocks(root) {
+        match block? {
+            Block::Code(Some(id), code) => {
+                module.code.insert(id, code);
             }
+            Block::Code(None, code) => {
+                module.typecheck.push(code);
+            }
+            Block::Exec(e) => module.exec.push(e),
         }
     }
 

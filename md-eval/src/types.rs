@@ -87,7 +87,7 @@ impl<'a> CodeTok<'a> {
             "rust" => Ok(Self::Source),
             "run" => Ok(Self::Runner),
             _ => {
-                if let Some(title) = i.strip_prefix("title:") {
+                if let Some(title) = i.strip_prefix("fold:") {
                     Ok(Self::Title(title))
                 } else if let Some(id) = i.strip_prefix("id:") {
                     Ok(Self::Id(id.parse()?))

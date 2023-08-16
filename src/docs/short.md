@@ -17,28 +17,29 @@ fn main() {
 
 help message
 
-``` run
+<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
 
 **Usage**: \[**`-s`**\]
 
 **Available options:**
-- **`-s`** &mdash;
+- **`-s`** &mdash; 
   A custom switch with a short name
-- **`-h`**, **`--help`** &mdash;
+- **`-h`**, **`--help`** &mdash; 
   Prints help information
 
 
-```
+
+</div>
 
 default is false
 
-``` run
+<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
 false
-```
+</div>
 
 when passed - is true
 
-``` run
+<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
 true
-```
+</div>
 
