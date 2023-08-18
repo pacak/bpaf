@@ -1,29 +1,10 @@
 use std::{error::Error, path::PathBuf};
 
-use md_eval::*;
+use md_eval::process_directory;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 fn main() -> Result<()> {
-    let path = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-
-    let mut items = Vec::new();
-
-    for entry in std::fs::read_dir("./data")? {
-        let entry = entry?;
-        if entry.file_name() == "." || entry.file_name() == ".." {
-            continue;
-        }
-        items.push(entry.path());
-    }
-    items.sort();
-
-    let mut out = String::new();
-
-    for item in items {
-        out += &format!("{}\n", import_module(&item)?);
-    }
-    std::fs::write(path.join("lib.rs"), out)?;
-
-    Ok(())
+    let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data");
+    process_directory(data_dir, std::env::var_os("OUT_DIR").unwrap(), "../docs")
 }

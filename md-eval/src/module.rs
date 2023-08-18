@@ -1,14 +1,25 @@
-use comrak::nodes::{NodeCodeBlock, NodeValue};
+use comrak::nodes::NodeValue;
 
 use crate::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct Module {
+    /// Source markdown file path
     pub(crate) path: PathBuf,
+
+    /// Module name, derived from markdown path
     pub(crate) name: String,
+
+    /// code blocks with assigned ids. This code can be referred later by execs
     pub(crate) code: BTreeMap<usize, Code>,
+
+    /// code blocks with no assigned ids. This code can only be typechecked
     pub(crate) typecheck: Vec<Code>,
+
+    /// list of execs, each exec can refer to a code block
     pub(crate) exec: Vec<Exec>,
+
+    /// does this module produce a nested module tree instead of a single markdown block?
     pub(crate) nested: bool,
 }
 
@@ -30,8 +41,9 @@ impl std::fmt::Display for Module {
             )?;
         }
 
-        writeln!(f, "#[test]")?;
-        writeln!(f, "fn run() {{")?;
+        writeln!(f, "#[test]\nfn run_as_test() {{ run() }}")?;
+
+        writeln!(f, "pub fn run(output_dir: &str) {{")?;
         writeln!(f, "let mut out = Vec::new();")?;
 
         for id in self.code.keys() {
@@ -59,11 +71,13 @@ impl std::fmt::Display for Module {
         )?;
 
         let ext = if self.nested { "rs" } else { "md" };
+
+        let name = &self.name;
         writeln!(
             f,
-            "std::fs::write(\"../src/docs/{}.{ext}\", md.to_string());",
-            self.name
+            "let dest = std::path::PathBuf::from(output_dir).join(\"/{name}.{ext}\");"
         )?;
+        writeln!(f, "std::fs::write(dest, md.to_string()).unwrap();",)?;
 
         writeln!(f, "}}}}")?;
         Ok(())

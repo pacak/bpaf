@@ -9,8 +9,9 @@ use std::{
 
 mod document;
 mod module;
+mod runner;
 mod types;
-pub use crate::{document::*, module::*, types::*};
+pub use crate::{document::*, module::*, runner::*, types::*};
 
 // TODO:
 //
@@ -21,7 +22,9 @@ fn read_comrak<'a>(
     arena: &'a Arena<Node<'a, RefCell<Ast>>>,
     file: &Path,
 ) -> anyhow::Result<&'a Node<'a, RefCell<Ast>>> {
-    let input = std::fs::read_to_string(file)?;
+    let Ok(input) = std::fs::read_to_string(file) else {
+        anyhow::bail!("Couldn't read markdown from {file:?}");
+    };
     let options = ComrakOptions::default();
     Ok(parse_document(arena, &input, &options))
 }
@@ -79,5 +82,43 @@ fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::R
         file.seek(std::io::SeekFrom::Start(0))?;
         std::io::Write::write_all(&mut file, new_val.as_bytes())?;
     }
+    Ok(())
+}
+
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub fn process_directory(
+    source: impl AsRef<Path>,
+    out: impl AsRef<Path>,
+    target: impl AsRef<Path>,
+) -> Result<()> {
+    std::env::set_current_dir(env!("CARGO_MANIFEST_DIR"))?;
+    let mut items = Vec::new();
+
+    // read all the files and process them sorted
+    for entry in std::fs::read_dir(source)? {
+        let entry = entry?;
+        if entry.file_name() == "." || entry.file_name() == ".." {
+            continue;
+        }
+        items.push(entry.path());
+    }
+    items.sort();
+
+    let mut generated = String::new();
+
+    let modules = items
+        .iter()
+        .map(|p| import_module(p))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+
+    for module in &modules {
+        generated += &module.to_string();
+        generated += "\n";
+    }
+
+    generated += &runner::Runner { modules: &modules }.to_string();
+
+    std::fs::write(out.as_ref().join("lib.rs"), generated)?;
     Ok(())
 }
