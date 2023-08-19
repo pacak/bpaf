@@ -67,31 +67,10 @@ fn get_md_path(file: &Path) -> anyhow::Result<Cow<Path>> {
     })
 }
 
-fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::Result<()> {
-    use std::io::Read;
-    use std::io::Seek;
-    let mut file = std::fs::OpenOptions::new()
-        .write(true)
-        .read(true)
-        .create(true)
-        .open(path)?;
-    let mut current_val = String::new();
-    file.read_to_string(&mut current_val)?;
-    if current_val != new_val {
-        file.set_len(0)?;
-        file.seek(std::io::SeekFrom::Start(0))?;
-        std::io::Write::write_all(&mut file, new_val.as_bytes())?;
-    }
-    Ok(())
-}
-
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
-pub fn process_directory(
-    source: impl AsRef<Path>,
-    out: impl AsRef<Path>,
-    target: impl AsRef<Path>,
-) -> Result<()> {
+/// read markdowns from `source` directory, write a lib file into `out` file
+pub fn process_directory(source: impl AsRef<Path>, out: impl AsRef<Path>) -> Result<()> {
     std::env::set_current_dir(env!("CARGO_MANIFEST_DIR"))?;
     let mut items = Vec::new();
 

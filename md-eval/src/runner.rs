@@ -1,14 +1,19 @@
-use crate::{Module, Result};
+use std::path::PathBuf;
+
+use crate::Module;
 use bpaf::*;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub struct Options {
     /// Format generated code with prettyplease
-    pretty: bool,
+    pub pretty: bool,
 
     /// Include generators that spawn a shell for autocomplete
-    slow: bool,
+    pub slow: bool,
+
+    #[bpaf(short, long, fallback("./src/docs".into()))]
+    pub out_dir: PathBuf,
 }
 
 pub(crate) struct Runner<'a> {
@@ -21,7 +26,7 @@ impl std::fmt::Display for Runner<'_> {
         writeln!(f, "  let opts = md_eval::options().run();")?;
 
         for module in self.modules {
-            writeln!(f, "  {}::run();", module.name)?;
+            writeln!(f, "  {}::run(&opts.out_dir);", module.name)?;
         }
 
         writeln!(f, "}}")?;

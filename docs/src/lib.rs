@@ -1,5 +1,3 @@
-use bpaf::*;
-
 pub fn render_res<T: std::fmt::Debug>(res: Result<T, bpaf::ParseFailure>) -> String {
     match res {
         Ok(x) => format!("{x:?}"),

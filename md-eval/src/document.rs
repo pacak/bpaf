@@ -20,8 +20,10 @@ pub fn render_module(file: impl AsRef<Path>, results: &[String]) -> anyhow::Resu
     render_module_inner(file.as_ref(), results)
 }
 
-fn fold(title: &str, contents: &str) -> String {
-    format!("<details><summary>{title}</summary>\n\n{contents}\n\n</details>")
+fn fold_html(title: &str, line: &str, contents: &str) -> String {
+    format!(
+        "<details><summary>{title}</summary><div style=\"{STYLE}\">\n$ app {line}<br />\n{contents}\n</div></details>",
+    )
 }
 
 fn fold_source(title: &str, contents: &str) -> String {
@@ -51,11 +53,14 @@ fn render_module_inner(file: &Path, results: &[String]) -> anyhow::Result<Docume
                     }
                 }
             }
-            Block::Exec(_exec) => {
-                *ast = html(format!(
-                    "<div style=\"{STYLE}\">\n{}\n</div>",
-                    &results[execs]
-                ));
+            Block::Exec(exec) => {
+                *ast = html(match exec.title.as_ref() {
+                    Some(title) => fold_html(title, &exec.line, &results[execs]),
+                    None => format!(
+                        "<div style=\"{STYLE}\">\n$ app {}<br />\n{}\n</div>",
+                        &exec.line, &results[execs]
+                    ),
+                });
                 execs += 1;
             }
         }

@@ -29,7 +29,11 @@ impl std::fmt::Display for Module {
 
         // write down code blocks as modules
         for (id, code) in &self.code {
-            writeln!(f, "  mod b{id} {{\n  {}\n  }}", code.text)?;
+            writeln!(
+                f,
+                "  mod b{id} {{\n#![allow(dead_code)]\n  {}\n  }}",
+                code.text
+            )?;
         }
 
         // Don't care about unused code, just typecheck it
@@ -43,7 +47,7 @@ impl std::fmt::Display for Module {
 
         writeln!(f, "#[test]\nfn run_as_test() {{ run() }}")?;
 
-        writeln!(f, "pub fn run(output_dir: &str) {{")?;
+        writeln!(f, "pub fn run(output_dir: &std::path::Path) {{")?;
         writeln!(f, "let mut out = Vec::new();")?;
 
         for id in self.code.keys() {
@@ -75,10 +79,9 @@ impl std::fmt::Display for Module {
         let name = &self.name;
         writeln!(
             f,
-            "let dest = std::path::PathBuf::from(output_dir).join(\"/{name}.{ext}\");"
+            "let dest = std::path::PathBuf::from(output_dir).join(\"{name}.{ext}\");"
         )?;
         writeln!(f, "std::fs::write(dest, md.to_string()).unwrap();",)?;
-
         writeln!(f, "}}}}")?;
         Ok(())
     }
@@ -120,7 +123,9 @@ pub fn import_module(file: &Path) -> anyhow::Result<Module> {
     for (block, _ast) in codeblocks(root) {
         match block? {
             Block::Code(Some(id), code) => {
-                module.code.insert(id, code);
+                if module.code.insert(id, code).is_some() {
+                    anyhow::bail!("Duplicate code block id {id} while parsing {file:?}");
+                }
             }
             Block::Code(None, code) => {
                 module.typecheck.push(code);

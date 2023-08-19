@@ -1318,15 +1318,15 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
     }
 }
 
+#[cfg_attr(not(doctest), doc = include_str!("docs/short.md"))]
+///
 /// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
 /// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-/// asdf
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs/short.md"))]
 #[must_use]
 pub fn short(short: char) -> NamedArg {
     NamedArg {
