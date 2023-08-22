@@ -8,6 +8,7 @@ use std::{
 };
 
 mod document;
+mod entry;
 mod module;
 mod runner;
 mod types;

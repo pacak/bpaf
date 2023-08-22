@@ -1528,3 +1528,5 @@ where
     let skip = literal(cmd).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
+
+pub mod docs;

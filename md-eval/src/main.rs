@@ -37,6 +37,13 @@ fn pretty_print(rendered: &str) -> anyhow::Result<String> {
 fn main() -> anyhow::Result<()> {
     let opts = options().fallback_to_usage().run();
 
+    //    let arena = Default::default();
+    let x = construct_module(&opts.target)?;
+    match pretty_print(&x) {
+        Ok(x) => println!("{x}"),
+        Err(_) => println!("{x}"),
+    }
+
     /*
         let module = import_module(&opts.target)?;
 
@@ -49,13 +56,14 @@ fn main() -> anyhow::Result<()> {
             println!("{module}");
         }
     */
+    /*
     let md = render_module(
         &opts.target,
         &["results are here".into(), "x".into(), "asdf".into()],
     )?;
     //    let md = pretty_print(&md)?;
     println!("{md}");
-    println!("{:?}", opts.target);
+    println!("{:?}", opts.target);*/
 
     Ok(())
 }
