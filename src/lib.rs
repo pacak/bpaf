@@ -1529,4 +1529,10 @@ where
     construct!(skip, parser).map(|x| x.1)
 }
 
+/// asdf
+///
+/// ```text
+/// asef
+/// ```
+///
 pub mod docs;

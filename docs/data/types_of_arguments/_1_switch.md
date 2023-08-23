@@ -14,7 +14,8 @@ $ ls <span style="font-weight: bold">--time --reverse</span>
 </pre>
 </div>
 
-#![cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
+To parse one
+
 
 For more detailed info see [`NamedArg::switch`] and
 [`NamedArg::flag`]

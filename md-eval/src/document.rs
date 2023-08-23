@@ -107,6 +107,7 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
                 });
                 execs += 1;
             }
+            Block::Ignore => {}
         }
     }
 
@@ -140,6 +141,10 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
 
                 writeln!(&mut res)?;
                 write!(&mut res, "{nav}")?;
+                writeln!(
+                    &mut res,
+                    "#[allow(unused_imports)] use crate::{{*, parsers::*}};"
+                )?;
             }
 
             let index_link = format!("super::{name}");

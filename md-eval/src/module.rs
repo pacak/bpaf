@@ -56,6 +56,7 @@ where
 
                 //                writeln!(&mut execs,
             }
+            Block::Ignore => {}
         }
     }
 

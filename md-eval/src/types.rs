@@ -18,6 +18,7 @@ pub struct Exec {
 pub enum Block {
     Code(Option<usize>, Code),
     Exec(Exec),
+    Ignore,
 }
 
 impl Block {
@@ -29,12 +30,13 @@ impl Block {
     fn parse_inner(code: &NodeCodeBlock) -> anyhow::Result<Self> {
         let toks = CodeTok::parse(code)?;
         match toks.get(0) {
+            None | Some(CodeTok::Text) => Ok(Self::Ignore),
             Some(CodeTok::Runner) => {
                 let mut ids = Vec::new();
                 let mut title = None;
                 for t in &toks[1..] {
                     match t {
-                        CodeTok::Runner | CodeTok::Source => {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
                             anyhow::bail!("Code block should have only one ```rust or ```run")
                         }
                         CodeTok::Id(id) => ids.push(*id),
@@ -50,7 +52,7 @@ impl Block {
                 let mut title = None;
                 for t in &toks[1..] {
                     match t {
-                        CodeTok::Runner | CodeTok::Source => {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
                             anyhow::bail!("Code block should have only one ```rust or ```run")
                         }
                         CodeTok::Id(i) => id = Some(*i),
@@ -77,6 +79,7 @@ impl Block {
 pub enum CodeTok<'a> {
     Runner,
     Source,
+    Text,
     Id(usize),
     Title(&'a str),
 }
@@ -86,6 +89,7 @@ impl<'a> CodeTok<'a> {
         match i {
             "rust" => Ok(Self::Source),
             "run" => Ok(Self::Runner),
+            "text" => Ok(Self::Text),
             _ => {
                 if let Some(title) = i.strip_prefix("fold:") {
                     Ok(Self::Title(title))
@@ -99,6 +103,10 @@ impl<'a> CodeTok<'a> {
     }
 
     pub fn parse(code: &'a NodeCodeBlock) -> anyhow::Result<Vec<Self>> {
-        code.info.split(',').map(CodeTok::from_str).collect()
+        if code.info.is_empty() {
+            Ok(Vec::new())
+        } else {
+            code.info.split(',').map(CodeTok::from_str).collect()
+        }
     }
 }

@@ -78,3 +78,4 @@
 //! `bpaf` tries to provide user-friendly error messages, and suggestions for typos but also scripts
 //! for shell completion, `man` pages and markdown documentation for the web.
 
+#[allow(unused_imports)] use crate::{*, parsers::*};

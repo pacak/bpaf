@@ -34,16 +34,40 @@ fn pretty_print(rendered: &str) -> anyhow::Result<String> {
     Ok(prettyplease::unparse(&parsed))
 }
 
+fn process(path: &std::path::Path) -> anyhow::Result<()> {
+    //    use pulldown_cmark::*;
+    //    use pulldown_cmark_to_cmark::*;
+
+    let data = std::fs::read_to_string(path)?;
+    let parser = pulldown_cmark::Parser::new(&data);
+
+    let mut out = String::new();
+
+    pulldown_cmark_to_cmark::cmark(
+        parser.map(|x| {
+            println!("{:?}", x);
+            x
+        }),
+        &mut out,
+    )
+    .unwrap();
+
+    Ok(())
+}
+
 fn main() -> anyhow::Result<()> {
     let opts = options().fallback_to_usage().run();
 
-    //    let arena = Default::default();
-    let x = construct_module(&opts.target)?;
-    match pretty_print(&x) {
-        Ok(x) => println!("{x}"),
-        Err(_) => println!("{x}"),
-    }
+    process(&opts.target)?;
 
+    /*
+        //    let arena = Default::default();
+        let x = construct_module(&opts.target)?.code;
+        match pretty_print(&x) {
+            Ok(x) => println!("{x}"),
+            Err(_) => println!("{x}"),
+        }
+    */
     /*
         let module = import_module(&opts.target)?;
 
