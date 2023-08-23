@@ -1,11 +1,5 @@
-use anyhow::Context;
 use comrak::{arena_tree::Node, nodes::Ast, *};
-use std::{
-    borrow::Cow,
-    cell::RefCell,
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-};
+use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 mod document;
 mod entry;
@@ -42,33 +36,26 @@ fn file2mod(file: &Path) -> String {
     .to_string()
 }
 
-fn document_children(file: &Path) -> anyhow::Result<Vec<PathBuf>> {
-    if file.is_dir() {
-        let mut res = Vec::new();
-        for entry in file.read_dir()? {
-            let entry = entry?;
-            let name = entry.file_name();
-            if name == "." || name == ".." || name == "index.md" {
-                continue;
-            }
-            res.push(entry.path());
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+pub(crate) struct Runner<'a> {
+    pub(crate) modules: &'a [Mod],
+}
+
+impl std::fmt::Display for Runner<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "pub fn run_md_eval() {{")?;
+        writeln!(f, "  let opts = md_eval::options().run();")?;
+
+        for module in self.modules {
+            writeln!(f, "  {}::run(&opts.out_dir);", module.name)?;
         }
-        res.sort();
-        Ok(res)
-    } else {
-        Ok(Vec::new())
+
+        writeln!(f, "}}")?;
+
+        Ok(())
     }
 }
-
-fn get_md_path(file: &Path) -> anyhow::Result<Cow<Path>> {
-    Ok(if file.is_dir() {
-        Cow::from(file.join("index.md"))
-    } else {
-        Cow::from(file)
-    })
-}
-
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
 /// read markdowns from `source` directory, write a lib file into `out` file
 pub fn process_directory(source: impl AsRef<Path>, out: impl AsRef<Path>) -> Result<()> {
@@ -89,15 +76,15 @@ pub fn process_directory(source: impl AsRef<Path>, out: impl AsRef<Path>) -> Res
 
     let modules = items
         .iter()
-        .map(|p| import_module(p))
+        .map(|p| construct_module(p))
         .collect::<anyhow::Result<Vec<_>>>()?;
 
     for module in &modules {
-        generated += &module.to_string();
+        generated += &module.code;
         generated += "\n";
     }
 
-    generated += &runner::Runner { modules: &modules }.to_string();
+    generated += &Runner { modules: &modules }.to_string();
 
     std::fs::write(out.as_ref().join("lib.rs"), generated)?;
     Ok(())

@@ -91,14 +91,10 @@ impl<'a> Entry<'a> {
     }
 
     pub fn ext(&self) -> &str {
-        let ext = match self {
+        match self {
             Entry::Singleton { .. } => "md",
             Entry::Siblings { .. } => "rs",
-        };
-
-        todo!("name{:?}, ext {:?}", self.name(), ext);
-
-        ext
+        }
     }
 }
 
