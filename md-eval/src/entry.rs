@@ -9,6 +9,7 @@ use crate::{file2mod, read_comrak, Block};
 
 pub type Md<'a> = Node<'a, RefCell<Ast>>;
 
+#[derive(Debug)]
 pub enum Entry<'a> {
     Singleton {
         name: String,
@@ -90,10 +91,14 @@ impl<'a> Entry<'a> {
     }
 
     pub fn ext(&self) -> &str {
-        match self {
+        let ext = match self {
             Entry::Singleton { .. } => "md",
             Entry::Siblings { .. } => "rs",
-        }
+        };
+
+        todo!("name{:?}, ext {:?}", self.name(), ext);
+
+        ext
     }
 }
 

@@ -85,6 +85,7 @@ pub fn render_module(file: impl AsRef<Path>, results: &[String]) -> anyhow::Resu
 fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
     let arena = Default::default();
     let entry = entry::import(&arena, file)?;
+
     let mut execs = 0;
 
     for (_file_id, code, mut ast) in entry.code_blocks() {
@@ -123,8 +124,6 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
         } => {
             use std::fmt::Write;
             let mut res = String::new();
-            //            writeln!(&mut res, "//! &nbsp;")?;
-
             if let Some(index) = index {
                 let nav = Nav {
                     pad: "//! ",
@@ -132,8 +131,6 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
                     index: None,
                     next: (!siblings.is_empty()).then_some("page_1"),
                 };
-
-                //                write!(&mut res, "{nav}")?;
 
                 format_commonmark(index, &options, &mut wrote)?;
                 for line in std::str::from_utf8(&wrote)?.lines() {
@@ -163,8 +160,6 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
                     next: (page < siblings.len()).then_some(&next_page),
                 };
 
-                //                write!(&mut res, "{nav}")?;
-
                 format_commonmark(child, &options, &mut wrote)?;
                 for line in std::str::from_utf8(&wrote)?.lines() {
                     writeln!(&mut res, "/// {line}")?;
@@ -172,6 +167,7 @@ fn render_entry(file: &Path, results: &[String]) -> anyhow::Result<String> {
                 wrote.clear();
 
                 write!(&mut res, "{nav}")?;
+
                 writeln!(&mut res, "pub mod page_{page} {{}}")?;
             }
 
