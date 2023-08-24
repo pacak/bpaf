@@ -380,7 +380,11 @@ impl ParsedEnumBranch {
                     attrs.push(EAttr::NamedCommand(ident_to_long(&branch.ident)));
                 }
 
-                EAttr::CommandShort(_) | EAttr::CommandLong(_) => branch.set_command(),
+                EAttr::CommandShort(_) | EAttr::CommandLong(_) => {
+                    // TODO should probably be a bit more careful here,
+                    // new_derive macro addresses that though
+                    attrs.push(attr);
+                }
 
                 EAttr::UnitShort(n) => branch.set_unit_name(StrictName::Short {
                     name: n.unwrap_or_else(|| ident_to_short(&branch.ident)),

@@ -102,3 +102,16 @@ fn squashed_short_names() {
     let r = parser.run_inner(&["-a", "-bfoo"]).unwrap();
     assert_eq!(r.1, "foo");
 }
+
+#[test]
+fn command_alias() {
+    #[derive(Debug, Bpaf, Clone)]
+    #[bpaf(options)]
+    enum Groups {
+        #[bpaf(command("top"), long("top-alias"))]
+        Command,
+    }
+
+    groups().run_inner(&["top"]).unwrap();
+    groups().run_inner(&["top-alias"]).unwrap();
+}

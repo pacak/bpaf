@@ -546,7 +546,7 @@ fn generate_command() {
 }
 
 #[test]
-fn command_with_aliases() {
+fn command_with_aliases_struct() {
     let top: Top = parse_quote! {
         #[bpaf(command, short('c'), long("long"), long("long2"))]
         /// help
@@ -562,6 +562,37 @@ fn command_with_aliases() {
             {
                 let i = ::bpaf::short('i').switch();
                 ::bpaf::construct!(Command { i, })
+            }
+            .to_options()
+            .descr("help")
+            .command("command")
+            .short('c')
+            .long("long")
+            .long("long2")
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn command_with_aliases_enum() {
+    let top: Top = parse_quote! {
+        enum Options {
+            #[bpaf(command("command"), short('c'), long("long"), long("long2"))]
+            /// help
+            Command {
+                i: bool,
+            }
+        }
+    };
+
+    let expected = quote! {
+        fn options() -> impl ::bpaf::Parser<Options> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let i = ::bpaf::short('i').switch();
+                ::bpaf::construct!(Options::Command { i, })
             }
             .to_options()
             .descr("help")
