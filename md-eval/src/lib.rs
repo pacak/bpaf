@@ -3,9 +3,11 @@ use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 mod document;
 mod entry;
+pub mod md;
 mod module;
 mod runner;
 mod types;
+
 pub use crate::{document::*, module::*, runner::*, types::*};
 
 // TODO:

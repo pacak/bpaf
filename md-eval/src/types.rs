@@ -74,6 +74,64 @@ impl Block {
     }
 }
 
+#[derive(Debug, Clone, Default)]
+pub enum Upcoming {
+    /// Rust code
+    Code {
+        /// Fold title, if needs folding
+        title: Option<String>,
+        id: Option<usize>,
+    },
+    Exec {
+        /// Fold title, if needs folding
+        title: Option<String>,
+        /// all the code blocks testing against
+        ids: Vec<usize>,
+    },
+    /// skip next block without making any changes
+    #[default]
+    Ignore,
+}
+
+impl Upcoming {
+    pub fn parse_fence(fence: &str) -> anyhow::Result<Self> {
+        let toks = CodeTok::from_fence(fence)?;
+        match toks.get(0) {
+            None | Some(CodeTok::Text) => Ok(Self::Ignore),
+            Some(CodeTok::Runner) => {
+                let mut ids = Vec::new();
+                let mut title = None;
+                for t in &toks[1..] {
+                    match t {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
+                            anyhow::bail!("Code block should have only one ```rust or ```run")
+                        }
+                        CodeTok::Id(id) => ids.push(*id),
+                        CodeTok::Title(t) => title = Some(t.to_string()),
+                    }
+                }
+                Ok(Self::Exec { title, ids })
+            }
+            Some(CodeTok::Source) => {
+                let mut id = None;
+                let mut title = None;
+                for t in &toks[1..] {
+                    match t {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
+                            anyhow::bail!("Code block should have only one ```rust or ```run")
+                        }
+                        CodeTok::Id(i) => id = Some(*i),
+                        CodeTok::Title(t) => title = Some(t.to_string()),
+                    }
+                }
+
+                Ok(Self::Code { title, id })
+            }
+            _ => anyhow::bail!("Code block should be guarded with ```rust or ```run"),
+        }
+    }
+}
+
 /// Info from a fenced code block
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum CodeTok<'a> {
@@ -99,6 +157,13 @@ impl<'a> CodeTok<'a> {
                     anyhow::bail!("Not sure how to parse {i:?}");
                 }
             }
+        }
+    }
+    pub fn from_fence(fence: &'a str) -> anyhow::Result<Vec<Self>> {
+        if fence.is_empty() {
+            Ok(Vec::new())
+        } else {
+            fence.split(',').map(Self::from_str).collect()
         }
     }
 

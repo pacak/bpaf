@@ -35,6 +35,9 @@ fn pretty_print(rendered: &str) -> anyhow::Result<String> {
 }
 
 fn process(path: &std::path::Path) -> anyhow::Result<()> {
+    let doc = md_eval::md::Document::load(path)?;
+    todo!("{}", doc.render_rust()?);
+
     //    use pulldown_cmark::*;
     //    use pulldown_cmark_to_cmark::*;
 
