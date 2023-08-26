@@ -5,11 +5,11 @@ use comrak::nodes::{NodeHtmlBlock, NodeValue};
 
 const STYLE: &str = "padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;";
 
-struct Nav<'a> {
-    pad: &'a str,
-    prev: Option<&'a str>,
-    index: Option<&'a str>,
-    next: Option<&'a str>,
+pub(crate) struct Nav<'a> {
+    pub(crate) pad: &'a str,
+    pub(crate) prev: Option<&'a str>,
+    pub(crate) index: Option<&'a str>,
+    pub(crate) next: Option<&'a str>,
 }
 
 impl std::fmt::Display for Nav<'_> {
@@ -26,13 +26,13 @@ impl std::fmt::Display for Nav<'_> {
         writeln!(f, "{pad}")?;
         writeln!(
             f,
-            "{pad}<table width='100%' cellspacing='0' style='border: hidden;'><tr>"
+            "{pad} <table width='100%' cellspacing='0' style='border: hidden;'><tr>"
         )?;
 
         writeln!(f, "{pad}  <td style='width: 34%; text-align: left;'>")?;
         if let Some(module) = index {
             writeln!(f, "{pad}")?;
-            writeln!(f, "{pad}[&larr;&larr;]({module})")?;
+            writeln!(f, "{pad} [&larr;&larr;]({module})")?;
             writeln!(f, "{pad}")?;
         }
 
@@ -41,7 +41,7 @@ impl std::fmt::Display for Nav<'_> {
         writeln!(f, "{pad}  <td style='width: 33%; text-align: center;'>")?;
         if let Some(module) = prev {
             writeln!(f, "{pad}")?;
-            writeln!(f, "{pad}[&larr; ]({module})")?;
+            writeln!(f, "{pad} [&larr; ]({module})")?;
             writeln!(f, "{pad}")?;
         }
 
@@ -49,11 +49,11 @@ impl std::fmt::Display for Nav<'_> {
         writeln!(f, "{pad}  <td style='width: 33%; text-align: right;'>")?;
         if let Some(module) = next {
             writeln!(f, "{pad}")?;
-            writeln!(f, "{pad}[&rarr;]({module})")?;
+            writeln!(f, "{pad} [&rarr;]({module})")?;
             writeln!(f, "{pad}")?;
         }
         writeln!(f, "{pad}  </td>")?;
-        writeln!(f, "{pad}</tr></table>")?;
+        writeln!(f, "{pad} </tr></table>")?;
         writeln!(f, "{pad}")?;
         Ok(())
     }

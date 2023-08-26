@@ -7,31 +7,30 @@
 //! If you ever used any software from a command line (say `cargo`) you used command line options.
 //! Let's recap how you might run tests for a crate in your rust project:
 //!
-//! ``` text
+//! ````text
 //! $ cargo test -p my_project --verbose
-//! ```
+//! ````
 //!
 //! `cargo` here is an executable name, everything to the right of it separated by spaces are the
 //! options.
 //!
 //! Nowadays programs share mostly similar conventions about what a command line argument is, it
 //! wasn't the case before though. Let's cover the basic types.
-
 //!
 //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-//!   <td style='width: 34%; text-align: left;'>
-//!   </td>
-//!   <td style='width: 33%; text-align: center;'>
-//!   </td>
-//!   <td style='width: 33%; text-align: right;'>
+//!  <td style='width: 34%; text-align: left;'>
+//!  </td>
+//!  <td style='width: 33%; text-align: center;'>
+//!  </td>
+//!  <td style='width: 33%; text-align: right;'>
 //!
 //! [&rarr;](page_1)
 //!
-//!   </td>
+//!  </td>
 //! </tr></table>
 //!
-#[allow(unused_imports)]
-use crate::{parsers::*, *};
+#[allow(unused_imports)] use crate::{*, parsers::*};
+
 
 /// #### Options, switches or flags
 ///
@@ -51,28 +50,29 @@ use crate::{parsers::*, *};
 ///
 /// To parse one
 ///
-/// For more detailed info see [`NamedArg::switch`] and
-/// [`NamedArg::flag`]
+/// For more detailed info see \[`NamedArg::switch`\] and
+/// \[`NamedArg::flag`\]
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///   <td style='width: 34%; text-align: left;'>
+///  <td style='width: 34%; text-align: left;'>
 ///
 /// [&larr;&larr;](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: center;'>
+///  </td>
+///  <td style='width: 33%; text-align: center;'>
 ///
 /// [&larr; ](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: right;'>
+///  </td>
+///  <td style='width: 33%; text-align: right;'>
 ///
 /// [&rarr;](page_2)
 ///
-///   </td>
+///  </td>
 /// </tr></table>
 ///
 pub mod page_1 {}
+
 
 /// #### Option arguments or arguments
 ///
@@ -92,29 +92,30 @@ pub mod page_1 {}
 /// usually a short, all-caps word describing what the value means: `NAME`, `AGE`, `SPEC`, and `CODE`
 /// are all valid examples.
 ///
-/// \#\!\[cfg\_attr(not(doctest), doc = include\_str\!("docs2/argument.md"))\]
+/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))\]
 ///
 /// For more detailed info see \[`NamedArg::argument`\]
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///   <td style='width: 34%; text-align: left;'>
+///  <td style='width: 34%; text-align: left;'>
 ///
 /// [&larr;&larr;](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: center;'>
+///  </td>
+///  <td style='width: 33%; text-align: center;'>
 ///
 /// [&larr; ](page_1)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: right;'>
+///  </td>
+///  <td style='width: 33%; text-align: right;'>
 ///
 /// [&rarr;](page_3)
 ///
-///   </td>
+///  </td>
 /// </tr></table>
 ///
 pub mod page_2 {}
+
 
 /// #### Operands or positional items
 ///
@@ -130,29 +131,30 @@ pub mod page_2 {}
 /// </pre>
 /// </div>
 ///
-/// \#\!\[cfg\_attr(not(doctest), doc = include\_str\!("docs2/positional.md"))\]
+/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))\]
 ///
 /// For more detailed info see [`positional`](crate::positional) and
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///   <td style='width: 34%; text-align: left;'>
+///  <td style='width: 34%; text-align: left;'>
 ///
 /// [&larr;&larr;](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: center;'>
+///  </td>
+///  <td style='width: 33%; text-align: center;'>
 ///
 /// [&larr; ](page_2)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: right;'>
+///  </td>
+///  <td style='width: 33%; text-align: right;'>
 ///
 /// [&rarr;](page_4)
 ///
-///   </td>
+///  </td>
 /// </tr></table>
 ///
 pub mod page_3 {}
+
 
 /// #### Commands or subcommands
 ///
@@ -169,29 +171,30 @@ pub mod page_3 {}
 /// </pre>
 /// </div>
 ///
-/// \#\!\[cfg\_attr(not(doctest), doc = include\_str\!("docs2/command.md"))\]
+/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))\]
 ///
 /// For more detailed info see \[`OptionParser::command`\]
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///   <td style='width: 34%; text-align: left;'>
+///  <td style='width: 34%; text-align: left;'>
 ///
 /// [&larr;&larr;](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: center;'>
+///  </td>
+///  <td style='width: 33%; text-align: center;'>
 ///
 /// [&larr; ](page_3)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: right;'>
+///  </td>
+///  <td style='width: 33%; text-align: right;'>
 ///
 /// [&rarr;](page_5)
 ///
-///   </td>
+///  </td>
 /// </tr></table>
 ///
 pub mod page_4 {}
+
 
 /// #### Exotic schemas
 ///
@@ -234,18 +237,18 @@ pub mod page_4 {}
 /// </pre></div>
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///   <td style='width: 34%; text-align: left;'>
+///  <td style='width: 34%; text-align: left;'>
 ///
 /// [&larr;&larr;](super::types_of_arguments)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: center;'>
+///  </td>
+///  <td style='width: 33%; text-align: center;'>
 ///
 /// [&larr; ](page_4)
 ///
-///   </td>
-///   <td style='width: 33%; text-align: right;'>
-///   </td>
+///  </td>
+///  <td style='width: 33%; text-align: right;'>
+///  </td>
 /// </tr></table>
 ///
 pub mod page_5 {}

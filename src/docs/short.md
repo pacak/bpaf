@@ -10,7 +10,7 @@ To turn that into a parser you might want to attach a [`help`](NamedArg::help) m
 convert it to a [`Parser`](crate::Parser) using an [`argument`](NamedArg::argument), a [`switch`](NamedArg::switch),
 a [`flag`](NamedArg::flag) or a [`req_flag`](NamedArg::req_flag) methods.
 
-``` rust,id:1
+````rust
 # use bpaf::*;
 fn parser() -> impl Parser<bool> {
     short('s')      // visible name
@@ -19,12 +19,16 @@ fn parser() -> impl Parser<bool> {
         .switch()
 }
 # pub fn options() -> OptionParser<bool> { parser().to_options() }
-```
+````
 
 Help message contains only the visible name
 
+
+
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app --help<br />
+$ app --help
+<br />
+
 
 **Usage**: \[**`-s`**\]
 
@@ -36,19 +40,32 @@ $ app --help<br />
 
 
 
+
 </div>
+
 
 But parser accepts both `-s` and `-S`
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app -s<br />
-true
-</div>
+
 
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app -S<br />
+$ app -s
+<br />
+
 true
+
 </div>
+
+
+
+<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+$ app -S
+<br />
+
+true
+
+</div>
+
 
 #### Derive usage
 
@@ -57,7 +74,7 @@ variant or directly on enum variant itself.
 
 <details><summary>"Combinatoric example"</summary>
 
-```rust
+````rust
 use bpaf::Bpaf;
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
@@ -67,14 +84,17 @@ struct Options {
     #[bpaf(short, short('S'))]
     switch: bool,
 }
-```
+````
 
 </details>
-
 Help message contains only the visible name
 
+
+
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app --help<br />
+$ app --help
+<br />
+
 
 **Usage**: \[**`-s`**\]
 
@@ -86,23 +106,36 @@ $ app --help<br />
 
 
 
+
 </div>
+
 
 But parser accepts both `-s` and `-S`
 
+
+
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app -s<br />
+$ app -s
+<br />
+
 Options { switch: true }
+
 </div>
 
-<details><summary>"Hidden alias"</summary><div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app -S<br />
-Options { switch: true }
-</div></details>
+<details><summary>"Hidden alias"</summary>
 
+<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+$ app -S
+<br />
+
+Options { switch: true }
+
+</div>
+
+</details>
 Usage on a enum variant with no fields:
 
-``` rust,id:3
+````rust
 use bpaf::Bpaf;
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
@@ -115,10 +148,14 @@ enum Options {
     #[bpaf(short('B'))]
     Beta,
 }
-```
+````
+
+
 
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app --help<br />
+$ app --help
+<br />
+
 
 **Usage**: (**`-a`** | **`-B`**)
 
@@ -132,9 +169,16 @@ $ app --help<br />
 
 
 
+
 </div>
 
+
+
 <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-$ app -a<br />
+$ app -a
+<br />
+
 Alpha
+
 </div>
+
