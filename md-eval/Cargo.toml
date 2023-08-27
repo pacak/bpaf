@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.71"
 bpaf = { version = "0.9.4", features = ["dull-color", "derive"] }
-comrak = { version = "0.18", default-features = false }
+#comrak = { version = "0.18", default-features = false }
 prettyplease = "0.2"
 pulldown-cmark = { version = "0.9" }
 pulldown-cmark-to-cmark = { version = "11.0" }

@@ -17,5 +17,5 @@ $ ls <span style="font-weight: bold">--time --reverse</span>
 To parse one
 
 
-For more detailed info see [`NamedArg::switch`] and
-[`NamedArg::flag`]
+For more detailed info see [`NamedArg::switch`](NamedArg::switch) and
+[`NamedArg::flag`](NamedArg::flag)

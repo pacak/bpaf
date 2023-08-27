@@ -18,4 +18,4 @@ are all valid examples.
 
 #![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
 
-For more detailed info see [`NamedArg::argument`]
+For more detailed info see [`NamedArg::argument`](NamedArg::argument)

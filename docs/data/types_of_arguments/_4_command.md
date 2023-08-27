@@ -15,4 +15,4 @@ $ cargo <span style="font-weight: bold">asm --intel --everything</span>
 
 #![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
 
-For more detailed info see [`OptionParser::command`]
+For more detailed info see [`OptionParser::command`](OptionParser::command)

@@ -26,12 +26,14 @@ $ xorg -backing +xinerama
 </pre></div>
 
 `dd` takes several key-value pairs, this would create a 100M file
+
 <div class="code-wrap"><pre>
 $ dd if=/dev/zero of=dummy.bin bs=1M count=100
 </pre></div>
 
 Most of the command line arguments in Turbo C++ 3.0 start with `/`. For example, option
 `/x` tells it to use all available extended memory, while `/x[=n]` limits it to n kilobytes
+
 <div class="code-wrap"><pre>
 C:\PROJECT>TC /x=200
 </pre></div>

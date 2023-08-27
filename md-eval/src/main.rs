@@ -36,61 +36,13 @@ fn pretty_print(rendered: &str) -> anyhow::Result<String> {
 
 fn process(path: &std::path::Path) -> anyhow::Result<()> {
     let doc = md_eval::md::Document::load(path)?;
-    todo!("{}", pretty_print(&doc.render_rust("asdf".as_ref())?.code)?);
-
-    //    use pulldown_cmark::*;
-    //    use pulldown_cmark_to_cmark::*;
-
-    let data = std::fs::read_to_string(path)?;
-    let parser = pulldown_cmark::Parser::new(&data);
-
-    let mut out = String::new();
-
-    pulldown_cmark_to_cmark::cmark(
-        parser.map(|x| {
-            println!("{:?}", x);
-            x
-        }),
-        &mut out,
-    )
-    .unwrap();
+    println!("{}", pretty_print(&doc.render_rust()?.code)?);
 
     Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
     let opts = options().fallback_to_usage().run();
-
     process(&opts.target)?;
-
-    /*
-        //    let arena = Default::default();
-        let x = construct_module(&opts.target)?.code;
-        match pretty_print(&x) {
-            Ok(x) => println!("{x}"),
-            Err(_) => println!("{x}"),
-        }
-    */
-    /*
-        let module = import_module(&opts.target)?;
-
-        if opts.pretty {
-            let rendered = module.to_string();
-            let parsed = syn::parse_file(&rendered)?;
-            let module = prettyplease::unparse(&parsed);
-            println!("{module}");
-        } else {
-            println!("{module}");
-        }
-    */
-    /*
-    let md = render_module(
-        &opts.target,
-        &["results are here".into(), "x".into(), "asdf".into()],
-    )?;
-    //    let md = pretty_print(&md)?;
-    println!("{md}");
-    println!("{:?}", opts.target);*/
-
     Ok(())
 }

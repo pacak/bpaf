@@ -5,7 +5,7 @@ use std::{
 
 use pulldown_cmark::Event;
 
-use crate::{file2mod, Nav, Upcoming};
+use crate::{file2mod, Upcoming};
 
 /// Markdown document from data folder
 pub enum Document {
@@ -193,6 +193,7 @@ impl Document {
         match self {
             Document::Page { contents, .. } => {
                 let mut x = 0;
+
                 let events = splice_output(contents, out, &mut x);
                 pulldown_cmark_to_cmark::cmark(events, &mut res)?;
                 Ok(res)
@@ -260,7 +261,7 @@ impl Document {
                 }
 
                 Ok(res)
-            } //Ok(format!("hello world {out:?}")),
+            }
         }
     }
 }
@@ -278,7 +279,7 @@ fn splice_output<'a>(
     outs_used: &'a mut usize,
 ) -> impl Iterator<Item = Event<'a>> {
     Splicer {
-        contents: pulldown_cmark::Parser::new(contents),
+        inner: pulldown_cmark::Parser::new(contents),
         outs,
         outs_used,
         queue: VecDeque::new(),
@@ -286,7 +287,7 @@ fn splice_output<'a>(
 }
 
 struct Splicer<'a, I> {
-    contents: I,
+    inner: I,
     outs: &'a [String],
     outs_used: &'a mut usize,
     queue: VecDeque<Event<'a>>,
@@ -302,7 +303,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
             return Some(q);
         }
 
-        match self.contents.next()? {
+        match self.inner.next()? {
             Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(f))) => {
                 let fence = Upcoming::parse_fence(&f).unwrap();
                 match &fence {
@@ -313,8 +314,8 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                         let cb = Tag::CodeBlock(CodeBlockKind::Fenced("rust".into()));
                         self.queue.push_back(Event::Start(cb));
                         // transfer rust code text and closing codeblock tag
-                        self.queue.push_back(self.contents.next()?);
-                        self.queue.push_back(self.contents.next()?);
+                        self.queue.push_back(self.inner.next()?);
+                        self.queue.push_back(self.inner.next()?);
                         if title.is_some() {
                             self.queue.push_back(Event::Html("</details>".into()));
                         }
@@ -326,7 +327,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                             self.queue.push_back(fold_open(title));
                         }
 
-                        let Event::Text(code) = self.contents.next()? else {
+                        let Event::Text(code) = self.inner.next()? else {
                             panic!();
                         };
                         let snip = &self.outs[*self.outs_used];
@@ -336,7 +337,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                         self.queue.push_back(Event::Html(html.into()));
                         *self.outs_used += 1;
 
-                        self.contents.next()?;
+                        self.inner.next()?;
 
                         if title.is_some() {
                             self.queue.push_back(Event::Html("</details>".into()));
@@ -353,4 +354,58 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
 
 fn fold_open(title: &str) -> Event<'static> {
     Event::Html(format!("<details><summary>{title}</summary>").into())
+}
+
+pub(crate) struct Nav<'a> {
+    pub(crate) pad: &'a str,
+    pub(crate) prev: Option<&'a str>,
+    pub(crate) index: Option<&'a str>,
+    pub(crate) next: Option<&'a str>,
+}
+
+impl std::fmt::Display for Nav<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Nav {
+            pad,
+            prev,
+            index,
+            next,
+        } = self;
+        if prev.is_none() && next.is_none() && index.is_none() {
+            return Ok(());
+        }
+        writeln!(f, "{pad}")?;
+        writeln!(
+            f,
+            "{pad} <table width='100%' cellspacing='0' style='border: hidden;'><tr>"
+        )?;
+
+        writeln!(f, "{pad}  <td style='width: 34%; text-align: left;'>")?;
+        if let Some(module) = index {
+            writeln!(f, "{pad}")?;
+            writeln!(f, "{pad} [&larr;&larr;]({module})")?;
+            writeln!(f, "{pad}")?;
+        }
+
+        writeln!(f, "{pad}  </td>")?;
+
+        writeln!(f, "{pad}  <td style='width: 33%; text-align: center;'>")?;
+        if let Some(module) = prev {
+            writeln!(f, "{pad}")?;
+            writeln!(f, "{pad} [&larr; ]({module})")?;
+            writeln!(f, "{pad}")?;
+        }
+
+        writeln!(f, "{pad}  </td>")?;
+        writeln!(f, "{pad}  <td style='width: 33%; text-align: right;'>")?;
+        if let Some(module) = next {
+            writeln!(f, "{pad}")?;
+            writeln!(f, "{pad} [&rarr;]({module})")?;
+            writeln!(f, "{pad}")?;
+        }
+        writeln!(f, "{pad}  </td>")?;
+        writeln!(f, "{pad} </tr></table>")?;
+        writeln!(f, "{pad}")?;
+        Ok(())
+    }
 }

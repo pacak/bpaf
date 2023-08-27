@@ -50,8 +50,8 @@
 ///
 /// To parse one
 ///
-/// For more detailed info see \[`NamedArg::switch`\] and
-/// \[`NamedArg::flag`\]
+/// For more detailed info see [`NamedArg::switch`](NamedArg::switch) and
+/// [`NamedArg::flag`](NamedArg::flag)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='width: 34%; text-align: left;'>
@@ -94,7 +94,7 @@ pub mod page_1 {}
 ///
 /// \#![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))\]
 ///
-/// For more detailed info see \[`NamedArg::argument`\]
+/// For more detailed info see [`NamedArg::argument`](NamedArg::argument)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='width: 34%; text-align: left;'>
@@ -173,7 +173,7 @@ pub mod page_3 {}
 ///
 /// \#![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))\]
 ///
-/// For more detailed info see \[`OptionParser::command`\]
+/// For more detailed info see [`OptionParser::command`](OptionParser::command)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='width: 34%; text-align: left;'>
