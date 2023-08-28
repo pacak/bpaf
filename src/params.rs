@@ -112,13 +112,13 @@ pub struct NamedArg {
 }
 
 impl NamedArg {
-    pub(crate) fn flag_item(&self) -> Item {
-        Item::Flag {
-            name: ShortLong::from(self),
+    pub(crate) fn flag_item(&self) -> Option<Item> {
+        Some(Item::Flag {
+            name: ShortLong::try_from(self).ok()?,
             help: self.help.clone(),
             env: self.env.first().copied(),
             shorts: self.short.clone(),
-        }
+        })
     }
 }
 
@@ -546,19 +546,29 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
             match &self.absent {
                 Some(ok) => Ok(ok.clone()),
                 None => {
-                    let missing = MissingItem {
-                        item: self.named.flag_item(),
-                        position: args.scope().start,
-                        scope: args.scope(),
-                    };
-                    Err(Error(Message::Missing(vec![missing])))
+                    if let Some(item) = self.named.flag_item() {
+                        let missing = MissingItem {
+                            item,
+                            position: args.scope().start,
+                            scope: args.scope(),
+                        };
+                        Err(Error(Message::Missing(vec![missing])))
+                    } else if let Some(name) = self.named.env.first() {
+                        Err(Error(Message::NoEnv(name)))
+                    } else {
+                        todo!("no key!")
+                    }
                 }
             }
         }
     }
 
     fn meta(&self) -> Meta {
-        self.named.flag_item().required(self.absent.is_none())
+        if let Some(item) = self.named.flag_item() {
+            item.required(self.absent.is_none())
+        } else {
+            Meta::Skip
+        }
     }
 }
 
@@ -624,22 +634,17 @@ impl<T> ParseArgument<T> {
         self
     }
 
-    fn item(&self) -> Item {
-        Item::Argument {
-            name: ShortLong::from(&self.named),
+    fn item(&self) -> Option<Item> {
+        Some(Item::Argument {
+            name: ShortLong::try_from(&self.named).ok()?,
             metavar: Metavar(self.metavar),
             env: self.named.env.first().copied(),
             help: self.named.help.clone(),
             shorts: self.named.short.clone(),
-        }
+        })
     }
 
     fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
-        if self.named.short.is_empty() && self.named.long.is_empty() {
-            if let Some(name) = self.named.env.first() {
-                return Err(Error(Message::NoEnv(name)));
-            }
-        }
         match args.take_arg(&self.named, self.adjacent, Metavar(self.metavar)) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -658,14 +663,20 @@ impl<T> ParseArgument<T> {
                 args.push_argument(&self.named, self.metavar);
                 if let Some(val) = self.named.env.iter().find_map(std::env::var_os) {
                     args.current = None;
-                    Ok(val)
-                } else {
+                    return Ok(val);
+                }
+
+                if let Some(item) = self.item() {
                     let missing = MissingItem {
-                        item: self.item(),
+                        item,
                         position: args.scope().start,
                         scope: args.scope(),
                     };
                     Err(Error(Message::Missing(vec![missing])))
+                } else if let Some(name) = self.named.env.first() {
+                    Err(Error(Message::NoEnv(name)))
+                } else {
+                    unreachable!()
                 }
             }
         }
@@ -686,10 +697,10 @@ where
     }
 
     fn meta(&self) -> Meta {
-        if self.named.short.is_empty() && self.named.long.is_empty() {
-            Meta::Skip
+        if let Some(item) = self.item() {
+            Meta::from(item)
         } else {
-            Meta::from(self.item())
+            Meta::Skip
         }
     }
 }
