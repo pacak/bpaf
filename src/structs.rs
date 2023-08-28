@@ -723,8 +723,8 @@ where
     match parser.eval(args) {
         // we keep including values for as long as we consume values from the argument
         // list or at least one value
-        Ok(val) => Ok(if args.len() < *len {
-            *len = args.len();
+        Ok(val) => Ok(if args.full_len() < *len {
+            *len = args.full_len();
             Some(val)
         } else {
             None
@@ -1140,5 +1140,30 @@ impl<T> Parser<T> for Box<dyn Parser<T>> {
     }
     fn meta(&self) -> Meta {
         self.as_ref().meta()
+    }
+}
+
+pub struct ParseEnter<T> {
+    pub(crate) inner: T,
+    pub(crate) name: &'static str,
+}
+
+impl<T, P> Parser<T> for ParseEnter<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        if let Some(config) = &mut args.config {
+            config.enter(self.name);
+        }
+        let r = self.inner.eval(args);
+        if let Some(config) = &mut args.config {
+            config.exit();
+        }
+        r
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
     }
 }

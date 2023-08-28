@@ -108,6 +108,7 @@ pub struct NamedArg {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     pub(crate) env: Vec<&'static str>,
+    pub(crate) key: Vec<&'static str>,
     pub(crate) help: Option<Doc>,
 }
 
@@ -158,6 +159,11 @@ impl NamedArg {
     #[must_use]
     pub fn env(mut self, variable: &'static str) -> Self {
         self.env.push(variable);
+        self
+    }
+
+    pub fn key(mut self, name: &'static str) -> Self {
+        self.key.push(name);
         self
     }
 
@@ -666,6 +672,14 @@ impl<T> ParseArgument<T> {
                     return Ok(val);
                 }
 
+                if let Some(config) = &mut args.config {
+                    for name in &self.named.key {
+                        if let Some(val) = config.get(name) {
+                            return Ok(val.into());
+                        }
+                    }
+                }
+
                 if let Some(item) = self.item() {
                     let missing = MissingItem {
                         item,
@@ -675,6 +689,8 @@ impl<T> ParseArgument<T> {
                     Err(Error(Message::Missing(vec![missing])))
                 } else if let Some(name) = self.named.env.first() {
                     Err(Error(Message::NoEnv(name)))
+                } else if let Some(name) = self.named.key.first() {
+                    todo!("complain about name {:?}", name)
                 } else {
                     unreachable!()
                 }

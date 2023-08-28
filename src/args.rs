@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, rc::Rc};
 
 pub(crate) use crate::arg::*;
 use crate::{
@@ -37,6 +37,7 @@ pub struct Args<'a> {
     name: Option<String>,
     #[cfg(feature = "autocomplete")]
     c_rev: Option<usize>,
+    config: Option<Rc<dyn crate::config::Config + 'static>>,
 }
 
 impl Args<'_> {
@@ -77,6 +78,12 @@ impl Args<'_> {
         self.name = Some(name.to_owned());
         self
     }
+
+    #[must_use]
+    pub fn with_config(mut self, config: impl crate::config::Config + 'static) -> Self {
+        self.config = Some(Rc::new(config));
+        self
+    }
 }
 
 impl<const N: usize> From<&'static [&'static str; N]> for Args<'_> {
@@ -86,6 +93,7 @@ impl<const N: usize> From<&'static [&'static str; N]> for Args<'_> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name: None,
+            config: None,
         }
     }
 }
@@ -97,6 +105,7 @@ impl<'a> From<&'a [&'a std::ffi::OsStr]> for Args<'a> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name: None,
+            config: None,
         }
     }
 }
@@ -108,6 +117,7 @@ impl<'a> From<&'a [&'a str]> for Args<'a> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name: None,
+            config: None,
         }
     }
 }
@@ -119,6 +129,7 @@ impl<'a> From<&'a [String]> for Args<'a> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name: None,
+            config: None,
         }
     }
 }
@@ -130,6 +141,7 @@ impl<'a> From<&'a [OsString]> for Args<'a> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name: None,
+            config: None,
         }
     }
 }
@@ -150,6 +162,7 @@ impl Args<'_> {
             #[cfg(feature = "autocomplete")]
             c_rev: None,
             name,
+            config: None,
         }
     }
 }
@@ -245,7 +258,7 @@ pub use inner::State;
 mod inner {
     use std::{ops::Range, rc::Rc};
 
-    use crate::{error::Message, Args};
+    use crate::{config::ConfigReader, error::Message, Args};
 
     use super::{split_os_argument, Arg, ArgType, ItemState};
     #[derive(Clone, Debug)]
@@ -278,6 +291,8 @@ mod inner {
         /// scope starts on the right of the first consumed item and might end before the end
         /// of the list, similarly for "commands"
         scope: Range<usize>,
+
+        pub(crate) config: Option<ConfigReader>,
     }
 
     impl State {
@@ -400,6 +415,9 @@ mod inner {
             if let Some(name) = args.name {
                 path.push(name);
             }
+
+            let config = args.config.map(ConfigReader::new);
+
             State {
                 item_state,
                 remaining,
@@ -409,6 +427,7 @@ mod inner {
                 path,
                 #[cfg(feature = "autocomplete")]
                 comp,
+                config,
             }
         }
     }
@@ -470,6 +489,10 @@ mod inner {
 
         pub(crate) fn len(&self) -> usize {
             self.remaining
+        }
+
+        pub(crate) fn full_len(&self) -> usize {
+            self.remaining + self.config.as_ref().map_or(0, |c| c.unconsumed())
         }
 
         /// Get an argument from a scope that was not consumed yet

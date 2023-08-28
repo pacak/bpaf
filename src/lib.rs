@@ -173,6 +173,7 @@ mod complete_gen;
 mod complete_run;
 #[cfg(feature = "autocomplete")]
 mod complete_shell;
+pub mod config;
 pub mod doc;
 mod error;
 mod from_os_str;
@@ -200,8 +201,8 @@ pub mod parsers {
     };
     #[doc(inline)]
     pub use crate::structs::{
-        ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
-        ParseOptional, ParseSome,
+        ParseCollect, ParseCon, ParseCount, ParseEnter, ParseFallback, ParseFallbackWith,
+        ParseLast, ParseMany, ParseOptional, ParseSome,
     };
 }
 
@@ -222,9 +223,10 @@ use crate::{
     params::build_positional,
     parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
     structs::{
-        ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-        ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
-        ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp,
+        ParseCollect, ParseCount, ParseEnter, ParseFail, ParseFallback, ParseFallbackWith,
+        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional,
+        ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith,
+        ParseWithGroupHelp,
     },
 };
 
@@ -869,6 +871,13 @@ pub trait Parser<T> {
     }
     // }}}
 
+    fn enter(self, name: &'static str) -> ParseEnter<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseEnter { inner: self, name }
+    }
+
     // combine
     // {{{ fallback
     /// Use this value as default if the value isn't present on a command line
@@ -1330,6 +1339,7 @@ pub fn short(short: char) -> NamedArg {
         short: vec![short],
         env: Vec::new(),
         long: Vec::new(),
+        key: Vec::new(),
         help: None,
     }
 }
@@ -1347,6 +1357,7 @@ pub fn long(long: &'static str) -> NamedArg {
         short: Vec::new(),
         long: vec![long],
         env: Vec::new(),
+        key: Vec::new(),
         help: None,
     }
 }
@@ -1376,6 +1387,7 @@ pub fn env(variable: &'static str) -> NamedArg {
         short: Vec::new(),
         long: Vec::new(),
         help: None,
+        key: Vec::new(),
         env: vec![variable],
     }
 }
