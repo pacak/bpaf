@@ -1708,6 +1708,30 @@ fn many_env() {
 }
 
 #[test]
+fn env_hidden_arg() {
+    std::env::set_var("USER1", "top s3cr3t");
+    let parser = env("USER1").argument::<String>("USER").to_options();
+    let r = parser.run_inner(&[]).unwrap();
+    assert_eq!(r, "top s3cr3t");
+}
+
+#[test]
+fn env_hidden_switch() {
+    std::env::set_var("USER1", "top s3cr3t");
+    let parser = env("USER1").switch().to_options();
+    let r = parser.run_inner(&[]).unwrap();
+    assert!(r);
+}
+
+#[test]
+fn env_hidden_flag() {
+    std::env::set_var("USER1", "top s3cr3t");
+    let parser = env("USER1").flag(true, false).to_options();
+    let r = parser.run_inner(&[]).unwrap();
+    assert!(r);
+}
+
+#[test]
 fn some_env() {
     std::env::set_var("USER1", "top s3cr3t");
     let parser = short('v')

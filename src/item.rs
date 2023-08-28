@@ -116,13 +116,15 @@ impl ShortLong {
     }
 }
 
-impl From<&NamedArg> for ShortLong {
-    fn from(named: &NamedArg) -> Self {
+impl TryFrom<&NamedArg> for ShortLong {
+    type Error = ();
+
+    fn try_from(named: &NamedArg) -> Result<Self, Self::Error> {
         match (named.short.is_empty(), named.long.is_empty()) {
-            (true, true) => unreachable!("Named should have either short or long name"),
-            (true, false) => Self::Long(named.long[0]),
-            (false, true) => Self::Short(named.short[0]),
-            (false, false) => Self::ShortLong(named.short[0], named.long[0]),
+            (true, true) => Err(()),
+            (true, false) => Ok(Self::Long(named.long[0])),
+            (false, true) => Ok(Self::Short(named.short[0])),
+            (false, false) => Ok(Self::ShortLong(named.short[0], named.long[0])),
         }
     }
 }

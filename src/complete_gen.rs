@@ -49,14 +49,16 @@ impl State {
     pub(crate) fn push_flag(&mut self, named: &NamedArg) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
-            comp.comps.push(Comp::Flag {
-                extra: CompExtra {
-                    depth,
-                    group: None,
-                    help: named.help.as_ref().and_then(Doc::to_completion),
-                },
-                name: ShortLong::from(named),
-            });
+            if let Ok(name) = ShortLong::try_from(named) {
+                comp.comps.push(Comp::Flag {
+                    extra: CompExtra {
+                        depth,
+                        group: None,
+                        help: named.help.as_ref().and_then(Doc::to_completion),
+                    },
+                    name,
+                });
+            }
         }
     }
 
@@ -64,15 +66,17 @@ impl State {
     pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
-            comp.comps.push(Comp::Argument {
-                extra: CompExtra {
-                    depth,
-                    group: None,
-                    help: named.help.as_ref().and_then(Doc::to_completion),
-                },
-                metavar,
-                name: ShortLong::from(named),
-            });
+            if let Ok(name) = ShortLong::try_from(named) {
+                comp.comps.push(Comp::Argument {
+                    extra: CompExtra {
+                        depth,
+                        group: None,
+                        help: named.help.as_ref().and_then(Doc::to_completion),
+                    },
+                    metavar,
+                    name,
+                });
+            }
         }
     }
 
