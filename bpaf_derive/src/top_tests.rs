@@ -47,6 +47,27 @@ fn top_struct_construct() {
 }
 
 #[test]
+fn top_struct_enter() {
+    let top: Top = parse_quote! {
+        #[bpaf(enter("opt"))]
+        struct Opt { #[bpaf(enter("bar"))] verbose: bool }
+    };
+
+    let expected = quote! {
+        fn opt() -> impl ::bpaf::Parser<Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let verbose = ::bpaf::long("verbose").switch().enter("bar");
+                ::bpaf::construct!(Opt { verbose, })
+            }.enter("opt")
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn top_enum_construct() {
     let top: Top = parse_quote! {
         enum Opt { Foo { verbose_name: bool }}
