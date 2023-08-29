@@ -84,7 +84,7 @@ pub(crate) fn to_kebab_case(input: &str) -> String {
 
 pub(crate) fn to_custom_case(input: &str, sep: char) -> String {
     let mut res = String::with_capacity(input.len() * 2);
-    for c in input.chars() {
+    for c in input.strip_prefix("r#").unwrap_or(input).chars() {
         if c.is_ascii_uppercase() {
             if !res.is_empty() {
                 res.push(sep);
@@ -104,6 +104,7 @@ fn check_to_snake_case() {
     assert_eq!(to_snake_case("Foo"), "foo");
     assert_eq!(to_snake_case("FooBar"), "foo_bar");
     assert_eq!(to_snake_case("FOO"), "f_o_o");
+    assert_eq!(to_snake_case("r#in"), "in");
 }
 
 /// Contains a slice of strings that used to represent doc comment lines
