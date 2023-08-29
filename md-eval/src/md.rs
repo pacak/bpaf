@@ -3,7 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use pulldown_cmark::Event;
+use pulldown_cmark::{CowStr, Event};
 
 use crate::{file2mod, Upcoming};
 
@@ -347,6 +347,31 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                     _ => Some(Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(f)))),
                 }
             }
+
+            // by default pulldown_cmark_to_cmark mangles [`foo`] to \[`foo`\], but not
+            // [`foo`](foo), so this turns former into later...
+            Event::Text(CowStr::Borrowed("[")) => {
+                let text_or_code = self.inner.next()?;
+                let closing = self.inner.next()?;
+                if let (Event::Code(b) | Event::Text(b), Event::Text(CowStr::Borrowed("]"))) =
+                    (&text_or_code, &closing)
+                {
+                    let link = Tag::Link(
+                        pulldown_cmark::LinkType::Inline,
+                        b.clone(),
+                        CowStr::Borrowed(""),
+                    );
+                    self.queue.push_back(Event::Start(link.clone()));
+                    self.queue.push_back(text_or_code.clone());
+                    self.queue.push_back(Event::End(link));
+                } else {
+                    self.queue.push_back(Event::Text(CowStr::Borrowed("[")));
+                    self.queue.push_back(text_or_code);
+                    self.queue.push_back(closing);
+                }
+                self.queue.pop_front()
+            }
+
             event => Some(event),
         }
     }
