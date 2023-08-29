@@ -1167,3 +1167,42 @@ where
         self.inner.meta()
     }
 }
+
+pub struct ParseCKey<T> {
+    pub(crate) inner: T,
+    pub(crate) name: &'static str,
+}
+
+impl<T, P> Parser<T> for ParseCKey<P>
+where
+    P: Parser<T>,
+    T: std::str::FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        match self.inner.eval(args) {
+            Err(err) if err.0.can_catch() => {
+                if let Some(config) = &mut args.config {
+                    if let Some(val) = config.get(self.name) {
+                        match T::from_str(&val) {
+                            Ok(v) => return Ok(v),
+                            Err(err) => {
+                                let msg = format!(
+                                    "{} while trying to parse {} from config (field {})",
+                                    err, val, self.name
+                                );
+                                return Err(Error(Message::ParseFailed(None, msg)));
+                            }
+                        }
+                    }
+                }
+                Err(err)
+            }
+            res => res,
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}

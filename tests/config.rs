@@ -115,3 +115,27 @@ fn many_enter_many() {
         ]
     );
 }
+
+#[test]
+fn config_fallback() {
+    let parser = long("name")
+        .argument::<String>("NAME")
+        .key("name")
+        .to_options();
+
+    let args = Args::from(&[]).with_config(DummyConfig(2));
+    let r = parser.run_inner(args).unwrap();
+    assert_eq!(r, "name[0]");
+}
+
+#[test]
+fn config_fallback_failure() {
+    let parser = long("name")
+        .argument::<u32>("NAME")
+        .key("name")
+        .to_options();
+
+    let args = Args::from(&[]).with_config(DummyConfig(2));
+    let r = parser.run_inner(args).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse: invalid digit found in string while trying to parse name[0] from config (field name)");
+}

@@ -201,8 +201,8 @@ pub mod parsers {
     };
     #[doc(inline)]
     pub use crate::structs::{
-        ParseCollect, ParseCon, ParseCount, ParseEnter, ParseFallback, ParseFallbackWith,
-        ParseLast, ParseMany, ParseOptional, ParseSome,
+        ParseCKey, ParseCollect, ParseCon, ParseCount, ParseEnter, ParseFallback,
+        ParseFallbackWith, ParseLast, ParseMany, ParseOptional, ParseSome,
     };
 }
 
@@ -223,9 +223,9 @@ use crate::{
     params::build_positional,
     parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
     structs::{
-        ParseCollect, ParseCount, ParseEnter, ParseFail, ParseFallback, ParseFallbackWith,
-        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional,
-        ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith,
+        ParseCKey, ParseCollect, ParseCount, ParseEnter, ParseFail, ParseFallback,
+        ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap,
+        ParseOptional, ParseOrElse, ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith,
         ParseWithGroupHelp,
     },
 };
@@ -876,6 +876,13 @@ pub trait Parser<T> {
         Self: Sized + Parser<T>,
     {
         ParseEnter { inner: self, name }
+    }
+
+    fn key(self, name: &'static str) -> ParseCKey<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseCKey { inner: self, name }
     }
 
     // combine
