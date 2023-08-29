@@ -897,3 +897,14 @@ fn positional_bool() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn raw_literal() {
+    let input: NamedField = parse_quote! {
+        r#in: bool
+    };
+    let output = quote! {
+        ::bpaf::long("in").switch()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
