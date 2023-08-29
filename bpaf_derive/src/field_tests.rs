@@ -74,13 +74,25 @@ fn implicit_parser_custom_help() {
 }
 
 #[test]
-fn short_long() {
+fn short_long_key() {
     let input: NamedField = parse_quote! {
-        #[bpaf(short, long)]
+        #[bpaf(short, long, key("num"))]
         number: usize
     };
     let output = quote! {
-        ::bpaf::short('n').long("number").argument::<usize>("ARG")
+        ::bpaf::short('n').long("number").key("num").argument::<usize>("ARG")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn just_key() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(key)]
+        number: usize
+    };
+    let output = quote! {
+        ::bpaf::key("number").argument::<usize>("ARG")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

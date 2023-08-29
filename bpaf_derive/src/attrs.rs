@@ -139,6 +139,8 @@ pub(crate) enum Name {
     Long { name: Option<LitStr>, span: Span },
     /// Enum variable, name must be specified
     Env { name: Box<Expr> },
+    /// Value can also be consumed from a config key
+    Key { name: Option<LitStr>, span: Span },
 }
 
 impl StrictName {
@@ -165,6 +167,18 @@ impl StrictName {
                 None => return Err(Error::new(span, "Can't derive an explicit name for unnamed struct, try adding a name here like long(\"arg\")", ))
             },
             Name::Env { name, .. } => Self::Env { name },
+            Name::Key {
+                name: Some(name),..
+            } => StrictName::Key { name },
+            Name::Key {
+                name: None, span
+            } => match ident {
+                Some(name) => {
+                    let derived_name = &to_kebab_case(&name.to_string());
+                    Self::Key { name: LitStr::new(derived_name, span) }
+                }
+                None => return Err(Error::new(span, "Can't derive an explicit name for unnamed struct, try adding a name here like key(\"name\")", ))
+            },
         })
     }
 }
@@ -174,6 +188,7 @@ pub(crate) enum StrictName {
     Short { name: LitChar },
     Long { name: LitStr },
     Env { name: Box<Expr> },
+    Key { name: LitStr },
 }
 
 impl ToTokens for StrictName {
@@ -182,6 +197,7 @@ impl ToTokens for StrictName {
             StrictName::Short { name } => quote!(short(#name)),
             StrictName::Long { name } => quote!(long(#name)),
             StrictName::Env { name } => quote!(env(#name)),
+            StrictName::Key { name } => quote!(key(#name)),
         }
         .to_tokens(tokens);
     }
@@ -392,6 +408,13 @@ impl Name {
                 None
             };
             Name::Long { name, span }
+        } else if kw == "key" {
+            let name = if input.peek(token::Paren) {
+                Some(parse_lit_str(input)?)
+            } else {
+                None
+            };
+            Name::Key { name, span }
         } else if kw == "env" {
             let name = parse_expr(input)?;
             Name::Env { name }
