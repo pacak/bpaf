@@ -11,6 +11,7 @@ pub struct Options {
     /// Include generators that spawn a shell for autocomplete
     pub slow: bool,
 
-    #[bpaf(short, long, fallback("./src/docs".into()))]
+    /// A directory to write generated documentation
+    #[bpaf(short, long, fallback("./src/_docs".into()), debug_fallback)]
     pub out_dir: PathBuf,
 }

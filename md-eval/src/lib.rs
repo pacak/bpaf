@@ -1,9 +1,6 @@
-use std::{cell::RefCell, collections::BTreeMap, path::Path};
+use std::path::Path;
 
-//mod document;
-//mod entry;
 pub mod md;
-//mod module;
 mod runner;
 mod types;
 
@@ -11,7 +8,6 @@ pub use crate::{runner::*, types::*};
 
 // TODO:
 //
-// - run it via binary instead of a test?
 // - generate environment and run completion tests
 
 fn file2mod(file: &Path) -> String {
@@ -68,7 +64,10 @@ impl std::fmt::Display for Runner2<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "pub fn run_md_eval() {{")?;
         writeln!(f, "  let opts = md_eval::options().run();")?;
-
+        writeln!(
+            f,
+            "  std::fs::create_dir_all(&opts.out_dir).expect(\"Couldn't create the output dir\");"
+        )?;
         for module in self.modules {
             writeln!(f, "  {}::run(&opts.out_dir);", module.name)?;
         }
