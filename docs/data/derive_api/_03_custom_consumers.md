@@ -14,12 +14,48 @@ By default, `bpaf` picks parsers depending on a field type according to those ru
 You can change it with annotations like `switch`, `argument` or `positional`
 
 
-#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_custom_consumer.md"))]
+
+```rust,id:1
+# use bpaf::*;
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    /// A custom switch
+    #[bpaf(short, switch)]
+    switch: bool,
+
+    /// Custom number
+    #[bpaf(positional("NUM"))]
+    argument: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run());
+}
+```
+
+`bpaf` generates help message with a short name only as described
+
+```run,id:1
+--help
+```
+
+And accepts the short name only
+
+```run,id:1
+-s 42
+```
+
+long name is missing
+
+```run,id:1
+--switch 42
+```
+
 
 With arguments that consume a value you can specify its type using turbofish-line syntax
 
-
-```rust,id:1
+```rust,id:2
 # use bpaf::*;
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
@@ -33,4 +69,8 @@ fn main() {
     let opts = options().run();
     println!("{:?}", opts)
 }
+```
+
+```run,id:2
+42
 ```

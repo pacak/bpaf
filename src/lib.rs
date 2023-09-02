@@ -4,6 +4,18 @@
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
+//!
+//! ----
+//! # Quick links
+//! - [Introduction](_docs::intro) - features, design goals, restrictions
+//! - [Types of arguments](_docs::types_of_arguments) - common types of command line options and
+//!   conventions (optional)
+//!
+//! - [Derive API tutorial](_docs::derive_api) - create a parser by defining a structure
+//!
+//! ----
+//!
+
 //! # Quick links
 //! - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
 //! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
@@ -161,6 +173,11 @@
 #[rustfmt::skip]
 #[allow(unused_imports)]
 pub mod _documentation;
+
+#[cfg(feature = "extradocs")]
+#[rustfmt::skip]
+#[allow(unused_imports)]
+pub mod _docs;
 
 mod arg;
 mod args;
@@ -1528,11 +1545,3 @@ where
     let skip = literal(cmd).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
-
-/// asdf
-///
-/// ```text
-/// asef
-/// ```
-///
-pub mod docs;

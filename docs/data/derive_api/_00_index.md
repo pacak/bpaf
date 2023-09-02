@@ -12,4 +12,4 @@ When making a parser using Derive API you should go through approximately follow
 6. Run the resulting parser
 
 
-Let’s go through some of them in more detail:
+Let’s go through some of them in more detail.

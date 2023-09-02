@@ -113,7 +113,7 @@ impl Document {
         let mut execs = String::new();
         let mut mapping = BTreeMap::new();
         let mut cur_file = PathBuf::new();
-        let mut ix = 0;
+        let mut ix = 0usize;
         for (file, t) in self.tokens() {
             if file != cur_file {
                 mapping.clear();
@@ -147,14 +147,14 @@ impl Document {
                         writeln!(&mut modules, "}}")?
                     }
                     Upcoming::Exec { title: _, ids } => {
-                        assert_eq!(ids.len(), 1);
-                        let id = ids[0];
-                        let code_id = mapping[&id];
                         let args = shell_words::split(&code).unwrap();
-                        writeln!(
+                        for id in ids {
+                            let code_id = mapping[id];
+                            writeln!(
                     &mut execs,
                     "out.push(crate::render_res(r{code_id}::options().run_inner(&{args:?})));"
                 )?;
+                        }
                     }
                     Upcoming::Ignore => {}
                 },
@@ -213,7 +213,7 @@ impl Document {
                 pulldown_cmark_to_cmark::cmark(splice_output(&pages[0], out, &mut x), &mut buf)?;
 
                 for line in buf.lines() {
-                    let line = line.trim();
+                    let line = line.trim_end();
                     if line.is_empty() {
                         writeln!(&mut res, "//!")?;
                     } else {
@@ -240,7 +240,7 @@ impl Document {
 
                     writeln!(&mut res, "\n")?;
                     for line in buf.lines() {
-                        let line = line.trim();
+                        let line = line.trim_end();
                         if line.is_empty() {
                             writeln!(&mut res, "///")?;
                         } else {
@@ -322,7 +322,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
 
                         self.queue.pop_front()
                     }
-                    Upcoming::Exec { title, .. } => {
+                    Upcoming::Exec { title, ids, .. } => {
                         if let Some(title) = title {
                             self.queue.push_back(fold_open(title));
                         }
@@ -330,12 +330,22 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                         let Event::Text(code) = self.inner.next()? else {
                             panic!();
                         };
+
+                        if ids.len() > 1 {
+                            for i in 1..ids.len() {
+                                assert_eq!(
+                                    &self.outs[*self.outs_used],
+                                    &self.outs[*self.outs_used + i]
+                                );
+                            }
+                        }
+
                         let snip = &self.outs[*self.outs_used];
                         let html = format!(
                             "\n\n<div style={STYLE:?}>\n$ app {code}<br />\n\n{snip}\n\n</div>\n\n"
                         );
                         self.queue.push_back(Event::Html(html.into()));
-                        *self.outs_used += 1;
+                        *self.outs_used += ids.len();
 
                         self.inner.next()?;
 
