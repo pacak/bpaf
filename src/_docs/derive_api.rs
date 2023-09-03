@@ -14,17 +14,22 @@
 //! Let’s go through some of them in more detail.
 //!
 //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-//!  <td style='width: 34%; text-align: left;'>
-//!  </td>
-//!  <td style='width: 33%; text-align: center;'>
-//!  </td>
-//!  <td style='width: 33%; text-align: right;'>
+//!  <td style='text-align: center;'>
 //!
+//! **1**
+//! [2](page_1)
+//! [3](page_2)
+//! [4](page_3)
+//! [5](page_4)
+//! [6](page_5)
+//! [7](page_6)
+//! [8](page_7)
+//! [9](page_8)
+//! [10](page_9)
 //! [&rarr;](page_1)
 //!
 //!  </td>
 //! </tr></table>
-//!
 #[allow(unused_imports)] use crate::{*, parsers::*};
 
 
@@ -114,30 +119,42 @@
 /// of it, add custom transformations, validations and more.
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](super::derive_api)
+/// [1](super::derive_api)
+/// **2**
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_2)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_1 {}
 
 
 /// #### Customizing flag and argument names
 ///
-/// By default names for flag names are taken directly from the field names so usually you don't
-/// have to do anything about it, but you can change it with annotations on the fields themselves:
+/// By default names for flags are taken directly from the field names so usually you don't
+/// have to do anything about it, but you can change it with annotations on the fields themselves.
+///
+/// Rules for picking the name are:
+///
+/// 1. With no annotations field name longer than a single character becomes a long name,
+///    single character name becomes a short name
+/// 1. Adding either `long` or `short` disables item 1, so adding `short` disables the long name
+/// 1. `long` or `short` annotation without a parameter derives a value from a field name
+/// 1. `long` or `short` with a parameter uses that instead
+/// 1. You can have multiple `long` and `short` annotations, the first of each type becomes a
+///    visible name, remaining are used as hidden aliases
+///
+/// And if you decide to add names - they should go to the left side of the annotation list.
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -206,36 +223,24 @@ pub mod page_1 {}
 /// </div>
 ///
 ///
-/// Rules for picking the name are:
-///
-/// 1. With no annotations field name longer than a single character becomes a long name,
-///    single character name becomes a short name
-/// 1. Adding either `long` or `short` disables item 1, so adding `short` disables the long name
-/// 1. `long` or `short` annotation without a parameter derives a value from a field name
-/// 1. `long` or `short` with a parameter uses that instead
-/// 1. You can have multiple `long` and `short` annotations, the first of each type becomes a
-///    visible name, remaining are used as hidden aliases
-///
-/// And if you decide to add names - they should go to the left side of the annotation list.
-///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_1)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_1)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// **3**
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_3)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_2 {}
 
 
@@ -358,23 +363,23 @@ pub mod page_2 {}
 ///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_2)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_2)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// **4**
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_4)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_3 {}
 
 
@@ -456,23 +461,23 @@ pub mod page_3 {}
 ///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_3)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_3)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// **5**
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_5)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_4 {}
 
 
@@ -489,23 +494,23 @@ pub mod page_4 {}
 /// \#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))\]
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_4)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_4)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// **6**
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_6)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_5 {}
 
 
@@ -535,23 +540,23 @@ pub mod page_5 {}
 /// ````
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_5)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_5)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// **7**
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_7)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_6 {}
 
 
@@ -590,23 +595,23 @@ pub mod page_6 {}
 /// ````
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_6)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_6)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// **8**
+/// [9](page_8)
+/// [10](page_9)
 /// [&rarr;](page_8)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_7 {}
 
 
@@ -618,23 +623,23 @@ pub mod page_7 {}
 /// \#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_commands.md"))\]
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_7)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_7)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// **9**
+/// [10](page_9)
 /// [&rarr;](page_9)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_8 {}
 
 
@@ -661,18 +666,20 @@ pub mod page_8 {}
 /// ````
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::derive_api)
+/// [&larr;](page_8)
+/// [1](super::derive_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// **10**
 ///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_8)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
 ///  </td>
 /// </tr></table>
-///
 pub mod page_9 {}

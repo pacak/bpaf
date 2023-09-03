@@ -18,17 +18,18 @@
 //! wasn't the case before though. Let's cover the basic types.
 //!
 //! <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-//!  <td style='width: 34%; text-align: left;'>
-//!  </td>
-//!  <td style='width: 33%; text-align: center;'>
-//!  </td>
-//!  <td style='width: 33%; text-align: right;'>
+//!  <td style='text-align: center;'>
 //!
+//! **1**
+//! [2](page_1)
+//! [3](page_2)
+//! [4](page_3)
+//! [5](page_4)
+//! [6](page_5)
 //! [&rarr;](page_1)
 //!
 //!  </td>
 //! </tr></table>
-//!
 #[allow(unused_imports)] use crate::{*, parsers::*};
 
 
@@ -54,23 +55,19 @@
 /// [`NamedArg::flag`](NamedArg::flag)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::types_of_arguments)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](super::types_of_arguments)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](super::types_of_arguments)
+/// [1](super::types_of_arguments)
+/// **2**
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
 /// [&rarr;](page_2)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_1 {}
 
 
@@ -97,23 +94,19 @@ pub mod page_1 {}
 /// For more detailed info see [`NamedArg::argument`](NamedArg::argument)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::types_of_arguments)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_1)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_1)
+/// [1](super::types_of_arguments)
+/// [2](page_1)
+/// **3**
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
 /// [&rarr;](page_3)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_2 {}
 
 
@@ -136,23 +129,19 @@ pub mod page_2 {}
 /// For more detailed info see [`positional`](crate::positional) and
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::types_of_arguments)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_2)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_2)
+/// [1](super::types_of_arguments)
+/// [2](page_1)
+/// [3](page_2)
+/// **4**
+/// [5](page_4)
+/// [6](page_5)
 /// [&rarr;](page_4)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_3 {}
 
 
@@ -176,23 +165,19 @@ pub mod page_3 {}
 /// For more detailed info see [`OptionParser::command`](OptionParser::command)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::types_of_arguments)
-///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_3)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
-///
+/// [&larr;](page_3)
+/// [1](super::types_of_arguments)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// **5**
+/// [6](page_5)
 /// [&rarr;](page_5)
 ///
 ///  </td>
 /// </tr></table>
-///
 pub mod page_4 {}
 
 
@@ -237,18 +222,16 @@ pub mod page_4 {}
 /// </pre></div>
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
-///  <td style='width: 34%; text-align: left;'>
+///  <td style='text-align: center;'>
 ///
-/// [&larr;&larr;](super::types_of_arguments)
+/// [&larr;](page_4)
+/// [1](super::types_of_arguments)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// **6**
 ///
-///  </td>
-///  <td style='width: 33%; text-align: center;'>
-///
-/// [&larr; ](page_4)
-///
-///  </td>
-///  <td style='width: 33%; text-align: right;'>
 ///  </td>
 /// </tr></table>
-///
 pub mod page_5 {}

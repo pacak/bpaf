@@ -202,11 +202,11 @@ impl Document {
                 use std::fmt::Write;
                 let mut x = 0;
 
-                let nav = Nav {
+                let mut pag = Pagination {
                     pad: "//!",
-                    prev: None,
-                    index: None,
-                    next: (pages.len() > 1).then_some("page_1"),
+                    index: name,
+                    current: 0,
+                    pages: pages.len(),
                 };
 
                 let mut buf = String::new();
@@ -221,18 +221,16 @@ impl Document {
                     }
                 }
 
-                write!(&mut res, "{nav}")?;
+                write!(&mut res, "{pag}")?;
 
                 writeln!(
                     &mut res,
                     "#[allow(unused_imports)] use crate::{{*, parsers::*}};"
                 )?;
 
-                let index_link = format!("super::{name}");
+                pag.pad = "///";
                 for (page, child) in pages[1..].iter().enumerate() {
                     let page = page + 1;
-                    let prev_page = format!("page_{}", page - 1);
-                    let next_page = format!("page_{}", page + 1);
                     buf.clear();
 
                     let mut buf = String::new();
@@ -248,14 +246,8 @@ impl Document {
                         }
                     }
 
-                    let nav = Nav {
-                        pad: "///",
-                        prev: Some(if page == 1 { &index_link } else { &prev_page }),
-                        index: Some(&index_link),
-                        next: (page < pages.len() - 1).then_some(&next_page),
-                    };
-
-                    write!(&mut res, "{nav}")?;
+                    pag.current = page;
+                    write!(&mut res, "{pag}")?;
 
                     writeln!(&mut res, "pub mod page_{page} {{}}")?;
                 }
@@ -391,56 +383,64 @@ fn fold_open(title: &str) -> Event<'static> {
     Event::Html(format!("<details><summary>{title}</summary>").into())
 }
 
-pub(crate) struct Nav<'a> {
-    pub(crate) pad: &'a str,
-    pub(crate) prev: Option<&'a str>,
-    pub(crate) index: Option<&'a str>,
-    pub(crate) next: Option<&'a str>,
+#[derive(Clone, Copy)]
+pub(crate) struct Pagination<'a> {
+    pad: &'a str,
+    index: &'a str,
+    current: usize,
+    pages: usize,
 }
 
-impl std::fmt::Display for Nav<'_> {
+impl std::fmt::Display for Pagination<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Nav {
+        let Pagination {
             pad,
-            prev,
             index,
-            next,
-        } = self;
-        if prev.is_none() && next.is_none() && index.is_none() {
+            current,
+            pages,
+        } = *self;
+        if pages == 1 {
             return Ok(());
         }
         writeln!(f, "{pad}")?;
+
         writeln!(
             f,
             "{pad} <table width='100%' cellspacing='0' style='border: hidden;'><tr>"
         )?;
 
-        writeln!(f, "{pad}  <td style='width: 34%; text-align: left;'>")?;
-        if let Some(module) = index {
-            writeln!(f, "{pad}")?;
-            writeln!(f, "{pad} [&larr;&larr;]({module})")?;
-            writeln!(f, "{pad}")?;
-        }
-
-        writeln!(f, "{pad}  </td>")?;
-
-        writeln!(f, "{pad}  <td style='width: 33%; text-align: center;'>")?;
-        if let Some(module) = prev {
-            writeln!(f, "{pad}")?;
-            writeln!(f, "{pad} [&larr; ]({module})")?;
-            writeln!(f, "{pad}")?;
-        }
-
-        writeln!(f, "{pad}  </td>")?;
-        writeln!(f, "{pad}  <td style='width: 33%; text-align: right;'>")?;
-        if let Some(module) = next {
-            writeln!(f, "{pad}")?;
-            writeln!(f, "{pad} [&rarr;]({module})")?;
-            writeln!(f, "{pad}")?;
-        }
-        writeln!(f, "{pad}  </td>")?;
-        writeln!(f, "{pad} </tr></table>")?;
+        writeln!(f, "{pad}  <td style='text-align: center;'>")?;
         writeln!(f, "{pad}")?;
+
+        match current {
+            0 => {}
+            1 => {
+                writeln!(f, "{pad} [&larr;](super::{})", index)?;
+            }
+            _ => {
+                writeln!(f, "{pad} [&larr;](page_{})", current - 1)?;
+            }
+        }
+
+        for page in 0..pages {
+            if page == current {
+                writeln!(f, "{pad} **{}**", page + 1)?;
+            } else if page == 0 {
+                writeln!(f, "{pad} [1](super::{})", index)?;
+            } else {
+                writeln!(f, "{pad} [{}](page_{})", page + 1, page)?;
+            }
+        }
+
+        if current + 1 < pages {
+            writeln!(f, "{pad} [&rarr;](page_{})", current + 1)?;
+        }
+
+        writeln!(f, "{pad}")?;
+        writeln!(f, "{pad}  </td>")?;
+
+        writeln!(f, "{pad} </tr></table>")?;
+
         Ok(())
     }
 }
