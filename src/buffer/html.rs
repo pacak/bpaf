@@ -389,7 +389,7 @@ impl Doc {
                                 res.push_str("## ");
                             } else {
                                 res.push_str("# ");
-                                app_name_seen = true
+                                app_name_seen = true;
                             }
                         }
                         Block::Section2 => {
