@@ -244,20 +244,68 @@ pub mod page_1 {}
 pub mod page_2 {}
 
 
-/// #### Customizing the consumers
+/// #### Consumers and their customization
 ///
 /// By default, `bpaf` picks parsers depending on a field type according to those rules:
 ///
-/// 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch)
+/// 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch), when
+///    value is present it parses as `true`, when it is absent - `false`
+///
+///    ````rust
+///    use bpaf::*;
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    pub struct Options {
+///        /// A custom switch
+///        #[bpaf(switch)]
+///        switch: bool,
+///    }
+///
+///    fn main() {
+///        println!("{:?}", options().run());
+///    }
+///    ````
+///
+///
+///
+///    <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+///    $ app --switch
+///    <br />
+///
+///    Options { switch: true }
+///
+///    </div>
+///
+///
+///
+///    <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+///    $ app
+///    <br />
+///
+///    Options { switch: false }
+///
+///    </div>
+///
+///
 /// 1. `()` (unit) fields, unit variants of an enum or unit structs themselves are handled as
 ///    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
 ///    them for the parser to succeed
+///
 /// 1. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
 ///    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.
+///
 /// 1. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
 ///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively.
 ///
-/// You can change it with annotations like `switch`, `argument` or `positional`
+/// You can change it with annotations like `switch`, `flag`, `req_flag`, `argument` or `positional`.
+///
+/// ````rust
+/// use bpaf::*;
+///
+/// fn main() {
+///
+/// }
+/// ````
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -267,6 +315,10 @@ pub mod page_2 {}
 ///     /// A custom switch
 ///     #[bpaf(short, switch)]
 ///     switch: bool,
+///
+///     ///
+///     #[bpaf(req_flag(42))]
+///     agree: u8,
 ///
 ///     /// Custom number
 ///     #[bpaf(positional("NUM"))]
@@ -287,7 +339,7 @@ pub mod page_2 {}
 /// <br />
 ///
 ///
-/// **Usage**: \[**`-s`**\] _`NUM`_
+/// **Usage**: \[**`-s`**\] **`--agree`** _`NUM`_
 ///
 /// **Available positional items:**
 /// - _`NUM`_ &mdash;
@@ -298,6 +350,8 @@ pub mod page_2 {}
 /// **Available options:**
 /// - **`-s`** &mdash;
 ///   A custom switch
+/// - **`    --agree`** &mdash;
+///
 /// - **`-h`**, **`--help`** &mdash;
 ///   Prints help information
 ///
@@ -315,7 +369,7 @@ pub mod page_2 {}
 /// $ app -s 42
 /// <br />
 ///
-/// Options { switch: true, argument: 42 }
+/// expected **`--agree`**, got **42**. Pass **`--help`** for usage information
 ///
 /// </div>
 ///
@@ -328,7 +382,7 @@ pub mod page_2 {}
 /// $ app --switch 42
 /// <br />
 ///
-/// expected _`NUM`_, got **--switch**. Pass **`--help`** for usage information
+/// expected **`--agree`**, got **--switch**. Pass **`--help`** for usage information
 ///
 /// </div>
 ///

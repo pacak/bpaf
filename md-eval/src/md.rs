@@ -123,33 +123,48 @@ impl Document {
             match t {
                 Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(f))) => {
                     fence = Upcoming::parse_fence(&f)?;
-                    continue;
+                    match &fence {
+                        Upcoming::Code {
+                            title: _,
+                            id: Some(id),
+                        } => {
+                            ix += 1;
+                            writeln!(&mut modules, "mod r{ix} {{ #![allow(dead_code)]")?;
+                            if mapping.insert(*id, ix).is_some() {
+                                anyhow::bail!("Duplicate mapping {id}");
+                            }
+                        }
+                        Upcoming::Code { id: None, .. } => {
+                            ix += 1;
+                            writeln!(&mut modules, "mod t{ix} {{ #![allow(dead_code)]")?;
+                        }
+                        Upcoming::Exec { .. } => {}
+                        Upcoming::Ignore => {}
+                    }
                 }
 
-                Event::Text(code) => match &fence {
-                    &Upcoming::Code {
-                        title: _,
-                        id: Some(id),
-                    } => {
-                        ix += 1;
-                        if mapping.insert(id, ix).is_some() {
-                            anyhow::bail!("Duplicate mapping {id}");
-                        }
-                        writeln!(&mut modules, "mod r{ix} {{ #![allow(dead_code)]")?;
-                        unhide(&mut modules, &code);
-                        writeln!(&mut modules, "}}")?
+                Event::End(Tag::CodeBlock(CodeBlockKind::Fenced(_f))) => {
+                    match fence {
+                        Upcoming::Code { .. } => writeln!(&mut modules, "}}")?,
+                        Upcoming::Exec { .. } | Upcoming::Ignore => {}
                     }
-
-                    Upcoming::Code { title: _, id: None } => {
-                        ix += 1;
-                        writeln!(&mut modules, "mod t{ix} {{ #![allow(dead_code)]")?;
-                        unhide(&mut modules, &code);
-                        writeln!(&mut modules, "}}")?
+                    fence = Upcoming::Ignore;
+                }
+                Event::Text(code) => match &fence {
+                    &Upcoming::Code { .. } => {
+                        for line in code
+                            .lines()
+                            .map(|l| l.trim_start().strip_prefix("# ").unwrap_or(l))
+                        {
+                            writeln!(&mut modules, "{}", line)?;
+                        }
                     }
                     Upcoming::Exec { title: _, ids } => {
                         let args = shell_words::split(&code).unwrap();
                         for id in ids {
-                            let code_id = mapping[id];
+                            let Some(code_id) = mapping.get(id) else {
+                                panic!("Unknown id {id} for code {code}");
+                            };
                             writeln!(
                     &mut execs,
                     "out.push(crate::render_res(r{code_id}::options().run_inner(&{args:?})));"
@@ -160,7 +175,6 @@ impl Document {
                 },
                 _ => {}
             }
-            fence = Upcoming::Ignore;
         }
 
         let read_from = self.read_from();
@@ -258,13 +272,6 @@ impl Document {
     }
 }
 
-fn unhide(f: &mut String, code: &str) {
-    for line in code.lines() {
-        *f += line.strip_prefix("# ").unwrap_or(line);
-        *f += "\n"
-    }
-}
-
 fn splice_output<'a>(
     contents: &'a str,
     outs: &'a [String],
@@ -320,7 +327,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                         }
 
                         let Event::Text(code) = self.inner.next()? else {
-                            panic!();
+                            panic!("To run an example with no input leave an empty line between opening and closing ```");
                         };
 
                         if ids.len() > 1 {
