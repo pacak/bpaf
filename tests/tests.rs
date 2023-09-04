@@ -132,7 +132,7 @@ fn either_of_three_required_flags() {
 
     // version help requires version meta
     let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
@@ -165,7 +165,7 @@ fn either_of_three_required_flags2() {
     let decorated = p.to_options().version("1.0");
 
     let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
@@ -198,7 +198,7 @@ fn either_of_two_required_flags_and_one_optional() {
     let decorated = p.to_options().version("1.0");
 
     let ver = decorated.run_inner(&["-V"]).unwrap_err().unwrap_stdout();
-    assert_eq!("Version: 1.0", ver);
+    assert_eq!("Version: 1.0\n", ver);
 
     // help is always generated
     let help = decorated.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
