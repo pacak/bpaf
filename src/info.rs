@@ -273,9 +273,12 @@ impl<T> OptionParser<T> {
                     )
                 }
                 ExtraParams::Version(v) => {
+                    use crate::buffer::{Block, Token};
                     let mut buffer = Doc::default();
+                    buffer.token(Token::BlockStart(Block::Block));
                     buffer.text("Version: ");
                     buffer.doc(&v);
+                    buffer.token(Token::BlockEnd(Block::Block));
                     buffer
                 }
             };

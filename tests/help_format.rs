@@ -592,3 +592,17 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn help_and_version_newline() {
+    let parser = short('a').switch().to_options().version("1");
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "Usage: [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n");
+
+    let r = parser
+        .run_inner(&["--version"])
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "Version: 1\n");
+}
