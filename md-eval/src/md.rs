@@ -167,7 +167,7 @@ impl Document {
                             };
                             writeln!(
                     &mut execs,
-                    "out.push(crate::render_res(r{code_id}::options().run_inner(&{args:?})));"
+                    "out.push(crate::render_res(r{code_id}::options().run_inner(bpaf::Args::from(&{args:?}).set_name(\"app\"))));"
                 )?;
                         }
                     }
@@ -340,9 +340,7 @@ impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
                         }
 
                         let snip = &self.outs[*self.outs_used];
-                        let html = format!(
-                            "\n\n<div style={STYLE:?}>\n$ app {code}<br />\n\n{snip}\n\n</div>\n\n"
-                        );
+                        let html = format!("\n\n```text\n$ app {code}{snip}```\n\n");
                         self.queue.push_back(Event::Html(html.into()));
                         *self.outs_used += ids.len();
 

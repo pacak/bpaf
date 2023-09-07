@@ -5,28 +5,28 @@ By default, `bpaf` picks parsers depending on a field type according to those ru
 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch), when
    value is present it parses as `true`, when it is absent - `false`
 
-   ```rust,id:1
-   use bpaf::*;
-   #[derive(Debug, Clone, Bpaf)]
-   #[bpaf(options)]
-   pub struct Options {
-       /// A custom switch
-       #[bpaf(switch)]
-       switch: bool,
-   }
+```rust,id:1
+use bpaf::*;
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    /// A custom switch
+    #[bpaf(switch)]
+    switch: bool,
+}
 
-   fn main() {
-       println!("{:?}", options().run());
-   }
-   ```
+fn main() {
+    println!("{:?}", options().run());
+}
+```
 
-   ```run,id:1
-   --switch
-   ```
+```run,id:1
+--switch
+```
 
-   ```run,id:1
+```run,id:1
 
-   ```
+```
 
 
 
@@ -35,6 +35,33 @@ By default, `bpaf` picks parsers depending on a field type according to those ru
    them for the parser to succeed
 
 
+```rust,id:2
+
+use bpaf::*;
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    /// You must agree to proceed
+    agree: (),
+}
+
+fn main() {
+    println!("{:?}", options().run());
+}
+```
+
+
+```run,id:2
+--help
+```
+
+```run,id:2
+--agree
+```
+
+```run,id:2
+
+```
 
 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.

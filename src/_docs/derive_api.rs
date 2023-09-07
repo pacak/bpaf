@@ -59,25 +59,15 @@
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --help
-/// <br />
+/// Usage: app [--switch] --argument=ARG
 ///
-///
-/// **Usage**: \[**`--switch`**\] **`--argument`**=_`ARG`_
-///
-/// **Available options:**
-/// - **`    --switch`** &mdash;
-///   A custom switch
-/// - **`    --argument`**=_`ARG`_ &mdash;
-///   A custom argument
-/// - **`-h`**, **`--help`** &mdash;
-///   Prints help information
-///
-///
-///
-///
-/// </div>
+/// Available options:
+///         --switch        A custom switch
+///         --argument=ARG  A custom argument
+///     -h, --help          Prints help information
+/// ```
 ///
 ///
 /// And parsers for two items: numeric argument is required, boolean switch is optional and fall back value
@@ -85,33 +75,23 @@
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --switch
-/// <br />
-///
-/// expected **`--argument`**=_`ARG`_, pass **`--help`** for usage information
-///
-/// </div>
+/// expected `--argument=ARG`, pass `--help` for usage information```
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --switch --argument 42
-/// <br />
-///
 /// Options { switch: true, argument: 42 }
-///
-/// </div>
-///
+/// ```
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+///
+/// ```text
 /// $ app --argument 42
-/// <br />
-///
 /// Options { switch: false, argument: 42 }
-///
-/// </div>
+/// ```
 ///
 ///
 /// `bpaf` is trying hard to guess what you are trying to achieve just from the types so it will
@@ -147,27 +127,17 @@ pub mod page_1 {}
 /// Rules for picking the name are:
 ///
 /// 1. With no annotations field name longer than a single character becomes a long name,
-///    single character name becomes a short name
-/// 1. Adding either `long` or `short` disables item 1, so adding `short` disables the long name
-/// 1. `long` or `short` annotation without a parameter derives a value from a field name
-/// 1. `long` or `short` with a parameter uses that instead
-/// 1. You can have multiple `long` and `short` annotations, the first of each type becomes a
-///    visible name, remaining are used as hidden aliases
-///
-/// And if you decide to add names - they should go to the left side of the annotation list.
+///    single character name becomes a short name:
 ///
 /// ````rust
-/// # use bpaf::*;
+/// use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// #[bpaf(options)]
 /// pub struct Options {
-///     /// A custom switch
-///     #[bpaf(short, long)]
+///     /// A switch with a long name
 ///     switch: bool,
-///
-///     /// A custom argument
-///     #[bpaf(long("my-argument"), short('A'))]
-///     argument: usize,
+///     /// A switch with a short name
+///     a: bool,
 /// }
 ///
 /// fn main() {
@@ -175,53 +145,150 @@ pub mod page_1 {}
 /// }
 /// ````
 ///
-/// `bpaf` uses custom names in help message
+/// In this example `switch` and `a` are implicit long and short names, help message lists them
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --help
-/// <br />
+/// Usage: app [--switch] [-a]
+///
+/// Available options:
+///         --switch  A switch with a long name
+///     -a            A switch with a short name
+///     -h, --help    Prints help information
+/// ```
 ///
 ///
-/// **Usage**: \[**`-s`**\] **`-A`**=_`ARG`_
+/// 2. Adding either `long` or `short` disables rule 1, so adding `short` disables the long name
 ///
-/// **Available options:**
-/// - **`-s`**, **`--switch`** &mdash;
-///   A custom switch
-/// - **`-A`**, **`--my-argument`**=_`ARG`_ &mdash;
-///   A custom argument
-/// - **`-h`**, **`--help`** &mdash;
-///   Prints help information
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     #[bpaf(short)]
+///     /// A switch with a long name
+///     switch: bool,
 ///
+///     #[bpaf(long)]
+///     /// A switch with a short name
+///     s: bool,
+/// }
 ///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
 ///
-///
-/// </div>
-///
-///
-/// As well as accepts them on a command line and uses in error message
-///
-///
-///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-/// $ app --switch
-/// <br />
-///
-/// expected **`--my-argument`**=_`ARG`_, pass **`--help`** for usage information
-///
-/// </div>
+/// Here implicit names are replaced with explicit ones, derived from field names. `--s` is a
+/// strange looking long name, but that's what's available
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-/// $ app -A 42 -s
-/// <br />
+/// ```text
+/// $ app --help
+/// Usage: app [-s] [--s]
 ///
-/// Options { switch: true, argument: 42 }
+/// Available options:
+///     -s          A switch with a long name
+///         --s     A switch with a short name
+///     -h, --help  Prints help information
+/// ```
 ///
-/// </div>
 ///
+/// 3. `long` or `short` with a parameter uses that value instead
+///
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     #[bpaf(short('S'))]
+///     /// A switch with a long name
+///     switch: bool,
+///
+///     #[bpaf(long("silent"))]
+///     /// A switch with a short name
+///     s: bool,
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+/// Here names are `-S` and `--silent`, old names are not available
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app [-S] [--silent]
+///
+/// Available options:
+///     -S            A switch with a long name
+///         --silent  A switch with a short name
+///     -h, --help    Prints help information
+/// ```
+///
+///
+/// 4. You can have multiple `long` and `short` annotations, the first of each type becomes a
+///    visible name, remaining are used as hidden aliases
+///
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     #[bpaf(short('v'), short('H'))]
+///     /// A switch with a long name
+///     switch: bool,
+///
+///     #[bpaf(long("visible"), long("hidden"))]
+///     /// A switch with a short name
+///     s: bool,
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+/// Here parser accepts 4 different names, visible `-v` and `--visible` and two hidden aliases:
+/// `-H` and `--hidden`
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app [-v] [--visible]
+///
+/// Available options:
+///     -v             A switch with a long name
+///         --visible  A switch with a short name
+///     -h, --help     Prints help information
+/// ```
+///
+///
+///
+/// ```text
+/// $ app -v --visible
+/// Options { switch: true, s: true }
+/// ```
+///
+///
+/// Aliases don't show up in the help message or anywhere else but still work.
+///
+///
+///
+/// ```text
+/// $ app -H --hidden
+/// Options { switch: true, s: true }
+/// ```
+///
+///
+/// And if you decide to add names - they should go to the left side of the annotation list.
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -251,50 +318,83 @@ pub mod page_2 {}
 /// 1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch), when
 ///    value is present it parses as `true`, when it is absent - `false`
 ///
-///    ````rust
-///    use bpaf::*;
-///    #[derive(Debug, Clone, Bpaf)]
-///    #[bpaf(options)]
-///    pub struct Options {
-///        /// A custom switch
-///        #[bpaf(switch)]
-///        switch: bool,
-///    }
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// A custom switch
+///     #[bpaf(switch)]
+///     switch: bool,
+/// }
 ///
-///    fn main() {
-///        println!("{:?}", options().run());
-///    }
-///    ````
-///
-///
-///
-///    <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-///    $ app --switch
-///    <br />
-///
-///    Options { switch: true }
-///
-///    </div>
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
 ///
 ///
 ///
-///    <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
-///    $ app
-///    <br />
-///
-///    Options { switch: false }
-///
-///    </div>
+/// ```text
+/// $ app --switch
+/// Options { switch: true }
+/// ```
 ///
 ///
-/// 1. `()` (unit) fields, unit variants of an enum or unit structs themselves are handled as
+///
+/// ```text
+/// $ app
+/// Options { switch: false }
+/// ```
+///
+///
+/// 2. `()` (unit) fields, unit variants of an enum or unit structs themselves are handled as
 ///    [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
 ///    them for the parser to succeed
 ///
-/// 1. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
-///    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.
+/// ````rust
 ///
-/// 1. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// You must agree to proceed
+///     agree: (),
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app --agree
+///
+/// Available options:
+///         --agree  You must agree to proceed
+///     -h, --help   Prints help information
+/// ```
+///
+///
+///
+/// ```text
+/// $ app --agree
+/// Options { agree: () }
+/// ```
+///
+///
+///
+/// ```text
+/// $ app
+/// expected `--agree`, pass `--help` for usage information```
+///
+///
+/// 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
+///    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.
+/// 3. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
 ///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively.
 ///
 /// You can change it with annotations like `switch`, `flag`, `req_flag`, `argument` or `positional`.
@@ -334,57 +434,36 @@ pub mod page_2 {}
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --help
-/// <br />
+/// Usage: app [-s] --agree NUM
 ///
+/// Available positional items:
+///     NUM          Custom number
 ///
-/// **Usage**: \[**`-s`**\] **`--agree`** _`NUM`_
-///
-/// **Available positional items:**
-/// - _`NUM`_ &mdash;
-///   Custom number
-///
-///
-///
-/// **Available options:**
-/// - **`-s`** &mdash;
-///   A custom switch
-/// - **`    --agree`** &mdash;
-///
-/// - **`-h`**, **`--help`** &mdash;
-///   Prints help information
-///
-///
-///
-///
-/// </div>
+/// Available options:
+///     -s           A custom switch
+///         --agree
+///     -h, --help   Prints help information
+/// ```
 ///
 ///
 /// And accepts the short name only
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app -s 42
-/// <br />
-///
-/// expected **`--agree`**, got **42**. Pass **`--help`** for usage information
-///
-/// </div>
+/// expected `--agree`, got `42`. Pass `--help` for usage information```
 ///
 ///
 /// long name is missing
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --switch 42
-/// <br />
-///
-/// expected **`--agree`**, got **--switch**. Pass **`--help`** for usage information
-///
-/// </div>
+/// expected `--agree`, got `--switch`. Pass `--help` for usage information```
 ///
 ///
 /// With arguments that consume a value you can specify its type using turbofish-line syntax
@@ -407,13 +486,10 @@ pub mod page_2 {}
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app 42
-/// <br />
-///
 /// Options { argument: 42 }
-///
-/// </div>
+/// ```
 ///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
@@ -469,49 +545,33 @@ pub mod page_3 {}
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --help
-/// <br />
+/// Usage: app -w=PX --height=LENGTH
 ///
-///
-/// **Usage**: **`-w`**=_`PX`_ **`--height`**=_`LENGTH`_
-///
-/// **Available options:**
-/// - **`-w`**=_`PX`_
-/// - **`    --height`**=_`LENGTH`_
-/// - **`-h`**, **`--help`** &mdash;
-///   Prints help information
-///
-///
-///
-///
-/// </div>
+/// Available options:
+///     -w=PX
+///         --height=LENGTH
+///     -h, --help           Prints help information
+/// ```
 ///
 ///
 /// And parsed values are differnt from what user passes
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --width 10 --height 3
-/// <br />
-///
-/// expected **`-w`**=_`PX`_, got **--width**. Pass **`--help`** for usage information
-///
-/// </div>
+/// expected `-w=PX`, got `--width`. Pass `--help` for usage information```
 ///
 ///
 /// Additionally height cannot exceed 10
 ///
 ///
 ///
-/// <div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+/// ```text
 /// $ app --width 555 --height 42
-/// <br />
-///
-/// expected **`-w`**=_`PX`_, got **--width**. Pass **`--help`** for usage information
-///
-/// </div>
+/// expected `-w=PX`, got `--width`. Pass `--help` for usage information```
 ///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>

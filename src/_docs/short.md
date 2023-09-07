@@ -25,46 +25,31 @@ Help message contains only the visible name
 
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app --help
-<br />
+Usage: app [-s]
 
-
-**Usage**: \[**`-s`**\]
-
-**Available options:**
-- **`-s`** &mdash; 
-  A custom switch with a short name
-- **`-h`**, **`--help`** &mdash; 
-  Prints help information
-
-
-
-
-</div>
+Available options:
+    -s          A custom switch with a short name
+    -h, --help  Prints help information
+```
 
 
 But parser accepts both `-s` and `-S`
 
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app -s
-<br />
-
 true
-
-</div>
-
+```
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+
+```text
 $ app -S
-<br />
-
 true
-
-</div>
+```
 
 
 #### Derive usage
@@ -91,46 +76,31 @@ Help message contains only the visible name
 
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app --help
-<br />
+Usage: app [-s]
 
-
-**Usage**: \[**`-s`**\]
-
-**Available options:**
-- **`-s`** &mdash; 
-  A custom switch with a short name
-- **`-h`**, **`--help`** &mdash; 
-  Prints help information
-
-
-
-
-</div>
+Available options:
+    -s          A custom switch with a short name
+    -h, --help  Prints help information
+```
 
 
 But parser accepts both `-s` and `-S`
 
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app -s
-<br />
-
 Options { switch: true }
-
-</div>
+```
 
 <details><summary>"Hidden alias"</summary>
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app -S
-<br />
-
 Options { switch: true }
-
-</div>
+```
 
 </details>
 Usage on a enum variant with no fields:
@@ -152,33 +122,20 @@ enum Options {
 
 
 
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app --help
-<br />
+Usage: app (-a | -B)
 
-
-**Usage**: (**`-a`** | **`-B`**)
-
-**Available options:**
-- **`-a`** &mdash; 
-  A variant Alpha that does something
-- **`-B`** &mdash; 
-  A variant Beta that does something else
-- **`-h`**, **`--help`** &mdash; 
-  Prints help information
+Available options:
+    -a          A variant Alpha that does something
+    -B          A variant Beta that does something else
+    -h, --help  Prints help information
+```
 
 
 
-
-</div>
-
-
-
-<div style="padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;">
+```text
 $ app -a
-<br />
-
 Alpha
-
-</div>
+```
 
