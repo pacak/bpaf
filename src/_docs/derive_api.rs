@@ -77,7 +77,8 @@
 ///
 /// ```text
 /// $ app --switch
-/// expected `--argument=ARG`, pass `--help` for usage information```
+/// Error: expected `--argument=ARG`, pass `--help` for usage information
+/// ```
 ///
 ///
 ///
@@ -353,7 +354,6 @@ pub mod page_2 {}
 ///    them for the parser to succeed
 ///
 /// ````rust
-///
 /// use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// #[bpaf(options)]
@@ -389,40 +389,24 @@ pub mod page_2 {}
 ///
 /// ```text
 /// $ app
-/// expected `--agree`, pass `--help` for usage information```
+/// Error: expected `--agree`, pass `--help` for usage information
+/// ```
 ///
 ///
 /// 3. All other types with no `Vec`/`Option` are parsed using [`FromStr`](std::str::FromStr), but
 ///    smartly, so non-utf8 `PathBuf`/`OsString` are working as expected.
-/// 3. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
-///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively.
-///
-/// You can change it with annotations like `switch`, `flag`, `req_flag`, `argument` or `positional`.
 ///
 /// ````rust
 /// use bpaf::*;
-///
-/// fn main() {
-///
-/// }
-/// ````
-///
-/// ````rust
-/// # use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// #[bpaf(options)]
 /// pub struct Options {
-///     /// A custom switch
-///     #[bpaf(short, switch)]
-///     switch: bool,
-///
-///     ///
-///     #[bpaf(req_flag(42))]
-///     agree: u8,
-///
-///     /// Custom number
-///     #[bpaf(positional("NUM"))]
-///     argument: usize,
+///     /// numeric argument
+///     width: usize,
+///     /// IPv4 address
+///     addr: std::net::Ipv4Addr,
+///     /// Path
+///     path: std::path::PathBuf,
 /// }
 ///
 /// fn main() {
@@ -430,43 +414,158 @@ pub mod page_2 {}
 /// }
 /// ````
 ///
-/// `bpaf` generates help message with a short name only as described
+///
+///
+/// ```text
+/// $ app --width 42 --addr 127.0.0.1 --path /etc/passwd
+/// Options { width: 42, addr: 127.0.0.1, path: "/etc/passwd" }
+/// ```
+///
+///
+/// 4. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
+///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively.
+///
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// optional numeric argument
+///     width: Option<usize>,
+///     /// many IPv4 addresses
+///     addr: Vec<std::net::Ipv4Addr>,
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+///
+///
+/// ```text
+/// $ app --addr 127.0.0.1 --addr 10.0.1.254
+/// Options { width: None, addr: [127.0.0.1, 10.0.1.254] }
+/// ```
+///
+///
+/// 5. Fields in tuple structures are converted into positional parsers
+///
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options (
+///     /// First positional
+///     String,
+///     /// second positional
+///     usize
+/// );
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
 ///
 ///
 ///
 /// ```text
 /// $ app --help
-/// Usage: app [-s] --agree NUM
+/// Usage: app ARG ARG
 ///
 /// Available positional items:
-///     NUM          Custom number
+///     ARG         First positional
+///     ARG         second positional
 ///
 /// Available options:
-///     -s           A custom switch
-///         --agree
-///     -h, --help   Prints help information
+///     -h, --help  Prints help information
 /// ```
 ///
 ///
-/// And accepts the short name only
+///
+/// ```text
+/// $ app Bob 42
+/// Options("Bob", 42)
+/// ```
+///
+///
+/// 6. You can change it with explicit annotations like `switch`, `flag`, `req_flag`, `argument` or
+///    `positional`. `external` annotation allows you to nest results from a whole different
+///    parser. `external` is somewhat special since it disables any logic that applies extra
+///    transformations based on the type. For example if you have an optional `external` field -
+///    you have to specify that it is `optional` manually.
+///
+/// ````rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// A custom switch
+///     #[bpaf(switch)]
+///     switch: bool,
+///
+///     /// Explicit required flag
+///     #[bpaf(req_flag(42))]
+///     agree: u8,
+///
+///     /// Custom boolean switch with inverted values
+///     #[bpaf(flag(false, true))]
+///     inverted: bool,
+///
+///     /// Custom argument
+///     #[bpaf(argument("DIST"))]
+///     distance: f64,
+///
+///     /// external parser
+///     #[bpaf(external, optional)]
+///     rectangle: Option<Rectangle>,
+///
+///     /// Custom positional number
+///     #[bpaf(positional("NUM"))]
+///     argument: usize,
+/// }
+///
+/// #[derive(Debug, Clone, Bpaf)]
+/// pub struct Rectangle {
+///     /// Width of the rectangle
+///     width: usize,
+///     /// Height of the rectangle
+///     height: usize,
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
 ///
 ///
 ///
 /// ```text
-/// $ app -s 42
-/// expected `--agree`, got `42`. Pass `--help` for usage information```
+/// $ app --help
+/// Usage: app [--switch] --agree [--inverted] --distance=DIST [--width=ARG --height=ARG] NUM
 ///
+/// Available positional items:
+///     NUM                  Custom positional number
 ///
-/// long name is missing
+/// Available options:
+///         --switch         A custom switch
+///         --agree          Explicit required flag
+///         --inverted       Custom boolean switch with inverted values
+///         --distance=DIST  Custom argument
+///         --width=ARG      Width of the rectangle
+///         --height=ARG     Height of the rectangle
+///     -h, --help           Prints help information
+/// ```
 ///
 ///
 ///
 /// ```text
-/// $ app --switch 42
-/// expected `--agree`, got `--switch`. Pass `--help` for usage information```
+/// $ app --switch --agree --inverted --distance 23 --width 20 --height 30 42
+/// Options { switch: true, agree: 42, inverted: false, distance: 23.0, rectangle: Some(Rectangle { width: 20, height: 30 }), argument: 42 }
+/// ```
 ///
 ///
-/// With arguments that consume a value you can specify its type using turbofish-line syntax
+/// With arguments that consume a value you can specify its type using turbofish syntax
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -515,11 +614,15 @@ pub mod page_3 {}
 
 /// #### Transforming parsed values
 ///
-/// Once the field has a consumer you can start applying transformations from the [`Parser`](Parser) trait.
-/// Annotation share the same names and follow the same composition rules as in Combinatoric API.
+/// Often specifying consumer is enough to parse a value, but in some cases you might want to apply
+/// additional transformations or validations. for example some numeric parameter must be not only
+/// valid `u8`, but also in range 1..100 inclusive or an IP address should belong to a certain
+/// range. On the right side of the consumer you can list zero or more transformations from the
+/// [`Parser`](Parser) trait. Annotation share the same names and follow the same composition rules as in
+/// Combinatoric API.
 ///
 /// ````rust
-/// # use bpaf::*;
+/// use bpaf::*;
 /// fn small(size: &usize) -> bool {
 ///     *size < 10
 /// }
@@ -528,7 +631,7 @@ pub mod page_3 {}
 /// #[bpaf(options)]
 /// pub struct Options {
 ///     // double the width
-///     #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
+///     #[bpaf(argument::<usize>("PX"), map(|w| w*2))]
 ///     width: usize,
 ///
 ///     // make sure the hight is below 10
@@ -541,28 +644,14 @@ pub mod page_3 {}
 /// }
 /// ````
 ///
-/// Help as usual
-///
-///
-///
-/// ```text
-/// $ app --help
-/// Usage: app -w=PX --height=LENGTH
-///
-/// Available options:
-///     -w=PX
-///         --height=LENGTH
-///     -h, --help           Prints help information
-/// ```
-///
-///
 /// And parsed values are differnt from what user passes
 ///
 ///
 ///
 /// ```text
 /// $ app --width 10 --height 3
-/// expected `-w=PX`, got `--width`. Pass `--help` for usage information```
+/// Options { width: 20, height: 3 }
+/// ```
 ///
 ///
 /// Additionally height cannot exceed 10
@@ -571,7 +660,8 @@ pub mod page_3 {}
 ///
 /// ```text
 /// $ app --width 555 --height 42
-/// expected `-w=PX`, got `--width`. Pass `--help` for usage information```
+/// Error: `42`: must be less than 10
+/// ```
 ///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
@@ -605,7 +695,88 @@ pub mod page_4 {}
 /// If you use `#[derive(Bpaf)]` on an enum parser will produce a variant for which all the parsers
 /// succeed.
 ///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))\]
+/// ````rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// User name
+///     user: String,
+///     #[bpaf(pure(100))]
+///     starting_money: usize,
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app --user=ARG
+///
+/// Available options:
+///         --user=ARG  User name
+///     -h, --help      Prints help information
+/// ```
+///
+///
+/// `starting_money` is filled from [`pure`](pure) and there's no way for user to override it
+///
+///
+///
+/// ```text
+/// $ app --user Bob
+/// Options { user: "Bob", starting_money: 100 }
+/// ```
+///
+///
+///
+/// ````rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub enum Options {
+///     ByPath {
+///         path: std::path::PathBuf
+///     },
+///     ByName {
+///         name: String,
+///     },
+///     #[bpaf(skip)]
+///     Resolved {
+///         id: usize,
+///     }
+/// }
+///
+/// fn main() {
+///     println!("{:?}", options().run());
+/// }
+/// ````
+///
+/// `bpaf` ignores `Options::Resolved` constructor
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app (--path=ARG | --name=ARG)
+///
+/// Available options:
+///         --path=ARG
+///         --name=ARG
+///     -h, --help      Prints help information
+/// ```
+///
+///
+///
+/// ```text
+/// $ app --name hackerman
+/// ByName { name: "hackerman" }
+/// ```
+///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -630,9 +801,9 @@ pub mod page_5 {}
 
 /// #### What gets generated
 ///
-/// Usually calling derive macro on a type generates code to derive a trait implementation for this
-/// type. With bpaf it's slightly different. It instead generates a function with a name that
-/// depends on the name of the type and gives either a composable parser (`Parser`) or option parser
+/// Usually calling derive macro on a type generates a trait implementation for this type. With
+/// bpaf it's slightly different. It instead generates a function with a name that depends on the
+/// name of the type and gives either a composable parser (`Parser`) or option parser
 /// (`OptionParser`) back.
 ///
 /// You can customize the function name with `generate` annotation at the top level:
@@ -646,12 +817,53 @@ pub mod page_5 {}
 ///     switch: bool
 /// }
 ///
+/// fn main() {
+///     println!("{:?}", my_options().run());
+/// }
+/// # pub fn options() -> OptionParser<Options> { my_options() }
+/// ````
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app [--switch]
+///
+/// Available options:
+///         --switch  A simple switch
+///     -h, --help    Prints help information
+/// ```
+///
+///
+/// By default function shares the same visibility as the structure, but you can make it module
+/// private with `private` annotation:
+///
+/// ````rust
+/// # use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options, generate(my_options), private)]
+/// pub struct Options {
+///     /// A simple switch
+///     switch: bool
+/// }
 ///
 /// fn main() {
-///     let opts = my_options().run();
-///     println!("{:?}", opts);
+///     println!("{:?}", my_options().run());
 /// }
+/// # pub fn options() -> OptionParser<Options> { my_options() }
 /// ````
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app [--switch]
+///
+/// Available options:
+///         --switch  A simple switch
+///     -h, --help    Prints help information
+/// ```
+///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -676,18 +888,12 @@ pub mod page_6 {}
 
 /// #### Making nested parsers
 ///
-/// Up to this point, we've been looking at cases where fields of a structure are all simple
+/// Up to this point, we've been mostly looking at cases where fields of a structure are all simple
 /// parsers, possibly wrapped in `Option` or `Vec`, but it is also possible to nest derived parsers
 /// too:
 ///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_nesting.md"))\]
-///
-/// `external` takes an optional function name and will call that function to make the parser for
-/// the field. You can chain more transformations after the `external` and if the name is absent -
-/// `bpaf` would use the field name instead, so you can also write the example above as
-///
 /// ````rust
-/// # use bpaf::*;
+/// use bpaf::*;
 /// #[derive(Debug, Clone, Bpaf)]
 /// pub enum Format {
 ///     /// Produce output in HTML format
@@ -703,8 +909,78 @@ pub mod page_6 {}
 /// pub struct Options {
 ///     /// File to process
 ///     input: String,
-///     #[bpaf(external)]
+///     #[bpaf(external(format))]
 ///     format: Format,
+/// }
+/// ````
+///
+/// Help message lists all possible options
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app --input=ARG (--html | --markdown | --manpage)
+///
+/// Available options:
+///         --input=ARG  File to process
+///         --html       Produce output in HTML format
+///         --markdown   Produce output in Markdown format
+///         --manpage    Produce output in manpage format
+///     -h, --help       Prints help information
+/// ```
+///
+///
+/// Parser accepts one and only one value from enum in this example
+///
+///
+///
+/// ```text
+/// $ app --input Cargo.toml --html
+/// Options { input: "Cargo.toml", format: Html }
+/// ```
+///
+///
+///
+/// ```text
+/// $ app --input hello
+/// Error: expected `--html`, `--markdown`, or more, pass `--help` for usage information
+/// ```
+///
+///
+///
+/// ```text
+/// $ app --input hello --html --markdown
+/// Error: `--markdown` cannot be used at the same time as `--html`
+/// ```
+///
+///
+/// `external` takes an optional function name and will call that function to make the parser for
+/// the field. You can chain more transformations after the `external` and if the name is absent -
+/// `bpaf` would use the field name instead.
+///
+/// Because of the limitations of the macro system having `external` parser disables automatic
+/// detection for `Option` or `Vec` containers so you have to specify it explicitly:
+///
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// pub enum Format {
+///     /// Produce output in HTML format
+///     Html,
+///     /// Produce output in Markdown format
+///     Markdown,
+///     /// Produce output in manpage format
+///     Manpage,
+/// }
+///
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub struct Options {
+///     /// File to process
+///     input: String,
+///     #[bpaf(external(format), many)]
+///     format: Vec<Format>,
 /// }
 /// ````
 ///
@@ -734,7 +1010,79 @@ pub mod page_7 {}
 /// The easiest way to define a group of subcommands is to have them inside the same enum with variant
 /// constructors annotated with `#[bpaf(command("name"))]` with or without the name
 ///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_commands.md"))\]
+/// ````rust
+/// use bpaf::*;
+/// #[derive(Debug, Clone, Bpaf)]
+/// #[bpaf(options)]
+/// pub enum Options {
+///     #[bpaf(command("run"))]
+///     /// Run a binary
+///     Run {
+///         /// Name of a binary crate
+///         name: String,
+///     },
+///     /// Run a self test
+///     #[bpaf(command)]
+///     Test,
+/// }
+/// ````
+///
+/// Help message lists subcommand
+///
+///
+///
+/// ```text
+/// $ app --help
+/// Usage: app COMMAND ...
+///
+/// Available options:
+///     -h, --help  Prints help information
+///
+/// Available commands:
+///     run         Run a binary
+///     test        Run a self test
+/// ```
+///
+///
+/// Commands have their own arguments and their own help
+///
+///
+///
+/// ```text
+/// $ app run --help
+/// Run a binary
+///
+/// Usage: app run --name=ARG
+///
+/// Available options:
+///         --name=ARG  Name of a binary crate
+///     -h, --help      Prints help information
+/// ```
+///
+///
+///
+/// ```text
+/// $ app run --name Bob
+/// Run { name: "Bob" }
+/// ```
+///
+///
+///
+/// ```text
+/// $ app test
+/// Test
+/// ```
+///
+///
+/// And even if `--name` is valid in scope of `run` command - it's not valid for `test`
+///
+///
+///
+/// ```text
+/// $ app test --name bob
+/// Error: `--name` is not expected in this context
+/// ```
+///
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>

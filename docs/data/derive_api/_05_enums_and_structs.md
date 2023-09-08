@@ -8,4 +8,61 @@ combinatoric example in [`Parser::last`].
 If you use `#[derive(Bpaf)]` on an enum parser will produce a variant for which all the parsers
 succeed.
 
-#![cfg_attr(not(doctest), doc = include_str!("docs2/derive_basic_enum.md"))]
+
+```rust,id:1
+# use bpaf::*;
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub struct Options {
+    /// User name
+    user: String,
+    #[bpaf(pure(100))]
+    starting_money: usize,
+}
+
+fn main() {
+    println!("{:?}", options().run());
+}
+```
+
+```run,id:1
+--help
+```
+
+`starting_money` is filled from [`pure`] and there's no way for user to override it
+
+```run,id:1
+--user Bob
+```
+
+```rust,id:2
+# use bpaf::*;
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+pub enum Options {
+    ByPath {
+        path: std::path::PathBuf
+    },
+    ByName {
+        name: String,
+    },
+    #[bpaf(skip)]
+    Resolved {
+        id: usize,
+    }
+}
+
+fn main() {
+    println!("{:?}", options().run());
+}
+```
+
+`bpaf` ignores `Options::Resolved` constructor
+
+```run,id:2
+--help
+```
+
+```run,id:2
+--name hackerman
+```

@@ -292,7 +292,6 @@ struct Splicer<'a, I> {
     queue: VecDeque<Event<'a>>,
 }
 
-const STYLE: &str = "padding: 14px; background-color:var(--code-block-background-color); font-family: 'Source Code Pro', monospace; margin-bottom: 0.75em;";
 impl<'a, I: Iterator<Item = Event<'a>>> Iterator for Splicer<'a, I> {
     type Item = Event<'a>;
 

@@ -1,11 +1,15 @@
 #### Transforming parsed values
 
-Once the field has a consumer you can start applying transformations from the [`Parser`] trait.
-Annotation share the same names and follow the same composition rules as in Combinatoric API.
+Often specifying consumer is enough to parse a value, but in some cases you might want to apply
+additional transformations or validations. for example some numeric parameter must be not only
+valid `u8`, but also in range 1..100 inclusive or an IP address should belong to a certain
+range. On the right side of the consumer you can list zero or more transformations from the
+[`Parser`] trait. Annotation share the same names and follow the same composition rules as in
+Combinatoric API.
 
 
 ```rust,id:1
-# use bpaf::*;
+use bpaf::*;
 fn small(size: &usize) -> bool {
     *size < 10
 }
@@ -14,7 +18,7 @@ fn small(size: &usize) -> bool {
 #[bpaf(options)]
 pub struct Options {
     // double the width
-    #[bpaf(short, argument::<usize>("PX"), map(|w| w*2))]
+    #[bpaf(argument::<usize>("PX"), map(|w| w*2))]
     width: usize,
 
     // make sure the hight is below 10
@@ -25,12 +29,6 @@ pub struct Options {
 fn main() {
     println!("{:?}", options().run());
 }
-```
-
-Help as usual
-
-```run,id:1
---help
 ```
 
 And parsed values are differnt from what user passes
