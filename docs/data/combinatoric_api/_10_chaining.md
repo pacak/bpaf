@@ -19,8 +19,8 @@ You can turn it into, for example, an optional argument - something that returns
 of them and collect them all into a `Vec`
 
 
-```rust
-use bpaf::*;
+```rust,id:1
+# use bpaf::*;
 fn maybe_krate() -> impl Parser<Option<String>> {
     long("crate")
         .help("Crate name to process")
@@ -28,16 +28,22 @@ fn maybe_krate() -> impl Parser<Option<String>> {
         .optional()
 }
 
-fn krates() -> impl Parser<Vec<String>> {
+fn many_krates() -> impl Parser<Vec<String>> {
     long("crate")
         .help("Crate name to process")
         .argument("CRATE")
         .many()
 }
+
+fn main() {
+    println!("{:?}", many_krates().run());
+}
+# pub fn options() -> OptionParser<Vec<String>> { many_krates().to_options() }
 ```
 
-A complete example:
-#![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_many.md"))]
+```run,id:1
+--crate bpaf --crate luhn3
+```
 
 Transforming a parser with a method from the `Parser` trait usually gives you a new parser back and
 you can chain as many transformations as you need.
@@ -52,7 +58,7 @@ number and this parser should be optional. There are two ways to write it:
 
 Validation first:
 
-```rust
+```rust,id:2
 # use bpaf::*;
 fn even() -> impl Parser<Option<usize>> {
     long("even")
@@ -60,6 +66,7 @@ fn even() -> impl Parser<Option<usize>> {
         .guard(|&n| n % 2 == 0, "number must be even")
         .optional()
 }
+# pub fn options() -> OptionParser<Option<usize>> { even().to_options() }
 ```
 
 Optional first:
@@ -77,13 +84,28 @@ fn even() -> impl Parser<Option<usize>> {
 In later case validation function must deal with a possibility where a number is absent, for this
 specific example it makes code less readable.
 
+Result is identical in both cases:
+
+```run,id:2
+--even 2
+```
+
+```run,id:2
+--even 3
+```
+
+```run,id:2
+
+```
+
 One of the important types of transformations you can apply is a set of failing
 transformations. Suppose your application operates with numbers and uses `newtype` pattern to
 keep track of what numbers are odd or even. A parser that consumes an even number can use
 [`Parser::parse`] and may look like this:
 
-```rust
+```rust,id:3
 # use bpaf::*;
+#[derive(Debug, Clone, Copy)]
 pub struct Even(usize);
 
 fn mk_even(n: usize) -> Result<Even, &'static str> {
@@ -99,4 +121,23 @@ fn even() -> impl Parser<Even> {
         .argument::<usize>("N")
         .parse(mk_even)
 }
+
+fn main() {
+    println!("{:?}", even().run());
+}
+# pub fn options() -> OptionParser<Even> { even().to_options() }
+```
+
+User gets the same/similar output, but the application gets a value in a `newtype` wrapper.
+
+```run,id:3
+--even 2
+```
+
+```run,id:3
+--even 3
+```
+
+```run,id:3
+
 ```

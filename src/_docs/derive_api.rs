@@ -423,7 +423,8 @@ pub mod page_2 {}
 ///
 ///
 /// 4. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
-///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively.
+///    applies logic from [`Parser::optional`](Parser::optional) and [`Parser::many`](Parser::many) respectively. You can also
+///    use `optional` and `many` annotation explicitly.
 ///
 /// ````rust
 /// use bpaf::*;

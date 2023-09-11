@@ -89,7 +89,8 @@ fn main() {
 
 
 4. For values wrapped in `Option` or `Vec` bpaf derives the inner parser and then applies
-   applies logic from [`Parser::optional`] and [`Parser::many`] respectively.
+   applies logic from [`Parser::optional`] and [`Parser::many`] respectively. You can also
+   use `optional` and `many` annotation explicitly.
 
 ```rust,id:4
 use bpaf::*;

@@ -6,29 +6,39 @@ This method takes a metavariable name - a short description that will be used in
 output. `rustc` also needs to know the parameter type you are trying to parse, there are
 several ways to do it:
 
-```rust
+```rust,id:1
 # use bpaf::*;
-# use std::path::PathBuf;
-fn simple_argument_1() -> impl Parser<u32> {
+fn simple_argument_1() -> impl Parser<String> {
     // rustc figures out the type from returned value
-    long("number").argument("NUM")
+    long("name").help("Crate name").argument("String")
 }
 
 fn simple_argument_2() -> impl Parser<String> {
     // type is specified explicitly with turbofish
-    long("name").argument::<String>("NAME")
+    long("name").help("Crate name").argument::<String>("NAME")
 }
 
-fn file_parser() -> OptionParser<PathBuf> {
-    // OptionParser is a type for finalized parser, at this point you can
-    // start adding extra information to the `--help` message
-    long("file").argument::<PathBuf>("FILE").to_options()
+fn main() {
+    println!("{:?}", simple_argument_2().run());
 }
+# pub fn options() -> OptionParser<String> { simple_argument_2().to_options() }
+```
+
+```run,id:1
+--name my_crate
+```
+
+```run,id:1
+--help
 ```
 
 You can use any type for as long as it implements [`FromStr`]. To parse items that don't
 implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
-[the next chapter](super::super::_1_chaining) on how to do that.
+the next chapter on how to do that.
 
-Full example with some sample inputs and outputs:
-#![cfg_attr(not(doctest), doc = include_str!("docs2/compose_basic_argument.md"))]
+Unlike [`NamedArg::switch`], by default parser for argument requires it to be present on a
+command line to succeed. There's several ways to add a value to fallback to, for example [`Parser::fallback`].
+
+```run,id:1
+
+```
