@@ -25,6 +25,7 @@
 //! [10](page_9)
 //! [11](page_10)
 //! [12](page_11)
+//! [13](page_12)
 //! [&rarr;](page_1)
 //!
 //!  </td>
@@ -117,6 +118,7 @@
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_2)
 ///
 ///  </td>
@@ -200,6 +202,7 @@ pub mod page_1 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_3)
 ///
 ///  </td>
@@ -293,6 +296,7 @@ pub mod page_2 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_4)
 ///
 ///  </td>
@@ -483,6 +487,7 @@ pub mod page_3 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_5)
 ///
 ///  </td>
@@ -706,6 +711,7 @@ pub mod page_4 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_6)
 ///
 ///  </td>
@@ -767,6 +773,7 @@ pub mod page_5 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_7)
 ///
 ///  </td>
@@ -849,6 +856,7 @@ pub mod page_6 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_8)
 ///
 ///  </td>
@@ -947,6 +955,7 @@ pub mod page_7 {}
 /// [10](page_9)
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_9)
 ///
 ///  </td>
@@ -996,9 +1005,9 @@ pub mod page_8 {}
 /// With `any` `bpaf` lets parser gets shown everything and it is up to parser to decide if it
 /// value it gets is a match or not. By default `any` parser behaves as positional and only looks
 /// at the first unconsumed item, but can be modified with
-/// [`ParseAny::anyhere`](crate::parsers::ParseAny::anywhere) to look at all the
-/// unconsumed items and producing the first value it accepts. `check` parameter to `any` should
-/// take `String` or `OsString` as input and decide if parser should match on this value.
+/// [`ParseAny::anyhere`](crate::parsers::ParseAny::anywhere) to look at all the unconsumed items
+/// and producing the first value it accepts. `check` parameter to `any` should take `String` or
+/// `OsString` as input and decide if parser should match on this value.
 ///
 /// Let's make a parser to accept windows style flags (`/name:value`). Parser should take a name -
 /// `"help"` to parse `/help` and produce value T, parsed from `value`.
@@ -1040,6 +1049,8 @@ pub mod page_8 {}
 /// # pub fn options() -> OptionParser<usize> { size().to_options() }
 /// ````
 ///
+/// Parser works as expected
+///
 ///
 ///
 /// ```text
@@ -1048,11 +1059,17 @@ pub mod page_8 {}
 /// ```
 ///
 ///
+/// Produces somewhat reasonable error message
+///
+///
 ///
 /// ```text
 /// $ app /size:fourty-two
 /// Error: couldn't parse `/size:fourty-two`: invalid digit found in string
 /// ```
+///
+///
+/// And even generates the help message (which can be further improved with custom metavar)
 ///
 ///
 ///
@@ -1082,11 +1099,38 @@ pub mod page_8 {}
 /// **10**
 /// [11](page_10)
 /// [12](page_11)
+/// [13](page_12)
 /// [&rarr;](page_10)
 ///
 ///  </td>
 /// </tr></table>
 pub mod page_9 {}
+
+
+/// #### Parsing structured blocks of arguments
+///
+/// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
+///  <td style='text-align: center;'>
+///
+/// [&larr;](page_9)
+/// [1](super::combinatoric_api)
+/// [2](page_1)
+/// [3](page_2)
+/// [4](page_3)
+/// [5](page_4)
+/// [6](page_5)
+/// [7](page_6)
+/// [8](page_7)
+/// [9](page_8)
+/// [10](page_9)
+/// **11**
+/// [12](page_11)
+/// [13](page_12)
+/// [&rarr;](page_11)
+///
+///  </td>
+/// </tr></table>
+pub mod page_10 {}
 
 
 /// #### Subcommand parsers
@@ -1209,7 +1253,7 @@ pub mod page_9 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_9)
+/// [&larr;](page_10)
 /// [1](super::combinatoric_api)
 /// [2](page_1)
 /// [3](page_2)
@@ -1220,13 +1264,14 @@ pub mod page_9 {}
 /// [8](page_7)
 /// [9](page_8)
 /// [10](page_9)
-/// **11**
-/// [12](page_11)
-/// [&rarr;](page_11)
+/// [11](page_10)
+/// **12**
+/// [13](page_12)
+/// [&rarr;](page_12)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_10 {}
+pub mod page_11 {}
 
 
 /// #### Improving the user experience
@@ -1251,7 +1296,7 @@ pub mod page_10 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_10)
+/// [&larr;](page_11)
 /// [1](super::combinatoric_api)
 /// [2](page_1)
 /// [3](page_2)
@@ -1263,8 +1308,9 @@ pub mod page_10 {}
 /// [9](page_8)
 /// [10](page_9)
 /// [11](page_10)
-/// **12**
+/// [12](page_11)
+/// **13**
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_11 {}
+pub mod page_12 {}
