@@ -13,7 +13,7 @@ description = "A cargo frontend with dynamic completion"
 
 [dependencies]
 bpaf = { version = "0.9.4", path = "../", features = ["derive", "autocomplete"] }
-cargo_metadata = "0.17.0"
+cargo_metadata = "0.18.0"
 once_cell = "1.13.1"
 
 [[bin]]
