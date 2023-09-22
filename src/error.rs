@@ -145,8 +145,9 @@ impl Message {
 
 /// Unsuccessful command line parsing outcome, use it for unit tests
 ///
-/// When [`OptionParser::run_inner`] produces `Err(ParseFailure)` it means that the parser couldn't
-/// produce the value it supposed to produce and the program should terminate.
+/// When [`OptionParser::run_inner`](crate::OptionParser::run_inner) produces `Err(ParseFailure)`
+/// it means that the parser couldn't produce the value it supposed to produce and the program
+/// should terminate.
 ///
 /// If you are handling variants manually - `Stdout` contains formatted output and you can use any
 /// logging framework to produce the output, `Completion` should be printed to stdout unchanged -
