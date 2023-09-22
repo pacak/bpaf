@@ -145,8 +145,21 @@ impl Message {
 
 /// Unsuccessful command line parsing outcome, use it for unit tests
 ///
-/// Useful for unit testing for user parsers, consume it with
-/// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`]
+/// When [`OptionParser::run_inner`] produces `Err(ParseFailure)` it means that the parser couldn't
+/// produce the value it supposed to produce and the program should terminate.
+///
+/// If you are handling variants manually - `Stdout` contains formatted output and you can use any
+/// logging framework to produce the output, `Completion` should be printed to stdout unchanged -
+/// shell completion mechanism relies on that. In both cases application should exit with error
+/// code of 0. `Stderr` variant indicates a genuinly parsing error which should be printed to
+/// stderr or a logging framework of your choice as an error and the app should exit with error
+/// code of 1. [`ParseFailure::exit_code`] is a helper method that performs printing and produces
+/// the exit code to use.
+///
+/// For purposes of for unit testing for user parsers, you can consume it with
+/// [`ParseFailure::unwrap_stdout`] and [`ParseFailure::unwrap_stdout`] - both of which produce a
+/// an unformatted `String` that parser might produce if failure type is correct or panics
+/// otherwise.
 #[derive(Clone, Debug)]
 pub enum ParseFailure {
     /// Print this to stdout and exit with success code
