@@ -847,15 +847,14 @@ where
 
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
 /// [`anywhere`](ParseAny::anywhere).
-pub struct ParseAny<T, I, F> {
+pub struct ParseAny<T> {
     pub(crate) metavar: Doc,
     pub(crate) help: Option<Doc>,
-    pub(crate) ctx: PhantomData<(I, T)>,
-    pub(crate) check: F,
+    pub(crate) check: Box<dyn Fn(OsString) -> Option<T>>,
     pub(crate) anywhere: bool,
 }
 
-impl<T, I, F> ParseAny<T, I, F> {
+impl<T> ParseAny<T> {
     pub(crate) fn item(&self) -> Item {
         Item::Any {
             metavar: self.metavar.clone(),
@@ -894,27 +893,20 @@ impl<T, I, F> ParseAny<T, I, F> {
     }
 }
 
-impl<F, I, T> Parser<T> for ParseAny<T, I, F>
-where
-    I: FromStr + 'static,
-    F: Fn(I) -> Option<T>,
-    <I as std::str::FromStr>::Err: std::fmt::Display,
-{
+impl<T> Parser<T> for ParseAny<T> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         for (ix, x) in args.items_iter() {
             let (os, next) = match x {
                 Arg::Short(_, next, os) | Arg::Long(_, next, os) => (os, *next),
                 Arg::ArgWord(os) | Arg::Word(os) | Arg::PosWord(os) => (os, false),
             };
-            if let Ok(i) = parse_os_str::<I>(os.clone()) {
-                if let Some(t) = (self.check)(i) {
-                    args.remove(ix);
-                    if next {
-                        args.remove(ix + 1);
-                    }
-
-                    return Ok(t);
+            if let Some(i) = (self.check)(os.clone()) {
+                args.remove(ix);
+                if next {
+                    args.remove(ix + 1);
                 }
+
+                return Ok(i);
             }
             if !self.anywhere {
                 break;
