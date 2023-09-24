@@ -1480,16 +1480,22 @@ where
 /// # See also
 /// [`literal`] - a specialized version of `any` that tries to parse a fixed literal
 #[must_use]
-pub fn any<I, T, F>(metavar: &str, check: F) -> ParseAny<T, I, F>
+pub fn any<I, T, F>(metavar: &str, check: F) -> ParseAny<T>
 where
     I: FromStr + 'static,
-    F: Fn(I) -> Option<T>,
+    F: Fn(I) -> Option<T> + 'static,
+    <I as std::str::FromStr>::Err: std::fmt::Display,
 {
     ParseAny {
         metavar: [(metavar, Style::Metavar)][..].into(),
         help: None,
-        check,
-        ctx: PhantomData,
+        check: Box::new(move |os: std::ffi::OsString| {
+            match crate::from_os_str::parse_os_str::<I>(os) {
+                Ok(v) => check(v),
+                Err(_) => None,
+            }
+        }),
+
         anywhere: false,
     }
 }
@@ -1507,8 +1513,8 @@ where
 /// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
 /// or not.
 #[must_use]
-pub fn literal(val: &'static str) -> ParseAny<(), String, impl Fn(String) -> Option<()>> {
-    any("", move |s| if s == val { Some(()) } else { None })
+pub fn literal(val: &'static str) -> ParseAny<()> {
+    any("", move |s: String| if s == val { Some(()) } else { None })
         .metavar(&[(val, crate::buffer::Style::Literal)][..])
 }
 
