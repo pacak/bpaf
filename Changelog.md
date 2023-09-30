@@ -3,6 +3,7 @@
 ## bpaf [0.9.6], bpaf_derive [0.5.6] - Unreleased
 - make sure env-only arguments and flags are working
 - support raw identifiers in derive macro (#282)
+- better error messages for unexpected values that prevent positional parses
 
 ## bpaf [0.9.5], bpaf_derive [0.5.5] - 2023-08-24
 - fancier squashing: parse `-abfoo` as `-a -b=foo` if b is a short argument

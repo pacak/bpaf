@@ -115,7 +115,7 @@ both working
 
 <div class='bpaf-doc'>
 $ app --version<br>
-Version: 0.42
+<p>Version: 0.42</p>
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -134,7 +134,7 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app -v<br>
-Version: 0.42
+<p>Version: 0.42</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

@@ -57,7 +57,7 @@ The other one is `--version` - passing a string literal or something like
 
 <div class='bpaf-doc'>
 $ app --version<br>
-Version: 3.1415
+<p>Version: 3.1415</p>
 <style>
 div.bpaf-doc {
     padding: 14px;

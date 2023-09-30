@@ -64,7 +64,7 @@ long name is missing
 
 <div class='bpaf-doc'>
 $ app --switch 42<br>
-<b>Error:</b> expected <tt><i>NUM</i></tt>, got <b>--switch</b>. Pass <tt><b>--help</b></tt> for usage information
+<b>Error:</b> <b>--switch</b> is not expected in this context
 <style>
 div.bpaf-doc {
     padding: 14px;

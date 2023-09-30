@@ -794,36 +794,29 @@ fn parse_pos_word(
     help: &Option<Doc>,
 ) -> Result<OsString, Error> {
     let metavar = Metavar(metavar);
-    if let Some((ix, is_strict, word)) = args.take_positional_word(metavar)? {
-        if strict && !is_strict {
+    match args.take_positional_word(metavar) {
+        Ok((ix, is_strict, word)) => {
+            if strict && !is_strict {
+                #[cfg(feature = "autocomplete")]
+                args.push_pos_sep();
+
+                return Err(Error(Message::StrictPos(ix, metavar)));
+            }
             #[cfg(feature = "autocomplete")]
-            args.push_pos_sep();
-
-            return Err(Error(Message::StrictPos(ix, metavar)));
+            if args.touching_last_remove() && !args.check_no_pos_ahead() {
+                args.push_metavar(metavar.0, help, false);
+                args.set_no_pos_ahead();
+            }
+            Ok(word)
         }
-        #[cfg(feature = "autocomplete")]
-        if args.touching_last_remove() && !args.check_no_pos_ahead() {
-            args.push_metavar(metavar.0, help, false);
-            args.set_no_pos_ahead();
+        Err(err) => {
+            #[cfg(feature = "autocomplete")]
+            if !args.check_no_pos_ahead() {
+                args.push_metavar(metavar.0, help, false);
+                args.set_no_pos_ahead();
+            }
+            Err(err)
         }
-        Ok(word)
-    } else {
-        #[cfg(feature = "autocomplete")]
-        if !args.check_no_pos_ahead() {
-            args.push_metavar(metavar.0, help, false);
-            args.set_no_pos_ahead();
-        }
-
-        let position = args.items_iter().next().map_or(args.scope().end, |x| x.0);
-        let missing = MissingItem {
-            item: Item::Positional {
-                metavar,
-                help: help.clone(),
-            },
-            position,
-            scope: args.scope(),
-        };
-        Err(Error(Message::Missing(vec![missing])))
     }
 }
 
