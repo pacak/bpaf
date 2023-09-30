@@ -221,7 +221,7 @@ impl NamedArg {
     /// fields as `req_flag`.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
     #[must_use]
-    pub fn req_flag<T>(self, present: T) -> impl Parser<T>
+    pub fn req_flag<T>(self, present: T) -> ParseFlag<T>
     where
         T: Clone + 'static,
     {
