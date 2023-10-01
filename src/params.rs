@@ -531,8 +531,8 @@ pub struct ParseFlag<T> {
     named: NamedArg,
 }
 
-impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+impl<T: Clone + 'static> ParseFlag<T> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             #[cfg(feature = "autocomplete")]
@@ -563,7 +563,7 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
         }
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         if let Some(item) = self.named.flag_item() {
             item.required(self.absent.is_none())
         } else {
@@ -571,13 +571,12 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
         }
     }
 }
-
 impl<T> ParseFlag<T> {
     /// Add a help message to `flag`
     ///
     /// See [`NamedArg::help`]
     #[must_use]
-    pub fn help<M>(mut self, help: M) -> Self
+    pub(crate) fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,
     {
@@ -591,7 +590,7 @@ impl<T> ParseArgument<T> {
     ///
     /// See [`NamedArg::help`]
     #[must_use]
-    pub fn help<M>(mut self, help: M) -> Self
+    pub(crate) fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,
     {
@@ -634,7 +633,7 @@ impl<T> ParseArgument<T> {
         self
     }
 
-    fn item(&self) -> Option<Item> {
+    pub(crate) fn item(&self) -> Option<Item> {
         Some(Item::Argument {
             name: ShortLong::try_from(&self.named).ok()?,
             metavar: Metavar(self.metavar),
@@ -644,7 +643,7 @@ impl<T> ParseArgument<T> {
         })
     }
 
-    fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
+    pub(crate) fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
         match args.take_arg(&self.named, self.adjacent, Metavar(self.metavar)) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -683,47 +682,16 @@ impl<T> ParseArgument<T> {
     }
 }
 
-impl<T> Parser<T> for ParseArgument<T>
-where
-    T: FromStr + 'static,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
-{
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = self.take_argument(args)?;
-        match parse_os_str::<T>(os) {
-            Ok(ok) => Ok(ok),
-            Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        if let Some(item) = self.item() {
-            Meta::from(item)
-        } else {
-            Meta::Skip
-        }
-    }
-}
-
-pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
-    ParsePositional {
-        metavar,
-        help: None,
-        result_type: PhantomData,
-        strict: false,
-    }
-}
-
 /// Parse a positional item, created with [`positional`]
 ///
 /// You can add extra information to positional parsers with [`help`](Self::help)
 /// and [`strict`](Self::strict) on this struct.
 #[derive(Clone)]
 pub struct ParsePositional<T> {
-    metavar: &'static str,
-    help: Option<Doc>,
-    result_type: PhantomData<T>,
-    strict: bool,
+    pub(crate) metavar: &'static str,
+    pub(crate) help: Option<Doc>,
+    pub(crate) result_type: PhantomData<T>,
+    pub(crate) strict: bool,
 }
 
 impl<T> ParsePositional<T> {
@@ -774,7 +742,7 @@ impl<T> ParsePositional<T> {
         self
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         let meta = Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
@@ -820,21 +788,17 @@ fn parse_pos_word(
     }
 }
 
-impl<T> Parser<T> for ParsePositional<T>
+impl<T> ParsePositional<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         let os = parse_pos_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
-    }
-
-    fn meta(&self) -> Meta {
-        self.meta()
     }
 }
 

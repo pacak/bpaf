@@ -9,7 +9,9 @@ fn test_toggle_flag() {
         N,
     }
 
-    let parser = toggle_flag(short('y'), Flag::Y, short('n'), Flag::N).to_options();
+    let parser = toggle_flag(short('y'), Flag::Y, short('n'), Flag::N)
+        .optional()
+        .to_options();
 
     let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, None);

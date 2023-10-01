@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, literal, parsers::NamedArg, short, Parser};
+use crate::{construct, literal, parsers::NamedArg, short, Parser, SimpleParser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///
@@ -31,17 +31,15 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
         .long("verbose")
         .help("Increase output verbosity, can be used several times")
         .req_flag(())
-        .many()
-        .map(|v| v.len() as isize);
+        .count();
 
     let quiet = short('q')
         .long("quiet")
         .help("Decrease output verbosity, can be used several times")
         .req_flag(())
-        .many()
-        .map(|v| v.len() as isize);
+        .count();
 
-    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).clamp(min, max))
+    construct!(verbose, quiet).map(move |(v, q)| (v as isize - q as isize + offset).clamp(min, max))
 }
 
 /// `--verbose` and `--quiet` flags with results choosen from a slice of values
@@ -122,18 +120,18 @@ pub fn verbose_by_slice<T: Copy + 'static, const N: usize>(
 /// }
 ///
 /// fn pick() -> impl Parser<Option<Select>> {
-///     toggle_flag(long("banana"), Select::Banana, long("no-banana"), Select::NoBanana)
+///     toggle_flag(long("banana"), Select::Banana, long("no-banana"), Select::NoBanana).optional()
 /// }
 /// ```
 pub fn toggle_flag<T: Copy + 'static>(
-    a: NamedArg,
+    a: SimpleParser<NamedArg>,
     val_a: T,
-    b: NamedArg,
+    b: SimpleParser<NamedArg>,
     val_b: T,
-) -> impl Parser<Option<T>> {
+) -> impl Parser<T> {
     let a = a.req_flag(val_a);
     let b = b.req_flag(val_b);
-    construct!([a, b]).many().map(|xs| xs.into_iter().last())
+    construct!([a, b]).last()
 }
 
 /// Strip a command name if present at the front when used as a `cargo` command

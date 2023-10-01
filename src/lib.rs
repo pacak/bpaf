@@ -201,6 +201,7 @@ mod meta;
 mod meta_help;
 mod meta_youmean;
 pub mod params;
+mod simple;
 mod structs;
 #[cfg(test)]
 mod tests;
@@ -238,7 +239,6 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     buffer::{MetaInfo, Style},
     item::Item,
-    params::build_positional,
     parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
@@ -255,6 +255,9 @@ use structs::ParseComp;
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
+
+#[doc(inline)]
+pub use simple::*;
 
 /// Compose several parsers to produce a single result
 ///
@@ -1337,8 +1340,10 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
     }
 }
 
-#[cfg_attr(not(doctest), doc = include_str!("docs/short.md"))]
-///
+// #[cfg_attr(not(doctest), doc = include_str!("docs/short.md"))]
+// ///
+/*
+>>>>>>> 9df8975 (wip)
 /// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
@@ -1449,7 +1454,7 @@ pub fn env(variable: &'static str) -> NamedArg {
 pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
 }
-
+*/
 #[doc(hidden)]
 #[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
 pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
