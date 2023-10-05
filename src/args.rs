@@ -5,7 +5,7 @@ use crate::{
     error::{Message, MissingItem},
     item::Item,
     meta_help::Metavar,
-    parsers::NamedArg,
+    parsers::Named,
     Error,
 };
 
@@ -627,7 +627,7 @@ impl State {
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
-    pub(crate) fn take_flag(&mut self, named: &NamedArg) -> bool {
+    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
         if let Some((ix, _)) = self
             .items_iter()
             .find(|arg| named.matches_arg(arg.1, false))
@@ -645,7 +645,7 @@ impl State {
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg(
         &mut self,
-        named: &NamedArg,
+        named: &Named,
         adjacent: bool,
         metavar: Metavar,
     ) -> Result<Option<OsString>, Error> {

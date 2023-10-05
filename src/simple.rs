@@ -3,7 +3,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
-    parsers::{NamedArg, ParseArgument, ParseFlag, ParsePositional},
+    parsers::{Argument, Flag, Named, Positional},
     Doc, Error, Meta, Parser, State,
 };
 
@@ -12,15 +12,16 @@ use crate::{
 /// This structure implements different methods depending on how it was created - pay attention to
 /// the type parameter. Some versions of the structure also implement [`Parser`] trait.
 ///
-/// Currently constructors are:
+/// Currently constructors are
 /// - [`short`] or its alias - [`SimpleParser::with_short`]
 /// - [`long`] or its alias - [`SimpleParser::with_long`]
 /// - [`env`] or its alias - [`SimpleParser::with_env`]
 /// - [`positional`] or its alias [`SimpleParser::positional`]
+/// - [`any`] or its alias [`SimpleParser::any`]
 #[derive(Debug, Clone)]
 pub struct SimpleParser<I>(pub(crate) I);
 
-impl SimpleParser<NamedArg> {
+impl SimpleParser<Named> {
     /// An alias for [`short`]
     ///
     /// This method exists only to have all the documentation for simple parsers colleted under the
@@ -53,7 +54,7 @@ impl SimpleParser<NamedArg> {
     /// same structure, you shouldn't use it directly, use [`long`] instead.
     #[deprecated = "You should use `long(l)` instead of `SimpleParser::with_long(l)`"]
     pub fn with_env(name: &'static str) -> Self {
-        Self(NamedArg {
+        Self(Named {
             short: Vec::new(),
             long: Vec::new(),
             env: vec![name],
@@ -73,25 +74,25 @@ impl SimpleParser<NamedArg> {
         self
     }
 
-    pub fn switch(self) -> SimpleParser<ParseFlag<bool>> {
+    pub fn switch(self) -> SimpleParser<Flag<bool>> {
         SimpleParser(self.0.switch())
     }
 
-    pub fn flag<V>(self, present: V, absent: V) -> SimpleParser<ParseFlag<V>>
+    pub fn flag<V>(self, present: V, absent: V) -> SimpleParser<Flag<V>>
     where
         V: Clone + 'static,
     {
         SimpleParser(self.0.flag(present, absent))
     }
 
-    pub fn req_flag<V>(self, present: V) -> SimpleParser<ParseFlag<V>>
+    pub fn req_flag<V>(self, present: V) -> SimpleParser<Flag<V>>
     where
         V: Clone + 'static,
     {
         SimpleParser(self.0.req_flag(present))
     }
 
-    pub fn argument<T>(self, metavar: &'static str) -> SimpleParser<ParseArgument<T>>
+    pub fn argument<T>(self, metavar: &'static str) -> SimpleParser<Argument<T>>
     where
         T: FromStr + 'static,
     {
@@ -99,7 +100,7 @@ impl SimpleParser<NamedArg> {
     }
 }
 
-impl<T> SimpleParser<ParseFlag<T>> {
+impl<T> SimpleParser<Flag<T>> {
     pub fn help<M>(self, help: M) -> Self
     where
         M: Into<Doc>,
@@ -108,13 +109,13 @@ impl<T> SimpleParser<ParseFlag<T>> {
     }
 }
 
-impl<T> SimpleParser<ParseArgument<T>> {
+impl<T> SimpleParser<Argument<T>> {
     pub fn adjacent(self) -> Self {
         Self(self.0.adjacent())
     }
 }
 
-impl<T: Clone + 'static> Parser<T> for SimpleParser<ParseFlag<T>> {
+impl<T: Clone + 'static> Parser<T> for SimpleParser<Flag<T>> {
     fn eval(&self, args: &mut crate::State) -> Result<T, crate::Error> {
         self.0.eval(args)
     }
@@ -124,7 +125,7 @@ impl<T: Clone + 'static> Parser<T> for SimpleParser<ParseFlag<T>> {
     }
 }
 
-impl<T> Parser<T> for SimpleParser<ParsePositional<T>>
+impl<T> Parser<T> for SimpleParser<Positional<T>>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -138,7 +139,7 @@ where
     }
 }
 
-impl<T> Parser<T> for SimpleParser<ParseArgument<T>>
+impl<T> Parser<T> for SimpleParser<Argument<T>>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -167,8 +168,8 @@ where
 ///  `bpaf` would use items past the first one as hidden aliases.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
-pub fn short(name: char) -> SimpleParser<NamedArg> {
-    SimpleParser(NamedArg {
+pub fn short(name: char) -> SimpleParser<Named> {
+    SimpleParser(Named {
         short: vec![name],
         env: Vec::new(),
         long: Vec::new(),
@@ -184,8 +185,8 @@ pub fn short(name: char) -> SimpleParser<NamedArg> {
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
-pub fn long(name: &'static str) -> SimpleParser<NamedArg> {
-    SimpleParser(NamedArg {
+pub fn long(name: &'static str) -> SimpleParser<Named> {
+    SimpleParser(Named {
         long: vec![name],
         env: Vec::new(),
         short: Vec::new(),
@@ -213,8 +214,8 @@ pub fn long(name: &'static str) -> SimpleParser<NamedArg> {
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
-pub fn env(variable: &'static str) -> SimpleParser<NamedArg> {
-    SimpleParser(NamedArg {
+pub fn env(variable: &'static str) -> SimpleParser<Named> {
+    SimpleParser(Named {
         short: Vec::new(),
         long: Vec::new(),
         help: None,
@@ -222,8 +223,8 @@ pub fn env(variable: &'static str) -> SimpleParser<NamedArg> {
     })
 }
 
-pub fn positional<T>(metavar: &'static str) -> SimpleParser<ParsePositional<T>> {
-    SimpleParser(ParsePositional {
+pub fn positional<T>(metavar: &'static str) -> SimpleParser<Positional<T>> {
+    SimpleParser(Positional {
         metavar,
         help: None,
         result_type: PhantomData,
@@ -231,9 +232,9 @@ pub fn positional<T>(metavar: &'static str) -> SimpleParser<ParsePositional<T>> 
     })
 }
 
-impl<T> SimpleParser<ParsePositional<T>> {
+impl<T> SimpleParser<Positional<T>> {
     pub fn positional(metavar: &'static str) -> Self {
-        SimpleParser(ParsePositional {
+        SimpleParser(Positional {
             metavar,
             help: None,
             result_type: PhantomData,

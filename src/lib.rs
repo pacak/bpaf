@@ -215,9 +215,7 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
     #[doc(inline)]
-    pub use crate::params::{
-        NamedArg, ParseAny, ParseArgument, ParseCommand, ParseFlag, ParsePositional,
-    };
+    pub use crate::params::{Argument, Flag, Named, ParseAny, ParseCommand, Positional};
     #[doc(inline)]
     pub use crate::structs::{
         ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
@@ -239,7 +237,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     buffer::{MetaInfo, Style},
     item::Item,
-    parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
+    parsers::{Named, ParseAny, ParseCommand, Positional},
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,

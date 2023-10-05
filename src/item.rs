@@ -1,4 +1,4 @@
-use crate::{info::Info, meta_help::Metavar, parsers::NamedArg, Doc, Meta};
+use crate::{info::Info, meta_help::Metavar, parsers::Named, Doc, Meta};
 
 #[doc(hidden)]
 #[derive(Clone, Debug)]
@@ -116,10 +116,10 @@ impl ShortLong {
     }
 }
 
-impl TryFrom<&NamedArg> for ShortLong {
+impl TryFrom<&Named> for ShortLong {
     type Error = ();
 
-    fn try_from(named: &NamedArg) -> Result<Self, Self::Error> {
+    fn try_from(named: &Named) -> Result<Self, Self::Error> {
         match (named.short.is_empty(), named.long.is_empty()) {
             (true, true) => Err(()),
             (true, false) => Ok(Self::Long(named.long[0])),

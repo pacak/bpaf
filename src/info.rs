@@ -4,7 +4,7 @@ use crate::{
     args::{Args, State},
     error::Message,
     meta_help::render_help,
-    parsers::NamedArg,
+    parsers::Named,
     short, Doc, Error, Meta, ParseFailure, Parser, SimpleParser,
 };
 
@@ -24,8 +24,8 @@ pub struct Info {
     pub footer: Option<Doc>,
     /// Custom usage field, see [`usage`][Info::usage]
     pub usage: Option<Doc>,
-    pub help_arg: SimpleParser<NamedArg>,
-    pub version_arg: SimpleParser<NamedArg>,
+    pub help_arg: SimpleParser<Named>,
+    pub version_arg: SimpleParser<Named>,
     pub help_if_no_args: bool,
 }
 
@@ -611,7 +611,7 @@ impl<T> OptionParser<T> {
     /// Note, `--help` is something user expects to work
     #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
     #[must_use]
-    pub fn help_parser(mut self, parser: SimpleParser<NamedArg>) -> Self {
+    pub fn help_parser(mut self, parser: SimpleParser<Named>) -> Self {
         self.info.help_arg = parser;
         self
     }
@@ -624,7 +624,7 @@ impl<T> OptionParser<T> {
     /// Note, `--version` is something user expects to work
     #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_help_version.md"))]
     #[must_use]
-    pub fn version_parser(mut self, parser: SimpleParser<NamedArg>) -> Self {
+    pub fn version_parser(mut self, parser: SimpleParser<Named>) -> Self {
         self.info.version_arg = parser;
         self
     }

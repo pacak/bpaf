@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, literal, parsers::NamedArg, short, Parser, SimpleParser};
+use crate::{construct, literal, parsers::Named, short, Parser, SimpleParser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///
@@ -124,9 +124,9 @@ pub fn verbose_by_slice<T: Copy + 'static, const N: usize>(
 /// }
 /// ```
 pub fn toggle_flag<T: Copy + 'static>(
-    a: SimpleParser<NamedArg>,
+    a: SimpleParser<Named>,
     val_a: T,
-    b: SimpleParser<NamedArg>,
+    b: SimpleParser<Named>,
     val_b: T,
 ) -> impl Parser<T> {
     let a = a.req_flag(val_a);

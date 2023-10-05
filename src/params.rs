@@ -104,14 +104,14 @@ use crate::{any, command, env, long, positional, short};
 ///    or an expression.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_derive.md"))]
 #[derive(Clone, Debug)]
-pub struct NamedArg {
+pub struct Named {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     pub(crate) env: Vec<&'static str>,
     pub(crate) help: Option<Doc>,
 }
 
-impl NamedArg {
+impl Named {
     pub(crate) fn flag_item(&self) -> Option<Item> {
         Some(Item::Flag {
             name: ShortLong::try_from(self).ok()?,
@@ -122,7 +122,7 @@ impl NamedArg {
     }
 }
 
-impl NamedArg {
+impl Named {
     /// Add a short name to a flag/switch/argument
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
@@ -193,7 +193,7 @@ impl NamedArg {
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     #[must_use]
-    pub fn switch(self) -> ParseFlag<bool> {
+    pub fn switch(self) -> Flag<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
@@ -203,7 +203,7 @@ impl NamedArg {
     /// [`bool`].
     #[cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
     #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> ParseFlag<T>
+    pub fn flag<T>(self, present: T, absent: T) -> Flag<T>
     where
         T: Clone + 'static,
     {
@@ -221,7 +221,7 @@ impl NamedArg {
     /// fields as `req_flag`.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
     #[must_use]
-    pub fn req_flag<T>(self, present: T) -> ParseFlag<T>
+    pub fn req_flag<T>(self, present: T) -> Flag<T>
     where
         T: Clone + 'static,
     {
@@ -247,7 +247,7 @@ impl NamedArg {
     ///
     /// You can further restrict it using [`adjacent`](ParseArgument::adjacent)
     #[must_use]
-    pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
+    pub fn argument<T>(self, metavar: &'static str) -> Argument<T>
     where
         T: FromStr + 'static,
     {
@@ -512,11 +512,11 @@ impl<T> ParseCommand<T> {
     }
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: NamedArg) -> ParseFlag<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Flag<T>
 where
     T: Clone + 'static,
 {
-    ParseFlag {
+    Flag {
         present,
         absent,
         named,
@@ -525,13 +525,13 @@ where
 
 #[derive(Clone)]
 /// Parser for a named switch, created with [`NamedArg::flag`] or [`NamedArg::switch`]
-pub struct ParseFlag<T> {
+pub struct Flag<T> {
     present: T,
     absent: Option<T>,
-    named: NamedArg,
+    named: Named,
 }
 
-impl<T: Clone + 'static> ParseFlag<T> {
+impl<T: Clone + 'static> Flag<T> {
     pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
@@ -571,7 +571,7 @@ impl<T: Clone + 'static> ParseFlag<T> {
         }
     }
 }
-impl<T> ParseFlag<T> {
+impl<T> Flag<T> {
     /// Add a help message to `flag`
     ///
     /// See [`NamedArg::help`]
@@ -585,7 +585,7 @@ impl<T> ParseFlag<T> {
     }
 }
 
-impl<T> ParseArgument<T> {
+impl<T> Argument<T> {
     /// Add a help message to an `argument`
     ///
     /// See [`NamedArg::help`]
@@ -599,8 +599,8 @@ impl<T> ParseArgument<T> {
     }
 }
 
-fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T> {
-    ParseArgument {
+fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
+    Argument {
         named,
         metavar,
         ty: PhantomData,
@@ -610,14 +610,14 @@ fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T>
 
 /// Parser for a named argument, created with [`argument`](NamedArg::argument).
 #[derive(Clone)]
-pub struct ParseArgument<T> {
+pub struct Argument<T> {
     ty: PhantomData<T>,
-    named: NamedArg,
+    named: Named,
     metavar: &'static str,
     adjacent: bool,
 }
 
-impl<T> ParseArgument<T> {
+impl<T> Argument<T> {
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
     /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
@@ -687,14 +687,14 @@ impl<T> ParseArgument<T> {
 /// You can add extra information to positional parsers with [`help`](Self::help)
 /// and [`strict`](Self::strict) on this struct.
 #[derive(Clone)]
-pub struct ParsePositional<T> {
+pub struct Positional<T> {
     pub(crate) metavar: &'static str,
     pub(crate) help: Option<Doc>,
     pub(crate) result_type: PhantomData<T>,
     pub(crate) strict: bool,
 }
 
-impl<T> ParsePositional<T> {
+impl<T> Positional<T> {
     /// Add a help message to a [`positional`] parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -788,7 +788,7 @@ fn parse_pos_word(
     }
 }
 
-impl<T> ParsePositional<T>
+impl<T> Positional<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
