@@ -3,7 +3,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
-    parsers::{Argument, Flag, Named, Positional},
+    parsers::{Anything, Argument, Flag, Named, Positional},
     Doc, Error, Meta, Parser, State,
 };
 
@@ -275,4 +275,93 @@ impl<T> SimpleParser<Positional<T>> {
         self.0.strict = true;
         self
     }
+}
+
+/// Parse a single arbitrary item from a command line
+///
+/// **`any` is designed to consume items that don't fit into usual
+/// flag/switch/argument/positional/command classification, in most cases you don't need to use
+/// it**.
+///
+/// Type parameter `I` is used for intermediate value, normally you'd use [`String`] or
+/// [`OsString`]. This parameter only exists to make it possible to work with non-utf8 encoded
+/// arguments such as some rare file names, as well as not having to deal with `OsString` if all
+/// you want to process is a string that utf8 can correctly represent.
+///
+/// Type parameter `T` is a type the parser actually produces.
+///
+/// Parameter `check` takes an intermediate value (`String` or `OsString`) and decides if `any`
+/// parser is going to take it by returning `Some` value or `None` if this is not an expected value
+/// for this parser.
+///
+/// By default, `any` behaves similarly to [`positional`] so you should be using it near the
+/// rightmost end of the consumer struct, after all the named parsers and it will only try to parse
+/// the first unconsumed item on the command line. It is possible to lift this restriction by
+/// calling [`anywhere`](SimpleParser::anywhere) on the parser.
+///
+pub fn any<I, T, F>(metavar: &str, check: F) -> SimpleParser<Anything<T>>
+where
+    I: FromStr + 'static,
+    F: Fn(I) -> Option<T> + 'static,
+
+    <I as std::str::FromStr>::Err: std::fmt::Display,
+{
+    SimpleParser(Anything {
+        metavar: [(metavar, crate::buffer::Style::Metavar)][..].into(),
+        help: None,
+        check: Box::new(move |os: std::ffi::OsString| {
+            match crate::from_os_str::parse_os_str::<I>(os) {
+                Ok(v) => check(v),
+                Err(_) => None,
+            }
+        }),
+        anywhere: false,
+    })
+}
+
+impl<T> SimpleParser<Anything<T>> {
+    pub fn anywhere(mut self) -> Self {
+        self.0.anywhere = true;
+        self
+    }
+
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<Doc>,
+    {
+        self.0.help = Some(help.into());
+        self
+    }
+}
+
+impl<T> Parser<T> for SimpleParser<Anything<T>> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        self.0.eval(args)
+    }
+
+    fn meta(&self) -> Meta {
+        self.0.meta()
+    }
+}
+
+/// A specialized version of [`any`] that consumes an arbitrary string
+///
+/// By default `literal` behaves similarly to [`positional`] so you should be using it near the
+/// rightmost end of the consumer struct and it will only try to parse the first unconsumed
+/// item on the command line. It is possible to lift this restriction by calling
+/// [`anywhere`](SimpleParser::anywhere) on the parser.
+///
+#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
+///
+/// # See also
+/// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
+/// or not.
+#[must_use]
+pub fn literal(val: &'static str) -> SimpleParser<Anything<()>> {
+    SimpleParser(Anything {
+        metavar: [(val, crate::buffer::Style::Literal)][..].into(),
+        help: None,
+        check: Box::new(move |os| if os == val { Some(()) } else { None }),
+        anywhere: false,
+    })
 }

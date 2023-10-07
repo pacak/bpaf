@@ -1,15 +1,16 @@
 #### `any` - parse a single arbitrary item from a command line
 
-[`any`] is designed to consume items that don’t fit into the usual [`NamedArg::flag`]
-/[`NamedArg::switch`]/[`NamedArg::argument`]/[`positional`]/[`OptionParser::command`]
-classification, in most cases you don’t need to use it.
+**[`any`] is designed to consume items that don’t fit into the usual [`flag`](SimpleParser::flag)
+/ [`switch`](SimpleParser::switch) / [`argument`](SimpleParser::argument) / [`positional`]
+/ [`command`](OptionParser::command) classification, in most cases you don’t need to use it**.
 
-To understand how `any` works you need to learn about positional and named arguments first.
-Named argument starts with a name or consists of a name only, positional doesn't have a name
-and they are consumed sequentially:
+To understand how `any` works you first need to learn about positional and named arguments.
+Named argument starts with a name or consists of a name only and can be consumed in any order,
+while positional doesn't have a name and are consumed sequentially:
 
 If the app defines two named parsers with long names `alpha` and `beta` those two user inputs
 are identical
+
 ```text
 --alpha --beta
 ```
@@ -17,7 +18,9 @@ are identical
 --beta --alpha
 ```
 
-But with positional items `alpha` and `beta` results are going to be different.
+But with positional items `alpha` and `beta` results are going to be different. Earlier
+positional parser in the first example will capture value `alpha`, later positional parser will
+capture `beta`. For the second example earlier parser will capture `beta`.
 
 ```text
 alpha beta
@@ -28,18 +31,18 @@ beta alpha
 
 It is possible to mix named parsers with positional ones, as long as check for positional is
 done after. Positional and named parsers won't know that parameters for their conterparts are
-present:
+present. In this example named parsers will only see presence of `--alpha` and `--beta`, while
+positional parser will encounter only `alpha` and `beta`.
 
 ```text
 --alpha --beta alpha beta
 ```
 
-With `any` `bpaf` lets parser gets shown everything and it is up to parser to decide if it
-value it gets is a match or not. By default `any` parser behaves as positional and only looks
-at the first unconsumed item, but can be modified with
-[`ParseAny::anyhere`](crate::parsers::ParseAny::anywhere) to look at all the unconsumed items
-and producing the first value it accepts. `check` parameter to `any` should take `String` or
-`OsString` as input and decide if parser should match on this value.
+Parser created with `any` gets shown everything and it is up to parser to decide if the value it
+gets is a match or not. By default `any` parser behaves as positional and only looks at the
+first unconsumed item, but can be modified with [`SimpleParser::anyhere`] to look at all the
+unconsumed items and producing the first value it accepts. `check` parameter to `any` should
+take `String` or `OsString` as input and decide if parser should match on this value.
 
 Let's make a parser to accept windows style flags (`/name:value`). Parser should take a name -
 `"help"` to parse `/help` and produce value T, parsed from `value`.

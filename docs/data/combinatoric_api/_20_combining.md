@@ -124,6 +124,7 @@ fn main() {
 ```run,id:3
 --help
 ```
+
 Here `optional` parser returns `Some` value if inner parser succeeds
 
 ```run,id:3

@@ -1,10 +1,10 @@
 #### Argument parser
 
 Next in complexity would be a parser to consume a named argument, such as `-p my_crate`. Same
-as with the switch parser it starts from a `NamedArg` but the next method is [`NamedArg::argument`].
-This method takes a metavariable name - a short description that will be used in the `--help`
-output. `rustc` also needs to know the parameter type you are trying to parse, there are
-several ways to do it:
+as with the switch parser it starts from a `SimpleParser<Named>` but the next method is
+[`SimpleParser::argument`]. This method takes a metavariable name - a short description that
+will be used in the `--help` output. `rustc` also needs to know the parameter type you are
+trying to parse, there are several ways to do it:
 
 ```rust,id:1
 # use bpaf::*;
@@ -36,8 +36,9 @@ You can use any type for as long as it implements [`FromStr`]. To parse items th
 implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
 the next chapter on how to do that.
 
-Unlike [`NamedArg::switch`], by default parser for argument requires it to be present on a
-command line to succeed. There's several ways to add a value to fallback to, for example [`Parser::fallback`].
+Unlike [`SimpleParser::switch`], by default parser for argument requires it to be present on a
+command line to succeed. There's several ways to add a value to fallback to, for example
+[`Parser::fallback`].
 
 ```run,id:1
 

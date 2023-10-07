@@ -28,7 +28,8 @@
 //! ##### Derive API
 //!
 //! This API uses proc macros to automatically generate the parsers for your structs. This is more
-//! concise and easier to use, but IDE won't be able to help as much.
+//! concise and easier to use, but IDE won't be able to help as much - annotations are not valid
+//! rust.
 //!
 //! ````rust
 //! use bpaf::*;

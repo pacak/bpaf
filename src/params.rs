@@ -804,14 +804,14 @@ where
 
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
 /// [`anywhere`](ParseAny::anywhere).
-pub struct ParseAny<T> {
+pub struct Anything<T> {
     pub(crate) metavar: Doc,
     pub(crate) help: Option<Doc>,
     pub(crate) check: Box<dyn Fn(OsString) -> Option<T>>,
     pub(crate) anywhere: bool,
 }
 
-impl<T> ParseAny<T> {
+impl<T> Anything<T> {
     pub(crate) fn item(&self) -> Item {
         Item::Any {
             metavar: self.metavar.clone(),
@@ -850,7 +850,7 @@ impl<T> ParseAny<T> {
     }
 }
 
-impl<T> Parser<T> for ParseAny<T> {
+impl<T> Parser<T> for Anything<T> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         for (ix, x) in args.items_iter() {
             let (os, next) = match x {

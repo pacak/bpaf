@@ -19,14 +19,14 @@
 //!
 
 //! # Quick links
-//! - [x][Introduction](_documentation::_0_intro) - features, design goals, restrictions
-//! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
+//! - [x] [Introduction](_documentation::_0_intro) - features, design goals, restrictions
+//! - [x] [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
 //!   examples to get you started
-//!   + [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
+//! - [x] [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
 //!     common types of line options and conventions (optional)
-//!   + [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
+//! - [x] [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
 //!     Parse arguments without using proc macros
-//!   + [Derive API](_documentation::_1_tutorials::_2_derive_api) -
+//! - [x] [Derive API](_documentation::_1_tutorials::_2_derive_api) -
 //!     Create a parser by defining a structure
 //! - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
 //!   explains how to concrete tasks
@@ -215,7 +215,7 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
     #[doc(inline)]
-    pub use crate::params::{Argument, Flag, Named, ParseAny, ParseCommand, Positional};
+    pub use crate::params::{Anything, Argument, Flag, Named, ParseCommand, Positional};
     #[doc(inline)]
     pub use crate::structs::{
         ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
@@ -237,7 +237,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     buffer::{MetaInfo, Style},
     item::Item,
-    parsers::{Named, ParseAny, ParseCommand, Positional},
+    parsers::{Anything, Named, ParseCommand, Positional},
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
@@ -1468,6 +1468,7 @@ where
     }
 }
 
+/*
 /// Parse a single arbitrary item from a command line
 ///
 /// **`any` is designed to consume items that don't fit into the usual [`flag`](NamedArg::flag)
@@ -1505,13 +1506,13 @@ where
 /// # See also
 /// [`literal`] - a specialized version of `any` that tries to parse a fixed literal
 #[must_use]
-pub fn any<I, T, F>(metavar: &str, check: F) -> ParseAny<T>
+pub fn any<I, T, F>(metavar: &str, check: F) -> Anything<T>
 where
     I: FromStr + 'static,
     F: Fn(I) -> Option<T> + 'static,
     <I as std::str::FromStr>::Err: std::fmt::Display,
 {
-    ParseAny {
+    Anything {
         metavar: [(metavar, Style::Metavar)][..].into(),
         help: None,
         check: Box::new(move |os: std::ffi::OsString| {
@@ -1524,6 +1525,8 @@ where
         anywhere: false,
     }
 }
+
+
 
 /// A specialized version of [`any`] that consumes an arbitrary string
 ///
@@ -1538,10 +1541,11 @@ where
 /// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
 /// or not.
 #[must_use]
-pub fn literal(val: &'static str) -> ParseAny<()> {
+pub fn literal(val: &'static str) -> Anything<()> {
     any("", move |s: String| if s == val { Some(()) } else { None })
         .metavar(&[(val, crate::buffer::Style::Literal)][..])
 }
+*/
 
 /// Strip a command name if present at the front when used as a `cargo` command
 ///

@@ -1,8 +1,8 @@
 #### `req_flag` - half of the `flag`
 
-[`NamedArg::flag`] handles missing value by using second of the provided values,
-[`NamedArg::req_flag`] instead fails with "value is missing" error - this makes it useful when
-making combinations from multiple parsers.
+[`SimpleParser::flag`] handles missing value by using second of the provided values,
+[`SimpleParser::req_flag`] instead fails with "value is missing" error - this makes it useful
+when making combinations from multiple parsers.
 
 ```rust,id:3
 # use bpaf::*;
@@ -46,8 +46,11 @@ Help message reflects that `--yes` and `--no` options are optional and mutually 
 
 ```
 
-And `bpaf` itself handles the case where both values are present - in this scenario parser
-produces just one value so both parsers can't both succeed.
+And `bpaf` itself handles the case where both values are present - in this scenario both
+parsers can succeed, but in the alternative combination only one parser gets to consume its
+arguments. Since combined parser runs only once (there's no [`Parser::many`] or
+[`Parser::some`]) present) - only one value is consumed. One of the requirements for parsing to
+succeed - all the items from the command line must be consumed by something.
 
 ```run,id:3
 --yes --no

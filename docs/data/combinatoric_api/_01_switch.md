@@ -4,20 +4,20 @@ Let's start with the simplest possible one - a simple switch that gets parsed in
 
 First of all - the switch needs a name - you can start with [`short`] or [`long`] and add more
 names if you want: `long("simple")` or `short('s').long("simple")`. This gives something with
-the type [`NamedArg`]:
+the type [`SimpleParser`]:
 
 ```rust
 # use bpaf::*;
-use bpaf::parsers::NamedArg;
-fn simple_switch() -> NamedArg {
+use bpaf::{SimpleParser, parsers::Named};
+fn simple_switch() -> SimpleParser<Named> {
     short('s').long("simple")
 }
 ```
 
-With [`NamedArg::help`] you can attach a help message that will be used in `--help` output.
+With [`SimpleParser::help`] you can attach a help message that will be used in `--help` output.
 
-From `NamedArg` you make a switch parser by calling [`NamedArg::switch`]. Usually, you do it
-right away without assigning `NamedArg` to a variable.
+From `SimpleParser` you make a switch parser by calling [`SimpleParser::switch`]. Usually, you do it
+right away without assigning `SimpleParser` to a variable.
 
 ```rust,id:1
 # use bpaf::*;
