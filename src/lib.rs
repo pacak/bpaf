@@ -834,16 +834,23 @@ pub trait Parser<T> {
     // }}}
 
     // {{{ map
-    /// Apply a pure transformation to a contained value
+    /// Change value produced by a parser with a pure function
     ///
-    /// A common case of the [`parse`](Parser::parse) method, exists mostly for convenience.
+    /// If you have a parser that produces some value of type `A` and a pure function of type
+    /// `Fn(A) -> B`, you can use `map` to make a parser that produces a value of type `B`.
     ///
-    /// # Derive usage:
-    /// The `map` takes a single parameter: function name to call. This function should transform
-    /// the value produced by the parser into a new value of the same or different type.
+    /// With `map` you can create parsers that produce different types - `Box<str>` instead of
+    /// `String` or `BTreeSet<usize>` instead of `Vec<usize>` or make it so values produced by
+    /// two different parsers agree to be able to combine them. For example if you have two parsers
+    /// that take a distance in miles and kilometers you can change them both to produce some
+    /// concrete distance unit and then combine them into a single one as alternatives.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/map.md"))]
+    /// `map` doesn't make any changes to the generated help message.
     ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/map.md"))]
+    ///
+    /// # See also
+    /// - [`parse`](Parser::parse) is a more generic version of `map`
     fn map<F, R>(self, map: F) -> ParseMap<T, Self, F, R>
     where
         Self: Sized + Parser<T>,
