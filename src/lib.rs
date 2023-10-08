@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 #![allow(clippy::needless_doctest_main)]
-#![allow(clippy::redundant_else)] // not useful
+#![allow(clippy::redundant_else)] // proposed alternative is less readable
+#![allow(rustdoc::redundant_explicit_links)] // two random markdown parsers I tried only supports explicit links
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
@@ -169,14 +170,7 @@
 //!
 //!  - `docgen`: generate documentation from help declaration, see [`OptionParser::render_markdown`] and [`doc`](crate::doc). Disabled by default.
 
-
-
-#[cfg(feature = "extradocs")]
-#[rustfmt::skip]
-#[allow(unused_imports)]
-pub mod _documentation;
-
-#[cfg(feature = "extradocs")]
+#[cfg(all(feature = "extradocs", not(doctest)))]
 #[rustfmt::skip]
 #[allow(unused_imports)]
 pub mod _docs;
@@ -215,7 +209,7 @@ pub mod parsers {
     #[doc(inline)]
     pub use crate::complete_shell::ParseCompShell;
     #[doc(inline)]
-    pub use crate::params::{Anything, Argument, Flag, Named, ParseCommand, Positional};
+    pub use crate::params::{Anything, Argument, Command, Flag, Named, Positional};
     #[doc(inline)]
     pub use crate::structs::{
         ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
@@ -237,7 +231,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     buffer::{MetaInfo, Style},
     item::Item,
-    parsers::{Anything, Named, ParseCommand, Positional},
+    parsers::{Anything, Command, Named, ParseCompShell, Positional},
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
@@ -1118,12 +1112,12 @@ pub trait Parser<T> {
     ///
     /// Allows to generate autocompletion information for the shell. Completer places generated input
     /// in place of metavar placeholders, so running `completer` on something that doesn't have a
-    /// [`positional`] or an [`argument`](NamedArg::argument) doesn't make much sense.
+    /// [`positional`] or an [`argument`](SimpleParser::argument) doesn't make much sense.
     ///
     /// Takes a function as a parameter that tries to complete partial input to a full one with an
     /// optional description. `bpaf` would substitute a current positional item or an argument with an empty
     /// string if a value isn't available yet so it's best to run `complete` where parsing can't fail:
-    /// right after [`argument`](NamedArg::argument) or [`positional`], but this isn't enforced.
+    /// right after [`argument`](SimpleParser::argument) or [`positional`], but this isn't enforced.
     ///
     /// # Example
     /// ```console
@@ -1161,10 +1155,10 @@ pub trait Parser<T> {
     ///
     /// Allows to ask existing shell completion to provide some information such as a file or
     /// directory names or pass through existing shell completion scripts, see
-    /// [`ShellComp`](complete_shell::ShellComp) for accessible functionality
+    /// [`ShellComp`] for accessible functionality
     ///
     /// Places function calls in place of metavar placeholder, so running `complete_shell` on
-    /// something that doesn't have a [`positional`] or [`argument`](NamedArg::argument) doesn't
+    /// something that doesn't have a [`positional`] or [`argument`](SimpleParser::argument) doesn't
     /// make much sense.
     ///
     /// # Example
@@ -1195,14 +1189,11 @@ pub trait Parser<T> {
     /// }
     /// ```
     #[cfg(feature = "autocomplete")]
-    fn complete_shell(
-        self,
-        op: complete_shell::ShellComp,
-    ) -> crate::complete_shell::ParseCompShell<Self>
+    fn complete_shell(self, op: ShellComp) -> ParseCompShell<Self>
     where
         Self: Sized + Parser<T>,
     {
-        crate::complete_shell::ParseCompShell { inner: self, op }
+        ParseCompShell { inner: self, op }
     }
     // }}}
 
@@ -1455,11 +1446,11 @@ pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
 */
 #[doc(hidden)]
 #[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
-pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
+pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> Command<T>
 where
     T: 'static,
 {
-    ParseCommand {
+    Command {
         longs: vec![name],
         shorts: Vec::new(),
         help: subparser.short_descr().map(Into::into),
@@ -1557,6 +1548,6 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let skip = literal(cmd).optional().hide();
+    let skip = literal(cmd, ()).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }

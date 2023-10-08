@@ -30,7 +30,7 @@ pub struct Options {
 // Parses -user xxx
 fn user() -> impl Parser<Option<String>> {
     // match only literal "-user"
-    let tag = literal("-user").anywhere();
+    let tag = literal("-user", ()).anywhere();
     let value = positional("USER").help("User name");
     construct!(tag, value)
         .adjacent()
@@ -40,7 +40,7 @@ fn user() -> impl Parser<Option<String>> {
 
 // parsers -exec xxx yyy zzz ;
 fn exec() -> impl Parser<Option<Vec<OsString>>> {
-    let tag = literal("-exec")
+    let tag = literal("-exec", ())
         .help("for every file find finds execute a separate shell command")
         .anywhere();
 
@@ -72,7 +72,7 @@ fn perm() -> impl Parser<Option<Perm>> {
         Ok(perms)
     }
 
-    let tag = literal("-mode").anywhere();
+    let tag = literal("-mode", ()).anywhere();
 
     // `any` here is used to parse an arbitrary string that can also start with dash (-)
     // regular positional parser won't work here

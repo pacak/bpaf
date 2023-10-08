@@ -19,7 +19,7 @@ fn main() {
     let height = short('h').argument::<usize>("HEIGHT").fallback(10);
     let parser = construct!(Opts { width, height });
 
-    let cmd = literal("cmd").optional().hide();
+    let cmd = literal("cmd", ()).optional().hide();
     let combined_parser = construct!(cmd, parser).map(|x| x.1);
 
     let opts = combined_parser.to_options().run();

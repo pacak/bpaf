@@ -1,5 +1,20 @@
 # Change Log
 
+## bpaf [0.10.] - Unreleased
+- all the parsers are moved under SimpleParser
+- `literal` parser now takes an extra parameter to be closer to `req_flag`
+
+### Breaking changes
+
+### Migration guide 0.9.x -> 0.10.0
+- `literal` parser now takes an extra parameter it will produce to be closer to `req_flag`
+  ```diff
+  -let turbo = literal("+turbo").map(|_| true).fallback(false);
+  +let turbo = literal("+turbo", true).fallback(false);
+  ```
+  To replicate old behavior exactly you can pass `()` as a second parameter
+
+
 ## bpaf [0.9.6], bpaf_derive [0.5.6] - Unreleased
 - make sure env-only arguments and flags are working
 - support raw identifiers in derive macro (#282)

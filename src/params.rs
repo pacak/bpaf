@@ -67,7 +67,7 @@ use crate::{
     from_os_str::parse_os_str,
     item::ShortLong,
     meta_help::Metavar,
-    Doc, Error, Item, Meta, OptionParser, Parser,
+    Doc, Error, Item, Meta, OptionParser, Parser, SimpleParser,
 };
 
 #[cfg(doc)]
@@ -299,24 +299,24 @@ impl<T> OptionParser<T> {
     /// To represent multiple possible commands it is convenient to use enums
     #[cfg_attr(not(doctest), doc = include_str!("docs2/command_enum.md"))]
     #[must_use]
-    pub fn command(self, name: &'static str) -> ParseCommand<T>
+    pub fn command(self, name: &'static str) -> SimpleParser<Command<T>>
     where
         T: 'static,
     {
-        ParseCommand {
+        SimpleParser(Command {
             longs: vec![name],
             shorts: Vec::new(),
             help: self.short_descr().map(Into::into),
             subparser: self,
             adjacent: false,
-        }
+        })
     }
 }
 
 /// Builder structure for the [`command`]
 ///
 /// Created with [`command`], implements parser for the inner structure, gives access to [`help`](ParseCommand::help).
-pub struct ParseCommand<T> {
+pub struct Command<T> {
     pub(crate) longs: Vec<&'static str>,
     pub(crate) shorts: Vec<char>,
     // short help!
@@ -325,7 +325,7 @@ pub struct ParseCommand<T> {
     pub(crate) adjacent: bool,
 }
 
-impl<P> ParseCommand<P> {
+impl<T> SimpleParser<Command<T>> {
     /// Add a brief description to a command
     ///
     /// `bpaf` uses this description along with the command name
@@ -377,7 +377,7 @@ impl<P> ParseCommand<P> {
     where
         M: Into<Doc>,
     {
-        self.help = Some(help.into());
+        self.0.help = Some(help.into());
         self
     }
 
@@ -386,7 +386,7 @@ impl<P> ParseCommand<P> {
     /// Behavior is similar to [`short`](NamedArg::short), only first short name is visible.
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
-        self.shorts.push(short);
+        self.0.shorts.push(short);
         self
     }
 
@@ -396,7 +396,7 @@ impl<P> ParseCommand<P> {
     /// name when making the command - this one becomes a hidden alias.
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
-        self.longs.push(long);
+        self.0.longs.push(long);
         self
     }
 
@@ -419,13 +419,13 @@ impl<P> ParseCommand<P> {
     #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     #[must_use]
     pub fn adjacent(mut self) -> Self {
-        self.adjacent = true;
+        self.0.adjacent = true;
         self
     }
 }
 
-impl<T> Parser<T> for ParseCommand<T> {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+impl<T> Command<T> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         // used to avoid allocations for short names
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
@@ -495,12 +495,12 @@ impl<T> Parser<T> for ParseCommand<T> {
         }
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         Meta::from(self.item())
     }
 }
 
-impl<T> ParseCommand<T> {
+impl<T> Command<T> {
     fn item(&self) -> Item {
         Item::Command {
             name: self.longs[0],

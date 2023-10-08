@@ -154,7 +154,7 @@ pub fn cargo_helper<P, T>(cmd: &'static str, parser: P) -> impl Parser<T>
 where
     P: Parser<T>,
 {
-    let skip = literal(cmd).optional().hide();
+    let skip = literal(cmd, ()).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
 

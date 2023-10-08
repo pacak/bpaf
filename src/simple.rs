@@ -3,7 +3,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
-    parsers::{Anything, Argument, Flag, Named, Positional},
+    parsers::{Anything, Argument, Command, Flag, Named, Positional},
     Doc, Error, Meta, Parser, State,
 };
 
@@ -332,6 +332,14 @@ impl<T> SimpleParser<Anything<T>> {
         self.0.help = Some(help.into());
         self
     }
+
+    //    /// Replace metavar with a custom value
+    //    /// See examples in [`any`]
+    //   #[must_use]
+    pub fn metavar<M: Into<Doc>>(mut self, metavar: M) -> Self {
+        self.0.metavar = metavar.into();
+        self
+    }
 }
 
 impl<T> Parser<T> for SimpleParser<Anything<T>> {
@@ -351,17 +359,42 @@ impl<T> Parser<T> for SimpleParser<Anything<T>> {
 /// item on the command line. It is possible to lift this restriction by calling
 /// [`anywhere`](SimpleParser::anywhere) on the parser.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/any_literal.md"))]
+/// Apart from matching to a specific literal, this function behaves similarly to:
+/// [`req_flag`](SimpleParser::req_flag) it produces a value it was given or fails with "item not
+/// found" error which you can handle with [`fallback`](Parser::fallback),
+/// [`optional`](Parser::optional) or by combining several `literal` parsers together.
+///
+#[cfg_attr(not(doctest), doc = include_str!("_docs/literal.md"))]
 ///
 /// # See also
-/// [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
+/// - [`any`] - a generic version of `literal` that uses function to decide if value is to be parsed
 /// or not.
+/// - [`req_flag`](SimpleParser::req_flag) - parse a short/long flag from a command line or fail with "item not found"
 #[must_use]
-pub fn literal(val: &'static str) -> SimpleParser<Anything<()>> {
+pub fn literal<T>(literal: &'static str, value: T) -> SimpleParser<Anything<T>>
+where
+    T: Clone + 'static,
+{
     SimpleParser(Anything {
-        metavar: [(val, crate::buffer::Style::Literal)][..].into(),
+        metavar: [(literal, crate::buffer::Style::Literal)][..].into(),
         help: None,
-        check: Box::new(move |os| if os == val { Some(()) } else { None }),
+        check: Box::new(move |os| {
+            if os == literal {
+                Some(value.clone())
+            } else {
+                None
+            }
+        }),
         anywhere: false,
     })
+}
+
+impl<T> Parser<T> for SimpleParser<Command<T>> {
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        self.0.eval(args)
+    }
+
+    fn meta(&self) -> Meta {
+        self.0.meta()
+    }
 }
