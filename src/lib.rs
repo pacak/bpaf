@@ -231,7 +231,7 @@ pub use crate::{args::State, error::Error, meta::Meta, structs::ParseCon};
 use std::marker::PhantomData;
 
 use crate::{
-    buffer::{MetaInfo, Style},
+    buffer::MetaInfo,
     parsers::ParseCompShell,
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
@@ -1348,7 +1348,7 @@ where
     T: 'static,
     P: Parser<T>,
 {
-    let skip = literal(cmd).optional().hide();
+    let skip = literal(cmd, ()).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
 
