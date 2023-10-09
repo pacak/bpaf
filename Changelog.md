@@ -3,8 +3,7 @@
 ## bpaf [0.10.] - Unreleased
 - all the parsers are moved under SimpleParser
 - `literal` parser now takes an extra parameter to be closer to `req_flag`
-
-### Breaking changes
+- removed standalone `command`
 
 ### Migration guide 0.9.x -> 0.10.0
 - `literal` parser now takes an extra parameter it will produce to be closer to `req_flag`
@@ -13,7 +12,11 @@
   +let turbo = literal("+turbo", true).fallback(false);
   ```
   To replicate old behavior exactly you can pass `()` as a second parameter
-
+- standalone `command` function is gone, you should replace it with a member on OptionParser:
+  ```diff
+  -let a = command("name", subparser);
+  +let a = subparser.command("name");
+  ```
 
 ## bpaf [0.9.6], bpaf_derive [0.5.6] - Unreleased
 - make sure env-only arguments and flags are working

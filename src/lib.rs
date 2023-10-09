@@ -1452,20 +1452,6 @@ pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
 }
 */
-#[doc(hidden)]
-#[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
-pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> Command<T>
-where
-    T: 'static,
-{
-    Command {
-        longs: vec![name],
-        shorts: Vec::new(),
-        help: subparser.short_descr().map(Into::into),
-        subparser,
-        adjacent: false,
-    }
-}
 
 /// Strip a command name if present at the front when used as a `cargo` command
 ///

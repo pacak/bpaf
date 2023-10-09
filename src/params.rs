@@ -71,7 +71,7 @@ use crate::{
 };
 
 #[cfg(doc)]
-use crate::{any, command, env, long, positional, short};
+use crate::{any, env, long, positional, short};
 
 /// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
 /// [`argument`](NamedArg::argument)
