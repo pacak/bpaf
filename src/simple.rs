@@ -4,6 +4,7 @@ use crate::{
     error::Message,
     from_os_str::parse_os_str,
     parsers::{Anything, Argument, Command, Flag, Named, Positional},
+    structs::Pure,
     Doc, Error, Meta, Parser, State,
 };
 
@@ -112,6 +113,12 @@ impl<T> SimpleParser<Flag<T>> {
 impl<T> SimpleParser<Argument<T>> {
     pub fn adjacent(self) -> Self {
         Self(self.0.adjacent())
+    }
+}
+
+impl<T> SimpleParser<Pure<T>> {
+    pub fn pure(val: T) -> Self {
+        Self(Pure(val))
     }
 }
 
