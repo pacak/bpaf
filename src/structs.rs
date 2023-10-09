@@ -775,8 +775,8 @@ where
 
 /// Parser that returns a given value without consuming anything, created with
 /// [`pure`](crate::pure).
-pub struct ParsePure<T>(pub(crate) T);
-impl<T: Clone + 'static> Parser<T> for ParsePure<T> {
+pub struct Pure<T>(pub(crate) T);
+impl<T: Clone + 'static> Parser<T> for Pure<T> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         args.current = None;
         Ok(self.0.clone())

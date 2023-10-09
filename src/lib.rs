@@ -236,7 +236,7 @@ use crate::{
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
-        ParsePure, ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp,
+        ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp, Pure,
     },
 };
 
@@ -764,12 +764,13 @@ pub trait Parser<T> {
     // }}}
 
     #[must_use]
-    /// Count how many times the inner parser succeeds, and return that number.
+    /// Count how many times the inner parser succeeds
     ///
-    /// When you are dealing with a parser that can succeed without consuming
-    /// anything from a command line - `bpaf` will count first such success as well.
+    /// `count` stops running the inner parser once it stops consuming new values. If you have
+    /// a parser that can succeed without consuming anything - for example a
+    /// [`switch`](SimpleParser::switch) - `count` will run it just once and produce 1 as a result.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/count.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/count.md"))]
     fn count(self) -> ParseCount<Self, T>
     where
         Self: Sized + Parser<T>,
@@ -1282,8 +1283,8 @@ pub trait Parser<T> {
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/pure.md"))]
 #[must_use]
-pub fn pure<T>(val: T) -> ParsePure<T> {
-    ParsePure(val)
+pub fn pure<T>(val: T) -> Pure<T> {
+    Pure(val)
 }
 
 /// Wrap a calculated value into a `Parser`
