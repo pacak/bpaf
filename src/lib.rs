@@ -1404,57 +1404,9 @@ pub fn env(variable: &'static str) -> NamedArg {
     }
 }
 
-/// Parse a positional argument
-///
-/// For named flags and arguments ordering generally doesn't matter: most programs would
-/// understand `-O2 -v` the same way as `-v -O2`, but for positional items order matters: in *nix
-/// `cat hello world` and `cat world hello` would display contents of the same two files but in
-/// a different order.
-///
-/// When using combinatoric API you can specify the type with turbofish, for parsing types
-/// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
-/// it by hand.
-/// ```no_run
-/// # use bpaf::*;
-/// fn parse_pos() -> impl Parser<usize> {
-///     positional::<usize>("POS")
-/// }
-/// ```
-///
-/// # Important restriction
-/// To parse positional arguments from a command line you should place parsers for all your
-/// named values before parsers for positional items and commands. In derive API fields parsed as
-/// positional items or commands should be at the end of your `struct`/`enum`. The same rule applies
-/// to parsers with positional fields or commands inside: such parsers should go to the end as well.
-///
-/// Use [`check_invariants`](OptionParser::check_invariants) in your test to ensure correctness.
-///
-/// For example for non-positional `non_pos` and positional `pos` parsers
-/// ```rust
-/// # use bpaf::*;
-/// # let non_pos = || short('n').switch();
-/// # let pos = ||positional::<String>("POS");
-/// let valid = construct!(non_pos(), pos());
-/// let invalid = construct!(pos(), non_pos());
-/// ```
-///
-/// **`bpaf` panics during help generation unless this restriction holds**
-///
-/// Without using `--` `bpaf` would only accept items that don't start with `-` as positional, you
-/// can use [`any`] to work around this restriction.
-///
-/// By default `bpaf` accepts positional items with or without `--` where values permit, you can
-/// further restrict the parser to accept positional items only on the right side of `--` using
-/// [`strict`](ParsePositional::strict).
-#[cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))]
-#[must_use]
-pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
-    build_positional(metavar)
-}
 */
 
 /// Strip a command name if present at the front when used as a `cargo` command
-///
 // this is exactly the same as batteries::cargo_helper, but used by derive macro...
 #[must_use]
 #[doc(hidden)]

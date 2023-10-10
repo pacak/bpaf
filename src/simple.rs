@@ -1,5 +1,5 @@
-use std::{marker::PhantomData, str::FromStr};
-
+#[cfg(doc)]
+use crate::OptionParser;
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
@@ -7,6 +7,7 @@ use crate::{
     structs::Pure,
     Doc, Error, Meta, Parser, State,
 };
+use std::{marker::PhantomData, str::FromStr};
 
 /// A building block for your parsers
 ///
@@ -230,6 +231,20 @@ pub fn env(variable: &'static str) -> SimpleParser<Named> {
     })
 }
 
+/// Parse a positional argument
+///
+/// A positional argument is a type of argument that is passed to a command line program without
+/// using any special flags or prefixes. The order of positional arguments is important, and the
+/// program will expect them to be passed in a specific order. For example `ls` takes positional
+/// arguments to specify files or directories that should be listed and lists those specified
+/// earlier first.
+///
+#[cfg_attr(not(doctest), doc = include_str!("_docs/positional.md"))]
+///
+/// ## See also
+///
+/// [`strict`](SimpleParser::strict) to require user to use `--`
+#[must_use]
 pub fn positional<T>(metavar: &'static str) -> SimpleParser<Positional<T>> {
     SimpleParser(Positional {
         metavar,
@@ -240,6 +255,10 @@ pub fn positional<T>(metavar: &'static str) -> SimpleParser<Positional<T>> {
 }
 
 impl<T> SimpleParser<Positional<T>> {
+    /// Parse a positional argument
+    ///
+    /// This member function exists to have all the ways to construct [`SimpleParser`] in one
+    /// place. You should use standalone [`positional`] function instead.
     pub fn positional(metavar: &'static str) -> Self {
         SimpleParser(Positional {
             metavar,
