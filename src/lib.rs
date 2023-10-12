@@ -4,36 +4,24 @@
 #![allow(rustdoc::redundant_explicit_links)] // two random markdown parsers I tried only supports explicit links
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
-
 //!
-//! ----
-//! # Quick links
-//! - [Introduction](_docs::intro) - features, design goals, restrictions
+//! # Links
+//! - [Introduction](_docs::goals) - features, design goals, restrictions
 //! - [Types of arguments](_docs::types_of_arguments) - common types of command line options and
 //!   conventions (optional)
 //! - [Derive API tutorial](_docs::derive_api) - create a parser by defining a structure
 //! - [Combinatoric API tutorial](_docs::combinatoric_api) - Parse arguments without using proc
 //!   macros
 //! - [Picking a good datatype](_docs::picking_type) - suggestions on representing user input
+//! - [Testing your parsers](_docs::testing) - how to make sure user facing API stays consistent
 //! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 //! ----
 //!
 
 //! # Quick links
-//! - [x] [Introduction](_documentation::_0_intro) - features, design goals, restrictions
-//! - [x] [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
-//!   examples to get you started
-//! - [x] [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
-//!     common types of line options and conventions (optional)
-//! - [x] [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
-//!     Parse arguments without using proc macros
-//! - [x] [Derive API](_documentation::_1_tutorials::_2_derive_api) -
-//!     Create a parser by defining a structure
-//! - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
-//!   explains how to concrete tasks
+//! - [Cookbook] - assumes familiarity with the basics and explains how to concrete tasks
 //! - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
 //!   used by the library, oriented for understanding
-//! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 
 //! # A quick start
 //!
@@ -45,7 +33,7 @@
 //!
 //! Use either derive or combinatoric API and try running it
 //!
-#![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("_docs/intro.md"))]
 
 //!
 //! ## Consuming items - making `Parser`
@@ -226,12 +214,12 @@ pub use crate::{args::Args, buffer::Doc, error::ParseFailure, info::OptionParser
 // used by construct macro, not part of public API
 pub use crate::{args::State, error::Error, meta::Meta, structs::ParseCon};
 
-use std::{marker::PhantomData, str::FromStr};
+use std::marker::PhantomData;
 
 use crate::{
-    buffer::{MetaInfo, Style},
+    buffer::MetaInfo,
     item::Item,
-    parsers::{Anything, Command, Named, ParseCompShell, Positional},
+    parsers::ParseCompShell,
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
@@ -536,6 +524,7 @@ macro_rules! __cons_prepare {
 /// parsers `a` and `b` would consume multiple numeric values, each less than 10, but `a`
 /// validates a single value and then consumes multiple of them already validated, while `b` first
 /// consumes and then performs validation. The former approach is usually more readable.
+///
 /// ```rust
 /// # use bpaf::*;
 /// # fn simple() {
@@ -549,6 +538,7 @@ macro_rules! __cons_prepare {
 /// ```
 ///
 /// The same logic applies to derive API - the current type depends on the order of annotations:
+///
 /// ```rust
 /// # use bpaf::*;
 /// # fn less_than_10(a: &usize) -> bool { true }

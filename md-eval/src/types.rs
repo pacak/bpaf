@@ -41,13 +41,13 @@ impl Upcoming {
     pub fn parse_fence(fence: &str) -> anyhow::Result<Self> {
         let toks = CodeTok::from_fence(fence)?;
         match toks.get(0) {
-            None | Some(CodeTok::Text) => Ok(Self::Ignore),
+            None | Some(CodeTok::Custom(_)) => Ok(Self::Ignore),
             Some(CodeTok::Runner) => {
                 let mut ids = Vec::new();
                 let mut title = None;
                 for t in &toks[1..] {
                     match t {
-                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Custom(_) => {
                             anyhow::bail!("Code block should have only one ```rust or ```run")
                         }
                         CodeTok::Id(id) => ids.push(*id),
@@ -61,7 +61,7 @@ impl Upcoming {
                 let mut title = None;
                 for t in &toks[1..] {
                     match t {
-                        CodeTok::Runner | CodeTok::Source | CodeTok::Text => {
+                        CodeTok::Runner | CodeTok::Source | CodeTok::Custom(_) => {
                             anyhow::bail!("Code block should have only one ```rust or ```run")
                         }
                         CodeTok::Id(i) => id = Some(*i),
@@ -81,7 +81,7 @@ impl Upcoming {
 pub enum CodeTok<'a> {
     Runner,
     Source,
-    Text,
+    Custom(&'a str),
     Id(usize),
     Title(&'a str),
 }
@@ -91,7 +91,7 @@ impl<'a> CodeTok<'a> {
         match i {
             "rust" => Ok(Self::Source),
             "run" => Ok(Self::Runner),
-            "text" => Ok(Self::Text),
+            "text" | "toml" | "console" => Ok(Self::Custom(i)),
             _ => {
                 if let Some(title) = i.strip_prefix("fold:") {
                     Ok(Self::Title(title))
