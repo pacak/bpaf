@@ -16,14 +16,11 @@
 //    _documentation
 
 use bpaf::*;
-use md_eval::*;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 struct Options {
-    #[bpaf(short, long)]
-    pretty: bool,
     //    completion: bool,
     #[bpaf(positional)]
     target: PathBuf,

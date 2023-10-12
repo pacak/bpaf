@@ -1,3 +1,4 @@
+<details><summary>Combinatoric API example (click to expand)</summary>
 
 ````rust
 use bpaf::*;
@@ -13,6 +14,8 @@ pub fn options() -> OptionParser<Options> {
 }
 ````
 
+</details><details><summary>Derive API example (click to expand)</summary>
+
 ````rust
 use bpaf::*;
 
@@ -25,6 +28,7 @@ pub struct Options {
 }
 ````
 
+</details>
 With everything in place users should be able to pass their arguments
 
 

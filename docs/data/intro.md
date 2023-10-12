@@ -1,4 +1,4 @@
-```rust,id:1,title:"asdf"
+```rust,id:1,fold:Combinatoric API example (click to expand)
 use bpaf::*;
 
 #[derive(Debug, Clone)]
@@ -12,7 +12,7 @@ pub fn options() -> OptionParser<Options> {
 }
 ```
 
-```rust,id:2
+```rust,id:2,fold:Derive API example (click to expand)
 use bpaf::*;
 
 #[derive(Debug, Clone, Bpaf)]

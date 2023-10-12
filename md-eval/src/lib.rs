@@ -4,8 +4,8 @@ pub mod md;
 mod runner;
 mod types;
 
-pub use crate::{runner::*, types::*};
-
+pub use crate::runner::options;
+use crate::types::*;
 // TODO:
 //
 // - generate environment and run completion tests
