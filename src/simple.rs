@@ -203,23 +203,27 @@ pub fn long(name: &'static str) -> SimpleParser<Named> {
 
 /// Parse an environment variable
 ///
-/// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
-///  `bpaf` would use items past the first one as hidden aliases.
-///
-/// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
-/// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
-/// variables:
+/// This parser lets you to consume a value from an environment variable. For
+/// [`argument`](SimpleParser::argument) `env` parser produces the value itself, for
+/// [`flag`](SimpleParser::flag) and [`switch`](SimpleParser::switch) environment variable
+/// being present gives the same result as the flag being present, allowing to implement things
+/// like `NO_COLOR` variables:
 ///
 /// ```console
 /// $ NO_COLOR=1 app --do-something
 /// ```
 ///
+/// Since env parser is a name parser you can also add a name - short or long one. If parser
+/// succeeds parsing by name - this result takes a priority.
+///
 /// If you don't specify a short or a long name - whole argument is going to be absent from the
 /// help message. Use it combined with a named or positional argument to have a hidden fallback
 /// that wouldn't leak sensitive info.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
+/// You can chain multiple [`short`](SimpleParser::short), [`long`](SimpleParser::long) and
+/// [`env`](SimpleParser::env()) for multiple names. You can specify multiple names of the same type,
+/// `bpaf` would use items past the first one as hidden aliases.
+#[cfg_attr(not(doctest), doc = include_str!("_docs/env.md"))]
 #[must_use]
 pub fn env(variable: &'static str) -> SimpleParser<Named> {
     SimpleParser(Named {
@@ -309,11 +313,11 @@ impl<T> SimpleParser<Positional<T>> {
 /// it**.
 ///
 /// Type parameter `I` is used for intermediate value, normally you'd use [`String`] or
-/// [`OsString`]. This parameter only exists to make it possible to work with non-utf8 encoded
-/// arguments such as some rare file names, as well as not having to deal with `OsString` if all
-/// you want to process is a string that utf8 can correctly represent.
+/// [`OsString`](std::ffi::OsString). This parameter only exists to make it possible to work with
+/// non-utf8 encoded arguments such as some rare file names, as well as not having to deal with
+/// `OsString` if all you want to process is a string that utf8 can correctly represent.
 ///
-/// Type parameter `T` is a type the parser actually produces.
+/// Type parameter `T` is the type the parser actually produces.
 ///
 /// Parameter `check` takes an intermediate value (`String` or `OsString`) and decides if `any`
 /// parser is going to take it by returning `Some` value or `None` if this is not an expected value
