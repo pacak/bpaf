@@ -65,8 +65,9 @@
 //! ## Transforming and changing parsers
 //!
 //! By default primitive parsers gives you back a single `bool`, a single `PathBuf` or a single
-//! value produced by [`FromStr`] trait, etc. You can further transform it by chaining methods from
-//! [`Parser`] trait, some of those methods are applied automagically if you are using derive API.
+//! value produced by [`FromStr`](std::str::FromStr) trait, etc. You can further transform it by
+//! chaining methods from [`Parser`] trait, some of those methods are applied automagically if
+//! you are using derive API.
 //!
 //! `bpaf` distinguishes two types of parse failures - "value is absent" and
 //! "value is present but invalid", most parsers listed in this section only handle the first
@@ -515,11 +516,11 @@ macro_rules! __cons_prepare {
 /// there are no lifetimes other than static.
 ///
 /// When consuming the values you can jump straight to a value that implements
-/// [`FromStr`] trait and then transform it into something that your program would use. Alternatively,
-/// you can consume either `String` or `OsString` and parse that by hand. It's better to perform
-/// as much parsing and validation inside the `Parser` as possible so the program itself gets
-/// strictly typed and correct value while the user gets immediate feedback on what's wrong with the
-/// arguments they pass.
+/// [`FromStr`](std::str::FromStr) trait and then transform it into something that your program
+/// would use. Alternatively, you can consume either `String` or `OsString` and parse that by hand.
+/// It's better to perform as much parsing and validation inside the `Parser` as possible so the
+/// program itself gets strictly typed and correct value while the user gets immediate feedback on
+/// what's wrong with the arguments they pass.
 ///
 /// Order of operations matters, each subsequent parser gets the output of the earlier one. Both
 /// parsers `a` and `b` would consume multiple numeric values, each less than 10, but `a`
@@ -646,7 +647,7 @@ pub trait Parser<T> {
     /// For derive usage `bpaf` would insert implicit `many` when the resulting type is a
     /// vector.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/many.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/many.md"))]
     ///
     /// # See also
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
@@ -666,14 +667,14 @@ pub trait Parser<T> {
     // {{{ collect
     /// Transform parser into a collection parser
     ///
-    /// A generic variant of [`many`](Parser::many), instead of collecting into a vector
-    /// it collects into any collection that implements [`FromIterator`] trait
+    /// This is a generic variant of [`many`](Parser::many), instead of collecting into a vector
+    /// it collects into any collection that implements [`FromIterator`] trait.
     ///
     /// `collect` preserves any parsing failures and propagates them outwards, with extra
     /// [`catch`](ParseCollect::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/collect.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/collect.md"))]
     ///
     /// `collect` will collect at most one result that does not consume anything from the argument
     /// list allowing using it in combination of any parsers with a fallback. After the first one
