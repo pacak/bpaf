@@ -1,16 +1,12 @@
-#### Theory explanation
-Theoretical information about abstractions used by the library, oriented for understanding
-
-
 # Applicative functors, Category Theory? What is it about?
 
-You don't need to read/understand this chapter in order to use the library but it might
-help to understand what makes it tick.
+**You don't need to read/understand this chapter in order to use the library but it might
+help to understand what makes it tick.**
 
 `bpaf` uses ideas from functional proggramming, specifically Functor, Applicative and
 Alternative to create a composable interface. Exposed API and the fact that individual
-components obey certain laws ensures that any composition of parsers is valid even if it
-doesn't make any sense.
+components obey certain laws ensures that any composition of parsers is valid even if
+that particular combination makes no sense.
 
 ## Category theory
 
@@ -20,6 +16,11 @@ structures and their relations. *Category* in CT constists of two sorts of abstr
 - objects don't expose any information other than the name and only serve as start and end points for morphisms
 - morphisms must compose with associative composition
 - there must be an *identity morphism* for every object that maps the object to itself
+
+In plain English this means objects are just boring points with no information as far as the
+category we are talking about is concerned, those points are connected with arrows and arrows
+can be composed as long as an object at the end of one arrow is the same object as the object
+at the beginning of the second arrow.
 
 A simple example of a category would be a category where objects are Rust types (here: `u8` ..
 `u64`) and morphisms are functions between those types (here: `a`, `b` and `c`):
@@ -85,12 +86,13 @@ using only `Option::map`:
 fn plus_one(input: Option<u32>) -> Option<u32> {
     input.map(|i| i + 1)
 }
-
+# fn function() {
 let present = Some(10);
 let absent = None;
 
 assert_eq!(plus_one(present), Some(11));
 assert_eq!(plus_one(absent), None);
+# }
 ```
 
 `Vec`, `Result` and other types that implement `map` are `Functors` as well, but `Functor`
@@ -118,10 +120,12 @@ impl<T: 'static> Reader<T> {
     }
 }
 
+# fn function() {
 let val = Reader::<u32>::new();
 let val = val.map(|x| x + 1);
 let res = val.run(10);
 assert_eq!(res, 11);
+# }
 ```
 
 Not all the collections are `Functors` - by `Functor` laws mapping the *value in context*
@@ -138,6 +142,7 @@ fn add_numbers(input_a: Option<u32>, input_b: Option<u32>) -> Option<u32> {
     Some(input_a? + input_b?)
 }
 
+# fn func() {
 let present_1 = Some(10);
 let present_2 = Some(20);
 let absent = None;
@@ -145,6 +150,7 @@ let absent = None;
 assert_eq!(add_numbers(present_1, present_2), Some(30));
 assert_eq!(add_numbers(present_1, absent), None);
 assert_eq!(add_numbers(absent, absent), None);
+# }
 ```
 
 Similarly to `Functors`, `Applicative Functors` are not limited to containers and can
@@ -166,7 +172,7 @@ for this operation. In Rust a closest analogy would be `Option::or` and `Option:
 fn pick_number(a: Option<u32>, b: Option<u32>) -> Option<u32> {
     a.or(b)
 }
-
+# fn func() {
 let present_1 = Some(10);
 let present_2 = Some(20);
 let empty = None;
@@ -174,6 +180,7 @@ assert_eq!(pick_number(present_1, present_2), present_1);
 assert_eq!(pick_number(present_1, empty), present_1);
 assert_eq!(pick_number(empty, present_1), present_1);
 assert_eq!(pick_number(empty, empty), empty);
+# }
 ```
 
 ## `Parser` trait and `construct!` macro
@@ -191,7 +198,7 @@ each flag can be though of a boolean value - present/absent - consuming it as an
 possible values is much more convenient compared to a struct-like thing that can have any
 combination of the flags inside:
 
-```no_check
+```rust
 /// Format selection as enum - program needs to deal with just one format
 enum Format {
     Intel,
