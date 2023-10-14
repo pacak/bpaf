@@ -16,9 +16,9 @@ use std::{marker::PhantomData, str::FromStr};
 /// Currently constructors are
 /// - [`short`] or its alias - [`SimpleParser::with_short`]
 /// - [`long`] or its alias - [`SimpleParser::with_long`]
-/// - [`env`] or its alias - [`SimpleParser::with_env`]
+/// - [`env`](env()) or its alias - [`SimpleParser::with_env`]
 /// - [`positional`] or its alias [`SimpleParser::positional`]
-/// - [`any`] or its alias [`SimpleParser::any`]
+/// - [`any`] or its alias [`SimpleParser::with_any`]
 #[derive(Debug, Clone)]
 pub struct SimpleParser<I>(pub(crate) I);
 
@@ -33,7 +33,7 @@ impl SimpleParser<Named> {
 
     /// Create a parser that has a long name
     ///
-    /// **This is an alias for [`ling`] standalone function**, and exists to have all the
+    /// **This is an alias for [`long`] standalone function**, and exists to have all the
     /// constructors for `SimpleParser` collected in one place. You shouldn't use it directly.
     pub fn with_long(name: &'static str) -> Self {
         long(name)
@@ -49,10 +49,10 @@ impl SimpleParser<Named> {
         Self(self.0.long(name))
     }
 
-    /// An alias for [`env`]
+    /// Create a parser for an environment variable
     ///
-    /// This method exists only to have all the documentation for simple parsers colleted under the
-    /// same structure, you shouldn't use it directly, use [`long`] instead.
+    /// **This is an alias for [`env`](env()) standalone function**, and exists to have all the
+    /// constructors for `SimpleParser` collected in one place. You shouldn't use it directly.
     pub fn with_env(name: &'static str) -> Self {
         Self(Named {
             short: Vec::new(),
@@ -167,10 +167,10 @@ where
     }
 }
 
-/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
+/// Parse a [`flag`](SimpleParser::flag)/[`switch`](SimpleParser::switch)/[`argument`](SimpleParser::argument) that has a short name
 ///
-/// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+/// You can chain multiple [`short`](SimpleParser::short), [`long`](SimpleParser::long) and
+/// [`env`](SimpleParser::env()) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
@@ -183,10 +183,10 @@ pub fn short(name: char) -> SimpleParser<Named> {
     })
 }
 
-/// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a long name
+/// Parse a [`flag`](SimpleParser::flag)/[`switch`](SimpleParser::switch)/[`argument`](SimpleParser::argument) that has a long name
 ///
-/// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+/// You can chain multiple [`short`](SimpleParser::short), [`long`](SimpleParser::long) and
+/// [`env`](SimpleParser::env()) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
@@ -361,6 +361,20 @@ where
 }
 
 impl<T> SimpleParser<Anything<T>> {
+    /// Parse a single arbitrary item from a command line
+    ///
+    /// **This is an alias for [`any`] standalone function**, and exists to have all the
+    /// constructors for `SimpleParser` collected in one place. You shouldn't use it directly.
+    pub fn with_any<F, I>(metavar: &str, check: F) -> Self
+    where
+        I: FromStr + 'static,
+        F: Fn(I) -> Option<T> + 'static,
+
+        <I as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        any(metavar, check)
+    }
+
     pub fn anywhere(mut self) -> Self {
         self.0.anywhere = true;
         self
