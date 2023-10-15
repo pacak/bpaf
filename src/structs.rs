@@ -867,7 +867,7 @@ where
     }
 }
 
-impl<T> ParseCon<T> {
+impl<P> ParseCon<P> {
     #[must_use]
 
     /// Automagically restrict the inner parser scope to accept adjacent values only
