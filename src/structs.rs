@@ -890,7 +890,17 @@ impl<P> ParseCon<P> {
     /// # Multi-value arguments
     ///
     /// Parsing things like `--point X Y Z`
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_0.md"))]
+    ///
+    /// Examples in this section create a parser for `Point` and use it inside a second parser.
+    /// Most interesting part of the `Point` parser is that unlike regular argument parsers that
+    /// consume a single short or a long name followed by a single value - it consumes a name
+    /// followed by several values.
+    ///
+    /// <details><summary>Multi value arguments examples, click to open</summary>
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_0.md"))]
+    ///
+    /// </details>
     ///
     /// # Structure groups
     ///
@@ -925,7 +935,7 @@ impl<P> ParseCon<P> {
     /// logic: instead of restricting, for example "sum of two fields to be 5 or greater" *inside* the
     /// `adjacent` parser, you can restrict it *outside*, once `adjacent` done the parsing.
     ///
-    /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
+    /// There's also similar method [`adjacent`](crate::SimpleParser::adjacent) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
     /// `-f=bar` or `-fbar`, but not `-f bar`.
     pub fn adjacent(self) -> ParseAdjacent<Self> {
