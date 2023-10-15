@@ -905,7 +905,21 @@ impl<P> ParseCon<P> {
     /// # Structure groups
     ///
     /// Parsing things like `--rect --width W --height H --rect --height H --width W`
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_1.md"))]
+    ///
+    /// Examples in this section create a parser for `Rect` and use it in a second parser.
+    /// Most interesting part of the `Group` parser is that parses several named arguments from the
+    /// command line, but does it such that arguments that belong for each separate group instance
+    /// must be adjacent to each other and each individual group must be prefixed with a name.
+    ///
+    /// This approach is useful when your app needs to consume several logical items from a command
+    /// line and those items are more complex than a single value.
+    ///
+    /// <details><summary>Structure group examples, click to open</summary>
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_1.md"))]
+    ///
+    /// </details>
+    ///
     ///
     /// # Chaining commands
     /// This example explains [`adjacent`](crate::params::ParseCommand::adjacent), but the same idea holds.
