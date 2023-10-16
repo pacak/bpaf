@@ -870,7 +870,11 @@ where
 impl<P> ParseCon<P> {
     #[must_use]
 
-    /// Automagically restrict the inner parser scope to accept adjacent values only
+    /// Automagically restrict the inner parser scope to accept adjacent values only.
+    ///
+    /// **At the moment the first parser inside the construct macro or the first argument in a
+    /// stuct must be a [`SimpleParser::req_flag`](crate::SimpleParser::req_flag) or something
+    /// similar that consumes just one argument**.
     ///
     /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,
     /// multi-value arguments, option-structs to name a few. If you want to run a parser on a
@@ -896,7 +900,7 @@ impl<P> ParseCon<P> {
     /// consume a single short or a long name followed by a single value - it consumes a name
     /// followed by several values.
     ///
-    /// <details><summary>Multi value arguments examples, click to open</summary>
+    /// <details><summary>Multi value arguments examples, click to expand</summary>
     ///
     #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_0.md"))]
     ///
@@ -914,7 +918,7 @@ impl<P> ParseCon<P> {
     /// This approach is useful when your app needs to consume several logical items from a command
     /// line and those items are more complex than a single value.
     ///
-    /// <details><summary>Structure group examples, click to open</summary>
+    /// <details><summary>Structure group examples, click to expand</summary>
     ///
     #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_1.md"))]
     ///
@@ -922,25 +926,47 @@ impl<P> ParseCon<P> {
     ///
     ///
     /// # Chaining commands
-    /// This example explains [`adjacent`](crate::params::ParseCommand::adjacent), but the same idea holds.
+    ///
     /// Parsing things like `cmd1 --arg1 cmd2 --arg2 --arg3 cmd3 --flag`
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
+    /// Those examples explain [`adjacent`](crate::SimpleParser::adjacent) implemented for `Command`
+    /// parser type but behavior is similar to `adjacent` for construct parsers.
+    ///
+    /// Examples in this section show how to restrict command parser from consuming all the things
+    /// to the right of the command name to a subset of them, immediately adjacent to the command
+    /// name only
+    ///
+    /// <details><summary>Chaining multiple commands examples, click to expand</summary>
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_command.md"))]
+    ///
+    /// </details>
     ///
     /// # Capturing everything between markers
     ///
     /// Parsing things like `find . --exec foo {} -bar ; --more`
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_3.md"))]
+    /// Examples in this section show how to capture everything between two markers as a
+    /// `Vec<OsString>` by implementing interface similar to `find(1)`.
+    ///
+    /// <details><summary>Consuming everything between markers examples, click to expand</summary>
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_3.md"))]
+    ///
+    /// </details>
     ///
     /// # Multi-value arguments with optional flags
     ///
     /// Parsing things like `--foo ARG1 --flag --inner ARG2`
     ///
-    /// So you can parse things while parsing things. Not sure why you might need this, but you can
-    /// :)
+    /// Examples in this section show how to use adjacent constructions to make parsers for single or
+    /// multi value named arguments that can be customized further with more named arguments.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_struct_4.md"))]
+    /// <details><summary>Named arguments for named arguments examples, click to expand</summary>
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_struct_4.md"))]
+    ///
+    /// </details>
     ///
     /// # Performance and other considerations
     ///
