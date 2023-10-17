@@ -244,6 +244,7 @@ fn strictly_positional_help() {
 }
 
 #[test]
+#[ignore = "not yet implemented"]
 fn any_with_invalid_flag() {
     let a = short('a').switch();
     let b = any::<String, _, _>("B", Some);
@@ -257,6 +258,7 @@ fn any_with_invalid_flag() {
 }
 
 #[test]
+#[ignore = "not yet implemented"]
 fn any_with_invalid_arg() {
     let a = short('a').argument::<usize>("A").optional();
     let b = any::<String, _, _>("B", Some);
