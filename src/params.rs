@@ -620,13 +620,14 @@ pub struct Argument<T> {
 impl<T> Argument<T> {
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
-    /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
-    /// `-fbar` but not `--flag value`. Note, this is different from [`adjacent`](crate::ParseCon::adjacent),
-    /// just plays a similar role.
+    /// In other words if you restruct `SimpleParser<Argument>` parser with `adjacent` it will
+    /// accept `-fbar` or `--flag=bar` but not `--flag value`. Note, this is different from
+    /// [`adjacent`](crate::ParseCon::adjacent), but plays a similar role.
     ///
-    /// Should allow to parse some of the more unusual things
+    /// Should allow to parse some of the more unusual things and might require users to be more
+    /// specific.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_argument.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_argument.md"))]
     #[must_use]
     pub fn adjacent(mut self) -> Self {
         self.adjacent = true;
@@ -825,7 +826,7 @@ where
 }
 
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
-/// [`anywhere`](ParseAny::anywhere).
+/// [`anywhere`](SimpleParser::anywhere).
 pub struct Anything<T> {
     pub(crate) metavar: Doc,
     pub(crate) help: Option<Doc>,
