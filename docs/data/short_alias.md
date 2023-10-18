@@ -1,3 +1,5 @@
+## Derive example
+
 ```rust,id:1
 # use bpaf::*;
 #[derive(Debug, Clone, Bpaf)]
@@ -12,6 +14,8 @@ pub struct Options {
     beta: u32,
 }
 ```
+
+## Combinatoric example
 
 ```rust,id:2
 # use bpaf::*;

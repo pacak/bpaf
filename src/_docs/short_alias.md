@@ -1,3 +1,4 @@
+## Derive example
 
 ````rust
 # use bpaf::*;
@@ -13,6 +14,8 @@ pub struct Options {
     beta: u32,
 }
 ````
+
+## Combinatoric example
 
 ````rust
 # use bpaf::*;

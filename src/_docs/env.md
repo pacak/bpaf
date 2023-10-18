@@ -1,3 +1,4 @@
+## Derive example
 
 ````rust
 # use bpaf::*;
@@ -9,6 +10,8 @@ pub struct Options {
     username: String,
 }
 ````
+
+## Combinatoric example
 
 ````rust
 # use bpaf::*;

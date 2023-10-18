@@ -76,6 +76,12 @@ impl SimpleParser<Named> {
         })
     }
 
+    /// Add a fallback to an environment to a named parser
+    ///
+    /// Parser will try to consume command line items first, if they are not present - it will try
+    /// to fallback to an environment variable.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/env.md"))]
     pub fn env(self, name: &'static str) -> Self {
         Self(self.0.env(name))
     }
