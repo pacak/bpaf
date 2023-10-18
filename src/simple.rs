@@ -39,14 +39,28 @@ impl SimpleParser<Named> {
         long(name)
     }
 
-    // /// Add a short name to a named parser
-
-    pub fn short(self, name: char) -> Self {
-        Self(self.0.short(name))
+    /// Add a short name to a named parser
+    ///
+    /// This method will add a short name to a named parser. `bpaf` would use first name as a
+    /// visible name and from second onwards as hidden aliases. You can chain this method multiple
+    /// times.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/short_alias.md"))]
+    pub fn short(mut self, short_name: char) -> Self {
+        self.0.short.push(short_name);
+        self
     }
 
-    pub fn long(self, name: &'static str) -> Self {
-        Self(self.0.long(name))
+    /// Add a long name to a named parser
+    ///
+    /// This method will add a long name to a named parser. `bpaf` would use first name as a
+    /// visible name and from second onwards as hidden aliases. You can chain this method multiple
+    /// times.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/long_alias.md"))]
+    pub fn long(mut self, long_name: &'static str) -> Self {
+        self.0.long.push(long_name);
+        self
     }
 
     /// Create a parser for an environment variable

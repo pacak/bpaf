@@ -212,7 +212,7 @@ impl Named {
 
     /// Required flag with custom value
     ///
-    /// Similar to [`flag`](NamedArg::flag) takes no option arguments, but would only
+    /// Similar to [`flag`](SimpleParser::flag) takes no option arguments, but would only
     /// succeed if user specifies its name on a command line.
     /// Works best in combination with other parsers.
     ///
@@ -245,7 +245,7 @@ impl Named {
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
     ///
-    /// You can further restrict it using [`adjacent`](ParseArgument::adjacent)
+    /// You can further restrict it using [`adjacent`](SimpleParser::adjacent)
     #[must_use]
     pub fn argument<T>(self, metavar: &'static str) -> Argument<T>
     where
@@ -292,7 +292,7 @@ impl<T> OptionParser<T> {
     /// **`bpaf` panics during help generation unless if this restriction holds**
     ///
     /// You can attach a single visible short alias and multiple hiddden short and long aliases
-    /// using [`short`](ParseCommand::short) and [`long`](ParseCommand::long) methods.
+    /// using [`short`](SimpleParser::short) and [`long`](SimpleParser::long) methods.
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
     ///
@@ -313,9 +313,9 @@ impl<T> OptionParser<T> {
     }
 }
 
-/// Builder structure for the [`command`]
+/// Builder structure for subcommands
 ///
-/// Created with [`command`], implements parser for the inner structure, gives access to [`help`](ParseCommand::help).
+/// Created with [`OptionParser::command`], implements parser for the inner structure, gives access to [`help`](SimpleParser::help).
 pub struct Command<T> {
     pub(crate) longs: Vec<&'static str>,
     pub(crate) shorts: Vec<char>,
@@ -383,7 +383,7 @@ impl<T> SimpleParser<Command<T>> {
 
     /// Add a custom short alias for a command
     ///
-    /// Behavior is similar to [`short`](NamedArg::short), only first short name is visible.
+    /// Behavior is similar to [`short`](SimpleParser::short), only first short name is visible.
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
         self.0.shorts.push(short);
@@ -392,7 +392,7 @@ impl<T> SimpleParser<Command<T>> {
 
     /// Add a custom hidden long alias for a command
     ///
-    /// Behavior is similar to [`long`](NamedArg::long), but since you had to specify the first long
+    /// Behavior is similar to [`long`](SimpleParser::long), but since you had to specify the first long
     /// name when making the command - this one becomes a hidden alias.
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
@@ -524,7 +524,7 @@ where
 }
 
 #[derive(Clone)]
-/// Parser for a named switch, created with [`NamedArg::flag`] or [`NamedArg::switch`]
+/// Parser for a named switch, created with [`SimpleParser::flag`] or [`SimpleParser::switch`]
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
@@ -608,7 +608,7 @@ fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
     }
 }
 
-/// Parser for a named argument, created with [`argument`](NamedArg::argument).
+/// Parser for a named argument, created with [`argument`](SimpleParser::argument).
 #[derive(Clone)]
 pub struct Argument<T> {
     ty: PhantomData<T>,
