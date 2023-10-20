@@ -1,6 +1,7 @@
 #![warn(missing_docs)]
 #![allow(clippy::needless_doctest_main)]
 #![allow(clippy::redundant_else)] // not useful
+#![allow(rustdoc::redundant_explicit_links)] // two random markdown parsers I tried only supports explicit links
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
@@ -40,7 +41,7 @@
 //! find documentation with more examples following those links.
 //!
 //! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
-//!   [`long`] and [`env`](crate::env). At the same time you can attach
+//!   [`long`] and [`env`](crate::env()). At the same time you can attach
 //!   [`help`](NamedArg::help).
 //! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
 //!   line and `false` otherwise.
@@ -1321,7 +1322,7 @@ pub fn fail<T>(msg: &'static str) -> ParseFail<T> {
 /// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a short name
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+/// [`env`](NamedArg::env()) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
 #[must_use]
@@ -1337,7 +1338,7 @@ pub fn short(short: char) -> NamedArg {
 /// Parse a [`flag`](NamedArg::flag)/[`switch`](NamedArg::switch)/[`argument`](NamedArg::argument) that has a long name
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+/// [`env`](NamedArg::env()) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
@@ -1354,7 +1355,7 @@ pub fn long(long: &'static str) -> NamedArg {
 /// Parse an environment variable
 ///
 /// You can chain multiple [`short`](NamedArg::short), [`long`](NamedArg::long) and
-/// [`env`](NamedArg::env) for multiple names. You can specify multiple names of the same type,
+/// [`env`](NamedArg::env()) for multiple names. You can specify multiple names of the same type,
 ///  `bpaf` would use items past the first one as hidden aliases.
 ///
 /// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
