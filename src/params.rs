@@ -80,8 +80,8 @@ use crate::{any, command, env, long, positional, short};
 ///
 /// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (one short and one long)
 /// and multiple hidden short and long aliases if needed. It's also possible to consume items from
-/// environment variables using [`env`](NamedArg::env). You usually start with [`short`] or [`long`]
-/// function, then apply [`short`](NamedArg::short) / [`long`](NamedArg::long) / [`env`](NamedArg::env) /
+/// environment variables using [`env`](NamedArg::env()). You usually start with [`short`] or [`long`]
+/// function, then apply [`short`](NamedArg::short) / [`long`](NamedArg::long) / [`env`](NamedArg::env()) /
 /// [`help`](NamedArg::help) repeatedly to build a desired set of names then transform it into
 /// a parser using `flag`, `switch` or `positional`.
 ///
