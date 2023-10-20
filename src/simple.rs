@@ -98,6 +98,19 @@ impl SimpleParser<Named> {
         SimpleParser(self.0.switch())
     }
 
+    /// Flag with custom present/absent values
+    ///
+    /// This is a more generic version of [`switch`](SimpleParser::switch). With `flag` you can
+    /// specify two values of the same type and the parser will return first one if flag is present
+    /// on the command line and second one if it's absent.
+    ///
+    /// There are two typical use cases:
+    /// - implementing flags that disable something `--no-logging`. Instead of using switchig and
+    ///   flipping the boolean value with [`Parser::map`] you can use `flag(false, true)`
+    /// - implementing flags that use custom enum instead of boolean
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/flag.md"))]
+    #[must_use]
     pub fn flag<V>(self, present: V, absent: V) -> SimpleParser<Flag<V>>
     where
         V: Clone + 'static,
