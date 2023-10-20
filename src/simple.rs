@@ -79,11 +79,21 @@ impl SimpleParser<Named> {
     /// Add a fallback to an environment to a named parser
     ///
     /// Parser will try to consume command line items first, if they are not present - it will try
-    /// to fallback to an environment variable.
+    /// to fallback to an environment variable. You can specify it multiple times, `bpaf` would use
+    /// items past the first one as hidden aliases.
+    ///
+    /// For [`flag`](SimpleParser::flag) and [`switch`](SimpleParser::switch) environment variable
+    /// being present gives the same result as the flag being present, allowing to implement things
+    /// like `NO_COLOR` variables:
+    ///
+    /// ```console
+    /// $ NO_COLOR=1 app --do-something
+    /// ```
     ///
     #[cfg_attr(not(doctest), doc = include_str!("_docs/env.md"))]
-    pub fn env(self, name: &'static str) -> Self {
-        Self(self.0.env(name))
+    pub fn env(mut self, name: &'static str) -> Self {
+        self.0.env.push(name);
+        self
     }
 
     pub fn help<M>(mut self, help: M) -> Self
@@ -94,8 +104,19 @@ impl SimpleParser<Named> {
         self
     }
 
+    /// Simple boolean flag
+    ///
+    /// A special case of a [`flag`](SimpleParser::flag) that gets decoded into a `bool`, mostly
+    /// serves as a convenient shortcut to `.flag(true, false)`.
+    ///
+    /// In Derive API bpaf would use `switch` for `bool` fields inside named structs that don't
+    /// have other consumer annotations such as [`flag`](SimpleParser::flag),
+    /// [`argument`](SimpleParser::argument), etc.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/switch.md"))]
+    #[must_use]
     pub fn switch(self) -> SimpleParser<Flag<bool>> {
-        SimpleParser(self.0.switch())
+        SimpleParser(build_flag_parser(true, Some(false), self.0))
     }
 
     /// Flag with custom present/absent values

@@ -123,44 +123,6 @@ impl Named {
 }
 
 impl Named {
-    /// Add a short name to a flag/switch/argument
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-    #[must_use]
-    pub fn short(mut self, short: char) -> Self {
-        self.short.push(short);
-        self
-    }
-
-    /// Add a long name to a flag/switch/argument
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-    #[must_use]
-    pub fn long(mut self, long: &'static str) -> Self {
-        self.long.push(long);
-        self
-    }
-
-    /// Environment variable fallback
-    ///
-    /// If named value isn't present - try to fallback to this environment variable.
-    ///
-    /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
-    ///
-    /// For [`flag`](SimpleParser::flag) and [`switch`](SimpleParser::switch) environment variable
-    /// being present gives the same result as the flag being present, allowing to implement things
-    /// like `NO_COLOR` variables:
-    ///
-    /// ```console
-    /// $ NO_COLOR=1 app --do-something
-    /// ```
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
-    #[must_use]
-    pub fn env(mut self, variable: &'static str) -> Self {
-        self.env.push(variable);
-        self
-    }
-
     /// Add a help message to a `flag`/`switch`/`argument`
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -180,21 +142,6 @@ impl Named {
     {
         self.help = Some(help.into());
         self
-    }
-
-    /// Simple boolean flag
-    ///
-    /// A special case of a [`flag`](SimpleParser::flag) that gets decoded into a `bool`, mostly
-    /// serves as a convenient shortcut to `.flag(true, false)`.
-    ///
-    /// In Derive API bpaf would use `switch` for `bool` fields inside named structs that don't
-    /// have other consumer annotations ([`flag`](SimpleParser::flag),
-    /// [`argument`](SimpleParser::argument), etc).
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
-    #[must_use]
-    pub fn switch(self) -> Flag<bool> {
-        build_flag_parser(true, Some(false), self)
     }
 
     /// Argument
