@@ -147,9 +147,9 @@ impl Named {
     ///
     /// You can specify it multiple times, `bpaf` would use items past the first one as hidden aliases.
     ///
-    /// For [`flag`](NamedArg::flag) and [`switch`](NamedArg::switch) environment variable being present
-    /// gives the same result as the flag being present, allowing to implement things like `NO_COLOR`
-    /// variables:
+    /// For [`flag`](SimpleParser::flag) and [`switch`](SimpleParser::switch) environment variable
+    /// being present gives the same result as the flag being present, allowing to implement things
+    /// like `NO_COLOR` variables:
     ///
     /// ```console
     /// $ NO_COLOR=1 app --do-something
@@ -184,12 +184,12 @@ impl Named {
 
     /// Simple boolean flag
     ///
-    /// A special case of a [`flag`](NamedArg::flag) that gets decoded into a `bool`, mostly serves as a convenient
-    /// shortcut to `.flag(true, false)`.
+    /// A special case of a [`flag`](SimpleParser::flag) that gets decoded into a `bool`, mostly
+    /// serves as a convenient shortcut to `.flag(true, false)`.
     ///
     /// In Derive API bpaf would use `switch` for `bool` fields inside named structs that don't
-    /// have other consumer annotations ([`flag`](NamedArg::flag),
-    /// [`argument`](NamedArg::argument), etc).
+    /// have other consumer annotations ([`flag`](SimpleParser::flag),
+    /// [`argument`](SimpleParser::argument), etc).
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     #[must_use]
