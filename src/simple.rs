@@ -1,7 +1,7 @@
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
-    params::{Anything, Argument, Flag, Named},
+    params::{build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
     structs::Pure,
     Doc, Error, Meta, Parser, State,
@@ -105,11 +105,23 @@ impl SimpleParser<Named> {
         SimpleParser(self.0.flag(present, absent))
     }
 
+    /// Required flag with custom value
+    ///
+    /// Similar to [`flag`](SimpleParser::flag) required flag consumed no option arguments, but
+    /// would only succeed if user specifies its name on a command line. Works best in
+    /// combination with other parsers.
+    ///
+    /// In derive style API `bpaf` would transform field-less enum variants into a parser
+    /// that accepts one of it's variant names as `req_flag`. Additionally `bpaf` handles `()`
+    /// fields as `req_flag`.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/req_flag.md"))]
+    #[must_use]
     pub fn req_flag<V>(self, present: V) -> SimpleParser<Flag<V>>
     where
         V: Clone + 'static,
     {
-        SimpleParser(self.0.req_flag(present))
+        SimpleParser(build_flag_parser(present, None, self.0))
     }
 
     pub fn argument<T>(self, metavar: &'static str) -> SimpleParser<Argument<T>>

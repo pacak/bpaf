@@ -210,24 +210,6 @@ impl Named {
         build_flag_parser(present, Some(absent), self)
     }
 
-    /// Required flag with custom value
-    ///
-    /// Similar to [`flag`](SimpleParser::flag) takes no option arguments, but would only
-    /// succeed if user specifies its name on a command line.
-    /// Works best in combination with other parsers.
-    ///
-    /// In derive style API `bpaf` would transform field-less enum variants into a parser
-    /// that accepts one of it's variant names as `req_flag`. Additionally `bpaf` handles `()`
-    /// fields as `req_flag`.
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
-    #[must_use]
-    pub fn req_flag<T>(self, present: T) -> Flag<T>
-    where
-        T: Clone + 'static,
-    {
-        build_flag_parser(present, None, self)
-    }
-
     /// Argument
     ///
     /// A short (`-a`) or long (`--name`) name followed by  either a space or `=` and
@@ -512,7 +494,7 @@ impl<T> Command<T> {
     }
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Flag<T>
+pub(crate) fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Flag<T>
 where
     T: Clone + 'static,
 {
