@@ -1532,3 +1532,15 @@ where
     let skip = literal(cmd).optional().hide();
     construct!(skip, parser).map(|x| x.1)
 }
+
+pub fn choice<T: 'static>(parsers: impl IntoIterator<Item = Box<dyn Parser<T>>>) -> impl Parser<T> {
+    let mut parsers = parsers.into_iter();
+    let mut this = match parsers.next() {
+        None => return fail("Invalid choice usage").boxed(),
+        Some(p) => p,
+    };
+    for that in parsers {
+        this = Box::new(ParseOrElse { this, that })
+    }
+    this
+}
