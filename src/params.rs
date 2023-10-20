@@ -144,32 +144,6 @@ impl Named {
         self
     }
 
-    /// Argument
-    ///
-    /// A short (`-a`) or long (`--name`) name followed by  either a space or `=` and
-    /// then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument examples. Note, string
-    /// literal can't start with `-` unless separated from the flag with `=`. For short flags value
-    /// can follow immediately: `-fbar`.
-    ///
-    /// When using combinatoring API you can specify the type with turbofish, for parsing types
-    /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
-    /// it by hands.
-    ///
-    /// For `metavar` value you should pick something short and descriptive about the parameter,
-    /// usually in capital letters. For example for an abstract file parameter it could be
-    /// `"FILE"`, for a username - `"USER"`, etc.
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
-    ///
-    /// You can further restrict it using [`adjacent`](SimpleParser::adjacent)
-    #[must_use]
-    pub fn argument<T>(self, metavar: &'static str) -> Argument<T>
-    where
-        T: FromStr + 'static,
-    {
-        build_argument(self, metavar)
-    }
-
     /// `adjacent` requires for the argument to be present in the same word as the flag:
     /// `-f bar` - no, `-fbar` or `-f=bar` - yes.
     pub(crate) fn matches_arg(&self, arg: &Arg, adjacent: bool) -> bool {
@@ -515,7 +489,7 @@ impl<T> Argument<T> {
     }
 }
 
-fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
+pub(crate) fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
     Argument {
         named,
         metavar,

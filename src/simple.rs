@@ -1,7 +1,7 @@
 use crate::{
     error::Message,
     from_os_str::parse_os_str,
-    params::{build_flag_parser, Anything, Argument, Flag, Named},
+    params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
     structs::Pure,
     Doc, Error, Meta, Parser, State,
@@ -158,11 +158,30 @@ impl SimpleParser<Named> {
         SimpleParser(build_flag_parser(present, None, self.0))
     }
 
+    /// Parse a named option argument
+    ///
+    /// This parser consumes a short (`-a`) or long (`--name`) name followed by  either a space or
+    /// `=` and then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all valid argument
+    /// examples. Note, string literal can't start with `-` unless separated from the flag with
+    /// `=`: `-n=-3`. For short flags value can follow immediately: `-fbar`.
+    ///
+    /// When using combinatoring API you can specify the type with turbofish, for parsing types
+    /// that don't implement [`FromStr`] you can use consume a `String`/`OsString` first and parse
+    /// it by hands.
+    ///
+    /// For `metavar` value you should pick something short and descriptive about the parameter,
+    /// usually in capital letters. For example for an abstract file parameter it could be
+    /// `"FILE"`, for a username - `"USER"`, etc.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/argument.md"))]
+    ///
+    /// You can further restrict it using [`adjacent`](SimpleParser::adjacent)
+    #[must_use]
     pub fn argument<T>(self, metavar: &'static str) -> SimpleParser<Argument<T>>
     where
         T: FromStr + 'static,
     {
-        SimpleParser(self.0.argument(metavar))
+        SimpleParser(build_argument(self.0, metavar))
     }
 }
 
