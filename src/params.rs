@@ -123,27 +123,6 @@ impl Named {
 }
 
 impl Named {
-    /// Add a help message to a `flag`/`switch`/`argument`
-    ///
-    /// `bpaf` converts doc comments and string into help by following those rules:
-    /// 1. Everything up to the first blank line is included into a "short" help message
-    /// 2. Everything is included into a "long" help message
-    /// 3. `bpaf` preserves linebreaks followed by a line that starts with a space
-    /// 4. Linebreaks are removed otherwise
-    ///
-    /// You can pass anything that can be converted into [`Doc`], if you are not using
-    /// documentation generation functionality ([`doc`](crate::doc)) this can be `&str`.
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/switch_help.md"))]
-    #[must_use]
-    pub fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<Doc>,
-    {
-        self.help = Some(help.into());
-        self
-    }
-
     /// `adjacent` requires for the argument to be present in the same word as the flag:
     /// `-f bar` - no, `-fbar` or `-f=bar` - yes.
     pub(crate) fn matches_arg(&self, arg: &Arg, adjacent: bool) -> bool {
