@@ -8,17 +8,82 @@ use crate::{
 };
 use std::{marker::PhantomData, str::FromStr};
 
-/// A building block for your parsers
+/// A basic building block for your parsers
 ///
 /// This structure implements different methods depending on how it was created - pay attention to
 /// the type parameter. Some versions of the structure also implement [`Parser`](bpaf::Parser) trait.
 ///
-/// Currently constructors are
-/// - [`short`] or its alias - [`SimpleParser::with_short`]
-/// - [`long`] or its alias - [`SimpleParser::with_long`]
-/// - [`env`](env()) or its alias - [`SimpleParser::with_env`]
-/// - [`positional`] or its alias [`SimpleParser::positional`]
-/// - [`any`] or its alias [`SimpleParser::with_any`]
+/// Depending on a purpose you should use one of those constructors to make `SimpleParser` and
+/// later consume it using one of the methods listed later. Normally you don't keep `SimpleParser`
+/// around long enough to have it visible in the API. With combinatoric usage you chain multiple
+/// methods producing something that implements [`Parser`] trait and use `impl Parser<X>` in type
+/// signature. With derive API proc macro takes care of it.
+///
+/// ## Ways to construct `SimpleParser`
+///
+/// For named parsers (arguments or flags) you use one of those constructors:
+///
+/// - [`short`] or its alias - [`SimpleParser::with_short`] - [`long`] or its alias -
+/// [`SimpleParser::with_long`] - [`env`](env()) or its alias - [`SimpleParser::with_env`]
+///
+/// For positional items the parser is [`positional`] or its alias [`SimpleParser::positional`].
+///
+/// To parse something unusual you can use [`any`] or its alias [`SimpleParser::with_any`]
+///
+/// # Ways to consume `SimpleParser`
+///
+/// ## Create a parser flag
+///
+/// A [`flag`](SimpleParser::flag) is a string that consists of two dashes and a name (`--flag`) or
+/// single dash and a single character (`-f`) created from a Named parser, made with [`long`] or
+/// [`short`] functions respectively. Depending if this name is present or absent on the command
+/// line primitive flag parser produces one of two values. User can combine several short flags in
+/// a single invocation: `-a -b -c` is the same as `-abc`.
+///
+/// Once you have a `SimpleParser<Named>` you can add more short or long names with
+/// [`long`](SimpleParser::long) and [`short`](SimpleParser::short). First name of each type will
+/// be visible and more become hidden aliases.
+///
+/// ## Create a parser for required flag
+///
+/// Similar to `flag`, but instead of falling back to the second value required flag parser would
+/// fail with "value not found" error. Mostly useful in combination with other parsers, created
+/// with [`SimpleParser::req_flag`].
+///
+/// ## Create a parser for switch
+///
+/// A special case of a flag that gets decoded into a `bool`, mostly serves as a convenient
+/// shortcut to `.flag(true, false)`. Created with [`SimpleParser::switch`].
+///
+/// ## Create an argument parser
+///
+/// An [`argument`](SimpleParser::argument) is a short or long name, (see `flag`) followed by
+/// either a space or `=` and then by a string literal.  `-f foo`, `--flag bar` or `-o=-` are all
+/// valid argument examples. Note, string literal can't start with a dash (`-`) unless separated
+/// from the flag with `=`. For short flags value can follow immediately: `-fbar`.
+///
+/// ## Create a positional
+///
+/// A [`positional`] argument is an argument with no additonal name, for example in `vim main.rs`
+/// `main.rs` is a positional argument. They can't start with `-`. Parsers created by `bpaf` will
+/// treat anything to the right of `--` string on a command line as a positional item - with this
+/// it is possible for users to have positional items that do start with `-`. `cat -- --help` -
+/// will try to show file called `--help`.
+///
+/// ## Parse an arbitrary item from a command line
+///
+/// Also a positional argument with no additional name, but unlike [`positional`] itself, [`any`]
+/// isn't restricted to positional looking structure and would consume any items as they appear on
+/// a command line. Can be useful to collect anything unused to pass to other applications.
+///
+/// ## Parse a subcommand
+///
+/// A command defines a starting point for an independent subparser. Name must be a valid utf8
+/// string. For example `cargo build` invokes command `"build"` and after `"build"` `cargo` starts
+/// accepting values it won't accept otherwise. To create a subcommand parser you start by creating
+/// an [`OptionParser`] that handles all the arguments then calling [`OptionParser::command`] to go
+/// back to `SimpleParser`.
+///
 #[derive(Debug, Clone)]
 pub struct SimpleParser<I>(pub(crate) I);
 
