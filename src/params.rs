@@ -12,36 +12,97 @@ use crate::{
 #[cfg(doc)]
 use crate::{any, env, long, positional, short};
 
-/// A named thing used to create [`flag`](NamedArg::flag), [`switch`](NamedArg::switch) or
-/// [`argument`](NamedArg::argument)
+/// A type of a [`SimpleParser`] that is used to create a parser with a name
 ///
 /// # Combinatoric usage
 ///
-/// Named items (`argument`, `flag` and `switch`) can have up to 2 visible names (one short and one long)
-/// and multiple hidden short and long aliases if needed. It's also possible to consume items from
-/// environment variables using [`env`](NamedArg::env()). You usually start with [`short`] or [`long`]
-/// function, then apply [`short`](NamedArg::short) / [`long`](NamedArg::long) / [`env`](NamedArg::env()) /
-/// [`help`](NamedArg::help) repeatedly to build a desired set of names then transform it into
-/// a parser using `flag`, `switch` or `positional`.
+/// Named items ([`argument`](SimpleParser::argument), [`flag`](SimpleParser::flag),
+/// [`switch`](SimpleParser::switch) or [`req_flag`](SimpleParser::req_flag]) can have up to 2
+/// visible names (one short and one long) and as many hidden short and long aliases as needed.
+/// It's also possible to consume items from environment variables using [`env`](NamedArg::env()).
+/// You usually start with [`short`] or [`long`] function, then add extra names with
+/// [`short`](SimpleParser::short) / [`long`](SimpleParser::long) / [`env`](SimpleParser::env())
+/// repeatedly to build a desired set of names then transform it into a parser using `flag`,
+/// `switch` or `positional`.
 ///
 #[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_combine.md"))]
 ///
 /// # Derive usage
 ///
-/// When using derive API it is possible to omit some or all the details:
-/// 1. If no naming information is present at all - `bpaf` would use field name as a long name
-///    (or a short name if field name consists of a single character)
-/// 2. If `short` or `long` annotation is present without an argument - `bpaf` would use first character
-///    or a full name as long and short name respectively. It won't try to add implicit long or
-///    short name from the previous item.
+/// One `Named` `SimpleParser` gets automatically created and automatically consumed for each field
+/// inside a structure. You can omit some or all the details
+///
+/// 1. If no naming information is present at all - `bpaf` would use field name as a long name (or
+///    a short name if field name consists of a single character)
+///
+///    ```
+///    # use bpaf::*;
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    struct Options {
+///        name: String,
+///    }
+///    ```
+///
+/// 2. If `short` or `long` annotation is present without an argument - `bpaf` would use first
+///    character or a full name as long and short name respectively. It won't try to add implicit
+///    long or short name from the previous item.
+///
+///    ```
+///    # use bpaf::*;
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    struct Options {
+///        #[bpaf(short, long)]
+///        name: String,
+///    }
+///    ```
+///
 /// 3. If `short` or `long` annotation is present with an argument - those are values `bpaf` would
 ///    use instead of the original field name
+///
+///    ```
+///    # use bpaf::*;
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    struct Options {
+///        #[bpaf(short('N'), long("name"))]
+///        name: String,
+///    }
+///    ```
+///
 /// 4. You can specify many `short` and `long` names, any past the first one of each type will
 ///    become hidden aliases
+///
+///    ```
+///    # use bpaf::*;
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    struct Options {
+///        #[bpaf(short('N'), short('n'), long("name"), long("app-name"))]
+///        name: String,
+///    }
+///    ```
+///
+///
 /// 5. If `env(arg)` annotation is present - in addition to long/short names derived according to
 ///    rules 1..3 `bpaf` would also parse environment variable `arg` which can be a string literal
 ///    or an expression.
-#[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_derive.md"))]
+///
+///    ```
+///    # use bpaf::*;
+///    const DB: &str = "USERS";
+///    #[derive(Debug, Clone, Bpaf)]
+///    #[bpaf(options)]
+///    struct Options {
+///        #[bpaf(short, env("APP_NAME"))]
+///        name: String,
+///
+///        #[bpaf(env(DB))]
+///        database: String,
+///    }
+///    ```
+///
 #[derive(Clone, Debug)]
 pub struct Named {
     pub(crate) short: Vec<char>,
