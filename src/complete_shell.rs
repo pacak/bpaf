@@ -163,7 +163,7 @@ pub(crate) fn render_bash(
     let mut res = String::new();
 
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("COMPREPLY += ( {:?})\n", full_lit));
+        return Ok(format!("COMPREPLY+=( {:?})\n", full_lit));
     }
 
     for op in ops {
