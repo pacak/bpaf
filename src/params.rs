@@ -25,7 +25,59 @@ use crate::{any, env, long, positional, short};
 /// repeatedly to build a desired set of names then transform it into a parser using `flag`,
 /// `switch` or `positional`.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_combine.md"))]
+/// You can run all the examples by importing `bpaf` with `use bpaf::*;` and running generated
+/// options with something like `println!("{:?}", options().run())` as part of a `main` function.
+///
+/// 1. In most cases you don't keep `Named` `SimpleParser` around long enough to give it a name:
+///
+///    ```rust
+///    # use bpaf::*;
+///    fn options() -> OptionParser<usize> {
+///        short('s')
+///            .long("size")
+///            .help("Maximum size to process")
+///            .argument("SIZE")
+///            .to_options() // <- skip this if you want to use this parser
+///                          //    to make other parsers for example
+///    }
+///    ```
+///
+/// 2. But in some cases it might be useful to assign parser to a variable and clone it to use
+///    in several places. This example starts by making a `Named` `SimpleParser` first and uses
+///    it to try the output first with extra parameter and if that fails - once again, without a
+///    parameter:
+///
+///    ```rust
+///    # use bpaf::*;
+///    #[derive(Debug, Clone)]
+///    pub enum Output {
+///        ToFile(PathBuf),
+///        ToConsole,
+///    }
+///
+///    fn options() -> OptionParser<Output> {
+///        let output = short('o').long("output");
+///
+///        let to_file = output
+///            .clone()
+///            .help("Save output to file")
+///            .argument("PATH")
+///            .map(Output::ToFile);
+///
+///        let to_console = output
+///            .help("Print output to console")
+///            .req_flag(Output::ToConsole);
+///
+///        // when combining multiple parsers that can conflict with each other
+///        // it's a good idea to put more general first:
+///        construct!([to_file, to_console]).to_options()
+///    }
+///    ```
+///
+/// 3. Apart from that `Named` `SimpleParser` follows approach similar to a builder. Methods set
+///    different fields, methods like [`SimpleParser::argument`] consume the builder and give
+///    something that implements a [`Parser`] back.
+///
 ///
 /// # Derive usage
 ///
