@@ -1347,7 +1347,7 @@ where
 /// and let bpaf to pick one that best fits best. This function is designed to work in Combinatoric
 /// API, but you can use it in Derive API with `extern`.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/choice.md"))]
+#[cfg_attr(not(doctest), doc = include_str!("_docs/choice.md"))]
 pub fn choice<T: 'static>(parsers: impl IntoIterator<Item = Box<dyn Parser<T>>>) -> impl Parser<T> {
     let mut parsers = parsers.into_iter();
     let mut this = match parsers.next() {
