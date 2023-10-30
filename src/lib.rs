@@ -1533,6 +1533,13 @@ where
     construct!(skip, parser).map(|x| x.1)
 }
 
+/// Choose between several parsers specified at runtime
+///
+/// You can use this function to create multiple parsers that produce the same type of value at a runtime
+/// and let bpaf to pick one that best fits best. This function is designed to work in Combinatoric
+/// API, but you can use it in Derive API with `extern`.
+///
+#[cfg_attr(not(doctest), doc = include_str!("docs2/choice.md"))]
 pub fn choice<T: 'static>(parsers: impl IntoIterator<Item = Box<dyn Parser<T>>>) -> impl Parser<T> {
     let mut parsers = parsers.into_iter();
     let mut this = match parsers.next() {
