@@ -1,6 +1,6 @@
 # Change Log
 
-## bpaf [0.9.6], bpaf_derive [0.5.6] - Unreleased
+## bpaf [0.9.6], bpaf_derive [0.5.6] - 2023-10-30
 - make sure env-only arguments and flags are working
 - support raw identifiers in derive macro (#282)
 - better error messages for unexpected values that prevent positional parses
