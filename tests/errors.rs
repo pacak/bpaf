@@ -231,3 +231,14 @@ fn pos_with_invalid_arg() {
     let r = parser.run_inner(&["t", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
 }
+
+#[test]
+fn strictly_positional_help() {
+    let parser = long("hhhh").switch().to_options();
+
+    let r = parser
+        .run_inner(&["--", "--help"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`--help` is not expected in this context");
+}
