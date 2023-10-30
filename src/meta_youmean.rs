@@ -29,6 +29,10 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
     if arg.os_str().is_empty() {
         return None;
     }
+    // don't try to suggest fixes for typos in strictly positional items
+    if matches!(arg, crate::args::Arg::PosWord(_)) {
+        return None;
+    }
     // it also should be a printable name
     let actual = arg.to_string();
 
