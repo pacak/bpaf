@@ -162,7 +162,7 @@ contains examples for both combinatoric and derive style.
 
 Library allows to consume command line arguments by building up parsers for individual
 arguments and combining those primitive parsers using mostly regular Rust code plus one macro.
-For example it’s possible to take a parser that requires a single floating point number and
+For example, it’s possible to take a parser that requires a single floating point number and
 transform it to a parser that takes several of them or takes it optionally so different
 subcommands or binaries can share a lot of the code:
 
@@ -189,7 +189,7 @@ fn with_fallback() -> impl Parser<f64> {
 ```
 
 At any point you can apply additional validation or fallback values in terms of current parsed
-state of each subparser and you can have several stages as well:
+state of each sub-parser and you can have several stages as well:
 
 
 ```rust
@@ -211,15 +211,15 @@ fn speed() -> impl Parser<Speed> {
 }
 ```
 
-Library follows **parse, don’t validate** approach when possible. Usually you parse your values
-just once and get the results as a Rust struct/enum with strict types  in both combinatoric and
+The library follows the **parse, don’t validate** approach when possible. Usually you parse your values
+just once, and then get the results as a Rust struct/enum with strict types  in both combinatoric and
 derive APIs.
 
 
 ## Design goals: restrictions
 
-The main restricting library sets is that you can’t use parsed values (but not the fact that
-parser succeeded or failed) to decide how to parse subsequent values. In other words parsers
+The main restriction that the library sets is that you can’t use parsed values (but not the fact that
+parser succeeded or failed) to decide how to parse subsequent values. In other words the parsers
 don’t have the monadic strength, only the applicative one.
 
 To give an example, you can implement this description:
@@ -235,11 +235,11 @@ But not this one:
 
 
 This set of restrictions allows `bpaf` to extract information about the structure of the
-computations to generate help, dynamic completion and overall results in less confusing enduser
+computations to generate help, dynamic completion and overall results in less confusing endures
 experience
 
 `bpaf` performs no parameter names validation, in fact having multiple parameters with the same
-name is fine and you can combine them as alternatives and performs no fallback other than
+name is fine, and you can combine them as alternatives and performs no fallback other than
 [`fallback`][__link10]. You need to pay attention to the order of the alternatives inside the
 macro: parser that consumes the left most available argument on a command line wins, if this is
 the same - left most parser wins. So to parse a parameter `--test` that can be both
@@ -266,9 +266,9 @@ names, but also argument and positional item values.
     [`complete`][__link16] to autocomplete argument values
 
 
-3. Depending on your shell generate appropriate completion file and place it to whereever your
-    shell is going to look for it, name of the file should correspond in some way to name of
-    your program. Consult manual for your shell for the location and named conventions:
+3. Depending on your shell, it generates the appropriate completion file and place it to wherever your
+    shell is going to look for it. The name of the file should correspond in some way to name of
+    your program. Consult the manual for your shell for the location and named conventions:
 
 	 1. **bash**
 		```console
@@ -296,12 +296,12 @@ names, but also argument and positional item values.
 
 
 
-4. Restart your shell - you need to done it only once or optionally after bpaf major version
+4. Restart your shell - you need to do it only once or optionally after `bpaf` major version
     upgrade: generated completion files contain only instructions how to ask your program for
     possible completions and don’t change even if options are different.
 
 
-5. Generated scripts rely on your program being accessible in $PATH
+5. Generated scripts rely on your program being accessible in `$PATH`
 
 
 
