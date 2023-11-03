@@ -19,7 +19,7 @@ use crate::{any, env, long, positional, short};
 /// Named items ([`argument`](SimpleParser::argument), [`flag`](SimpleParser::flag),
 /// [`switch`](SimpleParser::switch) or [`req_flag`](SimpleParser::req_flag]) can have up to 2
 /// visible names (one short and one long) and as many hidden short and long aliases as needed.
-/// It's also possible to consume items from environment variables using [`env`](NamedArg::env()).
+/// It's also possible to consume items from environment variables using [`env`](SimpleParser::env()).
 /// You usually start with [`short`] or [`long`] function, then add extra names with
 /// [`short`](SimpleParser::short) / [`long`](SimpleParser::long) / [`env`](SimpleParser::env())
 /// repeatedly to build a desired set of names then transform it into a parser using `flag`,

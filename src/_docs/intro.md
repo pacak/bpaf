@@ -12,6 +12,11 @@ pub fn options() -> OptionParser<Options> {
     let message = positional("MESSAGE").help("Message to print in a big friendly letters");
     construct!(Options { message }).to_options()
 }
+
+fn main() {
+    let options = options().run();
+    println!("{:?}", options);
+}
 ````
 
 </details><details><summary>Derive API example (click to expand)</summary>
@@ -25,6 +30,11 @@ pub struct Options {
     /// Message to print in a big friendly letters
     #[bpaf(positional("MESSAGE"))]
     message: String,
+}
+
+fn main() {
+    let options = options().run();
+    println!("{:?}", options);
 }
 ````
 
