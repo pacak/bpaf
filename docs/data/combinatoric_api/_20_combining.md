@@ -4,9 +4,9 @@ A single-item option parser can only get you so far. Fortunately, you can combin
 parsers with [`construct!`] macro.
 
 For sequential composition (all the fields must be present) you write your code as if you are
-constructing a structure, enum variant or a tuple and wrap it with `construct!`. Both
-a constructor and parsers must be present in the scope. If instead of a parser you have a function
-that creates one - just add `()` after the name:
+constructing a structure, enum variant or a tuple and wrap it with `construct!`. Both a
+constructor and parsers must be present in the scope. If instead of a parser you have a
+function that creates one - just add `()` after the name:
 
 ```rust,id:1
 # use bpaf::*;
@@ -71,7 +71,9 @@ fn main() {
 # pub fn options() -> OptionParser<f64> { distance().to_options() }
 ```
 
-Parser `distance` accepts either `--km` or `--mi`, but not both at once and produces a single `f64` converted to km.
+Parser `distance` accepts either `--km` or `--mi`, but not both at once and produces a single
+`f64` converted to km.
+
 ```run,id:2
 --km 42
 ```

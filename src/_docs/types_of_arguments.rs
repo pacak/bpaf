@@ -35,8 +35,8 @@
 
 /// #### Options, switches or flags
 ///
-/// Options or flags usually starts with a dash, a single dash for short options and a double dash for
-/// long one. Several short options can usually be squashed together with a single dash in front of
+/// Options or flags usually starts with a dash, a single dash for short options and a double dash
+/// for long one. Several short options can be squashed together with a single dash in front of
 /// them to save on typing: `-vvv` can be parsed the same as `-v -v -v`. Options don't have any
 /// other information apart from being there or not. Relative position usually does not matter and
 /// `--alpha --beta` should parse the same as `--beta --alpha`.
@@ -49,10 +49,7 @@
 /// </pre>
 /// </div>
 ///
-/// To parse one
-///
-/// For more detailed info see [`NamedArg::switch`](NamedArg::switch) and
-/// [`NamedArg::flag`](NamedArg::flag)
+/// For more detailed info see [`SimpleParser::switch`](SimpleParser::switch) and [`SimpleParser::flag`](SimpleParser::flag)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -89,9 +86,7 @@ pub mod page_2 {}
 /// usually a short, all-caps word describing what the value means: `NAME`, `AGE`, `SPEC`, and `CODE`
 /// are all valid examples.
 ///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))\]
-///
-/// For more detailed info see [`NamedArg::argument`](NamedArg::argument)
+/// For more detailed info see [`SimpleParser::argument`](SimpleParser::argument)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -123,8 +118,6 @@ pub mod page_3 {}
 /// $ man <span style="font-weight: bold">gcc</span>
 /// </pre>
 /// </div>
-///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/positional.md"))\]
 ///
 /// For more detailed info see [`positional`](crate::positional) and
 ///
@@ -160,8 +153,6 @@ pub mod page_4 {}
 /// </pre>
 /// </div>
 ///
-/// \#![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))\]
-///
 /// For more detailed info see [`OptionParser::command`](OptionParser::command)
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
@@ -185,7 +176,7 @@ pub mod page_5 {}
 ///
 /// While modern software tends to use just the options listed above you can still encounter
 /// programs created before those options became the norm and they use something completely different,
-/// let me give a few examples, see [the parsing cookbook](crate::_documentation::_2_howto)
+/// let me give a few examples, see [the parsing cookbook](crate::_docs::cookbook)
 /// about actually parsing them
 ///
 /// `su` takes an option that consists of a single dash `-`

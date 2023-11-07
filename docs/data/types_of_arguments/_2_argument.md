@@ -16,6 +16,4 @@ In the generated help message or documentation they come with a placeholder meta
 usually a short, all-caps word describing what the value means: `NAME`, `AGE`, `SPEC`, and `CODE`
 are all valid examples.
 
-#![cfg_attr(not(doctest), doc = include_str!("docs2/argument.md"))]
-
-For more detailed info see [`NamedArg::argument`](NamedArg::argument)
+For more detailed info see [`SimpleParser::argument`]

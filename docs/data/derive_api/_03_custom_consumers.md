@@ -2,8 +2,8 @@
 
 By default, `bpaf` picks parsers depending on a field type according to those rules:
 
-1. `bool` fields are converted into switches: [`NamedArg::switch`](crate::parsers::NamedArg::switch), when
-   value is present it parses as `true`, when it is absent - `false`
+1. `bool` fields are converted into switches: [`SimpleParser::switch`], when value is present
+   it parses as `true`, when it is absent - `false`
 
 ```rust,id:1
 use bpaf::*;
@@ -31,8 +31,7 @@ fn main() {
 
 
 2. `()` (unit) fields, unit variants of an enum or unit structs themselves are handled as
-   [`NamedArg::req_flag`](crate::parsers::NamedArg::req_flag) and thus users must always specify
-   them for the parser to succeed
+   [`SimpleParser::req_flag`] and thus users must always specify them for the parser to succeed
 
 
 ```rust,id:2

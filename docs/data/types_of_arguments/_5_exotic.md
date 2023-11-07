@@ -2,7 +2,7 @@
 
 While modern software tends to use just the options listed above you can still encounter
 programs created before those options became the norm and they use something completely different,
-let me give a few examples, see [the parsing cookbook](crate::_documentation::_2_howto)
+let me give a few examples, see [the parsing cookbook](crate::_docs::cookbook)
 about actually parsing them
 
 `su` takes an option that consists of a single dash `-`
