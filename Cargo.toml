@@ -28,7 +28,7 @@ bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "docgen
 
 
 [package.metadata.docs.rs]
-features = ["derive", "extradocs", "autocomplete", "batteries"]
+features = ["unstable-docs"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
 rustdoc-args = ["--generate-link-to-definition"]
 
@@ -44,6 +44,9 @@ color = ["supports-color", "owo-colors"]
 bright-color = ["color"]
 dull-color = ["color"]
 docgen = []
+
+# this feature is used for local development to make it easier to generate documentation
+unstable-doc = ["derive", "extradocs", "autocomplete", "batteries"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
