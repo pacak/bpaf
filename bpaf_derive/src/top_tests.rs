@@ -1015,6 +1015,63 @@ fn single_unit_adjacent_command() {
 }
 
 #[test]
+fn ingore_doc_comment_top_level_1() {
+    let top: Top = parse_quote! {
+        #[derive(Debug, Clone, Bpaf)]
+        /// present
+        #[bpaf(ignore_rustdoc)]
+        enum Mode {
+            /// intel help
+            Intel,
+            /// att help
+            Att,
+        }
+    };
+
+    let expected = quote! {
+        fn mode() -> impl ::bpaf::Parser<Mode> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("intel").help("intel help").req_flag(Mode::Intel);
+                let alt1 = ::bpaf::long("att").help("att help").req_flag(Mode::Att);
+                ::bpaf::construct!([alt0, alt1, ])
+            }
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn ingore_doc_comment_top_level_2() {
+    let top: Top = parse_quote! {
+        #[derive(Debug, Clone, Bpaf)]
+        #[bpaf(options, ignore_rustdoc)]
+        /// present
+        enum Mode {
+            /// intel help
+            Intel,
+            /// att help
+            Att,
+        }
+    };
+
+    let expected = quote! {
+        fn mode() -> ::bpaf::OptionParser<Mode> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::long("intel").help("intel help").req_flag(Mode::Intel);
+                let alt1 = ::bpaf::long("att").help("att help").req_flag(Mode::Att);
+                ::bpaf::construct!([alt0, alt1,])
+            }
+            .to_options()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn top_comment_is_group_help_enum() {
     let top: Top = parse_quote! {
         #[derive(Debug, Clone, Bpaf)]

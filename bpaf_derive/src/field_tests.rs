@@ -700,6 +700,19 @@ fn any_field_1() {
 }
 
 #[test]
+fn unnamed_field_with_ignore_rustdoc() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(any("FOO", Some), ignore_rustdoc)]
+        /// help
+        String
+    };
+    let output = quote! {
+        ::bpaf::any::<String, _, _>("FOO", Some)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn any_field_2() {
     let input: UnnamedField = parse_quote! {
         #[bpaf(any("FOO", Some))]
@@ -798,6 +811,32 @@ fn unit_fields_are_required() {
     };
     let output = quote! {
         ::bpaf::long("name").help("help").req_flag(())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn ignore_rustdoc_without_help() {
+    let input: NamedField = parse_quote! {
+        /// help
+        #[bpaf(ignore_rustdoc)]
+        name: ()
+    };
+    let output = quote! {
+        ::bpaf::long("name").req_flag(())
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn ignore_rustdoc_with_help() {
+    let input: NamedField = parse_quote! {
+        /// help
+        #[bpaf(help("custom help"), ignore_rustdoc)]
+        name: ()
+    };
+    let output = quote! {
+        ::bpaf::long("name").help("custom help").req_flag(())
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

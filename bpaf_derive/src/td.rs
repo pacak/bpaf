@@ -55,6 +55,8 @@ pub(crate) struct TopInfo {
     pub(crate) custom_name: Option<Ident>,
     /// add .boxed() at the end
     pub(crate) boxed: bool,
+    /// don't convert rustdoc to group_help, help, etc.
+    pub(crate) ignore_rustdoc: bool,
 
     pub(crate) mode: Mode,
     pub(crate) attrs: Vec<TopAttr>,
@@ -68,6 +70,7 @@ impl Default for TopInfo {
             boxed: false,
             mode: Mode::Parser,
             attrs: Vec::new(),
+            ignore_rustdoc: false,
         }
     }
 }
@@ -136,6 +139,7 @@ impl Parse for TopInfo {
         let mut private = false;
         let mut custom_name = None;
         let mut boxed = false;
+        let mut ignore_rustdoc = false;
         let mode = {
             let first = input.fork().parse::<Ident>()?;
             if first == "options" {
@@ -203,6 +207,8 @@ impl Parse for TopInfo {
                 attrs.push(TopAttr::Usage(parse_arg(input)?));
             } else if let Some(pd) = PostDecor::parse(input, &kw)? {
                 attrs.push(TopAttr::PostDecor(pd));
+            } else if kw == "ignore_rustdoc" {
+                ignore_rustdoc = true;
             } else {
                 return Err(Error::new_spanned(
                     kw,
@@ -220,6 +226,7 @@ impl Parse for TopInfo {
         }
 
         Ok(TopInfo {
+            ignore_rustdoc,
             private,
             custom_name,
             boxed,

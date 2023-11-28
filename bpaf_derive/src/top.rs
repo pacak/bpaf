@@ -59,8 +59,12 @@ impl Parse for Top {
             boxed,
             mode,
             attrs: td_attrs,
+            ignore_rustdoc,
         } = top_decor.unwrap_or_default();
 
+        if ignore_rustdoc {
+            help = None;
+        }
         let vis = input.parse::<Visibility>()?;
 
         let mut body = Body::parse(input)?;
