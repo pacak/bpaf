@@ -60,6 +60,8 @@ jobs:
         run: cargo build --all-features -p docs2 &&  git diff && git diff-index --quiet HEAD --
 
       - name: Rustdoc
+        env:
+          RUSTDOCFLAGS: -D warnings
         run: cargo doc --all --no-deps --all-features
 
       - name: formatting
