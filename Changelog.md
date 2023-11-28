@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.7], bpaf_derive [0.5.7] - 2023-11-28
+- updated documentation
+- support for `#[bpaf(ignore_rustdoc)]`
+
 ## bpaf [0.9.6], bpaf_derive [0.5.6] - 2023-10-30
 - make sure env-only arguments and flags are working
 - support raw identifiers in derive macro (#282)
