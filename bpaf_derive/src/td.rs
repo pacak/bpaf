@@ -13,11 +13,41 @@ use syn::{
 //  some flags are valid in different modes but other than that order matters and structure does
 //  not
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default)]
+pub(crate) struct CommandCfg {
+    pub(crate) name: Option<LitStr>,
+    pub(crate) long: Vec<LitStr>,
+    pub(crate) short: Vec<LitChar>,
+    pub(crate) help: Option<Help>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct OptionsCfg {
+    pub(crate) cargo_helper: Option<LitStr>,
+    pub(crate) descr: Option<Help>,
+    pub(crate) footer: Option<Help>,
+    pub(crate) header: Option<Help>,
+    pub(crate) usage: Option<Box<Expr>>,
+    pub(crate) version: Option<Box<Expr>>,
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct ParserCfg {
+    pub(crate) group_help: Option<Help>,
+}
+
+#[derive(Debug)]
 pub(crate) enum Mode {
-    Command,
-    Options,
-    Parser,
+    Command {
+        command: CommandCfg,
+        options: OptionsCfg,
+    },
+    Options {
+        options: OptionsCfg,
+    },
+    Parser {
+        parser: ParserCfg,
+    },
 }
 
 #[derive(Debug)]
@@ -58,8 +88,9 @@ pub(crate) struct TopInfo {
     /// don't convert rustdoc to group_help, help, etc.
     pub(crate) ignore_rustdoc: bool,
 
+    pub(crate) adjacent: bool,
     pub(crate) mode: Mode,
-    pub(crate) attrs: Vec<TopAttr>,
+    pub(crate) attrs: Vec<PostDecor>,
 }
 
 impl Default for TopInfo {
@@ -68,7 +99,10 @@ impl Default for TopInfo {
             private: false,
             custom_name: None,
             boxed: false,
-            mode: Mode::Parser,
+            adjacent: false,
+            mode: Mode::Parser {
+                parser: Default::default(),
+            },
             attrs: Vec::new(),
             ignore_rustdoc: false,
         }
@@ -81,56 +115,47 @@ const TOP_NEED_OPTIONS: &str =
 const TOP_NEED_COMMAND: &str =
     "You need to add `command` annotation at the beginning to use this one";
 
-#[derive(Debug)]
-pub(crate) enum TopAttr {
-    CargoHelper(LitStr),   // <- parsing
-    Version(Box<Expr>),    // <- top only
-    Adjacent,              // generic
-    NamedCommand(LitStr),  // generic
-    UnnamedCommand,        // <- parsing
-    CommandShort(LitChar), //
-    CommandLong(LitStr),   // <- command
-    Usage(Box<Expr>),      // command or top
-    ToOptions,             // options
-    Descr(Help),           // options
-    Header(Help),          // options
-    Footer(Help),          // options
-    PostDecor(PostDecor),
-}
+const TOP_NEED_PARSER: &str = "This annotation can't be used with either `options` or `command`";
 
-impl ToTokens for TopAttr {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            Self::ToOptions => quote!(to_options()),
-            Self::CargoHelper(_) | Self::UnnamedCommand => unreachable!(),
-            Self::Version(v) => quote!(version(#v)),
-            Self::Adjacent => quote!(adjacent()),
-            Self::NamedCommand(n) => quote!(command(#n)),
-            Self::CommandShort(n) => quote!(short(#n)),
-            Self::CommandLong(n) => quote!(long(#n)),
-            Self::Usage(u) => quote!(usage(#u)),
-            Self::Descr(d) => quote!(descr(#d)),
-            Self::Header(d) => quote!(header(#d)),
-            Self::Footer(d) => quote!(footer(#d)),
-            Self::PostDecor(pd) => return pd.to_tokens(tokens),
+fn with_options(
+    kw: &Ident,
+    cfg: Option<&mut OptionsCfg>,
+    f: impl FnOnce(&mut OptionsCfg),
+) -> Result<()> {
+    match cfg {
+        Some(cfg) => {
+            f(cfg);
+            Ok(())
         }
-        .to_tokens(tokens);
+        None => Err(Error::new_spanned(kw, TOP_NEED_OPTIONS)),
     }
 }
 
-fn options(kw: &Ident, mode: Mode) -> Result<()> {
-    if matches!(mode, Mode::Options) {
-        Ok(())
-    } else {
-        Err(Error::new_spanned(kw, TOP_NEED_OPTIONS))
+fn with_command(
+    kw: &Ident,
+    cfg: Option<&mut CommandCfg>,
+    f: impl FnOnce(&mut CommandCfg),
+) -> Result<()> {
+    match cfg {
+        Some(cfg) => {
+            f(cfg);
+            Ok(())
+        }
+        None => Err(Error::new_spanned(kw, TOP_NEED_COMMAND)),
     }
 }
 
-fn command(kw: &Ident, mode: Mode) -> Result<()> {
-    if matches!(mode, Mode::Command) {
-        Ok(())
-    } else {
-        Err(Error::new_spanned(kw, TOP_NEED_COMMAND))
+fn with_parser(
+    kw: &Ident,
+    cfg: Option<&mut ParserCfg>,
+    f: impl FnOnce(&mut ParserCfg),
+) -> Result<()> {
+    match cfg {
+        Some(cfg) => {
+            f(cfg);
+            Ok(())
+        }
+        None => Err(Error::new_spanned(kw, TOP_NEED_PARSER)),
     }
 }
 
@@ -140,75 +165,82 @@ impl Parse for TopInfo {
         let mut custom_name = None;
         let mut boxed = false;
         let mut ignore_rustdoc = false;
-        let mode = {
-            let first = input.fork().parse::<Ident>()?;
-            if first == "options" {
-                Mode::Options
-            } else if first == "command" {
-                Mode::Command
-            } else {
-                Mode::Parser
-            }
-        };
-
+        let mut command = None;
+        let mut options = None;
+        let mut parser = Some(ParserCfg::default());
+        let mut adjacent = false;
         let mut attrs = Vec::new();
-
+        let mut first = true;
         loop {
             let kw = input.parse::<Ident>()?;
-            if kw == "private" {
+
+            if first && kw == "options" {
+                let mut cfg = OptionsCfg::default();
+                if let Some(helper) = parse_opt_arg(input)? {
+                    cfg.cargo_helper = Some(helper);
+                }
+                options = Some(cfg);
+                parser = None;
+            } else if first && kw == "command" {
+                let mut cfg = CommandCfg::default();
+                if let Some(name) = parse_opt_arg(input)? {
+                    cfg.name = Some(name);
+                }
+                options = Some(OptionsCfg::default());
+                command = Some(cfg);
+                parser = None;
+            } else if kw == "private" {
                 private = true;
             } else if kw == "generate" {
                 custom_name = parse_arg(input)?;
             } else if kw == "options" {
-                if !matches!(mode, Mode::Options) {
-                    return Err(Error::new_spanned(
-                        kw,
-                        "This annotation must be first: try `#[bpaf(options, ...`",
-                    ));
-                }
-                if let Some(helper) = parse_opt_arg(input)? {
-                    attrs.push(TopAttr::CargoHelper(helper));
-                }
-                attrs.push(TopAttr::ToOptions);
-            } else if kw == "command" {
-                if !matches!(mode, Mode::Command) {
-                    return Err(Error::new_spanned(
-                        kw,
-                        "This annotation must be first: try `#[bpaf(command, ...`",
-                    ));
-                }
-                attrs.push(if let Some(name) = parse_opt_arg(input)? {
-                    TopAttr::NamedCommand(name)
-                } else {
-                    TopAttr::UnnamedCommand
-                });
-            } else if kw == "version" {
-                options(&kw, mode)?;
-                attrs.push(TopAttr::Version(
-                    parse_opt_arg(input)?
-                        .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION"))),
+                return Err(Error::new_spanned(
+                    kw,
+                    "This annotation must be first and used only once: try `#[bpaf(options, ...`",
                 ));
+            } else if kw == "command" {
+                return Err(Error::new_spanned(
+                    kw,
+                    "This annotation must be first: try `#[bpaf(command, ...`",
+                ));
+            } else if kw == "version" {
+                let version = parse_opt_arg(input)?
+                    .unwrap_or_else(|| parse_quote!(env!("CARGO_PKG_VERSION")));
+                with_options(&kw, options.as_mut(), |cfg| cfg.version = Some(version))?;
             } else if kw == "boxed" {
                 boxed = true;
             } else if kw == "adjacent" {
-                attrs.push(TopAttr::Adjacent);
+                adjacent = true;
             } else if kw == "short" {
-                command(&kw, mode)?;
-                attrs.push(TopAttr::CommandShort(parse_arg(input)?));
+                let short = parse_arg(input)?;
+                with_command(&kw, command.as_mut(), |cfg| cfg.short.push(short))?;
             } else if kw == "long" {
-                command(&kw, mode)?;
-                attrs.push(TopAttr::CommandLong(parse_arg(input)?));
+                let long = parse_arg(input)?;
+                with_command(&kw, command.as_mut(), |cfg| cfg.long.push(long))?;
             } else if kw == "header" {
-                attrs.push(TopAttr::Header(Help::Custom(parse_arg(input)?)));
+                let header = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |cfg| cfg.header = Some(header))?;
             } else if kw == "footer" {
-                attrs.push(TopAttr::Footer(Help::Custom(parse_arg(input)?)));
+                let footer = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |opt| opt.footer = Some(footer))?;
             } else if kw == "usage" {
-                options(&kw, mode).or_else(|_| command(&kw, mode))?;
-                attrs.push(TopAttr::Usage(parse_arg(input)?));
-            } else if let Some(pd) = PostDecor::parse(input, &kw)? {
-                attrs.push(TopAttr::PostDecor(pd));
+                let usage = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |opt| opt.usage = Some(usage))?;
+            } else if kw == "group_help" {
+                let group_help = parse_arg(input)?;
+                with_parser(&kw, parser.as_mut(), |opt| {
+                    opt.group_help = Some(group_help)
+                })?;
             } else if kw == "ignore_rustdoc" {
                 ignore_rustdoc = true;
+            } else if kw == "descr" {
+                let descr = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |opt| opt.descr = Some(descr))?;
+            } else if kw == "help" {
+                let help = parse_arg(input)?;
+                with_command(&kw, command.as_mut(), |cfg| cfg.help = Some(help))?;
+            } else if let Some(pd) = PostDecor::parse(input, &kw)? {
+                attrs.push(pd);
             } else {
                 return Err(Error::new_spanned(
                     kw,
@@ -223,13 +255,23 @@ impl Parse for TopInfo {
             if input.is_empty() {
                 break;
             }
+            first = false;
         }
+
+        let mode = match (options, command) {
+            (Some(options), Some(command)) => Mode::Command { command, options },
+            (Some(options), None) => Mode::Options { options },
+            _ => Mode::Parser {
+                parser: parser.unwrap_or_default(),
+            },
+        };
 
         Ok(TopInfo {
             ignore_rustdoc,
             private,
             custom_name,
             boxed,
+            adjacent,
             mode,
             attrs,
         })
@@ -291,9 +333,9 @@ impl Parse for Ed {
             } else if kw == "usage" {
                 attrs.push(EAttr::Usage(parse_arg(input)?));
             } else if kw == "header" {
-                attrs.push(EAttr::Header(Help::Custom(parse_arg(input)?)));
+                attrs.push(EAttr::Header(parse_arg(input)?));
             } else if kw == "footer" {
-                attrs.push(EAttr::Footer(Help::Custom(parse_arg(input)?)));
+                attrs.push(EAttr::Footer(parse_arg(input)?));
             } else if kw == "env" {
                 attrs.push(EAttr::Env(parse_arg(input)?));
             } else {

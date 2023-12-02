@@ -89,8 +89,6 @@ fn top_struct_options1() {
                 }
                 .to_options()
                 .descr("those are options")
-                .header("header")
-                .footer("footer")
                 .header(h)
                 .footer(f)
         }
@@ -145,24 +143,45 @@ fn struct_options2() {
 }
 
 #[test]
-fn struct_command() {
+fn struct_command_no_decor() {
     let input: Top = parse_quote! {
         /// those are options
         #[bpaf(command)]
-        struct Opt { foo: bool, }
+        struct Opt;
     };
 
     let expected = quote! {
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
-            {
-                let foo = ::bpaf::long("foo").switch();
-                ::bpaf::construct!(Opt {foo, })
-            }
-            .to_options()
+            ::bpaf::pure(Opt)
+                .to_options()
                 .descr("those are options")
                 .command("opt")
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn struct_command_decor() {
+    let input: Top = parse_quote! {
+        /// those are options
+        #[bpaf(command, descr(descr), header(header), footer(footer), help(help))]
+        struct Opt;
+    };
+
+    let expected = quote! {
+        fn opt() -> impl ::bpaf::Parser<Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Opt)
+                .to_options()
+                .descr(descr)
+                .header(header)
+                .footer(footer)
+                .command("opt")
+                .help(help)
         }
     };
     assert_eq!(input.to_token_stream().to_string(), expected.to_string());
@@ -197,11 +216,41 @@ fn struct_command_short() {
 #[should_panic(expected = "Can't construct a parser from empty enum")]
 #[test]
 fn empty_enum() {
-    let _: Top = parse_quote! {
+    let x: Top = parse_quote! {
         enum Opt { }
     };
+    todo!("{:?}", x);
 }
 */
+
+#[test]
+fn unnamed_command_enum() {
+    let input: Top = parse_quote! {
+        #[bpaf(command)]
+        enum Opts {
+            #[bpaf(command("alpha1"))]
+            Alpha,
+            Beta,
+            Gamma,
+        }
+    };
+
+    let expected = quote! {
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let alt0 = ::bpaf::pure(Opts::Alpha).to_options().command("alpha1");
+                let alt1 = ::bpaf::long("beta").req_flag(Opts::Beta);
+                let alt2 = ::bpaf::long("gamma").req_flag(Opts::Gamma);
+                ::bpaf::construct!([alt0, alt1, alt2,])
+            }
+            .to_options()
+            .command("opts")
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
 
 #[test]
 fn enum_markdownish() {

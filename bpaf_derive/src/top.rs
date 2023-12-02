@@ -12,7 +12,7 @@ use crate::{
     attrs::{parse_bpaf_doc_attrs, EnumPrefix, PostDecor, StrictName},
     field::StructField,
     help::Help,
-    td::{EAttr, Ed, Mode, TopAttr, TopInfo},
+    td::{CommandCfg, EAttr, Ed, Mode, OptionsCfg, ParserCfg, TopInfo},
     utils::{to_kebab_case, to_snake_case, LineIter},
 };
 
@@ -34,8 +34,8 @@ pub(crate) struct Top {
     body: Body,
     mode: Mode,
     boxed: bool,
-    cargo_helper: Option<LitStr>,
-    attrs: Vec<TopAttr>,
+    adjacent: bool,
+    attrs: Vec<PostDecor>,
 }
 
 fn ident_to_long(ident: &Ident) -> LitStr {
@@ -57,9 +57,10 @@ impl Parse for Top {
             private,
             custom_name,
             boxed,
-            mode,
-            attrs: td_attrs,
+            mut mode,
+            attrs,
             ignore_rustdoc,
+            adjacent,
         } = top_decor.unwrap_or_default();
 
         if ignore_rustdoc {
@@ -69,69 +70,33 @@ impl Parse for Top {
 
         let mut body = Body::parse(input)?;
         let ty = body.ty();
-        let mut cargo_helper = None;
-        let mut attrs = Vec::with_capacity(td_attrs.len());
-        let mut options_ix = None;
-        for attr in td_attrs {
-            match attr {
-                TopAttr::CargoHelper(h) => {
-                    cargo_helper = Some(h);
-                }
-                TopAttr::ToOptions => {
-                    options_ix = Some(attrs.len());
-                    attrs.push(attr);
 
-                    if let Some(h) = std::mem::take(&mut help) {
-                        split_help_into(h, &mut attrs);
-                    }
-                }
-                TopAttr::Usage(_)
-                | TopAttr::Version(_)
-                | TopAttr::Header(_)
-                | TopAttr::Footer(_)
-                | TopAttr::Adjacent
-                | TopAttr::CommandShort(_)
-                | TopAttr::CommandLong(_) => {
-                    attrs.push(attr);
-                }
-                TopAttr::NamedCommand(ref n) => {
-                    body.set_named_command(n.span())?;
-                    attrs.push(TopAttr::ToOptions);
-
-                    if let Some(h) = std::mem::take(&mut help) {
-                        split_help_into(h, &mut attrs);
-                    }
-
-                    attrs.push(attr);
-                }
-                TopAttr::UnnamedCommand => {
-                    body.set_unnamed_command();
-                    attrs.push(TopAttr::ToOptions);
-
-                    if let Some(h) = std::mem::take(&mut help) {
-                        attrs.push(TopAttr::Descr(h));
-                    }
-                    attrs.push(TopAttr::NamedCommand(ident_to_long(&ty)));
-                }
-
-                TopAttr::Descr(_) => unreachable!(),
-                TopAttr::PostDecor(_) => {
-                    if let Some(ix) = options_ix {
-                        attrs.insert(ix, attr);
-                    } else {
-                        attrs.push(attr);
-                    }
-                }
+        if let Mode::Command { command, .. } = &mut mode {
+            if let Some(name) = &command.name {
+                body.set_named_command(name.span())?;
+            } else {
+                body.set_unnamed_command()?;
+                command.name = Some(ident_to_long(&ty));
             }
         }
 
-        if let Some(h) = std::mem::take(&mut help) {
-            let doc = match h {
-                Help::Custom(c) => c,
-                Help::Doc(d) => parse_quote!(#d),
-            };
-            let span = Span::call_site();
-            attrs.push(TopAttr::PostDecor(PostDecor::GroupHelp { doc, span }));
+        if let Some(help) = help.take() {
+            match &mut mode {
+                Mode::Command {
+                    command: _,
+                    options,
+                } => {
+                    split_options_help(help, options);
+                }
+                Mode::Options { options } => {
+                    split_options_help(help, options);
+                }
+                Mode::Parser { parser } => {
+                    if parser.group_help.is_none() {
+                        parser.group_help = Some(help);
+                    }
+                }
+            }
         }
 
         Ok(Top {
@@ -144,26 +109,34 @@ impl Parse for Top {
             attrs,
             body,
             boxed,
-            cargo_helper,
+            adjacent,
         })
     }
 }
 
-fn split_help_into(h: Help, attrs: &mut Vec<TopAttr>) {
+fn split_options_help(h: Help, opts: &mut OptionsCfg) {
     match &h {
-        Help::Custom(_) => attrs.push(TopAttr::Descr(h)),
+        Help::Custom(_) => {
+            if opts.descr.is_none() {
+                opts.descr = Some(h);
+            }
+        }
         Help::Doc(c) => {
             let mut chunks = LineIter::from(c.as_str());
             if let Some(s) = chunks.next() {
-                attrs.push(TopAttr::Descr(Help::Doc(s)));
+                if opts.descr.is_none() {
+                    opts.descr = Some(Help::Doc(s));
+                }
             }
             if let Some(s) = chunks.next() {
-                if !s.is_empty() {
-                    attrs.push(TopAttr::Header(Help::Doc(s)));
+                if !s.is_empty() && opts.header.is_none() {
+                    opts.header = Some(Help::Doc(s));
                 }
             }
             if let Some(s) = chunks.rest() {
-                attrs.push(TopAttr::Footer(Help::Doc(s)));
+                if opts.footer.is_none() {
+                    opts.footer = Some(Help::Doc(s));
+                }
             }
         }
     }
@@ -199,37 +172,115 @@ impl ToTokens for Top {
             mode,
             attrs,
             boxed,
-            cargo_helper,
+            adjacent,
         } = self;
+        let boxed = if *boxed { quote!(.boxed()) } else { quote!() };
+        let adjacent = if *adjacent {
+            quote!(.adjacent())
+        } else {
+            quote!()
+        };
 
-        if matches!(mode, Mode::Options) {
-            let body = match cargo_helper {
-                Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
-                None => quote!(#body),
-            };
+        match mode {
+            Mode::Command { command, options } => {
+                let OptionsCfg {
+                    cargo_helper: _,
+                    usage,
+                    version,
+                    descr,
+                    footer,
+                    header,
+                } = options;
 
-            quote! {
-                #vis fn #generate() -> ::bpaf::OptionParser<#ty> {
-                    #[allow(unused_imports)]
-                    use ::bpaf::Parser;
-                    #body
-                    #(.#attrs)*
+                let version = version.as_ref().map(|v| quote!(.version(#v)));
+                let usage = usage.as_ref().map(|v| quote!(.usage(#v)));
+                let descr = descr.as_ref().map(|v| quote!(.descr(#v)));
+                let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
+                let header = header.as_ref().map(|v| quote!(.header(#v)));
+
+                let CommandCfg {
+                    name,
+                    long,
+                    short,
+                    help,
+                } = command;
+                let name = name.as_ref().expect("Internal bpaf_derive error: Command name was not set! This is a bug, please report it.");
+                let long = long.iter().map(|v| quote!(.long(#v)));
+                let short = short.iter().map(|v| quote!(.short(#v)));
+                let help = help.as_ref().map(|v| quote!(.help(#v)));
+                quote! {
+                    #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+
+                        #[allow(unused_imports)]
+                        use ::bpaf::Parser;
+                        #body
+                        #(.#attrs)*
+                        .to_options()
+                        #version
+                        #descr
+                        #header
+                        #footer
+                        #usage
+                        .command(#name)
+                        #(#short)*
+                        #(#long)*
+                        #help
+                        #adjacent
+                        #boxed
+                    }
                 }
             }
-        } else {
-            let boxed = if *boxed { quote!(.boxed()) } else { quote!() };
-            quote! {
-                #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
-                    #[allow(unused_imports)]
-                    use ::bpaf::Parser;
+            Mode::Options { options } => {
+                let OptionsCfg {
+                    cargo_helper,
+                    usage,
+                    version,
+                    descr,
+                    footer,
+                    header,
+                } = options;
+                let body = match cargo_helper {
+                    Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
+                    None => quote!(#body),
+                };
 
-                    #body
-                    #(.#attrs)*
-                    #boxed
+                let version = version.as_ref().map(|v| quote!(.version(#v)));
+                let usage = usage.as_ref().map(|v| quote!(.usage(#v)));
+                let descr = descr.as_ref().map(|v| quote!(.descr(#v)));
+                let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
+                let header = header.as_ref().map(|v| quote!(.header(#v)));
+                quote! {
+                    #vis fn #generate() -> ::bpaf::OptionParser<#ty> {
+                        #[allow(unused_imports)]
+                        use ::bpaf::Parser;
+                        #body
+                        #(.#attrs)*
+                        .to_options()
+                        #version
+                        #descr
+                        #header
+                        #footer
+                        #usage
+                    }
+                }
+            }
+            Mode::Parser { parser } => {
+                let ParserCfg { group_help } = &parser;
+                let group_help = group_help.as_ref().map(|v| quote!(.group_help(#v)));
+                quote! {
+                    #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+                        #[allow(unused_imports)]
+                        use ::bpaf::Parser;
+                        #body
+                        #group_help
+                        #adjacent
+                        #(.#attrs)*
+                        #boxed
+                    }
                 }
             }
         }
-        .to_tokens(tokens);
+        .to_tokens(tokens)
     }
 }
 
@@ -264,16 +315,6 @@ impl Parse for Body {
                 .into_iter()
                 .filter_map(|p| p.resolve(&name).transpose())
                 .collect::<Result<Vec<_>>>()?;
-
-            //            let mut branches
-            /*
-                        for b in branches.iter_mut() {
-                            b.postprocess_with_name(&name);
-                        }
-
-                        let branches = branches.into_iter().filter(|b| !b.skip).collect::<Vec<_>>();
-            */
-
             Ok(Self::Alternatives(name, branches))
         } else {
             Err(input.error("Only structs and enums are supported"))
@@ -305,15 +346,27 @@ impl Body {
         }
     }
 
-    fn set_unnamed_command(&mut self) {
+    fn set_unnamed_command(&mut self) -> Result<()> {
         match self {
-            Body::Single(b) => b.set_unnamed_command(),
-            Body::Alternatives(_, _branches) => {
-                //                for branch in branches {
-                todo!();
-                //                    branch.set_unnamed_command()?;
-                //                }
-                //Ok(())
+            Body::Single(b) => {
+                b.set_unnamed_command();
+                Ok(())
+            }
+            Body::Alternatives(_name, _branches) => {
+                /*
+                for branch in branches {
+                    if !branch
+                        .attrs
+                        .iter()
+                        .any(|attr| matches!(attr, EAttr::ToOptions))
+                    {
+                        let name = ident_to_long(&branch.branch.ident);
+                        branch.attrs.insert(0, EAttr::NamedCommand(name));
+                        branch.attrs.insert(0, EAttr::ToOptions);
+                        branch.branch.set_unnamed_command();
+                    }
+                }*/
+                Ok(())
             }
         }
     }
