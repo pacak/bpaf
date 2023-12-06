@@ -46,7 +46,7 @@ dull-color = ["color"]
 docgen = []
 
 # this feature is used for local development to make it easier to generate documentation
-unstable-doc = ["derive", "extradocs", "autocomplete", "batteries", "docgen"]
+unstable-docs = ["derive", "extradocs", "autocomplete", "batteries", "docgen"]
 
 [workspace.metadata.cauwugo]
 bpaf = true
