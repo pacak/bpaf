@@ -168,9 +168,13 @@ impl StructField {
 
     #[allow(clippy::too_many_lines)]
     pub(crate) fn make(name: Option<Ident>, ty: Type, attrs: &[Attribute]) -> Result<Self> {
-        let (field_attrs, help) = parse_bpaf_doc_attrs::<FieldAttrs>(attrs)?;
+        let (field_attrs, mut help) = parse_bpaf_doc_attrs::<FieldAttrs>(attrs)?;
 
         let mut field_attrs = field_attrs.unwrap_or_default();
+
+        if field_attrs.ignore_rustdoc {
+            help = None;
+        }
 
         let derived_consumer = field_attrs.consumer.is_empty();
 
@@ -252,7 +256,7 @@ impl StructField {
         | Consumer::Positional { ty, .. }
         | Consumer::Any { ty, .. } = &mut cons
         {
-            if matches!(ty, None) {
+            if ty.is_none() {
                 match &shape {
                     Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => {
                         *ty = Some(t.clone());

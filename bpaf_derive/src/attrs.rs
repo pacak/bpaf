@@ -373,6 +373,8 @@ pub(crate) struct FieldAttrs {
 
     /// help specified by help(xxx)
     pub help: Vec<CustomHelp>,
+
+    pub(crate) ignore_rustdoc: bool,
 }
 
 impl Name {
@@ -564,7 +566,9 @@ impl Parse for FieldAttrs {
         loop {
             let fork = input.fork();
             let kw = input.parse::<Ident>()?;
-            if let Some(name) = Name::parse(input, &kw)? {
+            if kw == "ignore_rustdoc" {
+                res.ignore_rustdoc = true;
+            } else if let Some(name) = Name::parse(input, &kw)? {
                 res.naming.push(name);
             } else if let Some(cons) = Consumer::parse(input, &kw)? {
                 res.consumer.push(cons);

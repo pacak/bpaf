@@ -1,6 +1,9 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
-use syn::Expr;
+use syn::{
+    parse::{Parse, ParseStream},
+    Expr, Result,
+};
 
 #[derive(Debug)]
 pub(crate) enum Help {
@@ -20,5 +23,11 @@ impl ToTokens for Help {
 impl From<&str> for Help {
     fn from(value: &str) -> Self {
         Help::Doc(value.to_string())
+    }
+}
+
+impl Parse for Help {
+    fn parse(input: ParseStream) -> Result<Self> {
+        Ok(Help::Custom(input.parse()?))
     }
 }
