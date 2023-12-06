@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.8] - 2023-12-06
+- fix docs.rs build
+- bump deps
+
 ## bpaf [0.9.7], bpaf_derive [0.5.7] - 2023-11-28
 - updated documentation
 - support for `#[bpaf(ignore_rustdoc)]`
