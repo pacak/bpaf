@@ -1,5 +1,9 @@
 # Change Log
 
+
+## bpaf - unreleased
+- fix formatting in ambiguity error message
+
 ## bpaf [0.9.8] - 2023-12-06
 - fix docs.rs build
 - bump deps
