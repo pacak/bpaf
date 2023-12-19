@@ -407,7 +407,7 @@ impl Message {
 
                 if let Some(name) = args.path.first() {
                     doc.literal(name);
-                    doc.text("supports ");
+                    doc.text(" supports ");
                 } else {
                     doc.text("app supports ");
                 }
