@@ -1176,6 +1176,60 @@ fn top_comment_is_group_help_struct() {
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
 
+#[test]
+fn custom_bpaf_path() {
+    let input: Top = parse_quote! {
+        // those are options
+        #[bpaf(options, header(h), footer(f), bpaf_path = ::indirector::bpaf)]
+        enum Opt {
+            #[bpaf(command("foo"))]
+            /// foo doc
+            ///
+            ///
+            /// header
+            ///
+            ///
+            /// footer
+            Foo { field: usize },
+            /// bar doc
+            #[bpaf(command, adjacent)]
+            Bar { field: bool }
+        }
+    };
+
+    let expected = quote! {
+        fn opt() -> ::indirector::bpaf::OptionParser<Opt> {
+            #[allow(unused_imports)]
+            use ::indirector::bpaf::Parser;
+            {
+                let alt0 = {
+                    let field = ::indirector::bpaf::long("field").argument::<usize>("ARG");
+                    ::indirector::bpaf::construct!(Opt::Foo { field, })
+                }
+                .to_options()
+                .footer("footer")
+                .header("header")
+                .descr("foo doc")
+                .command("foo");
+
+                let alt1 = {
+                    let field = ::indirector::bpaf::long("field").switch();
+                    ::indirector::bpaf::construct!(Opt::Bar { field, })
+                }
+                .to_options()
+                .descr("bar doc")
+                .command("bar")
+                .adjacent();
+                ::indirector::bpaf::construct!([alt0, alt1, ])
+            }
+            .to_options()
+            .header(h)
+            .footer(f)
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
 /*
 #[test]
 fn push_down_command() {

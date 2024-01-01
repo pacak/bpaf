@@ -36,7 +36,7 @@ impl ToTokens for TurboFish<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Consumer {
     Switch {
         span: Span,
@@ -187,7 +187,7 @@ impl ToTokens for StrictName {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Post {
     /// Those items can change the type of the result
     Parse(PostParse),
@@ -243,7 +243,7 @@ impl ToTokens for PostDecor {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum PostParse {
     Adjacent { span: Span },
     Catch { span: Span },
@@ -273,7 +273,7 @@ impl PostParse {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum PostDecor {
     Complete {
         span: Span,
@@ -528,13 +528,14 @@ impl PostDecor {
         }))
     }
 }
+
 #[derive(Debug)]
 pub(crate) struct CustomHelp {
     pub span: Span,
     pub doc: Box<Expr>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct EnumPrefix(pub Ident);
 
 impl ToTokens for EnumPrefix {

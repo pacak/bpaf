@@ -5,7 +5,7 @@ use syn::{
     Expr, Result,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum Help {
     Custom(Box<Expr>),
     Doc(String),

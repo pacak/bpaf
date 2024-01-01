@@ -15,7 +15,7 @@ use crate::{
     utils::to_snake_case,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct StructField {
     pub name: Option<Ident>,
     pub env: Vec<StrictName>,

@@ -5,11 +5,14 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
-    token, Attribute, Error, Expr, Ident, LitChar, LitStr, Result, Visibility,
+    token,
+    visit_mut::VisitMut,
+    Attribute, Error, Expr, Ident, ItemFn, LitChar, LitStr, Result, Visibility,
 };
 
 use crate::{
     attrs::{parse_bpaf_doc_attrs, EnumPrefix, PostDecor, StrictName},
+    custom_path::CratePathReplacer,
     field::StructField,
     help::Help,
     td::{CommandCfg, EAttr, Ed, Mode, OptionsCfg, ParserCfg, TopInfo},
@@ -36,6 +39,7 @@ pub(crate) struct Top {
     boxed: bool,
     adjacent: bool,
     attrs: Vec<PostDecor>,
+    bpaf_path: Option<syn::Path>,
 }
 
 fn ident_to_long(ident: &Ident) -> LitStr {
@@ -61,6 +65,7 @@ impl Parse for Top {
             attrs,
             ignore_rustdoc,
             adjacent,
+            bpaf_path,
         } = top_decor.unwrap_or_default();
 
         if ignore_rustdoc {
@@ -110,6 +115,7 @@ impl Parse for Top {
             body,
             boxed,
             adjacent,
+            bpaf_path,
         })
     }
 }
@@ -173,6 +179,7 @@ impl ToTokens for Top {
             attrs,
             boxed,
             adjacent,
+            bpaf_path,
         } = self;
         let boxed = if *boxed { quote!(.boxed()) } else { quote!() };
         let adjacent = if *adjacent {
@@ -181,7 +188,7 @@ impl ToTokens for Top {
             quote!()
         };
 
-        match mode {
+        let original = match mode {
             Mode::Command { command, options } => {
                 let OptionsCfg {
                     cargo_helper: _,
@@ -279,6 +286,32 @@ impl ToTokens for Top {
                     }
                 }
             }
+        };
+
+        if let Some(custom_path) = bpaf_path {
+            //     syn::parse2(original)
+            //     .map_err(|e| {
+            //         syn::Error::new(
+            //     e.span(),
+            //     format!("Failed to parse originally generated macro output as an ItemFn: {e}"),
+            // )
+            //     })
+            //     .unwrap();
+            let mut replaced: ItemFn = parse_quote!(#original);
+            // syn::parse2(quote!(::bpaf))
+            // .map_err(|e| {
+            //     syn::Error::new(
+            //         e.span(),
+            //         format!("Failed to convert quote!(::bpaf) into a Path: {e}"),
+            //     )
+            // })
+            // .unwrap()
+            CratePathReplacer::new(parse_quote!(::bpaf), custom_path.clone())
+                .visit_item_fn_mut(&mut replaced);
+
+            replaced.to_token_stream()
+        } else {
+            original
         }
         .to_tokens(tokens)
     }
@@ -288,8 +321,8 @@ impl ToTokens for Top {
 
 /// Describes the actual fields,
 /// can be either a single branch for struct or multiple enum variants
-#[derive(Debug)]
-enum Body {
+#[derive(Debug, Clone)]
+pub(crate) enum Body {
     // {{{
     Single(Branch),
     Alternatives(Ident, Vec<EnumBranch>),
@@ -493,7 +526,7 @@ impl Parse for ParsedEnumBranch {
 
 // }}}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct EnumBranch {
     // {{{
     branch: Branch,
@@ -509,12 +542,12 @@ impl ToTokens for EnumBranch {
 
 // }}}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Branch {
     // {{{
-    enum_name: Option<EnumPrefix>,
-    ident: Ident,
-    fields: FieldSet,
+    pub(crate) enum_name: Option<EnumPrefix>,
+    pub(crate) ident: Ident,
+    pub(crate) fields: FieldSet,
 }
 
 impl Branch {
@@ -636,7 +669,7 @@ impl ToTokens for Branch {
 }
 // }}}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum FieldSet {
     // {{{
     Named(Punctuated<StructField, token::Comma>),
