@@ -6,21 +6,21 @@
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
-//! # Quick links
-//! - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
-//! - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
-//!   examples to get you started
-//!   + [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
-//!     common types of line options and conventions (optional)
-//!   + [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
-//!     Parse arguments without using proc macros
-//!   + [Derive API](_documentation::_1_tutorials::_2_derive_api) -
-//!     Create a parser by defining a structure
-//! - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
-//!   explains how to concrete tasks
-//! - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
-//!   used by the library, oriented for understanding
-//! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
+// # Quick links
+// - [Introduction](_documentation::_0_intro) - features, design goals, restrictions
+// - [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
+//   examples to get you started
+//   + [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
+//     common types of line options and conventions (optional)
+//   + [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
+//     Parse arguments without using proc macros
+//   + [Derive API](_documentation::_1_tutorials::_2_derive_api) -
+//     Create a parser by defining a structure
+// - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
+//   explains how to concrete tasks
+// - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
+//   used by the library, oriented for understanding
+// - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 
 //! # A quick start
 //!
@@ -156,13 +156,6 @@
 //!    Disabled by default.
 //!
 //!  - `docgen`: generate documentation from help declaration, see [`OptionParser::render_markdown`] and [`doc`](crate::doc). Disabled by default.
-
-
-
-#[cfg(feature = "extradocs")]
-#[rustfmt::skip]
-#[allow(unused_imports)]
-pub mod _documentation;
 
 mod arg;
 mod args;
