@@ -157,6 +157,12 @@
 //!
 //!  - `docgen`: generate documentation from help declaration, see [`OptionParser::render_markdown`] and [`doc`](crate::doc). Disabled by default.
 
+
+#[cfg(all(feature = "extradocs", not(doctest)))] // syntax is tested by docs crte instead
+#[rustfmt::skip]
+#[allow(unused_imports)]
+pub mod _docs;
+
 mod arg;
 mod args;
 #[cfg(feature = "batteries")]
