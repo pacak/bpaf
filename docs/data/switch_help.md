@@ -5,20 +5,13 @@
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub struct Options {
-    #[bpaf(short, long)]
-    /// Output detailed help information, you can specify it multiple times
-    ///
-    ///  when used once it outputs basic diagnostic info,
-    ///  when used twice or three times - it includes extra debugging.
-    //  ^ note extra spaces before when that preserve the linebreaks
-    verbose: bool,
-
-    #[bpaf(argument("NAME"))]
-    /// Use this as a task name
-    name: String,
-
     #[bpaf(positional("OUTPUT"))]
-    /// Save output to a file
+
+    /// Brief option description
+    ///
+    ///  Detailed help description
+    ///  that can span multiple lines
+    //  ^ note extra spaces before when that preserve the linebreaks
     output: Option<String>,
 }
 ```
@@ -29,41 +22,27 @@ pub struct Options {
 # use bpaf::*;
 #[derive(Debug, Clone)]
 pub struct Options {
-    verbose: bool,
-    name: String,
     output: Option<String>,
 }
 
 pub fn options() -> OptionParser<Options> {
-    let verbose = short('v')
-        .long("verbose")
-        .help(
-            "\
-Output detailed help information, you can specify it multiple times
-
- when used once it outputs basic diagnostic info,
- when used twice or three times - it includes extra debugging.",
-            // ^ note extra spaces before "when" that preserve the linebreaks
-        )
-        .switch();
-    let name = long("name")
-        .help("Use this as a task name")
-        .argument("NAME");
-
     let output = positional("OUTPUT")
-        .help("Save output to a file")
+        .help(
+"Brief option description
+
+ Detailed help description
+ that can span multiple lines")
+    //  ^ note extra spaces before when that preserve the linebreaks
         .optional();
 
     construct!(Options {
-        verbose,
-        name,
         output
     })
     .to_options()
 }
 ```
 
-When `--help` used once it renders shoter version of the help information
+When `--help` used once it renders shorter version of the help information
 
 ```run,id:1,id:2
 --help
@@ -79,5 +58,5 @@ version as well
 Presence or absense of a help message should not affect the parser's output
 
 ```run,id:1,id:2
---name Bob output.txt
+output.txt
 ```

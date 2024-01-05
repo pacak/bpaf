@@ -397,7 +397,7 @@ where
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
-    named: Named,
+    pub(crate) named: Named,
 }
 
 impl<T: Clone + 'static> Flag<T> {
@@ -438,19 +438,6 @@ impl<T: Clone + 'static> Flag<T> {
         } else {
             Meta::Skip
         }
-    }
-}
-impl<T> Flag<T> {
-    /// Add a help message to `flag`
-    ///
-    /// See [`NamedArg::help`]
-    #[must_use]
-    pub(crate) fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<Doc>,
-    {
-        self.named.help = Some(help.into());
-        self
     }
 }
 
