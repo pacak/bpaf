@@ -222,7 +222,7 @@ use crate::{
     buffer::{MetaInfo, Style},
     item::Item,
     params::build_positional,
-    parsers::{NamedArg, ParseAny, ParseCommand, ParsePositional},
+    parsers::{NamedArg, ParseAny, ParsePositional},
     structs::{
         ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
         ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
@@ -1428,21 +1428,6 @@ pub fn env(variable: &'static str) -> NamedArg {
 #[must_use]
 pub fn positional<T>(metavar: &'static str) -> ParsePositional<T> {
     build_positional(metavar)
-}
-
-#[doc(hidden)]
-#[deprecated = "You should switch from command(name, sub) to sub.command(name)"]
-pub fn command<T>(name: &'static str, subparser: OptionParser<T>) -> ParseCommand<T>
-where
-    T: 'static,
-{
-    ParseCommand {
-        longs: vec![name],
-        shorts: Vec::new(),
-        help: subparser.short_descr().map(Into::into),
-        subparser,
-        adjacent: false,
-    }
 }
 
 /// Parse a single arbitrary item from a command line
