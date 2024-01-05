@@ -8,7 +8,7 @@
 //! Examples contain combinatoric usage, for derive usage you should create a parser function and
 //! use `external` annotation.
 
-use crate::{construct, literal, parsers::NamedArg, short, Parser};
+use crate::{construct, literal, short, Parser};
 
 /// `--verbose` and `--quiet` flags with results encoded as number
 ///
@@ -85,53 +85,6 @@ pub fn verbose_by_slice<T: Copy + 'static, const N: usize>(
     #![allow(clippy::cast_sign_loss)]
     verbose_and_quiet_by_number(offset as isize, 0, items.len() as isize - 1)
         .map(move |i| items[i as usize])
-}
-
-/// Pick last passed value between two different flags
-///
-/// Usually `bpaf` only allows to parse a single instance for every invocation unless
-/// you specify [`many`](Parser::many) or [`some`](Parser::some). `toggle_flag` would consume
-/// multiple instances of two different flags and returns last specified value.
-///
-/// This function relies on a fact that selection between two different parsers prefers left most
-/// value. This helps to preserve relative order of parsrs.
-/// You can use similar approach to combine multiple flags accounting for their relative order.
-///
-/// Parser returns `Optional<T>` value, you can add a fallback with [`map`](Parser::map) or turn
-/// missing value info failure with a custom error message with [`parse`](Parser::parse).
-///
-/// # Example
-/// ```console
-/// $ app --banana --no-banana --banana --banana
-/// Some(Banana)
-/// $ app
-/// None
-/// ```
-///
-/// # Usage
-/// ```rust
-/// # use bpaf::*;
-/// use bpaf::batteries::toggle_flag;
-///
-/// #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-/// enum Select {
-///     Banana,
-///     NoBanana,
-/// }
-///
-/// fn pick() -> impl Parser<Option<Select>> {
-///     toggle_flag(long("banana"), Select::Banana, long("no-banana"), Select::NoBanana)
-/// }
-/// ```
-pub fn toggle_flag<T: Copy + 'static>(
-    a: NamedArg,
-    val_a: T,
-    b: NamedArg,
-    val_b: T,
-) -> impl Parser<Option<T>> {
-    let a = a.req_flag(val_a);
-    let b = b.req_flag(val_b);
-    construct!([a, b]).many().map(|xs| xs.into_iter().last())
 }
 
 /// Strip a command name if present at the front when used as a `cargo` command

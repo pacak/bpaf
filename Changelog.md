@@ -3,6 +3,7 @@
 
 ## bpaf - unreleased
 - fix formatting in ambiguity error message
+- drop batteries::toggle_flag
 
 ## bpaf [0.9.8] - 2023-12-06
 - fix docs.rs build
