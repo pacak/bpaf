@@ -31,17 +31,15 @@ pub fn verbose_and_quiet_by_number(offset: isize, min: isize, max: isize) -> imp
         .long("verbose")
         .help("Increase output verbosity, can be used several times")
         .req_flag(())
-        .many()
-        .map(|v| v.len() as isize);
+        .count();
 
     let quiet = short('q')
         .long("quiet")
         .help("Decrease output verbosity, can be used several times")
         .req_flag(())
-        .many()
-        .map(|v| v.len() as isize);
+        .count();
 
-    construct!(verbose, quiet).map(move |(v, q)| (v - q + offset).clamp(min, max))
+    construct!(verbose, quiet).map(move |(v, q)| (v as isize - q as isize + offset).clamp(min, max))
 }
 
 /// `--verbose` and `--quiet` flags with results choosen from a slice of values
