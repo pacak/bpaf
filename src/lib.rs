@@ -183,6 +183,7 @@ mod meta;
 mod meta_help;
 mod meta_youmean;
 pub mod params;
+mod simple;
 mod structs;
 #[cfg(test)]
 mod tests;
@@ -237,6 +238,9 @@ use structs::ParseComp;
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
+
+#[doc(inline)]
+pub use simple::*;
 
 /// Compose several parsers to produce a single result
 ///
