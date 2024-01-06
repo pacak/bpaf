@@ -18,7 +18,7 @@ use crate::{
     args::{Arg, State},
     complete_shell::{render_bash, render_fish, render_simple, render_test, render_zsh},
     item::ShortLong,
-    parsers::NamedArg,
+    params::Named,
     Doc, ShellComp,
 };
 use std::ffi::OsStr;
@@ -46,7 +46,7 @@ impl Complete {
 
 impl State {
     /// Add a new completion hint for flag, if needed
-    pub(crate) fn push_flag(&mut self, named: &NamedArg) {
+    pub(crate) fn push_flag(&mut self, named: &Named) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             if let Ok(name) = ShortLong::try_from(named) {
@@ -63,7 +63,7 @@ impl State {
     }
 
     /// Add a new completion hint for an argument, if needed
-    pub(crate) fn push_argument(&mut self, named: &NamedArg, metavar: &'static str) {
+    pub(crate) fn push_argument(&mut self, named: &Named, metavar: &'static str) {
         let depth = self.depth();
         if let Some(comp) = self.comp_mut() {
             if let Ok(name) = ShortLong::try_from(named) {

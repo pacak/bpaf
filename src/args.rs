@@ -5,7 +5,7 @@ use crate::{
     error::{Message, MissingItem},
     item::Item,
     meta_help::Metavar,
-    parsers::NamedArg,
+    params::Named,
     Error,
 };
 
@@ -627,7 +627,7 @@ impl State {
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
-    pub(crate) fn take_flag(&mut self, named: &NamedArg) -> bool {
+    pub(crate) fn take_flag(&mut self, named: &Named) -> bool {
         if let Some((ix, _)) = self
             .items_iter()
             .find(|arg| named.matches_arg(arg.1, false))
@@ -645,7 +645,7 @@ impl State {
     /// Returns Err if flag is present but value is either missing or strange.
     pub(crate) fn take_arg(
         &mut self,
-        named: &NamedArg,
+        named: &Named,
         adjacent: bool,
         metavar: Metavar,
     ) -> Result<Option<OsString>, Error> {
@@ -747,14 +747,14 @@ mod tests {
     #[test]
     fn long_arg() {
         let mut a = State::from(&["--speed", "12"]);
-        let s = a.take_arg(&long("speed"), false, M).unwrap().unwrap();
+        let s = a.take_arg(&long("speed").0, false, M).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
     #[test]
     fn long_flag_and_positional() {
         let mut a = State::from(&["--speed", "12"]);
-        let flag = a.take_flag(&long("speed"));
+        let flag = a.take_flag(&long("speed").0);
         assert!(flag);
         assert!(!a.is_empty());
         let s = a.take_positional_word(M).unwrap();
@@ -767,17 +767,17 @@ mod tests {
         let args = Args::from(&["-vvv"]);
         let mut err = None;
         let mut a = State::construct(args, &['v'], &[], &mut err);
-        assert!(a.take_flag(&short('v')));
-        assert!(a.take_flag(&short('v')));
-        assert!(a.take_flag(&short('v')));
-        assert!(!a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v').0));
+        assert!(a.take_flag(&short('v').0));
+        assert!(a.take_flag(&short('v').0));
+        assert!(!a.take_flag(&short('v').0));
         assert!(a.is_empty());
     }
 
     #[test]
     fn long_arg_with_equality() {
         let mut a = State::from(&["--speed=12"]);
-        let s = a.take_arg(&long("speed"), false, M).unwrap().unwrap();
+        let s = a.take_arg(&long("speed").0, false, M).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -785,7 +785,7 @@ mod tests {
     #[test]
     fn long_arg_with_equality_and_minus() {
         let mut a = State::from(&["--speed=-12"]);
-        let s = a.take_arg(&long("speed"), true, M).unwrap().unwrap();
+        let s = a.take_arg(&long("speed").0, true, M).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -793,7 +793,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality() {
         let mut a = State::from(&["-s=12"]);
-        let s = a.take_arg(&short('s'), false, M).unwrap().unwrap();
+        let s = a.take_arg(&short('s').0, false, M).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -801,7 +801,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus() {
         let mut a = State::from(&["-s=-12"]);
-        let s = a.take_arg(&short('s'), false, M).unwrap().unwrap();
+        let s = a.take_arg(&short('s').0, false, M).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -809,7 +809,7 @@ mod tests {
     #[test]
     fn short_arg_with_equality_and_minus_is_adjacent() {
         let mut a = State::from(&["-s=-12"]);
-        let s = a.take_arg(&short('s'), true, M).unwrap().unwrap();
+        let s = a.take_arg(&short('s').0, true, M).unwrap().unwrap();
         assert_eq!(s, "-12");
         assert!(a.is_empty());
     }
@@ -817,7 +817,7 @@ mod tests {
     #[test]
     fn short_arg_without_equality() {
         let mut a = State::from(&["-s", "12"]);
-        let s = a.take_arg(&short('s'), false, M).unwrap().unwrap();
+        let s = a.take_arg(&short('s').0, false, M).unwrap().unwrap();
         assert_eq!(s, "12");
         assert!(a.is_empty());
     }
@@ -825,18 +825,18 @@ mod tests {
     #[test]
     fn two_short_flags() {
         let mut a = State::from(&["-s", "-v"]);
-        assert!(a.take_flag(&short('s')));
-        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('s').0));
+        assert!(a.take_flag(&short('v').0));
         assert!(a.is_empty());
     }
 
     #[test]
     fn two_short_flags2() {
         let mut a = State::from(&["-s", "-v"]);
-        assert!(a.take_flag(&short('v')));
-        assert!(!a.take_flag(&short('v')));
-        assert!(a.take_flag(&short('s')));
-        assert!(!a.take_flag(&short('s')));
+        assert!(a.take_flag(&short('v').0));
+        assert!(!a.take_flag(&short('v').0));
+        assert!(a.take_flag(&short('s').0));
+        assert!(!a.take_flag(&short('s').0));
         assert!(a.is_empty());
     }
 
@@ -844,7 +844,7 @@ mod tests {
     fn command_with_flags() {
         let mut a = State::from(&["cmd", "-s", "v"]);
         assert!(a.take_cmd("cmd"));
-        let s = a.take_arg(&short('s'), false, M).unwrap().unwrap();
+        let s = a.take_arg(&short('s').0, false, M).unwrap().unwrap();
         assert_eq!(s, "v");
         assert!(a.is_empty());
     }
@@ -861,7 +861,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash1() {
         let mut a = State::from(&["-v", "--", "-x"]);
-        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v').0));
         let w = a.take_positional_word(M).unwrap();
         assert_eq!(w.2, "-x");
         assert!(a.is_empty());
@@ -870,7 +870,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash2() {
         let mut a = State::from(&["-v", "--", "-x"]);
-        assert!(a.take_flag(&short('v')));
+        assert!(a.take_flag(&short('v').0));
         let w = a.take_positional_word(M).unwrap();
         assert_eq!(w.2, "-x");
         assert!(a.is_empty());
@@ -879,7 +879,7 @@ mod tests {
     #[test]
     fn positionals_after_double_dash3() {
         let mut a = State::from(&["-v", "12", "--", "-x"]);
-        let w = a.take_arg(&short('v'), false, M).unwrap().unwrap();
+        let w = a.take_arg(&short('v').0, false, M).unwrap().unwrap();
         assert_eq!(w, "12");
         let w = a.take_positional_word(M).unwrap();
         assert_eq!(w.2, "-x");
@@ -892,9 +892,9 @@ mod tests {
         let mut err = None;
         let mut a = State::construct(args, &['a', 'b', 'c'], &[], &mut err);
 
-        assert!(a.take_flag(&short('a')));
-        assert!(a.take_flag(&short('b')));
-        assert!(a.take_flag(&short('c')));
+        assert!(a.take_flag(&short('a').0));
+        assert!(a.take_flag(&short('b').0));
+        assert!(a.take_flag(&short('c').0));
     }
 
     #[test]
@@ -903,7 +903,7 @@ mod tests {
         let mut err = None;
         let mut a = State::construct(args, &[], &['a'], &mut err);
 
-        let r = a.take_arg(&short('a'), false, M).unwrap().unwrap();
+        let r = a.take_arg(&short('a').0, false, M).unwrap().unwrap();
         assert_eq!(r, "bc");
     }
 

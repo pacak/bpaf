@@ -242,3 +242,35 @@ fn strictly_positional_help() {
         .unwrap_stderr();
     assert_eq!(r, "`--help` is not expected in this context");
 }
+
+#[test]
+fn any_with_invalid_flag() {
+    let a = short('a').switch();
+    let b = any::<String, _, _>("B", Some);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner(&["-c", "12"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-c` is not expected in this context");
+
+    let r = parser.run_inner(&["12", "-c"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-c` is not expected in this context");
+}
+
+#[test]
+fn any_with_invalid_arg() {
+    let a = short('a').argument::<usize>("A").optional();
+    let b = any::<String, _, _>("B", Some);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner(&["-c", "12"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-c` is not expected in this context");
+
+    let r = parser.run_inner(&["12", "-c"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-c` is not expected in this context");
+
+    let r = parser.run_inner(&["-c", "t"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
+
+    let r = parser.run_inner(&["t", "-c"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
+}

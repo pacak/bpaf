@@ -65,9 +65,9 @@ use crate::{
     args::{Arg, State},
     error::{Message, MissingItem},
     from_os_str::parse_os_str,
-    item::ShortLong,
+    item::{Item, ShortLong},
     meta_help::Metavar,
-    Doc, Error, Item, Meta, OptionParser, Parser,
+    Doc, Error, Meta, OptionParser, Parser, SimpleParser,
 };
 
 #[cfg(doc)]
@@ -104,14 +104,14 @@ use crate::{any, env, long, positional, short};
 ///    or an expression.
 #[cfg_attr(not(doctest), doc = include_str!("docs2/named_arg_derive.md"))]
 #[derive(Clone, Debug)]
-pub struct NamedArg {
+pub struct Named {
     pub(crate) short: Vec<char>,
     pub(crate) long: Vec<&'static str>,
     pub(crate) env: Vec<&'static str>,
     pub(crate) help: Option<Doc>,
 }
 
-impl NamedArg {
+impl Named {
     pub(crate) fn flag_item(&self) -> Option<Item> {
         Some(Item::Flag {
             name: ShortLong::try_from(self).ok()?,
@@ -122,7 +122,7 @@ impl NamedArg {
     }
 }
 
-impl NamedArg {
+impl Named {
     /// Add a short name to a flag/switch/argument
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/short_long_env.md"))]
@@ -193,7 +193,7 @@ impl NamedArg {
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/switch.md"))]
     #[must_use]
-    pub fn switch(self) -> ParseFlag<bool> {
+    pub fn switch(self) -> Flag<bool> {
         build_flag_parser(true, Some(false), self)
     }
 
@@ -203,7 +203,7 @@ impl NamedArg {
     /// [`bool`].
     #[cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
     #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> ParseFlag<T>
+    pub fn flag<T>(self, present: T, absent: T) -> Flag<T>
     where
         T: Clone + 'static,
     {
@@ -221,7 +221,7 @@ impl NamedArg {
     /// fields as `req_flag`.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/req_flag.md"))]
     #[must_use]
-    pub fn req_flag<T>(self, present: T) -> ParseFlag<T>
+    pub fn req_flag<T>(self, present: T) -> Flag<T>
     where
         T: Clone + 'static,
     {
@@ -247,7 +247,7 @@ impl NamedArg {
     ///
     /// You can further restrict it using [`adjacent`](ParseArgument::adjacent)
     #[must_use]
-    pub fn argument<T>(self, metavar: &'static str) -> ParseArgument<T>
+    pub fn argument<T>(self, metavar: &'static str) -> Argument<T>
     where
         T: FromStr + 'static,
     {
@@ -299,24 +299,24 @@ impl<T> OptionParser<T> {
     /// To represent multiple possible commands it is convenient to use enums
     #[cfg_attr(not(doctest), doc = include_str!("docs2/command_enum.md"))]
     #[must_use]
-    pub fn command(self, name: &'static str) -> ParseCommand<T>
+    pub fn command(self, name: &'static str) -> SimpleParser<Command<T>>
     where
         T: 'static,
     {
-        ParseCommand {
+        SimpleParser(Command {
             longs: vec![name],
             shorts: Vec::new(),
             help: self.short_descr().map(Into::into),
             subparser: self,
             adjacent: false,
-        }
+        })
     }
 }
 
 /// Builder structure for the [`command`]
 ///
 /// Created with [`command`], implements parser for the inner structure, gives access to [`help`](ParseCommand::help).
-pub struct ParseCommand<T> {
+pub struct Command<T> {
     pub(crate) longs: Vec<&'static str>,
     pub(crate) shorts: Vec<char>,
     // short help!
@@ -325,7 +325,7 @@ pub struct ParseCommand<T> {
     pub(crate) adjacent: bool,
 }
 
-impl<P> ParseCommand<P> {
+impl<T> SimpleParser<Command<T>> {
     /// Add a brief description to a command
     ///
     /// `bpaf` uses this description along with the command name
@@ -377,7 +377,7 @@ impl<P> ParseCommand<P> {
     where
         M: Into<Doc>,
     {
-        self.help = Some(help.into());
+        self.0.help = Some(help.into());
         self
     }
 
@@ -386,7 +386,7 @@ impl<P> ParseCommand<P> {
     /// Behavior is similar to [`short`](NamedArg::short), only first short name is visible.
     #[must_use]
     pub fn short(mut self, short: char) -> Self {
-        self.shorts.push(short);
+        self.0.shorts.push(short);
         self
     }
 
@@ -396,7 +396,7 @@ impl<P> ParseCommand<P> {
     /// name when making the command - this one becomes a hidden alias.
     #[must_use]
     pub fn long(mut self, long: &'static str) -> Self {
-        self.longs.push(long);
+        self.0.longs.push(long);
         self
     }
 
@@ -419,13 +419,13 @@ impl<P> ParseCommand<P> {
     #[cfg_attr(not(doctest), doc = include_str!("docs2/adjacent_command.md"))]
     #[must_use]
     pub fn adjacent(mut self) -> Self {
-        self.adjacent = true;
+        self.0.adjacent = true;
         self
     }
 }
 
-impl<T> Parser<T> for ParseCommand<T> {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+impl<T> Command<T> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         // used to avoid allocations for short names
         let mut tmp = String::new();
         if self.longs.iter().any(|long| args.take_cmd(long))
@@ -495,12 +495,12 @@ impl<T> Parser<T> for ParseCommand<T> {
         }
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         Meta::from(self.item())
     }
 }
 
-impl<T> ParseCommand<T> {
+impl<T> Command<T> {
     fn item(&self) -> Item {
         Item::Command {
             name: self.longs[0],
@@ -512,11 +512,11 @@ impl<T> ParseCommand<T> {
     }
 }
 
-fn build_flag_parser<T>(present: T, absent: Option<T>, named: NamedArg) -> ParseFlag<T>
+fn build_flag_parser<T>(present: T, absent: Option<T>, named: Named) -> Flag<T>
 where
     T: Clone + 'static,
 {
-    ParseFlag {
+    Flag {
         present,
         absent,
         named,
@@ -525,14 +525,14 @@ where
 
 #[derive(Clone)]
 /// Parser for a named switch, created with [`NamedArg::flag`] or [`NamedArg::switch`]
-pub struct ParseFlag<T> {
+pub struct Flag<T> {
     present: T,
     absent: Option<T>,
-    named: NamedArg,
+    named: Named,
 }
 
-impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+impl<T: Clone + 'static> Flag<T> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         if args.take_flag(&self.named) || self.named.env.iter().find_map(std::env::var_os).is_some()
         {
             #[cfg(feature = "autocomplete")]
@@ -563,7 +563,7 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
         }
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         if let Some(item) = self.named.flag_item() {
             item.required(self.absent.is_none())
         } else {
@@ -571,13 +571,12 @@ impl<T: Clone + 'static> Parser<T> for ParseFlag<T> {
         }
     }
 }
-
-impl<T> ParseFlag<T> {
+impl<T> Flag<T> {
     /// Add a help message to `flag`
     ///
     /// See [`NamedArg::help`]
     #[must_use]
-    pub fn help<M>(mut self, help: M) -> Self
+    pub(crate) fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,
     {
@@ -586,7 +585,7 @@ impl<T> ParseFlag<T> {
     }
 }
 
-impl<T> ParseArgument<T> {
+impl<T> Argument<T> {
     /// Add a help message to an `argument`
     ///
     /// See [`NamedArg::help`]
@@ -600,8 +599,8 @@ impl<T> ParseArgument<T> {
     }
 }
 
-fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T> {
-    ParseArgument {
+fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
+    Argument {
         named,
         metavar,
         ty: PhantomData,
@@ -611,14 +610,14 @@ fn build_argument<T>(named: NamedArg, metavar: &'static str) -> ParseArgument<T>
 
 /// Parser for a named argument, created with [`argument`](NamedArg::argument).
 #[derive(Clone)]
-pub struct ParseArgument<T> {
+pub struct Argument<T> {
     ty: PhantomData<T>,
-    named: NamedArg,
+    named: Named,
     metavar: &'static str,
     adjacent: bool,
 }
 
-impl<T> ParseArgument<T> {
+impl<T> Argument<T> {
     /// Restrict parsed arguments to have both flag and a value in the same word:
     ///
     /// In other words adjacent restricted `ParseArgument` would accept `--flag=value` or
@@ -634,7 +633,7 @@ impl<T> ParseArgument<T> {
         self
     }
 
-    fn item(&self) -> Option<Item> {
+    pub(crate) fn item(&self) -> Option<Item> {
         Some(Item::Argument {
             name: ShortLong::try_from(&self.named).ok()?,
             metavar: Metavar(self.metavar),
@@ -644,7 +643,7 @@ impl<T> ParseArgument<T> {
         })
     }
 
-    fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
+    pub(crate) fn take_argument(&self, args: &mut State) -> Result<OsString, Error> {
         match args.take_arg(&self.named, self.adjacent, Metavar(self.metavar)) {
             Ok(Some(w)) => {
                 #[cfg(feature = "autocomplete")]
@@ -683,7 +682,7 @@ impl<T> ParseArgument<T> {
     }
 }
 
-impl<T> Parser<T> for ParseArgument<T>
+impl<T> Parser<T> for Argument<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -705,28 +704,19 @@ where
     }
 }
 
-pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
-    ParsePositional {
-        metavar,
-        help: None,
-        result_type: PhantomData,
-        strict: false,
-    }
-}
-
 /// Parse a positional item, created with [`positional`]
 ///
 /// You can add extra information to positional parsers with [`help`](Self::help)
 /// and [`strict`](Self::strict) on this struct.
 #[derive(Clone)]
-pub struct ParsePositional<T> {
-    metavar: &'static str,
-    help: Option<Doc>,
-    result_type: PhantomData<T>,
-    strict: bool,
+pub struct Positional<T> {
+    pub(crate) metavar: &'static str,
+    pub(crate) help: Option<Doc>,
+    pub(crate) result_type: PhantomData<T>,
+    pub(crate) strict: bool,
 }
 
-impl<T> ParsePositional<T> {
+impl<T> Positional<T> {
     /// Add a help message to a [`positional`] parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -774,7 +764,7 @@ impl<T> ParsePositional<T> {
         self
     }
 
-    fn meta(&self) -> Meta {
+    pub(crate) fn meta(&self) -> Meta {
         let meta = Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
@@ -820,34 +810,30 @@ fn parse_pos_word(
     }
 }
 
-impl<T> Parser<T> for ParsePositional<T>
+impl<T> Positional<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
-    fn eval(&self, args: &mut State) -> Result<T, Error> {
+    pub(crate) fn eval(&self, args: &mut State) -> Result<T, Error> {
         let os = parse_pos_word(args, self.strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
     }
-
-    fn meta(&self) -> Meta {
-        self.meta()
-    }
 }
 
 /// Consume an arbitrary value that satisfies a condition, created with [`any`], implements
 /// [`anywhere`](ParseAny::anywhere).
-pub struct ParseAny<T> {
+pub struct Anything<T> {
     pub(crate) metavar: Doc,
     pub(crate) help: Option<Doc>,
     pub(crate) check: Box<dyn Fn(OsString) -> Option<T>>,
     pub(crate) anywhere: bool,
 }
 
-impl<T> ParseAny<T> {
+impl<T> Anything<T> {
     pub(crate) fn item(&self) -> Item {
         Item::Any {
             metavar: self.metavar.clone(),
@@ -886,7 +872,7 @@ impl<T> ParseAny<T> {
     }
 }
 
-impl<T> Parser<T> for ParseAny<T> {
+impl<T> Parser<T> for Anything<T> {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         for (ix, x) in args.items_iter() {
             let (os, next) = match x {

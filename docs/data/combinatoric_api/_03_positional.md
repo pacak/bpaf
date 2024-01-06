@@ -1,9 +1,9 @@
 #### Positional item parser
 
 Next last simple option type is a parser for positional items. Since there's no name you use
-the [`positional`] function directly. Similar to [`NamedArg::argument`] this function takes
+the [`positional`] function directly. Similar to [`SimpleParser::argument`] this function takes
 a metavariable name and a type parameter in some form. You can also attach the help message
-thanks to [`ParsePositional::help`]
+thanks to [`SimpleParser::help`]
 
 ```rust,id:1
 # use bpaf::*;

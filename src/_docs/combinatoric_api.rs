@@ -38,20 +38,20 @@
 ///
 /// First of all - the switch needs a name - you can start with [`short`](short) or [`long`](long) and add more
 /// names if you want: `long("simple")` or `short('s').long("simple")`. This gives something with
-/// the type [`NamedArg`](NamedArg):
+/// the type [`SimpleParser`](SimpleParser):
 ///
 /// ````rust
 /// # use bpaf::*;
-/// use bpaf::parsers::NamedArg;
-/// fn simple_switch() -> NamedArg {
+/// use bpaf::{SimpleParser, parsers::Named};
+/// fn simple_switch() -> SimpleParser<Named> {
 ///     short('s').long("simple")
 /// }
 /// ````
 ///
-/// With [`NamedArg::help`](NamedArg::help) you can attach a help message that will be used in `--help` output.
+/// With [`SimpleParser::help`](SimpleParser::help) you can attach a help message that will be used in `--help` output.
 ///
-/// From `NamedArg` you make a switch parser by calling [`NamedArg::switch`](NamedArg::switch). Usually, you do it
-/// right away without assigning `NamedArg` to a variable.
+/// From `SimpleParser` you make a switch parser by calling [`SimpleParser::switch`](SimpleParser::switch). Usually, you do it
+/// right away without assigning `SimpleParser` to a variable.
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -127,10 +127,10 @@ pub mod page_2 {}
 /// #### Argument parser
 ///
 /// Next in complexity would be a parser to consume a named argument, such as `-p my_crate`. Same
-/// as with the switch parser it starts from a `NamedArg` but the next method is [`NamedArg::argument`](NamedArg::argument).
-/// This method takes a metavariable name - a short description that will be used in the `--help`
-/// output. `rustc` also needs to know the parameter type you are trying to parse, there are
-/// several ways to do it:
+/// as with the switch parser it starts from a `SimpleParser<Named>` but the next method is
+/// [`SimpleParser::argument`](SimpleParser::argument). This method takes a metavariable name - a short description that
+/// will be used in the `--help` output. `rustc` also needs to know the parameter type you are
+/// trying to parse, there are several ways to do it:
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -173,8 +173,9 @@ pub mod page_2 {}
 /// implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`](Parser::parse), see
 /// the next chapter on how to do that.
 ///
-/// Unlike [`NamedArg::switch`](NamedArg::switch), by default parser for argument requires it to be present on a
-/// command line to succeed. There's several ways to add a value to fallback to, for example [`Parser::fallback`](Parser::fallback).
+/// Unlike [`SimpleParser::switch`](SimpleParser::switch), by default parser for argument requires it to be present on a
+/// command line to succeed. There's several ways to add a value to fallback to, for example
+/// [`Parser::fallback`](Parser::fallback).
 ///
 ///
 ///
@@ -210,9 +211,9 @@ pub mod page_3 {}
 /// #### Positional item parser
 ///
 /// Next last simple option type is a parser for positional items. Since there's no name you use
-/// the [`positional`](positional) function directly. Similar to [`NamedArg::argument`](NamedArg::argument) this function takes
+/// the [`positional`](positional) function directly. Similar to [`SimpleParser::argument`](SimpleParser::argument) this function takes
 /// a metavariable name and a type parameter in some form. You can also attach the help message
-/// thanks to [`ParsePositional::help`](ParsePositional::help)
+/// thanks to [`SimpleParser::help`](SimpleParser::help)
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -302,12 +303,11 @@ pub mod page_4 {}
 
 /// #### Transforming parsers
 ///
-/// Once you have your primitive parsers done you might want to improve them a bit - add fallback
-/// values, or change them to consume multiple items, etc. Every primitive (or composite) parser
-/// implements [`Parser`](Parser) so most of the transformations are coming from this trait.
+/// Once you have your simple parsers implemented you might want to improve them further - add
+/// fallback values, or change them to consume multiple items, etc. Every primitive (or composite)
+/// parser implements [`Parser`](Parser) so most of the transformations are coming from this trait.
 ///
-/// Say you have a parser that takes a crate name as a required argument you want to use in your own
-/// `cargo test` replacement
+/// Say you have a parser that takes a crate name as a required argument:
 ///
 /// ````rust
 /// use bpaf::*;
@@ -353,7 +353,7 @@ pub mod page_4 {}
 /// Transforming a parser with a method from the `Parser` trait usually gives you a new parser back and
 /// you can chain as many transformations as you need.
 ///
-/// Transformations available in the `Parser` trait things like adding fallback values, making
+/// Transformations available in the `Parser` trait are things like adding fallback values, making
 /// the parser optional, making it so it consumes many but at least one value, changing how it is
 /// being shown in `--help` output, adding additional validation and parsing on top and so on.
 ///
@@ -715,8 +715,8 @@ pub mod page_6 {}
 
 /// #### `flag` - general version of `switch`
 ///
-/// `bpaf` contains a few more primitive parsers: [`NamedArg::flag`](NamedArg::flag) and [`NamedArg::req_flag`](NamedArg::req_flag).
-/// First one is a more general case of [`NamedArg::switch`](NamedArg::switch) that lets you to make a parser for a
+/// `bpaf` contains a few more primitive parsers: [`SimpleParser::flag`](SimpleParser::flag) and [`SimpleParser::req_flag`](SimpleParser::req_flag).
+/// First one is a more general case of [`SimpleParser::switch`](SimpleParser::switch) that lets you to make a parser for a
 /// flag, but instead of producing `true` or `false` it can produce one of two values of the same
 /// type.
 ///
@@ -747,9 +747,9 @@ pub mod page_6 {}
 /// ```
 ///
 ///
-/// Usually you'd use [`NamedArg::flag`](NamedArg::flag) to crate an inverted switch like `--no-logging` that would
-/// return `false` when switch is present and true otherwise. But it can also give you types
-/// identical to `bool` but with more meaning: `Logging::Enabled` / `Logging::Disabled`, etc.
+/// You can use [`SimpleParser::flag`](SimpleParser::flag) to crate an inverted switch like `--no-logging` that would
+/// return `false` when switch is present and `true` otherwise or make it produce type with more
+/// meaning such as `Logging::Enabled` / `Logging::Disabled`.
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -776,7 +776,8 @@ pub mod page_7 {}
 
 /// #### Types of failures
 ///
-/// Let's consider a parser that takes an optional numeric argument
+/// Let's consider a parser that takes an optional numeric argument and makes sure it's below 10 if
+/// present.
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -793,12 +794,17 @@ pub mod page_7 {}
 /// # pub fn options() -> OptionParser<Option<usize>> { numeric().to_options() }
 /// ````
 ///
+/// Option is present and is valid
+///
 ///
 ///
 /// ```text
 /// $ app -n 1
 /// Some(1)
 /// ```
+///
+///
+/// Option is missing
 ///
 ///
 ///
@@ -808,11 +814,17 @@ pub mod page_7 {}
 /// ```
 ///
 ///
+/// Option is present, it is a number but it's larger than the validation function allows
+///
+///
 ///
 /// ```text
 /// $ app -n 11
 /// Error: `11`: N must be at or below 10
 /// ```
+///
+///
+/// Option is present, but the value is not a number
 ///
 ///
 ///
@@ -822,16 +834,16 @@ pub mod page_7 {}
 /// ```
 ///
 ///
-/// `short('n').argument("N")` succeeds in first and third cases since the parameter is present and
-/// it is a valid number, second one fails with "value not found", fourth one fails with "value is
-/// not valid".
+/// `short('n').argument("N")` part of the parser succeeds in the first and the third cases since
+/// the parameter is present and it is a valid number, in the second care it fails with "value not
+/// found", and in the fourth case it fails with "value is not valid".
 ///
-/// Result produced by `argument` gets handled by `guard`. Failures in cases 2 and 4
-/// are passed as is, successes are checked with "less than 11" and turned into failures if check
-/// fails - case 3.
+/// Result produced by `argument` gets handled by `guard`. Failures in the second and the fourth
+/// cases are passed as is, successes are checked with "less than 11" and turned into failures if
+/// check fails - in the third case.
 ///
 /// Result of `guard` gets into `optional` which converts present values into `Some` values, "value
-/// not found" errors into `None` and keeps the rest of the failures as is.
+/// not found" types of errors into `None` and keeps the rest of the failures as is.
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -858,9 +870,9 @@ pub mod page_8 {}
 
 /// #### `req_flag` - half of the `flag`
 ///
-/// [`NamedArg::flag`](NamedArg::flag) handles missing value by using second of the provided values,
-/// [`NamedArg::req_flag`](NamedArg::req_flag) instead fails with "value is missing" error - this makes it useful when
-/// making combinations from multiple parsers.
+/// [`SimpleParser::flag`](SimpleParser::flag) handles missing value by using second of the provided values,
+/// [`SimpleParser::req_flag`](SimpleParser::req_flag) instead fails with "value is missing" error - this makes it useful
+/// when making combinations from multiple parsers.
 ///
 /// ````rust
 /// # use bpaf::*;
@@ -920,8 +932,11 @@ pub mod page_8 {}
 /// ```
 ///
 ///
-/// And `bpaf` itself handles the case where both values are present - in this scenario parser
-/// produces just one value so both parsers can't both succeed.
+/// And `bpaf` itself handles the case where both values are present - in this scenario both
+/// parsers can succeed, but in the alternative combination only one parser gets to consume its
+/// arguments. Since combined parser runs only once (there's no [`Parser::many`](Parser::many) or
+/// [`Parser::some`](Parser::some)) present) - only one value is consumed. One of the requirements for parsing to
+/// succeed - all the items from the command line must be consumed by something.
 ///
 ///
 ///
@@ -956,13 +971,13 @@ pub mod page_9 {}
 
 /// #### `any` - parse a single arbitrary item from a command line
 ///
-/// [`any`](any) is designed to consume items that don’t fit into the usual [`NamedArg::flag`](NamedArg::flag)
-/// /[`NamedArg::switch`](NamedArg::switch)/[`NamedArg::argument`](NamedArg::argument)/[`positional`](positional)/[`OptionParser::command`](OptionParser::command)
-/// classification, in most cases you don’t need to use it.
+/// **[`any`](any) is designed to consume items that don’t fit into the usual [`flag`](SimpleParser::flag)
+/// / [`switch`](SimpleParser::switch) / [`argument`](SimpleParser::argument) / [`positional`](positional)
+/// / [`command`](OptionParser::command) classification, in most cases you don’t need to use it**.
 ///
-/// To understand how `any` works you need to learn about positional and named arguments first.
-/// Named argument starts with a name or consists of a name only, positional doesn't have a name
-/// and they are consumed sequentially:
+/// To understand how `any` works you first need to learn about positional and named arguments.
+/// Named argument starts with a name or consists of a name only and can be consumed in any order,
+/// while positional doesn't have a name and are consumed sequentially:
 ///
 /// If the app defines two named parsers with long names `alpha` and `beta` those two user inputs
 /// are identical
@@ -975,7 +990,9 @@ pub mod page_9 {}
 /// --beta --alpha
 /// ````
 ///
-/// But with positional items `alpha` and `beta` results are going to be different.
+/// But with positional items `alpha` and `beta` results are going to be different. Earlier
+/// positional parser in the first example will capture value `alpha`, later positional parser will
+/// capture `beta`. For the second example earlier parser will capture `beta`.
 ///
 /// ````text
 /// alpha beta
@@ -987,18 +1004,18 @@ pub mod page_9 {}
 ///
 /// It is possible to mix named parsers with positional ones, as long as check for positional is
 /// done after. Positional and named parsers won't know that parameters for their conterparts are
-/// present:
+/// present. In this example named parsers will only see presence of `--alpha` and `--beta`, while
+/// positional parser will encounter only `alpha` and `beta`.
 ///
 /// ````text
 /// --alpha --beta alpha beta
 /// ````
 ///
-/// With `any` `bpaf` lets parser gets shown everything and it is up to parser to decide if it
-/// value it gets is a match or not. By default `any` parser behaves as positional and only looks
-/// at the first unconsumed item, but can be modified with
-/// [`ParseAny::anyhere`](crate::parsers::ParseAny::anywhere) to look at all the unconsumed items
-/// and producing the first value it accepts. `check` parameter to `any` should take `String` or
-/// `OsString` as input and decide if parser should match on this value.
+/// Parser created with `any` gets shown everything and it is up to parser to decide if the value it
+/// gets is a match or not. By default `any` parser behaves as positional and only looks at the
+/// first unconsumed item, but can be modified with [`SimpleParser::anyhere`](SimpleParser::anyhere) to look at all the
+/// unconsumed items and producing the first value it accepts. `check` parameter to `any` should
+/// take `String` or `OsString` as input and decide if parser should match on this value.
 ///
 /// Let's make a parser to accept windows style flags (`/name:value`). Parser should take a name -
 /// `"help"` to parse `/help` and produce value T, parsed from `value`.
