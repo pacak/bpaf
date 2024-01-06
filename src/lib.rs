@@ -46,7 +46,7 @@
 //!
 //! Use either derive or combinatoric API and try running it
 //!
-#![cfg_attr(not(doctest), doc = include_str!("docs2/intro.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("_docs/intro.md"))]
 
 //!
 //! ## Consuming items - making `Parser`
