@@ -520,7 +520,7 @@ pub(crate) fn build_argument<T>(named: Named, metavar: &'static str) -> Argument
 #[derive(Clone)]
 pub struct Argument<T> {
     ty: PhantomData<T>,
-    named: Named,
+    pub(crate) named: Named,
     metavar: &'static str,
     adjacent: bool,
 }
