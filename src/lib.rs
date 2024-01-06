@@ -15,12 +15,13 @@
 //!   macros
 //! - [Picking a good datatype](_docs::picking_type) - suggestions on representing user input
 //! - [Testing your parsers](_docs::testing) - how to make sure user facing API stays consistent
+//! - [Cookbook](_docs::cookbook) - assumes familiarity with the basics and explains how to parse
+//!   concrete items
 //! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 //! ----
 //!
 
 // # Quick links
-// - [Cookbook] - assumes familiarity with the basics and explains how to concrete tasks
 // - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
 //   used by the library, oriented for understanding
 
