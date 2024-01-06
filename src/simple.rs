@@ -23,26 +23,26 @@ use std::{marker::PhantomData, str::FromStr};
 pub struct SimpleParser<I>(pub(crate) I);
 
 impl SimpleParser<Named> {
-    /// An alias for [`short`]
+    /// Create a parser that has a short name
     ///
-    /// This method exists only to have all the documentation for simple parsers colleted under the
-    /// same structure, you shouldn't use it directly, use [`short`] instead.
-    #[deprecated = "You should use `short(s)` instead of `SimpleParser::with_short(s)`"]
+    /// **This is an alias for [`short`] standalone function**, and exists to have all the
+    /// constructors for `SimpleParser` collected in one place. You shouldn't use it directly.
     pub fn with_short(name: char) -> Self {
         short(name)
     }
 
-    pub fn short(self, name: char) -> Self {
-        Self(self.0.short(name))
-    }
-
-    /// An alias for [`long`]
+    /// Create a parser that has a long name
     ///
-    /// This method exists only to have all the documentation for simple parsers colleted under the
-    /// same structure, you shouldn't use it directly, use [`long`] instead.
-    #[deprecated = "You should use `long(l)` instead of `SimpleParser::with_long(l)`"]
+    /// **This is an alias for [`ling`] standalone function**, and exists to have all the
+    /// constructors for `SimpleParser` collected in one place. You shouldn't use it directly.
     pub fn with_long(name: &'static str) -> Self {
         long(name)
+    }
+
+    // /// Add a short name to a named parser
+
+    pub fn short(self, name: char) -> Self {
+        Self(self.0.short(name))
     }
 
     pub fn long(self, name: &'static str) -> Self {
@@ -53,7 +53,6 @@ impl SimpleParser<Named> {
     ///
     /// This method exists only to have all the documentation for simple parsers colleted under the
     /// same structure, you shouldn't use it directly, use [`long`] instead.
-    #[deprecated = "You should use `long(l)` instead of `SimpleParser::with_long(l)`"]
     pub fn with_env(name: &'static str) -> Self {
         Self(Named {
             short: Vec::new(),
