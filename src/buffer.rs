@@ -28,6 +28,25 @@ impl From<&[(&str, Style)]> for Doc {
     }
 }
 
+#[test]
+fn from_string_doc_works() {
+    let a = "hello";
+    assert_eq!(Doc::from(&[(a, Style::Text)][..]), Doc::from(a.to_string()));
+}
+
+impl From<String> for Doc {
+    fn from(payload: String) -> Self {
+        let token = Token::Text {
+            bytes: payload.len(),
+            style: Style::Text,
+        };
+        Doc {
+            payload,
+            tokens: vec![token],
+        }
+    }
+}
+
 impl<const N: usize> From<&'static [(&'static str, Style); N]> for Doc {
     fn from(val: &'static [(&'static str, Style); N]) -> Self {
         let mut res = Doc::default();
