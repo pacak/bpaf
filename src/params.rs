@@ -49,6 +49,7 @@ use crate::{any, env, long, positional, short};
 ///
 ///    ```rust
 ///    # use bpaf::*;
+///    # use std::path::PathBuf;
 ///    #[derive(Debug, Clone)]
 ///    pub enum Output {
 ///        ToFile(PathBuf),

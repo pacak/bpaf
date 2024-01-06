@@ -643,3 +643,24 @@ where
         Meta::Optional(Box::new(self.0.inner.meta()))
     }
 }
+
+impl<P> SimpleParser<Optional<P>> {
+    #[must_use]
+    /// Handle parse failures for optional parsers
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line.
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    ///
+    /// Those examples are very artificial and designed to show what difference `catch` makes, to
+    /// actually parse arguments like in examples you should [`parse`](Parser::parse) or construct
+    /// enum with alternative branches
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional_catch.md"))]
+    pub fn catch(mut self) -> Self {
+        self.0.catch = true;
+        self
+    }
+}
