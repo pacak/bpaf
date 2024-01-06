@@ -6,6 +6,8 @@
 - `literal` parser now takes an extra parameter to be closer to `req_flag`
 - removed standalone `command`
 
+### Breaking changes
+
 ### Migration guide 0.9.x -> 0.10.0
 - `literal` parser now takes an extra parameter it will produce to be closer to `req_flag`
   ```diff
