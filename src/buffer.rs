@@ -326,14 +326,14 @@ pub(crate) enum Block {
     Mono,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub(crate) enum Token {
     Text { bytes: usize, style: Style },
     BlockStart(Block),
     BlockEnd(Block),
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq)]
 /// String with styled segments.
 ///
 /// You can add style information to generated documentation and help messages
