@@ -3,7 +3,7 @@ use crate::{
     from_os_str::parse_os_str,
     params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
-    structs::Pure,
+    structs::{Optional, Pure},
     Doc, Error, Meta, Parser, State,
 };
 use std::{marker::PhantomData, str::FromStr};
@@ -628,5 +628,19 @@ impl<T> Parser<T> for SimpleParser<Command<T>> {
 
     fn meta(&self) -> Meta {
         self.0.meta()
+    }
+}
+
+impl<P, T> Parser<Option<T>> for SimpleParser<Optional<P>>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<Option<T>, Error> {
+        let mut len = usize::MAX;
+        crate::structs::parse_option(&self.0.inner, &mut len, args, self.0.catch)
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Optional(Box::new(self.0.inner.meta()))
     }
 }

@@ -645,26 +645,12 @@ where
 /// Apply inner parser, return a value in `Some` if items requested by it are all present, restore
 /// and return `None` if any are missing. Created with [`optional`](Parser::optional). Implements
 /// [`catch`](ParseOptional::catch)
-pub struct ParseOptional<P> {
+pub struct Optional<P> {
     pub(crate) inner: P,
     pub(crate) catch: bool,
 }
 
-impl<T, P> Parser<Option<T>> for ParseOptional<P>
-where
-    P: Parser<T>,
-{
-    fn eval(&self, args: &mut State) -> Result<Option<T>, Error> {
-        let mut len = usize::MAX;
-        parse_option(&self.inner, &mut len, args, self.catch)
-    }
-
-    fn meta(&self) -> Meta {
-        Meta::Optional(Box::new(self.inner.meta()))
-    }
-}
-
-impl<P> ParseOptional<P> {
+impl<P> Optional<P> {
     #[must_use]
     /// Handle parse failures for optional parsers
     ///
@@ -710,7 +696,7 @@ impl<P> ParseMany<P> {
 }
 
 /// try to parse
-fn parse_option<P, T>(
+pub(crate) fn parse_option<P, T>(
     parser: &P,
     len: &mut usize,
     args: &mut State,

@@ -204,8 +204,8 @@ pub mod parsers {
     pub use crate::params::{Anything, Argument, Command, Flag, Named, Positional};
     #[doc(inline)]
     pub use crate::structs::{
-        ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast, ParseMany,
-        ParseOptional, ParseSome,
+        Optional, ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast,
+        ParseMany, ParseSome,
     };
 }
 
@@ -224,8 +224,8 @@ use crate::{
     buffer::MetaInfo,
     parsers::ParseCompShell,
     structs::{
-        ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith, ParseGroupHelp,
-        ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOptional, ParseOrElse,
+        Optional, ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
+        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOrElse,
         ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp, Pure,
     },
 };
@@ -742,14 +742,14 @@ pub trait Parser<T> {
     #[cfg_attr(not(doctest), doc = include_str!("docs2/optional.md"))]
     ///
     #[must_use]
-    fn optional(self) -> ParseOptional<Self>
+    fn optional(self) -> SimpleParser<Optional<Self>>
     where
         Self: Sized + Parser<T>,
     {
-        ParseOptional {
+        SimpleParser(Optional {
             inner: self,
             catch: false,
-        }
+        })
     }
     // }}}
 
