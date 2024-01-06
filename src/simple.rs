@@ -23,12 +23,11 @@ use std::{marker::PhantomData, str::FromStr};
 ///
 /// For named parsers (arguments or flags) you use one of those constructors:
 ///
-/// - [`short`] or its alias - [`SimpleParser::with_short`] - [`long`] or its alias -
-/// [`SimpleParser::with_long`] - [`env`](env()) or its alias - [`SimpleParser::with_env`]
-///
-/// For positional items the parser is [`positional`] or its alias [`SimpleParser::positional`].
-///
-/// To parse something unusual you can use [`any`] or its alias [`SimpleParser::with_any`]
+/// - [`short`] or its alias - [`SimpleParser::with_short`]
+/// - [`long`] or its alias - [`SimpleParser::with_long`]
+/// - [`env`](env()) or its alias - [`SimpleParser::with_env`]
+/// - For positional items the parser is [`positional`] or its alias [`SimpleParser::positional`]
+/// - To parse something unusual you can use [`any`] or its alias [`SimpleParser::with_any`]
 ///
 /// # Ways to consume `SimpleParser`
 ///
