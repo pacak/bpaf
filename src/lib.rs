@@ -5,36 +5,24 @@
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
-
 //!
-//! ----
-//! # Quick links
-//! - [Introduction](_docs::intro) - features, design goals, restrictions
+//! # Links
+//! - [Introduction](_docs::goals) - features, design goals, restrictions
 //! - [Types of arguments](_docs::types_of_arguments) - common types of command line options and
 //!   conventions (optional)
 //! - [Derive API tutorial](_docs::derive_api) - create a parser by defining a structure
 //! - [Combinatoric API tutorial](_docs::combinatoric_api) - Parse arguments without using proc
 //!   macros
 //! - [Picking a good datatype](_docs::picking_type) - suggestions on representing user input
+//! - [Testing your parsers](_docs::testing) - how to make sure user facing API stays consistent
 //! - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 //! ----
 //!
 
 // # Quick links
-// - [x] [Introduction](_documentation::_0_intro) - features, design goals, restrictions
-// - [x] [Tutorials](_documentation::_1_tutorials) - practical learning oriented information and
-//   examples to get you started
-// - [x] [Types of arguments](_documentation::_1_tutorials::_0_types_of_arguments) -
-//     common types of line options and conventions (optional)
-// - [x] [Combinatoric API](_documentation::_1_tutorials::_1_combinatoric_api)  -
-//     Parse arguments without using proc macros
-// - [x] [Derive API](_documentation::_1_tutorials::_2_derive_api) -
-//     Create a parser by defining a structure
-// - [How-to and guides](_documentation::_2_howto) - assumes familiarity with the basics and
-//   explains how to concrete tasks
+// - [Cookbook] - assumes familiarity with the basics and explains how to concrete tasks
 // - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
 //   used by the library, oriented for understanding
-// - [FAQ](https://github.com/pacak/bpaf/discussions) - questions from library users
 
 //! # A quick start
 //!
