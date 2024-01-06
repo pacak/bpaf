@@ -115,7 +115,7 @@ impl SimpleParser<Named> {
     where
         V: Clone + 'static,
     {
-        SimpleParser(self.0.flag(present, absent))
+        SimpleParser(build_flag_parser(present, Some(absent), self.0))
     }
 
     /// Required flag with custom value

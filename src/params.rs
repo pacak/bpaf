@@ -197,19 +197,6 @@ impl Named {
         build_flag_parser(true, Some(false), self)
     }
 
-    /// Flag with custom present/absent values
-    ///
-    /// More generic version of [`switch`](NamedArg::switch) that can use arbitrary type instead of
-    /// [`bool`].
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/flag.md"))]
-    #[must_use]
-    pub fn flag<T>(self, present: T, absent: T) -> Flag<T>
-    where
-        T: Clone + 'static,
-    {
-        build_flag_parser(present, Some(absent), self)
-    }
-
     /// Argument
     ///
     /// A short (`-a`) or long (`--name`) name followed by  either a space or `=` and
