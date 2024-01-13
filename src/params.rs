@@ -524,26 +524,10 @@ pub struct Argument<T> {
     ty: PhantomData<T>,
     pub(crate) named: Named,
     metavar: &'static str,
-    adjacent: bool,
+    pub(crate) adjacent: bool,
 }
 
 impl<T> Argument<T> {
-    /// Restrict parsed arguments to have both flag and a value in the same word:
-    ///
-    /// In other words if you restruct `SimpleParser<Argument>` parser with `adjacent` it will
-    /// accept `-fbar` or `--flag=bar` but not `--flag value`. Note, this is different from
-    /// [`adjacent`](crate::ParseCon::adjacent), but plays a similar role.
-    ///
-    /// Should allow to parse some of the more unusual things and might require users to be more
-    /// specific.
-    ///
-    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_argument.md"))]
-    #[must_use]
-    pub fn adjacent(mut self) -> Self {
-        self.adjacent = true;
-        self
-    }
-
     pub(crate) fn item(&self) -> Option<Item> {
         Some(Item::Argument {
             name: ShortLong::try_from(&self.named).ok()?,

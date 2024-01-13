@@ -744,13 +744,11 @@ impl<T: Clone + 'static> Parser<T> for Pure<T> {
     }
 }
 
-pub struct ParsePureWith<T, F, E>(pub(crate) F)
+pub struct PureWith<T, F, E>(pub(crate) F)
 where
     F: Fn() -> Result<T, E>,
     E: ToString;
-impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T>
-    for ParsePureWith<T, F, E>
-{
+impl<T: Clone + 'static, F: Fn() -> Result<T, E>, E: ToString> Parser<T> for PureWith<T, F, E> {
     fn eval(&self, _args: &mut State) -> Result<T, Error> {
         match (self.0)() {
             Ok(ok) => Ok(ok),

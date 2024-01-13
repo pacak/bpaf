@@ -225,8 +225,8 @@ use crate::{
     parsers::ParseCompShell,
     structs::{
         Many, Optional, ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
-        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse, ParsePureWith,
-        ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp, Pure,
+        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse, ParseSome,
+        ParseUsage, ParseWith, ParseWithGroupHelp, Pure, PureWith,
     },
 };
 
@@ -1270,7 +1270,7 @@ pub trait Parser<T> {
 ///
 /// See also [`pure_with`] for a pure computation that can fail.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/pure.md"))]
+#[cfg_attr(not(doctest), doc = include_str!("_docs/pure.md"))]
 #[must_use]
 pub fn pure<T>(val: T) -> Pure<T> {
     Pure(val)
@@ -1288,13 +1288,13 @@ pub fn pure<T>(val: T) -> Pure<T> {
 ///
 /// See also [`pure`] for a pure computation that can't fail.
 ///
-#[cfg_attr(not(doctest), doc = include_str!("docs2/pure_with.md"))]
-pub fn pure_with<T, F, E>(val: F) -> ParsePureWith<T, F, E>
+#[cfg_attr(not(doctest), doc = include_str!("_docs/pure_with.md"))]
+pub fn pure_with<T, F, E>(val: F) -> PureWith<T, F, E>
 where
     F: Fn() -> Result<T, E>,
     E: ToString,
 {
-    ParsePureWith(val)
+    PureWith(val)
 }
 
 /// Fail with a fixed error message

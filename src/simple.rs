@@ -3,10 +3,13 @@ use crate::{
     from_os_str::parse_os_str,
     params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
-    structs::{parse_option, Many, Optional, Pure},
+    structs::{parse_option, Many, Optional, Pure, PureWith},
     Doc, Error, Meta, Parser, State,
 };
 use std::{marker::PhantomData, str::FromStr};
+
+#[cfg(doc)]
+use crate::{pure, pure_with};
 
 /// A basic building block for your parsers
 ///
@@ -94,7 +97,9 @@ impl SimpleParser<Named> {
     pub fn with_short(name: char) -> Self {
         short(name)
     }
+}
 
+impl SimpleParser<Named> {
     /// Create a parser that has a long name
     ///
     /// **This is an alias for [`long`] standalone function**, and exists to have all the
@@ -102,7 +107,9 @@ impl SimpleParser<Named> {
     pub fn with_long(name: &'static str) -> Self {
         long(name)
     }
+}
 
+impl SimpleParser<Named> {
     /// Add a short name to a named parser
     ///
     /// This method will add a short name to a named parser. `bpaf` would use first name as a
@@ -114,7 +121,9 @@ impl SimpleParser<Named> {
         self.0.short.push(short_name);
         self
     }
+}
 
+impl SimpleParser<Named> {
     /// Add a long name to a named parser
     ///
     /// This method will add a long name to a named parser. `bpaf` would use first name as a
@@ -126,7 +135,9 @@ impl SimpleParser<Named> {
         self.0.long.push(long_name);
         self
     }
+}
 
+impl SimpleParser<Named> {
     /// Create a parser for an environment variable
     ///
     /// **This is an alias for [`env`](env()) standalone function**, and exists to have all the
@@ -139,7 +150,9 @@ impl SimpleParser<Named> {
             help: None,
         })
     }
+}
 
+impl SimpleParser<Named> {
     /// Add a fallback to an environment to a named parser
     ///
     /// Parser will try to consume command line items first, if they are not present - it will try
@@ -159,7 +172,9 @@ impl SimpleParser<Named> {
         self.0.env.push(name);
         self
     }
+}
 
+impl SimpleParser<Named> {
     /// Add a help message to a named parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -180,7 +195,9 @@ impl SimpleParser<Named> {
         self.0.help = Some(help.into());
         self
     }
+}
 
+impl SimpleParser<Named> {
     /// Simple boolean flag
     ///
     /// A special case of a [`flag`](SimpleParser::flag) that gets decoded into a `bool`, mostly
@@ -195,7 +212,9 @@ impl SimpleParser<Named> {
     pub fn switch(self) -> SimpleParser<Flag<bool>> {
         SimpleParser(build_flag_parser(true, Some(false), self.0))
     }
+}
 
+impl SimpleParser<Named> {
     /// Flag with custom present/absent values
     ///
     /// This is a more generic version of [`switch`](SimpleParser::switch). With `flag` you can
@@ -215,7 +234,9 @@ impl SimpleParser<Named> {
     {
         SimpleParser(build_flag_parser(present, Some(absent), self.0))
     }
+}
 
+impl SimpleParser<Named> {
     /// Required flag with custom value
     ///
     /// Similar to [`flag`](SimpleParser::flag) required flag consumed no option arguments, but
@@ -234,7 +255,9 @@ impl SimpleParser<Named> {
     {
         SimpleParser(build_flag_parser(present, None, self.0))
     }
+}
 
+impl SimpleParser<Named> {
     /// Parse a named option argument
     ///
     /// This parser consumes a short (`-a`) or long (`--name`) name followed by  either a space or
@@ -286,14 +309,66 @@ impl<T> SimpleParser<Flag<T>> {
 }
 
 impl<T> SimpleParser<Argument<T>> {
-    pub fn adjacent(self) -> Self {
-        Self(self.0.adjacent())
+    /// Restrict parsed arguments to have both flag and a value in the same word:
+    ///
+    /// In other words if you restruct `SimpleParser<Argument>` parser with `adjacent` it will
+    /// accept `-fbar` or `--flag=bar` but not `--flag value`. Note, this is different from
+    /// [`adjacent`](crate::ParseCon::adjacent), but plays a similar role.
+    ///
+    /// Should allow to parse some of the more unusual things and might require users to be more
+    /// specific.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/adjacent_argument.md"))]
+    #[must_use]
+    pub fn adjacent(mut self) -> Self {
+        self.0.adjacent = true;
+        self
     }
 }
 
 impl<T> SimpleParser<Pure<T>> {
-    pub fn pure(val: T) -> Self {
+    /// Parser that produces a fixed value
+    ///
+    /// This parser produces `T` without consuming anything from the command line, which can be useful
+    /// with [`construct!`]. As with any parsers, `T` should be `Clone` and `Debug`.
+    ///
+    /// Both `pure` and [`pure_with`] are designed to put values into structures, to generate fallback
+    /// you should be using [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with).
+    ///
+    /// See also [`pure_with`] for a pure computation that can fail.
+    ///
+    /// **This is an alias for [`pure`] standalone function**, and exists to have all the constructors
+    /// for [`SimpleParser`] collected in one place. You shouldn’t use it directly.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/pure.md"))]
+    pub fn with_pure(val: T) -> Self {
         Self(Pure(val))
+    }
+}
+
+impl<T, F, E> SimpleParser<PureWith<T, F, E>>
+where
+    F: Fn() -> Result<T, E>,
+    E: ToString,
+{
+    /// Wrap a calculated value into a `Parser`
+    ///
+    /// This parser represents a possibly failing equivalent to [`pure`].
+    /// It produces `T` by invoking the provided callback without consuming anything from the command
+    /// line, which can be useful with [`construct!`]. As with any parsers, `T` should be `Clone`
+    /// and `Debug`.
+    ///
+    /// Both [`pure`] and `pure_with` are designed to put values into structures, to generate fallback
+    /// you should be using [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with).
+    ///
+    /// See also [`pure`] for a pure computation that can't fail.
+    ///
+    /// **This is an alias for [`pure_with`] standalone function**, and exists to have all the constructors
+    /// for [`SimpleParser`] collected in one place. You shouldn’t use it directly.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/pure_with.md"))]
+    pub fn with_pure_with(val: F) -> PureWith<T, F, E> {
+        PureWith(val)
     }
 }
 
