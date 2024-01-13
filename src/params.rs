@@ -1,4 +1,4 @@
-use std::{ffi::OsString, marker::PhantomData, str::FromStr};
+//! This module exposes type tags to represent different modes of operation of [`SimpleParser`]
 
 use crate::{
     args::{Arg, State},
@@ -8,6 +8,7 @@ use crate::{
     meta_help::Metavar,
     Doc, Error, Meta, OptionParser, Parser, SimpleParser,
 };
+use std::{ffi::OsString, marker::PhantomData, str::FromStr};
 
 #[cfg(doc)]
 use crate::{any, env, long, positional, short};
@@ -16,7 +17,7 @@ use crate::{any, env, long, positional, short};
 ///
 /// # Combinatoric usage
 ///
-/// Named items ([`argument`](SimpleParser::argument), [`flag`](SimpleParser::flag),
+/// Named items ([`argument`](SimpleParser::argument), [`flag`](SimpleParser::<Named>::flag),
 /// [`switch`](SimpleParser::switch) or [`req_flag`](SimpleParser::req_flag]) can have up to 2
 /// visible names (one short and one long) and as many hidden short and long aliases as needed.
 /// It's also possible to consume items from environment variables using [`env`](SimpleParser::env()).

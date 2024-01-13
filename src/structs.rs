@@ -1,4 +1,4 @@
-//! Structures that implement different methods on [`Parser`] trait
+//! Structs that implement different methods from [`Parser`] trait
 use crate::{
     args::State,
     buffer::MetaInfo,
@@ -7,14 +7,22 @@ use crate::{
 };
 use std::marker::PhantomData;
 
-/// Parser that substitutes missing value with a function results but not parser
-/// failure, created with [`fallback_with`](Parser::fallback_with).
+/// Substitute missing value by a function result
+///
+/// Substitutes missing value, not a parser failure. Created with
+/// [`fallback_with`](Parser::fallback_with).
+///
+/// # Type parameters
+///
+/// - `T` - parse results
+/// - `P` - inner parser
+/// - `F` - function to produce the fallback result
+/// - `E` - error produced by a fallback function
 pub struct ParseFallbackWith<T, P, F, E> {
     pub(crate) inner: P,
-    pub(crate) inner_res: PhantomData<T>,
     pub(crate) fallback: F,
     pub(crate) value_str: String,
-    pub(crate) err: PhantomData<E>,
+    pub(crate) ctx: PhantomData<(T, E)>,
 }
 
 impl<T, P, F, E> Parser<T> for ParseFallbackWith<T, P, F, E>
@@ -673,12 +681,12 @@ impl<P> Optional<P> {
 
 /// Apply inner parser several times and collect results into `Vec`, created with
 /// [`many`](Parser::many), implements [`catch`](ParseMany::catch).
-pub struct ParseMany<P> {
+pub struct Many<P> {
     pub(crate) inner: P,
     pub(crate) catch: bool,
 }
 
-impl<P> ParseMany<P> {
+impl<P> Many<P> {
     #[must_use]
     /// Handle parse failures
     ///
@@ -744,7 +752,7 @@ where
     }
 }
 
-impl<T, P> Parser<Vec<T>> for ParseMany<P>
+impl<T, P> Parser<Vec<T>> for Many<P>
 where
     P: Parser<T>,
 {

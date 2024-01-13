@@ -204,8 +204,8 @@ pub mod parsers {
     pub use crate::params::{Anything, Argument, Command, Flag, Named, Positional};
     #[doc(inline)]
     pub use crate::structs::{
-        Optional, ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith, ParseLast,
-        ParseMany, ParseSome,
+        Many, Optional, ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith,
+        ParseLast, ParseSome,
     };
 }
 
@@ -224,9 +224,9 @@ use crate::{
     buffer::MetaInfo,
     parsers::ParseCompShell,
     structs::{
-        Optional, ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
-        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMany, ParseMap, ParseOrElse,
-        ParsePureWith, ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp, Pure,
+        Many, Optional, ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
+        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse, ParsePureWith,
+        ParseSome, ParseUsage, ParseWith, ParseWithGroupHelp, Pure,
     },
 };
 
@@ -638,7 +638,7 @@ pub trait Parser<T> {
     /// Consume zero or more items from a command line and collect them into a [`Vec`]
     ///
     /// `many` preserves any parsing failures and propagates them outwards, with an extra
-    /// [`catch`](ParseMany::catch) statement you can instead stop at the first value
+    /// [`catch`](SimpleParser::<Many>::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
     /// `many` will collect at most one result that does not consume anything from the argument
@@ -654,11 +654,11 @@ pub trait Parser<T> {
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
     /// element to succeed, [`collect`](Parser::collect) collects results into a [`FromIterator`]
     /// structure
-    fn many(self) -> ParseMany<Self>
+    fn many(self) -> Many<Self>
     where
         Self: Sized,
     {
-        ParseMany {
+        Many {
             inner: self,
             catch: false,
         }
@@ -730,7 +730,7 @@ pub trait Parser<T> {
     /// Turn a required argument into an optional one
     ///
     /// `optional` converts any missing items into `None` and passes the remaining parsing
-    /// failures untouched. With an extra [`catch`](ParseOptional::catch) statement, you can handle
+    /// failures untouched. With an extra [`catch`](SimpleParser::<Optional>::catch) statement, you can handle
     /// those failures too.
     ///
     /// # Derive usage
@@ -930,10 +930,9 @@ pub trait Parser<T> {
     {
         ParseFallbackWith {
             inner: self,
-            inner_res: PhantomData,
             fallback,
             value_str: String::new(),
-            err: PhantomData,
+            ctx: PhantomData,
         }
     }
     // }}}
