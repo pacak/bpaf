@@ -651,32 +651,10 @@ where
 }
 
 /// Apply inner parser, return a value in `Some` if items requested by it are all present, restore
-/// and return `None` if any are missing. Created with [`optional`](Parser::optional). Implements
-/// [`catch`](ParseOptional::catch)
+/// and return `None` if any are missing. Created with [`optional`](Parser::optional).
 pub struct Optional<P> {
     pub(crate) inner: P,
     pub(crate) catch: bool,
-}
-
-impl<P> Optional<P> {
-    #[must_use]
-    /// Handle parse failures for optional parsers
-    ///
-    /// Can be useful to decide to skip parsing of some items on a command line.
-    /// When parser succeeds - `catch` version would return a value as usual
-    /// if it fails - `catch` would restore all the consumed values and return None.
-    ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
-    ///
-    /// Those examples are very artificial and designed to show what difference `catch` makes, to
-    /// actually parse arguments like in examples you should [`parse`](Parser::parse) or construct
-    /// enum with alternative branches
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional_catch.md"))]
-    pub fn catch(mut self) -> Self {
-        self.catch = true;
-        self
-    }
 }
 
 /// Apply inner parser several times and collect results into `Vec`, created with
@@ -749,21 +727,6 @@ where
                 Err(Error(err))
             }
         }
-    }
-}
-
-impl<T, P> Parser<Vec<T>> for Many<P>
-where
-    P: Parser<T>,
-{
-    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
-        let mut len = usize::MAX;
-        std::iter::from_fn(|| parse_option(&self.inner, &mut len, args, self.catch).transpose())
-            .collect::<Result<Vec<T>, Error>>()
-    }
-
-    fn meta(&self) -> Meta {
-        Meta::Many(Box::new(Meta::Optional(Box::new(self.inner.meta()))))
     }
 }
 

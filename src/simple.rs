@@ -3,7 +3,7 @@ use crate::{
     from_os_str::parse_os_str,
     params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
-    structs::{Optional, Pure},
+    structs::{parse_option, Many, Optional, Pure},
     Doc, Error, Meta, Parser, State,
 };
 use std::{marker::PhantomData, str::FromStr};
@@ -652,13 +652,32 @@ impl<P> SimpleParser<Optional<P>> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
+    /// There's several parser types support this attribute: `Optional`, `Many`
+    /// and `Some`, behavior should be similar for all of them.
     ///
-    /// Those examples are very artificial and designed to show what difference `catch` makes, to
-    /// actually parse arguments like in examples you should [`parse`](Parser::parse) or construct
-    /// enum with alternative branches
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/optional_catch.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/optional_catch.md"))]
+    pub fn catch(mut self) -> Self {
+        self.0.catch = true;
+        self
+    }
+}
+
+impl<P, T> Parser<Vec<T>> for SimpleParser<Many<P>>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
+        let mut len = usize::MAX;
+        std::iter::from_fn(|| parse_option(&self.0.inner, &mut len, args, self.0.catch).transpose())
+            .collect::<Result<Vec<T>, Error>>()
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Optional(Box::new(self.0.inner.meta()))))
+    }
+}
+
+impl<P> SimpleParser<Many<P>> {
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
         self

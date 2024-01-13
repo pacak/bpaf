@@ -654,14 +654,14 @@ pub trait Parser<T> {
     /// [`some`](Parser::some) also collects results to a vector but requires at least one
     /// element to succeed, [`collect`](Parser::collect) collects results into a [`FromIterator`]
     /// structure
-    fn many(self) -> Many<Self>
+    fn many(self) -> SimpleParser<Many<Self>>
     where
         Self: Sized,
     {
-        Many {
+        SimpleParser(Many {
             inner: self,
             catch: false,
-        }
+        })
     }
     // }}}
 

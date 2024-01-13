@@ -3,7 +3,7 @@
 pub mod combinatoric_api;
 pub mod cookbook;
 pub mod derive_api;
-pub mod intro;
+pub mod goals;
 pub mod picking_type;
 pub mod shell_completion;
 pub mod testing;
