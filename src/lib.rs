@@ -204,8 +204,8 @@ pub mod parsers {
     pub use crate::params::{Anything, Argument, Command, Flag, Named, Positional};
     #[doc(inline)]
     pub use crate::structs::{
-        Many, Optional, ParseCollect, ParseCon, ParseCount, ParseFallback, ParseFallbackWith,
-        ParseLast, ParseSome,
+        Many, Many1, Optional, ParseCollect, ParseCon, ParseCount, ParseFallback,
+        ParseFallbackWith, ParseLast,
     };
 }
 
@@ -224,8 +224,8 @@ use crate::{
     buffer::MetaInfo,
     parsers::ParseCompShell,
     structs::{
-        Many, Optional, ParseCollect, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
-        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse, ParseSome,
+        Many, Many1, Optional, ParseCollect, ParseCount, ParseFail, ParseFallback,
+        ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse,
         ParseUsage, ParseWith, ParseWithGroupHelp, Pure, PureWith,
     },
 };
@@ -714,15 +714,15 @@ pub trait Parser<T> {
     /// structure
 
     #[must_use]
-    fn some(self, message: &'static str) -> ParseSome<Self>
+    fn some(self, message: &'static str) -> SimpleParser<Many1<Self>>
     where
         Self: Sized + Parser<T>,
     {
-        ParseSome {
+        SimpleParser(Many1 {
             inner: self,
             message,
             catch: false,
-        }
+        })
     }
     // }}}
 

@@ -122,52 +122,11 @@ where
 
 /// Apply inner parser several times and collect results into `Vec`, created with
 /// [`some`](Parser::some), requires for at least one item to be available to succeed.
-/// Implements [`catch`](ParseMany::catch)
-pub struct ParseSome<P> {
+
+pub struct Many1<P> {
     pub(crate) inner: P,
     pub(crate) message: &'static str,
     pub(crate) catch: bool,
-}
-
-impl<P> ParseSome<P> {
-    #[must_use]
-    /// Handle parse failures
-    ///
-    /// Can be useful to decide to skip parsing of some items on a command line
-    /// When parser succeeds - `catch` version would return a value as usual
-    /// if it fails - `catch` would restore all the consumed values and return None.
-    ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
-    pub fn catch(mut self) -> Self {
-        self.catch = true;
-        self
-    }
-}
-
-impl<T, P> Parser<Vec<T>> for ParseSome<P>
-where
-    P: Parser<T>,
-{
-    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
-        let mut res = Vec::new();
-        let mut len = usize::MAX;
-
-        while let Some(val) = parse_option(&self.inner, &mut len, args, self.catch)? {
-            res.push(val);
-        }
-
-        if res.is_empty() {
-            Err(Error(Message::ParseSome(self.message)))
-        } else {
-            Ok(res)
-        }
-    }
-
-    fn meta(&self) -> Meta {
-        Meta::Many(Box::new(Meta::Required(Box::new(self.inner.meta()))))
-    }
 }
 
 /// Apply inner parser several times and collect results into `FromIterator`, created with
@@ -681,7 +640,7 @@ impl<P> Many<P> {
     }
 }
 
-/// try to parse
+/// Try to parse a single value
 pub(crate) fn parse_option<P, T>(
     parser: &P,
     len: &mut usize,

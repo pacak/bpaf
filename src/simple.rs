@@ -3,7 +3,7 @@ use crate::{
     from_os_str::parse_os_str,
     params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
-    structs::{parse_option, Many, Optional, Pure, PureWith},
+    structs::{parse_option, Many, Many1, Optional, Pure, PureWith},
     Doc, Error, Meta, Parser, State,
 };
 use std::{marker::PhantomData, str::FromStr};
@@ -744,7 +744,7 @@ where
     fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
         let mut len = usize::MAX;
         std::iter::from_fn(|| parse_option(&self.0.inner, &mut len, args, self.0.catch).transpose())
-            .collect::<Result<Vec<T>, Error>>()
+            .collect()
     }
 
     fn meta(&self) -> Meta {
@@ -753,6 +753,56 @@ where
 }
 
 impl<P> SimpleParser<Many<P>> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/many_catch.md"))]
+    pub fn catch(mut self) -> Self {
+        self.0.catch = true;
+        self
+    }
+}
+
+impl<P, T> Parser<Vec<T>> for SimpleParser<Many1<P>>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<Vec<T>, Error> {
+        let mut len = usize::MAX;
+        let r = std::iter::from_fn(|| {
+            parse_option(&self.0.inner, &mut len, args, self.0.catch).transpose()
+        })
+        .collect();
+
+        if len == usize::MAX {
+            Err(Error(Message::ParseSome(self.0.message)))
+        } else {
+            r
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Required(Box::new(self.0.inner.meta()))))
+    }
+}
+
+impl<P> SimpleParser<Many1<P>> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/many1_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
         self
