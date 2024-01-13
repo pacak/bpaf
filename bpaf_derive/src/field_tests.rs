@@ -321,10 +321,22 @@ fn many_catch() {
 }
 
 #[test]
-fn collect_catch() {
+fn collect_catch_vec() {
     let input: NamedField = parse_quote! {
         #[bpaf(argument("FILE"), collect, catch)]
         files: Vec<std::path::PathBuf>
+    };
+    let output = quote! {
+        ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").collect().catch()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn collect_catch_set() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(argument("FILE"), collect, catch)]
+        files: BTreeSet<std::path::PathBuf>
     };
     let output = quote! {
         ::bpaf::long("files").argument::<std::path::PathBuf>("FILE").collect().catch()

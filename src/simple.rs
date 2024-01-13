@@ -3,7 +3,7 @@ use crate::{
     from_os_str::parse_os_str,
     params::{build_argument, build_flag_parser, Anything, Argument, Flag, Named},
     parsers::{Command, Positional},
-    structs::{parse_option, Many, Many1, Optional, Pure, PureWith},
+    structs::{parse_option, Collect, Many, Many1, Optional, Pure, PureWith},
     Doc, Error, Meta, Parser, State,
 };
 use std::{marker::PhantomData, str::FromStr};
@@ -803,6 +803,39 @@ impl<P> SimpleParser<Many1<P>> {
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
     #[cfg_attr(not(doctest), doc = include_str!("_docs/many1_catch.md"))]
+    pub fn catch(mut self) -> Self {
+        self.0.catch = true;
+        self
+    }
+}
+
+impl<P, T, C> Parser<C> for SimpleParser<Collect<P, C, T>>
+where
+    P: Parser<T>,
+    C: FromIterator<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<C, Error> {
+        let mut len = usize::MAX;
+        std::iter::from_fn(|| parse_option(&self.0.inner, &mut len, args, self.0.catch).transpose())
+            .collect()
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Many(Box::new(Meta::Required(Box::new(self.0.inner.meta()))))
+    }
+}
+
+impl<P, T, C> SimpleParser<Collect<P, C, T>> {
+    #[must_use]
+    /// Handle parse failures
+    ///
+    /// Can be useful to decide to skip parsing of some items on a command line
+    /// When parser succeeds - `catch` version would return a value as usual
+    /// if it fails - `catch` would restore all the consumed values and return None.
+    ///
+    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
+    /// and [`ParseSome`], behavior should be identical for all of them.
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
         self

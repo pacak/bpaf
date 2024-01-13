@@ -204,8 +204,8 @@ pub mod parsers {
     pub use crate::params::{Anything, Argument, Command, Flag, Named, Positional};
     #[doc(inline)]
     pub use crate::structs::{
-        Many, Many1, Optional, ParseCollect, ParseCon, ParseCount, ParseFallback,
-        ParseFallbackWith, ParseLast,
+        Collect, Many, Many1, Optional, ParseCon, ParseCount, ParseFallback, ParseFallbackWith,
+        ParseLast,
     };
 }
 
@@ -224,9 +224,9 @@ use crate::{
     buffer::MetaInfo,
     parsers::ParseCompShell,
     structs::{
-        Many, Many1, Optional, ParseCollect, ParseCount, ParseFail, ParseFallback,
-        ParseFallbackWith, ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse,
-        ParseUsage, ParseWith, ParseWithGroupHelp, Pure, PureWith,
+        Collect, Many, Many1, Optional, ParseCount, ParseFail, ParseFallback, ParseFallbackWith,
+        ParseGroupHelp, ParseGuard, ParseHide, ParseLast, ParseMap, ParseOrElse, ParseUsage,
+        ParseWith, ParseWithGroupHelp, Pure, PureWith,
     },
 };
 
@@ -680,16 +680,16 @@ pub trait Parser<T> {
     /// `collect` will collect at most one result that does not consume anything from the argument
     /// list allowing using it in combination of any parsers with a fallback. After the first one
     /// it will keep collecting the results as long as they consume something.
-    fn collect<C>(self) -> ParseCollect<Self, C, T>
+    fn collect<C>(self) -> SimpleParser<Collect<Self, C, T>>
     where
         C: FromIterator<T>,
         Self: Sized,
     {
-        ParseCollect {
+        SimpleParser(Collect {
             inner: self,
             catch: false,
             ctx: PhantomData,
-        }
+        })
     }
     // }}}
 
