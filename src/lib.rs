@@ -699,20 +699,19 @@ pub trait Parser<T> {
     /// Takes a string used as an error message if there are no specified parameters
     ///
     /// `some` preserves any parsing failures and propagates them outwards, with an extra
-    /// [`catch`](ParseSome::catch) statement you can instead stop at the first value
+    /// [`catch`](SimpleParser::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
     /// `some` will collect at most one result that does not consume anything from the argument
     /// list allowing using it in combination with any parsers with a fallback. After the first
     /// one, it will keep collecting the results as long as they consume something.
     ///
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/some.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/many1.md"))]
     ///
     /// # See also
     /// [`many`](Parser::many) also collects results to a vector but succeeds with
     /// no matching values. [`collect`](Parser::collect) collects results into a [`FromIterator`]
     /// structure
-
     #[must_use]
     fn some(self, message: &'static str) -> SimpleParser<Many1<Self>>
     where
@@ -753,6 +752,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // count {{{
     #[must_use]
     /// Count how many times the inner parser succeeds
     ///
@@ -770,7 +770,9 @@ pub trait Parser<T> {
             ctx: PhantomData,
         }
     }
+    // }}}
 
+    // last {{{
     #[must_use]
     /// Apply the inner parser as many times as it succeeds, return the last value
     ///
@@ -782,6 +784,7 @@ pub trait Parser<T> {
     {
         ParseLast { inner: self }
     }
+    // }}}
 
     // parse
     // {{{ parse
@@ -1043,6 +1046,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // hide_usage {{{
     /// Ignore this parser when generating a usage line
     ///
     /// Parsers hidden from usage will still show up in the available arguments list. Best used on
@@ -1060,7 +1064,9 @@ pub trait Parser<T> {
             usage: Doc::default(),
         }
     }
+    // }}}
 
+    // custom_usage {{{
     /// Customize how this parser looks like in the usage line
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/custom_usage.md"))]
@@ -1075,6 +1081,7 @@ pub trait Parser<T> {
             usage: usage.into(),
         }
     }
+    // }}}
 
     // {{{ group_help
     /// Attach a help message to a complex parser
@@ -1094,6 +1101,7 @@ pub trait Parser<T> {
     }
     // }}}
 
+    // group_help_with {{{
     /// Make a help message for a complex parser from its [`MetaInfo`]
     ///
     #[cfg_attr(not(doctest), doc = include_str!("docs2/with_group_help.md"))]
@@ -1104,6 +1112,7 @@ pub trait Parser<T> {
     {
         ParseWithGroupHelp { inner: self, f }
     }
+    // }}}
 
     // {{{ comp
     /// Dynamic shell completion
