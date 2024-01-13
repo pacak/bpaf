@@ -123,7 +123,7 @@ where
     }
 }
 
-/// Apply inner parser several times and collect results into `Vec`, created with
+/// Runs the inner parser several times and collect results into `Vec`, created with
 /// [`some`](Parser::some), requires for at least one item to be available to succeed.
 
 pub struct Many1<P> {
@@ -132,9 +132,10 @@ pub struct Many1<P> {
     pub(crate) catch: bool,
 }
 
-/// Apply inner parser several times and collect results into `FromIterator`, created with
-/// [`collect`](Parser::collect),
-/// Implements [`catch`](ParseCollect::catch)
+/// Runs the inner parser several times and collect results into `FromIterator`
+///
+/// Created with [`collect`](Parser::collect)
+
 pub struct Collect<P, C, T> {
     pub(crate) inner: P,
     pub(crate) catch: bool,

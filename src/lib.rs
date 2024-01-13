@@ -672,7 +672,7 @@ pub trait Parser<T> {
     /// it collects into any collection that implements [`FromIterator`] trait.
     ///
     /// `collect` preserves any parsing failures and propagates them outwards, with extra
-    /// [`catch`](ParseCollect::catch) statement you can instead stop at the first value
+    /// [`catch`](SimpleParser::catch) statement you can instead stop at the first value
     /// that failed to parse and ignore it and all the subsequent ones.
     ///
     #[cfg_attr(not(doctest), doc = include_str!("_docs/collect.md"))]

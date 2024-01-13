@@ -9,12 +9,12 @@ use crate::{
 use std::{marker::PhantomData, str::FromStr};
 
 #[cfg(doc)]
-use crate::{pure, pure_with};
+use crate::{construct, pure, pure_with, OptionParser};
 
 /// A basic building block for your parsers
 ///
 /// This structure implements different methods depending on how it was created - pay attention to
-/// the type parameter. Some versions of the structure also implement [`Parser`](bpaf::Parser) trait.
+/// the type parameter. Some versions of the structure also implement [`Parser`](crate::Parser) trait.
 ///
 /// Depending on a purpose you should use one of those constructors to make `SimpleParser` and
 /// later consume it using one of the methods listed later. Normally you don't keep `SimpleParser`
@@ -760,8 +760,6 @@ impl<P> SimpleParser<Many<P>> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
     #[cfg_attr(not(doctest), doc = include_str!("_docs/many_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
@@ -800,8 +798,6 @@ impl<P> SimpleParser<Many1<P>> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
     #[cfg_attr(not(doctest), doc = include_str!("_docs/many1_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
@@ -833,9 +829,7 @@ impl<P, T, C> SimpleParser<Collect<P, C, T>> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
-    /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
-    /// and [`ParseSome`], behavior should be identical for all of them.
-    #[cfg_attr(not(doctest), doc = include_str!("docs2/some_catch.md"))]
+    #[cfg_attr(not(doctest), doc = include_str!("_docs/collect_catch.md"))]
     pub fn catch(mut self) -> Self {
         self.0.catch = true;
         self
