@@ -1121,7 +1121,7 @@ pub mod page_10 {}
 /// was the only thing your application would parse then turn it into a regular [`Parser`](Parser)
 /// you can further compose with [`OptionParser::command`](OptionParser::command).
 ///
-/// This gives [`ParseCommand`](ParseCommand) back, you can add aliases or tweak the help message if you want to.
+/// This gives `SimpleParser<Command>` back, you can add aliases or tweak the help message if you want to.
 ///
 /// ````rust
 /// # use bpaf::*;

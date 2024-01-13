@@ -495,20 +495,6 @@ impl<T: Clone + 'static> Flag<T> {
     }
 }
 
-impl<T> Argument<T> {
-    /// Add a help message to an `argument`
-    ///
-    /// See [`NamedArg::help`]
-    #[must_use]
-    pub fn help<M>(mut self, help: M) -> Self
-    where
-        M: Into<Doc>,
-    {
-        self.named.help = Some(help.into());
-        self
-    }
-}
-
 pub(crate) fn build_argument<T>(named: Named, metavar: &'static str) -> Argument<T> {
     Argument {
         named,

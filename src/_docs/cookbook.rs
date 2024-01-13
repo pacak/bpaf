@@ -581,7 +581,7 @@ pub mod page_5 {}
 /// containing extension name and status. As with anything unusal parser utilizes [`any`](any) with
 /// [`SimpleParser::anywhere`](SimpleParser::anywhere) to match initial `+ext` and `-ext`, alternative approach is going to
 /// be using a combination of two [`literal`](literal) functions. Once the tag is parsed - string that
-/// follows it is parsed with [`adjacent`](adjacent) restriction.
+/// follows it is parsed with [`adjacent`](crate::SimpleParser::adjacent) restriction.
 ///
 /// ````rust
 /// use bpaf::*;

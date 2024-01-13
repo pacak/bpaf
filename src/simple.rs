@@ -326,6 +326,18 @@ impl<T> SimpleParser<Argument<T>> {
     }
 }
 
+impl<T> SimpleParser<Argument<T>> {
+    /// Add a help message to an `argument` parser
+    #[must_use]
+    pub fn help<M>(mut self, help: M) -> Self
+    where
+        M: Into<Doc>,
+    {
+        self.0.named.help = Some(help.into());
+        self
+    }
+}
+
 impl<T> SimpleParser<Pure<T>> {
     /// Parser that produces a fixed value
     ///
@@ -520,7 +532,9 @@ impl<T> SimpleParser<Positional<T>> {
             strict: false,
         })
     }
+}
 
+impl<T> SimpleParser<Positional<T>> {
     /// Add a help message to a positional parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -541,7 +555,9 @@ impl<T> SimpleParser<Positional<T>> {
         self.0.help = Some(help.into());
         self
     }
+}
 
+impl<T> SimpleParser<Positional<T>> {
     /// Changes positional parser to be a "strict" positional
     ///
     /// Usually positional items can appear anywhere on a command line:
@@ -625,12 +641,16 @@ impl<T> SimpleParser<Anything<T>> {
     {
         any(metavar, check)
     }
+}
 
+impl<T> SimpleParser<Anything<T>> {
     pub fn anywhere(mut self) -> Self {
         self.0.anywhere = true;
         self
     }
+}
 
+impl<T> SimpleParser<Anything<T>> {
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,
@@ -638,7 +658,9 @@ impl<T> SimpleParser<Anything<T>> {
         self.0.help = Some(help.into());
         self
     }
+}
 
+impl<T> SimpleParser<Anything<T>> {
     /// Replace metavar with a custom value
     /// See examples in [`any`]
     #[must_use]

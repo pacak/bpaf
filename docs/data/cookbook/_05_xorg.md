@@ -6,7 +6,7 @@ This example parses a literal `+ext` or `-ext` followed by an arbitrary extensio
 containing extension name and status. As with anything unusal parser utilizes [`any`] with
 [`SimpleParser::anywhere`] to match initial `+ext` and `-ext`, alternative approach is going to
 be using a combination of two [`literal`] functions. Once the tag is parsed - string that
-follows it is parsed with [`adjacent`] restriction.
+follows it is parsed with [`adjacent`](crate::SimpleParser::adjacent) restriction.
 
 
 ```rust,id:1
