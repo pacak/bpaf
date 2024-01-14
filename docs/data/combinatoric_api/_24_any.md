@@ -40,7 +40,7 @@ positional parser will encounter only `alpha` and `beta`.
 
 Parser created with `any` gets shown everything and it is up to parser to decide if the value it
 gets is a match or not. By default `any` parser behaves as positional and only looks at the
-first unconsumed item, but can be modified with [`SimpleParser::anyhere`] to look at all the
+first unconsumed item, but can be modified with [`SimpleParser::anywhere`] to look at all the
 unconsumed items and producing the first value it accepts. `check` parameter to `any` should
 take `String` or `OsString` as input and decide if parser should match on this value.
 

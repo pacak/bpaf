@@ -644,6 +644,14 @@ impl<T> SimpleParser<Anything<T>> {
 }
 
 impl<T> SimpleParser<Anything<T>> {
+    /// Try to apply the parser to each unconsumed element instead of just the front one
+    ///
+    /// By default `any` tries to parse just the front unconsumed item behaving similar to
+    /// [`positional`] parser, `anywhere` changes it so it applies to every unconsumed item,
+    /// similar to argument parser.
+    ///
+    /// See examples in [`any`]
+    #[must_use]
     pub fn anywhere(mut self) -> Self {
         self.0.anywhere = true;
         self
@@ -651,6 +659,9 @@ impl<T> SimpleParser<Anything<T>> {
 }
 
 impl<T> SimpleParser<Anything<T>> {
+    /// Add a help message to [`any`] parser.
+    /// See examples in [`any`]
+    #[must_use]
     pub fn help<M>(mut self, help: M) -> Self
     where
         M: Into<Doc>,

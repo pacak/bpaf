@@ -44,19 +44,19 @@
 //! Both APIs can achieve the same results, you can use one that better suits your needs. You can
 //! find documentation with more examples following those links.
 //!
-//! - For an argument with a name you define [`NamedArg`] using a combination of [`short`],
+//! - For an argument with a name you define [`SimpleParser<Named>`] using a combination of [`short`],
 //!   [`long`] and [`env`](crate::env()). At the same time you can attach
-//!   [`help`](NamedArg::help).
-//! - [`NamedArg::switch`] - simple switch that returns `true` if it's present on a command
+//!   [`help`](SimpleParser::help).
+//! - [`SimpleParser::switch`] - simple switch that returns `true` if it's present on a command
 //!   line and `false` otherwise.
-//! - [`NamedArg::flag`] - a variant of `switch` that lets you return one of two custom
+//! - [`SimpleParser::flag`] - a variant of `switch` that lets you return one of two custom
 //!   values, for example `Color::On` and `Color::Off`.
-//! - [`NamedArg::req_flag`] - a variant of `switch` that only only succeeds when it's name
+//! - [`SimpleParser::req_flag`] - a variant of `switch` that only only succeeds when it's name
 //!   is present on a command line
-//! - [`NamedArg::argument`] - named argument containing a value, you can further
-//!   customize it with [`adjacent`](crate::parsers::ParseArgument::adjacent)
+//! - [`SimpleParser::argument`] - named argument containing a value, you can further
+//!   customize it with [`adjacent`](SimpleParser::adjacent)
 //! - [`positional`] - positional argument, you can further customize it with
-//!   [`strict`](ParsePositional::strict)
+//!   [`strict`](SimpleParser::<Positional<T>>::strict)
 //! - [`OptionParser::command`] - subcommand parser.
 //! - [`any`] and its specialized version [`literal`] are escape hatches that can parse anything
 //!   not fitting into usual classification.
@@ -80,11 +80,12 @@
 //!   can be updated to include default value using
 //!   [`display_fallback`](ParseFallback::display_fallback) and
 //!   [`debug_fallback`](ParseFallback::debug_fallback) .
-//! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
-//!   also [`catch`](ParseOptional::catch) .
+//! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing
 //! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
-//!   multiple values into a collection, usually a vector, see their respective
-//!   [`catch`](ParseMany::catch), [`catch`](ParseSome::catch) and [`catch`](ParseCollect::catch).
+//!   multiple values into a collection, usually a vector. By default errors are propagated
+//!   outwards, but with help of one of the [`SimpleParser::catch`] method you can only take values
+//!   that parse successfully and stop at the first one that fails to parse, leaving it for some
+//!   other parser.
 //! - [`map`](Parser::map), [`parse`](Parser::parse) and [`guard`](Parser::guard) - transform
 //!   and/or validate value produced by a parser
 //! - [`to_options`](Parser::to_options) - finalize the parser and prepare to run it

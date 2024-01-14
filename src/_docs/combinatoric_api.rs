@@ -169,9 +169,9 @@ pub mod page_2 {}
 /// ```
 ///
 ///
-/// You can use any type for as long as it implements [`FromStr`](FromStr). To parse items that don't
-/// implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`](Parser::parse), see
-/// the next chapter on how to do that.
+/// You can use any type for as long as it implements [`FromStr`](std::str::FromStr). To parse
+/// items that don't implement it you can first parse a `String` or `OsString` and then use
+/// [`Parser::parse`](Parser::parse), see the next chapter on how to do that.
 ///
 /// Unlike [`SimpleParser::switch`](SimpleParser::switch), by default parser for argument requires it to be present on a
 /// command line to succeed. There's several ways to add a value to fallback to, for example
@@ -1014,7 +1014,7 @@ pub mod page_9 {}
 ///
 /// Parser created with `any` gets shown everything and it is up to parser to decide if the value it
 /// gets is a match or not. By default `any` parser behaves as positional and only looks at the
-/// first unconsumed item, but can be modified with [`SimpleParser::anyhere`](SimpleParser::anyhere) to look at all the
+/// first unconsumed item, but can be modified with [`SimpleParser::anywhere`](SimpleParser::anywhere) to look at all the
 /// unconsumed items and producing the first value it accepts. `check` parameter to `any` should
 /// take `String` or `OsString` as input and decide if parser should match on this value.
 ///

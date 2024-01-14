@@ -23,6 +23,10 @@
 //!         .help("Message to print in a big friendly letters");
 //!     construct!(Options { message }).to_options()
 //! }
+//!
+//! fn main() {
+//!     println!("{:?}", options().run());
+//! }
 //! ````
 //!
 //! ##### Derive API
@@ -40,6 +44,10 @@
 //!     /// Message to print in a big friendly letters
 //!     #[bpaf(positional("MESSAGE"))]
 //!     message: String,
+//! }
+//!
+//! fn main() {
+//!     println!("{:?}", options().run());
 //! }
 //! ````
 //!
@@ -128,7 +136,7 @@
 //! in the output. Say your parser accepts both `--intel` and `--att` flags, but encodes the result
 //! into `enum Style { Intel, Att }`, `bpaf` will accept those flags separately, but not if they
 //! are used both at once. If the parser later collects multiple styles into a `Vec<Style>` then it
-//! will accept any combinationof those flags.
+//! will accept any combination of those flags.
 //!
 //! ##### User friendly
 //!

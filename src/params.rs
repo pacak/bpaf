@@ -722,35 +722,6 @@ impl<T> Anything<T> {
             anywhere: self.anywhere,
         }
     }
-
-    /// Add a help message to [`any`] parser.
-    /// See examples in [`any`]
-    #[must_use]
-    pub fn help<M: Into<Doc>>(mut self, help: M) -> Self {
-        self.help = Some(help.into());
-        self
-    }
-
-    /// Replace metavar with a custom value
-    /// See examples in [`any`]
-    #[must_use]
-    pub fn metavar<M: Into<Doc>>(mut self, metavar: M) -> Self {
-        self.metavar = metavar.into();
-        self
-    }
-
-    /// Try to apply the parser to each unconsumed element instead of just the front one
-    ///
-    /// By default `any` tries to parse just the front unconsumed item behaving similar to
-    /// [`positional`] parser, `anywhere` changes it so it applies to every unconsumed item,
-    /// similar to argument parser.
-    ///
-    /// See examples in [`any`]
-    #[must_use]
-    pub fn anywhere(mut self) -> Self {
-        self.anywhere = true;
-        self
-    }
 }
 
 impl<T> Parser<T> for Anything<T> {

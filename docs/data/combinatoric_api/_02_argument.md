@@ -32,9 +32,9 @@ fn main() {
 --help
 ```
 
-You can use any type for as long as it implements [`FromStr`]. To parse items that don't
-implement it you can first parse a `String` or `OsString` and then use [`Parser::parse`], see
-the next chapter on how to do that.
+You can use any type for as long as it implements [`FromStr`](std::str::FromStr). To parse
+items that don't implement it you can first parse a `String` or `OsString` and then use
+[`Parser::parse`], see the next chapter on how to do that.
 
 Unlike [`SimpleParser::switch`], by default parser for argument requires it to be present on a
 command line to succeed. There's several ways to add a value to fallback to, for example
