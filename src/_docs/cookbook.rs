@@ -9,16 +9,16 @@
 //!  <td style='text-align: center;'>
 //!
 //! **1**
-//! [2](page_2)
-//! [3](page_3)
-//! [4](page_4)
-//! [5](page_5)
-//! [6](page_6)
-//! [7](page_7)
-//! [8](page_8)
-//! [9](page_9)
+//! [2](page_02)
+//! [3](page_03)
+//! [4](page_04)
+//! [5](page_05)
+//! [6](page_06)
+//! [7](page_07)
+//! [8](page_08)
+//! [9](page_09)
 //! [10](page_10)
-//! [&rarr;](page_2)
+//! [&rarr;](page_02)
 //!
 //!  </td>
 //! </tr></table>
@@ -154,19 +154,19 @@
 /// [&larr;](super::cookbook)
 /// [1](super::cookbook)
 /// **2**
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_3)
+/// [&rarr;](page_03)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_2 {}
+pub mod page_02 {}
 
 
 /// #### Implementing `find(1)`: parsing permissions `-mode -rx` or `-mode /r`
@@ -287,22 +287,22 @@ pub mod page_2 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_2)
+/// [&larr;](page_02)
 /// [1](super::cookbook)
-/// [2](page_2)
+/// [2](page_02)
 /// **3**
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_4)
+/// [&rarr;](page_04)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_3 {}
+pub mod page_03 {}
 
 
 /// #### Implementing `dd(1)`: parsing named parameters in `key=val` form
@@ -435,22 +435,22 @@ pub mod page_3 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_3)
+/// [&larr;](page_03)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
+/// [2](page_02)
+/// [3](page_03)
 /// **4**
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_5)
+/// [&rarr;](page_05)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_4 {}
+pub mod page_04 {}
 
 
 /// #### Implementing `Xorg(1)`: parsing `+xinerama` and `-xinerama` into a `bool`
@@ -555,22 +555,22 @@ pub mod page_4 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_4)
+/// [&larr;](page_04)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
 /// **5**
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_6)
+/// [&rarr;](page_06)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_5 {}
+pub mod page_05 {}
 
 
 /// #### Implementing `Xorg(1)`: parsing `+ext name` and `-ext name` into a `(String, bool)`
@@ -649,22 +649,22 @@ pub mod page_5 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_5)
+/// [&larr;](page_05)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
 /// **6**
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_7)
+/// [&rarr;](page_07)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_6 {}
+pub mod page_06 {}
 
 
 /// #### Command chaining: parsing `setup.py sdist bdist`
@@ -856,22 +856,22 @@ pub mod page_6 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_6)
+/// [&larr;](page_06)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
 /// **7**
-/// [8](page_8)
-/// [9](page_9)
+/// [8](page_08)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_8)
+/// [&rarr;](page_08)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_7 {}
+pub mod page_07 {}
 
 
 /// #### Multi value arguments: `--point X Y Z`
@@ -1008,22 +1008,22 @@ pub mod page_7 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_7)
+/// [&larr;](page_07)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
 /// **8**
-/// [9](page_9)
+/// [9](page_09)
 /// [10](page_10)
-/// [&rarr;](page_9)
+/// [&rarr;](page_09)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_8 {}
+pub mod page_08 {}
 
 
 /// #### Structure groups: parsing `--sensor --sensor-device NAME --sensor-value VAL`
@@ -1202,22 +1202,22 @@ pub mod page_8 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_8)
+/// [&larr;](page_08)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
 /// **9**
 /// [10](page_10)
 /// [&rarr;](page_10)
 ///
 ///  </td>
 /// </tr></table>
-pub mod page_9 {}
+pub mod page_09 {}
 
 
 /// #### Skipping optional positional items with validation
@@ -1228,16 +1228,16 @@ pub mod page_9 {}
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
 ///
-/// [&larr;](page_9)
+/// [&larr;](page_09)
 /// [1](super::cookbook)
-/// [2](page_2)
-/// [3](page_3)
-/// [4](page_4)
-/// [5](page_5)
-/// [6](page_6)
-/// [7](page_7)
-/// [8](page_8)
-/// [9](page_9)
+/// [2](page_02)
+/// [3](page_03)
+/// [4](page_04)
+/// [5](page_05)
+/// [6](page_06)
+/// [7](page_07)
+/// [8](page_08)
+/// [9](page_09)
 /// **10**
 ///
 ///  </td>

@@ -268,7 +268,14 @@ impl Document {
                     pag.current = page;
                     write!(&mut res, "{pag}")?;
 
-                    writeln!(&mut res, "pub mod page_{} {{}}", page + 1)?;
+                    writeln!(
+                        &mut res,
+                        "pub mod {} {{}}",
+                        Page {
+                            num: page + 1,
+                            pages: pages.len()
+                        }
+                    )?;
                 }
 
                 Ok(res)
@@ -400,6 +407,19 @@ pub(crate) struct Pagination<'a> {
     pages: usize,
 }
 
+#[derive(Clone, Copy)]
+struct Page {
+    num: usize,
+    pages: usize,
+}
+
+impl std::fmt::Display for Page {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let width = (self.pages as f64 + 1.0).log10().ceil() as usize;
+        write!(f, "page_{:0width$}", self.num, width = width)
+    }
+}
+
 impl std::fmt::Display for Pagination<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Pagination {
@@ -427,7 +447,14 @@ impl std::fmt::Display for Pagination<'_> {
                 writeln!(f, "{pad} [&larr;](super::{})", index)?;
             }
             _ => {
-                writeln!(f, "{pad} [&larr;](page_{})", current)?;
+                writeln!(
+                    f,
+                    "{pad} [&larr;]({})",
+                    Page {
+                        pages,
+                        num: current
+                    }
+                )?;
             }
         }
 
@@ -437,12 +464,27 @@ impl std::fmt::Display for Pagination<'_> {
             } else if page == 0 {
                 writeln!(f, "{pad} [1](super::{})", index)?;
             } else {
-                writeln!(f, "{pad} [{}](page_{})", page + 1, page + 1)?;
+                writeln!(
+                    f,
+                    "{pad} [{}]({})",
+                    page + 1,
+                    Page {
+                        pages,
+                        num: page + 1
+                    }
+                )?;
             }
         }
 
         if current + 1 < pages {
-            writeln!(f, "{pad} [&rarr;](page_{})", current + 2)?;
+            writeln!(
+                f,
+                "{pad} [&rarr;]({})",
+                Page {
+                    pages,
+                    num: current + 2
+                }
+            )?;
         }
 
         writeln!(f, "{pad}")?;
