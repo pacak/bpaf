@@ -303,7 +303,9 @@ impl<T> SimpleParser<Command<T>> {
         self.0.help = Some(help.into());
         self
     }
+}
 
+impl<T> SimpleParser<Command<T>> {
     /// Add a custom short alias for a command
     ///
     /// Behavior is similar to [`short`](SimpleParser::short), only first short name is visible.
@@ -312,7 +314,9 @@ impl<T> SimpleParser<Command<T>> {
         self.0.shorts.push(short);
         self
     }
+}
 
+impl<T> SimpleParser<Command<T>> {
     /// Add a custom hidden long alias for a command
     ///
     /// Behavior is similar to [`long`](SimpleParser::long), but since you had to specify the first long
@@ -322,7 +326,9 @@ impl<T> SimpleParser<Command<T>> {
         self.0.longs.push(long);
         self
     }
+}
 
+impl<T> SimpleParser<Command<T>> {
     /// Allow for the command to succeed even if there are non consumed items present
     ///
     /// Normally a subcommand parser should handle the rest of the unconsumed elements thus
@@ -618,7 +624,9 @@ impl<T> Positional<T> {
         self.help = Some(help.into());
         self
     }
+}
 
+impl<T> Positional<T> {
     /// Changes positional parser to be a "strict" positional
     ///
     /// Usually positional items can appear anywhere on a command line:

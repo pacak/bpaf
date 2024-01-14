@@ -21,10 +21,6 @@
 //! ----
 //!
 
-// # Quick links
-// - [Explanations](_documentation::_4_explanation) - theoretical information about abstractions
-//   used by the library, oriented for understanding
-
 //! # A quick start
 //!
 //! Add `bpaf`, optionally with derive enabled
@@ -187,14 +183,14 @@ mod item;
 mod meta;
 mod meta_help;
 mod meta_youmean;
-pub mod params;
+mod params;
 mod simple;
 mod structs;
 #[cfg(test)]
 mod tests;
 
 pub mod parsers {
-    //! This module exposes parsers that accept further configuration with builder pattern
+    //! This module exposes parsers that may appear in type signatures
     //!
     //! In most cases you won't be using those names directly, they're only listed here to provide
     //! access to documentation

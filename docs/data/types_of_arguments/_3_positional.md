@@ -13,4 +13,4 @@ $ man <span style="font-weight: bold">gcc</span>
 </div>
 
 
-For more detailed info see [`positional`](crate::positional) and
+For more detailed info see [`positional`](crate::positional).

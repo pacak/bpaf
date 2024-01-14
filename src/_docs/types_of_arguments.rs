@@ -83,8 +83,20 @@ pub mod page_2 {}
 /// </div>
 ///
 /// In the generated help message or documentation they come with a placeholder metavariable,
-/// usually a short, all-caps word describing what the value means: `NAME`, `AGE`, `SPEC`, and `CODE`
-/// are all valid examples.
+/// usually a short, all-caps word describing what the value means: `FILENAME`, `AGE`, `SPEC`, and `DIR`
+/// are all valid examples:
+///
+/// <div class="code-wrap">
+/// <pre>
+///     -o <span style="font-weight: bold">FILENAME</span>         Write output to &lt;filename>
+///         --out-dir <span style="font-weight: bold">DIR</span>   Write output to compiler-chosen filename in &lt;dir>
+///         --explain <span style="font-weight: bold">OPT</span>   Provide a detailed explanation of an error message
+///         --test          Build a test harness
+///         --target <span style="font-weight: bold">TARGET</span> Target triple for which the code is compiled
+///     -A, --allow <span style="font-weight: bold">LINT</span>    Set lint allowed
+///     -W, --warn <span style="font-weight: bold">LINT</span>     Set lint warnings
+/// </pre>
+/// </div>
 ///
 /// For more detailed info see [`SimpleParser::argument`](SimpleParser::argument)
 ///
@@ -119,7 +131,7 @@ pub mod page_3 {}
 /// </pre>
 /// </div>
 ///
-/// For more detailed info see [`positional`](crate::positional) and
+/// For more detailed info see [`positional`](crate::positional).
 ///
 /// <table width='100%' cellspacing='0' style='border: hidden;'><tr>
 ///  <td style='text-align: center;'>
@@ -175,8 +187,8 @@ pub mod page_5 {}
 /// #### Exotic schemas
 ///
 /// While modern software tends to use just the options listed above you can still encounter
-/// programs created before those options became the norm and they use something completely different,
-/// let me give a few examples, see [the parsing cookbook](crate::_docs::cookbook)
+/// programs created before those options became the norm and they use something completely different.
+/// This page contains a few examples, see [the parsing cookbook](crate::_docs::cookbook)
 /// about actually parsing them
 ///
 /// `su` takes an option that consists of a single dash `-`
@@ -206,7 +218,7 @@ pub mod page_5 {}
 /// </pre></div>
 ///
 /// Most of the command line arguments in Turbo C++ 3.0 start with `/`. For example, option
-/// `/x` tells it to use all available extended memory, while `/x[=n]` limits it to n kilobytes
+/// `/x` tells it to use all available extended memory, while `/x=n` limits it to n kilobytes
 ///
 /// <div class="code-wrap"><pre>
 /// C:\PROJECT>TC /x=200
