@@ -30,7 +30,8 @@ In this example `switch` and `a` are implicit long and short names, help message
 --help
 ```
 
-2. Adding either `long` or `short` disables rule 1, so adding `short` disables the long name
+2. Adding either `long` or `short` overrides rule 1 and generates a name of this type
+   explicitly. You can also specify both `short` and `long` at once to generate both names
 
 ```rust,id:2
 use bpaf::*;
@@ -51,14 +52,13 @@ fn main() {
 }
 ```
 
-Here implicit names are replaced with explicit ones, derived from field names. `--s` is a
-strange looking long name, but that's what's available
+Here implicit names are replaced with explicit ones, derived from field names
 
 ```run,id:2
 --help
 ```
 
-3. `long` or `short` with a parameter uses that value instead
+3. when used with a parameter `long` or `short` a parameter uses that value instead
 
 ```rust,id:3
 use bpaf::*;
@@ -119,7 +119,7 @@ Here parser accepts 4 different names, visible `-v` and `--visible` and two hidd
 -v --visible
 ```
 
-Aliases don't show up in the help message or anywhere else but still work.
+Aliases don't show up in the help message or generated documentation, but still work.
 
 ```run,id:4
 -H --hidden
