@@ -1,8 +1,9 @@
 # Change Log
 
 
-## bpaf - unreleased
+## bpaf [0.9.9] - 2024-01-17
 - fix formatting in ambiguity error message
+- relax upper range on owo-colors
 
 ## bpaf [0.9.8] - 2023-12-06
 - fix docs.rs build
