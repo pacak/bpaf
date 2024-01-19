@@ -5,7 +5,11 @@ fn dump_bash_completer(name: &str) {
     println!(
         r#"_bpaf_dynamic_completion()
 {{
-    source <( "$1" --bpaf-complete-rev=8 "${{COMP_WORDS[@]:1}}" )
+    line="$1 --bpaf-complete-rev=8 ${{COMP_WORDS[@]:1}}"
+    if [[ ${{COMP_WORDS[-1]}} == "" ]]; then
+        line="${{line}} \"\""
+    fi
+    source <( eval ${{line}})
 }}
 complete -o nosort -F _bpaf_dynamic_completion {name}"#,
         name = name,
@@ -15,7 +19,12 @@ complete -o nosort -F _bpaf_dynamic_completion {name}"#,
 fn dump_zsh_completer(name: &str) {
     println!(
         r#"#compdef {name}
-source <( "${{words[1]}}" --bpaf-complete-rev=7 "${{words[@]:1}}" )
+local line
+line="${{words[1]}} --bpaf-complete-rev=7 ${{words[@]:1}}"
+if [[ ${{words[-1]}} == "" ]]; then
+    line="${{line}} \"\""
+fi
+source <(eval ${{line}})
 "#,
         name = name
     );
