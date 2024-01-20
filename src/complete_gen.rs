@@ -166,7 +166,7 @@ impl State {
 }
 
 impl Complete {
-    pub(crate) fn push_shell(&mut self, op: ShellComp, depth: usize) {
+    pub(crate) fn push_shell(&mut self, op: ShellComp, is_argument: bool, depth: usize) {
         self.comps.push(Comp::Shell {
             extra: CompExtra {
                 depth,
@@ -174,6 +174,7 @@ impl Complete {
                 help: None,
             },
             script: op,
+            is_argument,
         });
     }
 
@@ -224,10 +225,7 @@ pub(crate) struct CompExtra {
 #[derive(Clone, Debug)]
 pub(crate) enum Comp {
     /// short or long flag
-    Flag {
-        extra: CompExtra,
-        name: ShortLong,
-    },
+    Flag { extra: CompExtra, name: ShortLong },
 
     /// argument + metadata
     Argument {
@@ -256,12 +254,15 @@ pub(crate) enum Comp {
     Metavariable {
         extra: CompExtra,
         meta: &'static str,
+        /// AKA not positional
         is_argument: bool,
     },
 
     Shell {
         extra: CompExtra,
         script: ShellComp,
+        /// AKA not positional
+        is_argument: bool,
     },
 }
 
@@ -480,10 +481,9 @@ impl Comp {
     fn only_value(&self) -> bool {
         match self {
             Comp::Flag { .. } | Comp::Argument { .. } | Comp::Command { .. } => false,
-            Comp::Metavariable { is_argument, .. } | Comp::Value { is_argument, .. } => {
-                *is_argument
-            }
-            Comp::Shell { .. } => true,
+            Comp::Metavariable { is_argument, .. }
+            | Comp::Value { is_argument, .. }
+            | Comp::Shell { is_argument, .. } => *is_argument,
         }
     }
     fn is_pos(&self) -> bool {
