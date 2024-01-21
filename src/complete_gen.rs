@@ -349,6 +349,9 @@ fn pair_to_os_string<'a>(pair: (&'a Arg, &'a OsStr)) -> Option<(&'a Arg, &'a str
     Some((pair.0, pair.1.to_str()?))
 }
 
+/// What is the preceeding item, if any
+///
+/// Mostly is there to tell if we are trying to complete and argument or not...
 #[derive(Debug, Copy, Clone)]
 enum Prefix<'a> {
     NA,
@@ -375,7 +378,7 @@ impl State {
         // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (_, lit) = items.next()?;
+        let (cur, lit) = items.next()?;
 
         // For cases like "-k=val", "-kval", "--key=val", "--key val"
         // last value is going  to be either Arg::Word or Arg::ArgWord
@@ -390,13 +393,18 @@ impl State {
             _ => (false, lit),
         };
 
+        let is_named = match cur {
+            Arg::Short(_, _, _) | Arg::Long(_, _, _) => true,
+            Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
+        };
+
         let prefix = match preceeding {
             Some((Arg::Short(s, true, _os), _lit)) => Prefix::Short(*s),
             Some((Arg::Long(l, true, _os), _lit)) => Prefix::Long(l.as_str()),
             _ => Prefix::NA,
         };
 
-        let (items, shell) = comp.complete(lit, pos_only, prefix);
+        let (items, shell) = comp.complete(lit, pos_only, is_named, prefix);
 
         Some(match comp.output_rev {
             0 => render_test(&items, &shell, full_lit),
@@ -500,6 +508,7 @@ impl Complete {
         &self,
         arg: &str,
         pos_only: bool,
+        is_named: bool,
         prefix: Prefix,
     ) -> (Vec<ShowComp>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
@@ -588,7 +597,9 @@ impl Complete {
                 }
 
                 Comp::Shell { script, .. } => {
-                    shell.push(*script);
+                    if !is_named {
+                        shell.push(*script);
+                    }
                 }
             }
         }

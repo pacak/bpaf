@@ -368,29 +368,54 @@ fn this_or_that_picks_first(
     };
 
     #[cfg(feature = "autocomplete")]
-    let len_a = args_a.len();
-
-    #[cfg(feature = "autocomplete")]
-    let len_b = args_b.len();
-
-    #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
-        // if both parsers managed to consume the same amount - including 0, keep
-        // results from both, otherwise keep results from one that consumed more
-        let (keep_a, keep_b) = match res {
-            Ok((true, _)) => (true, false),
-            Ok((false, _)) => (false, true),
-            Err(_) => match len_a.cmp(&len_b) {
-                std::cmp::Ordering::Less => (true, false),
-                std::cmp::Ordering::Equal => (true, true),
-                std::cmp::Ordering::Greater => (false, true),
-            },
-        };
-        if keep_a {
-            comp_stash.extend(a.drain_comps());
+    {
+        let mut keep_a = true;
+        let mut keep_b = true;
+        if args_a.len() != args_b.len() {
+            // If neither parser consumed anything - both can produce valid completions, otherwise
+            // look for the first "significant" consume and keep that parser
+            //
+            // This is needed to preserve completion from a choice between a positional and a flag
+            // See https://github.com/pacak/bpaf/issues/303 for more details
+            if let (Some(_), Some(_)) = (args_a.comp_mut(), args_b.comp_mut()) {
+                'check: for (ix, arg) in args_a.items.iter().enumerate() {
+                    // During completion process named and unnamed arguments behave
+                    // different - `-` and `--` are positional arguments, but we want to produce
+                    // named items too. An empty string is also a special type of item that
+                    // gets passed when user starts completion without passing any actual data.
+                    //
+                    // All other strings are either valid named items or valid positional items
+                    // those are hopefully follow the right logic for being parsed/not parsed
+                    if ix + 1 == args_a.items.len() {
+                        let os = arg.os_str();
+                        if os.is_empty() || os == "-" || os == "--" {
+                            break 'check;
+                        }
+                    }
+                    if let (Some(a), Some(b)) = (args_a.present(ix), args_b.present(ix)) {
+                        match (a, b) {
+                            (false, true) => {
+                                keep_b = false;
+                                break 'check;
+                            }
+                            (true, false) => {
+                                keep_a = false;
+                                break 'check;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
         }
-        if keep_b {
-            comp_stash.extend(b.drain_comps());
+
+        if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
+            if keep_a {
+                comp_stash.extend(a.drain_comps());
+            }
+            if keep_b {
+                comp_stash.extend(b.drain_comps());
+            }
         }
     }
 

@@ -2,88 +2,60 @@
 use bpaf::*;
 
 #[test]
-fn mixing_shell_and_positional_1() {
-    let a = || {
+fn mixing_shell_and_positional_1_flag_or_pos() {
+    let arg = || short('b').help("Option b").req_flag(10);
+    let pos = || {
         positional::<String>("DISTANCE")
             .complete_shell(ShellComp::File { mask: None })
             .guard(|s| !s.is_empty(), "unreachable")
             .parse(|s| s.parse::<usize>())
     };
-    let b = || short('b').help("Option b").req_flag(10);
 
-    let r1 = construct!([b(), a()])
+    let r = construct!([arg(), pos()])
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
+fn mixing_shell_and_positional_2_arg_or_pos() {
+    let arg = || short('b').help("Option b").argument::<usize>("HELLO");
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
+
+    let r = construct!([arg(), pos()])
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
+fn mixing_shell_and_positional_3_flag_and_pos() {
+    let arg = || short('b').help("Option b").req_flag(10);
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
+
+    let r1 = construct!(arg(), pos())
         .to_options()
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r1, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
-
-    let r2 = construct!([a(), b()])
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r2, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
 }
 
 #[test]
-fn mixing_shell_and_positional_2() {
-    let a = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
-    let b = || short('b').help("Option b").argument::<usize>("HELLO");
+fn mixing_shell_and_positional_4_arg_and_pos() {
+    let arg = || short('b').help("Option b").argument::<usize>("HELLO");
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
 
-    let r1 = construct!([b(), a()])
+    let r = construct!(arg(), pos())
         .to_options()
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r1, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
-
-    let r2 = construct!([a(), b()])
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r2, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
-}
-
-#[test]
-fn mixing_shell_and_positional_3() {
-    let a = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
-    let b = || short('b').help("Option b").req_flag(10);
-
-    let r1 = construct!(b(), a())
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r1, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
-
-    let r2 = construct!(a(), b())
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r2, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
-}
-
-#[test]
-fn mixing_shell_and_positional_4() {
-    let a = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
-    let b = || short('b').help("Option b").argument::<usize>("HELLO");
-
-    let r1 = construct!(b(), a())
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r1, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
-
-    let r2 = construct!(a(), b())
-        .to_options()
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r2, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
+    assert_eq!(r, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
 }
 
 #[test]
