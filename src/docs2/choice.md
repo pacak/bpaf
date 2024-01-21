@@ -70,7 +70,7 @@ Options { desert: Some("apple") }
 </div>
 
 
-Only one value is consumed at once
+Since parser consumes only one value you can't specify multiple flags of the same type
 
 
 <div class='bpaf-doc'>
