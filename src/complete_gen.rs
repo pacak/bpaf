@@ -404,8 +404,15 @@ impl State {
             8 => render_bash(&items, &shell, full_lit),
             9 => render_fish(&items, &shell, full_lit, self.path[0].as_str()),
             unk => {
-                eprintln!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk);
-                std::process::exit(1);
+                #[cfg(debug_assertions)]
+                {
+                    eprintln!("Unsupported output revision {}, you need to genenerate your shell completion files for the app", unk);
+                    std::process::exit(1);
+                }
+                #[cfg(not(debug_assertions))]
+                {
+                    std::process::exit(0);
+                }
             }
         }.unwrap())
     }
