@@ -2,9 +2,8 @@ use std::ops::Range;
 
 use crate::{
     args::{Arg, State},
-    buffer::{Block, Color, Doc, Style, Token},
-    item::Item,
-    item::ShortLong,
+    buffer::{Block, Color, Doc, Style, Token, MAX_WIDTH},
+    item::{Item, ShortLong},
     meta_help::Metavar,
     meta_youmean::{Suggestion, Variant},
     Meta,
@@ -210,7 +209,7 @@ impl ParseFailure {
         let color = Color::default();
         match self {
             ParseFailure::Stdout(msg, full) => {
-                println!("{}", msg.render_console(full, color));
+                println!("{}", msg.render_console(full, color, MAX_WIDTH));
                 0
             }
             ParseFailure::Completion(s) => {
@@ -231,7 +230,7 @@ impl ParseFailure {
                     color.push_str(Style::Invalid, &mut error, "Error: ");
                 }
 
-                eprintln!("{}{}", error, msg.render_console(true, color));
+                eprintln!("{}{}", error, msg.render_console(true, color, MAX_WIDTH));
                 1
             }
         }

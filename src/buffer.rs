@@ -15,6 +15,8 @@ mod manpage;
 mod splitter;
 
 pub(crate) use self::console::Color;
+pub(crate) use self::console::MAX_WIDTH;
+
 #[cfg(feature = "docgen")]
 pub use manpage::Section;
 
