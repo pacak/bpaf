@@ -27,6 +27,7 @@ pub struct Info {
     pub help_arg: NamedArg,
     pub version_arg: NamedArg,
     pub help_if_no_args: bool,
+    pub max_width: usize,
 }
 
 impl Default for Info {
@@ -42,6 +43,7 @@ impl Default for Info {
                 .long("version")
                 .help("Prints version information"),
             help_if_no_args: false,
+            max_width: 100,
         }
     }
 }
@@ -645,6 +647,19 @@ impl<T> OptionParser<T> {
     #[must_use]
     pub fn fallback_to_usage(mut self) -> Self {
         self.info.help_if_no_args = true;
+        self
+    }
+
+    /// Set the width of the help message printed to the terminal upon failure
+    ///
+    /// By default, the help message is printed with a width of 100 characters.
+    /// This method allows to change where the help message is wrapped.
+    ///
+    /// Setting the max width too low may negatively affect the readability of the help message.
+    /// Also, the alignment padding of broken lines is always applied.
+    #[must_use]
+    pub fn max_width(mut self, width: usize) -> Self {
+        self.info.max_width = width;
         self
     }
 }
