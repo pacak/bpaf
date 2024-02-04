@@ -208,7 +208,7 @@ impl Doc {
                                     if pending_blank_line && !res.ends_with("\n\n") {
                                         res.push('\n');
                                     }
-                                    if char_pos > max_width {
+                                    if char_pos + s.len() > max_width {
                                         char_pos = 0;
                                         res.truncate(res.trim_end().len());
                                         res.push('\n');
