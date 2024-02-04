@@ -89,7 +89,10 @@ impl<T> OptionParser<T> {
     {
         match self.run_inner(Args::current_args()) {
             Ok(t) => t,
-            Err(err) => std::process::exit(err.exit_code()),
+            Err(err) => {
+                err.print_mesage(self.info.max_width);
+                std::process::exit(err.exit_code())
+            }
         }
     }
 
