@@ -1441,7 +1441,7 @@ fn suggestion_for_equals_1() {
         .unwrap_stderr();
     assert_eq!(
         r,
-        "`--par` requires an argument `P`, got a flag `--bar=baz`, try `--par=--bar=baz` to use it as an argument"
+        "`--par` requires an argument `P`, got a flag `--bar=baz`, try `--par=--bar=baz` to use it as an\nargument"
     );
 }
 

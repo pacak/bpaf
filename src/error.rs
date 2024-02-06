@@ -3,8 +3,7 @@ use std::ops::Range;
 use crate::{
     args::{Arg, State},
     buffer::{Block, Color, Doc, Style, Token},
-    item::Item,
-    item::ShortLong,
+    item::{Item, ShortLong},
     meta_help::Metavar,
     meta_youmean::{Suggestion, Variant},
     Meta,
@@ -202,20 +201,24 @@ impl ParseFailure {
         }
     }
 
-    /// Run an action appropriate to the failure and produce the exit code
-    ///
-    /// Prints a message to `stdout` or `stderr` and returns the exit code
+    /// Returns the exit code for the failure
     #[allow(clippy::must_use_candidate)]
     pub fn exit_code(self) -> i32 {
+        match self {
+            Self::Stdout(..) | Self::Completion(..) => 0,
+            Self::Stderr(..) => 1,
+        }
+    }
+
+    /// Prints a message to `stdout` or `stderr` appropriate to the failure.
+    pub fn print_mesage(&self, max_width: usize) {
         let color = Color::default();
         match self {
             ParseFailure::Stdout(msg, full) => {
-                println!("{}", msg.render_console(full, color));
-                0
+                println!("{}", msg.render_console(*full, color, max_width));
             }
             ParseFailure::Completion(s) => {
                 print!("{}", s);
-                0
             }
             ParseFailure::Stderr(msg) => {
                 #[allow(unused_mut)]
@@ -231,8 +234,7 @@ impl ParseFailure {
                     color.push_str(Style::Invalid, &mut error, "Error: ");
                 }
 
-                eprintln!("{}{}", error, msg.render_console(true, color));
-                1
+                eprintln!("{}{}", error, msg.render_console(true, color, max_width));
             }
         }
     }

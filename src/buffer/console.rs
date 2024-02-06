@@ -39,7 +39,7 @@ use super::{
 use super::Style;
 
 const MAX_TAB: usize = 24;
-const MAX_WIDTH: usize = 100;
+pub(crate) const MAX_WIDTH: usize = 100;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 /// Default to dull color if colors are enabled,
@@ -133,11 +133,11 @@ impl Doc {
     /// difference for rendered help message, otherwise you can pass `true`.
     #[must_use]
     pub fn monochrome(&self, full: bool) -> String {
-        self.render_console(full, Color::Monochrome)
+        self.render_console(full, Color::Monochrome, MAX_WIDTH)
     }
 
     #[allow(clippy::too_many_lines)] // it's a big ass match statement
-    pub(crate) fn render_console(&self, full: bool, color: Color) -> String {
+    pub(crate) fn render_console(&self, full: bool, color: Color, max_width: usize) -> String {
         let mut res = String::new();
         let mut tabstop = 0;
         let mut byte_pos = 0;
@@ -208,7 +208,7 @@ impl Doc {
                                     if pending_blank_line && !res.ends_with("\n\n") {
                                         res.push('\n');
                                     }
-                                    if char_pos > MAX_WIDTH {
+                                    if char_pos + s.len() > max_width {
                                         char_pos = 0;
                                         res.truncate(res.trim_end().len());
                                         res.push('\n');

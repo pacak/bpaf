@@ -15,6 +15,7 @@ mod manpage;
 mod splitter;
 
 pub(crate) use self::console::Color;
+
 #[cfg(feature = "docgen")]
 pub use manpage::Section;
 

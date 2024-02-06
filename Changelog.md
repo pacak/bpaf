@@ -1,5 +1,7 @@
 # Change Log
 
+## bpaf [0.9.10] - unreleased
+- due to dependency change colored output for legacy version is no longer supported
 
 ## bpaf [0.9.9] - 2024-01-17
 - fix formatting in ambiguity error message

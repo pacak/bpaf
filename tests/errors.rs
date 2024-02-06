@@ -181,7 +181,7 @@ fn should_not_split_adjacent_ambig_options() {
     assert_eq!(r, expected);
 
     let r = parser.run_inner(&["-ahello"]).unwrap_err().unwrap_stderr();
-    let expected = "app supports `-a` as both an option and an option-argument, try to split `-ahello` into individual options\n(-a -h ..) or use `-a=hello` syntax to disambiguate";
+    let expected = "app supports `-a` as both an option and an option-argument, try to split `-ahello` into individual\noptions (-a -h ..) or use `-a=hello` syntax to disambiguate";
     assert_eq!(r, expected);
 
     // this one is okay, try to parse -a as argument - it fails because "hello" is not a number, then

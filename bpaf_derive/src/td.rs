@@ -29,6 +29,7 @@ pub(crate) struct OptionsCfg {
     pub(crate) header: Option<Help>,
     pub(crate) usage: Option<Box<Expr>>,
     pub(crate) version: Option<Box<Expr>>,
+    pub(crate) max_width: Option<Box<Expr>>,
 }
 
 #[derive(Debug, Default)]
@@ -246,6 +247,9 @@ impl Parse for TopInfo {
                 with_command(&kw, command.as_mut(), |cfg| cfg.help = Some(help))?;
             } else if kw == "bpaf_path" {
                 bpaf_path.replace(parse_name_value::<syn::Path>(input)?);
+            } else if kw == "max_width" {
+                let max_width = parse_arg(input)?;
+                with_options(&kw, options.as_mut(), |opt| opt.max_width = Some(max_width))?;
             } else if let Some(pd) = PostDecor::parse(input, &kw)? {
                 attrs.push(pd);
             } else {

@@ -197,6 +197,7 @@ impl ToTokens for Top {
                     descr,
                     footer,
                     header,
+                    max_width,
                 } = options;
 
                 let version = version.as_ref().map(|v| quote!(.version(#v)));
@@ -204,6 +205,7 @@ impl ToTokens for Top {
                 let descr = descr.as_ref().map(|v| quote!(.descr(#v)));
                 let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
                 let header = header.as_ref().map(|v| quote!(.header(#v)));
+                let max_width = max_width.as_ref().map(|v| quote!(.max_width(#v)));
 
                 let CommandCfg {
                     name,
@@ -228,6 +230,7 @@ impl ToTokens for Top {
                         #header
                         #footer
                         #usage
+                        #max_width
                         .command(#name)
                         #(#short)*
                         #(#long)*
@@ -245,6 +248,7 @@ impl ToTokens for Top {
                     descr,
                     footer,
                     header,
+                    max_width
                 } = options;
                 let body = match cargo_helper {
                     Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
@@ -256,6 +260,8 @@ impl ToTokens for Top {
                 let descr = descr.as_ref().map(|v| quote!(.descr(#v)));
                 let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
                 let header = header.as_ref().map(|v| quote!(.header(#v)));
+                let max_width = max_width.as_ref().map(|v| quote!(.max_width(#v)));
+
                 quote! {
                     #vis fn #generate() -> ::bpaf::OptionParser<#ty> {
                         #[allow(unused_imports)]
@@ -268,6 +274,7 @@ impl ToTokens for Top {
                         #header
                         #footer
                         #usage
+                        #max_width
                     }
                 }
             }
