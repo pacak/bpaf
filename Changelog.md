@@ -2,6 +2,9 @@
 
 ## bpaf [0.9.10] - unreleased
 - due to dependency change colored output for legacy version is no longer supported
+- Added `OptionParser::max_width` and `#[bpaf(max_width(xxx))]` to specify maximum
+  width of help output
+- Added a custom path attribute to allow using of reexported bpaf
 
 ## bpaf [0.9.9] - 2024-01-17
 - fix formatting in ambiguity error message
