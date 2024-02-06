@@ -1191,7 +1191,7 @@ fn max_width() {
             use ::bpaf::Parser;
             {
                 let verbose = ::bpaf::long("verbose").switch();
-                ::bpaf::construct!(Opt { verbose })
+                ::bpaf::construct!(Opt { verbose, })
             }
             .to_options()
             .max_width(110)
@@ -1201,54 +1201,45 @@ fn max_width() {
 }
 
 #[test]
-fn custom_bpaf_path() {
+fn custom_bpaf_path_options() {
     let input: Top = parse_quote! {
-        // those are options
-        #[bpaf(options, header(h), footer(f), bpaf_path = ::indirector::bpaf)]
-        enum Opt {
-            #[bpaf(command("foo"))]
-            /// foo doc
-            ///
-            ///
-            /// header
-            ///
-            ///
-            /// footer
-            Foo { field: usize },
-            /// bar doc
-            #[bpaf(command, adjacent)]
-            Bar { field: bool }
+        #[bpaf(options, path(::indirector::bpaf))]
+        struct Options {
+            verbose: bool,
         }
     };
 
     let expected = quote! {
-        fn opt() -> ::indirector::bpaf::OptionParser<Opt> {
+        fn options() -> ::indirector::bpaf::OptionParser<Options> {
             #[allow(unused_imports)]
             use ::indirector::bpaf::Parser;
             {
-                let alt0 = {
-                    let field = ::indirector::bpaf::long("field").argument::<usize>("ARG");
-                    ::indirector::bpaf::construct!(Opt::Foo { field, })
-                }
-                .to_options()
-                .footer("footer")
-                .header("header")
-                .descr("foo doc")
-                .command("foo");
-
-                let alt1 = {
-                    let field = ::indirector::bpaf::long("field").switch();
-                    ::indirector::bpaf::construct!(Opt::Bar { field, })
-                }
-                .to_options()
-                .descr("bar doc")
-                .command("bar")
-                .adjacent();
-                ::indirector::bpaf::construct!([alt0, alt1, ])
+                let verbose = ::indirector::bpaf::long("verbose").switch();
+                ::indirector::bpaf::construct!(Options { verbose })
             }
             .to_options()
-            .header(h)
-            .footer(f)
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn custom_bpaf_path_parser() {
+    let input: Top = parse_quote! {
+        #[bpaf(path(::indirector::bpaf))]
+        struct Items {
+            verbose: bool,
+        }
+    };
+
+    let expected = quote! {
+        fn items() -> impl ::indirector::bpaf::Parser<Items> {
+            #[allow(unused_imports)]
+            use ::indirector::bpaf::Parser;
+            {
+                let verbose = ::indirector::bpaf::long("verbose").switch();
+                ::indirector::bpaf::construct!(Items { verbose })
+            }
         }
     };
     assert_eq!(input.to_token_stream().to_string(), expected.to_string());

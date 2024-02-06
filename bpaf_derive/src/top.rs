@@ -296,26 +296,9 @@ impl ToTokens for Top {
         };
 
         if let Some(custom_path) = bpaf_path {
-            //     syn::parse2(original)
-            //     .map_err(|e| {
-            //         syn::Error::new(
-            //     e.span(),
-            //     format!("Failed to parse originally generated macro output as an ItemFn: {e}"),
-            // )
-            //     })
-            //     .unwrap();
             let mut replaced: ItemFn = parse_quote!(#original);
-            // syn::parse2(quote!(::bpaf))
-            // .map_err(|e| {
-            //     syn::Error::new(
-            //         e.span(),
-            //         format!("Failed to convert quote!(::bpaf) into a Path: {e}"),
-            //     )
-            // })
-            // .unwrap()
             CratePathReplacer::new(parse_quote!(::bpaf), custom_path.clone())
                 .visit_item_fn_mut(&mut replaced);
-
             replaced.to_token_stream()
         } else {
             original
