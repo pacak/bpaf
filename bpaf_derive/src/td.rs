@@ -1,7 +1,7 @@
 use crate::{
     attrs::PostDecor,
     help::Help,
-    utils::{parse_arg, parse_opt_arg},
+    utils::{parse_arg, parse_name_value, parse_opt_arg},
 };
 use quote::{quote, ToTokens};
 use syn::{
@@ -92,6 +92,9 @@ pub(crate) struct TopInfo {
     pub(crate) adjacent: bool,
     pub(crate) mode: Mode,
     pub(crate) attrs: Vec<PostDecor>,
+
+    /// Custom absolute path to the `bpaf` crate.
+    pub(crate) bpaf_path: Option<syn::Path>,
 }
 
 impl Default for TopInfo {
@@ -106,6 +109,7 @@ impl Default for TopInfo {
             },
             attrs: Vec::new(),
             ignore_rustdoc: false,
+            bpaf_path: None,
         }
     }
 }
@@ -172,6 +176,7 @@ impl Parse for TopInfo {
         let mut adjacent = false;
         let mut attrs = Vec::new();
         let mut first = true;
+        let mut bpaf_path = None;
         loop {
             let kw = input.parse::<Ident>()?;
 
@@ -240,6 +245,8 @@ impl Parse for TopInfo {
             } else if kw == "help" {
                 let help = parse_arg(input)?;
                 with_command(&kw, command.as_mut(), |cfg| cfg.help = Some(help))?;
+            } else if kw == "bpaf_path" {
+                bpaf_path.replace(parse_name_value::<syn::Path>(input)?);
             } else if kw == "max_width" {
                 let max_width = parse_arg(input)?;
                 with_options(&kw, options.as_mut(), |opt| opt.max_width = Some(max_width))?;
@@ -278,6 +285,7 @@ impl Parse for TopInfo {
             adjacent,
             mode,
             attrs,
+            bpaf_path,
         })
     }
 }
@@ -362,7 +370,7 @@ impl Parse for Ed {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum EAttr {
     NamedCommand(LitStr),
     UnnamedCommand,

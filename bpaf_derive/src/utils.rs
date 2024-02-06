@@ -1,7 +1,7 @@
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
-    token, Attribute, Expr, LitChar, LitStr, Result,
+    token, Attribute, Expr, LitChar, LitStr, Result, Token,
 };
 
 pub(crate) fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
@@ -18,6 +18,11 @@ pub(crate) fn parse_opt_arg<T: Parse>(input: ParseStream) -> Result<Option<T>> {
     } else {
         Ok(None)
     }
+}
+
+pub(crate) fn parse_name_value<T: Parse>(input: ParseStream) -> Result<T> {
+    let _ = input.parse::<Token![=]>();
+    input.parse::<T>()
 }
 
 pub(crate) fn parse_arg2<A: Parse, B: Parse>(input: ParseStream) -> Result<(A, B)> {
