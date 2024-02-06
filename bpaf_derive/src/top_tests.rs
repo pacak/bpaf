@@ -1177,6 +1177,30 @@ fn top_comment_is_group_help_struct() {
 }
 
 #[test]
+fn max_width() {
+    let input: Top = parse_quote! {
+        // those are options
+        #[bpaf(options, max_width(110))]
+        struct Opt {
+            verbose: bool,
+        }
+    };
+    let expected = quote! {
+        fn opt() -> ::bpaf::OptionParser<Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let verbose = ::bpaf::long("verbose").switch();
+                ::bpaf::construct!(Opt { verbose })
+            }
+            .to_options()
+            .max_width(110)
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn custom_bpaf_path() {
     let input: Top = parse_quote! {
         // those are options
