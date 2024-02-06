@@ -248,7 +248,7 @@ impl ToTokens for Top {
                     descr,
                     footer,
                     header,
-                    max_width
+                    max_width,
                 } = options;
                 let body = match cargo_helper {
                     Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),

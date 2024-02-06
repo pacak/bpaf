@@ -15,8 +15,8 @@ mod top_tests;
 
 mod help;
 
-mod td;
 mod custom_path;
+mod td;
 
 use top::Top;
 
