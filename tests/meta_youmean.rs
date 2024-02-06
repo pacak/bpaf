@@ -15,7 +15,7 @@ fn ambiguity() {
     let parser = construct!([a0, a1]).to_options();
 
     let r = parser.run_inner(&["-aaaaaa"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "app supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual options\n(-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
+    assert_eq!(r, "app supports `-a` as both an option and an option-argument, try to split `-aaaaaa` into individual\noptions (-a -a ..) or use `-a=aaaaa` syntax to disambiguate");
 
     let r = parser.run_inner(&["-b"]).unwrap_err().unwrap_stderr();
     // single char typos are too random
