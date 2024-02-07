@@ -1215,7 +1215,7 @@ fn custom_bpaf_path_options() {
             use ::indirector::bpaf::Parser;
             {
                 let verbose = ::indirector::bpaf::long("verbose").switch();
-                ::indirector::bpaf::construct!(Options { verbose })
+                ::indirector::bpaf::construct!(Options { verbose, })
             }
             .to_options()
         }
@@ -1238,7 +1238,7 @@ fn custom_bpaf_path_parser() {
             use ::indirector::bpaf::Parser;
             {
                 let verbose = ::indirector::bpaf::long("verbose").switch();
-                ::indirector::bpaf::construct!(Items { verbose })
+                ::indirector::bpaf::construct!(Items { verbose, })
             }
         }
     };
