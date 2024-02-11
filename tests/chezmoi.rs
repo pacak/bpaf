@@ -83,11 +83,19 @@ pub enum Options {
 fn completion_test_1() {
     let parser = options();
 
+    let expected = "\
+--no-confirm\t--no-confirm\t\tDo not ask for confirmation before applying updates
+";
+    let r = parser
+        .run_inner(Args::from(&["-u", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, expected);
+
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-
     let expected = "\
 --add\t--add\t\tAdd a file
 --style\t--style=STYLE\t\thelp message for style
