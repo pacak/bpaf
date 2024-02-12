@@ -723,8 +723,8 @@ where
     match parser.eval(args) {
         // we keep including values for as long as we consume values from the argument
         // list or at least one value
-        Ok(val) => Ok(if args.len() < *len {
-            *len = args.len();
+        Ok(val) => Ok(if args.full_len() < *len {
+            *len = args.full_len();
             Some(val)
         } else {
             None
@@ -1140,5 +1140,69 @@ impl<T> Parser<T> for Box<dyn Parser<T>> {
     }
     fn meta(&self) -> Meta {
         self.as_ref().meta()
+    }
+}
+
+pub struct ParseEnter<T> {
+    pub(crate) inner: T,
+    pub(crate) name: &'static str,
+}
+
+impl<T, P> Parser<T> for ParseEnter<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        if let Some(config) = &mut args.config {
+            config.enter(self.name);
+        }
+        let r = self.inner.eval(args);
+        if let Some(config) = &mut args.config {
+            config.exit();
+        }
+        r
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
+pub struct ParseCKey<T> {
+    pub(crate) inner: T,
+    pub(crate) name: &'static str,
+}
+
+impl<T, P> Parser<T> for ParseCKey<P>
+where
+    P: Parser<T>,
+    T: std::str::FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        match self.inner.eval(args) {
+            Err(err) if err.0.can_catch() => {
+                if let Some(config) = &mut args.config {
+                    if let Some(val) = config.get(self.name) {
+                        match T::from_str(&val) {
+                            Ok(v) => return Ok(v),
+                            Err(err) => {
+                                let msg = format!(
+                                    "{} while trying to parse {} from config (field {})",
+                                    err, val, self.name
+                                );
+                                return Err(Error(Message::ParseFailed(None, msg)));
+                            }
+                        }
+                    }
+                }
+                Err(err)
+            }
+            res => res,
+        }
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
     }
 }
