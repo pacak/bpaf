@@ -2,8 +2,9 @@ use std::ffi::OsString;
 
 pub(crate) use crate::arg::*;
 use crate::{
+    complete_gen::{Comp, CompExtra},
     error::{Message, MissingItem},
-    item::Item,
+    item::{Item, ShortLong},
     meta_help::Metavar,
     parsers::NamedArg,
     Error,
@@ -287,8 +288,8 @@ mod inner {
 
     impl State {
         /// Check if item at ixth position is still present (was not parsed)
-        pub(crate) fn present(&self, ix: usize) -> Option<bool> {
-            Some(self.item_state.get(ix)?.present())
+        pub(crate) fn present(&self, ix: usize) -> bool {
+            self.item_state.get(ix).map_or(false, |arg| arg.present())
         }
 
         pub(crate) fn depth(&self) -> usize {
@@ -304,13 +305,15 @@ mod inner {
     impl State {
         #[cfg(feature = "autocomplete")]
         pub(crate) fn check_no_pos_ahead(&self) -> bool {
-            self.comp.as_ref().map_or(false, |c| c.no_pos_ahead)
+            self.comp
+                .as_ref()
+                .map_or(false, |c| c.consumed_as_positional)
         }
 
         #[cfg(feature = "autocomplete")]
         pub(crate) fn set_no_pos_ahead(&mut self) {
             if let Some(comp) = &mut self.comp {
-                comp.no_pos_ahead = true;
+                comp.consumed_as_positional = true;
             }
         }
 
@@ -329,16 +332,18 @@ mod inner {
             let mut comp_scanner = crate::complete_run::ArgScanner {
                 revision: args.c_rev,
                 name: args.name.as_deref(),
+                current: String::new(),
             };
 
-            for os in args.items {
-                if pos_only {
-                    items.push(Arg::PosWord(os));
+            let len = args.items.len();
+            for (ix, os) in args.items.enumerate() {
+                #[cfg(feature = "autocomplete")]
+                if comp_scanner.check_next(&os, ix + 1 == len) {
                     continue;
                 }
 
-                #[cfg(feature = "autocomplete")]
-                if comp_scanner.check_next(&os) {
+                if pos_only {
+                    items.push(Arg::PosWord(os));
                     continue;
                 }
 
@@ -386,15 +391,10 @@ mod inner {
 
             let mut item_state = vec![ItemState::Unparsed; items.len()];
             let mut remaining = items.len();
+
             if let Some(ix) = double_dash_marker {
                 item_state[ix] = ItemState::Parsed;
                 remaining -= 1;
-
-                #[cfg(feature = "autocomplete")]
-                if comp_scanner.revision.is_some() && ix == items.len() - 1 {
-                    remaining += 1;
-                    item_state[ix] = ItemState::Unparsed;
-                }
             }
 
             let mut path = Vec::new();
@@ -606,7 +606,8 @@ mod inner {
                     return None;
                 }
                 self.cur += 1;
-                if !self.args.present(cur)? {
+
+                if !self.args.present(cur) {
                     continue;
                 }
                 if cur + self.width > self.args.items.len() {
@@ -640,6 +641,111 @@ mod inner {
 }
 
 impl State {
+    #[cfg(feature = "autocomplete")]
+    #[inline(never)]
+    fn complete_named(&mut self, named: &NamedArg, metavar: Option<Metavar>) {
+        if let Some(comp) = self.comp_mut() {
+            let arg = comp.current_arg.as_str();
+
+            let name;
+            if arg.is_empty() {
+                if let Some(long) = named.long.first() {
+                    name = ShortLong::Long(long);
+                } else if let Some(short) = named.short.first() {
+                    name = ShortLong::Short(*short);
+                } else {
+                    return;
+                }
+            } else if arg == "--" {
+                if let Some(long) = named.long.first() {
+                    name = ShortLong::Long(long);
+                } else {
+                    return;
+                }
+            } else if arg == "-" {
+                if let Some(long) = named.long.first() {
+                    name = ShortLong::Long(long);
+                } else if let Some(short) = named.short.first() {
+                    name = ShortLong::Short(*short);
+                } else {
+                    return;
+                }
+            } else if let Some(prefix) = arg.strip_prefix("--") {
+                if let Some(long) = named.long.iter().find(|n| n.starts_with(prefix)) {
+                    name = ShortLong::Long(long);
+                } else {
+                    return;
+                }
+            } else if let Some(prefix) = arg.strip_prefix('-') {
+                if let Some(first) = named.long.first() {
+                    if !named.short.is_empty() {
+                        let mut chars = prefix.chars();
+                        if let (Some(c), None) = (chars.next(), chars.next()) {
+                            if named.short.contains(&c) {
+                                let extra = CompExtra {
+                                    depth: 0,
+                                    group: None,
+                                    help: None,
+                                };
+                                comp.comps2.push(Comp::Value {
+                                    extra,
+                                    is_argument: true,
+                                    body: format!("--{}", first),
+                                });
+                            }
+                        }
+                    }
+                }
+                return;
+            } else {
+                return;
+            }
+            let help = named.help.as_ref().and_then(crate::Doc::to_completion);
+            let extra = CompExtra {
+                depth: 0,
+                group: None,
+                help,
+            };
+            match metavar {
+                Some(m) => comp.comps2.push(Comp::Argument {
+                    extra,
+                    name,
+                    metavar: m.0,
+                }),
+                None => comp.comps2.push(Comp::Flag { extra, name }),
+            }
+        }
+    }
+
+    #[cfg(feature = "autocomplete")]
+    #[inline(never)]
+    pub(crate) fn complete_command(
+        &mut self,
+        longs: &[&'static str],
+        shorts: &[char],
+        help: Option<&crate::Doc>,
+    ) {
+        if let Some(comp) = self.comp_mut() {
+            let arg = &comp.current_arg;
+            for long in longs {
+                if long.starts_with(arg) {
+                    let help = help.and_then(crate::Doc::to_completion);
+                    let extra = CompExtra {
+                        depth: 0,
+                        group: None,
+                        help,
+                    };
+                    comp.comps2.push(Comp::Command {
+                        extra,
+                        name: long,
+                        short: None,
+                    });
+                    return;
+                }
+            }
+        }
+    }
+
     #[inline(never)]
     #[cfg(feature = "autocomplete")]
     pub(crate) fn swap_comps_with(&mut self, comps: &mut Vec<crate::complete_gen::Comp>) {
@@ -651,6 +757,7 @@ impl State {
     /// Get a short or long flag: `-f` / `--flag`
     ///
     /// Returns false if value isn't present
+    #[inline(never)]
     pub(crate) fn take_flag(&mut self, named: &NamedArg) -> bool {
         if let Some((ix, _)) = self
             .items_iter()
@@ -659,6 +766,9 @@ impl State {
             self.remove(ix);
             true
         } else {
+            #[cfg(feature = "autocomplete")]
+            self.complete_named(named, None);
+
             false
         }
     }
@@ -678,10 +788,32 @@ impl State {
             .find(|arg| named.matches_arg(arg.1, adjacent))
         {
             Some(v) => v,
-            None => return Ok(None),
+            None => {
+                #[cfg(feature = "autocomplete")]
+                self.complete_named(named, Some(metavar));
+                return Ok(None);
+            }
         };
 
         let val_ix = key_ix + 1;
+
+        #[cfg(feature = "autocomplete")]
+        if self.items.get(val_ix).is_none() {
+            // this covers only scenario when this argument is the one we are completing
+            // otherwise parsing behavior is unchanged
+            if let Some(comp) = self.comp_mut() {
+                // should insert metavariable here
+                if comp.meta.is_none() {
+                    comp.meta = Some(metavar);
+                }
+
+                let val = comp.current_arg.as_str().into();
+                self.current = Some(val_ix);
+                self.remove(key_ix);
+                return Ok(Some(val));
+            }
+        }
+
         let val = match self.get(val_ix) {
             Some(Arg::Word(w) | Arg::ArgWord(w)) => w,
             _ => return Err(Error(Message::NoArgument(key_ix, metavar))),

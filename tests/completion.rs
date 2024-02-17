@@ -70,6 +70,12 @@ fn static_complete_test_1() {
     let parser = construct!(a, b, bb, c).to_options();
 
     let r = parser
+        .run_inner(Args::from(&["-b"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--banana");
+
+    let r = parser
         .run_inner(Args::from(&["--"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
@@ -81,12 +87,6 @@ fn static_complete_test_1() {
 --bananananana\t--bananananana\t\tI'm Batman
 --calculator\t--calculator=EXPR\t\tcalculator expression\n\n"
     );
-
-    let r = parser
-        .run_inner(Args::from(&["-b"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "--banana");
 
     // this used to be disambiguation, not anymore
 
@@ -361,7 +361,7 @@ fn static_complete_test_4() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -424,7 +424,7 @@ fn static_complete_test_5() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -503,7 +503,7 @@ fn static_complete_test_6() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -1037,16 +1037,17 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 }
 
 #[test]
-#[should_panic(expected = "app supports ")]
 fn ambiguity_no_resolve() {
     let a0 = short('a').switch().count();
     let a1 = short('a').argument::<usize>("AAAAAA");
     let parser = construct!([a0, a1]).to_options();
 
-    parser
+    let r = parser
         .run_inner(Args::from(&["-aaa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
+
+    assert_eq!(r, "-aaa\n");
 }
 
 #[test]
@@ -1263,11 +1264,30 @@ sample\tsample\t\t\n\n"
 }
 
 #[test]
+fn pair_of_positionals() {
+    let a = positional::<String>("A").complete(test_completer);
+    let b = positional::<String>("B").complete(test_completer);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "FIXME, positionals should complete one by one");
+}
+
+#[test]
 fn double_dash_as_positional() {
     let parser = positional::<String>("P")
         .help("Help")
         .complete(test_completer)
         .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha");
 
     let r = parser
         .run_inner(Args::from(&["a"]).set_comp(0))
@@ -1288,12 +1308,6 @@ fn double_dash_as_positional() {
     assert_eq!(r, "--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--", "a"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "alpha"); // this is not a valid positional
-                            //
-    let r = parser
         .run_inner(Args::from(&["--"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
@@ -1303,7 +1317,8 @@ fn double_dash_as_positional() {
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "\tP\t\tHelp\n\n");
+    assert_eq!(r, "x\n");
+    //    assert_eq!(r, "\tP\t\tHelp\n\n");
 }
 
 #[test]

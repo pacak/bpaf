@@ -371,6 +371,11 @@ fn this_or_that_picks_first(
     {
         let mut keep_a = true;
         let mut keep_b = true;
+        println!("\na: {args_a:?}");
+        println!("b: {args_b:?}\n");
+
+        // what happens if we
+
         if args_a.len() != args_b.len() {
             // If neither parser consumed anything - both can produce valid completions, otherwise
             // look for the first "significant" consume and keep that parser
@@ -392,28 +397,26 @@ fn this_or_that_picks_first(
                             break 'check;
                         }
                     }
-                    if let (Some(a), Some(b)) = (args_a.present(ix), args_b.present(ix)) {
-                        match (a, b) {
-                            (false, true) => {
-                                keep_b = false;
-                                break 'check;
-                            }
-                            (true, false) => {
-                                keep_a = false;
-                                break 'check;
-                            }
-                            _ => {}
+                    match (args_a.present(ix), args_b.present(ix)) {
+                        (false, true) => {
+                            keep_b = false;
+                            break 'check;
                         }
+                        (true, false) => {
+                            keep_a = false;
+                            break 'check;
+                        }
+                        _ => {}
                     }
                 }
             }
         }
 
         if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
-            if keep_a {
+            if dbg!(keep_a) {
                 comp_stash.extend(a.drain_comps());
             }
-            if keep_b {
+            if dbg!(keep_b) {
                 comp_stash.extend(b.drain_comps());
             }
         }
@@ -993,11 +996,57 @@ where
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         // stash old
-        let mut comp_items = Vec::new();
-        args.swap_comps_with(&mut comp_items);
+        //        let mut comp_items = Vec::new();
+        //        args.swap_comps_with(&mut comp_items);
 
+        // autocompletion function should only run if inner parser is currently completing a value
+        // when it does that it sets meta
+
+        let mut meta = None;
+
+        if let Some(comp) = args.comp_mut() {
+            meta = std::mem::take(&mut comp.meta);
+        }
         let res = self.inner.eval(args);
+        if let Some(comp) = args.comp_mut() {
+            std::mem::swap(&mut meta, &mut comp.meta);
+        }
+        let res = res?;
 
+        let is_argument = dbg!(false);
+        if let Some(comp) = args.comp_mut() {
+            if let Some(meta) = meta {
+                let pos = comp.comps2.len();
+                for (rep, descr) in (self.op)(&res) {
+                    let group = self.group.clone();
+                    comp.comps2.push(crate::complete_gen::Comp::Value {
+                        extra: crate::complete_gen::CompExtra {
+                            depth: 0,
+                            group,
+                            help: descr.map(Into::into),
+                        },
+                        body: rep.into(),
+                        is_argument,
+                    });
+                }
+                if comp.comps2.len() - pos > 1 {
+                    comp.comps2.insert(
+                        pos,
+                        crate::complete_gen::Comp::Metavariable {
+                            extra: crate::complete_gen::CompExtra {
+                                depth: 0,
+                                group: None,
+                                help: None,
+                            },
+                            meta: meta.0,
+                            is_argument,
+                        },
+                    );
+                }
+            }
+        }
+
+        /*
         // restore old, now metavars added by inner parser, if any, are in comp_items
         args.swap_comps_with(&mut comp_items);
 
@@ -1036,7 +1085,7 @@ where
                     comp.push_comp(ci);
                 }
             }
-        }
+        }*/
         Ok(res)
     }
 

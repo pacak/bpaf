@@ -353,6 +353,24 @@ impl Doc {
     }
 }
 
+impl std::fmt::Display for Metavar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self
+            .0
+            .chars()
+            .all(|c| c.is_uppercase() || c.is_ascii_digit() || c == '-' || c == '_')
+        {
+            f.write_str(self.0)?;
+        } else {
+            use std::fmt::Write;
+            f.write_char('<')?;
+            f.write_str(self.0)?;
+            f.write_char('>')?;
+        }
+        Ok(())
+    }
+}
+
 #[allow(clippy::too_many_lines)] // lines are _very_ boring
 fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
     match item {

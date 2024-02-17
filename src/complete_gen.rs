@@ -14,32 +14,72 @@
 //
 // complete short names to long names if possible
 
+// instead
+
 use crate::{
     args::{Arg, State},
     complete_shell::{render_bash, render_fish, render_simple, render_test, render_zsh},
     item::ShortLong,
+    meta_help::Metavar,
     parsers::NamedArg,
     Doc, ShellComp,
 };
 use std::ffi::OsStr;
 
 #[derive(Clone, Debug)]
+pub(crate) struct CurrentMeta {
+    pub(crate) name: Metavar,
+    pub(crate) help: Option<String>,
+    /// Is metavar belongs to an argument?
+    ///
+    /// The difference is that for not arguments in a scenario like "[-v] <FILE>"
+    /// While completing FILE It is also valid to suggest -v, while for arguments
+    /// "-v -f <FILE>" and we are completing FILE suggesting -v won't be valid.
+    ///
+    /// As a result any metavar or any value with is_argument set disables any
+    /// non argument values or metavars
+    pub(crate) is_argument: bool,
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct Complete {
     /// completions accumulated so far
     comps: Vec<Comp>,
+
+    pub(crate) comps2: Vec<Comp>,
+
+    /// Are we expanding a metavariable?
+    /// This takes priority over comps
+    pub(crate) meta: Option<CurrentMeta>,
+
+    /// Output revision
+    ///
+    /// This value will be used to decide how to render the generated completion info
+    /// for different shell.
+    ///
+    /// The only reason it is inside of Complete struct is that it gets created from arguments
+    /// and needs to be stored somewhere
     pub(crate) output_rev: usize,
 
-    /// don't try to suggest any more positional items after there's a positional item failure
-    /// or parsing in progress
-    pub(crate) no_pos_ahead: bool,
+    /// Argument that is being completed
+    ///
+    /// This argument can be either positional or named item, or even part of them like "--ver"
+    /// in a process of being complete to "--verbose"
+    pub(crate) current_arg: String,
+
+    /// Current argument was consumed by a positional parser
+    pub(crate) consumed_as_positional: bool,
 }
 
 impl Complete {
-    pub(crate) fn new(output_rev: usize) -> Self {
+    pub(crate) fn new(output_rev: usize, current_arg: String) -> Self {
         Self {
             comps: Vec::new(),
+            meta: None,
+            comps2: Vec::new(),
             output_rev,
-            no_pos_ahead: false,
+            current_arg,
+            consumed_as_positional: false,
         }
     }
 }
@@ -198,11 +238,11 @@ impl Complete {
     }
 
     pub(crate) fn extend_comps(&mut self, comps: Vec<Comp>) {
-        self.comps.extend(comps);
+        self.comps2.extend(comps);
     }
 
     pub(crate) fn drain_comps(&mut self) -> std::vec::Drain<Comp> {
-        self.comps.drain(0..)
+        self.comps2.drain(0..)
     }
 
     pub(crate) fn swap_comps(&mut self, other: &mut Vec<Comp>) {
@@ -368,43 +408,47 @@ impl State {
     pub(crate) fn check_complete(&self) -> Option<String> {
         let comp = self.comp_ref()?;
 
-        let mut items = self
-            .items
-            .iter()
-            .rev()
-            .filter_map(Arg::and_os_string)
-            .filter_map(pair_to_os_string);
-
+        /*
+                let mut items = self
+                    .items
+                    .iter()
+                    .rev()
+                    .filter_map(Arg::and_os_string)
+                    .filter_map(pair_to_os_string);
+        */
         // try get a current item to complete - must be non-virtual right most one
         // value must be present here, and can fail only for non-utf8 values
         // can't do much completing with non-utf8 values since bpaf needs to print them to stdout
-        let (cur, lit) = items.next()?;
+        //        let (cur, lit) = items.next()?;
 
         // For cases like "-k=val", "-kval", "--key=val", "--key val"
         // last value is going  to be either Arg::Word or Arg::ArgWord
         // so to perform full completion we look at the preceeding item
         // and use it's value if it was a composite short/long argument
-        let preceeding = items.next();
-        let (pos_only, full_lit) = match preceeding {
-            Some((Arg::Short(_, true, _os) | Arg::Long(_, true, _os), full_lit)) => {
-                (false, full_lit)
-            }
-            Some((Arg::PosWord(_), _)) => (true, lit),
-            _ => (false, lit),
-        };
+        //        let preceeding = items.next();
+        //        let (pos_only, full_lit) = match preceeding {
+        //            Some((Arg::Short(_, true, _os) | Arg::Long(_, true, _os), full_lit)) => {
+        //                (false, full_lit)
+        //            }
+        //            Some((Arg::PosWord(_), _)) => (true, lit),
+        //            _ => (false, lit),
+        //        };
 
-        let is_named = match cur {
-            Arg::Short(_, _, _) | Arg::Long(_, _, _) => true,
-            Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
-        };
+        //        let is_named = match cur {
+        //            Arg::Short(_, _, _) | Arg::Long(_, _, _) => true,
+        //            Arg::ArgWord(_) | Arg::Word(_) | Arg::PosWord(_) => false,
+        //        };
 
-        let prefix = match preceeding {
-            Some((Arg::Short(s, true, _os), _lit)) => Prefix::Short(*s),
-            Some((Arg::Long(l, true, _os), _lit)) => Prefix::Long(l.as_str()),
-            _ => Prefix::NA,
-        };
+        //        let prefix = match preceeding {
+        //            Some((Arg::Short(s, true, _os), _lit)) => Prefix::Short(*s),
+        //            Some((Arg::Long(l, true, _os), _lit)) => Prefix::Long(l.as_str()),
+        //            _ => Prefix::NA,
+        //        };
 
-        let (items, shell) = comp.complete(lit, pos_only, is_named, prefix);
+        //        println!("comps2: {:?}", comp.comps2);
+
+        let (items, shell) = comp.complete("", false, false, Prefix::NA);
+        let full_lit = &comp.current_arg;
 
         Some(match comp.output_rev {
             0 => render_test(&items, &shell, full_lit),
@@ -513,13 +557,33 @@ impl Complete {
     ) -> (Vec<ShowComp>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
         let mut shell = Vec::new();
-        let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
-        let mut only_values = false;
+        //        let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
+        let mut only_values = self.comps2.iter().any(|v| {
+            matches!(
+                v,
+                Comp::Value {
+                    is_argument: true,
+                    ..
+                }
+            )
+        });
 
-        for item in self
-            .comps
-            .iter()
-            .filter(|c| c.depth() == max_depth && (!pos_only || c.is_pos()))
+        if let Some(meta) = self.meta {
+            items.push(ShowComp {
+                subst: String::new(),
+                pretty: (meta.0).to_string(),
+                extra: &CompExtra {
+                    depth: 0,
+                    group: None,
+                    help: None,
+                },
+            });
+            return (items, shell);
+        }
+
+        println!("{:?}", self.comps2);
+        for item in self.comps2.iter()
+        //            .filter(|c| c.depth() == max_depth && (!pos_only || c.is_pos()))
         {
             match (only_values, item.only_value()) {
                 (true, true) | (false, false) => {}
