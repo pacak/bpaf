@@ -16,6 +16,8 @@
 
 // instead
 
+// if we can't complete current value - don't make any suggestions at all!
+
 use crate::{
     args::{Arg, State},
     complete_shell::{render_bash, render_fish, render_simple, render_test, render_zsh},
@@ -246,7 +248,7 @@ impl Complete {
     }
 
     pub(crate) fn swap_comps(&mut self, other: &mut Vec<Comp>) {
-        std::mem::swap(other, &mut self.comps);
+        std::mem::swap(other, &mut self.comps2);
     }
 }
 
@@ -547,6 +549,30 @@ impl Comp {
     }
 }
 
+impl State {
+    /// Move current metavariable contents into completions
+    ///
+    /// This requires &mut access to state
+    pub(crate) fn convert_current_metavar(&mut self) {
+        if let Some(comp) = self.comp_mut() {
+            if let Some(meta) = std::mem::take(&mut comp.meta) {
+                if meta.is_argument {
+                    comp.comps2.clear();
+                }
+                comp.comps2.push(Comp::Metavariable {
+                    extra: CompExtra {
+                        depth: 0,
+                        group: None,
+                        help: meta.help.clone(),
+                    },
+                    meta: meta.name.0,
+                    is_argument: meta.is_argument,
+                });
+            }
+        }
+    }
+}
+
 impl Complete {
     fn complete(
         &self,
@@ -567,19 +593,6 @@ impl Complete {
                 }
             )
         });
-
-        if let Some(meta) = self.meta {
-            items.push(ShowComp {
-                subst: String::new(),
-                pretty: (meta.0).to_string(),
-                extra: &CompExtra {
-                    depth: 0,
-                    group: None,
-                    help: None,
-                },
-            });
-            return (items, shell);
-        }
 
         println!("{:?}", self.comps2);
         for item in self.comps2.iter()

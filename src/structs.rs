@@ -1013,7 +1013,6 @@ where
         }
         let res = res?;
 
-        let is_argument = dbg!(false);
         if let Some(comp) = args.comp_mut() {
             if let Some(meta) = meta {
                 let pos = comp.comps2.len();
@@ -1026,7 +1025,7 @@ where
                             help: descr.map(Into::into),
                         },
                         body: rep.into(),
-                        is_argument,
+                        is_argument: meta.is_argument,
                     });
                 }
                 if comp.comps2.len() - pos > 1 {
@@ -1038,8 +1037,8 @@ where
                                 group: None,
                                 help: None,
                             },
-                            meta: meta.0,
-                            is_argument,
+                            meta: meta.name.0,
+                            is_argument: meta.is_argument,
                         },
                     );
                 }

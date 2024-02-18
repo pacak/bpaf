@@ -807,6 +807,11 @@ fn parse_pos_word(
             if let Some(comp) = args.comp_mut() {
                 if !comp.consumed_as_positional {
                     comp.consumed_as_positional = true;
+                    let metavar = crate::complete_gen::CurrentMeta {
+                        name: metavar,
+                        help: help.as_ref().and_then(crate::Doc::to_completion),
+                        is_argument: false,
+                    };
                     comp.meta = Some(metavar);
                     //                    comp.comps2.push(crate::complete_gen::Comp::Metavariable {
                     //                        extra: crate::complete_gen::CompExtra {

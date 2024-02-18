@@ -612,6 +612,15 @@ fn test_completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     vec
 }
 
+fn test_completer2(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    let items = ["auto", "mala"];
+    items
+        .iter()
+        .filter(|item| item.starts_with(input))
+        .map(|item| (*item, None))
+        .collect::<Vec<_>>()
+}
+
 fn test_completer_descr(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     let items = ["alpha", "beta", "banana", "cat", "durian"];
     items
@@ -1265,15 +1274,22 @@ sample\tsample\t\t\n\n"
 
 #[test]
 fn pair_of_positionals() {
+    // with positional items only current item should make suggestions, not both...
     let a = positional::<String>("A").complete(test_completer);
-    let b = positional::<String>("B").complete(test_completer);
+    let b = positional::<String>("B").complete(test_completer2);
     let parser = construct!(a, b).to_options();
 
     let r = parser
         .run_inner(Args::from(&["a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "FIXME, positionals should complete one by one");
+    assert_eq!(r, "alpha");
+
+    let r = parser
+        .run_inner(Args::from(&["alpha", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "auto");
 }
 
 #[test]

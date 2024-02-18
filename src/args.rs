@@ -804,7 +804,12 @@ impl State {
             if let Some(comp) = self.comp_mut() {
                 // should insert metavariable here
                 if comp.meta.is_none() {
-                    comp.meta = Some(metavar);
+                    let cur = crate::complete_gen::CurrentMeta {
+                        name: metavar,
+                        help: None,
+                        is_argument: true,
+                    };
+                    comp.meta = Some(cur);
                 }
 
                 let val = comp.current_arg.as_str().into();
