@@ -242,3 +242,12 @@ fn strictly_positional_help() {
         .unwrap_stderr();
     assert_eq!(r, "`--help` is not expected in this context");
 }
+
+#[test]
+fn hidden_required_field_is_valid_but_strange() {
+    let parser = short('a').req_flag(()).hide().to_options();
+
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
+
+    assert_eq!(r, "parser requires an extra flag, argument or parameter, but its name is hidden by the author");
+}

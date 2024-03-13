@@ -597,10 +597,14 @@ impl Message {
 /// go over all the missing items, pick the left most scope
 pub(crate) fn summarize_missing(items: &[MissingItem], inner: &Meta, args: &State) -> Message {
     // missing items can belong to different scopes, pick the best scope to work with
-    let best_item = items
+    let best_item = match items
         .iter()
         .max_by_key(|item| (item.position, item.scope.start))
-        .unwrap();
+    {
+        Some(x) => x,
+        None => return Message::ParseSome("parser requires an extra flag, argument or parameter, but its name is hidden by the author"),
+    };
+
     let mut best_scope = best_item.scope.clone();
 
     let mut saw_command = false;
