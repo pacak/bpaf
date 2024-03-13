@@ -271,7 +271,7 @@ clean\tclean\t\tclean target dir\n\n"
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -922,6 +922,20 @@ fn positionals_complete_in_order() {
     let b = positional::<String>("B").complete(complete_beta);
     let parser = construct!(a, b).to_options();
 
+    // there's no valid completions that start with x - don't render anything
+    let r = parser
+        .run_inner(Args::from(&["x"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "");
+
+    // same as before - no valid arguments start with y - don't render anything
+    let r = parser
+        .run_inner(Args::from(&["x", "y"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "");
+
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
@@ -935,12 +949,6 @@ fn positionals_complete_in_order() {
     assert_eq!(r, "alpha");
 
     let r = parser
-        .run_inner(Args::from(&["x"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "\tA\t\t\n\n");
-
-    let r = parser
         .run_inner(Args::from(&["xxx", ""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
@@ -951,12 +959,6 @@ fn positionals_complete_in_order() {
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta");
-
-    let r = parser
-        .run_inner(Args::from(&["xxx", "yyy"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "\tB\t\t\n\n");
 }
 
 #[test]
@@ -1046,17 +1048,60 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 }
 
 #[test]
+fn multiple_adjacent_single_letter_vals() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let c = short('c').switch();
+    let parser = construct!(a, b, c).to_options();
+
+    // with no input the right behavior is to suggest all the switches
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\t-a\t\t\n-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // with a single item present separately we should suggest the remaining two
+    let r = parser
+        .run_inner(Args::from(&["-a", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // with a single item present in the same item we still should suggest the remaining two values
+    let r = parser
+        .run_inner(Args::from(&["-a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // should I change the representation for the completions? Knowing that somethnig is a
+    // flag with a short or long name is no longer necessary
+    // now I need to be able to represent adding a -v to -f to get -fv, so pretty printed value is
+    // -v, substitution is `-fv`...
+    //
+    //
+    // FWIW bash doesn't complete short flags in combination... should we behave the same way?
+}
+
+#[test]
 fn ambiguity_no_resolve() {
     let a0 = short('a').switch().count();
     let a1 = short('a').argument::<usize>("AAAAAA");
     let parser = construct!([a0, a1]).to_options();
 
+    // -a is a valid argument, proper behavior here is to finalize it
+    let r = parser
+        .run_inner(Args::from(&["-a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a");
+
     let r = parser
         .run_inner(Args::from(&["-aaa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-
-    assert_eq!(r, "-aaa\n");
+    assert_eq!(r, "");
 }
 
 #[test]

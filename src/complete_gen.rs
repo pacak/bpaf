@@ -17,6 +17,7 @@
 // instead
 
 // if we can't complete current value - don't make any suggestions at all!
+// this behavior matches one from completions bash and zsh give for ls
 
 use crate::{
     args::{Arg, State},
@@ -450,14 +451,13 @@ impl State {
         //        println!("comps2: {:?}", comp.comps2);
 
         let (items, shell) = comp.complete("", false, false, Prefix::NA);
-        let full_lit = &comp.current_arg;
 
         Some(match comp.output_rev {
-            0 => render_test(&items, &shell, full_lit),
+            0 => render_test(&items, &shell ),
             1 => render_simple(&items), // <- AKA elvish
-            7 => render_zsh(&items, &shell, full_lit),
-            8 => render_bash(&items, &shell, full_lit),
-            9 => render_fish(&items, &shell, full_lit, self.path[0].as_str()),
+            7 => render_zsh(&items, &shell ),
+            8 => render_bash(&items, &shell ),
+            9 => render_fish(&items, &shell , self.path[0].as_str()),
             unk => {
                 #[cfg(debug_assertions)]
                 {
@@ -590,11 +590,13 @@ impl Complete {
                 Comp::Value {
                     is_argument: true,
                     ..
+                } | Comp::Metavariable {
+                    is_argument: true,
+                    ..
                 }
             )
         });
 
-        println!("{:?}", self.comps2);
         for item in self.comps2.iter()
         //            .filter(|c| c.depth() == max_depth && (!pos_only || c.is_pos()))
         {
