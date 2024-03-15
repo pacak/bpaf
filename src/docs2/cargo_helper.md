@@ -14,6 +14,7 @@ pub fn options() -> OptionParser<Options> {
     let switch = short('s').help("A switch").switch();
     let options = construct!(Options { argument, switch });
 
+    // Given the cargo command is `cargo pretty`.
     cargo_helper("pretty", options).to_options()
 }
 
@@ -27,7 +28,7 @@ fn main() {
 
 ```no_run
 #[derive(Debug, Clone, Bpaf)]
-#[bpaf(options("pretty"))]
+#[bpaf(options("pretty"))] // Given the cargo command is `cargo pretty`.
 pub struct Options {
     /// An argument
     argument: usize,

@@ -15,5 +15,6 @@ pub fn options() -> OptionParser<Options> {
     let switch = short('s').help("A switch").switch();
     let options = construct!(Options { argument, switch });
 
+    // Given the cargo command is `cargo pretty`.
     cargo_helper("pretty", options).to_options()
 }
