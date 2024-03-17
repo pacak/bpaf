@@ -251,3 +251,14 @@ fn hidden_required_field_is_valid_but_strange() {
 
     assert_eq!(r, "parser requires an extra flag, argument or parameter, but its name is hidden by the author");
 }
+
+#[test]
+fn guard_on_fallback() {
+    let parser = short('a')
+        .argument::<usize>("A")
+        .fallback(10)
+        .guard(|a| *a < 10, "too big")
+        .to_options();
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "check failed: too big");
+}
