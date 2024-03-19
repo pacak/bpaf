@@ -217,6 +217,7 @@ impl ToTokens for PostParse {
             PostParse::Optional { .. } => quote!(optional()),
             PostParse::Parse { f, .. } => quote!(parse(#f)),
             PostParse::Strict { .. } => quote!(strict()),
+            PostParse::Anywhere { .. } => quote!(anywhere()),
         }
         .to_tokens(tokens);
     }
@@ -255,6 +256,7 @@ pub(crate) enum PostParse {
     Optional { span: Span },
     Parse { span: Span, f: Box<Expr> },
     Strict { span: Span },
+    Anywhere { span: Span },
 }
 impl PostParse {
     fn span(&self) -> Span {
@@ -268,7 +270,8 @@ impl PostParse {
             | Self::Map { span, .. }
             | Self::Optional { span }
             | Self::Parse { span, .. }
-            | Self::Strict { span } => *span,
+            | Self::Strict { span }
+            | Self::Anywhere { span } => *span,
         }
     }
 }
@@ -480,6 +483,8 @@ impl PostParse {
         } else if kw == "some" {
             let msg = parse_arg(input)?;
             Self::Some_ { span, msg }
+        } else if kw == "anywhere" {
+            Self::Anywhere { span }
         } else {
             return Ok(None);
         }))
