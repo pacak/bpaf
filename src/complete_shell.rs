@@ -1,5 +1,23 @@
 use crate::{complete_gen::ShowComp, Error, Meta, Parser, State};
 
+struct Shell<'a>(&'a str);
+
+impl std::fmt::Display for Shell<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write;
+        f.write_char('\'')?;
+        for c in self.0.chars() {
+            if c == '\'' {
+                f.write_str("'\\''")
+            } else {
+                f.write_char(c)
+            }?
+        }
+        f.write_char('\'')?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 /// Shell specific completion
 #[non_exhaustive]
@@ -108,39 +126,45 @@ pub(crate) fn render_zsh(
     for op in ops {
         match op {
             ShellComp::File { mask: None } => writeln!(res, "_files"),
-            ShellComp::File { mask: Some(mask) } => writeln!(res, "_files -g '{}'", mask),
+            ShellComp::File { mask: Some(mask) } => writeln!(res, "_files -g {}", Shell(mask)),
             ShellComp::Dir { mask: None } => writeln!(res, "_files -/"),
-            ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g '{}'", mask),
-            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", zsh),
+            ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g {}", Shell(mask)),
+            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", Shell(zsh)),
             ShellComp::Nothing => Ok(()),
         }?;
     }
 
     if items.len() == 1 {
         if items[0].subst.is_empty() {
-            writeln!(res, "compadd -- {:?}", items[0].pretty)?;
+            writeln!(res, "compadd -- {}", Shell(items[0].pretty.as_str()))?;
             writeln!(res, "compadd ''")?;
             return Ok(res);
         } else {
-            return Ok(format!("compadd -- {:?}\n", items[0].subst));
+            return Ok(format!("compadd -- {}\n", Shell(items[0].subst.as_str())));
         }
     }
     writeln!(res, "local -a descr")?;
 
     for item in items {
-        writeln!(res, "descr=(\"{}\")", item)?;
+        writeln!(res, "descr=({})", Shell(&item.to_string()))?;
         //        writeln!(res, "args=(\"{}\")", item.subst)?;
         if let Some(group) = &item.extra.group {
             writeln!(
                 res,
-                "compadd -l -d descr -V {:?} -X {:?} -- {:?}",
-                group, group, item.subst,
+                "compadd -l -d descr -V {} -X {} -- {}",
+                Shell(group),
+                Shell(group),
+                Shell(&item.subst),
             )?;
         } else {
             // it seems sorting as well as not sorting is done in a group,
             // by default group contains just one element so and `-o nosort`
             // does nothing, while `-V whatever` stops sorting...
-            writeln!(res, "compadd -l -V nosort -d descr -- {:?}", item.subst)?;
+            writeln!(
+                res,
+                "compadd -l -V nosort -d descr -- {}",
+                Shell(&item.subst)
+            )?;
         }
     }
     Ok(res)
@@ -163,29 +187,29 @@ pub(crate) fn render_bash(
     let mut res = String::new();
 
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("COMPREPLY+=( {:?})\n", full_lit));
+        return Ok(format!("COMPREPLY+=({})\n", Shell(full_lit)));
     }
 
     for op in ops {
         match op {
             ShellComp::File { mask: None } => write!(res, "_filedir"),
             ShellComp::File { mask: Some(mask) } => {
-                writeln!(res, "_filedir '{}'", bashmask(mask))
+                writeln!(res, "_filedir '{}'", Shell(bashmask(mask)))
             }
             ShellComp::Dir { mask: None } => write!(res, "_filedir -d"),
             ShellComp::Dir { mask: Some(mask) } => {
-                writeln!(res, "_filedir -d '{}'", bashmask(mask))
+                writeln!(res, "_filedir -d '{}'", Shell(bashmask(mask)))
             }
-            ShellComp::Raw { bash, .. } => writeln!(res, "{}", bash),
+            ShellComp::Raw { bash, .. } => writeln!(res, "{}", Shell(bash)),
             ShellComp::Nothing => Ok(()),
         }?;
     }
 
     if items.len() == 1 {
         if items[0].subst.is_empty() {
-            writeln!(res, "COMPREPLY+=( {:?} '')", items[0].pretty)?;
+            writeln!(res, "COMPREPLY+=( {} '')", Shell(&items[0].pretty))?;
         } else {
-            writeln!(res, "COMPREPLY+=( {:?} )\n", items[0].subst)?;
+            writeln!(res, "COMPREPLY+=( {} )\n", Shell(&items[0].subst))?;
         }
 
         return Ok(res);
@@ -195,10 +219,10 @@ pub(crate) fn render_bash(
         if let Some(group) = &item.extra.group {
             if prev != group {
                 prev = group;
-                writeln!(res, "COMPREPLY+=({:?})", group)?;
+                writeln!(res, "COMPREPLY+=({})", Shell(group))?;
             }
         }
-        writeln!(res, "COMPREPLY+=(\"{}\")", item)?;
+        writeln!(res, "COMPREPLY+=({})", Shell(&item.to_string()))?;
     }
 
     Ok(res)

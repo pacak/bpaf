@@ -33,7 +33,7 @@ use crate::{
 /// assert!(value);
 /// ```
 pub struct Args<'a> {
-    items: Box<dyn Iterator<Item = OsString> + 'a>,
+    items: Box<dyn ExactSizeIterator<Item = OsString> + 'a>,
     name: Option<String>,
     #[cfg(feature = "autocomplete")]
     c_rev: Option<usize>,
