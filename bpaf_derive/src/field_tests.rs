@@ -947,3 +947,15 @@ fn raw_literal() {
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
+
+#[test]
+fn any_anywhere() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(any::<isize>("LIMIT", isize_to_usize), anywhere)]
+        num: isize
+    };
+    let output = quote! {
+        ::bpaf::any::<isize, _, _>("LIMIT", isize_to_usize).anywhere()
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
