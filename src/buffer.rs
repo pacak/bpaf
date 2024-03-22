@@ -15,6 +15,7 @@ mod manpage;
 mod splitter;
 
 pub(crate) use self::console::Color;
+use self::console::MAX_WIDTH;
 
 #[cfg(feature = "docgen")]
 pub use manpage::Section;
@@ -331,7 +332,8 @@ pub struct Doc {
 
 impl std::fmt::Display for Doc {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.monochrome(true))
+        let width = f.width().unwrap_or(MAX_WIDTH);
+        f.write_str(&self.render_console(true, Color::Monochrome, width))
     }
 }
 
