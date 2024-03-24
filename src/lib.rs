@@ -432,69 +432,39 @@ macro_rules! construct {
     };
 
     (@prepare $ty:tt [$($fields:tt)*]) => {
-        $crate::__cons_prepare!($ty [ $($fields)* ])
+        $crate::construct!(@fin $ty [ $($fields)* ])
     };
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
     (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields),* ) };
     (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
-}
 
-#[macro_export]
-#[doc(hidden)]
-#[cfg(not(feature = "autocomplete"))]
-/// to avoid extra parsing when autocomplete feature is off
-macro_rules! __cons_prepare {
-    ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
-    ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-    ([pos] [$field:ident]) => {{
+    (@fin [named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
+    (@fin [pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
+
+    (@fin [pos] [$field:ident]) => {{
         use $crate::Parser;
         $field.boxed()
     }};
 
-    ($ty:tt [$($fields:ident)+]) => {{
+    (@fin $ty:tt [$front:ident $($fields:ident)*]) => {{
         use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
-        let inner = move |args: &mut $crate::State| {
-            $(let $fields = $fields.eval(args)?;)+
-            args.current = None;
-            ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)+]))
-        };
-        $crate::ParseCon { inner, meta }
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-#[cfg(feature = "autocomplete")]
-/// for completion bpaf needs to observe all the failures in a branch
-macro_rules! __cons_prepare {
-    ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
-    ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
-
-    ([pos] [$field:ident]) => {{
-        use $crate::Parser;
-        $field.boxed()
-    }};
-
-    ($ty:tt [$($fields:ident)+]) => {{
-        use $crate::Parser;
-        let meta = $crate::Meta::And(vec![ $($fields.meta()),+ ]);
-        let inner = move |args: &mut $crate::State| {
-            $(let $fields = if args.is_comp() {
-                $fields.eval(args)
-            } else {
-                Ok($fields.eval(args)?)
-            };)+
-            $(let $fields = $fields?;)+
+        let meta = $crate::Meta::And(vec![ $front.meta(), $($fields.meta()),* ]);
+        let inner = move |failfast: bool, args: &mut $crate::State| {
+            let mut $front = $front.eval(args);
+            if failfast {
+                $front = Ok($front?);
+            }
+            $(let $fields = $fields.eval(args);)*
+            let $front = $front?;
+            $(let $fields = $fields?;)*
 
             args.current = None;
             ::std::result::Result::Ok::<_, $crate::Error>
-                ($crate::construct!(@make $ty [$($fields)+]))
+                ($crate::construct!(@make $ty [$front $($fields)*]))
         };
-        $crate::ParseCon { inner, meta }
+        $crate::ParseCon { inner, meta, failfast: false }
     }};
 }
 

@@ -460,7 +460,7 @@ impl Message {
 
                         match v {
                             Variant::CommandLong(name) => doc.literal(name),
-                            Variant::Flag(ShortLong::Long(l) | ShortLong::ShortLong(_, l)) => {
+                            Variant::Flag(ShortLong::Long(l) | ShortLong::Both(_, l)) => {
                                 doc.literal("--");
                                 doc.literal(l);
                             }

@@ -422,7 +422,7 @@ impl State {
 fn preferred_name(name: ShortLong) -> String {
     match name {
         ShortLong::Short(s) => format!("-{}", s),
-        ShortLong::Long(l) | ShortLong::ShortLong(_, l) => format!("--{}", l),
+        ShortLong::Long(l) | ShortLong::Both(_, l) => format!("--{}", l),
     }
 }
 
@@ -439,7 +439,7 @@ fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
     // allocations and cloning
     match name {
         ShortLong::Long(_) => {}
-        ShortLong::Short(s) | ShortLong::ShortLong(s, _) => {
+        ShortLong::Short(s) | ShortLong::Both(s, _) => {
             can_match |= arg
                 .strip_prefix('-')
                 .and_then(|a| a.strip_prefix(s))
@@ -450,7 +450,7 @@ fn arg_matches(arg: &str, name: ShortLong) -> Option<String> {
     // and long string too
     match name {
         ShortLong::Short(_) => {}
-        ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
+        ShortLong::Long(l) | ShortLong::Both(_, l) => {
             can_match |= arg.strip_prefix("--").map_or(false, |s| l.starts_with(s));
         }
     }

@@ -64,19 +64,19 @@ impl Item {
 pub enum ShortLong {
     Short(char),
     Long(&'static str),
-    ShortLong(char, &'static str),
+    Both(char, &'static str),
 }
 
 impl ShortLong {
     pub(crate) fn as_long(&self) -> Option<&'static str> {
         match self {
-            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => Some(l),
+            ShortLong::Long(l) | ShortLong::Both(_, l) => Some(l),
             ShortLong::Short(_) => None,
         }
     }
     pub(crate) fn as_short(&self) -> Option<char> {
         match self {
-            ShortLong::Short(s) | ShortLong::ShortLong(s, _) => Some(*s),
+            ShortLong::Short(s) | ShortLong::Both(s, _) => Some(*s),
             ShortLong::Long(_) => None,
         }
     }
@@ -94,7 +94,7 @@ impl PartialEq<&str> for ShortLong {
         match self {
             ShortLong::Short(s) => short_eq(*s, other),
             ShortLong::Long(l) => long_eq(l, other),
-            ShortLong::ShortLong(s, l) => short_eq(*s, other) || long_eq(l, other),
+            ShortLong::Both(s, l) => short_eq(*s, other) || long_eq(l, other),
         }
     }
 }
@@ -105,7 +105,7 @@ impl ShortLong {
     pub(crate) fn normalize(&mut self, short: bool) {
         match self {
             ShortLong::Short(_) | ShortLong::Long(_) => {}
-            ShortLong::ShortLong(s, l) => {
+            ShortLong::Both(s, l) => {
                 if short {
                     *self = Self::Short(*s);
                 } else {
@@ -124,7 +124,7 @@ impl TryFrom<&NamedArg> for ShortLong {
             (true, true) => Err(()),
             (true, false) => Ok(Self::Long(named.long[0])),
             (false, true) => Ok(Self::Short(named.short[0])),
-            (false, false) => Ok(Self::ShortLong(named.short[0], named.long[0])),
+            (false, false) => Ok(Self::Both(named.short[0], named.long[0])),
         }
     }
 }

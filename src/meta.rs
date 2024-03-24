@@ -154,10 +154,10 @@ impl Meta {
     }
 
     /// Used by adjacent parsers since it inherits behavior of the front item
-    pub(crate) fn first_item(meta: &Meta) -> Option<Item> {
+    pub(crate) fn first_item(meta: &Meta) -> Option<&Item> {
         match meta {
             Meta::And(xs) => xs.first().and_then(Self::first_item),
-            Meta::Item(item) => Some(*item.clone()),
+            Meta::Item(item) => Some(item),
             Meta::Skip | Meta::Or(_) => None,
             Meta::Optional(x)
             | Meta::Strict(x)

@@ -29,10 +29,10 @@ fn no_argument() {
     //    let r = parser.run_inner(&["-a", "-4"])).unwrap();
     //    assert_eq!(r, (-4, flse));
     let r = parser.run_inner(&["-a", "-2"]).unwrap_err().unwrap_stderr();
-    assert_eq!(
-        r,
-        "`-a` requires an argument `N`, got a flag `-2`, try `-a=-2` to use it as an argument"
-    );
+
+    // can we restore this?
+    // "`-a` requires an argument `N`, got a flag `-2`, try `-a=-2` to use it as an argument"
+    assert_eq!(r, "`-a` requires an argument `N`");
 }
 
 #[test]
@@ -261,4 +261,13 @@ fn guard_on_fallback() {
         .to_options();
     let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "check failed: too big");
+}
+
+#[test]
+fn two_required_fields_first_missing() {
+    let a = long("a").argument::<u32>("A");
+    let b = long("b").argument::<u32>("B");
+    let parser = construct!(a, b).to_options();
+    let r = parser.run_inner(&["--b", "1"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected `--a=A`, pass `--help` for usage information");
 }

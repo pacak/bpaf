@@ -850,14 +850,21 @@ pub struct ParseCon<P> {
     pub inner: P,
     /// metas for inner parsers
     pub meta: Meta,
+    /// To produce a better error messages while parsing constructed values
+    /// we want to look at all the items so values that can be consumed are consumed
+    /// autocomplete relies on the same logic
+    ///
+    /// However when dealing with adjacent restriction detecting the first item relies on failing
+    /// fast
+    pub failfast: bool,
 }
 
 impl<T, P> Parser<T> for ParseCon<P>
 where
-    P: Fn(&mut State) -> Result<T, Error>,
+    P: Fn(bool, &mut State) -> Result<T, Error>,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let res = (self.inner)(args);
+        let res = (self.inner)(self.failfast, args);
         args.current = None;
         res
     }
@@ -928,7 +935,8 @@ impl<T> ParseCon<T> {
     /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
     /// `-f=bar` or `-fbar`, but not `-f bar`.
-    pub fn adjacent(self) -> ParseAdjacent<Self> {
+    pub fn adjacent(mut self) -> ParseAdjacent<Self> {
+        self.failfast = true;
         ParseAdjacent { inner: self }
     }
 }
@@ -1048,9 +1056,12 @@ where
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         let original_scope = args.scope();
 
-        let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
+        let first_item;
+        let inner_meta = self.inner.meta();
+        let mut best_error = if let Some(item) = Meta::first_item(&inner_meta) {
+            first_item = item;
             let missing_item = MissingItem {
-                item,
+                item: item.clone(),
                 position: original_scope.start,
                 scope: original_scope.clone(),
             };
@@ -1061,7 +1072,7 @@ where
         let mut best_args = args.clone();
         let mut best_consumed = 0;
 
-        for (start, mut this_arg) in args.ranges() {
+        for (start, width, mut this_arg) in args.ranges(first_item) {
             // since we only want to parse things to the right of the first item we perform
             // parsing in two passes:
             // - try to run the parser showing only single argument available at all the indices
@@ -1071,8 +1082,7 @@ where
             // consider examples "42 -n" and "-n 42"
             // without multi step approach first command line also parses into 42
             let mut scratch = this_arg.clone();
-            #[allow(clippy::range_plus_one)] // clippy suggests wrong type
-            scratch.set_scope(start..start + 1);
+            scratch.set_scope(start..start + width);
             let before = scratch.len();
 
             // nothing to consume, might as well skip this segment right now
@@ -1116,8 +1126,8 @@ where
                         if consumed > best_consumed {
                             best_consumed = consumed;
                             std::mem::swap(&mut best_args, &mut this_arg);
+                            best_error = err;
                         }
-                        best_error = err;
                         break;
                     }
                 }

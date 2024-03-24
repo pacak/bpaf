@@ -57,10 +57,7 @@ fn parse_anywhere_no_catch() {
     assert_eq!(r, "couldn't parse `221b`: invalid digit found in string");
 
     let r = parser.run_inner(&["-a", "-c"]).unwrap_err().unwrap_stderr();
-    assert_eq!(
-        r,
-        "expected `X`, got `-c`. Pass `--help` for usage information"
-    );
+    assert_eq!(r, "expected `X`, pass `--help` for usage information");
 
     let r = parser
         .run_inner(&["-a", "221b", "-c"])
