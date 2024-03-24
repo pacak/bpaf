@@ -850,14 +850,21 @@ pub struct ParseCon<P> {
     pub inner: P,
     /// metas for inner parsers
     pub meta: Meta,
+    /// To produce a better error messages while parsing constructed values
+    /// we want to look at all the items so values that can be consumed are consumed
+    /// autocomplete relies on the same logic
+    ///
+    /// However when dealing with adjacent restriction detecting the first item relies on failing
+    /// fast
+    pub failfast: bool,
 }
 
 impl<T, P> Parser<T> for ParseCon<P>
 where
-    P: Fn(&mut State) -> Result<T, Error>,
+    P: Fn(bool, &mut State) -> Result<T, Error>,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let res = (self.inner)(args);
+        let res = (self.inner)(self.failfast, args);
         args.current = None;
         res
     }
@@ -928,7 +935,8 @@ impl<T> ParseCon<T> {
     /// There's also similar method [`adjacent`](crate::parsers::ParseArgument) that allows to restrict argument
     /// parser to work only for arguments where both key and a value are in the same shell word:
     /// `-f=bar` or `-fbar`, but not `-f bar`.
-    pub fn adjacent(self) -> ParseAdjacent<Self> {
+    pub fn adjacent(mut self) -> ParseAdjacent<Self> {
+        self.failfast = true;
         ParseAdjacent { inner: self }
     }
 }

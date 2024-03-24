@@ -1760,8 +1760,7 @@ fn option_requires_other_option2() {
     let parser = construct!(b, a).optional().to_options();
 
     let r = parser.run_inner(&["-a"]).unwrap_err().unwrap_stderr();
-    // error message sucks...
-    assert_eq!(r, "`-a` is not expected in this context");
+    assert_eq!(r, "expected `-b=B`, pass `--help` for usage information");
 }
 
 #[test]
