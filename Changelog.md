@@ -1,6 +1,7 @@
 # Change Log
 
-
+## bpaf [0.9.11] - 2024-03-24
+- better error messages
 
 ## bpaf [0.9.10], bpaf_derive [0.5.10] - 2024-03-19
 - due to dependency change colored output for legacy version is no longer supported

@@ -384,12 +384,12 @@ Usage --user=ARG
 
 
  [__cargo_doc2readme_dependencies_info]: ggGkYW0AYXSEG52uRQSwBdezG6GWW8ODAbr5G6KRmT_WpUB5G9hPmBcUiIp6YXKEG67Vn_d8EgCjGwx1q1eGjg8OG62q7Al6912tG9tijfvWADwPYWSBgmRicGFmZTAuOC4w
- [__link10]: https://docs.rs/bpaf/0.9.9/bpaf/?search=bpaf::Parser::fallback
- [__link11]: https://docs.rs/bpaf/0.9.9/bpaf/?search=parsers::NamedArg::switch
- [__link12]: https://docs.rs/bpaf/0.9.9/bpaf/?search=parsers::NamedArg::argument
- [__link13]: https://docs.rs/bpaf/0.9.9/bpaf/?search=params::positional
- [__link14]: https://docs.rs/bpaf/0.9.9/bpaf/?search=parsers::NamedArg::argument
- [__link15]: https://docs.rs/bpaf/0.9.9/bpaf/?search=params::positional
- [__link16]: https://docs.rs/bpaf/0.9.9/bpaf/?search=bpaf::Parser::complete
- [__link18]: https://docs.rs/bpaf/0.9.9/bpaf/?search=info::OptionParser::run_inner
- [__link21]: https://docs.rs/bpaf/0.9.9/bpaf/?search=info::OptionParser::render_markdown
+ [__link10]: https://docs.rs/bpaf/0.9.11/bpaf/?search=bpaf::Parser::fallback
+ [__link11]: https://docs.rs/bpaf/0.9.11/bpaf/?search=parsers::NamedArg::switch
+ [__link12]: https://docs.rs/bpaf/0.9.11/bpaf/?search=parsers::NamedArg::argument
+ [__link13]: https://docs.rs/bpaf/0.9.11/bpaf/?search=params::positional
+ [__link14]: https://docs.rs/bpaf/0.9.11/bpaf/?search=parsers::NamedArg::argument
+ [__link15]: https://docs.rs/bpaf/0.9.11/bpaf/?search=params::positional
+ [__link16]: https://docs.rs/bpaf/0.9.11/bpaf/?search=bpaf::Parser::complete
+ [__link18]: https://docs.rs/bpaf/0.9.11/bpaf/?search=info::OptionParser::run_inner
+ [__link21]: https://docs.rs/bpaf/0.9.11/bpaf/?search=info::OptionParser::render_markdown
