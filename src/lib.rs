@@ -432,26 +432,23 @@ macro_rules! construct {
     };
 
     (@prepare $ty:tt [$($fields:tt)*]) => {
-        $crate::__cons_prepare!($ty [ $($fields)* ])
+        $crate::construct!(@fin $ty [ $($fields)* ])
     };
 
     (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields),* } };
     (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields),* ) };
     (@make [pos] [$($fields:ident)*]) => { ( $($fields),* ) };
-}
 
-#[macro_export]
-#[doc(hidden)]
-macro_rules! __cons_prepare {
-    ([named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
-    ([pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-    ([pos] [$field:ident]) => {{
+    (@fin [named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
+    (@fin [pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
+
+    (@fin [pos] [$field:ident]) => {{
         use $crate::Parser;
         $field.boxed()
     }};
 
-    ($ty:tt [$front:ident $($fields:ident)*]) => {{
+    (@fin $ty:tt [$front:ident $($fields:ident)*]) => {{
         use $crate::Parser;
         let meta = $crate::Meta::And(vec![ $front.meta(), $($fields.meta()),* ]);
         let inner = move |failfast: bool, args: &mut $crate::State| {
