@@ -245,7 +245,7 @@ pub use inner::State;
 mod inner {
     use std::{ops::Range, rc::Rc};
 
-    use crate::{error::Message, Args};
+    use crate::{error::Message, item::Item, Args};
 
     use super::{split_os_argument, Arg, ArgType, ItemState};
     #[derive(Clone, Debug)]
@@ -531,8 +531,19 @@ mod inner {
             start..start + span_size
         }
 
-        pub(crate) fn ranges(&self) -> ArgRangesIter {
-            ArgRangesIter { args: self, cur: 0 }
+        pub(crate) fn ranges(&'a self, item: &'a Item) -> ArgRangesIter<'a> {
+            let width = match item {
+                Item::Any { .. }
+                | Item::Positional { .. }
+                | Item::Command { .. }
+                | Item::Flag { .. } => 1,
+                Item::Argument { .. } => 2,
+            };
+            ArgRangesIter {
+                args: self,
+                cur: 0,
+                width,
+            }
         }
 
         pub(crate) fn scope(&self) -> Range<usize> {
@@ -573,10 +584,15 @@ mod inner {
 
     pub(crate) struct ArgRangesIter<'a> {
         args: &'a State,
+        width: usize,
         cur: usize,
     }
     impl<'a> Iterator for ArgRangesIter<'a> {
-        type Item = (usize, State);
+        type Item = (
+            /* start offset */ usize,
+            /* width of the first item */ usize,
+            State,
+        );
 
         fn next(&mut self) -> Option<Self::Item> {
             loop {
@@ -585,14 +601,17 @@ mod inner {
                     return None;
                 }
                 self.cur += 1;
-
                 if !self.args.present(cur)? {
                     continue;
                 }
-
+                if cur + self.width > self.args.items.len() {
+                    return None;
+                }
+                // It should be possible to optimize this code a bit
+                // by checking if first item can possibly
                 let mut args = self.args.clone();
                 args.set_scope(cur..self.args.items.len());
-                return Some((cur, args));
+                return Some((cur, self.width, args));
             }
         }
     }

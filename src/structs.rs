@@ -1056,9 +1056,12 @@ where
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         let original_scope = args.scope();
 
-        let mut best_error = if let Some(item) = Meta::first_item(&self.inner.meta()) {
+        let first_item;
+        let inner_meta = self.inner.meta();
+        let mut best_error = if let Some(item) = Meta::first_item(&inner_meta) {
+            first_item = item;
             let missing_item = MissingItem {
-                item,
+                item: item.clone(),
                 position: original_scope.start,
                 scope: original_scope.clone(),
             };
@@ -1069,7 +1072,7 @@ where
         let mut best_args = args.clone();
         let mut best_consumed = 0;
 
-        for (start, mut this_arg) in args.ranges() {
+        for (start, width, mut this_arg) in args.ranges(first_item) {
             // since we only want to parse things to the right of the first item we perform
             // parsing in two passes:
             // - try to run the parser showing only single argument available at all the indices
@@ -1079,8 +1082,7 @@ where
             // consider examples "42 -n" and "-n 42"
             // without multi step approach first command line also parses into 42
             let mut scratch = this_arg.clone();
-            #[allow(clippy::range_plus_one)] // clippy suggests wrong type
-            scratch.set_scope(start..start + 1);
+            scratch.set_scope(start..start + width);
             let before = scratch.len();
 
             // nothing to consume, might as well skip this segment right now
@@ -1124,8 +1126,8 @@ where
                         if consumed > best_consumed {
                             best_consumed = consumed;
                             std::mem::swap(&mut best_args, &mut this_arg);
+                            best_error = err;
                         }
-                        best_error = err;
                         break;
                     }
                 }

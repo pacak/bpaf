@@ -188,3 +188,28 @@ Available commands:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn two_adjacent_args() {
+    let x = short('x').argument::<usize>("X");
+    let y = short('y').argument::<usize>("Y");
+    let c = short('c').switch();
+    let point = construct!(x, y).adjacent();
+    let parser = construct!(point, c).to_options();
+
+    let r = parser.run_inner(&["-x", "3", "-y", "4", "-c"]).unwrap();
+    assert_eq!(r, ((3, 4), true));
+
+    // they are adjacent to each other, but the way it is coded currently - they must be adjacent
+    // to the first element.
+    // Proper fix is to split "adjacent" into "adjacent to" and "adjacent block"
+
+    // let r = parser.run_inner(&["-y", "3", "-x", "4", "-c"]).unwrap();
+    // assert_eq!(r, ((4, 3), true));
+
+    let r = parser
+        .run_inner(&["-y", "3", "-c", "-x", "4"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "expected `-y=Y`, pass `--help` for usage information");
+}
