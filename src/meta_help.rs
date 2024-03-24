@@ -510,7 +510,7 @@ fn write_shortlong(buf: &mut Doc, name: ShortLong) {
             buf.write_str("    --", Style::Literal);
             buf.write_str(l, Style::Literal);
         }
-        ShortLong::ShortLong(s, l) => {
+        ShortLong::Both(s, l) => {
             buf.write_char('-', Style::Literal);
             buf.write_char(s, Style::Literal);
             buf.write_str(", ", Style::Text);

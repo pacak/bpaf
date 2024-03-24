@@ -138,7 +138,7 @@ impl Doc {
                 self.write_char('-', Style::Literal);
                 self.write_char(*s, Style::Literal);
             }
-            ShortLong::Long(l) | ShortLong::ShortLong(_, l) => {
+            ShortLong::Long(l) | ShortLong::Both(_, l) => {
                 self.write_str("--", Style::Literal);
                 self.write_str(l, Style::Literal);
             }
