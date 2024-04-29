@@ -273,10 +273,10 @@ impl Message {
             Message::Unconsumed(ix) => {
                 if let Some(conflict) = check_conflicts(args) {
                     self = conflict;
-                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, meta) {
-                    self = Message::Suggestion(ix, suggestion);
                 } else if let Some(prev_ix) = only_once(args, ix) {
                     self = Message::OnlyOnce(prev_ix, ix);
+                } else if let Some((ix, suggestion)) = crate::meta_youmean::suggest(args, meta) {
+                    self = Message::Suggestion(ix, suggestion);
                 }
             }
             Message::Missing(xs) => {

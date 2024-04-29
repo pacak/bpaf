@@ -1,5 +1,9 @@
 # Change Log
 
+
+## bpaf [0.9.12] - 2024-04-29
+- better error messages
+
 ## bpaf [0.9.11] - 2024-03-24
 - better error messages
 
