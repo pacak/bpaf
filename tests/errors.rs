@@ -271,3 +271,29 @@ fn two_required_fields_first_missing() {
     let r = parser.run_inner(&["--b", "1"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected `--a=A`, pass `--help` for usage information");
 }
+
+#[test]
+fn tass() {
+    let format = long("format").switch();
+    let sort = long("sort").switch();
+    let filter = long("filter").switch();
+    let opts = construct!(format, sort, filter,).to_options();
+
+    let err = opts
+        .run_inner(&["--filter", "--filter"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        err,
+        "argument `--filter` cannot be used multiple times in this context"
+    );
+
+    let err = opts
+        .run_inner(&["--sort", "--sort"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        err,
+        "argument `--sort` cannot be used multiple times in this context"
+    );
+}
