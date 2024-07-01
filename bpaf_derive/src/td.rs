@@ -30,6 +30,7 @@ pub(crate) struct OptionsCfg {
     pub(crate) usage: Option<Box<Expr>>,
     pub(crate) version: Option<Box<Expr>>,
     pub(crate) max_width: Option<Box<Expr>>,
+    pub(crate) fallback_usage: bool,
 }
 
 #[derive(Debug, Default)]
@@ -217,6 +218,15 @@ impl Parse for TopInfo {
                 boxed = true;
             } else if kw == "adjacent" {
                 adjacent = true;
+            } else if kw == "fallback_to_usage" {
+                if let Some(opts) = options.as_mut() {
+                    opts.fallback_usage = true;
+                } else {
+                    return Err(Error::new_spanned(
+                    kw,
+                    "This annotation only makes sense in combination with `options` or `command`",
+                ));
+                }
             } else if kw == "short" {
                 let short = parse_arg(input)?;
                 with_command(&kw, command.as_mut(), |cfg| cfg.short.push(short))?;
@@ -338,6 +348,15 @@ impl Parse for Ed {
                 } else {
                     attrs.push(EAttr::UnitLong(parse_opt_arg(input)?));
                 }
+            } else if kw == "fallback_to_usage" {
+                if matches!(mode, VariantMode::Command) {
+                    attrs.push(EAttr::FallbackUsage);
+                } else {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "In this context this attribute requires \"command\" annotation",
+                    ));
+                }
             } else if kw == "skip" {
                 skip = true;
             } else if kw == "adjacent" {
@@ -375,6 +394,7 @@ pub(crate) enum EAttr {
     NamedCommand(LitStr),
     UnnamedCommand,
 
+    FallbackUsage,
     CommandShort(LitChar),
     CommandLong(LitStr),
     Adjacent,
@@ -403,6 +423,8 @@ impl ToTokens for EAttr {
             Self::Usage(u) => quote!(usage(#u)),
             Self::Env(e) => quote!(env(#e)),
             Self::Hide => quote!(hide()),
+            Self::FallbackUsage => quote!(fallback_to_usage()),
+
             Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_) => unreachable!(),
         }
         .to_tokens(tokens);

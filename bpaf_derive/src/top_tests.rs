@@ -27,6 +27,52 @@ fn cargo_command_helper() {
 }
 
 #[test]
+fn fallback_usage_top() {
+    let top: Top = parse_quote! {
+        #[bpaf(options, fallback_to_usage)]
+        struct Opts {
+            verbose: bool
+        }
+    };
+
+    let expected = quote! {
+        fn opts() -> ::bpaf::OptionParser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let verbose = ::bpaf::long("verbose").switch();
+                ::bpaf::construct!(Opts { verbose, })
+            }
+            .to_options()
+            .fallback_to_usage()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn fallback_usage_subcommand() {
+    let input: Top = parse_quote! {
+        /// those are options
+        #[bpaf(command, fallback_to_usage)]
+        struct Opt;
+    };
+
+    let expected = quote! {
+        fn opt() -> impl ::bpaf::Parser<Opt> {
+            #[allow (unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Opt)
+                .to_options()
+                .fallback_to_usage()
+                .descr("those are options")
+                .command("opt")
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn top_struct_construct() {
     let top: Top = parse_quote! {
         struct Opt { verbose: bool }
