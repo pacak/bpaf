@@ -198,6 +198,7 @@ impl ToTokens for Top {
                     footer,
                     header,
                     max_width,
+                    fallback_usage,
                 } = options;
 
                 let version = version.as_ref().map(|v| quote!(.version(#v)));
@@ -206,7 +207,11 @@ impl ToTokens for Top {
                 let footer = footer.as_ref().map(|v| quote!(.footer(#v)));
                 let header = header.as_ref().map(|v| quote!(.header(#v)));
                 let max_width = max_width.as_ref().map(|v| quote!(.max_width(#v)));
-
+                let fallback_usage = if *fallback_usage {
+                    Some(quote!(.fallback_to_usage()))
+                } else {
+                    None
+                };
                 let CommandCfg {
                     name,
                     long,
@@ -225,6 +230,7 @@ impl ToTokens for Top {
                         #body
                         #(.#attrs)*
                         .to_options()
+                        #fallback_usage
                         #version
                         #descr
                         #header
@@ -249,12 +255,18 @@ impl ToTokens for Top {
                     footer,
                     header,
                     max_width,
+                    fallback_usage,
                 } = options;
                 let body = match cargo_helper {
                     Some(cargo) => quote!(::bpaf::cargo_helper(#cargo, #body)),
                     None => quote!(#body),
                 };
 
+                let fallback_usage = if *fallback_usage {
+                    Some(quote!(.fallback_to_usage()))
+                } else {
+                    None
+                };
                 let version = version.as_ref().map(|v| quote!(.version(#v)));
                 let usage = usage.as_ref().map(|v| quote!(.usage(#v)));
                 let descr = descr.as_ref().map(|v| quote!(.descr(#v)));
@@ -269,6 +281,7 @@ impl ToTokens for Top {
                         #body
                         #(.#attrs)*
                         .to_options()
+                        #fallback_usage
                         #version
                         #descr
                         #header
@@ -444,7 +457,7 @@ impl ParsedEnumBranch {
 
         let mut attrs = Vec::with_capacity(ea.len());
         let mut has_options = None;
-
+        let mut fallback_usage = false;
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
@@ -487,11 +500,16 @@ impl ParsedEnumBranch {
                         attrs.insert(o + 1, attr);
                     }
                 }
+                EAttr::FallbackUsage => fallback_usage = true,
                 EAttr::ToOptions => unreachable!(),
             }
         }
 
         if let Some(opts_at) = has_options {
+            if fallback_usage {
+                attrs.push(EAttr::FallbackUsage);
+            }
+
             if let Some(h) = std::mem::take(&mut help) {
                 split_ehelp_into(h, opts_at, &mut attrs);
             }
