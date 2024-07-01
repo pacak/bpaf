@@ -942,14 +942,6 @@ impl<T> ParseCon<T> {
             start: false,
         }
     }
-
-    /// start adjacent
-    pub fn start_adjacent(self) -> ParseAdjacent<Self> {
-        ParseAdjacent {
-            inner: self,
-            start: true,
-        }
-    }
 }
 
 /// Parser that replaces metavar placeholders with actual info in shell completion
