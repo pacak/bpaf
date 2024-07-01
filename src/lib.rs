@@ -238,6 +238,7 @@ use structs::ParseComp;
 #[doc(inline)]
 #[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
+use structs::ParseSA;
 
 /// Compose several parsers to produce a single result
 ///
@@ -1034,6 +1035,13 @@ pub trait Parser<T> {
             inner: self,
             usage: usage.into(),
         }
+    }
+
+    fn start_adjacent(self) -> ParseSA<Self>
+    where
+        Self: Sized + Parser<T>,
+    {
+        ParseSA { inner: self }
     }
 
     // {{{ group_help

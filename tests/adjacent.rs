@@ -213,3 +213,44 @@ fn two_adjacent_args() {
         .unwrap_stderr();
     assert_eq!(r, "expected `-y=Y`, pass `--help` for usage information");
 }
+
+#[test]
+fn start_adjacent_args1() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let d = any::<String, String, _>("D", Some).many();
+
+    let abc = construct!([a, b, c]).last().start_adjacent();
+    let parser = construct!(abc, d).to_options();
+
+    let r = parser.run_inner(&["-a", "-b", "potat", "-c"]).unwrap();
+
+    todo!("{:?}", r);
+}
+
+#[test]
+fn start_adjacent_args2() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let d = any::<String, String, _>("D", Some).many();
+
+    let abc = construct!([a, b, c]).start_adjacent().last();
+    let parser = construct!(abc, d).to_options();
+
+    let r = parser.run_inner(&["-a", "-b", "potat", "-c"]).unwrap();
+
+    todo!("{:?}", r);
+}
+
+#[test]
+fn start_adjacent_args3() {
+    let a = short('a').flag('a', '?').start_adjacent();
+    let d = any::<String, String, _>("D", Some).many();
+
+    let parser = construct!(a, d).to_options();
+
+    let r = parser.run_inner(&["x", "-a"]).unwrap();
+    todo!("{:?}", r);
+}

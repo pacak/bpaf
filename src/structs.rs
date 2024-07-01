@@ -937,7 +937,18 @@ impl<T> ParseCon<T> {
     /// `-f=bar` or `-fbar`, but not `-f bar`.
     pub fn adjacent(mut self) -> ParseAdjacent<Self> {
         self.failfast = true;
-        ParseAdjacent { inner: self }
+        ParseAdjacent {
+            inner: self,
+            start: false,
+        }
+    }
+
+    /// start adjacent
+    pub fn start_adjacent(self) -> ParseAdjacent<Self> {
+        ParseAdjacent {
+            inner: self,
+            start: true,
+        }
     }
 }
 
@@ -947,6 +958,10 @@ pub struct ParseComp<P, F> {
     pub(crate) inner: P,
     pub(crate) op: F,
     pub(crate) group: Option<String>,
+}
+
+pub struct ParseSA<P> {
+    pub(crate) inner: P,
 }
 
 #[cfg(feature = "autocomplete")]
@@ -1046,8 +1061,37 @@ where
     }
 }*/
 
+impl<P, T> Parser<T> for ParseSA<P>
+where
+    P: Parser<T>,
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        let original_scope = args.scope();
+        let mut res;
+        let mut this_arg = args.clone();
+        loop {
+            res = self.inner.eval(&mut this_arg);
+            if let Some(narrow) = this_arg.start_adjacent_scope(args) {
+                this_arg = args.clone();
+                this_arg.set_scope(narrow)
+            } else {
+                break;
+            }
+        }
+
+        this_arg.set_scope(original_scope);
+        std::mem::swap(&mut this_arg, args);
+        res
+    }
+
+    fn meta(&self) -> Meta {
+        self.inner.meta()
+    }
+}
+
 pub struct ParseAdjacent<P> {
     pub(crate) inner: P,
+    pub(crate) start: bool,
 }
 impl<P, T> Parser<T> for ParseAdjacent<P>
 where
@@ -1072,6 +1116,11 @@ where
         let mut best_args = args.clone();
         let mut best_consumed = 0;
 
+        // Adjacent parser covers two separate scenarios:
+        // - start (or left) adjacent block, in which case block is picked such that there's no
+        //   unparsed items to the left of the bloc
+        // - adjacent block - block may have unparsed items to the left of the start
+
         for (start, width, mut this_arg) in args.ranges(first_item) {
             // since we only want to parse things to the right of the first item we perform
             // parsing in two passes:
@@ -1085,11 +1134,16 @@ where
             scratch.set_scope(start..start + width);
             let before = scratch.len();
 
-            // nothing to consume, might as well skip this segment right now
-            // it will most likely fail, but it doesn't matter, we are only looking for the
-            // left most match
+            // ranges gave us a block that starts at some _present_ value, but we failed to parse
+            // it. In case of regular adjacent block we skip it and keep looking, in case of start
+            // adjacent block we are done - any block to the right of this one is not going to be
+            // start adjacent
             if before == 0 {
-                continue;
+                if self.start {
+                    break;
+                } else {
+                    continue;
+                }
             }
 
             let _ = self.inner.eval(&mut scratch);

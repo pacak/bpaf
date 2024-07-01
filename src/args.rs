@@ -490,6 +490,28 @@ mod inner {
             self.comp.is_some()
         }
 
+        /// Look for a block of adjacent
+        pub(crate) fn start_adjacent_scope(&self, original: &State) -> Option<Range<usize>> {
+            let start = original
+                .item_state
+                .iter()
+                .position(|i| i.present())
+                .unwrap_or_default();
+
+            let len = self.item_state[start..]
+                .iter()
+                .zip(original.item_state[start..].iter())
+                .take_while(|(this, orig)| this.parsed() && orig.present())
+                .count();
+            let range = start..start + len;
+
+            if range == self.scope() {
+                None
+            } else {
+                Some(range)
+            }
+        }
+
         /// Narrow down scope of &self to adjacently consumed values compared to original.
         pub(crate) fn adjacent_scope(&self, original: &State) -> Option<Range<usize>> {
             if self.items.is_empty() {
