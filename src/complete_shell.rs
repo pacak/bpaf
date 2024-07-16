@@ -129,7 +129,7 @@ pub(crate) fn render_zsh(
             ShellComp::File { mask: Some(mask) } => writeln!(res, "_files -g {}", Shell(mask)),
             ShellComp::Dir { mask: None } => writeln!(res, "_files -/"),
             ShellComp::Dir { mask: Some(mask) } => writeln!(res, "_files -/ -g {}", Shell(mask)),
-            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", Shell(zsh)),
+            ShellComp::Raw { zsh, .. } => writeln!(res, "{}", zsh),
             ShellComp::Nothing => Ok(()),
         }?;
     }
@@ -194,13 +194,13 @@ pub(crate) fn render_bash(
         match op {
             ShellComp::File { mask: None } => write!(res, "_filedir"),
             ShellComp::File { mask: Some(mask) } => {
-                writeln!(res, "_filedir '{}'", Shell(bashmask(mask)))
+                writeln!(res, "_filedir {}", Shell(bashmask(mask)))
             }
             ShellComp::Dir { mask: None } => write!(res, "_filedir -d"),
             ShellComp::Dir { mask: Some(mask) } => {
-                writeln!(res, "_filedir -d '{}'", Shell(bashmask(mask)))
+                writeln!(res, "_filedir -d {}", Shell(bashmask(mask)))
             }
-            ShellComp::Raw { bash, .. } => writeln!(res, "{}", Shell(bash)),
+            ShellComp::Raw { bash, .. } => writeln!(res, "{}", bash),
             ShellComp::Nothing => Ok(()),
         }?;
     }
