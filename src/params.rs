@@ -711,6 +711,7 @@ pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
         help: None,
         result_type: PhantomData,
         strict: false,
+        not_strict: false,
     }
 }
 
@@ -724,6 +725,7 @@ pub struct ParsePositional<T> {
     help: Option<Doc>,
     result_type: PhantomData<T>,
     strict: bool,
+    not_strict: bool,
 }
 
 impl<T> ParsePositional<T> {
@@ -774,6 +776,14 @@ impl<T> ParsePositional<T> {
         self
     }
 
+    /// Ensures positional parser never tries to parse from "strict" positionals. Inverse of
+    /// [`ParsePositional::strict`].
+    #[must_use]
+    pub fn not_strict(mut self) -> Self {
+        self.not_strict = true;
+        self
+    }
+
     fn meta(&self) -> Meta {
         let meta = Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
@@ -790,6 +800,7 @@ impl<T> ParsePositional<T> {
 fn parse_pos_word(
     args: &mut State,
     strict: bool,
+    not_strict: bool,
     metavar: &'static str,
     help: &Option<Doc>,
 ) -> Result<OsString, Error> {
@@ -801,6 +812,12 @@ fn parse_pos_word(
                 args.push_pos_sep();
 
                 return Err(Error(Message::StrictPos(ix, metavar)));
+            }
+            if not_strict && is_strict {
+                #[cfg(feature = "autocomplete")]
+                args.push_pos_sep();
+
+                return Err(Error(Message::NotStrictPos(ix, metavar)));
             }
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.check_no_pos_ahead() {
@@ -826,7 +843,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_pos_word(args, self.strict, self.metavar, &self.help)?;
+        let os = parse_pos_word(args, self.strict, self.not_strict, self.metavar, &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
