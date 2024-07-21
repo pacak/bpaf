@@ -59,7 +59,7 @@
 //!
 #![cfg_attr(not(doctest), doc = include_str!("docs2/command.md"))]
 //!
-use std::{ffi::OsString, marker::PhantomData, str::FromStr};
+use std::{ffi::OsString, marker::PhantomData, ops::Not, str::FromStr};
 
 use crate::{
     args::{Arg, State},
@@ -709,26 +709,22 @@ pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
     ParsePositional {
         metavar,
         help: None,
-        result_type: PhantomData,
-        strict: false,
-        not_strict: false,
+        ty: PhantomData,
     }
 }
 
-/// Parse a positional item, created with [`positional`]
+/// Parse a positional item, created with [`positional`](crate::positional)
 ///
-/// You can add extra information to positional parsers with [`help`](Self::help)
-/// and [`strict`](Self::strict) on this struct.
+/// You can add extra information to positional parsers with [`help`](Self::help),
+/// [`strict`](Self::strict), or [`not_strict`](Self::not_strict) on this struct.
 #[derive(Clone)]
-pub struct ParsePositional<T> {
+pub struct ParsePositional<T, R: PositionMarker = Unrestricted> {
     metavar: &'static str,
     help: Option<Doc>,
-    result_type: PhantomData<T>,
-    strict: bool,
-    not_strict: bool,
+    ty: PhantomData<(T, R)>,
 }
 
-impl<T> ParsePositional<T> {
+impl<T, R: PositionMarker> ParsePositional<T, R> {
     /// Add a help message to a [`positional`] parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -750,6 +746,15 @@ impl<T> ParsePositional<T> {
         self
     }
 
+    fn meta(&self) -> Meta {
+        R::map_meta(Meta::from(Item::Positional {
+            metavar: Metavar(self.metavar),
+            help: self.help.clone(),
+        }))
+    }
+}
+
+impl<T> ParsePositional<T> {
     /// Changes positional parser to be a "strict" positional
     ///
     /// Usually positional items can appear anywhere on a command line:
@@ -771,54 +776,84 @@ impl<T> ParsePositional<T> {
     /// `bpaf` would display such positional elements differently in usage line as well.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/positional_strict.md"))]
     #[must_use]
-    pub fn strict(mut self) -> Self {
-        self.strict = true;
-        self
+    pub fn strict(self) -> ParsePositional<T, Strict> {
+        ParsePositional {
+            metavar: self.metavar,
+            help: self.help,
+            ty: PhantomData,
+        }
     }
 
-    /// Ensures positional parser never tries to parse from "strict" positionals. Inverse of
-    /// [`ParsePositional::strict`].
+    /// Changes positional parser to be a "not strict" positional
+    ///
+    /// Ensures the parser always rejects "strict" positions to the right of the separator, `--`.
+    /// Essentially the inverse operation to [`ParsePositional::strict`]. Can be used next to strict
+    /// positional arg(s) to have a clear separation and parsing between contexts.
     #[must_use]
-    pub fn not_strict(mut self) -> Self {
-        self.not_strict = true;
-        self
-    }
-
-    fn meta(&self) -> Meta {
-        let meta = Meta::from(Item::Positional {
-            metavar: Metavar(self.metavar),
-            help: self.help.clone(),
-        });
-        if self.strict {
-            Meta::Strict(Box::new(meta))
-        } else {
-            meta
+    pub fn not_strict(self) -> ParsePositional<T, NotStrict> {
+        ParsePositional {
+            metavar: self.metavar,
+            help: self.help,
+            ty: PhantomData,
         }
     }
 }
 
-fn parse_pos_word(
+/// Marker trait for positional argument restrictions.
+pub trait PositionMarker {
+    /// Return an error for the current restrictions.
+    #[inline(always)]
+    fn check(_metavar: Metavar, _ix: usize, _is_strict: bool) -> Option<Error> {
+        None
+    }
+    /// Modify the inner metadata
+    #[inline(always)]
+    fn map_meta(meta: Meta) -> Meta {
+        meta
+    }
+}
+
+/// Unrestricted positional marker type
+pub struct Unrestricted;
+impl PositionMarker for Unrestricted {}
+
+/// Non-strict positional marker type
+pub struct NotStrict;
+impl PositionMarker for NotStrict {
+    #[inline(always)]
+    fn check(metavar: Metavar, ix: usize, is_strict: bool) -> Option<Error> {
+        is_strict.then(|| Error(Message::NotStrictPos(ix, metavar)))
+    }
+}
+
+/// Strict positional marker type
+pub struct Strict;
+impl PositionMarker for Strict {
+    #[inline(always)]
+    fn check(metavar: Metavar, ix: usize, is_strict: bool) -> Option<Error> {
+        is_strict
+            .not()
+            .then(|| Error(Message::StrictPos(ix, metavar)))
+    }
+    #[inline(always)]
+    fn map_meta(meta: Meta) -> Meta {
+        Meta::Strict(Box::new(meta))
+    }
+}
+
+fn parse_pos_word<R: PositionMarker>(
     args: &mut State,
-    strict: bool,
-    not_strict: bool,
-    metavar: &'static str,
+    metavar: Metavar,
     help: &Option<Doc>,
 ) -> Result<OsString, Error> {
-    let metavar = Metavar(metavar);
     match args.take_positional_word(metavar) {
         Ok((ix, is_strict, word)) => {
-            if strict && !is_strict {
+            if let Some(err) = R::check(metavar, ix, is_strict) {
                 #[cfg(feature = "autocomplete")]
                 args.push_pos_sep();
-
-                return Err(Error(Message::StrictPos(ix, metavar)));
+                return Err(err);
             }
-            if not_strict && is_strict {
-                #[cfg(feature = "autocomplete")]
-                args.push_pos_sep();
 
-                return Err(Error(Message::NotStrictPos(ix, metavar)));
-            }
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.check_no_pos_ahead() {
                 args.push_metavar(metavar.0, help, false);
@@ -837,13 +872,14 @@ fn parse_pos_word(
     }
 }
 
-impl<T> Parser<T> for ParsePositional<T>
+impl<T, R> Parser<T> for ParsePositional<T, R>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
+    R: PositionMarker,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_pos_word(args, self.strict, self.not_strict, self.metavar, &self.help)?;
+        let os = parse_pos_word::<R>(args, Metavar(self.metavar), &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
