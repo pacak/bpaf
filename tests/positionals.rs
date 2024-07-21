@@ -146,8 +146,8 @@ fn strictly_positional() {
 }
 
 #[test]
-fn not_strictly_positional() {
-    let parser = positional::<String>("A").not_strict().to_options();
+fn non_strictly_positional() {
+    let parser = positional::<String>("A").non_strict().to_options();
 
     let r = parser.run_inner(&["a"]).unwrap();
     assert_eq!(r, "a");

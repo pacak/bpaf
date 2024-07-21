@@ -716,15 +716,15 @@ pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
 /// Parse a positional item, created with [`positional`](crate::positional)
 ///
 /// You can add extra information to positional parsers with [`help`](Self::help),
-/// [`strict`](Self::strict), or [`not_strict`](Self::not_strict) on this struct.
+/// [`strict`](Self::strict), or [`non_strict`](Self::non_strict) on this struct.
 #[derive(Clone)]
-pub struct ParsePositional<T, R: PositionMarker = Unrestricted> {
+pub struct ParsePositional<T, P: PositionMarker = Unrestricted> {
     metavar: &'static str,
     help: Option<Doc>,
-    ty: PhantomData<(T, R)>,
+    ty: PhantomData<(T, P)>,
 }
 
-impl<T, R: PositionMarker> ParsePositional<T, R> {
+impl<T, P: PositionMarker> ParsePositional<T, P> {
     /// Add a help message to a [`positional`] parser
     ///
     /// `bpaf` converts doc comments and string into help by following those rules:
@@ -747,7 +747,7 @@ impl<T, R: PositionMarker> ParsePositional<T, R> {
     }
 
     fn meta(&self) -> Meta {
-        R::map_meta(Meta::from(Item::Positional {
+        P::map_meta(Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
         }))
@@ -776,6 +776,7 @@ impl<T> ParsePositional<T> {
     /// `bpaf` would display such positional elements differently in usage line as well.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/positional_strict.md"))]
     #[must_use]
+    #[inline(always)]
     pub fn strict(self) -> ParsePositional<T, Strict> {
         ParsePositional {
             metavar: self.metavar,
@@ -790,7 +791,8 @@ impl<T> ParsePositional<T> {
     /// Essentially the inverse operation to [`ParsePositional::strict`]. Can be used next to strict
     /// positional arg(s) to have a clear separation and parsing between contexts.
     #[must_use]
-    pub fn not_strict(self) -> ParsePositional<T, NotStrict> {
+    #[inline(always)]
+    pub fn non_strict(self) -> ParsePositional<T, NonStrict> {
         ParsePositional {
             metavar: self.metavar,
             help: self.help,
@@ -818,11 +820,11 @@ pub struct Unrestricted;
 impl PositionMarker for Unrestricted {}
 
 /// Non-strict positional marker type
-pub struct NotStrict;
-impl PositionMarker for NotStrict {
+pub struct NonStrict;
+impl PositionMarker for NonStrict {
     #[inline(always)]
     fn check(metavar: Metavar, ix: usize, is_strict: bool) -> Option<Error> {
-        is_strict.then(|| Error(Message::NotStrictPos(ix, metavar)))
+        is_strict.then(|| Error(Message::NonStrictPos(ix, metavar)))
     }
 }
 
@@ -841,14 +843,14 @@ impl PositionMarker for Strict {
     }
 }
 
-fn parse_pos_word<R: PositionMarker>(
+fn parse_pos_word<P: PositionMarker>(
     args: &mut State,
     metavar: Metavar,
     help: &Option<Doc>,
 ) -> Result<OsString, Error> {
     match args.take_positional_word(metavar) {
         Ok((ix, is_strict, word)) => {
-            if let Some(err) = R::check(metavar, ix, is_strict) {
+            if let Some(err) = P::check(metavar, ix, is_strict) {
                 #[cfg(feature = "autocomplete")]
                 args.push_pos_sep();
                 return Err(err);
@@ -872,20 +874,21 @@ fn parse_pos_word<R: PositionMarker>(
     }
 }
 
-impl<T, R> Parser<T> for ParsePositional<T, R>
+impl<T, P> Parser<T> for ParsePositional<T, P>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
-    R: PositionMarker,
+    P: PositionMarker,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_pos_word::<R>(args, Metavar(self.metavar), &self.help)?;
+        let os = parse_pos_word::<P>(args, Metavar(self.metavar), &self.help)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
     }
 
+    #[inline(always)]
     fn meta(&self) -> Meta {
         self.meta()
     }

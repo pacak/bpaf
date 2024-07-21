@@ -48,7 +48,7 @@ pub(crate) enum Message {
     StrictPos(usize, Metavar),
 
     /// Tried to consume a non-strict positional argument, but the value was strict
-    NotStrictPos(usize, Metavar),
+    NonStrictPos(usize, Metavar),
 
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
@@ -92,7 +92,7 @@ impl Message {
             | Message::ParseFail(_)
             | Message::Missing(_)
             | Message::PureFailed(_)
-            | Message::NotStrictPos(_, _) => true,
+            | Message::NonStrictPos(_, _) => true,
             Message::StrictPos(_, _)
             | Message::ParseFailed(_, _)
             | Message::GuardFailed(_, _)
@@ -331,7 +331,7 @@ impl Message {
             }
 
             // Error: FOO expected to be on the left side of --
-            Message::NotStrictPos(_ix, metavar) => {
+            Message::NonStrictPos(_ix, metavar) => {
                 doc.text("expected ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.metavar(metavar);
