@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{complete_gen::ShowComp, Error, Meta, Parser, State};
 
 struct Shell<'a>(&'a str);
@@ -179,8 +181,23 @@ pub(crate) fn render_bash(
     // a glob - _filedir takes an extension which it later to include uppercase
     // version as well and to include "*." in front. For compatibility with
     // zsh and other shells - this code strips "*." from the beginning....
-    fn bashmask(i: &str) -> &str {
-        i.strip_prefix("*.").unwrap_or(i)
+    //
+    // Second difference between bash and zsh is that if you are trying to
+    // allow for multiple extensions zsh takes a sane "*.(foo|bar|baz)" approach,
+    // while bash wants it to be "@(foo|bar|baz)"
+    //
+    // This doesn't cover all the possible masks, I suspect that the right way of
+    // handling this would be ignoring the shell machinery and handling masks on the
+    // Rust side... But for now try this
+    //
+    fn bashmask(i: &str) -> Cow<str> {
+        let i = i.strip_prefix("*.").unwrap_or(i);
+
+        if i.starts_with('(') {
+            Cow::Owned(format!("@{}", i))
+        } else {
+            Cow::Borrowed(i)
+        }
     }
 
     use std::fmt::Write;
@@ -190,15 +207,16 @@ pub(crate) fn render_bash(
         return Ok(format!("COMPREPLY+=({})\n", Shell(full_lit)));
     }
 
+    let init = "local cur prev words cword ; _init_completion || return ;";
     for op in ops {
         match op {
-            ShellComp::File { mask: None } => write!(res, "_filedir"),
+            ShellComp::File { mask: None } => write!(res, "{} _filedir", init),
             ShellComp::File { mask: Some(mask) } => {
-                writeln!(res, "_filedir {}", Shell(bashmask(mask)))
+                writeln!(res, "{} _filedir {}", init, Shell(&bashmask(mask)))
             }
-            ShellComp::Dir { mask: None } => write!(res, "_filedir -d"),
+            ShellComp::Dir { mask: None } => write!(res, "{} _filedir -d", init),
             ShellComp::Dir { mask: Some(mask) } => {
-                writeln!(res, "_filedir -d {}", Shell(bashmask(mask)))
+                writeln!(res, "{} _filedir -d {}", init, Shell(&bashmask(mask)))
             }
             ShellComp::Raw { bash, .. } => writeln!(res, "{}", bash),
             ShellComp::Nothing => Ok(()),

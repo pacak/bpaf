@@ -1146,6 +1146,8 @@ pub trait Parser<T> {
     ///     output: String,
     /// }
     /// ```
+    ///
+    /// For multiple file types correct mask syntax is `"*.(toml|md)"`.
     #[cfg(feature = "autocomplete")]
     fn complete_shell(
         self,
