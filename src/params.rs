@@ -785,7 +785,8 @@ impl<T> ParsePositional<T> {
     /// Changes positional parser to be a "not strict" positional
     ///
     /// Ensures the parser always rejects "strict" positions to the right of the separator, `--`.
-    /// Essentially the inverse operation to [`ParsePositional::strict`], which can be used to ensure adjacent strict and nonstrict args never conflict with eachother.
+    /// Essentially the inverse operation to [`ParsePositional::strict`], which can be used to ensure
+    /// adjacent strict and nonstrict args never conflict with eachother.
     #[must_use]
     #[inline(always)]
     pub fn non_strict(mut self) -> Self {
