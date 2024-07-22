@@ -435,15 +435,6 @@ impl<T> Parser<T> for ParseCommand<T> {
                 args.take_cmd(&tmp)
             })
         {
-            #[cfg(feature = "autocomplete")]
-            if args.touching_last_remove() {
-                // in completion mode prefer to autocomplete the command name vs going inside the
-                // parser
-                args.clear_comps();
-                args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
-                return Err(Error(Message::Missing(Vec::new())));
-            }
-
             if let Some(cur) = args.current {
                 args.set_scope(cur..args.scope().end);
             }
@@ -484,7 +475,7 @@ impl<T> Parser<T> for ParseCommand<T> {
             }
         } else {
             #[cfg(feature = "autocomplete")]
-            args.push_command(self.longs[0], self.shorts.first().copied(), &self.help);
+            args.complete_command(&self.longs, &self.shorts, self.help.as_ref());
 
             let missing = MissingItem {
                 item: self.item(),
@@ -798,23 +789,46 @@ fn parse_pos_word(
         Ok((ix, is_strict, word)) => {
             if strict && !is_strict {
                 #[cfg(feature = "autocomplete")]
-                args.push_pos_sep();
+                todo!();
+                //                args.push_pos_sep();
 
                 return Err(Error(Message::StrictPos(ix, metavar)));
             }
-            #[cfg(feature = "autocomplete")]
-            if args.touching_last_remove() && !args.check_no_pos_ahead() {
-                args.push_metavar(metavar.0, help, false);
-                args.set_no_pos_ahead();
-            }
+            //            #[cfg(feature = "autocomplete")]
+            //            if args.touching_last_remove() && !args.check_no_pos_ahead() {
+            //                args.push_metavar(metavar.0, help, false);
+            //                args.set_no_pos_ahead();
+            //            }
+
             Ok(word)
         }
         Err(err) => {
             #[cfg(feature = "autocomplete")]
-            if !args.check_no_pos_ahead() {
-                args.push_metavar(metavar.0, help, false);
-                args.set_no_pos_ahead();
+            if let Some(comp) = args.comp_mut() {
+                if !comp.consumed_as_positional {
+                    comp.consumed_as_positional = true;
+                    let metavar = crate::complete_gen::CurrentMeta {
+                        name: metavar,
+                        help: help.as_ref().and_then(crate::Doc::to_completion),
+                        is_argument: false,
+                    };
+                    comp.meta = Some(metavar);
+                    //                    comp.comps2.push(crate::complete_gen::Comp::Metavariable {
+                    //                        extra: crate::complete_gen::CompExtra {
+                    //                            depth: 0,
+                    //                            group: None,
+                    //                            help: help.as_ref().and_then(crate::Doc::to_completion),
+                    //                        },
+                    //                        meta: metavar.0,
+                    //                        is_argument: false,
+                    //                    });
+                    return Ok(comp.current_arg.clone().into());
+                }
             }
+            //            if !args.check_no_pos_ahead() {
+            //                args.push_metavar(metavar.0, help, false);
+            //                args.set_no_pos_ahead();
+            //            }
             Err(err)
         }
     }

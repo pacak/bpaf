@@ -368,29 +368,57 @@ fn this_or_that_picks_first(
     };
 
     #[cfg(feature = "autocomplete")]
-    let len_a = args_a.len();
+    {
+        let mut keep_a = true;
+        let mut keep_b = true;
+        println!("\na: {args_a:?}");
+        println!("b: {args_b:?}\n");
 
-    #[cfg(feature = "autocomplete")]
-    let len_b = args_b.len();
+        // what happens if we
 
-    #[cfg(feature = "autocomplete")]
-    if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
-        // if both parsers managed to consume the same amount - including 0, keep
-        // results from both, otherwise keep results from one that consumed more
-        let (keep_a, keep_b) = match res {
-            Ok((true, _)) => (true, false),
-            Ok((false, _)) => (false, true),
-            Err(_) => match len_a.cmp(&len_b) {
-                std::cmp::Ordering::Less => (true, false),
-                std::cmp::Ordering::Equal => (true, true),
-                std::cmp::Ordering::Greater => (false, true),
-            },
-        };
-        if keep_a {
-            comp_stash.extend(a.drain_comps());
+        if args_a.len() != args_b.len() {
+            // If neither parser consumed anything - both can produce valid completions, otherwise
+            // look for the first "significant" consume and keep that parser
+            //
+            // This is needed to preserve completion from a choice between a positional and a flag
+            // See https://github.com/pacak/bpaf/issues/303 for more details
+            if let (Some(_), Some(_)) = (args_a.comp_mut(), args_b.comp_mut()) {
+                'check: for (ix, arg) in args_a.items.iter().enumerate() {
+                    // During completion process named and unnamed arguments behave
+                    // different - `-` and `--` are positional arguments, but we want to produce
+                    // named items too. An empty string is also a special type of item that
+                    // gets passed when user starts completion without passing any actual data.
+                    //
+                    // All other strings are either valid named items or valid positional items
+                    // those are hopefully follow the right logic for being parsed/not parsed
+                    if ix + 1 == args_a.items.len() {
+                        let os = arg.os_str();
+                        if os.is_empty() || os == "-" || os == "--" {
+                            break 'check;
+                        }
+                    }
+                    match (args_a.present(ix), args_b.present(ix)) {
+                        (false, true) => {
+                            keep_b = false;
+                            break 'check;
+                        }
+                        (true, false) => {
+                            keep_a = false;
+                            break 'check;
+                        }
+                        _ => {}
+                    }
+                }
+            }
         }
-        if keep_b {
-            comp_stash.extend(b.drain_comps());
+
+        if let (Some(a), Some(b)) = (args_a.comp_mut(), args_b.comp_mut()) {
+            if dbg!(keep_a) {
+                comp_stash.extend(a.drain_comps());
+            }
+            if dbg!(keep_b) {
+                comp_stash.extend(b.drain_comps());
+            }
         }
     }
 
@@ -968,11 +996,56 @@ where
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
         // stash old
-        let mut comp_items = Vec::new();
-        args.swap_comps_with(&mut comp_items);
+        //        let mut comp_items = Vec::new();
+        //        args.swap_comps_with(&mut comp_items);
 
+        // autocompletion function should only run if inner parser is currently completing a value
+        // when it does that it sets meta
+
+        let mut meta = None;
+
+        if let Some(comp) = args.comp_mut() {
+            meta = std::mem::take(&mut comp.meta);
+        }
         let res = self.inner.eval(args);
+        if let Some(comp) = args.comp_mut() {
+            std::mem::swap(&mut meta, &mut comp.meta);
+        }
+        let res = res?;
 
+        if let Some(comp) = args.comp_mut() {
+            if let Some(meta) = meta {
+                let pos = comp.comps2.len();
+                for (rep, descr) in (self.op)(&res) {
+                    let group = self.group.clone();
+                    comp.comps2.push(crate::complete_gen::Comp::Value {
+                        extra: crate::complete_gen::CompExtra {
+                            depth: 0,
+                            group,
+                            help: descr.map(Into::into),
+                        },
+                        body: rep.into(),
+                        is_argument: meta.is_argument,
+                    });
+                }
+                if comp.comps2.len() - pos > 1 {
+                    comp.comps2.insert(
+                        pos,
+                        crate::complete_gen::Comp::Metavariable {
+                            extra: crate::complete_gen::CompExtra {
+                                depth: 0,
+                                group: None,
+                                help: None,
+                            },
+                            meta: meta.name.0,
+                            is_argument: meta.is_argument,
+                        },
+                    );
+                }
+            }
+        }
+
+        /*
         // restore old, now metavars added by inner parser, if any, are in comp_items
         args.swap_comps_with(&mut comp_items);
 
@@ -1011,7 +1084,7 @@ where
                     comp.push_comp(ci);
                 }
             }
-        }
+        }*/
         Ok(res)
     }
 

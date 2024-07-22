@@ -247,6 +247,10 @@ impl<T> OptionParser<T> {
         if let Err(Error(Message::ParseFailure(failure))) = res {
             return Err(failure);
         }
+
+        #[cfg(feature = "autocomplete")]
+        args.convert_current_metavar();
+
         #[cfg(feature = "autocomplete")]
         if let Some(comp) = args.check_complete() {
             return Err(ParseFailure::Completion(comp));

@@ -97,8 +97,8 @@ where
         let depth = args.depth();
         if let Some(comp) = args.comp_mut() {
             for ci in comp_items {
-                if ci.is_metavar().is_some() {
-                    comp.push_shell(self.op, depth);
+                if let Some(is_argument) = ci.is_metavar() {
+                    comp.push_shell(self.op, is_argument, depth);
                 } else {
                     comp.push_comp(ci);
                 }
@@ -113,16 +113,12 @@ where
     }
 }
 
-pub(crate) fn render_zsh(
-    items: &[ShowComp],
-    ops: &[ShellComp],
-    full_lit: &str,
-) -> Result<String, std::fmt::Error> {
+pub(crate) fn render_zsh(items: &[ShowComp], ops: &[ShellComp]) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
     let mut res = String::new();
 
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("compadd -- {}\n", full_lit));
+        return Ok(String::new());
     }
 
     for op in ops {
@@ -175,7 +171,6 @@ pub(crate) fn render_zsh(
 pub(crate) fn render_bash(
     items: &[ShowComp],
     ops: &[ShellComp],
-    full_lit: &str,
 ) -> Result<String, std::fmt::Error> {
     // Bash is strange when it comes to completion - rather than taking
     // a glob - _filedir takes an extension which it later to include uppercase
@@ -204,7 +199,7 @@ pub(crate) fn render_bash(
     let mut res = String::new();
 
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("COMPREPLY+=({})\n", Shell(full_lit)));
+        return Ok(String::new());
     }
 
     let init = "local cur prev words cword ; _init_completion || return ;";
@@ -249,12 +244,11 @@ pub(crate) fn render_bash(
 pub(crate) fn render_test(
     items: &[ShowComp],
     ops: &[ShellComp],
-    lit: &str,
 ) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
 
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("{}\n", lit));
+        return Ok(String::new());
     }
 
     if items.len() == 1 && ops.is_empty() && !items[0].subst.is_empty() {
@@ -283,13 +277,12 @@ pub(crate) fn render_test(
 pub(crate) fn render_fish(
     items: &[ShowComp],
     ops: &[ShellComp],
-    full_lit: &str,
     app: &str,
 ) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
     let mut res = String::new();
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("complete -c {} --arguments={}", app, full_lit));
+        return Ok(String::new());
     }
     let shared = if ops.is_empty() { "-f " } else { "" };
     for item in items.iter().rev().filter(|i| !i.subst.is_empty()) {

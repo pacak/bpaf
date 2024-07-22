@@ -2,6 +2,63 @@
 use bpaf::*;
 
 #[test]
+fn mixing_shell_and_positional_1_flag_or_pos() {
+    let arg = || short('b').help("Option b").req_flag(10);
+    let pos = || {
+        positional::<String>("DISTANCE")
+            .complete_shell(ShellComp::File { mask: None })
+            .guard(|s| !s.is_empty(), "unreachable")
+            .parse(|s| s.parse::<usize>())
+    };
+
+    let r = construct!([arg(), pos()])
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
+fn mixing_shell_and_positional_2_arg_or_pos() {
+    let arg = || short('b').help("Option b").argument::<usize>("HELLO");
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
+
+    let r = construct!([arg(), pos()])
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
+fn mixing_shell_and_positional_3_flag_and_pos() {
+    let arg = || short('b').help("Option b").req_flag(10);
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
+
+    let r1 = construct!(arg(), pos())
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r1, "-b\t-b\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
+fn mixing_shell_and_positional_4_arg_and_pos() {
+    let arg = || short('b').help("Option b").argument::<usize>("HELLO");
+    let pos = || positional::<usize>("DISTANCE").complete_shell(ShellComp::File { mask: None });
+
+    let r = construct!(arg(), pos())
+        .to_options()
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b=HELLO\t\tOption b\n\nFile { mask: None }\n");
+}
+
+#[test]
 fn static_complete_test_1() {
     let a = short('a').long("avocado").help("Use avocado").switch();
     let b = short('b').long("banana").help("Use banana").switch();
@@ -11,6 +68,12 @@ fn static_complete_test_1() {
         .argument::<String>("EXPR");
 
     let parser = construct!(a, b, bb, c).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["-b"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--banana");
 
     let r = parser
         .run_inner(Args::from(&["--"]).set_comp(0))
@@ -24,12 +87,6 @@ fn static_complete_test_1() {
 --bananananana\t--bananananana\t\tI'm Batman
 --calculator\t--calculator=EXPR\t\tcalculator expression\n\n"
     );
-
-    let r = parser
-        .run_inner(Args::from(&["-b"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "--banana");
 
     // this used to be disambiguation, not anymore
 
@@ -214,7 +271,7 @@ clean\tclean\t\tclean target dir\n\n"
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "x\n");
+    assert_eq!(r, "");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -304,7 +361,7 @@ fn static_complete_test_4() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -367,7 +424,7 @@ fn static_complete_test_5() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -446,7 +503,7 @@ fn static_complete_test_6() {
         .run_inner(Args::from(&["-a"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "-a");
+    assert_eq!(r, "-a\n");
 
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
@@ -553,6 +610,15 @@ fn test_completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     let mut vec = test_completer_descr(input);
     vec.iter_mut().for_each(|i| i.1 = None);
     vec
+}
+
+fn test_completer2(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    let items = ["auto", "mala"];
+    items
+        .iter()
+        .filter(|item| item.starts_with(input))
+        .map(|item| (*item, None))
+        .collect::<Vec<_>>()
 }
 
 fn test_completer_descr(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
@@ -856,6 +922,20 @@ fn positionals_complete_in_order() {
     let b = positional::<String>("B").complete(complete_beta);
     let parser = construct!(a, b).to_options();
 
+    // there's no valid completions that start with x - don't render anything
+    let r = parser
+        .run_inner(Args::from(&["x"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "");
+
+    // same as before - no valid arguments start with y - don't render anything
+    let r = parser
+        .run_inner(Args::from(&["x", "y"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "");
+
     let r = parser
         .run_inner(Args::from(&[""]).set_comp(0))
         .unwrap_err()
@@ -869,12 +949,6 @@ fn positionals_complete_in_order() {
     assert_eq!(r, "alpha");
 
     let r = parser
-        .run_inner(Args::from(&["x"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "\tA\t\t\n\n");
-
-    let r = parser
         .run_inner(Args::from(&["xxx", ""]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
@@ -885,12 +959,6 @@ fn positionals_complete_in_order() {
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "beta");
-
-    let r = parser
-        .run_inner(Args::from(&["xxx", "yyy"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "\tB\t\t\n\n");
 }
 
 #[test]
@@ -980,16 +1048,60 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 }
 
 #[test]
-#[should_panic(expected = "app supports ")]
+fn multiple_adjacent_single_letter_vals() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let c = short('c').switch();
+    let parser = construct!(a, b, c).to_options();
+
+    // with no input the right behavior is to suggest all the switches
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\t-a\t\t\n-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // with a single item present separately we should suggest the remaining two
+    let r = parser
+        .run_inner(Args::from(&["-a", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // with a single item present in the same item we still should suggest the remaining two values
+    let r = parser
+        .run_inner(Args::from(&["-a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // should I change the representation for the completions? Knowing that somethnig is a
+    // flag with a short or long name is no longer necessary
+    // now I need to be able to represent adding a -v to -f to get -fv, so pretty printed value is
+    // -v, substitution is `-fv`...
+    //
+    //
+    // FWIW bash doesn't complete short flags in combination... should we behave the same way?
+}
+
+#[test]
 fn ambiguity_no_resolve() {
     let a0 = short('a').switch().count();
     let a1 = short('a').argument::<usize>("AAAAAA");
     let parser = construct!([a0, a1]).to_options();
 
-    parser
+    // -a is a valid argument, proper behavior here is to finalize it
+    let r = parser
+        .run_inner(Args::from(&["-a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a");
+
+    let r = parser
         .run_inner(Args::from(&["-aaa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
+    assert_eq!(r, "");
 }
 
 #[test]
@@ -1206,11 +1318,37 @@ sample\tsample\t\t\n\n"
 }
 
 #[test]
+fn pair_of_positionals() {
+    // with positional items only current item should make suggestions, not both...
+    let a = positional::<String>("A").complete(test_completer);
+    let b = positional::<String>("B").complete(test_completer2);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha");
+
+    let r = parser
+        .run_inner(Args::from(&["alpha", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "auto");
+}
+
+#[test]
 fn double_dash_as_positional() {
     let parser = positional::<String>("P")
         .help("Help")
         .complete(test_completer)
         .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha");
 
     let r = parser
         .run_inner(Args::from(&["a"]).set_comp(0))
@@ -1231,12 +1369,6 @@ fn double_dash_as_positional() {
     assert_eq!(r, "--\n");
 
     let r = parser
-        .run_inner(Args::from(&["--", "a"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "alpha"); // this is not a valid positional
-                            //
-    let r = parser
         .run_inner(Args::from(&["--"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
@@ -1246,7 +1378,8 @@ fn double_dash_as_positional() {
         .run_inner(Args::from(&["x"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
-    assert_eq!(r, "\tP\t\tHelp\n\n");
+    assert_eq!(r, "x\n");
+    //    assert_eq!(r, "\tP\t\tHelp\n\n");
 }
 
 #[test]

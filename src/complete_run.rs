@@ -69,10 +69,11 @@ set edit:completion:arg-completer[{name}] = {{ |@args| var args = $args[1..];
 pub(crate) struct ArgScanner<'a> {
     pub(crate) revision: Option<usize>,
     pub(crate) name: Option<&'a str>,
+    pub(crate) current: String,
 }
 
 impl ArgScanner<'_> {
-    pub(crate) fn check_next(&mut self, arg: &OsStr) -> bool {
+    pub(crate) fn check_next(&mut self, arg: &OsStr, last: bool) -> bool {
         let arg = match arg.to_str() {
             Some(arg) => arg,
             None => return false,
@@ -99,9 +100,15 @@ impl ArgScanner<'_> {
             }
             return true;
         }
+        if last && self.revision.is_some() {
+            self.current = arg.to_owned();
+            return true;
+        }
+
         false
     }
-    pub(crate) fn done(&self) -> Option<Complete> {
-        Some(Complete::new(self.revision?))
+
+    pub(crate) fn done(self) -> Option<Complete> {
+        Some(Complete::new(self.revision?, self.current))
     }
 }
