@@ -1524,31 +1524,3 @@ pub fn choice<T: 'static>(parsers: impl IntoIterator<Item = Box<dyn Parser<T>>>)
     }
     this
 }
-
-fn asdf() -> impl std::fmt::Display {
-    short('c')
-        .argument::<usize>("")
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-        .map(|x| x + 1)
-}
