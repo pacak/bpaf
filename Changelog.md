@@ -1,5 +1,7 @@
 # Change Log
 
+## bpaf [0.9.13] - Unreleased
+- You can now use `fallback_to_usage` in derive macro for options and subcommands
 
 ## bpaf [0.9.12] - 2024-04-29
 - better error messages
