@@ -647,6 +647,34 @@ impl<T> OptionParser<T> {
     /// // create option parser in a usual way, derive or combinatoric API
     /// let opts = options().fallback_to_usage().run();
     /// ```
+    ///
+    /// For derive macro you can specify `fallback_to_usage` in top level annotations
+    /// for options and for individual commands if fallback to useage is the desired behavior:
+    ///
+    ///
+    /// ```ignore
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// enum Commands {
+    ///     #[bpaf(command, fallback_to_usage)]
+    ///     Action {
+    ///         ...
+    ///     }
+    /// }
+    /// ```
+    ///
+    /// Or
+    ///
+    /// ```ignore
+    /// #[derive(Debug, Clone, Bpaf)]
+    /// #[bpaf(options, fallback_to_usage)]
+    /// struct Options {
+    ///     ...
+    /// }
+    ///
+    /// fn main() {
+    ///     let options = options().run(); // falls back to usage
+    /// }
+    /// ```
     #[must_use]
     pub fn fallback_to_usage(mut self) -> Self {
         self.info.help_if_no_args = true;
