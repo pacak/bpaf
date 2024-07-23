@@ -709,21 +709,28 @@ pub(crate) fn build_positional<T>(metavar: &'static str) -> ParsePositional<T> {
     ParsePositional {
         metavar,
         help: None,
-        result_type: PhantomData,
-        strict: false,
+        position: Position::Unrestricted,
+        ty: PhantomData,
     }
 }
 
-/// Parse a positional item, created with [`positional`]
+/// Parse a positional item, created with [`positional`](crate::positional)
 ///
-/// You can add extra information to positional parsers with [`help`](Self::help)
-/// and [`strict`](Self::strict) on this struct.
+/// You can add extra information to positional parsers with [`help`](Self::help),
+/// [`strict`](Self::strict), or [`non_strict`](Self::non_strict) on this struct.
 #[derive(Clone)]
 pub struct ParsePositional<T> {
     metavar: &'static str,
     help: Option<Doc>,
-    result_type: PhantomData<T>,
-    strict: bool,
+    position: Position,
+    ty: PhantomData<T>,
+}
+
+#[derive(Clone, PartialEq, Eq)]
+enum Position {
+    Unrestricted,
+    Strict,
+    NonStrict,
 }
 
 impl<T> ParsePositional<T> {
@@ -769,39 +776,59 @@ impl<T> ParsePositional<T> {
     /// `bpaf` would display such positional elements differently in usage line as well.
     #[cfg_attr(not(doctest), doc = include_str!("docs2/positional_strict.md"))]
     #[must_use]
-    pub fn strict(mut self) -> Self {
-        self.strict = true;
+    #[inline(always)]
+    pub fn strict(mut self) -> ParsePositional<T> {
+        self.position = Position::Strict;
         self
     }
 
+    /// Changes positional parser to be a "not strict" positional
+    ///
+    /// Ensures the parser always rejects "strict" positions to the right of the separator, `--`.
+    /// Essentially the inverse operation to [`ParsePositional::strict`], which can be used to ensure
+    /// adjacent strict and nonstrict args never conflict with eachother.
+    #[must_use]
+    #[inline(always)]
+    pub fn non_strict(mut self) -> Self {
+        self.position = Position::NonStrict;
+        self
+    }
+
+    #[inline(always)]
     fn meta(&self) -> Meta {
         let meta = Meta::from(Item::Positional {
             metavar: Metavar(self.metavar),
             help: self.help.clone(),
         });
-        if self.strict {
-            Meta::Strict(Box::new(meta))
-        } else {
-            meta
+        match self.position {
+            Position::Strict => Meta::Strict(Box::new(meta)),
+            _ => meta,
         }
     }
 }
 
 fn parse_pos_word(
     args: &mut State,
-    strict: bool,
-    metavar: &'static str,
+    metavar: Metavar,
     help: &Option<Doc>,
+    position: &Position,
 ) -> Result<OsString, Error> {
-    let metavar = Metavar(metavar);
     match args.take_positional_word(metavar) {
         Ok((ix, is_strict, word)) => {
-            if strict && !is_strict {
-                #[cfg(feature = "autocomplete")]
-                args.push_pos_sep();
-
-                return Err(Error(Message::StrictPos(ix, metavar)));
+            match position {
+                &Position::Strict if !is_strict => {
+                    #[cfg(feature = "autocomplete")]
+                    args.push_pos_sep();
+                    return Err(Error(Message::StrictPos(ix, metavar)));
+                }
+                &Position::NonStrict if is_strict => {
+                    #[cfg(feature = "autocomplete")]
+                    args.push_pos_sep();
+                    return Err(Error(Message::NonStrictPos(ix, metavar)));
+                }
+                _ => {}
             }
+
             #[cfg(feature = "autocomplete")]
             if args.touching_last_remove() && !args.check_no_pos_ahead() {
                 args.push_metavar(metavar.0, help, false);
@@ -826,13 +853,14 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_pos_word(args, self.strict, self.metavar, &self.help)?;
+        let os = parse_pos_word(args, Metavar(self.metavar), &self.help, &self.position)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
         }
     }
 
+    #[inline(always)]
     fn meta(&self) -> Meta {
         self.meta()
     }

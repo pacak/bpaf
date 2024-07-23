@@ -144,3 +144,17 @@ fn strictly_positional() {
     let r = parser.run_inner(&["--"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected `A`, pass `--help` for usage information");
 }
+
+#[test]
+fn non_strictly_positional() {
+    let parser = positional::<String>("A").non_strict().to_options();
+
+    let r = parser.run_inner(&["a"]).unwrap();
+    assert_eq!(r, "a");
+
+    let r = parser.run_inner(&["--", "a"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected `A` to be on the left side of `--`");
+
+    let r = parser.run_inner(&["--"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected `A`, pass `--help` for usage information");
+}

@@ -42,9 +42,13 @@ pub(crate) enum Message {
     // those cannot be caught-------------------------------------------------------------
     /// Parsing failed and this is the final output
     ParseFailure(ParseFailure),
+
     /// Tried to consume a strict positional argument, value was present but was not strictly
     /// positional
     StrictPos(usize, Metavar),
+
+    /// Tried to consume a non-strict positional argument, but the value was strict
+    NonStrictPos(usize, Metavar),
 
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
@@ -87,7 +91,8 @@ impl Message {
             | Message::ParseSome(_)
             | Message::ParseFail(_)
             | Message::Missing(_)
-            | Message::PureFailed(_) => true,
+            | Message::PureFailed(_)
+            | Message::NonStrictPos(_, _) => true,
             Message::StrictPos(_, _)
             | Message::ParseFailed(_, _)
             | Message::GuardFailed(_, _)
@@ -320,6 +325,18 @@ impl Message {
                 doc.metavar(metavar);
                 doc.token(Token::BlockEnd(Block::TermRef));
                 doc.text(" to be on the right side of ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.literal("--");
+                doc.token(Token::BlockEnd(Block::TermRef));
+            }
+
+            // Error: FOO expected to be on the left side of --
+            Message::NonStrictPos(_ix, metavar) => {
+                doc.text("expected ");
+                doc.token(Token::BlockStart(Block::TermRef));
+                doc.metavar(metavar);
+                doc.token(Token::BlockEnd(Block::TermRef));
+                doc.text(" to be on the left side of ");
                 doc.token(Token::BlockStart(Block::TermRef));
                 doc.literal("--");
                 doc.token(Token::BlockEnd(Block::TermRef));
