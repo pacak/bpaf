@@ -73,6 +73,32 @@ fn fallback_usage_subcommand() {
 }
 
 #[test]
+fn fallback_usage_lut() {
+    let input: Top = parse_quote! {
+        #[bpaf(options)]
+        enum Lutgen {
+            /// descr
+            #[bpaf(command, fallback_to_usage)]
+            Generate,
+        }
+    };
+
+    let expected = quote! {
+        fn lutgen() -> ::bpaf::OptionParser<Lutgen> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Lutgen::Generate)
+                .to_options()
+                .descr("descr")
+                .fallback_to_usage()
+                .command("generate")
+                .to_options()
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn top_struct_construct() {
     let top: Top = parse_quote! {
         struct Opt { verbose: bool }

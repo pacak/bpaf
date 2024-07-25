@@ -507,7 +507,7 @@ impl ParsedEnumBranch {
 
         if let Some(opts_at) = has_options {
             if fallback_usage {
-                attrs.push(EAttr::FallbackUsage);
+                attrs.insert(opts_at, EAttr::FallbackUsage);
             }
 
             if let Some(h) = std::mem::take(&mut help) {
