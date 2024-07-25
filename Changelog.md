@@ -2,6 +2,11 @@
 
 ## bpaf [0.9.13] - Unreleased
 - You can now use `fallback_to_usage` in derive macro for options and subcommands
+- Bugfixes related to shell completion and file masks
+  thanks @ozwaldorf
+- `not_strict` restriction for positional items (TODO - check the docs)
+  thanks @ozwaldorf
+
 
 ## bpaf [0.9.12] - 2024-04-29
 - better error messages
