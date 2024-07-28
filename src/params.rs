@@ -726,7 +726,7 @@ pub struct ParsePositional<T> {
     ty: PhantomData<T>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum Position {
     Unrestricted,
     Strict,
@@ -811,22 +811,24 @@ fn parse_pos_word(
     args: &mut State,
     metavar: Metavar,
     help: &Option<Doc>,
-    position: &Position,
+    position: Position,
 ) -> Result<OsString, Error> {
     match args.take_positional_word(metavar) {
         Ok((ix, is_strict, word)) => {
             match position {
-                &Position::Strict if !is_strict => {
-                    #[cfg(feature = "autocomplete")]
-                    args.push_pos_sep();
-                    return Err(Error(Message::StrictPos(ix, metavar)));
+                Position::Strict => {
+                    if !is_strict {
+                        #[cfg(feature = "autocomplete")]
+                        args.push_pos_sep();
+                        return Err(Error(Message::StrictPos(ix, metavar)));
+                    }
                 }
-                &Position::NonStrict if is_strict => {
-                    #[cfg(feature = "autocomplete")]
-                    args.push_pos_sep();
-                    return Err(Error(Message::NonStrictPos(ix, metavar)));
+                Position::NonStrict => {
+                    if is_strict {
+                        return Err(Error(Message::NonStrictPos(ix, metavar)));
+                    }
                 }
-                _ => {}
+                Position::Unrestricted => {}
             }
 
             #[cfg(feature = "autocomplete")]
@@ -853,7 +855,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     fn eval(&self, args: &mut State) -> Result<T, Error> {
-        let os = parse_pos_word(args, Metavar(self.metavar), &self.help, &self.position)?;
+        let os = parse_pos_word(args, Metavar(self.metavar), &self.help, self.position)?;
         match parse_os_str::<T>(os) {
             Ok(ok) => Ok(ok),
             Err(err) => Err(Error(Message::ParseFailed(args.current, err))),
