@@ -937,6 +937,31 @@ fn should_be_able_to_suggest_double_dash() {
 }
 
 #[test]
+fn non_strict_and_double_dash() {
+    let a = short('a').switch();
+    let b = positional::<String>("B").non_strict();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+
+    assert_eq!(
+        r,
+        "\
+-a\t-a\t\t
+\tB\t\t\n\n"
+    );
+
+    let r = parser
+        .run_inner(Args::from(&["--", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "\n");
+}
+
+#[test]
 fn suggest_double_dash_automatically_for_strictly_positional() {
     let a = short('a').switch();
     let b = positional::<String>("B").strict();
