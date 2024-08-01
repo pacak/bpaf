@@ -1,0 +1,67 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_2_howto::_1_completion - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.80.0 (051478957 2024-07-21)" data-channel="1.80.0" data-search-js="search-d52510db62a78183.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.12</span></h2></div><h2 class="location"><a href="#">Module _1_completion</a></h2><div class="sidebar-elems"><h2><a href="../index.html">In bpaf::_documentation::_2_howto</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_2_howto</a>::<wbr><a class="mod" href="#">_1_completion</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2186">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_0_testing/index.html" title="mod bpaf::_documentation::_2_howto::_0_testing">← Testing your parsers</a></p>
+</td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_2_howto">↑ HOWTO - practical, oriented to solving problems guides ↑</a></p>
+</td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+<h5 id="dynamic-shell-completion"><a class="doc-anchor" href="#dynamic-shell-completion">§</a>Dynamic shell completion</h5>
+<p><code>bpaf</code> implements shell completion to allow to automatically fill in not only flag and command
+names, but also argument and positional item values.</p>
+<ol>
+<li>
+<p>Enable <code>autocomplete</code> feature:</p>
+<div class="example-wrap"><pre class="language-toml"><code>bpaf = { version = &quot;0.9&quot;, features = [&quot;autocomplete&quot;] }
+</code></pre></div></li>
+<li>
+<p>Decorate <a href="../../../parsers/struct.NamedArg.html#method.argument" title="method bpaf::parsers::NamedArg::argument"><code>argument</code></a> and <a href="../../../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> parsers with
+<a href="../../../trait.Parser.html#method.complete" title="method bpaf::Parser::complete"><code>Parser::complete</code></a> to provide completion functions for arguments</p>
+</li>
+<li>
+<p>Depending on your shell generate appropriate completion file and place it to whereever your
+shell is going to look for it, name of the file should correspond in some way to name of
+your program. Consult manual for your shell for the location and named conventions:</p>
+<ol>
+<li>
+<p><strong>bash</strong></p>
+<div class="example-wrap"><pre class="language-console"><code>$ your_program --bpaf-complete-style-bash &gt;&gt; ~/.bash_completion
+</code></pre></div></li>
+<li>
+<p><strong>zsh</strong>: note <code>_</code> at the beginning of the filename</p>
+<div class="example-wrap"><pre class="language-console"><code>$ your_program --bpaf-complete-style-zsh &gt; ~/.zsh/_your_program
+</code></pre></div></li>
+<li>
+<p><strong>fish</strong></p>
+<div class="example-wrap"><pre class="language-console"><code>$ your_program --bpaf-complete-style-fish &gt; ~/.config/fish/completions/your_program.fish
+</code></pre></div></li>
+<li>
+<p><strong>elvish</strong></p>
+<div class="example-wrap"><pre class="language-console"><code>$ your_program --bpaf-complete-style-elvish &gt;&gt; ~/.config/elvish/rc.elv
+</code></pre></div></li>
+</ol>
+</li>
+<li>
+<p>Restart your shell - you need to done it only once or optionally after bpaf major version
+upgrade: generated completion files contain only instructions how to ask your program for
+possible completions and don’t change even if options are different.</p>
+</li>
+<li>
+<p>Generated scripts rely on your program being accessible in $PATH</p>
+</li>
+</ol>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_0_testing/index.html" title="mod bpaf::_documentation::_2_howto::_0_testing">← Testing your parsers</a></p>
+</td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_2_howto">↑ HOWTO - practical, oriented to solving problems guides ↑</a></p>
+</td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>
