@@ -55,6 +55,11 @@ impl Args<'_> {
     ///     .unwrap_stdout();
     /// assert_eq!(r, "-f");
     /// ```
+    ///
+    /// Note to self: shell passes "" as a parameter in situations like foo `--bar TAB`, bpaf
+    /// completion stubs adopt this conventions add pass it along. This is needed so completer can
+    /// tell the difference between `--bar` being completed or an argument to it in the example
+    /// above.
     #[cfg(feature = "autocomplete")]
     #[must_use]
     pub fn set_comp(mut self, rev: usize) -> Self {
