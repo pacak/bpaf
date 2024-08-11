@@ -612,6 +612,15 @@ fn test_completer(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     vec
 }
 
+fn test_completer2(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
+    let items = ["auto", "mala"];
+    items
+        .iter()
+        .filter(|item| item.starts_with(input))
+        .map(|item| (*item, None))
+        .collect::<Vec<_>>()
+}
+
 fn test_completer_descr(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
     let items = ["alpha", "beta", "banana", "cat", "durian"];
     items
@@ -1062,7 +1071,52 @@ fn suggest_double_dash_automatically_for_strictly_positional() {
 }
 
 #[test]
-#[should_panic(expected = "app supports ")]
+fn multiple_adjacent_single_letter_vals() {
+    // but not really - test is incomplete
+    let a = short('a').switch();
+    let b = short('b').switch();
+    let c = short('c').switch();
+    let parser = construct!(a, b, c).to_options();
+
+    // with no input the right behavior is to suggest all the switches
+    let r = parser
+        .run_inner(Args::from(&[""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-a\t-a\t\t\n-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // with a single item present separately we should suggest the remaining two
+    let r = parser
+        .run_inner(Args::from(&["-a", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-b\t-b\t\t\n-c\t-c\t\t\n\n");
+
+    // trying to complete a pair of flags should dump current state
+    let r = parser
+        .run_inner(Args::from(&["-ab"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-ab\n");
+
+    // with a single valid item we should suggest it
+    let r = parser
+        .run_inner(Args::from(&["-ab", ""]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "-c");
+
+    // should I change the representation for the completions? Knowing that somethnig is a
+    // flag with a short or long name is no longer necessary
+    // now I need to be able to represent adding a -v to -f to get -fv, so pretty printed value is
+    // -v, substitution is `-fv`...
+    //
+    // FWIW bash doesn't complete short flags in combination... should we behave the same way?
+    //
+    // This whole test is incomplete. We are not actually testing or even supporting
+}
+
+#[test]
 fn ambiguity_no_resolve() {
     let a0 = short('a').switch().count();
     let a1 = short('a').argument::<usize>("AAAAAA");
@@ -1288,11 +1342,37 @@ sample\tsample\t\t\n\n"
 }
 
 #[test]
+fn pair_of_positionals() {
+    // with positional items only current item should make suggestions, not both...
+    let a = positional::<String>("A").complete(test_completer);
+    let b = positional::<String>("B").complete(test_completer2);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha");
+
+    let r = parser
+        .run_inner(Args::from(&["alpha", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "auto");
+}
+
+#[test]
 fn double_dash_as_positional() {
     let parser = positional::<String>("P")
         .help("Help")
         .complete(test_completer)
         .to_options();
+
+    let r = parser
+        .run_inner(Args::from(&["--", "a"]).set_comp(0))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha");
 
     let r = parser
         .run_inner(Args::from(&["a"]).set_comp(0))
@@ -1312,12 +1392,6 @@ fn double_dash_as_positional() {
         .unwrap_stdout();
     assert_eq!(r, "--\n");
 
-    let r = parser
-        .run_inner(Args::from(&["--", "a"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, "alpha"); // this is not a valid positional
-                            //
     let r = parser
         .run_inner(Args::from(&["--"]).set_comp(0))
         .unwrap_err()
