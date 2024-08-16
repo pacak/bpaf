@@ -1122,10 +1122,12 @@ fn ambiguity_no_resolve() {
     let a1 = short('a').argument::<usize>("AAAAAA");
     let parser = construct!([a0, a1]).to_options();
 
-    parser
+    let r = parser
         .run_inner(Args::from(&["-aaa"]).set_comp(0))
         .unwrap_err()
         .unwrap_stdout();
+
+    assert_eq!(r, "-aaa\n");
 }
 
 #[test]
