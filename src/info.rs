@@ -212,7 +212,15 @@ impl<T> OptionParser<T> {
 
         // this only handles disambiguation failure in construct
         if let Some(msg) = err {
-            return Err(msg.render(&state, &self.inner.meta()));
+            #[cfg(feature = "autocomplete")]
+            let check_disambiguation = state.comp_ref().is_none();
+
+            #[cfg(not(feature = "autocomplete"))]
+            let check_disambiguation = false;
+
+            if check_disambiguation {
+                return Err(msg.render(&state, &self.inner.meta()));
+            }
         }
 
         self.run_subparser(&mut state)
