@@ -215,8 +215,14 @@ impl ParseFailure {
         }
     }
 
-    /// Prints a message to `stdout` or `stderr` appropriate to the failure.
+    #[doc(hidden)]
+    #[deprecated = "Please use ParseFailure::print_message, with two s"]
     pub fn print_mesage(&self, max_width: usize) {
+        self.print_message(max_width)
+    }
+
+    /// Prints a message to `stdout` or `stderr` appropriate to the failure.
+    pub fn print_message(&self, max_width: usize) {
         let color = Color::default();
         match self {
             ParseFailure::Stdout(msg, full) => {
