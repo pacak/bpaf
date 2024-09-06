@@ -1,11 +1,13 @@
 # Change Log
 
-## bpaf [0.9.13] - Unreleased
-- You can now use `fallback_to_usage` in derive macro for options and subcommands
+## bpaf [0.9.13], bpaf_derive [0.5.13] - 2024-09-06
+- You can now use `fallback_to_usage` in derive macro for options and subcommands (#376)
 - Bugfixes related to shell completion and file masks
   thanks @ozwaldorf
 - `not_strict` restriction for positional items (TODO - check the docs)
   thanks @ozwaldorf
+- more shell completion bugfixes (#384, #382, #381)
+- `ParseFailure::print_mesage` (with one `s` is deprecated in favor of the right spelling
 
 
 ## bpaf [0.9.12] - 2024-04-29
@@ -26,6 +28,9 @@
   thanks @Boshen
 - minor shell completion improvements
 - avoid panic in case of hidden but required parser argument (#345)
+- somewhat breaking - `ParseFailure::exit_code` is separated into
+  `ParseFailure::exit_code` and `ParseFailure::print_message`, one produces
+  exit code, one prints the message
 
 ## bpaf [0.9.9] - 2024-01-17
 - fix formatting in ambiguity error message
