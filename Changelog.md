@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.9.14], 2024-09-19
+- add license files (#388)
+  thanks @davide
+- fix fish completions - you'll need to regenerate completion files for them to work
+
 ## bpaf [0.9.13], bpaf_derive [0.5.13] - 2024-09-06
 - You can now use `fallback_to_usage` in derive macro for options and subcommands (#376)
 - Bugfixes related to shell completion and file masks
@@ -401,4 +406,3 @@ Migration guide:
 
 ## [0.2.0] - 2022-03-10
 ### First public release
-

@@ -284,27 +284,22 @@ pub(crate) fn render_fish(
     items: &[ShowComp],
     ops: &[ShellComp],
     full_lit: &str,
-    app: &str,
+    _app: &str,
 ) -> Result<String, std::fmt::Error> {
     use std::fmt::Write;
     let mut res = String::new();
     if items.is_empty() && ops.is_empty() {
-        return Ok(format!("complete -c {} --arguments={}", app, full_lit));
+        writeln!(res, "{}", full_lit)?;
     }
-    let shared = if ops.is_empty() { "-f " } else { "" };
+
+    // skip things without substitutions, I think they
+    // are headers and such, and fish is a bit
     for item in items.iter().rev().filter(|i| !i.subst.is_empty()) {
-        write!(res, "complete -c {} {}", app, shared)?;
-        if let Some(long) = item.subst.strip_prefix("--") {
-            write!(res, "--long-option {} ", long)?;
-        } else if let Some(short) = item.subst.strip_prefix('-') {
-            write!(res, "--short-option {} ", short)?;
-        } else {
-            write!(res, "-a {} ", item.subst)?;
-        }
         if let Some(help) = item.extra.help.as_deref() {
-            write!(res, "-d {:?}", help)?;
+            writeln!(res, "{}\t{}", item.subst, help)?;
+        } else {
+            writeln!(res, "{}", item.subst)?;
         }
-        writeln!(res)?;
     }
 
     Ok(res)

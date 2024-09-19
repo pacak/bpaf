@@ -30,14 +30,20 @@ source <(eval ${{line}})
     );
 }
 
-fn dump_fish_completer(_name: &str) {
+fn dump_fish_completer(name: &str) {
     println!(
-        r#"set -l current (commandline --tokenize --current-process)
-set -l tmpline $current[1] --bpaf-complete-rev=9 $current[2..]
-if test (commandline --current-process) != (string trim (commandline --current-process))
-    set tmpline $tmpline ""
+        r#"function _bpaf_dynamic_completion
+    set -l current (commandline --tokenize --current-process)
+    set -l tmpline --bpaf-complete-rev=9 $current[2..]
+    if test (commandline --current-process) != (string trim (commandline --current-process))
+        set tmpline $tmpline ""
+    end
+    eval $current[1] \"$tmpline\"
 end
-source ( $tmpline | psub )"#
+
+complete --no-files --command {name}--arguments '(_bpaf_dynamic_completion)'
+"#,
+        name = name
     );
 }
 
