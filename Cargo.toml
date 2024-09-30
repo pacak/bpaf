@@ -57,6 +57,7 @@ bpaf = true
 members =  [
     ".",
     "./bpaf_derive",
+    "./bpaf_core",
     "./bpaf_cauwugo",
     "./docs2",
     "./comptester",
