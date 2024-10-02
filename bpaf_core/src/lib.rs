@@ -1,192 +1,305 @@
 #![allow(dead_code)]
+
+use std::ops::Range;
 #[derive(Debug, Clone, Default)]
 struct Usage<'a> {
     events: Vec<Event<'a>>,
     group_start: Vec<usize>,
 }
 
-#[derive(Debug, Copy, Clone)]
-enum Group {
-    And { len: usize },
-    Or { len: usize },
-    Optional { len: usize },
-    Many { len: usize },
-}
+impl Usage<'_> {
+    fn parent(&self) -> Option<(usize, Event)> {
+        let offset = *self.group_start.last()?;
+        Some((offset, *self.events.get(offset)?))
+    }
 
-impl Group {
-    fn len(self) -> usize {
-        match self {
-            Group::And { len }
-            | Group::Or { len }
-            | Group::Optional { len }
-            | Group::Many { len } => len,
-        }
+    fn render(self) -> String {
+        todo!("{self:?}");
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-enum Atom<'a> {
+#[derive(Debug, Clone, Copy)]
+enum Event<'a> {
     Item(&'a Item),
     Command,
     Strict,
     Text(&'a str),
+    And { behavior: Behav, children: usize },
+    Or { behavior: Behav, children: usize },
+    Optional { behavior: Behav, children: usize },
+    Many { behavior: Behav, children: usize },
+    Pop,
 }
+impl Event<'_> {
+    fn is_group(&self) -> bool {
+        matches!(
+            self,
+            Event::And { .. } | Event::Or { .. } | Event::Optional { .. } | Event::Many { .. }
+        )
+    }
 
-#[derive(Debug, Copy, Clone)]
-enum Event<'a> {
-    Atom(Atom<'a>),
-    Group(Group),
-    /// Marker for removed items, can be safely
-    Skip,
+    fn is_atom(&self) -> bool {
+        matches!(
+            self,
+            Event::Item(_) | Event::Command | Event::Strict | Event::Text(_)
+        )
+    }
 }
 
 // 1. remove any tags around zero items
 // 2. remove and/or tags around single item
 // 3. drop inner pair of nested Optional
 
-fn normalize(outer_group: Group, mut events: &mut [Event]) -> bool {
-    println!("{:?} => {:?}", outer_group, events);
-    let mut drop_group = events.is_empty();
-    while let Some((group_offset, inner_group)) = first_group(events) {
-        let first_child = group_offset + 1;
-        let last_child = first_child + inner_group.len();
-        let children = &mut events[first_child..last_child];
+fn children<'a>(events: &'a [Event]) -> Children<'a> {
+    debug_assert!(events.is_empty() || events[0].is_group());
+    Children {
+        depth: 0,
+        res: 0,
+        events,
+        cur: 1,
+        open: 1,
+    }
+}
 
-        if normalize(inner_group, children) {
-            events[group_offset] = Event::Skip;
+impl<'a> Iterator for Children<'a> {
+    type Item = &'a [Event<'a>];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let event = self.events.get(self.cur)?;
+        todo!();
+    }
+}
+
+struct Children<'a> {
+    depth: usize,
+    res: usize,
+    cur: usize,
+    events: &'a [Event<'a>],
+    open: usize,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Behav {
+    Runs,
+    Fails,
+    Succeeds,
+}
+enum Cnt {
+    Zero,
+    One,
+    Many,
+}
+
+fn immediate_children(events: &[Event]) -> usize {
+    let mut depth = 0;
+    let mut res = 0;
+
+    for event in events {
+        if event.is_group() {
+            depth += 1;
+        } else if matches!(event, Event::Pop) {
+            depth -= 1;
+        } else if depth == 1 {
+            res += 1;
         }
-        let sibling = events.len().min(last_child + 1);
-        events = &mut events[sibling..];
     }
-    drop_group
-}
-
-/// looks for the
-fn first_group(events: &[Event]) -> Option<(usize, Group)> {
-    println!("scanning {events:?}");
-    events.iter().enumerate().find_map(|(ix, item)| match item {
-        Event::Group(g) => Some((ix, *g)),
-        Event::Atom(_) | Event::Skip => None,
-    })
-}
-
-impl Usage<'_> {
-    fn normalize(&mut self) {
-        let len = self.events.len();
-        normalize(Group::And { len }, &mut self.events);
-    }
-
-    fn render(mut self) -> String {
-        self.normalize();
-
-        todo!("{self:?}");
-    }
-
-    /// collapse groups
-    /// - products in products: (-a (-b -c)) => (-a -b -c)
-    /// - sums in sums: (-a | (-b | -c)) => (-a | -b | -c)
-    fn group_collapse(&mut self) {
-        // for ty in &[GroupTy::And, GroupTy::Or] {
-        //     // we are going to scan events right to left to make sure to cover
-        //     // cases of multiple nested groups: ((-a) (-b))
-        //     // since scanning left to right will yield us sibling groups
-        //     // (-a) and (-b) first (we match on group end rather than group start),
-        //     // requiring multiple passes.
-        //     let Some((mut prev_start, mut prev_end)) = self.group_before(self.events.len()) else {
-        //         continue;
-        //     };
-        //
-        //     // then we start looking for groups, right to left
-        //     while let Some((next_start, next_end)) = self.group_before(prev_end) {
-        //         if prev_start < next_start
-        //             && next_end < prev_end
-        //             && self.events[prev_start].is_group_ty(*ty)
-        //             && self.events[next_start].is_group_ty(*ty)
-        //         {
-        //             // at this point we know that next_start..next_end is fully inside of
-        //             // prev_start..prev_end group and it is the same group type so we can drop
-        //             // the inner group;
-        //
-        //             self.remove_events(next_start, next_end);
-        //             prev_end -= 2;
-        //         } else {
-        //             prev_start = next_start;
-        //             prev_end = next_end;
-        //         }
-        //     }
-        // }
-    }
-
-    // #[inline(never)]
-    // fn group_before(&self, mut cur: usize) -> Option<(usize, usize)> {
-    //     assert!(self.events.len() + 1 > cur);
-    //     while cur > 0 {
-    //         cur -= 1;
-    //         if let Some(start) = self.events[cur].as_start_offset() {
-    //             return Some((start, cur));
-    //         }
-    //     }
-    //     None
-    // }
-
-    // #[inline(never)]
-    // fn group_after(&self, start: usize) -> Option<(usize, usize)> {
-    //     self.events[start..]
-    //         .iter()
-    //         .enumerate()
-    //         .find_map(|(end, e)| Some((e.as_start_offset()?, end + start)))
-    // }
-
-    // collapse single element products and sums: (-a) => -a
-    // fn single_collapse(&mut self) {}
-    // fn count_items(&self, range: std::ops::Range<usize>) -> usize {
-    //     self.events[range]
-    //         .iter()
-    //         .filter(|i| match i {
-    //             Event::Item(_) | Event::Command | Event::Text(_) => true,
-    //             Event::And { .. }
-    //             | Event::Or { .. }
-    //             | Event::Optional
-    //             | Event::Many
-    //             | Event::Nothing
-    //             | Event::GroupEnd { .. } => false,
-    //         })
-    //         .count()
-    // }
+    res
 }
 
 impl<'a> Visitor<'a> for Usage<'a> {
     fn item(&mut self, item: &'a Item) {
-        self.events.push(Event::Atom(Atom::Item(item)));
+        self.events.push(Event::Item(item));
     }
 
-    fn command(&mut self, _long_name: &'a str, _short_name: char) -> bool {
-        self.events.push(Event::Atom(Atom::Command));
+    fn command(&mut self, _long_name: &'a str, _short_name: Option<char>) -> bool {
+        // remove duplicate COMMAND events from a group of or patterns:
+        //
+        // This replaces things like `(COMMAND | COMMAND | COMMAND)`
+        // with a single `COMMAND`
+        //
+        // while retaining cases where they go sequentially, adjacent commands
+        // should remain as `COMMAND COMMAND`
+        let keep = match self.parent() {
+            Some((ix, Event::Or)) => !self.events[ix..].contains(&Event::Command),
+            _ => true,
+        };
+        if keep {
+            self.events.push(Event::Command);
+        }
         false
     }
 
     fn push(&mut self, decor: Decor) {
         self.group_start.push(self.events.len());
-        self.events.push(Event::Group(match decor {
-            Decor::Many => Group::Many { len: 0 },
-            Decor::Optional => Group::Optional { len: 0 },
-            Decor::And => Group::And { len: 0 },
-            Decor::Or => Group::Or { len: 0 },
-        }));
+        self.events.push(match decor {
+            Decor::Many => Event::Many,
+            Decor::Optional => Event::Optional,
+            Decor::And => Event::And,
+            Decor::Or => Event::Or,
+        });
     }
+
     fn pop(&mut self) {
         let open = self.group_start.pop().expect("Unbalanced groups!");
-        let group_len = self.events.len() - open - 1;
-        match &mut self.events[open] {
-            Event::Atom(_) | Event::Skip => {}
-            Event::Group(g) => match g {
-                Group::And { len }
-                | Group::Or { len }
-                | Group::Optional { len }
-                | Group::Many { len } => *len = group_len,
-            },
+        let children = immediate_children(&self.events[open..]);
+
+        match self.events[open] {
+            Event::And => {
+                if children == 0 {
+                    self.events.pop();
+                    self.events.push(Event::Success);
+                } else if children == 1 {
+                    self.events.remove(open);
+                } else {
+                    // remove all successes and failures
+                    // remove whole group if there's any immediate failures
+                }
+            }
+            Event::Or => {
+                if children == 0 {
+                    self.events.pop();
+                    self.events.push(Event::Failure);
+                } else if children == 1 {
+                    self.events.remove(open);
+                } else {
+                    // remove all failures and failures
+                    // unwrap optional children
+                    // mark block as optional if there's any successes
+                }
+            }
+            Event::Many => {
+                if children == 0 {
+                    self.events.pop();
+                } else {
+                    debug_assert_eq!(children, 1);
+                    // if child is a failure - replace with a failure
+                    // if child is a success - replace with a success
+                    // if child is Many - squash
+                }
+            }
+            Event::Optional => {
+                if children == 0 {
+                    self.events.pop();
+                } else {
+                    debug_assert_eq!(children, 1);
+                    // if child is a failure - replace with a failure
+                    // if child is a success - replace with a success
+                    // if child is Optional - squash, picking
+                }
+            }
+
+            _ => panic!("unbalanced groups!"),
         }
+
+        if open + 1 == self.events.len() && self.events[open].is_group() {
+            // remove all the empty groups
+            self.events.pop();
+        } else if matches!(self.events[open], Event::Or | Event::And)
+            && immediate_children(&self.events[open..]) == 1
+        {
+            // remove And/Or group that contains only one item
+            self.events.remove(open);
+        } else if matches!(self.events[open], Event::Many | Event::Optional)
+            && self
+                .group_start
+                .last()
+                .map_or(false, |parent| self.events[open] == self.events[*parent])
+        {
+            // flatten nested option/many
+            self.events.remove(open);
+        } else {
+            println!(
+                "{:?} {:?}",
+                matches!(self.events[open], Event::Many | Event::Optional),
+                self
+            );
+
+            todo!("{:?} / {:?}", &self.events[open..], self)
+        }
+
+        // Optional<Optional<xxx>> => Optional<xxx>
+        // Many<Many<xxx>> => Optional<xxx>
+        //
+        // Or<A, B, Optional<C>> => Optional<Or<A, B, C>>
     }
+}
+
+const FLAG_A: Item = Item::Flag(ShortLong::Short('a'));
+
+#[test]
+fn visit_remove_empty_groups() {
+    let mut v = Usage::default();
+    v.push(Decor::And);
+    v.pop();
+    assert_eq!(v.events, &[]);
+}
+
+#[test]
+fn visit_unpack_singleton_groups() {
+    let mut v = Usage::default();
+    v.push(Decor::And);
+    v.item(&FLAG_A);
+    v.pop();
+    assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
+}
+
+#[test]
+fn visit_unpack_singleton_nested_groups_1() {
+    let mut v = Usage::default();
+    v.push(Decor::And);
+    v.push(Decor::Or);
+    v.item(&FLAG_A);
+    v.pop();
+    v.pop();
+    assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
+}
+
+#[test]
+fn visit_unpack_singleton_nested_groups_2() {
+    let mut v = Usage::default();
+    v.push(Decor::And);
+    v.push(Decor::Or);
+    v.push(Decor::And);
+    v.item(&FLAG_A);
+    v.pop();
+    v.pop();
+    v.pop();
+    assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
+}
+
+#[test]
+fn visit_flatten_nested_options() {
+    let mut v = Usage::default();
+    v.push(Decor::Optional);
+    v.push(Decor::Optional);
+    v.item(&FLAG_A);
+    v.pop();
+    v.pop();
+    assert_eq!(
+        v.events,
+        &[Event::Optional, Event::Item(&FLAG_A), Event::Pop]
+    );
+}
+
+#[test]
+fn visit_flatten_nested_many() {
+    let mut v = Usage::default();
+    v.push(Decor::Many);
+    v.push(Decor::Many);
+    v.item(&FLAG_A);
+    v.pop();
+    v.pop();
+    assert_eq!(v.events, &[Event::Many, Event::Item(&FLAG_A), Event::Pop]);
+}
+
+#[test]
+fn visit_trim_redundant_or_commands() {
+    let mut v = Usage::default();
+    v.push(Decor::Or);
+    v.command("long1", None);
+    v.command("long2", None);
+    v.pop();
+    assert_eq!(v.events, &[Event::Command]);
 }
 
 #[test]
@@ -245,7 +358,7 @@ fn group_before() {
 }
 
 /// Contains name for named
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ShortLong {
     /// Short name only (one char),
     /// Ex `-v` is stored as Short('v'),
@@ -272,13 +385,14 @@ impl std::fmt::Display for ShortLong {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum Item {
     Flag(ShortLong),
     Argument(ShortLong, &'static str),
     Positional(&'static str),
 }
 
+#[derive(Copy, Clone)]
 pub enum Decor {
     // inner parser can succeed multiple times, requred unless made optional
     Many,
@@ -291,7 +405,7 @@ pub enum Decor {
 }
 
 pub trait Visitor<'a> {
-    fn command(&mut self, long_name: &'a str, short_name: char) -> bool;
+    fn command(&mut self, long_name: &'a str, short_name: Option<char>) -> bool;
     fn item(&mut self, item: &'a Item);
     fn pop(&mut self);
     fn push(&mut self, decor: Decor);
