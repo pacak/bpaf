@@ -8,35 +8,47 @@ pub(crate) struct Usage<'a> {
 }
 
 impl Usage<'_> {
-    fn parent(&self) -> Option<Event> {
-        let offset = *self.group_start.last()?;
-        Some(*self.events.get(offset)?)
+    fn parent_ty(&self) -> Option<Group> {
+        if let Event::Group { ty, .. } = self.events.get(*self.group_start.last()?)? {
+            Some(*ty)
+        } else {
+            None
+        }
     }
 
     fn siblings_mut(&mut self) -> Option<&mut usize> {
         let offset = *self.group_start.last()?;
         match self.events.get_mut(offset)? {
-            Event::And { children, .. }
-            | Event::Or { children, .. }
-            | Event::Optional { children, .. }
-            | Event::Many { children, .. } => Some(children),
+            Event::Group { children, .. } => Some(children),
             _ => None,
         }
     }
     fn child_behavior(&mut self, behav: Behav) -> Option<&mut usize> {
         let offset = *self.group_start.last()?;
         match self.events.get_mut(offset)? {
-            Event::And { behavior, children } => {
+            Event::Group {
+                ty: Group::And,
+                behavior,
+                children,
+            } => {
                 *behavior = (*behavior).min(behav);
                 Some(children)
             }
-            Event::Or { behavior, children } => {
+            Event::Group {
+                ty: Group::Or,
+                behavior,
+                children,
+            } => {
                 *behavior = (*behavior).max(behav);
                 Some(children)
             }
             // even if child insta fails to parse - optional/many
             // will still succeed
-            Event::Optional { children, .. } | Event::Many { children, .. } => Some(children),
+            Event::Group {
+                ty: Group::Optional | Group::Many,
+                children,
+                ..
+            } => Some(children),
             _ => None,
         }
     }
@@ -52,10 +64,11 @@ enum Event<'a> {
     Command,
     Strict,
     Text(&'a str),
-    And { behavior: Behav, children: usize },
-    Or { behavior: Behav, children: usize },
-    Optional { behavior: Behav, children: usize },
-    Many { behavior: Behav, children: usize },
+    Group {
+        ty: Group,
+        behavior: Behav,
+        children: usize,
+    },
     Pop,
 }
 
@@ -85,7 +98,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
 
         // no parent => keep the command
         if !self.group_start.last().map_or(false, |&ix| {
-            matches!(self.events[ix], Event::Or { .. })
+            matches!(self.events[ix], Event::Group { ty: Group::Or, .. })
                 && self.events[ix..].contains(&Event::Command)
         }) {
             if let Some(siblings) = self.siblings_mut() {
@@ -103,18 +116,18 @@ impl<'a> Visitor<'a> for Usage<'a> {
         self.group_start.push(self.events.len());
         let children = 0;
         let behavior = Behav::Runs;
-        self.events.push(match decor {
-            Group::Many => Event::Many { children, behavior },
-            Group::Optional => Event::Optional { children, behavior },
-            Group::And => Event::And { children, behavior },
-            Group::Or => Event::Or { children, behavior },
+        self.events.push(Event::Group {
+            ty: decor,
+            children,
+            behavior,
         });
     }
 
     fn pop_group(&mut self) {
         let open = self.group_start.pop().expect("Unbalanced groups!");
         match self.events[open] {
-            Event::And {
+            Event::Group {
+                ty: Group::And,
                 children,
                 mut behavior,
             } => {
@@ -125,7 +138,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     self.events.remove(open);
                 } else if behavior == Behav::Fails {
                     self.events.drain(open..);
-                } else if matches!(self.parent(), Some(Event::And { .. })) {
+                } else if self.parent_ty() == Some(Group::And) {
                     if let Some(sib) = self.siblings_mut() {
                         *sib += children - 1;
                     }
@@ -135,10 +148,11 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 }
                 if let Some(siblings) = self.child_behavior(behavior) {
                     // if a group is an instant fail - we are removing all of its children
-                    *siblings -= usize::from(behavior == Behav::Fails);
+                    *siblings -= usize::from(behavior == Behav::Fails || children == 0);
                 }
             }
-            Event::Or {
+            Event::Group {
+                ty: Group::Or,
                 mut behavior,
                 children,
             } => {
@@ -149,7 +163,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     self.events.remove(open);
                 } else if behavior == Behav::Fails {
                     self.events.drain(open..);
-                } else if matches!(self.parent(), Some(Event::Or { .. })) {
+                } else if self.parent_ty() == Some(Group::Or) {
                     if let Some(siblings) = self.siblings_mut() {
                         *siblings += children - 1;
                     }
@@ -159,30 +173,38 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 }
                 if let Some(siblings) = self.child_behavior(behavior) {
                     // if a group is an instant fail - we are removing all of its children
-                    *siblings -= usize::from(behavior == Behav::Fails);
+                    *siblings -= usize::from(behavior == Behav::Fails || children == 0);
                 }
             }
-            Event::Optional { behavior, children } => {
+            Event::Group {
+                ty: Group::Optional,
+                behavior,
+                children,
+            } => {
                 debug_assert!(children <= 1);
                 if behavior == Behav::Fails {
                     if let Some(siblings) = self.siblings_mut() {
                         *siblings -= 1;
                     }
                     self.events.drain(open..);
-                } else if matches!(self.parent(), Some(Event::Optional { .. })) {
+                } else if self.parent_ty() == Some(Group::Optional) {
                     self.events.remove(open);
                 } else {
                     self.events.push(Event::Pop);
                 }
             }
-            Event::Many { behavior, children } => {
+            Event::Group {
+                ty: Group::Many,
+                behavior,
+                children,
+            } => {
                 debug_assert!(children <= 1);
                 if behavior == Behav::Fails {
                     if let Some(siblings) = self.siblings_mut() {
                         *siblings -= 1;
                     }
                     self.events.drain(open..);
-                } else if matches!(self.parent(), Some(Event::Many { .. })) {
+                } else if self.parent_ty() == Some(Group::Many) {
                     self.events.remove(open);
                 } else {
                     self.events.push(Event::Pop);
@@ -211,7 +233,8 @@ fn visit_no_dedupe_commands_in_and() {
     assert_eq!(
         v.events,
         &[
-            Event::And {
+            Event::Group {
+                ty: Group::And,
                 behavior: Behav::Runs,
                 children: 2,
             },
@@ -223,7 +246,31 @@ fn visit_no_dedupe_commands_in_and() {
 }
 
 #[test]
-fn visit_dedupe_commands_in_or() {
+/// Or group should contain at most one command in the output
+fn visit_dedupe_commands_in_or1() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.command("long_name", None);
+    v.command("long_name", None);
+    v.pop_group();
+    assert_eq!(v.events, &[Event::Command]);
+}
+
+#[test]
+fn visit_dedupe_commands_in_or2() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.push_group(Group::Optional);
+    v.command("long_name", None);
+    v.pop_group();
+    v.command("long_name", None);
+    v.pop_group();
+    assert_eq!(v.events, &[Event::Command]);
+}
+#[test]
+/// Similar to or2, but here commands are encased inside of an And
+/// group, so they are not flattened
+fn visit_dedupe_commands_in_or3() {
     let mut v = Usage::default();
     v.push_group(Group::Or);
     v.command("long_name", None);
@@ -291,7 +338,8 @@ fn visit_flatten_nested_or() {
     assert_eq!(
         v.events,
         &[
-            Event::Or {
+            Event::Group {
+                ty: Group::Or,
                 behavior: Behav::Runs,
                 children: 4
             },
@@ -316,7 +364,8 @@ fn visit_flatten_nested_options() {
     assert_eq!(
         v.events,
         &[
-            Event::Optional {
+            Event::Group {
+                ty: Group::Optional,
                 behavior: Behav::Runs,
                 children: 1
             },
@@ -338,7 +387,8 @@ fn visit_flatten_nested_many() {
     assert_eq!(
         v.events,
         &[
-            Event::Many {
+            Event::Group {
+                ty: Group::Many,
                 behavior: Behav::Runs,
                 children: 1
             },
@@ -373,44 +423,43 @@ fn opt_flag() {
 fn xxx() {
     let mut u = Usage::default();
     u.push_group(Group::And);
-    u.push_group(Group::Optional);
-    u.item(&Item::Flag(ShortLong::Short('v')));
-    u.pop_group();
-    u.item(&Item::Positional("FILE"));
-    u.pop_group();
-
-    assert_eq!(u.render(), "[-v] FILE");
-}
-
-#[test]
-fn group_collapse() {
-    let mut u = Usage::default();
+    u.item(&FLAG_A);
     u.push_group(Group::And);
-    u.item(&Item::Flag(ShortLong::Short('a')));
-    u.push_group(Group::And);
-    u.item(&Item::Flag(ShortLong::Short('b')));
-    u.item(&Item::Flag(ShortLong::Short('c')));
+    u.item(&FLAG_B);
+    u.item(&FLAG_C);
     u.pop_group();
     u.push_group(Group::Or);
+    u.item(&FLAG_D);
     u.pop_group();
     u.pop_group();
-    assert_eq!(u.events, &[]);
+    assert_eq!(
+        u.events,
+        &[
+            Event::Group {
+                ty: Group::And,
+                behavior: Behav::Runs,
+                children: 4
+            },
+            Event::Item(&FLAG_A),
+            Event::Item(&FLAG_B),
+            Event::Item(&FLAG_C),
+            Event::Item(&FLAG_D),
+            Event::Pop,
+        ]
+    );
 }
 
 #[test]
-fn group_before() {
+///asdf
+fn visit_group_flatten() {
     let mut u = Usage::default();
     u.push_group(Group::And);
     u.push_group(Group::And);
     u.pop_group();
-    u.push_group(Group::And);
-    u.pop_group();
+    u.item(&FLAG_A);
     u.pop_group();
 
-    todo!("{u:?}");
-    //    assert_eq!(Some((0, 5)), u.group_before(6));
-    //    assert_eq!(Some((3, 4)), u.group_before(5));
-    //    assert_eq!(Some((1, 2)), u.group_before(4));
+    assert_eq!(u.events, &[Event::Item(&FLAG_A)]);
 }
 
 /// Contains name for named
@@ -448,7 +497,7 @@ pub enum Item {
     Positional(&'static str),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Group {
     // inner parser can succeed multiple times, requred unless made optional
     Many,
