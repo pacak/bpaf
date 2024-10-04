@@ -273,10 +273,25 @@ fn visit_dedupe_commands_in_or2() {
 fn visit_dedupe_commands_in_or3() {
     let mut v = Usage::default();
     v.push_group(Group::Or);
-    v.command("long_name", None);
+    v.push_group(Group::And);
+    v.item(&FLAG_A);
     v.command("long_name", None);
     v.pop_group();
-    assert_eq!(v.events, &[Event::Command,]);
+    v.command("long_name", None);
+    v.pop_group();
+    assert_eq!(
+        v.events,
+        &[
+            Event::Group {
+                ty: Group::And,
+                behavior: Behav::Runs,
+                children: 2
+            },
+            Event::Item(&FLAG_A),
+            Event::Command,
+            Event::Pop
+        ]
+    );
 }
 
 #[test]
