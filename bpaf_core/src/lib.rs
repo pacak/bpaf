@@ -1,16 +1,44 @@
 #![allow(dead_code)]
-
-use std::ops::Range;
+// #![no_std]
+// use core::alloc::Vec;
 #[derive(Debug, Clone, Default)]
-struct Usage<'a> {
+pub(crate) struct Usage<'a> {
     events: Vec<Event<'a>>,
     group_start: Vec<usize>,
 }
 
 impl Usage<'_> {
-    fn parent(&self) -> Option<(usize, Event)> {
+    fn parent(&self) -> Option<Event> {
         let offset = *self.group_start.last()?;
-        Some((offset, *self.events.get(offset)?))
+        Some(*self.events.get(offset)?)
+    }
+
+    fn siblings_mut(&mut self) -> Option<&mut usize> {
+        let offset = *self.group_start.last()?;
+        match self.events.get_mut(offset)? {
+            Event::And { children, .. }
+            | Event::Or { children, .. }
+            | Event::Optional { children, .. }
+            | Event::Many { children, .. } => Some(children),
+            _ => None,
+        }
+    }
+    fn child_behavior(&mut self, behav: Behav) -> Option<&mut usize> {
+        let offset = *self.group_start.last()?;
+        match self.events.get_mut(offset)? {
+            Event::And { behavior, children } => {
+                *behavior = (*behavior).min(behav);
+                Some(children)
+            }
+            Event::Or { behavior, children } => {
+                *behavior = (*behavior).max(behav);
+                Some(children)
+            }
+            // even if child insta fails to parse - optional/many
+            // will still succeed
+            Event::Optional { children, .. } | Event::Many { children, .. } => Some(children),
+            _ => None,
+        }
     }
 
     fn render(self) -> String {
@@ -18,7 +46,7 @@ impl Usage<'_> {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 enum Event<'a> {
     Item(&'a Item),
     Command,
@@ -30,275 +58,303 @@ enum Event<'a> {
     Many { behavior: Behav, children: usize },
     Pop,
 }
-impl Event<'_> {
-    fn is_group(&self) -> bool {
-        matches!(
-            self,
-            Event::And { .. } | Event::Or { .. } | Event::Optional { .. } | Event::Many { .. }
-        )
-    }
 
-    fn is_atom(&self) -> bool {
-        matches!(
-            self,
-            Event::Item(_) | Event::Command | Event::Strict | Event::Text(_)
-        )
-    }
-}
-
-// 1. remove any tags around zero items
-// 2. remove and/or tags around single item
-// 3. drop inner pair of nested Optional
-
-fn children<'a>(events: &'a [Event]) -> Children<'a> {
-    debug_assert!(events.is_empty() || events[0].is_group());
-    Children {
-        depth: 0,
-        res: 0,
-        events,
-        cur: 1,
-        open: 1,
-    }
-}
-
-impl<'a> Iterator for Children<'a> {
-    type Item = &'a [Event<'a>];
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let event = self.events.get(self.cur)?;
-        todo!();
-    }
-}
-
-struct Children<'a> {
-    depth: usize,
-    res: usize,
-    cur: usize,
-    events: &'a [Event<'a>],
-    open: usize,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Behav {
-    Runs,
     Fails,
+    Runs,
     Succeeds,
-}
-enum Cnt {
-    Zero,
-    One,
-    Many,
-}
-
-fn immediate_children(events: &[Event]) -> usize {
-    let mut depth = 0;
-    let mut res = 0;
-
-    for event in events {
-        if event.is_group() {
-            depth += 1;
-        } else if matches!(event, Event::Pop) {
-            depth -= 1;
-        } else if depth == 1 {
-            res += 1;
-        }
-    }
-    res
 }
 
 impl<'a> Visitor<'a> for Usage<'a> {
     fn item(&mut self, item: &'a Item) {
         self.events.push(Event::Item(item));
+        if let Some(siblings) = self.siblings_mut() {
+            *siblings += 1;
+        }
     }
 
     fn command(&mut self, _long_name: &'a str, _short_name: Option<char>) -> bool {
-        // remove duplicate COMMAND events from a group of or patterns:
+        // remove duplicate COMMAND events from a group of Or patterns:
         //
         // This replaces things like `(COMMAND | COMMAND | COMMAND)`
         // with a single `COMMAND`
         //
         // while retaining cases where they go sequentially, adjacent commands
         // should remain as `COMMAND COMMAND`
-        let keep = match self.parent() {
-            Some((ix, Event::Or)) => !self.events[ix..].contains(&Event::Command),
-            _ => true,
-        };
-        if keep {
+
+        // no parent => keep the command
+        if !self.group_start.last().map_or(false, |&ix| {
+            matches!(self.events[ix], Event::Or { .. })
+                && self.events[ix..].contains(&Event::Command)
+        }) {
+            if let Some(siblings) = self.siblings_mut() {
+                *siblings += 1;
+            }
             self.events.push(Event::Command);
         }
         false
     }
 
-    fn push(&mut self, decor: Decor) {
+    fn push_group(&mut self, decor: Group) {
+        if let Some(siblings) = self.siblings_mut() {
+            *siblings += 1;
+        }
         self.group_start.push(self.events.len());
+        let children = 0;
+        let behavior = Behav::Runs;
         self.events.push(match decor {
-            Decor::Many => Event::Many,
-            Decor::Optional => Event::Optional,
-            Decor::And => Event::And,
-            Decor::Or => Event::Or,
+            Group::Many => Event::Many { children, behavior },
+            Group::Optional => Event::Optional { children, behavior },
+            Group::And => Event::And { children, behavior },
+            Group::Or => Event::Or { children, behavior },
         });
     }
 
-    fn pop(&mut self) {
+    fn pop_group(&mut self) {
         let open = self.group_start.pop().expect("Unbalanced groups!");
-        let children = immediate_children(&self.events[open..]);
-
         match self.events[open] {
-            Event::And => {
+            Event::And {
+                children,
+                mut behavior,
+            } => {
                 if children == 0 {
-                    self.events.pop();
-                    self.events.push(Event::Success);
-                } else if children == 1 {
+                    behavior = Behav::Succeeds;
+                }
+                if children <= 1 {
+                    self.events.remove(open);
+                } else if behavior == Behav::Fails {
+                    self.events.drain(open..);
+                } else if matches!(self.parent(), Some(Event::And { .. })) {
+                    if let Some(sib) = self.siblings_mut() {
+                        *sib += children - 1;
+                    }
                     self.events.remove(open);
                 } else {
-                    // remove all successes and failures
-                    // remove whole group if there's any immediate failures
+                    self.events.push(Event::Pop);
+                }
+                if let Some(siblings) = self.child_behavior(behavior) {
+                    // if a group is an instant fail - we are removing all of its children
+                    *siblings -= usize::from(behavior == Behav::Fails);
                 }
             }
-            Event::Or => {
+            Event::Or {
+                mut behavior,
+                children,
+            } => {
                 if children == 0 {
-                    self.events.pop();
-                    self.events.push(Event::Failure);
-                } else if children == 1 {
+                    behavior = Behav::Fails;
+                }
+                if children <= 1 {
+                    self.events.remove(open);
+                } else if behavior == Behav::Fails {
+                    self.events.drain(open..);
+                } else if matches!(self.parent(), Some(Event::Or { .. })) {
+                    if let Some(siblings) = self.siblings_mut() {
+                        *siblings += children - 1;
+                    }
                     self.events.remove(open);
                 } else {
-                    // remove all failures and failures
-                    // unwrap optional children
-                    // mark block as optional if there's any successes
+                    self.events.push(Event::Pop);
+                }
+                if let Some(siblings) = self.child_behavior(behavior) {
+                    // if a group is an instant fail - we are removing all of its children
+                    *siblings -= usize::from(behavior == Behav::Fails);
                 }
             }
-            Event::Many => {
-                if children == 0 {
-                    self.events.pop();
+            Event::Optional { behavior, children } => {
+                debug_assert!(children <= 1);
+                if behavior == Behav::Fails {
+                    if let Some(siblings) = self.siblings_mut() {
+                        *siblings -= 1;
+                    }
+                    self.events.drain(open..);
+                } else if matches!(self.parent(), Some(Event::Optional { .. })) {
+                    self.events.remove(open);
                 } else {
-                    debug_assert_eq!(children, 1);
-                    // if child is a failure - replace with a failure
-                    // if child is a success - replace with a success
-                    // if child is Many - squash
+                    self.events.push(Event::Pop);
                 }
             }
-            Event::Optional => {
-                if children == 0 {
-                    self.events.pop();
+            Event::Many { behavior, children } => {
+                debug_assert!(children <= 1);
+                if behavior == Behav::Fails {
+                    if let Some(siblings) = self.siblings_mut() {
+                        *siblings -= 1;
+                    }
+                    self.events.drain(open..);
+                } else if matches!(self.parent(), Some(Event::Many { .. })) {
+                    self.events.remove(open);
                 } else {
-                    debug_assert_eq!(children, 1);
-                    // if child is a failure - replace with a failure
-                    // if child is a success - replace with a success
-                    // if child is Optional - squash, picking
+                    self.events.push(Event::Pop);
                 }
             }
 
-            _ => panic!("unbalanced groups!"),
+            Event::Item(_) | Event::Command | Event::Strict | Event::Text(_) | Event::Pop => {
+                panic!("Unbalanced groups!")
+            }
         }
-
-        if open + 1 == self.events.len() && self.events[open].is_group() {
-            // remove all the empty groups
-            self.events.pop();
-        } else if matches!(self.events[open], Event::Or | Event::And)
-            && immediate_children(&self.events[open..]) == 1
-        {
-            // remove And/Or group that contains only one item
-            self.events.remove(open);
-        } else if matches!(self.events[open], Event::Many | Event::Optional)
-            && self
-                .group_start
-                .last()
-                .map_or(false, |parent| self.events[open] == self.events[*parent])
-        {
-            // flatten nested option/many
-            self.events.remove(open);
-        } else {
-            println!(
-                "{:?} {:?}",
-                matches!(self.events[open], Event::Many | Event::Optional),
-                self
-            );
-
-            todo!("{:?} / {:?}", &self.events[open..], self)
-        }
-
-        // Optional<Optional<xxx>> => Optional<xxx>
-        // Many<Many<xxx>> => Optional<xxx>
-        //
-        // Or<A, B, Optional<C>> => Optional<Or<A, B, C>>
     }
 }
 
 const FLAG_A: Item = Item::Flag(ShortLong::Short('a'));
+const FLAG_B: Item = Item::Flag(ShortLong::Short('b'));
+const FLAG_C: Item = Item::Flag(ShortLong::Short('c'));
+const FLAG_D: Item = Item::Flag(ShortLong::Short('d'));
+
+#[test]
+fn visit_no_dedupe_commands_in_and() {
+    let mut v = Usage::default();
+    v.push_group(Group::And);
+    v.command("long_name", None);
+    v.command("long_name", None);
+    v.pop_group();
+    assert_eq!(
+        v.events,
+        &[
+            Event::And {
+                behavior: Behav::Runs,
+                children: 2,
+            },
+            Event::Command,
+            Event::Command,
+            Event::Pop
+        ]
+    );
+}
+
+#[test]
+fn visit_dedupe_commands_in_or() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.command("long_name", None);
+    v.command("long_name", None);
+    v.pop_group();
+    assert_eq!(v.events, &[Event::Command,]);
+}
 
 #[test]
 fn visit_remove_empty_groups() {
     let mut v = Usage::default();
-    v.push(Decor::And);
-    v.pop();
+    v.push_group(Group::And);
+    v.pop_group();
     assert_eq!(v.events, &[]);
 }
 
 #[test]
 fn visit_unpack_singleton_groups() {
     let mut v = Usage::default();
-    v.push(Decor::And);
+    v.push_group(Group::And);
     v.item(&FLAG_A);
-    v.pop();
+    v.pop_group();
     assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
 }
 
 #[test]
 fn visit_unpack_singleton_nested_groups_1() {
     let mut v = Usage::default();
-    v.push(Decor::And);
-    v.push(Decor::Or);
+    v.push_group(Group::And);
+    v.push_group(Group::Or);
     v.item(&FLAG_A);
-    v.pop();
-    v.pop();
+    v.pop_group();
+    v.pop_group();
     assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
 }
 
 #[test]
 fn visit_unpack_singleton_nested_groups_2() {
     let mut v = Usage::default();
-    v.push(Decor::And);
-    v.push(Decor::Or);
-    v.push(Decor::And);
+    v.push_group(Group::And);
+    v.push_group(Group::Or);
+    v.push_group(Group::And);
     v.item(&FLAG_A);
-    v.pop();
-    v.pop();
-    v.pop();
+    v.pop_group();
+    v.pop_group();
+    v.pop_group();
     assert_eq!(v.events, &[Event::Item(&FLAG_A)]);
+}
+
+#[test]
+fn visit_flatten_nested_or() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.push_group(Group::Or);
+    println!("{v:?}");
+    v.item(&FLAG_A);
+    v.item(&FLAG_B);
+    v.pop_group();
+    v.push_group(Group::Or);
+    v.item(&FLAG_C);
+    v.item(&FLAG_D);
+    v.pop_group();
+    v.pop_group();
+
+    assert_eq!(
+        v.events,
+        &[
+            Event::Or {
+                behavior: Behav::Runs,
+                children: 4
+            },
+            Event::Item(&FLAG_A),
+            Event::Item(&FLAG_B),
+            Event::Item(&FLAG_C),
+            Event::Item(&FLAG_D),
+            Event::Pop
+        ]
+    );
 }
 
 #[test]
 fn visit_flatten_nested_options() {
     let mut v = Usage::default();
-    v.push(Decor::Optional);
-    v.push(Decor::Optional);
+    v.push_group(Group::Optional);
+    v.push_group(Group::Optional);
     v.item(&FLAG_A);
-    v.pop();
-    v.pop();
+    v.pop_group();
+    v.pop_group();
+
     assert_eq!(
         v.events,
-        &[Event::Optional, Event::Item(&FLAG_A), Event::Pop]
+        &[
+            Event::Optional {
+                behavior: Behav::Runs,
+                children: 1
+            },
+            Event::Item(&FLAG_A),
+            Event::Pop
+        ]
     );
 }
 
 #[test]
 fn visit_flatten_nested_many() {
     let mut v = Usage::default();
-    v.push(Decor::Many);
-    v.push(Decor::Many);
+    v.push_group(Group::Many);
+    v.push_group(Group::Many);
     v.item(&FLAG_A);
-    v.pop();
-    v.pop();
-    assert_eq!(v.events, &[Event::Many, Event::Item(&FLAG_A), Event::Pop]);
+    v.pop_group();
+    v.pop_group();
+
+    assert_eq!(
+        v.events,
+        &[
+            Event::Many {
+                behavior: Behav::Runs,
+                children: 1
+            },
+            Event::Item(&FLAG_A),
+            Event::Pop
+        ]
+    );
 }
 
 #[test]
 fn visit_trim_redundant_or_commands() {
     let mut v = Usage::default();
-    v.push(Decor::Or);
+    v.push_group(Group::Or);
     v.command("long1", None);
     v.command("long2", None);
-    v.pop();
+    v.pop_group();
     assert_eq!(v.events, &[Event::Command]);
 }
 
@@ -306,9 +362,9 @@ fn visit_trim_redundant_or_commands() {
 fn opt_flag() {
     let mut v = Usage::default();
 
-    v.push(Decor::Optional);
+    v.push_group(Group::Optional);
     v.item(&Item::Flag(ShortLong::Short('v')));
-    v.pop();
+    v.pop_group();
 
     assert_eq!(v.render(), "[-v]");
 }
@@ -316,12 +372,12 @@ fn opt_flag() {
 #[test]
 fn xxx() {
     let mut u = Usage::default();
-    u.push(Decor::And);
-    u.push(Decor::Optional);
+    u.push_group(Group::And);
+    u.push_group(Group::Optional);
     u.item(&Item::Flag(ShortLong::Short('v')));
-    u.pop();
+    u.pop_group();
     u.item(&Item::Positional("FILE"));
-    u.pop();
+    u.pop_group();
 
     assert_eq!(u.render(), "[-v] FILE");
 }
@@ -329,27 +385,27 @@ fn xxx() {
 #[test]
 fn group_collapse() {
     let mut u = Usage::default();
-    u.push(Decor::And);
+    u.push_group(Group::And);
     u.item(&Item::Flag(ShortLong::Short('a')));
-    u.push(Decor::And);
+    u.push_group(Group::And);
     u.item(&Item::Flag(ShortLong::Short('b')));
     u.item(&Item::Flag(ShortLong::Short('c')));
-    u.pop();
-    u.push(Decor::Or);
-    u.pop();
-    u.pop();
-    assert_eq!(u.render(), "-a -b -c");
+    u.pop_group();
+    u.push_group(Group::Or);
+    u.pop_group();
+    u.pop_group();
+    assert_eq!(u.events, &[]);
 }
 
 #[test]
 fn group_before() {
     let mut u = Usage::default();
-    u.push(Decor::And);
-    u.push(Decor::And);
-    u.pop();
-    u.push(Decor::And);
-    u.pop();
-    u.pop();
+    u.push_group(Group::And);
+    u.push_group(Group::And);
+    u.pop_group();
+    u.push_group(Group::And);
+    u.pop_group();
+    u.pop_group();
 
     todo!("{u:?}");
     //    assert_eq!(Some((0, 5)), u.group_before(6));
@@ -393,7 +449,7 @@ pub enum Item {
 }
 
 #[derive(Copy, Clone)]
-pub enum Decor {
+pub enum Group {
     // inner parser can succeed multiple times, requred unless made optional
     Many,
     // inner parser can succeed with no input
@@ -407,8 +463,8 @@ pub enum Decor {
 pub trait Visitor<'a> {
     fn command(&mut self, long_name: &'a str, short_name: Option<char>) -> bool;
     fn item(&mut self, item: &'a Item);
-    fn pop(&mut self);
-    fn push(&mut self, decor: Decor);
+    fn push_group(&mut self, decor: Group);
+    fn pop_group(&mut self);
 }
 
 pub trait Parser<T> {
