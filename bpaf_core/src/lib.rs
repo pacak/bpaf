@@ -79,15 +79,42 @@ enum Behav {
     Succeeds,
 }
 
+impl Usage<'_> {
+    /// Removes all but one top level command from a given range
+    /// returns number of
+    /// commands removed
+    fn dedupe_commands_after(&mut self, start: usize) -> usize {
+        let mut from = start + 1;
+        let mut to = start + 1;
+        let mut seen = 0usize;
+        let mut depth = 0;
+        while let Some(evt) = self.events.get(from) {
+            match evt {
+                Event::Group { .. } => depth += 1,
+                Event::Pop => depth -= 1,
+                Event::Command if depth == 0 => {
+                    seen += 1;
+                    if seen > 1 {
+                        from += 2;
+                        to += 1;
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            self.events[to] = self.events[from];
+            from += 1;
+            to += 1;
+        }
+        let removed = seen.saturating_sub(1);
+        self.events.truncate(self.events.len() - removed);
+        removed
+    }
+}
+
 impl<'a> Visitor<'a> for Usage<'a> {
     fn item(&mut self, item: &'a Item) {
         self.events.push(Event::Item(item));
-        if let Some(siblings) = self.siblings_mut() {
-            *siblings += 1;
-        }
-    }
-
-    fn command(&mut self, _long_name: &'a str, _short_name: Option<char>) -> bool {
         // remove duplicate COMMAND events from a group of Or patterns:
         //
         // This replaces things like `(COMMAND | COMMAND | COMMAND)`
@@ -106,6 +133,13 @@ impl<'a> Visitor<'a> for Usage<'a> {
             }
             self.events.push(Event::Command);
         }
+    }
+
+    fn command(&mut self, _long_name: &'a str, _short_name: Option<char>) -> bool {
+        if let Some(siblings) = self.siblings_mut() {
+            *siblings += 1;
+        }
+        self.events.push(Event::Command);
         false
     }
 
@@ -154,8 +188,10 @@ impl<'a> Visitor<'a> for Usage<'a> {
             Event::Group {
                 ty: Group::Or,
                 mut behavior,
-                children,
+                mut children,
             } => {
+                children -= self.dedupe_commands_after(open);
+
                 if children == 0 {
                     behavior = Behav::Fails;
                 }
@@ -175,18 +211,36 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     // if a group is an instant fail - we are removing all of its children
                     *siblings -= usize::from(behavior == Behav::Fails || children == 0);
                 }
+                if behavior == Behav::Succeeds {
+                    self.events.insert(
+                        open,
+                        Event::Group {
+                            ty: Group::Optional,
+                            behavior,
+                            children: 1,
+                        },
+                    );
+                    self.events.push(Event::Pop);
+                }
             }
             Event::Group {
                 ty: Group::Optional,
                 behavior,
-                children,
+                mut children,
             } => {
                 debug_assert!(children <= 1);
-                if behavior == Behav::Fails {
-                    if let Some(siblings) = self.siblings_mut() {
-                        *siblings -= 1;
+                if behavior == Behav::Fails && children > 0 {
+                    // it doesn't matter if items inside .optional group fails
+                    self.events.drain(open + 1..);
+                    #[allow(unused_assignments)]
+                    {
+                        children = 0;
                     }
-                    self.events.drain(open..);
+                }
+
+                if self.parent_ty() == Some(Group::Or) {
+                    self.events.remove(open);
+                    self.child_behavior(Behav::Succeeds);
                 } else if self.parent_ty() == Some(Group::Optional) {
                     self.events.remove(open);
                 } else {
@@ -222,6 +276,66 @@ const FLAG_A: Item = Item::Flag(ShortLong::Short('a'));
 const FLAG_B: Item = Item::Flag(ShortLong::Short('b'));
 const FLAG_C: Item = Item::Flag(ShortLong::Short('c'));
 const FLAG_D: Item = Item::Flag(ShortLong::Short('d'));
+
+#[test]
+fn visit_optional_in_or_group_first() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.push_group(Group::Optional);
+    v.item(&FLAG_A);
+    v.pop_group();
+    v.item(&FLAG_B);
+    v.pop_group();
+    assert_eq!(
+        v.events,
+        &[
+            Event::Group {
+                ty: Group::Optional,
+                behavior: Behav::Succeeds,
+                children: 1
+            },
+            Event::Group {
+                ty: Group::Or,
+                behavior: Behav::Succeeds,
+                children: 2,
+            },
+            Event::Item(&FLAG_A),
+            Event::Item(&FLAG_B),
+            Event::Pop,
+            Event::Pop
+        ]
+    );
+}
+
+#[test]
+fn visit_optional_in_or_group_second() {
+    let mut v = Usage::default();
+    v.push_group(Group::Or);
+    v.item(&FLAG_A);
+    v.push_group(Group::Optional);
+    v.item(&FLAG_B);
+    v.pop_group();
+    v.pop_group();
+    assert_eq!(
+        v.events,
+        &[
+            Event::Group {
+                ty: Group::Optional,
+                behavior: Behav::Succeeds,
+                children: 1
+            },
+            Event::Group {
+                ty: Group::Or,
+                behavior: Behav::Succeeds,
+                children: 2,
+            },
+            Event::Item(&FLAG_A),
+            Event::Item(&FLAG_B),
+            Event::Pop,
+            Event::Pop
+        ]
+    );
+}
 
 #[test]
 fn visit_no_dedupe_commands_in_and() {
@@ -265,8 +379,20 @@ fn visit_dedupe_commands_in_or2() {
     v.pop_group();
     v.command("long_name", None);
     v.pop_group();
-    assert_eq!(v.events, &[Event::Command]);
+    assert_eq!(
+        v.events,
+        &[
+            Event::Group {
+                ty: Group::Optional,
+                behavior: Behav::Succeeds,
+                children: 1
+            },
+            Event::Command,
+            Event::Pop,
+        ]
+    );
 }
+
 #[test]
 /// Similar to or2, but here commands are encased inside of an And
 /// group, so they are not flattened
@@ -283,11 +409,18 @@ fn visit_dedupe_commands_in_or3() {
         v.events,
         &[
             Event::Group {
+                ty: Group::Or,
+                behavior: Behav::Runs,
+                children: 2
+            },
+            Event::Group {
                 ty: Group::And,
                 behavior: Behav::Runs,
                 children: 2
             },
             Event::Item(&FLAG_A),
+            Event::Command,
+            Event::Pop,
             Event::Command,
             Event::Pop
         ]
