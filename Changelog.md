@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.9.15], 2024-10-08
+- a fix for a previous fix of fish completions, again - regenerate the files
+
 ## bpaf [0.9.14], 2024-09-19
 - add license files (#388)
   thanks @davide
