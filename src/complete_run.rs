@@ -41,7 +41,7 @@ fn dump_fish_completer(name: &str) {
     eval $current[1] \"$tmpline\"
 end
 
-complete --no-files --command {name}--arguments '(_bpaf_dynamic_completion)'
+complete --no-files --command {name} --arguments '(_bpaf_dynamic_completion)'
 "#,
         name = name
     );
