@@ -36,7 +36,7 @@ fn verbose() -> impl Parser<usize> {
 }
 
 fn positive(input: &u32) -> bool {
-    *input > 1
+    *input > 0
 }
 
 fn main() {
