@@ -36,7 +36,7 @@
 //! # use bpaf::doc::Doc;
 //! let mut doc = Doc::default();
 //! doc.emphasis("Usage: ");
-//! doc.literal("my_program");
+//! doc.literal("my_program"); // or use `env!("CARGO_BIN_NAME")` to get the name of the executable
 //! // do something with it
 //! drop(doc)
 //! ```
