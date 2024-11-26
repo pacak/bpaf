@@ -36,7 +36,7 @@
 //! # use bpaf::doc::Doc;
 //! let mut doc = Doc::default();
 //! doc.emphasis("Usage: ");
-//! doc.literal("my_program");
+//! doc.literal(env!("CARGO_BIN_NAME"));
 //! // do something with it
 //! drop(doc)
 //! ```

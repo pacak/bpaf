@@ -22,7 +22,7 @@ pub fn options() -> OptionParser<Options> {
         .with_usage(|u| {
             let mut doc = Doc::default();
             doc.emphasis("Usage: ");
-            doc.literal("my_program");
+            doc.literal(env!("CARGO_BIN_NAME"));
             doc.text(" ");
             doc.doc(&u);
             doc
