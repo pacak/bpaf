@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_1_argument - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-492a78a4a87dcc01.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.82.0 (f6e511eec 2024-10-15)" data-channel="1.82.0" data-search-js="search-a99f1315e7cc5121.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-921df33f47b8780c.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-3b12f09e550e0385.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.15</span></h2></div><h2 class="location"><a href="#">Module _1_<wbr>argument</a></h2><div class="sidebar-elems"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>0_<wbr>types_<wbr>of_<wbr>arguments</a></h2></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1>Module <a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_0_types_of_arguments</a>::<wbr><a class="mod" href="#">_1_argument</a><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><span class="out-of-band"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#299">source</a> · <button id="toggle-all-docs" title="collapse all docs">[<span>&#x2212;</span>]</button></span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_0_switch/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_0_switch">← Options, switches or flags</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_2_positional/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_2_positional">Operands or positional items →</a></p>
+  </td>
+</tr></table>
+<h5 id="option-arguments-or-arguments"><a class="doc-anchor" href="#option-arguments-or-arguments">§</a>Option arguments or arguments</h5>
+<p>Option arguments are similar to regular options but they come with an extra value attached.
+Value can be separated by a space, <code>=</code> or directly adjacent to a short name. Same as with
+options - their relative position usually doesn’t matter.</p>
+<div class="code-wrap">
+<pre>
+$ cargo build <span style="font-weight: bold">--package bpaf</span>
+$ cargo test <span style="font-weight: bold">-j2</span>
+$ cargo check <span style="font-weight: bold">--bin=megapotato</span>
+</pre>
+</div>
+<p>In the generated help message or documentation they come with a placeholder metavariable,
+usually a short, all-caps word describing what the value means: <code>NAME</code>, <code>AGE</code>, <code>SPEC</code>, and <code>CODE</code>
+are all valid examples.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    name: String,
+    age: usize,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>name = short(<span class="string">'n'</span>)
+        .long(<span class="string">"name"</span>)
+        .help(<span class="string">"Specify user name"</span>)
+        <span class="comment">// you can specify exact type argument should produce
+        // for as long as it implements `FromStr`
+        </span>.argument::&lt;String&gt;(<span class="string">"NAME"</span>);
+
+    <span class="kw">let </span>age = long(<span class="string">"age"</span>)
+        .help(<span class="string">"Specify user age"</span>)
+        <span class="comment">// but often rust can figure it out from the context,
+        // here age is going to be `usize`
+        </span>.argument(<span class="string">"AGE"</span>)
+        .fallback(<span class="number">18</span>)
+        .display_fallback();
+
+    <span class="macro">construct!</span>(Options { name, age }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div>
+</details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="comment">// you can specify exact type argument should produce
+    // for as long as it implements `FromStr`
+    </span><span class="attr">#[bpaf(short, long, argument::&lt;String&gt;(<span class="string">"NAME"</span>))]
+    </span><span class="doccomment">/// Specify user name
+    </span>name: String,
+    <span class="comment">// but often rust can figure it out from the context,
+    // here age is going to be `usize`
+    </span><span class="attr">#[bpaf(argument(<span class="string">"AGE"</span>), fallback(<span class="number">18</span>), display_fallback)]
+    </span><span class="doccomment">/// Specify user age
+    </span>age: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div>
+</details>
+<details><summary>Output</summary>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-n</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--age</b></tt>=<tt><i>AGE</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-n</b></tt>, <tt><b>--name</b></tt>=<tt><i>NAME</i></tt></dt>
+<dd>Specify user name</dd>
+<dt><tt><b>    --age</b></tt>=<tt><i>AGE</i></tt></dt>
+<dd>Specify user age</dd>
+<dt></dt>
+<dd>[default: 18]</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p><code>--help</code> shows arguments as a short name with attached metavariable</p>
+<p>Value can be separated from flag by space, <code>=</code> sign</p>
+<div class='bpaf-doc'>
+$ app --name Bob --age 12<br>
+Options { name: "Bob", age: 12 }
+</div>
+<div class='bpaf-doc'>
+$ app --name "Bob" --age=12<br>
+Options { name: "Bob", age: 12 }
+</div>
+<div class='bpaf-doc'>
+$ app --name=Bob<br>
+Options { name: "Bob", age: 18 }
+</div>
+<div class='bpaf-doc'>
+$ app --name="Bob"<br>
+Options { name: "Bob", age: 18 }
+</div>
+<p>Or in case of short name - be directly adjacent to it</p>
+<div class='bpaf-doc'>
+$ app -nBob<br>
+Options { name: "Bob", age: 18 }
+</div>
+<p>For long names - this doesn’t work since parser can’t tell where name
+stops and argument begins:</p>
+<div class='bpaf-doc'>
+$ app --age12<br>
+<b>Error:</b> no such flag: <b>--age12</b>, did you mean <tt><b>--age</b></tt>?
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Either way - value is required, passing just the argument name results in parse failure</p>
+<div class='bpaf-doc'>
+$ app --name<br>
+<b>Error:</b> <tt><b>--name</b></tt> requires an argument <tt><i>NAME</i></tt>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p>For more detailed info see <a href="../../../../parsers/struct.NamedArg.html#method.argument" title="method bpaf::parsers::NamedArg::argument"><code>NamedArg::argument</code></a></p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_0_switch/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_0_switch">← Options, switches or flags</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_2_positional/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_2_positional">Operands or positional items →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>
