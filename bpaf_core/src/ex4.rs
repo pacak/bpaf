@@ -20,6 +20,11 @@ struct Parent {
     id: Id,
     field: u32,
 }
+impl Parent {
+    fn new(id: Id, field: u32) -> Self {
+        Self { id, field }
+    }
+}
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Name<'a> {
     Short(char),
@@ -45,9 +50,16 @@ impl Args {
 
 #[derive(Clone)]
 struct Ctx<'a> {
-    data: Rc<RefCell<RawCtx<'a>>>,
+    data: Rc<RefCell<RawCtx>>,
+    spawn: Arc<Mutex<Pending<'a>>>,
+    pending: Arc<Mutex<Vec<Id>>>,
 }
 
+#[derive(Default)]
+struct Pending<'a> {
+    spawn: Vec<(Id, Task<'a>, Waker)>,
+    name: Vec<(Rc<[Name<'static>]>, Id)>,
+}
 fn parse_args<T>(parser: impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static,
@@ -58,13 +70,18 @@ where
             all: Rc::from(args),
             cur: 0,
         },
+    });
+    let ctx = Ctx {
+        data: Rc::new(ctx),
+        spawn: Default::default(),
+        pending: Default::default(),
+    };
+
+    let runner = Runner {
+        ctx,
         tasks: BTreeMap::new(),
         named: BTreeMap::new(),
-        pending: Default::default(),
-    });
-    let ctx = Ctx { data: Rc::new(ctx) };
-
-    let runner = Runner { ctx };
+    };
     runner.block_on(&parser)
 }
 
@@ -128,7 +145,6 @@ impl<'a> Ctx<'a> {
         });
 
         self.start_task(Task { parent, act });
-        println!("{:?},", self.data.borrow().tasks.keys());
 
         join
     }
@@ -139,10 +155,8 @@ impl<'a> Ctx<'a> {
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
     fn named_wake(&self, id: Id, name: Rc<[Name<'static>]>, waker: Waker) {
-        let mut ctx = self.data.borrow_mut();
-        for name in name.iter() {
-            ctx.named.insert(*name, waker.clone());
-        }
+        let mut ctx = self.spawn.lock().expect("poison");
+        ctx.name.push((name, id));
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
@@ -159,27 +173,28 @@ impl<'a> Ctx<'a> {
         Id(id)
     }
 
-    fn start_task(&self, act: Task<'a>) {
+    fn start_task(&self, task: Task<'a>) {
         let id = self.next_id();
         let waker = self.waker_for(id);
-        self.data.borrow_mut().tasks.insert(id, (act, waker));
-        self.data.borrow().pending.lock().expect("poison").push(id);
+        self.spawn
+            .lock()
+            .expect("poison")
+            .spawn
+            .push((id, task, waker));
+        self.pending.lock().expect("poision").push(id);
     }
 
     fn waker_for(&self, id: Id) -> Waker {
         Waker::from(Arc::new(WakeTask {
             id,
-            pending: self.data.borrow().pending.clone(),
+            pending: self.pending.clone(),
         }))
     }
 }
 
-struct RawCtx<'a> {
+struct RawCtx {
     next_id: u32,
     args: Args,
-    tasks: BTreeMap<Id, (Task<'a>, Waker)>,
-    named: BTreeMap<Name<'static>, Waker>,
-    pending: Arc<Mutex<Vec<Id>>>,
 }
 
 type BoxedFrag<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
@@ -267,12 +282,23 @@ impl Future for NamedFut<'_> {
             self.registered = true;
             self.ctx
                 .named_wake(Id(0), self.name.clone(), cx.waker().clone());
-            Poll::Pending
-        } else if let Some(name) = self.ctx.take_name(&self.name) {
-            Poll::Ready(Ok(name))
-        } else {
-            Poll::Ready(Err(Error::Missing))
+            return Poll::Pending;
         }
+
+        let data = self.ctx.data.borrow();
+        let Some(front) = data.args.all.get(data.args.cur) else {
+            return Poll::Ready(Err(Error::Missing));
+        };
+
+        Poll::Ready(match split_param(front) {
+            Arg::Named { name, val } => self
+                .name
+                .iter()
+                .copied()
+                .find(|n| *n == name)
+                .ok_or(Error::Missing),
+            Arg::ShortSet { .. } | Arg::Positional { .. } => Err(Error::Invalid),
+        })
     }
 }
 
@@ -296,36 +322,85 @@ impl Wake for WakeTask {
 
 struct Runner<'ctx> {
     ctx: Ctx<'ctx>,
+    tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
+    named: BTreeMap<Name<'static>, Id>,
+}
+
+enum Arg<'a> {
+    Named {
+        name: Name<'a>,
+        val: Option<&'a str>,
+    },
+    ShortSet {
+        names: Vec<char>,
+    },
+    Positional {
+        value: &'a str,
+    },
+}
+
+fn split_param(value: &str) -> Arg {
+    if let Some(long_name) = value.strip_prefix("--") {
+        match long_name.split_once('=') {
+            Some((name, arg)) => Arg::Named {
+                name: Name::Long(name),
+                val: Some(arg),
+            },
+            None => Arg::Named {
+                name: Name::Long(long_name),
+                val: None,
+            },
+        }
+    } else if let Some(short_name) = value.strip_prefix("-") {
+        match short_name.split_once('=') {
+            Some((name, arg)) => {
+                let name = name.chars().next().unwrap(); // TODO
+                Arg::Named {
+                    name: Name::Short(name),
+                    val: Some(arg),
+                }
+            }
+            None => {
+                let name = short_name.chars().next().unwrap(); // TODO
+                Arg::Named {
+                    name: Name::Short(name),
+                    val: None,
+                }
+            }
+        }
+    } else {
+        Arg::Positional { value }
+    }
 }
 
 impl<'a> Runner<'a> {
     fn tasks_to_run(&self, ids: &mut Vec<Id>) {
-        // // first we need to decide what parsers to run
-        // let ctx = self.ctx.0.borrow();
-        // if let Some(front) = ctx.args.all.get(ctx.args.cur) {
-        //     let name = if let Some(long) = front.strip_prefix("--") {
-        //         Name::Long(long)
-        //     } else if let Some(short) = front.strip_prefix("-") {
-        //         Name::Short(short.chars().next().unwrap())
-        //     } else {
-        //         todo!("nothing matches, time to complain");
-        //     };
-        //
-        //     match self.named.get(&name) {
-        //         Some(c) => ids.extend(c.iter()),
-        //         None => todo!(
-        //             "unknown name - complain {:?} / {:?} / {:?}",
-        //             name,
-        //             front,
-        //             self.named
-        //         ),
-        //     }
-        // } else {
-        //     todo!("nothing to parse, time to terminate things");
-        // }
+        // first we need to decide what parsers to run
+        let ctx = self.ctx.data.borrow();
+        if let Some(front) = ctx.args.all.get(ctx.args.cur) {
+            let name = if let Some(long) = front.strip_prefix("--") {
+                Name::Long(long)
+            } else if let Some(short) = front.strip_prefix("-") {
+                Name::Short(short.chars().next().unwrap())
+            } else {
+                todo!("nothing matches, time to complain");
+            };
+
+            match self.named.get(&name).copied() {
+                Some(c) => ids.push(c),
+                None => todo!(
+                    "unknown name - complain {:?} / {:?} / {:?}",
+                    name,
+                    front,
+                    self.named
+                ),
+            }
+        } else {
+            todo!("nothing to parse, time to terminate things");
+        }
     }
 
-    fn block_on<P, T>(self, parser: &'a P) -> Result<T, Error>
+    fn block_on<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
         P: Parser<T>,
         T: 'static,
@@ -334,44 +409,73 @@ impl<'a> Runner<'a> {
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
-        let root_id = self.ctx.peek_next_id();
-        let parent = Parent {
-            id: Id(0),
-            field: 0,
-        };
-        let h = pin!(self.ctx.spawn(parent, parser));
-        let root_waker = self.ctx.waker_for(root_id);
+        let handle = pin!(self.ctx.spawn(Parent::new(Id(0), 0), parser));
+        let root_waker = self.ctx.waker_for(Id(0));
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
         // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
-        if let Poll::Ready(r) = h.poll(&mut root_cx) {
+        if let Poll::Ready(r) = handle.poll(&mut root_cx) {
             todo!("make sure there's no unconsumed data");
             return r;
         }
 
+        // get shared data out of the context for easier use
+        let spawn = self.ctx.spawn.clone();
+        let pending = self.ctx.pending.clone();
+
         let mut ids = Vec::new();
-        ids.extend(
-            self.ctx
-                .data
-                .borrow()
-                .pending
-                .lock()
-                .expect("poison")
-                .drain(..),
-        );
+        loop {
+            // first we wake spawn all the pending tasks and poll them to
+            // make sure things propagate. this might take several loops
+            loop {
+                let mut to_spawn = spawn.lock().expect("poison");
+                for (id, task, waker) in to_spawn.spawn.drain(..) {
+                    self.tasks.insert(id, (task, waker));
+                }
 
-        for id in ids.drain(..) {
-            if let Some((task, waker)) = self.ctx.data.borrow_mut().tasks.get_mut(&id) {
-                let mut cx = Context::from_waker(waker);
-                let r = task.act.as_mut().poll(&mut cx);
-                todo!("{:?}", r);
+                for (names, id) in to_spawn.name.drain(..) {
+                    for name in names.iter() {
+                        self.named.insert(*name, id);
+                    }
+                }
+
+                drop(to_spawn);
+
+                let mut to_wake = pending.lock().expect("poison");
+                if to_wake.is_empty() {
+                    println!("nothing to wake?");
+                    break;
+                }
+                ids.extend(to_wake.drain(..));
+                drop(to_wake);
+                println!("to wake: {ids:?}");
+
+                for id in ids.drain(..) {
+                    if let Some((task, waker)) = self.tasks.get_mut(&id) {
+                        let mut cx = Context::from_waker(waker);
+                        if task.act.as_mut().poll(&mut cx).is_ready() {
+                            self.tasks.remove(&id);
+                            println!("task {id:?} is done");
+                        }
+                    }
+                }
             }
-        }
-        todo!("{:?}", self.ctx.data.borrow().named.keys());
 
-        todo!();
+            self.tasks_to_run(&mut ids);
+            for id in ids.drain(..) {
+                if let Some((task, waker)) = self.tasks.get_mut(&id) {
+                    let mut cx = Context::from_waker(waker);
+                    if task.act.as_mut().poll(&mut cx).is_ready() {
+                        self.tasks.remove(&id);
+                        println!("task {id:?} is done");
+                    }
+                }
+            }
+
+            todo!("figure out advance earlier");
+        }
     }
 }
 
