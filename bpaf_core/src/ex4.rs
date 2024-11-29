@@ -1,9 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::{
-    any::Any,
     cell::{Cell, RefCell},
-    collections::{BTreeMap, BTreeSet},
-    ffi::OsString,
+    collections::BTreeMap,
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
@@ -16,13 +14,22 @@ use std::{
 struct Id(u32);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+
+enum ParentKind {
+    Sum,
+    Prod,
+    Root,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Parent {
+    kind: ParentKind,
     id: Id,
     field: u32,
 }
 impl Parent {
-    fn new(id: Id, field: u32) -> Self {
-        Self { id, field }
+    fn new(id: Id, field: u32, kind: ParentKind) -> Self {
+        Self { id, field, kind }
     }
 }
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
@@ -40,12 +47,6 @@ struct Task<'a> {
 struct Args {
     all: Rc<[String]>,
     cur: usize,
-}
-
-impl Args {
-    fn take_name(&mut self, names: &[Name<'static>]) -> Option<Name<'static>> {
-        todo!()
-    }
 }
 
 #[derive(Clone)]
@@ -82,7 +83,7 @@ where
         tasks: BTreeMap::new(),
         named: BTreeMap::new(),
     };
-    runner.block_on(&parser)
+    runner.run_parser(&parser)
 }
 
 fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
@@ -97,6 +98,15 @@ fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
         result,
     };
     (exit, join)
+}
+
+impl<T> Drop for ExitHandle<T> {
+    fn drop(&mut self) {
+        let Some(waker) = self.waker.take() else {
+            return;
+        };
+        println!("dropped handle  ");
+    }
 }
 
 struct ExitHandle<T> {
@@ -117,8 +127,8 @@ impl<T: std::fmt::Debug> ExitHandle<T> {
         }
     }
 }
-impl<ReturnType> Future for JoinHandle<ReturnType> {
-    type Output = ReturnType;
+impl<T> Future for JoinHandle<T> {
+    type Output = T;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.task.upgrade() {
@@ -136,10 +146,10 @@ impl<ReturnType> Future for JoinHandle<ReturnType> {
 }
 
 impl<'a> Ctx<'a> {
-    fn spawn<T: 'static, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<Result<T, Error>>
+    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<Result<T, Error>>
     where
         P: Parser<T>,
-        T: std::fmt::Debug,
+        T: std::fmt::Debug + 'static,
     {
         let ctx = self.clone();
         let (exit, join) = fork();
@@ -151,9 +161,7 @@ impl<'a> Ctx<'a> {
                 exit.exit_task(r);
             }
         });
-
         self.start_task(Task { parent, act });
-
         join
     }
 
@@ -228,8 +236,22 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, (RA, RB)> {
         Box::pin(async move {
             let id = ctx.next_id();
-            let futa = ctx.spawn(Parent { id, field: 0 }, &self.0);
-            let futb = ctx.spawn(Parent { id, field: 1 }, &self.1);
+            let futa = ctx.spawn(
+                Parent {
+                    id,
+                    field: 0,
+                    kind: ParentKind::Prod,
+                },
+                &self.0,
+            );
+            let futb = ctx.spawn(
+                Parent {
+                    id,
+                    field: 1,
+                    kind: ParentKind::Prod,
+                },
+                &self.1,
+            );
             Ok((futa.await?, futb.await?))
         })
     }
@@ -246,7 +268,11 @@ where
         let id = ctx.next_id();
 
         let mut res = Vec::new();
-        let parent = Parent { id, field: 0 };
+        let parent = Parent {
+            id,
+            field: 0,
+            kind: ParentKind::Sum,
+        };
         Box::pin(async move {
             loop {
                 match ctx.spawn(parent, &self.0).await {
@@ -418,7 +444,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn block_on<P, T>(mut self, parser: &'a P) -> Result<T, Error>
+    fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
@@ -427,7 +453,9 @@ impl<'a> Runner<'a> {
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
-        let mut handle = pin!(self.ctx.spawn(Parent::new(Id(0), 0), parser));
+        let mut handle = pin!(self
+            .ctx
+            .spawn(Parent::new(Id(0), 0, ParentKind::Root), parser));
         let root_waker = self.ctx.waker_for(Id(0));
 
         // poll root handle once so whatever needs to be
@@ -444,6 +472,7 @@ impl<'a> Runner<'a> {
         let pending = self.ctx.pending.clone();
 
         let mut ids = Vec::new();
+        let mut par = Vec::new();
         loop {
             // first we wake spawn all the pending tasks and poll them to
             // make sure things propagate. this might take several loops
@@ -486,15 +515,29 @@ impl<'a> Runner<'a> {
                 println!("we are done!");
                 break;
             }
+
+            // next we run all the parsers. keeping only those that consumed the most
+            let mut max_consumed = 0;
             for id in ids.drain(..) {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
+                    let before = self.ctx.data.borrow().args.cur;
                     let mut cx = Context::from_waker(waker);
                     if task.act.as_mut().poll(&mut cx).is_ready() {
                         println!("task {id:?} is done from parse");
                         self.tasks.remove(&id);
                     }
+                    let after = self.ctx.data.borrow().args.cur;
+                    let consumed = after - before;
+                    max_consumed = consumed.max(max_consumed);
+                    par.push((consumed, id));
                 }
+                par.retain(|(len, _id)| *len == max_consumed);
             }
+
+            // next task is to go over all the `par` results up to root, mark
+            // all the alt branches that are still present in `par` and their
+            // parents up to the top most alt branch as safe and
+            // terminate all unmarked branches
         }
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
@@ -578,7 +621,14 @@ where
             let id = Id(0);
             for (ix, p) in self.items.iter().enumerate() {
                 let field = ix as u32;
-                ctx.spawn(Parent { id, field }, p);
+                ctx.spawn(
+                    Parent {
+                        id,
+                        field,
+                        kind: ParentKind::Sum,
+                    },
+                    p,
+                );
             }
             // loop
             // subscribe for any events related to all the handles
@@ -588,3 +638,7 @@ where
         })
     }
 }
+
+// priority forest
+// killing underperforming tasks
+// conflicts
