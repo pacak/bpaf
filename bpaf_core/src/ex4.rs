@@ -86,14 +86,15 @@ where
 }
 
 fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
+    let result = Rc::new(Cell::new(None));
     let exit = ExitHandle {
         waker: Cell::new(None),
-        result: Rc::new(Cell::new(None)),
+        result: result.clone(),
     };
     let exit = Rc::new(exit);
     let join = JoinHandle {
         task: Rc::downgrade(&exit),
-        result: Default::default(),
+        result,
     };
     (exit, join)
 }
@@ -107,9 +108,9 @@ struct JoinHandle<T> {
     task: Weak<ExitHandle<T>>,
     result: Rc<Cell<Option<T>>>,
 }
-impl<T> ExitHandle<T> {
+impl<T: std::fmt::Debug> ExitHandle<T> {
     fn exit_task(self, result: T) {
-        println!("setting result");
+        println!("setting result to {result:?}");
         self.result.set(Some(result));
         if let Some(waker) = self.waker.take() {
             waker.wake()
@@ -125,7 +126,11 @@ impl<ReturnType> Future for JoinHandle<ReturnType> {
                 task.waker.set(Some(cx.waker().clone()));
                 Poll::Pending
             }
-            None => Poll::Ready(self.result.take().expect("Task exit sets result")),
+            None => {
+                println!("Getting result out!");
+
+                Poll::Ready(self.result.take().expect("Task exit sets result"))
+            }
         }
     }
 }
