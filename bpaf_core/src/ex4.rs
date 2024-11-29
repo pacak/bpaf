@@ -62,7 +62,7 @@ struct Pending<'a> {
 }
 fn parse_args<T>(parser: impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
-    T: 'static,
+    T: 'static + std::fmt::Debug,
 {
     let ctx = RefCell::new(RawCtx {
         next_id: 0,
@@ -109,6 +109,7 @@ struct JoinHandle<T> {
 }
 impl<T> ExitHandle<T> {
     fn exit_task(self, result: T) {
+        println!("setting result");
         self.result.set(Some(result));
         if let Some(waker) = self.waker.take() {
             waker.wake()
@@ -133,12 +134,14 @@ impl<'a> Ctx<'a> {
     fn spawn<T: 'static, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<Result<T, Error>>
     where
         P: Parser<T>,
+        T: std::fmt::Debug,
     {
         let ctx = self.clone();
         let (exit, join) = fork();
         let act = Box::pin(async move {
             println!("Waiting on spawned task");
             let r = parser.run(ctx).await;
+            println!("we a got a result {r:?}");
             if let Ok(exit) = Rc::try_unwrap(exit) {
                 exit.exit_task(r);
             }
@@ -198,7 +201,7 @@ struct RawCtx {
 }
 
 type BoxedFrag<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
-trait Parser<T: 'static> {
+trait Parser<T: 'static + std::fmt::Debug> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T>;
 }
 
@@ -210,10 +213,12 @@ enum Error {
 
 #[derive(Clone)]
 struct Pair<A, B>(A, B);
-impl<A, B, RA: 'static, RB: 'static> Parser<(RA, RB)> for Pair<A, B>
+impl<A, B, RA, RB> Parser<(RA, RB)> for Pair<A, B>
 where
     A: Parser<RA>,
     B: Parser<RB>,
+    RA: 'static + std::fmt::Debug,
+    RB: 'static + std::fmt::Debug,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, (RA, RB)> {
         Box::pin(async move {
@@ -227,9 +232,10 @@ where
 
 #[derive(Clone)]
 struct Many<P>(P);
-impl<T: 'static, P> Parser<Vec<T>> for Many<P>
+impl<T, P> Parser<Vec<T>> for Many<P>
 where
     P: Parser<T>,
+    T: std::fmt::Debug + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, Vec<T>> {
         let id = ctx.next_id();
@@ -253,8 +259,8 @@ struct Map<P, F, T>(P, F, PhantomData<T>);
 impl<T: 'static, R, F, P> Parser<R> for Map<P, F, T>
 where
     P: Parser<T>,
-    T: Clone,
-    R: 'static,
+    T: std::fmt::Debug + Clone,
+    R: std::fmt::Debug + 'static,
     F: Fn(T) -> R + 'static + Clone,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, R> {
@@ -285,18 +291,25 @@ impl Future for NamedFut<'_> {
             return Poll::Pending;
         }
 
-        let data = self.ctx.data.borrow();
+        let mut data = self.ctx.data.borrow_mut();
         let Some(front) = data.args.all.get(data.args.cur) else {
             return Poll::Ready(Err(Error::Missing));
         };
 
         Poll::Ready(match split_param(front) {
-            Arg::Named { name, val } => self
-                .name
-                .iter()
-                .copied()
-                .find(|n| *n == name)
-                .ok_or(Error::Missing),
+            Arg::Named { name, val } => {
+                let r = self
+                    .name
+                    .iter()
+                    .copied()
+                    .find(|n| *n == name)
+                    .ok_or(Error::Missing);
+                if r.is_ok() {
+                    data.args.cur += 1;
+                }
+
+                r
+            }
             Arg::ShortSet { .. } | Arg::Positional { .. } => Err(Error::Invalid),
         })
     }
@@ -396,27 +409,27 @@ impl<'a> Runner<'a> {
                 ),
             }
         } else {
-            todo!("nothing to parse, time to terminate things");
+            println!("nothing to parse, time to terminate things");
         }
     }
 
     fn block_on<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
         P: Parser<T>,
-        T: 'static,
+        T: std::fmt::Debug + 'static,
     {
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
-        let handle = pin!(self.ctx.spawn(Parent::new(Id(0), 0), parser));
+        let mut handle = pin!(self.ctx.spawn(Parent::new(Id(0), 0), parser));
         let root_waker = self.ctx.waker_for(Id(0));
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
         // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
-        if let Poll::Ready(r) = handle.poll(&mut root_cx) {
+        if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
             todo!("make sure there's no unconsumed data");
             return r;
         }
@@ -456,25 +469,31 @@ impl<'a> Runner<'a> {
                     if let Some((task, waker)) = self.tasks.get_mut(&id) {
                         let mut cx = Context::from_waker(waker);
                         if task.act.as_mut().poll(&mut cx).is_ready() {
+                            println!("task {id:?} is done, removing from poll");
                             self.tasks.remove(&id);
-                            println!("task {id:?} is done");
                         }
                     }
                 }
             }
 
             self.tasks_to_run(&mut ids);
+            if ids.is_empty() {
+                println!("we are done!");
+                break;
+            }
             for id in ids.drain(..) {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
                     let mut cx = Context::from_waker(waker);
                     if task.act.as_mut().poll(&mut cx).is_ready() {
+                        println!("task {id:?} is done from parse");
                         self.tasks.remove(&id);
-                        println!("task {id:?} is done");
                     }
                 }
             }
-
-            todo!("figure out advance earlier");
+        }
+        match handle.as_mut().poll(&mut root_cx) {
+            Poll::Ready(r) => r,
+            Poll::Pending => todo!(),
         }
     }
 }
@@ -500,7 +519,10 @@ struct Flag<T> {
     present: T,
     absent: Option<T>,
 }
-impl<T: Clone + 'static> Parser<T> for Flag<T> {
+impl<T> Parser<T> for Flag<T>
+where
+    T: std::fmt::Debug + Clone + 'static,
+{
     fn run<'a>(&'a self, input: Ctx<'a>) -> BoxedFrag<'a, T> {
         Box::pin(async move {
             match self.name.run(input).await {
@@ -533,13 +555,19 @@ struct Alt<T: Clone + 'static> {
     items: Vec<Box<dyn Parser<T>>>,
 }
 
-impl<T: Clone + 'static> Parser<T> for Box<dyn Parser<T>> {
+impl<T> Parser<T> for Box<dyn Parser<T>>
+where
+    T: std::fmt::Debug + Clone + 'static,
+{
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
         self.as_ref().run(ctx)
     }
 }
 
-impl<T: Clone + 'static> Parser<T> for Alt<T> {
+impl<T> Parser<T> for Alt<T>
+where
+    T: Clone + std::fmt::Debug + 'static,
+{
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
         Box::pin(async move {
             let id = Id(0);
