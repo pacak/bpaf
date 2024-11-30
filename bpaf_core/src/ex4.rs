@@ -388,7 +388,7 @@ struct Runner<'ctx> {
     private: RefCell<Pending<'ctx>>,
     ids: HashSet<Id>,
     tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
-    named: BTreeMap<Name<'static>, Waker>,
+    named: BTreeMap<Name<'static>, Id>,
 
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
@@ -449,6 +449,15 @@ impl<'a> Runner<'a> {
         }))
     }
 
+    fn resolve(&self, waker: &Waker) -> Id {
+        waker.wake_by_ref();
+        self.pending
+            .lock()
+            .expect("poision")
+            .pop()
+            .expect("Misbehaving waker")
+    }
+
     fn handle_shared(&mut self) -> bool {
         let mut changed = false;
         self.private.swap(&self.ctx.shared);
@@ -466,10 +475,11 @@ impl<'a> Runner<'a> {
             }
         }
 
-        for (names, id) in shared.named.drain(..) {
+        for (names, waker) in shared.named.drain(..) {
             changed = true;
             for name in names.iter() {
-                self.named.insert(*name, id.clone());
+                let id = self.resolve(&waker);
+                self.named.insert(*name, id);
             }
         }
         changed
@@ -505,10 +515,10 @@ impl<'a> Runner<'a> {
                 todo!("nothing matches, time to complain");
             };
             println!("{:?}", self.named);
-            match self.named.get(&name) {
+            match self.named.get(&name).copied() {
                 Some(c) => {
                     println!("waking {c:?} to parse {name:?}");
-                    c.wake_by_ref();
+                    self.ids.insert(c);
                 }
                 None => todo!(
                     "unknown name - complain {:?} / {:?} / {:?}",
@@ -569,9 +579,9 @@ impl<'a> Runner<'a> {
                     println!("we are done, let's finish !, {:?}", self.named);
                     break;
                 } else {
-                    for w in self.named.values() {
-                        println!("waking {w:?} to handle noparse");
-                        w.wake_by_ref();
+                    for id in self.named.values() {
+                        println!("waking {id:?} to handle noparse");
+                        self.ids.insert(*id);
                     }
                     self.named.clear();
                 }
