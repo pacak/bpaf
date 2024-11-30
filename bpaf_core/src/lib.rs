@@ -2,6 +2,7 @@
 
 mod visitor;
 
+use ex4::Ctx;
 use named::Argument;
 use named::Flag;
 use named::Named;
@@ -175,6 +176,18 @@ mod positional {
         }
     }
 }
+
+pub use ex4::Parser;
+
+// impl<P, T> Parser<T> for Cx<P>
+// where
+//     P: Parser<T>,
+//     T: 'static + std::fmt::Debug,
+// {
+//     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
+//         self.0.run(ctx)
+//     }
+// }
 
 //pub mod ex2;
 //pub mod ex3;
