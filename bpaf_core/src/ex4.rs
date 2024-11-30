@@ -49,16 +49,26 @@ struct Args {
     cur: usize,
 }
 
-#[derive(Clone)]
-pub struct Ctx<'a> {
+pub struct RawCtx<'a> {
     /// All the arguments passed to the app including the app name in 0th
     args: &'a [String],
     /// Current cursor position
-    cur: Rc<AtomicUsize>,
+    cur: AtomicUsize,
     /// ID for the next task
-    next_id: Rc<AtomicU32>,
+    next_id: AtomicU32,
     /// through this tasks can request event scheduling, etc
-    shared: Rc<RefCell<Pending<'a>>>,
+    shared: RefCell<Pending<'a>>,
+}
+
+#[derive(Clone)]
+pub struct Ctx<'a>(Rc<RawCtx<'a>>);
+
+impl<'a> std::ops::Deref for Ctx<'a> {
+    type Target = RawCtx<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 #[derive(Default)]
@@ -70,12 +80,12 @@ fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
 {
-    let ctx = Ctx {
+    let ctx = Ctx(Rc::new(RawCtx {
         args,
         shared: Default::default(),
-        cur: Rc::new(AtomicUsize::from(0)),
+        cur: AtomicUsize::from(0),
         next_id: Default::default(),
-    };
+    }));
 
     let runner = Runner {
         ctx,
@@ -620,7 +630,7 @@ impl<'a> Runner<'a> {
     }
 }
 
-impl Ctx<'_> {
+impl RawCtx<'_> {
     fn cur(&self) -> usize {
         self.cur.load(std::sync::atomic::Ordering::Relaxed)
     }
