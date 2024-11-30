@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
@@ -20,16 +20,15 @@ struct Id(u32);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 
-enum ParentKind {
+enum NodeKind {
     Sum,
     Prod,
-    Root,
 }
 
 impl Id {
     fn sum(self, field: u32) -> Parent {
         Parent {
-            kind: ParentKind::Prod,
+            kind: NodeKind::Prod,
             id: self,
             field,
         }
@@ -38,18 +37,17 @@ impl Id {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Parent {
-    kind: ParentKind,
+    kind: NodeKind,
     id: Id,
     field: u32,
 }
 impl Parent {
-    fn new(id: Id, field: u32, kind: ParentKind) -> Self {
+    fn new(id: Id, field: u32, kind: NodeKind) -> Self {
         Self { id, field, kind }
     }
 }
 
 struct Task<'a> {
-    parent: Parent,
     act: Pin<Box<dyn Future<Output = Option<Error>> + 'a>>,
 }
 
@@ -79,7 +77,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 
 #[derive(Default)]
 struct Pending<'a> {
-    spawn: Vec<Task<'a>>,
+    spawn: Vec<(Parent, Task<'a>)>,
     named: Vec<(&'a [Name<'static>], Waker)>,
 }
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
@@ -182,7 +180,7 @@ impl<'a> Ctx<'a> {
             }
             out
         });
-        self.start_task(Task { parent, act });
+        self.start_task(parent, Task { act });
         join
     }
 
@@ -199,10 +197,10 @@ impl<'a> Ctx<'a> {
         todo!()
     }
 
-    fn start_task(&self, task: Task<'a>) {
+    fn start_task(&self, parent: Parent, task: Task<'a>) {
         println!("starting a task");
 
-        self.shared.borrow_mut().spawn.push(task);
+        self.shared.borrow_mut().spawn.push((parent, task));
     }
 }
 
@@ -267,7 +265,7 @@ where
                 Parent {
                     id,
                     field: 0,
-                    kind: ParentKind::Prod,
+                    kind: NodeKind::Prod,
                 },
                 &self.0,
             );
@@ -275,7 +273,7 @@ where
                 Parent {
                     id,
                     field: 1,
-                    kind: ParentKind::Prod,
+                    kind: NodeKind::Prod,
                 },
                 &self.1,
             );
@@ -298,7 +296,7 @@ where
             let parent = Parent {
                 id,
                 field: 0,
-                kind: ParentKind::Sum,
+                kind: NodeKind::Sum,
             };
 
             loop {
@@ -470,7 +468,7 @@ impl<'a> Runner<'a> {
         let mut changed = false;
         self.private.swap(&self.ctx.shared);
         let mut shared = self.private.borrow_mut();
-        for mut task in shared.spawn.drain(..) {
+        for (parent, mut task) in shared.spawn.drain(..) {
             let id = Id(self.next_task_id);
             self.next_task_id += 1;
             let waker = self.waker_for(id);
@@ -560,7 +558,7 @@ impl<'a> Runner<'a> {
         // We spawn it as a task instead.
         let mut handle = pin!(self
             .ctx
-            .spawn(Parent::new(Id(0), 0, ParentKind::Root), parser));
+            .spawn(Parent::new(Id(0), 0, NodeKind::Prod), parser));
         let root_waker = self.waker_for(Id(0));
 
         // poll root handle once so whatever needs to be
@@ -763,4 +761,11 @@ impl Future for ChildErrors {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         todo!()
     }
+}
+
+type Forest = HashMap<Id, Node>;
+#[derive(Debug)]
+struct Node {
+    ty: NodeKind,
+    children: Vec<(Id, u32)>,
 }
