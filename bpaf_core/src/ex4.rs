@@ -215,6 +215,27 @@ struct RawCtx {
     args: Args,
 }
 
+impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
+where
+    A: Parser<RA>,
+    B: Parser<RB>,
+    RA: 'static + std::fmt::Debug,
+    RB: 'static + std::fmt::Debug,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, (RA, RB)> {
+        todo!()
+    }
+}
+
+impl<T> Parser<T> for Vec<Box<dyn Parser<T>>>
+where
+    T: 'static + std::fmt::Debug,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
+        todo!()
+    }
+}
+
 type BoxedFrag<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 trait Parser<T: 'static + std::fmt::Debug> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T>;
