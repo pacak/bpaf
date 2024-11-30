@@ -53,12 +53,6 @@ struct Task<'a> {
     act: Pin<Box<dyn Future<Output = Option<Error>> + 'a>>,
 }
 
-#[derive(Debug, Clone)]
-struct Args {
-    all: Rc<[String]>,
-    cur: usize,
-}
-
 pub struct RawCtx<'a> {
     current_task: RefCell<Option<Id>>,
     /// All the arguments passed to the app including the app name in 0th
