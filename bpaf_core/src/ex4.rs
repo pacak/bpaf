@@ -57,34 +57,35 @@ pub struct Ctx<'a> {
     cur: Rc<AtomicUsize>,
     /// ID for the next task
     next_id: Rc<AtomicU32>,
-    spawn: Arc<Mutex<Pending<'a>>>,
-    /// id to wake up
-    pending: Arc<Mutex<Vec<Id>>>,
+    /// through this tasks can request event scheduling, etc
+    shared: Rc<RefCell<Pending<'a>>>,
 }
 
 #[derive(Default)]
 struct Pending<'a> {
-    spawn: Vec<(Id, Task<'a>, Waker)>,
+    spawn: Vec<(Id, Task<'a>)>,
     name: Vec<(&'a [Name<'static>], Id)>,
 }
-fn parse_args<T>(parser: impl Parser<T>, args: &[String]) -> Result<T, Error>
+fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
 {
     let ctx = Ctx {
         args,
-        spawn: Default::default(),
-        pending: Default::default(),
-        cur: Rc::new(AtomicUsize::from(1)),
+        shared: Default::default(),
+        cur: Rc::new(AtomicUsize::from(0)),
         next_id: Default::default(),
     };
 
     let runner = Runner {
         ctx,
+        ids: Vec::new(),
         tasks: BTreeMap::new(),
         named: BTreeMap::new(),
+        pending: Default::default(),
+        private: Default::default(),
     };
-    runner.run_parser(&parser)
+    runner.run_parser(parser)
 }
 
 fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
@@ -174,8 +175,7 @@ impl<'a> Ctx<'a> {
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
     fn named_wake(&self, id: Id, name: &'a [Name<'static>], waker: Waker) {
-        let mut ctx = self.spawn.lock().expect("poison");
-        ctx.name.push((name, id));
+        self.shared.borrow_mut().name.push((name, id));
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
@@ -192,27 +192,11 @@ impl<'a> Ctx<'a> {
     }
 
     fn start_task(&self, task: Task<'a>) {
+        println!("starting a task");
         let id = self.next_id();
-        let waker = self.waker_for(id);
-        self.spawn
-            .lock()
-            .expect("poison")
-            .spawn
-            .push((id, task, waker));
-        self.pending.lock().expect("poision").push(id);
-    }
 
-    fn waker_for(&self, id: Id) -> Waker {
-        Waker::from(Arc::new(WakeTask {
-            id,
-            pending: self.pending.clone(),
-        }))
+        self.shared.borrow_mut().spawn.push((id, task));
     }
-}
-
-struct RawCtx {
-    next_id: u32,
-    args: Args,
 }
 
 impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
@@ -241,7 +225,7 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
     Missing,
     Invalid,
@@ -387,8 +371,14 @@ impl Wake for WakeTask {
 
 struct Runner<'ctx> {
     ctx: Ctx<'ctx>,
+    /// A private copy of ctx
+    private: RefCell<Pending<'ctx>>,
+    ids: Vec<Id>,
     tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
     named: BTreeMap<Name<'static>, Id>,
+
+    /// id to wake up
+    pending: Arc<Mutex<Vec<Id>>>,
 }
 
 enum Arg<'a> {
@@ -439,7 +429,60 @@ fn split_param(value: &str) -> Arg {
 }
 
 impl<'a> Runner<'a> {
-    fn tasks_to_run(&self, ids: &mut Vec<Id>) {
+    fn waker_for(&self, id: Id) -> Waker {
+        Waker::from(Arc::new(WakeTask {
+            id,
+            pending: self.pending.clone(),
+        }))
+    }
+
+    fn handle_shared(&mut self) -> bool {
+        let mut changed = false;
+        self.private.swap(&self.ctx.shared);
+        let mut shared = self.private.borrow_mut();
+        for (id, mut task) in shared.spawn.drain(..) {
+            let waker = self.waker_for(id);
+            changed = true;
+
+            let mut cx = Context::from_waker(&waker);
+            println!("Polling freshly spawned {id:?}");
+            if task.act.as_mut().poll(&mut cx).is_pending() {
+                self.tasks.insert(id, (task, waker));
+            } else {
+                println!("done already");
+            }
+        }
+
+        for (names, id) in shared.name.drain(..) {
+            changed = true;
+            for name in names.iter().copied() {
+                println!("listen for {name:?} -> {id:?}");
+                self.named.insert(name, id);
+            }
+        }
+        changed
+    }
+
+    fn schedule_pending(&mut self) {
+        self.ids
+            .extend(self.pending.lock().expect("poison").drain(..));
+    }
+    fn run_scheduled(&mut self) -> bool {
+        let changes = self.ids.is_empty();
+        for id in self.ids.drain(..) {
+            if let Some((task, waker)) = self.tasks.get_mut(&id) {
+                let mut cx = Context::from_waker(waker);
+                if task.act.as_mut().poll(&mut cx).is_ready() {
+                    println!("Task {id:?} is done");
+                    self.tasks.remove(&id);
+                }
+            }
+        }
+        !changes
+    }
+
+    fn parsers_for_next_word(&mut self) {
+        println!("currently args are {:?}[{:?}]", self.ctx.args, self.ctx.cur);
         // first we need to decide what parsers to run
         if let Some(front) = self.ctx.args.get(self.ctx.cur()) {
             let name = if let Some(long) = front.strip_prefix("--") {
@@ -449,9 +492,12 @@ impl<'a> Runner<'a> {
             } else {
                 todo!("nothing matches, time to complain");
             };
-
+            println!("{:?}", self.named);
             match self.named.get(&name).copied() {
-                Some(c) => ids.push(c),
+                Some(c) => {
+                    println!("will wake {c:?} to parse {name:?}");
+                    self.ids.push(c);
+                }
                 None => todo!(
                     "unknown name - complain {:?} / {:?} / {:?}",
                     name,
@@ -460,7 +506,10 @@ impl<'a> Runner<'a> {
                 ),
             }
         } else {
-            println!("nothing to parse, time to terminate things");
+            println!(
+                "nothing to parse, time to terminate things {:?}",
+                self.named
+            );
         }
     }
 
@@ -476,7 +525,7 @@ impl<'a> Runner<'a> {
         let mut handle = pin!(self
             .ctx
             .spawn(Parent::new(Id(0), 0, ParentKind::Root), parser));
-        let root_waker = self.ctx.waker_for(Id(0));
+        let root_waker = self.waker_for(Id(0));
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
@@ -487,63 +536,33 @@ impl<'a> Runner<'a> {
             return r;
         }
 
-        // get shared data out of the context for easier use
-        let spawn = self.ctx.spawn.clone();
-        let pending = self.ctx.pending.clone();
-
-        let mut ids = Vec::new();
         let mut par = Vec::new();
         loop {
             // first we wake spawn all the pending tasks and poll them to
             // make sure things propagate. this might take several loops
             loop {
-                let mut to_spawn = spawn.lock().expect("poison");
-                for (id, task, waker) in to_spawn.spawn.drain(..) {
-                    self.tasks.insert(id, (task, waker));
+                while self.handle_shared() {
+                    self.schedule_pending();
                 }
-
-                for (names, id) in to_spawn.name.drain(..) {
-                    for name in names.iter() {
-                        self.named.insert(*name, id);
-                    }
-                }
-
-                drop(to_spawn);
-
-                let mut to_wake = pending.lock().expect("poison");
-                if to_wake.is_empty() {
-                    println!("nothing to wake?");
+                if !self.run_scheduled() {
                     break;
-                }
-                ids.extend(to_wake.drain(..));
-                drop(to_wake);
-                println!("to wake: {ids:?}");
-
-                for id in ids.drain(..) {
-                    if let Some((task, waker)) = self.tasks.get_mut(&id) {
-                        let mut cx = Context::from_waker(waker);
-                        if task.act.as_mut().poll(&mut cx).is_ready() {
-                            println!("task {id:?} is done, removing from poll");
-                            self.tasks.remove(&id);
-                        }
-                    }
                 }
             }
 
-            self.tasks_to_run(&mut ids);
-            if ids.is_empty() {
+            self.parsers_for_next_word();
+            if self.ids.is_empty() {
                 if self.named.is_empty() {
                     println!("we are done, let's finish !, {:?}", self.named);
                     break;
                 } else {
-                    ids.extend(self.named.values());
+                    self.ids.extend(self.named.values());
                     self.named.clear();
                 }
             }
 
             // actual feed consumption happens here
             let mut max_consumed = 0;
-            for id in ids.drain(..) {
+            for id in self.ids.drain(..) {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
                     let before = self.ctx.cur();
                     let mut cx = Context::from_waker(waker);
@@ -564,7 +583,7 @@ impl<'a> Runner<'a> {
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
             // terminate all unmarked branches
-            self.ctx.set_cur(max_consumed);
+            self.ctx.advance(max_consumed);
         }
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
@@ -587,10 +606,34 @@ impl Ctx<'_> {
 }
 
 #[test]
-fn asdf() {
-    let bob = long("bob").switch();
+fn simple_flag_parser() {
+    let alice = long("alice").switch();
+    let r = parse_args(&alice, &["--alice".into()]);
+    assert_eq!(r, Ok(true));
 
-    let r = parse_args(bob, &[]);
+    let r = parse_args(&alice, &[]);
+    assert_eq!(r, Ok(false));
+}
+
+#[test]
+fn pair_of_flags() {
+    let alice = long("alice").switch();
+    let bob = long("bob").switch();
+    let both = Pair(alice, bob);
+
+    let r = parse_args(&both, &["--alice".into(), "--bob".into()]);
+
+    assert_eq!(r, Ok((true, true)));
+}
+
+#[test]
+fn asdf() {
+    let alice = long("alice").switch();
+    let bob = long("bob").switch();
+    //    let both = Pair(alice, bob);
+
+    //    let r = parse_args(bob, &["--alice".into(), "--bob".into()]);
+    let r = parse_args(&bob, &["--bob".into()]);
     todo!("{:?}", r);
 }
 
