@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::{
     cell::{Cell, RefCell},
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
@@ -15,7 +15,7 @@ use std::{
 
 use crate::{long, named::Name};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Id(u32);
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -64,7 +64,7 @@ pub struct Ctx<'a> {
 #[derive(Default)]
 struct Pending<'a> {
     spawn: Vec<(Id, Task<'a>)>,
-    name: Vec<(&'a [Name<'static>], Id)>,
+    named: Vec<(&'a [Name<'static>], Waker)>,
 }
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
@@ -79,7 +79,7 @@ where
 
     let runner = Runner {
         ctx,
-        ids: Vec::new(),
+        ids: Default::default(),
         tasks: BTreeMap::new(),
         named: BTreeMap::new(),
         pending: Default::default(),
@@ -174,8 +174,8 @@ impl<'a> Ctx<'a> {
     /// this needs name to know what to look for, waker since that's how futures work....
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
-    fn named_wake(&self, id: Id, name: &'a [Name<'static>], waker: Waker) {
-        self.shared.borrow_mut().name.push((name, id));
+    fn named_wake(&self, name: &'a [Name<'static>], waker: Waker) {
+        self.shared.borrow_mut().named.push((name, waker));
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
@@ -324,7 +324,7 @@ impl Future for NamedFut<'_> {
     ) -> std::task::Poll<Self::Output> {
         if !self.registered {
             self.registered = true;
-            self.ctx.named_wake(Id(0), self.name, cx.waker().clone());
+            self.ctx.named_wake(self.name, cx.waker().clone());
             return Poll::Pending;
         }
 
@@ -373,9 +373,9 @@ struct Runner<'ctx> {
     ctx: Ctx<'ctx>,
     /// A private copy of ctx
     private: RefCell<Pending<'ctx>>,
-    ids: Vec<Id>,
+    ids: HashSet<Id>,
     tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
-    named: BTreeMap<Name<'static>, Id>,
+    named: BTreeMap<Name<'static>, Waker>,
 
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
@@ -453,11 +453,10 @@ impl<'a> Runner<'a> {
             }
         }
 
-        for (names, id) in shared.name.drain(..) {
+        for (names, id) in shared.named.drain(..) {
             changed = true;
-            for name in names.iter().copied() {
-                println!("listen for {name:?} -> {id:?}");
-                self.named.insert(name, id);
+            for name in names.iter() {
+                self.named.insert(*name, id.clone());
             }
         }
         changed
@@ -469,7 +468,7 @@ impl<'a> Runner<'a> {
     }
     fn run_scheduled(&mut self) -> bool {
         let changes = self.ids.is_empty();
-        for id in self.ids.drain(..) {
+        for id in self.ids.drain() {
             if let Some((task, waker)) = self.tasks.get_mut(&id) {
                 let mut cx = Context::from_waker(waker);
                 if task.act.as_mut().poll(&mut cx).is_ready() {
@@ -493,10 +492,10 @@ impl<'a> Runner<'a> {
                 todo!("nothing matches, time to complain");
             };
             println!("{:?}", self.named);
-            match self.named.get(&name).copied() {
+            match self.named.get(&name) {
                 Some(c) => {
-                    println!("will wake {c:?} to parse {name:?}");
-                    self.ids.push(c);
+                    println!("waking {c:?} to parse {name:?}");
+                    c.wake_by_ref();
                 }
                 None => todo!(
                     "unknown name - complain {:?} / {:?} / {:?}",
@@ -550,19 +549,25 @@ impl<'a> Runner<'a> {
             }
 
             self.parsers_for_next_word();
+            self.schedule_pending();
+
             if self.ids.is_empty() {
                 if self.named.is_empty() {
                     println!("we are done, let's finish !, {:?}", self.named);
                     break;
                 } else {
-                    self.ids.extend(self.named.values());
+                    for w in self.named.values() {
+                        println!("waking {w:?} to handle noparse");
+                        w.wake_by_ref();
+                    }
                     self.named.clear();
                 }
             }
 
+            println!("We are going to parse the next workd with {:?}", self.ids);
             // actual feed consumption happens here
             let mut max_consumed = 0;
-            for id in self.ids.drain(..) {
+            for id in self.ids.drain() {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
                     let before = self.ctx.cur();
                     let mut cx = Context::from_waker(waker);
@@ -622,8 +627,16 @@ fn pair_of_flags() {
     let both = Pair(alice, bob);
 
     let r = parse_args(&both, &["--alice".into(), "--bob".into()]);
-
     assert_eq!(r, Ok((true, true)));
+
+    let r = parse_args(&both, &["--bob".into()]);
+    assert_eq!(r, Ok((false, true)));
+
+    let r = parse_args(&both, &["--alice".into()]);
+    assert_eq!(r, Ok((true, false)));
+
+    let r = parse_args(&both, &[]);
+    assert_eq!(r, Ok((false, false)));
 }
 
 #[test]
