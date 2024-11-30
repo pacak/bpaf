@@ -640,6 +640,17 @@ fn pair_of_flags() {
 }
 
 #[test]
+fn req_flag() {
+    let alice = long("alice").req_flag(());
+
+    let r = parse_args(&alice, &["--alice".into()]);
+    assert_eq!(r, Ok(()));
+
+    let r = parse_args(&alice, &[]);
+    assert_eq!(r, Err(Error::Missing));
+}
+
+#[test]
 fn asdf() {
     let alice = long("alice").switch();
     let bob = long("bob").switch();
