@@ -40,7 +40,7 @@ pub enum Name<'a> {
 
 struct Task<'a> {
     parent: Parent,
-    act: Pin<Box<dyn Future<Output = ()> + 'a>>,
+    act: Pin<Box<dyn Future<Output = Option<Error>> + 'a>>,
 }
 
 #[derive(Debug, Clone)]
@@ -157,9 +157,11 @@ impl<'a> Ctx<'a> {
             println!("Waiting on spawned task");
             let r = parser.run(ctx).await;
             println!("we a got a result {r:?}");
+            let out = r.as_ref().err().cloned();
             if let Ok(exit) = Rc::try_unwrap(exit) {
                 exit.exit_task(r);
             }
+            out
         });
         self.start_task(Task { parent, act });
         join
@@ -650,3 +652,15 @@ where
 // priority forest
 // killing underperforming tasks
 // conflicts
+
+struct ChildErrors {
+    id: Id,
+}
+
+impl Future for ChildErrors {
+    type Output = Option<Error>;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        todo!()
+    }
+}
