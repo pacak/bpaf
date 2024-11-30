@@ -6,7 +6,10 @@ use std::{
     marker::PhantomData,
     pin::{pin, Pin},
     rc::{Rc, Weak},
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicU32, AtomicUsize},
+        Arc, Mutex,
+    },
     task::{Context, Poll, Wake, Waker},
 };
 
@@ -48,8 +51,15 @@ struct Args {
 
 #[derive(Clone)]
 pub struct Ctx<'a> {
+    /// All the arguments passed to the app including the app name in 0th
+    args: &'a [String],
+    /// Current cursor position
+    cur: Rc<AtomicUsize>,
+    /// ID for the next task
+    next_id: Rc<AtomicU32>,
     data: Rc<RefCell<RawCtx>>,
     spawn: Arc<Mutex<Pending<'a>>>,
+    /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
 }
 
@@ -70,9 +80,12 @@ where
         },
     });
     let ctx = Ctx {
+        args,
         data: Rc::new(ctx),
         spawn: Default::default(),
         pending: Default::default(),
+        cur: Rc::new(AtomicUsize::from(1)),
+        next_id: Default::default(),
     };
 
     let runner = Runner {
