@@ -26,6 +26,16 @@ enum ParentKind {
     Root,
 }
 
+impl Id {
+    fn sum(self, field: u32) -> Parent {
+        Parent {
+            kind: ParentKind::Prod,
+            id: self,
+            field,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Parent {
     kind: ParentKind,
@@ -50,17 +60,19 @@ struct Args {
 }
 
 pub struct RawCtx<'a> {
+    current_task: RefCell<Option<Id>>,
     /// All the arguments passed to the app including the app name in 0th
     args: &'a [String],
     /// Current cursor position
     cur: AtomicUsize,
-    /// ID for the next task
-    next_id: AtomicU32,
     /// through this tasks can request event scheduling, etc
     shared: RefCell<Pending<'a>>,
 }
 
 #[derive(Clone)]
+#[repr(transparent)]
+// this is a newtype instead of struct since things like RawCtx::spawn
+// need to pass it by ownership
 pub struct Ctx<'a>(Rc<RawCtx<'a>>);
 
 impl<'a> std::ops::Deref for Ctx<'a> {
@@ -73,7 +85,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 
 #[derive(Default)]
 struct Pending<'a> {
-    spawn: Vec<(Id, Task<'a>)>,
+    spawn: Vec<Task<'a>>,
     named: Vec<(&'a [Name<'static>], Waker)>,
 }
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
@@ -82,9 +94,9 @@ where
 {
     let ctx = Ctx(Rc::new(RawCtx {
         args,
+        current_task: Default::default(),
         shared: Default::default(),
         cur: AtomicUsize::from(0),
-        next_id: Default::default(),
     }));
 
     let runner = Runner {
@@ -94,6 +106,7 @@ where
         named: BTreeMap::new(),
         pending: Default::default(),
         private: Default::default(),
+        next_task_id: 0,
     };
     runner.run_parser(parser)
 }
@@ -192,20 +205,10 @@ impl<'a> Ctx<'a> {
         todo!()
     }
 
-    fn peek_next_id(&self) -> Id {
-        Id(self.next_id.load(std::sync::atomic::Ordering::Relaxed))
-    }
-    fn next_id(&self) -> Id {
-        Id(self
-            .next_id
-            .fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-    }
-
     fn start_task(&self, task: Task<'a>) {
         println!("starting a task");
-        let id = self.next_id();
 
-        self.shared.borrow_mut().spawn.push((id, task));
+        self.shared.borrow_mut().spawn.push(task);
     }
 }
 
@@ -265,7 +268,7 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
         Box::pin(async move {
-            let id = ctx.next_id();
+            let id = ctx.current_id();
             let futa = ctx.spawn(
                 Parent {
                     id,
@@ -295,15 +298,15 @@ where
     T: std::fmt::Debug + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
-        let id = ctx.next_id();
-
         let mut res = Vec::new();
-        let parent = Parent {
-            id,
-            field: 0,
-            kind: ParentKind::Sum,
-        };
         Box::pin(async move {
+            let id = ctx.current_id();
+            let parent = Parent {
+                id,
+                field: 0,
+                kind: ParentKind::Sum,
+            };
+
             loop {
                 match ctx.spawn(parent, &self.0).await {
                     Ok(t) => res.push(t),
@@ -393,6 +396,7 @@ impl Wake for WakeTask {
 }
 
 struct Runner<'ctx> {
+    next_task_id: u32,
     ctx: Ctx<'ctx>,
     /// A private copy of ctx
     private: RefCell<Pending<'ctx>>,
@@ -472,17 +476,21 @@ impl<'a> Runner<'a> {
         let mut changed = false;
         self.private.swap(&self.ctx.shared);
         let mut shared = self.private.borrow_mut();
-        for (id, mut task) in shared.spawn.drain(..) {
+        for mut task in shared.spawn.drain(..) {
+            let id = Id(self.next_task_id);
+            self.next_task_id += 1;
             let waker = self.waker_for(id);
             changed = true;
 
             let mut cx = Context::from_waker(&waker);
             println!("Polling freshly spawned {id:?}");
+            *self.ctx.current_task.borrow_mut() = Some(id);
             if task.act.as_mut().poll(&mut cx).is_pending() {
                 self.tasks.insert(id, (task, waker));
             } else {
                 println!("done already");
             }
+            *self.ctx.current_task.borrow_mut() = None;
         }
 
         for (names, waker) in shared.named.drain(..) {
@@ -504,10 +512,12 @@ impl<'a> Runner<'a> {
         for id in self.ids.drain() {
             if let Some((task, waker)) = self.tasks.get_mut(&id) {
                 let mut cx = Context::from_waker(waker);
+                *self.ctx.current_task.borrow_mut() = Some(id);
                 if task.act.as_mut().poll(&mut cx).is_ready() {
                     println!("Task {id:?} is done");
                     self.tasks.remove(&id);
                 }
+                *self.ctx.current_task.borrow_mut() = None;
             }
         }
         !changes
@@ -628,9 +638,18 @@ impl<'a> Runner<'a> {
             Poll::Pending => todo!(),
         }
     }
+
+    fn next_id(&mut self) -> Id {
+        let id = self.next_task_id;
+        self.next_task_id += 1;
+        Id(id)
+    }
 }
 
 impl RawCtx<'_> {
+    fn current_id(&self) -> Id {
+        self.current_task.borrow().expect("not in a task")
+    }
     fn cur(&self) -> usize {
         self.cur.load(std::sync::atomic::Ordering::Relaxed)
     }
