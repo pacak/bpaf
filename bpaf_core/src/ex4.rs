@@ -737,17 +737,10 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
-            let id = Id(0);
+            let id = ctx.current_id();
             for (ix, p) in self.items.iter().enumerate() {
                 let field = ix as u32;
-                ctx.spawn(
-                    Parent {
-                        id,
-                        field,
-                        kind: ParentKind::Sum,
-                    },
-                    p,
-                );
+                ctx.spawn(id.sum(field), p);
             }
 
             for _ in self.items.iter() {
