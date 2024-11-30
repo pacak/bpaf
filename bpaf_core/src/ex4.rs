@@ -640,6 +640,10 @@ where
                     p,
                 );
             }
+
+            for _ in self.items.iter() {
+                let m_err = ChildErrors { id }.await;
+            }
             // loop
             // subscribe for any events related to all the handles
             // trim handles that didn't advance enough
@@ -658,7 +662,7 @@ struct ChildErrors {
 }
 
 impl Future for ChildErrors {
-    type Output = Option<Error>;
+    type Output = Option<(/* field */ u32, Error)>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         todo!()
