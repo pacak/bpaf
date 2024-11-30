@@ -1,4 +1,70 @@
-use super::Item;
+/// Contains name for named
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ShortLong {
+    /// Short name only (one char),
+    /// Ex `-v` is stored as Short('v'),
+    Short(char),
+    /// Long name only, could be one char
+    Long(&'static str),
+    Both(char, &'static str),
+}
+
+impl ShortLong {
+    pub(crate) fn as_short(&self) -> Self {
+        match self {
+            ShortLong::Short(s) | ShortLong::Both(s, _) => Self::Short(*s),
+            ShortLong::Long(_) => *self,
+        }
+    }
+}
+impl std::fmt::Display for ShortLong {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ShortLong::Short(s) | ShortLong::Both(s, _) => write!(f, "-{s}"),
+            ShortLong::Long(l) => write!(f, "--{l}"),
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Item {
+    Flag(ShortLong),
+    Argument(ShortLong, &'static str),
+    Positional(&'static str),
+}
+
+pub trait Parser<T> {
+    fn eval(&self, args: &mut State) -> Result<T, Error>;
+    fn meta(&self, visitor: &mut dyn Visitor);
+
+    // - usage
+    // - documentation and --help
+    // -parsing
+    // - invariant checking
+    // - get available options for errors
+}
+
+pub struct State;
+pub struct Error;
+pub struct Con<E, M> {
+    pub eval: E,
+    pub meta: M,
+    pub failfast: bool,
+}
+
+impl<T, E, M> Parser<T> for Con<E, M>
+where
+    E: Fn(bool, &mut State) -> Result<T, Error>,
+    M: Fn(&mut dyn Visitor),
+{
+    fn eval(&self, args: &mut State) -> Result<T, Error> {
+        (self.eval)(self.failfast, args)
+    }
+
+    fn meta(&self, visitor: &mut dyn Visitor) {
+        (self.meta)(visitor)
+    }
+}
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Group {
@@ -282,8 +348,9 @@ mod usage {
 
     #[cfg(test)]
     mod tests {
+        use super::super::*;
         use super::*;
-        use crate::ShortLong;
+        //                use s::ShortLong;
 
         const FLAG_A: Item = Item::Flag(ShortLong::Short('a'));
         const FLAG_B: Item = Item::Flag(ShortLong::Short('b'));
@@ -643,8 +710,6 @@ mod help {
         header: Vec<&'a str>,
         items: Vec<&'a Item>,
     }
-
-    impl<'a> Group<'a> {}
 
     impl<'a> Visitor<'a> for Help<'a> {
         fn command(&mut self, long_name: &'a str, short_name: Option<char>) -> bool {
