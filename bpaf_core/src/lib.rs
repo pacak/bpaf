@@ -3,6 +3,7 @@
 mod visitor;
 
 use ex4::Ctx;
+use ex4::Fragment;
 use named::Argument;
 use named::Flag;
 use named::Named;
@@ -82,6 +83,11 @@ impl<T> Cx<Positional<T>> {
 mod named {
     use std::marker::PhantomData;
 
+    use crate::{
+        ex4::{Ctx, Error, Fragment, NamedFut},
+        Parser,
+    };
+
     pub struct Argument<T> {
         named: Named,
         ty: PhantomData<T>,
@@ -92,6 +98,34 @@ mod named {
         named: Named,
         present: T,
         absent: Option<T>,
+    }
+
+    impl Parser<Name<'static>> for Named {
+        fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Name<'static>> {
+            Box::pin(NamedFut {
+                name: self.names.as_slice(),
+                ctx,
+                registered: false,
+            })
+        }
+    }
+
+    impl<T> Parser<T> for Flag<T>
+    where
+        T: std::fmt::Debug + Clone + 'static,
+    {
+        fn run<'a>(&'a self, input: Ctx<'a>) -> Fragment<'a, T> {
+            Box::pin(async move {
+                match self.named.run(input).await {
+                    Ok(_) => Ok(self.present.clone()),
+                    Err(Error::Missing) => match self.absent.as_ref().cloned() {
+                        Some(v) => Ok(v),
+                        None => Err(Error::Missing),
+                    },
+                    Err(e) => Err(e),
+                }
+            })
+        }
     }
 
     impl Named {
@@ -179,15 +213,15 @@ mod positional {
 
 pub use ex4::Parser;
 
-// impl<P, T> Parser<T> for Cx<P>
-// where
-//     P: Parser<T>,
-//     T: 'static + std::fmt::Debug,
-// {
-//     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
-//         self.0.run(ctx)
-//     }
-// }
+impl<P, T> Parser<T> for Cx<P>
+where
+    P: Parser<T>,
+    T: 'static + std::fmt::Debug,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        self.0.run(ctx)
+    }
+}
 
 //pub mod ex2;
 //pub mod ex3;
