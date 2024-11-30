@@ -10,6 +10,8 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
+use crate::{long, named::Name};
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Id(u32);
 
@@ -31,11 +33,6 @@ impl Parent {
     fn new(id: Id, field: u32, kind: ParentKind) -> Self {
         Self { id, field, kind }
     }
-}
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
-pub enum Name<'a> {
-    Short(char),
-    Long(&'a str),
 }
 
 struct Task<'a> {
@@ -59,7 +56,7 @@ pub struct Ctx<'a> {
 #[derive(Default)]
 struct Pending<'a> {
     spawn: Vec<(Id, Task<'a>, Waker)>,
-    name: Vec<(Rc<[Name<'static>]>, Id)>,
+    name: Vec<(&'a [Name<'static>], Id)>,
 }
 fn parse_args<T>(parser: impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
@@ -172,7 +169,7 @@ impl<'a> Ctx<'a> {
     /// this needs name to know what to look for, waker since that's how futures work....
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
-    fn named_wake(&self, id: Id, name: Rc<[Name<'static>]>, waker: Waker) {
+    fn named_wake(&self, id: Id, name: &'a [Name<'static>], waker: Waker) {
         let mut ctx = self.spawn.lock().expect("poison");
         ctx.name.push((name, id));
     }
@@ -222,7 +219,7 @@ where
     RA: 'static + std::fmt::Debug,
     RB: 'static + std::fmt::Debug,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, (RA, RB)> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
         todo!()
     }
 }
@@ -231,14 +228,14 @@ impl<T> Parser<T> for Vec<Box<dyn Parser<T>>>
 where
     T: 'static + std::fmt::Debug,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         todo!()
     }
 }
 
-type BoxedFrag<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
+pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 pub trait Parser<T: 'static + std::fmt::Debug> {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T>;
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -256,7 +253,7 @@ where
     RA: 'static + std::fmt::Debug,
     RB: 'static + std::fmt::Debug,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, (RA, RB)> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
         Box::pin(async move {
             let id = ctx.next_id();
             let futa = ctx.spawn(
@@ -287,7 +284,7 @@ where
     P: Parser<T>,
     T: std::fmt::Debug + 'static,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, Vec<T>> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
         let id = ctx.next_id();
 
         let mut res = Vec::new();
@@ -317,7 +314,7 @@ where
     R: std::fmt::Debug + 'static,
     F: Fn(T) -> R + 'static + Clone,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, R> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
         Box::pin(async move {
             let t = self.0.run(ctx).await?;
             Ok((self.1)(t))
@@ -325,10 +322,10 @@ where
     }
 }
 
-struct NamedFut<'a> {
-    name: Rc<[Name<'static>]>,
-    ctx: Ctx<'a>,
-    registered: bool,
+pub(crate) struct NamedFut<'a> {
+    pub(crate) name: &'a [Name<'static>],
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) registered: bool,
 }
 
 impl Future for NamedFut<'_> {
@@ -340,8 +337,7 @@ impl Future for NamedFut<'_> {
     ) -> std::task::Poll<Self::Output> {
         if !self.registered {
             self.registered = true;
-            self.ctx
-                .named_wake(Id(0), self.name.clone(), cx.waker().clone());
+            self.ctx.named_wake(Id(0), self.name, cx.waker().clone());
             return Poll::Pending;
         }
 
@@ -576,57 +572,11 @@ impl<'a> Runner<'a> {
     }
 }
 
-#[derive(Clone)]
-struct Named {
-    name: Rc<[Name<'static>]>,
-}
-
-impl Parser<Name<'static>> for Named {
-    fn run<'a>(&'a self, input: Ctx<'a>) -> BoxedFrag<'a, Name<'static>> {
-        Box::pin(NamedFut {
-            name: self.name.clone(),
-            ctx: input.clone(),
-            registered: false,
-        })
-    }
-}
-
-#[derive(Clone)]
-struct Flag<T> {
-    name: Named,
-    present: T,
-    absent: Option<T>,
-}
-impl<T> Parser<T> for Flag<T>
-where
-    T: std::fmt::Debug + Clone + 'static,
-{
-    fn run<'a>(&'a self, input: Ctx<'a>) -> BoxedFrag<'a, T> {
-        Box::pin(async move {
-            match self.name.run(input).await {
-                Ok(_) => Ok(self.present.clone()),
-                Err(Error::Missing) => match self.absent.as_ref().cloned() {
-                    Some(v) => Ok(v),
-                    None => Err(Error::Missing),
-                },
-                Err(e) => Err(e),
-            }
-        })
-    }
-}
-
 #[test]
 fn asdf() {
-    let name = Named {
-        name: Rc::from(vec![Name::Long("bob")].as_slice()),
-    };
-    let flag = Flag {
-        name,
-        present: true,
-        absent: Some(false),
-    };
-    //    let r = parse_args(flag, &["--bob".into()]);
-    let r = parse_args(flag, &[]);
+    let bob = long("bob").switch();
+
+    let r = parse_args(bob, &[]);
     todo!("{:?}", r);
 }
 
@@ -638,7 +588,7 @@ impl<T> Parser<T> for Box<dyn Parser<T>>
 where
     T: std::fmt::Debug + Clone + 'static,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.as_ref().run(ctx)
     }
 }
@@ -647,7 +597,7 @@ impl<T> Parser<T> for Alt<T>
 where
     T: Clone + std::fmt::Debug + 'static,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
             let id = Id(0);
             for (ix, p) in self.items.iter().enumerate() {
