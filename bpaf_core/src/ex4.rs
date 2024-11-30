@@ -223,6 +223,19 @@ where
 pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 pub trait Parser<T: 'static + std::fmt::Debug> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
+    fn into_box(self) -> Box<dyn Parser<T>>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
+
+    fn into_rc(self) -> Rc<dyn Parser<T>>
+    where
+        Self: Sized + 'static,
+    {
+        Rc::new(self)
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -651,14 +664,19 @@ fn req_flag() {
 }
 
 #[test]
-fn asdf() {
-    let alice = long("alice").switch();
-    let bob = long("bob").switch();
-    //    let both = Pair(alice, bob);
+fn alt_of_req() {
+    let alice = long("alice").req_flag('a').into_box();
+    let bob = long("bob").req_flag('b').into_box();
 
-    //    let r = parse_args(bob, &["--alice".into(), "--bob".into()]);
-    let r = parse_args(&bob, &["--bob".into()]);
-    todo!("{:?}", r);
+    let alt = Alt {
+        items: vec![alice, bob],
+    };
+
+    let r = parse_args(&alt, &["--alice".into()]);
+    assert_eq!(r, Ok('a'));
+
+    let r = parse_args(&alt, &["--bob".into()]);
+    assert_eq!(r, Ok('b'));
 }
 
 struct Alt<T: Clone + 'static> {
