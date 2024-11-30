@@ -128,15 +128,15 @@ impl<T> Drop for ExitHandle<T> {
 
 struct ExitHandle<T> {
     waker: Cell<Option<Waker>>,
-    result: Rc<Cell<Option<T>>>,
+    result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 
 struct JoinHandle<T> {
     task: Weak<ExitHandle<T>>,
-    result: Rc<Cell<Option<T>>>,
+    result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 impl<T: std::fmt::Debug> ExitHandle<T> {
-    fn exit_task(self, result: T) {
+    fn exit_task(self, result: Result<T, Error>) {
         println!("setting result to {result:?}");
         self.result.set(Some(result));
         if let Some(waker) = self.waker.take() {
@@ -145,7 +145,7 @@ impl<T: std::fmt::Debug> ExitHandle<T> {
     }
 }
 impl<T> Future for JoinHandle<T> {
-    type Output = T;
+    type Output = Result<T, Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         match self.task.upgrade() {
@@ -163,7 +163,7 @@ impl<T> Future for JoinHandle<T> {
 }
 
 impl<'a> Ctx<'a> {
-    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<Result<T, Error>>
+    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<T>
     where
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
