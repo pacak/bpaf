@@ -50,7 +50,7 @@ struct Args {
 }
 
 #[derive(Clone)]
-struct Ctx<'a> {
+pub struct Ctx<'a> {
     data: Rc<RefCell<RawCtx>>,
     spawn: Arc<Mutex<Pending<'a>>>,
     pending: Arc<Mutex<Vec<Id>>>,
@@ -237,12 +237,12 @@ where
 }
 
 type BoxedFrag<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
-trait Parser<T: 'static + std::fmt::Debug> {
+pub trait Parser<T: 'static + std::fmt::Debug> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> BoxedFrag<'a, T>;
 }
 
 #[derive(Debug, Copy, Clone)]
-enum Error {
+pub enum Error {
     Missing,
     Invalid,
 }
