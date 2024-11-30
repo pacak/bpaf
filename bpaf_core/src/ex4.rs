@@ -57,7 +57,6 @@ pub struct Ctx<'a> {
     cur: Rc<AtomicUsize>,
     /// ID for the next task
     next_id: Rc<AtomicU32>,
-    data: Rc<RefCell<RawCtx>>,
     spawn: Arc<Mutex<Pending<'a>>>,
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
@@ -72,16 +71,8 @@ fn parse_args<T>(parser: impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
 {
-    let ctx = RefCell::new(RawCtx {
-        next_id: 0,
-        args: Args {
-            all: Rc::from(args),
-            cur: 0,
-        },
-    });
     let ctx = Ctx {
         args,
-        data: Rc::new(ctx),
         spawn: Default::default(),
         pending: Default::default(),
         cur: Rc::new(AtomicUsize::from(1)),
@@ -192,13 +183,12 @@ impl<'a> Ctx<'a> {
     }
 
     fn peek_next_id(&self) -> Id {
-        Id(self.data.borrow().next_id)
+        Id(self.next_id.load(std::sync::atomic::Ordering::Relaxed))
     }
     fn next_id(&self) -> Id {
-        let mut ctx = self.data.borrow_mut();
-        let id = ctx.next_id;
-        ctx.next_id += 1;
-        Id(id)
+        Id(self
+            .next_id
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed))
     }
 
     fn start_task(&self, task: Task<'a>) {
@@ -354,8 +344,7 @@ impl Future for NamedFut<'_> {
             return Poll::Pending;
         }
 
-        let mut data = self.ctx.data.borrow_mut();
-        let Some(front) = data.args.all.get(data.args.cur) else {
+        let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
             return Poll::Ready(Err(Error::Missing));
         };
 
@@ -368,7 +357,7 @@ impl Future for NamedFut<'_> {
                     .find(|n| *n == name)
                     .ok_or(Error::Missing);
                 if r.is_ok() {
-                    data.args.cur += 1;
+                    self.ctx.advance(1);
                 }
 
                 r
@@ -452,8 +441,7 @@ fn split_param(value: &str) -> Arg {
 impl<'a> Runner<'a> {
     fn tasks_to_run(&self, ids: &mut Vec<Id>) {
         // first we need to decide what parsers to run
-        let ctx = self.ctx.data.borrow();
-        if let Some(front) = ctx.args.all.get(ctx.args.cur) {
+        if let Some(front) = self.ctx.args.get(self.ctx.cur()) {
             let name = if let Some(long) = front.strip_prefix("--") {
                 Name::Long(long)
             } else if let Some(short) = front.strip_prefix("-") {
@@ -557,14 +545,14 @@ impl<'a> Runner<'a> {
             let mut max_consumed = 0;
             for id in ids.drain(..) {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
-                    let before = self.ctx.data.borrow().args.cur;
+                    let before = self.ctx.cur();
                     let mut cx = Context::from_waker(waker);
                     if task.act.as_mut().poll(&mut cx).is_ready() {
                         println!("task {id:?} is done from parse");
                         self.tasks.remove(&id);
                     }
-                    let after = self.ctx.data.borrow().args.cur;
-                    self.ctx.data.borrow_mut().args.cur = before;
+                    let after = self.ctx.cur();
+                    self.ctx.set_cur(before);
                     let consumed = after - before;
                     max_consumed = consumed.max(max_consumed);
                     par.push((consumed, id));
@@ -576,12 +564,25 @@ impl<'a> Runner<'a> {
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
             // terminate all unmarked branches
-            self.ctx.data.borrow_mut().args.cur = max_consumed;
+            self.ctx.set_cur(max_consumed);
         }
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
             Poll::Pending => todo!(),
         }
+    }
+}
+
+impl Ctx<'_> {
+    fn cur(&self) -> usize {
+        self.cur.load(std::sync::atomic::Ordering::Relaxed)
+    }
+    fn set_cur(&self, new: usize) {
+        self.cur.store(new, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn advance(&self, inc: usize) {
+        self.cur
+            .fetch_add(inc, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
