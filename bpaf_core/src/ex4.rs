@@ -512,11 +512,16 @@ impl<'a> Runner<'a> {
 
             self.tasks_to_run(&mut ids);
             if ids.is_empty() {
-                println!("we are done!");
-                break;
+                if self.named.is_empty() {
+                    println!("we are done, let's finish !, {:?}", self.named);
+                    break;
+                } else {
+                    ids.extend(self.named.values());
+                    self.named.clear();
+                }
             }
 
-            // next we run all the parsers. keeping only those that consumed the most
+            // actual feed consumption happens here
             let mut max_consumed = 0;
             for id in ids.drain(..) {
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
@@ -527,6 +532,7 @@ impl<'a> Runner<'a> {
                         self.tasks.remove(&id);
                     }
                     let after = self.ctx.data.borrow().args.cur;
+                    self.ctx.data.borrow_mut().args.cur = before;
                     let consumed = after - before;
                     max_consumed = consumed.max(max_consumed);
                     par.push((consumed, id));
@@ -538,6 +544,7 @@ impl<'a> Runner<'a> {
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
             // terminate all unmarked branches
+            self.ctx.data.borrow_mut().args.cur = max_consumed;
         }
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
@@ -595,7 +602,8 @@ fn asdf() {
         present: true,
         absent: Some(false),
     };
-    let r = parse_args(flag, &["--bob".into()]);
+    //    let r = parse_args(flag, &["--bob".into()]);
+    let r = parse_args(flag, &[]);
     todo!("{:?}", r);
 }
 
