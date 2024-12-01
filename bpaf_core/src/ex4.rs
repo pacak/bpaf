@@ -171,6 +171,7 @@ impl<'a> Ctx<'a> {
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
     {
+        println!("spawning {parent:?}");
         let ctx = self.clone();
         let (exit, join) = fork();
         let act = Box::pin(async move {
@@ -254,6 +255,19 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
 pub enum Error {
     Missing,
     Invalid,
+    /// Low priority error that gets created when a branch gets killed
+    /// to allow more successful alternative to run.
+    /// At least one branch in the sum
+    Killed,
+}
+impl Error {
+    fn combine_with(self, e2: Error) -> Error {
+        match (self, e2) {
+            (e @ Error::Invalid, _) | (_, e @ Error::Invalid) => e,
+            (e, Error::Killed) | (Error::Killed, e) => e,
+            (Error::Missing, Error::Missing) => Error::Missing,
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -609,7 +623,7 @@ impl<'a> Runner<'a> {
         // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
         if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
-            todo!("make sure there's no unconsumed data");
+            assert_eq!(self.ctx.cur(), self.ctx.args.len());
             return r;
         }
 
@@ -747,6 +761,9 @@ fn alt_of_req() {
         items: vec![alice, bob],
     };
 
+    let r = parse_args(&alt, &["--alice".into(), "--bob".into()]);
+    assert_eq!(r, Err(Error::Invalid));
+
     let r = parse_args(&alt, &["--alice".into()]);
     assert_eq!(r, Ok('a'));
 
@@ -785,26 +802,29 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
             let id = ctx.current_id();
-            for (ix, p) in self.items.iter().enumerate() {
-                let field = ix as u32;
-                ctx.spawn(id.sum(field), p);
-            }
 
-            for _ in self.items.iter() {
-                let m_err = ChildErrors { id }.await;
+            // Spawn a task for all the branches
+            let handles = self
+                .items
+                .iter()
+                .enumerate()
+                .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p))
+                .collect::<Vec<_>>();
+
+            // TODO: this should be some low priority error
+            let mut res = Err(Error::Killed);
+
+            // return first succesful result or the best error
+            for h in handles {
+                res = match (res, h.await) {
+                    (ok @ Ok(_), _) | (Err(_), ok @ Ok(_)) => return ok,
+                    (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
+                }
             }
-            // loop
-            // subscribe for any events related to all the handles
-            // trim handles that didn't advance enough
-            // return first succesful result
-            todo!()
+            res
         })
     }
 }
-
-// priority forest
-// killing underperforming tasks
-// conflicts
 
 struct ChildErrors {
     id: Id,
