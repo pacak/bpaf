@@ -2,6 +2,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, HashSet},
+    fmt::Debug,
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
@@ -13,7 +14,7 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
-use crate::{long, named::Name};
+use crate::{long, named::Name, positional};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Id(u32);
@@ -79,6 +80,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 struct Pending<'a> {
     spawn: Vec<(Parent, Task<'a>)>,
     named: Vec<(&'a [Name<'static>], Waker)>,
+    positional: Vec<Waker>,
 }
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
@@ -99,6 +101,7 @@ where
         pending: Default::default(),
         private: Default::default(),
         next_task_id: 0,
+        positional: Vec::new(),
     };
     runner.run_parser(parser)
 }
@@ -191,6 +194,10 @@ impl<'a> Ctx<'a> {
     /// But I also need an ID so I can start placing items into priority forest
     fn named_wake(&self, name: &'a [Name<'static>], waker: Waker) {
         self.shared.borrow_mut().named.push((name, waker));
+    }
+
+    fn positional_wake(&self, waker: Waker) {
+        self.shared.borrow_mut().positional.push(waker)
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
@@ -327,6 +334,32 @@ where
     }
 }
 
+pub(crate) struct PositionalFut<'a> {
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) registered: bool,
+}
+
+impl<'ctx> Future for PositionalFut<'ctx> {
+    type Output = Result<&'ctx str, Error>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if !self.registered {
+            self.registered = true;
+            self.ctx.positional_wake(cx.waker().clone());
+            return Poll::Pending;
+        }
+
+        Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
+            Some(s) if s.starts_with('-') => Err(Error::Invalid),
+            Some(s) => {
+                self.ctx.advance(1);
+                Ok(s.as_str())
+            }
+            None => Err(Error::Missing),
+        })
+    }
+}
+
 pub(crate) struct NamedFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) ctx: Ctx<'a>,
@@ -395,6 +428,7 @@ struct Runner<'ctx> {
     ids: HashSet<Id>,
     tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
     named: BTreeMap<Name<'static>, Id>,
+    positional: Vec<Id>,
 
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
@@ -492,6 +526,11 @@ impl<'a> Runner<'a> {
                 self.named.insert(*name, id);
             }
         }
+        for waker in shared.positional.drain(..) {
+            changed = true;
+            let id = self.resolve(&waker);
+            self.positional.push(id);
+        }
         changed
     }
 
@@ -524,7 +563,9 @@ impl<'a> Runner<'a> {
             } else if let Some(short) = front.strip_prefix("-") {
                 Name::Short(short.chars().next().unwrap())
             } else {
-                todo!("nothing matches, time to complain");
+                // TODO - make sure positional items are actually present
+                self.ids.insert(self.positional.remove(0));
+                return;
             };
             println!("{:?}", self.named);
             match self.named.get(&name).copied() {
@@ -552,14 +593,16 @@ impl<'a> Runner<'a> {
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
     {
+        let root_id = self.next_id();
+
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
         let mut handle = pin!(self
             .ctx
-            .spawn(Parent::new(Id(0), 0, NodeKind::Prod), parser));
-        let root_waker = self.waker_for(Id(0));
+            .spawn(Parent::new(root_id, 0, NodeKind::Prod), parser));
+        let root_waker = self.waker_for(root_id);
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
@@ -583,19 +626,19 @@ impl<'a> Runner<'a> {
                 }
             }
 
-            self.parsers_for_next_word();
             self.schedule_pending();
+            self.parsers_for_next_word();
 
             if self.ids.is_empty() {
-                if self.named.is_empty() {
-                    println!("we are done, let's finish !, {:?}", self.named);
+                for id in self.named.values() {
+                    println!("waking {id:?} to handle noparse");
+                    self.ids.insert(*id);
+                }
+                self.named.clear();
+                self.ids.extend(self.positional.drain(..));
+
+                if self.ids.is_empty() {
                     break;
-                } else {
-                    for id in self.named.values() {
-                        println!("waking {id:?} to handle noparse");
-                        self.ids.insert(*id);
-                    }
-                    self.named.clear();
                 }
             }
 
@@ -615,6 +658,7 @@ impl<'a> Runner<'a> {
                     let consumed = after - before;
                     max_consumed = consumed.max(max_consumed);
                     par.push((consumed, id));
+                    println!("{id:?} consumed {consumed}!");
                 }
                 par.retain(|(len, _id)| *len == max_consumed);
             }
@@ -627,7 +671,7 @@ impl<'a> Runner<'a> {
         }
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
-            Poll::Pending => todo!(),
+            Poll::Pending => panic!("process is complete but somehow we don't have a result o_O"),
         }
     }
 
@@ -710,6 +754,17 @@ fn alt_of_req() {
     assert_eq!(r, Ok('b'));
 }
 
+#[test]
+fn simple_positional() {
+    let a = positional::<String>("ARG");
+
+    let r = parse_args(&a, &[]);
+    assert_eq!(r, Err(Error::Missing));
+
+    let r = parse_args(&a, &["item".into()]);
+    assert_eq!(r.as_deref(), Ok("item"));
+}
+
 struct Alt<T: Clone + 'static> {
     items: Vec<Box<dyn Parser<T>>>,
 }
@@ -763,9 +818,11 @@ impl Future for ChildErrors {
     }
 }
 
+// what do I need from the forest?
+// positional items need to go to priority forest
 type Forest = HashMap<Id, Node>;
 #[derive(Debug)]
 struct Node {
     ty: NodeKind,
-    children: Vec<(Id, u32)>,
+    children: Vec<(Id, /* field */ u32)>,
 }

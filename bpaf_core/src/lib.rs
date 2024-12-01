@@ -2,7 +2,6 @@
 
 mod visitor;
 
-use ex4::Ctx;
 use ex4::Fragment;
 use named::Argument;
 use named::Flag;
@@ -191,7 +190,12 @@ mod named {
 }
 
 mod positional {
-    use std::marker::PhantomData;
+    use std::{marker::PhantomData, str::FromStr};
+
+    use crate::{
+        ex4::{Ctx, Error, PositionalFut},
+        Parser,
+    };
     pub struct Positional<T> {
         meta: &'static str,
         help: Option<String>,
@@ -209,6 +213,22 @@ mod positional {
             self.help = Some(help);
         }
     }
+
+    impl<T> Parser<T> for Positional<T>
+    where
+        T: std::fmt::Debug + 'static + FromStr,
+    {
+        fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::ex4::Fragment<'a, T> {
+            Box::pin(async {
+                let s = PositionalFut {
+                    ctx,
+                    registered: false,
+                }
+                .await;
+                T::from_str(s?).map_err(|_| Error::Invalid)
+            })
+        }
+    }
 }
 
 pub use ex4::Parser;
@@ -218,7 +238,7 @@ where
     P: Parser<T>,
     T: 'static + std::fmt::Debug,
 {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+    fn run<'a>(&'a self, ctx: ex4::Ctx<'a>) -> Fragment<'a, T> {
         self.0.run(ctx)
     }
 }
