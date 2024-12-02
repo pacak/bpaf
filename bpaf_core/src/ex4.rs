@@ -1,7 +1,7 @@
 #![allow(unused_imports, dead_code, unused_variables)]
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fmt::Debug,
     future::Future,
     marker::PhantomData,
@@ -29,6 +29,14 @@ enum NodeKind {
 impl Id {
     fn sum(self, field: u32) -> Parent {
         Parent {
+            kind: NodeKind::Sum,
+            id: self,
+            field,
+        }
+    }
+
+    fn prod(self, field: u32) -> Parent {
+        Parent {
             kind: NodeKind::Prod,
             id: self,
             field,
@@ -48,8 +56,12 @@ impl Parent {
     }
 }
 
+type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
+
 struct Task<'a> {
-    act: Pin<Box<dyn Future<Output = Option<Error>> + 'a>>,
+    action: Action<'a>,
+    branch: BranchId,
+    waker: Waker,
 }
 
 pub struct RawCtx<'a> {
@@ -78,7 +90,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 
 #[derive(Default)]
 struct Pending<'a> {
-    spawn: Vec<(Parent, Task<'a>)>,
+    spawn: Vec<(Parent, Action<'a>)>,
     named: Vec<(&'a [Name<'static>], Waker)>,
     positional: Vec<Waker>,
 }
@@ -102,6 +114,7 @@ where
         private: Default::default(),
         next_task_id: 0,
         positional: Vec::new(),
+        family: Default::default(),
     };
     runner.run_parser(parser)
 }
@@ -125,7 +138,9 @@ impl<T> Drop for ExitHandle<T> {
         let Some(waker) = self.waker.take() else {
             return;
         };
-        println!("dropped handle  ");
+        let x = self.result.replace(Some(Err(Error::Killed)));
+        assert!(x.is_none(), "Cloned ExitHandle?");
+        println!("dropped handle");
     }
 }
 
@@ -184,7 +199,7 @@ impl<'a> Ctx<'a> {
             }
             out
         });
-        self.start_task(parent, Task { act });
+        self.start_task(parent, act);
         join
     }
 
@@ -205,7 +220,7 @@ impl<'a> Ctx<'a> {
         todo!()
     }
 
-    fn start_task(&self, parent: Parent, task: Task<'a>) {
+    fn start_task(&self, parent: Parent, task: Action<'a>) {
         println!("starting a task");
 
         self.shared.borrow_mut().spawn.push((parent, task));
@@ -416,12 +431,6 @@ impl Future for NamedFut<'_> {
     }
 }
 
-struct DummyWaker;
-
-impl Wake for DummyWaker {
-    fn wake(self: std::sync::Arc<Self>) {}
-}
-
 struct WakeTask {
     id: Id,
     pending: Arc<Mutex<Vec<Id>>>,
@@ -440,9 +449,10 @@ struct Runner<'ctx> {
     /// A private copy of ctx
     private: RefCell<Pending<'ctx>>,
     ids: HashSet<Id>,
-    tasks: BTreeMap<Id, (Task<'ctx>, Waker)>,
+    tasks: BTreeMap<Id, (Action<'ctx>, Waker)>,
     named: BTreeMap<Name<'static>, Id>,
     positional: Vec<Id>,
+    family: FamilyTree,
 
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
@@ -496,13 +506,13 @@ fn split_param(value: &str) -> Arg {
 }
 
 impl<'a> Runner<'a> {
-    fn waker_for(&self, id: Id) -> Waker {
-        Waker::from(Arc::new(WakeTask {
-            id,
-            pending: self.pending.clone(),
-        }))
+    /// Create waker for a task with a given ID
+    fn waker_for_id(&self, id: Id) -> Waker {
+        let pending = self.pending.clone();
+        Waker::from(Arc::new(WakeTask { id, pending }))
     }
 
+    /// Get a task ID for the waker
     fn resolve(&self, waker: &Waker) -> Id {
         waker.wake_by_ref();
         self.pending
@@ -519,13 +529,14 @@ impl<'a> Runner<'a> {
         for (parent, mut task) in shared.spawn.drain(..) {
             let id = Id(self.next_task_id);
             self.next_task_id += 1;
-            let waker = self.waker_for(id);
+            let waker = self.waker_for_id(id);
             changed = true;
 
             let mut cx = Context::from_waker(&waker);
             println!("Polling freshly spawned {id:?}");
             *self.ctx.current_task.borrow_mut() = Some(id);
-            if task.act.as_mut().poll(&mut cx).is_pending() {
+            if task.as_mut().poll(&mut cx).is_pending() {
+                self.family.insert(parent, id);
                 self.tasks.insert(id, (task, waker));
             } else {
                 println!("done already");
@@ -548,17 +559,19 @@ impl<'a> Runner<'a> {
         changed
     }
 
-    fn schedule_pending(&mut self) {
+    /// Add task IDs from waker list into `ids`
+    fn schedule_from_wakers(&mut self) {
         self.ids
             .extend(self.pending.lock().expect("poison").drain(..));
     }
+
     fn run_scheduled(&mut self) -> bool {
         let changes = self.ids.is_empty();
         for id in self.ids.drain() {
             if let Some((task, waker)) = self.tasks.get_mut(&id) {
                 let mut cx = Context::from_waker(waker);
                 *self.ctx.current_task.borrow_mut() = Some(id);
-                if task.act.as_mut().poll(&mut cx).is_ready() {
+                if task.as_mut().poll(&mut cx).is_ready() {
                     println!("Task {id:?} is done");
                     self.tasks.remove(&id);
                 }
@@ -568,6 +581,7 @@ impl<'a> Runner<'a> {
         !changes
     }
 
+    /// Populate ids with tasks that subscribed for the next token
     fn parsers_for_next_word(&mut self) {
         println!("currently args are {:?}[{:?}]", self.ctx.args, self.ctx.cur);
         // first we need to decide what parsers to run
@@ -616,13 +630,14 @@ impl<'a> Runner<'a> {
         let mut handle = pin!(self
             .ctx
             .spawn(Parent::new(root_id, 0, NodeKind::Prod), parser));
-        let root_waker = self.waker_for(root_id);
+        let root_waker = self.waker_for_id(root_id);
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
         // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
         if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
+            // TODO
             assert_eq!(self.ctx.cur(), self.ctx.args.len());
             return r;
         }
@@ -633,14 +648,14 @@ impl<'a> Runner<'a> {
             // make sure things propagate. this might take several loops
             loop {
                 while self.handle_shared() {
-                    self.schedule_pending();
+                    self.schedule_from_wakers();
                 }
                 if !self.run_scheduled() {
                     break;
                 }
             }
 
-            self.schedule_pending();
+            self.schedule_from_wakers();
             self.parsers_for_next_word();
 
             if self.ids.is_empty() {
@@ -660,23 +675,25 @@ impl<'a> Runner<'a> {
             // actual feed consumption happens here
             let mut max_consumed = 0;
             for id in self.ids.drain() {
+                // each scheduled task gets a chance to run,
                 if let Some((task, waker)) = self.tasks.get_mut(&id) {
-                    let before = self.ctx.cur();
-                    let mut cx = Context::from_waker(waker);
-                    if task.act.as_mut().poll(&mut cx).is_ready() {
-                        println!("task {id:?} is done from parse");
+                    let (poll, consumed) = run_task(task, waker, &self.ctx);
+                    if let Poll::Ready(r) = poll {
+                        if let Some(err) = r {
+                            print!("check if parent is interested in this error {err:?}");
+                        }
                         self.tasks.remove(&id);
                     }
-                    let after = self.ctx.cur();
-                    self.ctx.set_cur(before);
-                    let consumed = after - before;
                     max_consumed = consumed.max(max_consumed);
                     par.push((consumed, id));
                     println!("{id:?} consumed {consumed}!");
+                } else {
+                    //                    todo!("task was scheduled yet is terminated somehow");
                 }
                 par.retain(|(len, _id)| *len == max_consumed);
             }
 
+            println!(" forst: {:?}", self.family);
             // next task is to go over all the `par` results up to root, mark
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
@@ -694,6 +711,18 @@ impl<'a> Runner<'a> {
         self.next_task_id += 1;
         Id(id)
     }
+}
+
+/// Run a task in a context, return number of items consumed an a result
+///
+/// does not advance the pointer
+fn run_task(task: &mut Action, waker: &Waker, ctx: &Ctx) -> (Poll<Option<Error>>, usize) {
+    let before = ctx.cur();
+    let mut cx = Context::from_waker(waker);
+    let r = task.as_mut().poll(&mut cx);
+    let after = ctx.cur();
+    ctx.set_cur(before);
+    (r, after - before)
 }
 
 impl RawCtx<'_> {
@@ -771,11 +800,171 @@ impl Future for ChildErrors {
     }
 }
 
-// what do I need from the forest?
-// positional items need to go to priority forest
-type Forest = HashMap<Id, Node>;
+use family::FamilyTree;
+mod family {
+    use std::collections::{BTreeMap, HashMap};
+
+    use super::{Action, Id, NodeKind, Parent};
+
+    #[derive(Debug)]
+    struct Node {
+        ty: NodeKind,
+        children: BTreeMap<u32, Id>,
+    }
+
+    // For any node I need to be able to find all sum siblings
+    // and order prod siblings in a pecking order
+    #[derive(Debug, Default)]
+    pub(crate) struct FamilyTree {
+        children: HashMap<Id, Node>,  // parent -> children
+        parents: HashMap<Id, Parent>, // child -> parent
+    }
+
+    impl FamilyTree {
+        pub(crate) fn insert(&mut self, parent: Parent, id: Id) {
+            self.parents.insert(id, parent);
+            let entry = self.children.entry(parent.id).or_insert(Node {
+                ty: parent.kind,
+                children: BTreeMap::new(),
+            });
+            entry.children.insert(parent.field, id);
+        }
+
+        pub(crate) fn remove(&mut self, id: Id) {
+            use std::collections::hash_map::Entry;
+            let Some(parent) = self.parents.remove(&id) else {
+                return;
+            };
+            let Entry::Occupied(mut e) = self.children.entry(parent.id) else {
+                return;
+            };
+            e.get_mut().children.remove(&parent.field);
+        }
+        //        fn missing_siblings(&self) {}
+
+        fn top_sum_parent(&self, mut id: Id) -> Option<Id> {
+            let mut best = None;
+            while let Some(parent) = self.parents.get(&id) {
+                println!("{:?} -> {:?}", id, parent);
+                if parent.kind == NodeKind::Sum {
+                    best = Some(parent.id);
+                }
+                id = parent.id;
+            }
+            best
+        }
+    }
+
+    //
+
+    // [[X, x], x] => [[X, _], _]
+    // [[x, x], X] => [_, X]
+
+    // [[X, (x, [x, x])], x] => [[X, _], _]
+    // [[x, (X, [x, x])], x] => [[_, (X, [x, x])]
+    // [[x, (x, [x, x])], x]
+
+    #[test]
+    fn alt_parent_1() {
+        let mut f = FamilyTree::default();
+        f.insert(Id(0).sum(0), Id(1));
+        f.insert(Id(1).sum(0), Id(2));
+        f.insert(Id(1).sum(1), Id(3));
+
+        assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap());
+        assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap());
+        assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap());
+
+        f.remove(Id(3));
+        f.remove(Id(2));
+        todo!("{f:?}");
+    }
+}
+
+// For every Sum, as soon as we start making any progress with any branch, no matter how deep - we
+// must terminate all branches that don't make progress
+//
+// ways to imlement it:
+// - user land and executor - user land subscribes to advances and reports upstream, deals with
+//   child termination
+//   + the same logic can be reused in many-unadjacent
+//   - lots of back and forth across the boundary
+//
+// - executor only with "sets" - propagates and terminates tasks... mark'n'sweep?
+//   every child that finishes marks child node of a sum parent up to the top most branch
+//   then second pass goes though marked nodes,
+//   removes marks and kills children without marks
+//   + simple
+//   - many-unadjacent is still an open question...
+//
+// - every sum task has some notion of cursor position, children making progress
+//
+//
+// For every Prod positional items go sequentially - just put them in a vector
+// Every sibling of an alt can consume a separate instance ... positional
+// items go into a set of queues keyed by (Id, i32) and we can run one positional item from each
+// queue :)
+
+struct PosPrio {
+    prio: HashMap<Parent, VecDeque<Id>>,
+}
+
+// several named items with the same name in a product
+// go sequentially
+
+// For 'Any' - same idea as PosPrio, they just get to
+
+/// # Pecking order
+///
+/// For as long as there's only one task to wake up for the input - it is safe to just
+/// wake it up and be done with it, but users are allowed to specify multiple consumers for the
+/// same name as well as multiple positional consumers that don't have names at all. This requires
+/// deciding which parser gets to run first or gets to run at all.
+///
+/// Rules for priority are:
+///
+/// - sum branches run in parallel, left most wins if there's multiple successes
+/// - parsers inside a product run sequentially, left most wins
+///
+/// Therefore we are going to arrange tasks in following order:
+/// There's one queue for each branch_id (sum parent id + field), every queue contains
+/// items from the same product, so their priority is how far from the left end they are
+///
+/// "any" parsers get to run for both named and positional input inside their branch
+/// accoding to their priority, if at the front. Consider a few queues
+/// - `[named, any]` - `any` doesn't run since `named` takes priority
+/// - `[any1, named, any2]` - `any1` runs, if it fails to match anything - `named` runs.
+/// - `[any1, any2, named]` - `any1` runs, if not - `any2`, if not - `named`
+///
+/// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
+///
+///
+/// # Operations needed
+///
+/// - `Pecking::insert`
+/// - `Pecking::select`
+/// - `Pecking::remove`?
 #[derive(Debug)]
-struct Node {
-    ty: NodeKind,
-    children: Vec<(Id, /* field */ u32)>,
+enum Pecking {
+    /// No parsers at all, this makes sense for `positional` and `any` items, with
+    /// named might as well drop the parser
+    Empty,
+
+    /// A single parser
+    ///
+    /// Usually a unique named argument or a single positional item to the parser
+    Single(Id),
+    /// There's multiple parsers, but they all belong to the same queue
+    ///
+    /// Several positional items
+    Queue(VecDeque<Id>),
+
+    /// Multiple alternative branches, VecDeque contains at least one item
+    Forest(HashMap<BranchId, VecDeque<Id>>),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+struct BranchId {
+    parent: Id,
+    field: u32,
 }
