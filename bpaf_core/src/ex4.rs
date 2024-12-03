@@ -18,6 +18,9 @@ use crate::{long, named::Name, positional};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 struct Id(u32);
+impl Id {
+    const ROOT: Self = Self(0);
+}
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 
@@ -64,7 +67,18 @@ struct Task<'a> {
     waker: Waker,
 }
 
+impl Task<'_> {
+    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<Option<Error>> {
+        *ctx.current_task.borrow_mut() = Some(id);
+        let mut cx = Context::from_waker(&self.waker);
+        let poll = self.action.as_mut().poll(&mut cx);
+        *ctx.current_task.borrow_mut() = None;
+        poll
+    }
+}
+
 pub struct RawCtx<'a> {
+    /// Gets populated with current taskid when it is running
     current_task: RefCell<Option<Id>>,
     /// All the arguments passed to the app including the app name in 0th
     args: &'a [String],
@@ -186,13 +200,10 @@ impl<'a> Ctx<'a> {
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
     {
-        println!("spawning {parent:?}");
         let ctx = self.clone();
         let (exit, join) = fork();
         let act = Box::pin(async move {
-            println!("Waiting on spawned task");
             let r = parser.run(ctx).await;
-            println!("we a got a result {r:?}");
             let out = r.as_ref().err().cloned();
             if let Ok(exit) = Rc::try_unwrap(exit) {
                 exit.exit_task(r);
@@ -221,8 +232,6 @@ impl<'a> Ctx<'a> {
     }
 
     fn start_task(&self, parent: Parent, task: Action<'a>) {
-        println!("starting a task");
-
         self.shared.borrow_mut().spawn.push((parent, task));
     }
 }
@@ -449,7 +458,7 @@ struct Runner<'ctx> {
     /// A private copy of ctx
     private: RefCell<Pending<'ctx>>,
     ids: HashSet<Id>,
-    tasks: BTreeMap<Id, (Action<'ctx>, Waker)>,
+    tasks: BTreeMap<Id, Task<'ctx>>,
     named: BTreeMap<Name<'static>, Id>,
     positional: Vec<Id>,
     family: FamilyTree,
@@ -526,22 +535,27 @@ impl<'a> Runner<'a> {
         let mut changed = false;
         self.private.swap(&self.ctx.shared);
         let mut shared = self.private.borrow_mut();
-        for (parent, mut task) in shared.spawn.drain(..) {
+        for (parent, action) in shared.spawn.drain(..) {
             let id = Id(self.next_task_id);
             self.next_task_id += 1;
             let waker = self.waker_for_id(id);
             changed = true;
 
-            let mut cx = Context::from_waker(&waker);
-            println!("Polling freshly spawned {id:?}");
-            *self.ctx.current_task.borrow_mut() = Some(id);
-            if task.as_mut().poll(&mut cx).is_pending() {
+            let mut task = Task {
+                action,
+                waker,
+                // start with a dummy branch, populate it with a real one if
+                // we end up storing it
+                branch: BranchId::ROOT,
+            };
+
+            if task.poll(id, &self.ctx).is_pending() {
                 self.family.insert(parent, id);
-                self.tasks.insert(id, (task, waker));
+                task.branch = self.family.branch_for(id);
+                self.tasks.insert(id, task);
             } else {
                 println!("done already");
             }
-            *self.ctx.current_task.borrow_mut() = None;
         }
 
         for (names, waker) in shared.named.drain(..) {
@@ -568,14 +582,14 @@ impl<'a> Runner<'a> {
     fn run_scheduled(&mut self) -> bool {
         let changes = self.ids.is_empty();
         for id in self.ids.drain() {
-            if let Some((task, waker)) = self.tasks.get_mut(&id) {
-                let mut cx = Context::from_waker(waker);
-                *self.ctx.current_task.borrow_mut() = Some(id);
-                if task.as_mut().poll(&mut cx).is_ready() {
+            if let Some(task) = self.tasks.get_mut(&id) {
+                if let Poll::Ready(res) = task.poll(id, &self.ctx) {
+                    if let Some(err) = res {
+                        println!("task failed, see if parent cares");
+                    }
                     println!("Task {id:?} is done");
                     self.tasks.remove(&id);
                 }
-                *self.ctx.current_task.borrow_mut() = None;
             }
         }
         !changes
@@ -676,8 +690,8 @@ impl<'a> Runner<'a> {
             let mut max_consumed = 0;
             for id in self.ids.drain() {
                 // each scheduled task gets a chance to run,
-                if let Some((task, waker)) = self.tasks.get_mut(&id) {
-                    let (poll, consumed) = run_task(task, waker, &self.ctx);
+                if let Some(task) = self.tasks.get_mut(&id) {
+                    let (poll, consumed) = run_task(task, &self.ctx);
                     if let Poll::Ready(r) = poll {
                         if let Some(err) = r {
                             print!("check if parent is interested in this error {err:?}");
@@ -716,10 +730,10 @@ impl<'a> Runner<'a> {
 /// Run a task in a context, return number of items consumed an a result
 ///
 /// does not advance the pointer
-fn run_task(task: &mut Action, waker: &Waker, ctx: &Ctx) -> (Poll<Option<Error>>, usize) {
+fn run_task(task: &mut Task, ctx: &Ctx) -> (Poll<Option<Error>>, usize) {
     let before = ctx.cur();
-    let mut cx = Context::from_waker(waker);
-    let r = task.as_mut().poll(&mut cx);
+    let mut cx = Context::from_waker(&task.waker);
+    let r = task.action.as_mut().poll(&mut cx);
     let after = ctx.cur();
     ctx.set_cur(before);
     (r, after - before)
@@ -804,7 +818,7 @@ use family::FamilyTree;
 mod family {
     use std::collections::{BTreeMap, HashMap};
 
-    use super::{Action, Id, NodeKind, Parent};
+    use super::{Action, BranchId, Id, NodeKind, Parent};
 
     #[derive(Debug)]
     struct Node {
@@ -839,19 +853,30 @@ mod family {
                 return;
             };
             e.get_mut().children.remove(&parent.field);
+            self.children.remove(&id);
         }
         //        fn missing_siblings(&self) {}
 
-        fn top_sum_parent(&self, mut id: Id) -> Option<Id> {
+        fn top_sum_parent(&self, mut id: Id) -> Option<Parent> {
             let mut best = None;
             while let Some(parent) = self.parents.get(&id) {
                 println!("{:?} -> {:?}", id, parent);
                 if parent.kind == NodeKind::Sum {
-                    best = Some(parent.id);
+                    best = Some(*parent);
                 }
                 id = parent.id;
             }
             best
+        }
+
+        pub(crate) fn branch_for(&self, id: Id) -> BranchId {
+            match self.top_sum_parent(id) {
+                Some(p) => BranchId {
+                    parent: p.id,
+                    field: p.field,
+                },
+                None => BranchId::ROOT,
+            }
         }
     }
 
@@ -871,13 +896,16 @@ mod family {
         f.insert(Id(1).sum(0), Id(2));
         f.insert(Id(1).sum(1), Id(3));
 
-        assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap());
-        assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap());
-        assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap());
+        assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap().id);
+        assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap().id);
+        assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap().id);
 
         f.remove(Id(3));
         f.remove(Id(2));
-        todo!("{f:?}");
+        f.remove(Id(1));
+
+        assert_eq!(f.children.len(), 1, "{f:?}");
+        assert_eq!(f.parents.len(), 0);
     }
 }
 
@@ -967,4 +995,11 @@ enum Pecking {
 struct BranchId {
     parent: Id,
     field: u32,
+}
+
+impl BranchId {
+    const ROOT: Self = Self {
+        parent: Id::ROOT,
+        field: 0,
+    };
 }
