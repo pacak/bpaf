@@ -109,14 +109,14 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 pub struct NamedFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) registered: Option<Id>,
+    pub(crate) task_id: Option<Id>,
 }
 
 impl Drop for NamedFut<'_> {
     fn drop(&mut self) {
         println!(
             "Should no longer accept {:?} for {:?}",
-            self.name, self.registered
+            self.name, self.task_id
         );
     }
 }
@@ -128,13 +128,13 @@ impl Future for NamedFut<'_> {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        if self.registered.is_none() {
-            self.registered = Some(self.ctx.current_id());
+        if self.task_id.is_none() {
+            self.task_id = self.ctx.current_task();
             self.ctx.named_wake(self.name, cx.waker().clone());
             return Poll::Pending;
         }
 
-        self.registered = None;
+        self.task_id = None;
         let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
             return Poll::Ready(Err(Error::Missing));
         };
