@@ -89,7 +89,7 @@ pub struct RawCtx<'a> {
     /// Current cursor position
     cur: AtomicUsize,
     /// through this tasks can request event scheduling, etc
-    shared: RefCell<Pending<'a>>,
+    shared: RefCell<Vec<Op<'a>>>,
 }
 
 #[derive(Clone)]
@@ -106,12 +106,24 @@ impl<'a> std::ops::Deref for Ctx<'a> {
     }
 }
 
-#[derive(Default)]
-struct Pending<'a> {
-    spawn: Vec<(Parent, Action<'a>)>,
-    named: Vec<(&'a [Name<'static>], Waker)>,
-    positional: Vec<Waker>,
+enum Op<'a> {
+    SpawnTask {
+        parent: Parent,
+        action: Action<'a>,
+    },
+    AddNamedListener {
+        names: &'a [Name<'static>],
+        waker: Waker,
+    },
+    RemoveNamedListener {
+        names: &'a [Name<'static>],
+        id: Id,
+    },
+    AddPositionalListener {
+        waker: Waker,
+    },
 }
+
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
@@ -162,20 +174,26 @@ impl<'a> Ctx<'a> {
     /// this needs name to know what to look for, waker since that's how futures work....
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
-    fn named_wake(&self, name: &'a [Name<'static>], waker: Waker) {
-        self.shared.borrow_mut().named.push((name, waker));
+    fn named_wake(&self, names: &'a [Name<'static>], waker: Waker) {
+        self.shared
+            .borrow_mut()
+            .push(Op::AddNamedListener { names, waker });
     }
 
     fn positional_wake(&self, waker: Waker) {
-        self.shared.borrow_mut().positional.push(waker)
+        self.shared
+            .borrow_mut()
+            .push(Op::AddPositionalListener { waker })
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
         todo!()
     }
 
-    fn start_task(&self, parent: Parent, task: Action<'a>) {
-        self.shared.borrow_mut().spawn.push((parent, task));
+    fn start_task(&self, parent: Parent, action: Action<'a>) {
+        self.shared
+            .borrow_mut()
+            .push(Op::SpawnTask { parent, action });
     }
 
     fn current_task(&self) -> Option<Id> {
@@ -335,7 +353,7 @@ struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
     /// A private copy of ctx
-    private: RefCell<Pending<'ctx>>,
+    private: RefCell<Vec<Op<'ctx>>>,
     ids: HashSet<Id>,
     tasks: BTreeMap<Id, Task<'ctx>>,
     named: BTreeMap<Name<'static>, Id>,
@@ -414,44 +432,49 @@ impl<'a> Runner<'a> {
         self.private.swap(&self.ctx.shared);
         let mut shared = self.private.borrow_mut();
 
-        let no_changes =
-            shared.spawn.is_empty() && shared.named.is_empty() && shared.positional.is_empty();
-        for (parent, action) in shared.spawn.drain(..) {
-            let id = Id(self.next_task_id);
-            self.next_task_id += 1;
-            let waker = self.waker_for_id(id);
+        if shared.is_empty() {
+            return false;
+        }
+        for item in shared.drain(..) {
+            match item {
+                Op::SpawnTask { parent, action } => {
+                    let id = Id(self.next_task_id);
+                    self.next_task_id += 1;
+                    let waker = self.waker_for_id(id);
 
-            let mut task = Task {
-                action,
-                waker,
-                // start with a dummy branch
-                branch: BranchId::ROOT,
-            };
+                    let mut task = Task {
+                        action,
+                        waker,
+                        // start with a dummy branch
+                        branch: BranchId::ROOT,
+                    };
 
-            if task.poll(id, &self.ctx).is_pending() {
-                // task is till pending, get real branch
-                self.family.insert(parent, id);
-                task.branch = self.family.branch_for(id);
-                println!("started {id:?} in {:?}", task.branch);
-                self.tasks.insert(id, task);
-            } else {
-                println!("done already");
+                    if task.poll(id, &self.ctx).is_pending() {
+                        // task is till pending, get real branch
+                        self.family.insert(parent, id);
+                        task.branch = self.family.branch_for(id);
+                        println!("started {id:?} in {:?}", task.branch);
+                        self.tasks.insert(id, task);
+                    } else {
+                        println!("done already");
+                    }
+                }
+                Op::AddNamedListener { names, waker } => {
+                    for name in names.iter() {
+                        let id = self.resolve(&waker);
+                        self.named.insert(*name, id);
+                    }
+                }
+                Op::AddPositionalListener { waker } => {
+                    let id = self.resolve(&waker);
+                    let branch = self.family.branch_for(id);
+                    self.positional.insert(id, branch);
+                    println!("positional: {:?}", self.positional);
+                }
+                Op::RemoveNamedListener { names, id } => todo!(),
             }
         }
-
-        for (names, waker) in shared.named.drain(..) {
-            for name in names.iter() {
-                let id = self.resolve(&waker);
-                self.named.insert(*name, id);
-            }
-        }
-        for waker in shared.positional.drain(..) {
-            let id = self.resolve(&waker);
-            let branch = self.family.branch_for(id);
-            self.positional.insert(id, branch);
-            println!("positional: {:?}", self.positional);
-        }
-        !no_changes
+        true
     }
 
     /// Add task IDs from waker list into `ids`
