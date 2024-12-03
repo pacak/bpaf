@@ -104,7 +104,7 @@ mod named {
             Box::pin(NamedFut {
                 name: self.names.as_slice(),
                 ctx,
-                registered: false,
+                registered: None,
             })
         }
     }

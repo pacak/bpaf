@@ -21,7 +21,7 @@ mod futures;
 pub use futures::*;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-struct Id(u32);
+pub(crate) struct Id(u32);
 impl Id {
     const ROOT: Self = Self(0);
 }
