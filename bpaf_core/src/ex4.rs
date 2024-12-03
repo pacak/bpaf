@@ -177,6 +177,10 @@ impl<'a> Ctx<'a> {
     fn start_task(&self, parent: Parent, task: Action<'a>) {
         self.shared.borrow_mut().spawn.push((parent, task));
     }
+
+    fn current_task(&self) -> Option<Id> {
+        *self.current_task.borrow()
+    }
 }
 
 impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
