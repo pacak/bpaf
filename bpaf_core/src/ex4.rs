@@ -447,7 +447,7 @@ struct WakeTask {
 
 impl Wake for WakeTask {
     fn wake(self: std::sync::Arc<Self>) {
-        println!("will try to wake up {:?}", self.id);
+        // println!("will try to wake up {:?}", self.id);
         self.pending.lock().expect("poison").push(self.id);
     }
 }
@@ -532,26 +532,28 @@ impl<'a> Runner<'a> {
     }
 
     fn handle_shared(&mut self) -> bool {
-        let mut changed = false;
         self.private.swap(&self.ctx.shared);
         let mut shared = self.private.borrow_mut();
+
+        let no_changes =
+            shared.spawn.is_empty() && shared.named.is_empty() && shared.positional.is_empty();
         for (parent, action) in shared.spawn.drain(..) {
             let id = Id(self.next_task_id);
             self.next_task_id += 1;
             let waker = self.waker_for_id(id);
-            changed = true;
 
             let mut task = Task {
                 action,
                 waker,
-                // start with a dummy branch, populate it with a real one if
-                // we end up storing it
+                // start with a dummy branch
                 branch: BranchId::ROOT,
             };
 
             if task.poll(id, &self.ctx).is_pending() {
+                // task is till pending, get real branch
                 self.family.insert(parent, id);
                 task.branch = self.family.branch_for(id);
+                println!("started {id:?} in {:?}", task.branch);
                 self.tasks.insert(id, task);
             } else {
                 println!("done already");
@@ -559,18 +561,17 @@ impl<'a> Runner<'a> {
         }
 
         for (names, waker) in shared.named.drain(..) {
-            changed = true;
             for name in names.iter() {
                 let id = self.resolve(&waker);
                 self.named.insert(*name, id);
             }
         }
         for waker in shared.positional.drain(..) {
-            changed = true;
             let id = self.resolve(&waker);
             self.positional.push(id);
+            println!("positional: {:?}", self.positional);
         }
-        changed
+        !no_changes
     }
 
     /// Add task IDs from waker list into `ids`
@@ -860,7 +861,6 @@ mod family {
         fn top_sum_parent(&self, mut id: Id) -> Option<Parent> {
             let mut best = None;
             while let Some(parent) = self.parents.get(&id) {
-                println!("{:?} -> {:?}", id, parent);
                 if parent.kind == NodeKind::Sum {
                     best = Some(*parent);
                 }
