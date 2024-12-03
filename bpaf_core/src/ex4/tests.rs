@@ -69,3 +69,42 @@ fn simple_positional() {
     let r = parse_args(&a, &["item".into()]);
     assert_eq!(r.as_deref(), Ok("item"));
 }
+
+#[test]
+fn pair_of_positionals() {
+    let alice = positional::<u32>("ALICE");
+    let bob = positional::<u32>("BOB");
+    let both = Pair(alice, bob);
+
+    let r = parse_args(&both, &["1".into(), "2".into()]);
+    assert_eq!(r, Ok((1, 2)));
+
+    let r = parse_args(&both, &["1".into()]);
+    assert_eq!(r, Err(Error::Missing));
+
+    let r = parse_args(&both, &[]);
+    assert_eq!(r, Err(Error::Missing));
+}
+
+#[test]
+fn badly_emulated_args() {
+    let alice_f = long("alice").req_flag('a').into_box();
+    let bob_f = long("bob").req_flag('b').into_box();
+    let alice_p = positional::<u32>("ALICE");
+    let bob_p = positional::<u32>("BOB");
+    let alice = Pair(alice_f, alice_p).into_box();
+    let bob = Pair(bob_f, bob_p).into_box();
+
+    let alt = Alt {
+        items: vec![alice, bob],
+    };
+
+    // let r = parse_args(&alt, &["--alice".into(), "--bob".into()]);
+    // assert_eq!(r, Err(Error::Invalid));
+
+    // let r = parse_args(&alt, &["--alice".into(), "10".into()]);
+    // assert_eq!(r, Ok(('a', 10)));
+
+    let r = parse_args(&alt, &["--bob".into(), "20".into()]);
+    assert_eq!(r, Ok(('b', 20)));
+}
