@@ -12,6 +12,7 @@ use std::{
         Arc, Mutex,
     },
     task::{Context, Poll, Wake, Waker},
+    vec,
 };
 
 use crate::{long, named::Name, positional};
@@ -127,7 +128,7 @@ where
         pending: Default::default(),
         private: Default::default(),
         next_task_id: 0,
-        positional: Vec::new(),
+        positional: Default::default(),
         family: Default::default(),
     };
     runner.run_parser(parser)
@@ -460,7 +461,7 @@ struct Runner<'ctx> {
     ids: HashSet<Id>,
     tasks: BTreeMap<Id, Task<'ctx>>,
     named: BTreeMap<Name<'static>, Id>,
-    positional: Vec<Id>,
+    positional: Pecking,
     family: FamilyTree,
 
     /// id to wake up
@@ -568,7 +569,8 @@ impl<'a> Runner<'a> {
         }
         for waker in shared.positional.drain(..) {
             let id = self.resolve(&waker);
-            self.positional.push(id);
+            let branch = self.family.branch_for(id);
+            self.positional.insert(id, branch);
             println!("positional: {:?}", self.positional);
         }
         !no_changes
@@ -606,8 +608,10 @@ impl<'a> Runner<'a> {
             } else if let Some(short) = front.strip_prefix("-") {
                 Name::Short(short.chars().next().unwrap())
             } else {
-                // TODO - make sure positional items are actually present
-                self.ids.insert(self.positional.remove(0));
+                let x = self.positional.pop_front(&mut self.ids);
+                if x == 0 {
+                    panic!("no positionals");
+                }
                 return;
             };
             println!("{:?}", self.named);
@@ -679,7 +683,7 @@ impl<'a> Runner<'a> {
                     self.ids.insert(*id);
                 }
                 self.named.clear();
-                self.ids.extend(self.positional.drain(..));
+                self.positional.drain_to(&mut self.ids);
 
                 if self.ids.is_empty() {
                     break;
@@ -972,23 +976,110 @@ struct PosPrio {
 /// - `Pecking::insert`
 /// - `Pecking::select`
 /// - `Pecking::remove`?
-#[derive(Debug)]
+#[derive(Debug, Default)]
 enum Pecking {
     /// No parsers at all, this makes sense for `positional` and `any` items, with
     /// named might as well drop the parser
+    #[default]
     Empty,
 
     /// A single parser
     ///
     /// Usually a unique named argument or a single positional item to the parser
-    Single(Id),
+    Single(BranchId, Id),
     /// There's multiple parsers, but they all belong to the same queue
     ///
     /// Several positional items
-    Queue(VecDeque<Id>),
+    Queue(BranchId, VecDeque<Id>),
 
     /// Multiple alternative branches, VecDeque contains at least one item
     Forest(HashMap<BranchId, VecDeque<Id>>),
+}
+
+impl Pecking {
+    fn insert(&mut self, id: Id, branch: BranchId) {
+        match self {
+            Pecking::Empty => *self = Pecking::Single(branch, id),
+            Pecking::Single(prev_bi, prev_id) => {
+                if *prev_bi == branch {
+                    let mut queue = VecDeque::new();
+                    queue.push_back(*prev_id);
+                    queue.push_back(id);
+                    *self = Pecking::Queue(branch, queue)
+                } else {
+                    let mut forest = HashMap::new();
+                    let mut queue = VecDeque::new();
+                    queue.push_back(*prev_id);
+                    forest.insert(*prev_bi, queue);
+
+                    let mut queue = VecDeque::new();
+                    queue.push_back(id);
+                    forest.insert(branch, queue);
+                    *self = Pecking::Forest(forest)
+                }
+            }
+            Pecking::Queue(prev_bi, vec_deque) => {
+                if *prev_bi == branch {
+                    vec_deque.push_back(id);
+                } else {
+                    let mut forest = HashMap::new();
+                    forest.insert(*prev_bi, std::mem::take(vec_deque));
+                    let mut queue = VecDeque::new();
+                    queue.push_back(id);
+                    forest.insert(branch, queue);
+                    *self = Pecking::Forest(forest);
+                }
+            }
+            Pecking::Forest(forest) => {
+                forest.entry(branch).or_default().push_back(id);
+            }
+        }
+    }
+
+    fn pop_front(&mut self, ids: &mut HashSet<Id>) -> usize {
+        match self {
+            Pecking::Empty => 0,
+            Pecking::Single(branch_id, id) => {
+                ids.insert(*id);
+                *self = Pecking::Empty;
+                1
+            }
+            Pecking::Queue(branch_id, vec_deque) => {
+                if let Some(f) = vec_deque.pop_front() {
+                    ids.insert(f);
+                    1
+                } else {
+                    0
+                }
+            }
+            Pecking::Forest(hash_map) => {
+                let mut cnt = 0;
+                for m in hash_map.values_mut() {
+                    if let Some(f) = m.pop_front() {
+                        ids.insert(f);
+                        cnt += 1;
+                    }
+                }
+                cnt
+            }
+        }
+    }
+
+    fn drain_to(&mut self, ids: &mut HashSet<Id>) {
+        match self {
+            Pecking::Empty => {}
+            Pecking::Single(branch_id, id) => {
+                ids.insert(*id);
+            }
+            Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
+            Pecking::Forest(hash_map) => {
+                for mut queue in std::mem::take(hash_map).into_values() {
+                    ids.extend(queue.drain(..));
+                }
+            }
+        }
+        *self = Pecking::Empty;
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
