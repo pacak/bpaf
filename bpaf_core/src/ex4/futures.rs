@@ -1,6 +1,6 @@
 use crate::named::Name;
 
-use super::{split_param, Arg, Ctx, Error, Id};
+use super::{split_param, Arg, Ctx, Error, Id, Op};
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
@@ -114,10 +114,13 @@ pub struct NamedFut<'a> {
 
 impl Drop for NamedFut<'_> {
     fn drop(&mut self) {
-        println!(
-            "Should no longer accept {:?} for {:?}",
-            self.name, self.task_id
-        );
+        println!("dropped {:?}", self.name);
+        if let Some(id) = self.task_id {
+            self.ctx.shared.borrow_mut().push(Op::RemoveNamedListener {
+                names: self.name,
+                id,
+            });
+        }
     }
 }
 
