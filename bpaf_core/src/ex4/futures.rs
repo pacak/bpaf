@@ -1,6 +1,6 @@
 use crate::named::Name;
 
-use super::{split_param, Arg, Ctx, Error};
+use super::{split_param, Arg, Ctx, Error, Id};
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
@@ -109,12 +109,15 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 pub struct NamedFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) registered: bool,
+    pub(crate) registered: Option<Id>,
 }
 
 impl Drop for NamedFut<'_> {
     fn drop(&mut self) {
-        println!("Should no longer accept {:?}", self.name);
+        println!(
+            "Should no longer accept {:?} for {:?}",
+            self.name, self.registered
+        );
     }
 }
 
@@ -125,12 +128,13 @@ impl Future for NamedFut<'_> {
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
-        if !self.registered {
-            self.registered = true;
+        if self.registered.is_none() {
+            self.registered = Some(self.ctx.current_id());
             self.ctx.named_wake(self.name, cx.waker().clone());
             return Poll::Pending;
         }
 
+        self.registered = None;
         let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
             return Poll::Ready(Err(Error::Missing));
         };
