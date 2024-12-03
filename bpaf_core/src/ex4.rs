@@ -150,12 +150,13 @@ fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
 
 impl<T> Drop for ExitHandle<T> {
     fn drop(&mut self) {
-        let Some(waker) = self.waker.take() else {
-            return;
+        // if waker is present - we must call it and mark the task as "killed"
+        if let Some(waker) = self.waker.take() {
+            let x = self.result.replace(Some(Err(Error::Killed)));
+            assert!(x.is_none(), "Cloned ExitHandle?");
+            println!("Dropped handle with waker!");
+            waker.wake();
         };
-        let x = self.result.replace(Some(Err(Error::Killed)));
-        assert!(x.is_none(), "Cloned ExitHandle?");
-        println!("dropped handle");
     }
 }
 
@@ -168,9 +169,10 @@ struct JoinHandle<T> {
     task: Weak<ExitHandle<T>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
+
 impl<T: std::fmt::Debug> ExitHandle<T> {
     fn exit_task(self, result: Result<T, Error>) {
-        println!("setting result to {result:?}");
+        println!("Setting result to {result:?}");
         self.result.set(Some(result));
         if let Some(waker) = self.waker.take() {
             waker.wake()
@@ -405,6 +407,12 @@ pub(crate) struct NamedFut<'a> {
     pub(crate) registered: bool,
 }
 
+impl Drop for NamedFut<'_> {
+    fn drop(&mut self) {
+        println!("Should no longer accept {:?}", self.name);
+    }
+}
+
 impl Future for NamedFut<'_> {
     type Output = Result<Name<'static>, Error>;
 
@@ -448,7 +456,7 @@ struct WakeTask {
 
 impl Wake for WakeTask {
     fn wake(self: std::sync::Arc<Self>) {
-        // println!("will try to wake up {:?}", self.id);
+        println!("Waking up {:?}", self.id);
         self.pending.lock().expect("poison").push(self.id);
     }
 }
@@ -590,7 +598,7 @@ impl<'a> Runner<'a> {
                     if let Some(err) = res {
                         println!("task failed, see if parent cares");
                     }
-                    println!("Task {id:?} is done");
+                    println!("Task {id:?} is done, dropping it");
                     self.tasks.remove(&id);
                 }
             }
@@ -663,12 +671,14 @@ impl<'a> Runner<'a> {
 
         let mut par = Vec::new();
         loop {
+            println!("going though shared things");
             // first we wake spawn all the pending tasks and poll them to
             // make sure things propagate. this might take several loops
             loop {
                 while self.handle_shared() {
                     self.schedule_from_wakers();
                 }
+                self.schedule_from_wakers();
                 if !self.run_scheduled() {
                     break;
                 }
@@ -712,7 +722,7 @@ impl<'a> Runner<'a> {
                 par.retain(|(len, _id)| *len == max_consumed);
             }
 
-            println!(" forst: {:?}", self.family);
+            println!("forest: {:?}", self.family);
             // next task is to go over all the `par` results up to root, mark
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
@@ -776,6 +786,25 @@ where
     }
 }
 
+struct AltFuture<T> {
+    handles: Vec<JoinHandle<T>>,
+}
+
+impl<T: std::fmt::Debug> Future for AltFuture<T> {
+    type Output = Result<T, Error>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        for (ix, mut h) in self.as_mut().handles.iter_mut().enumerate() {
+            if let Poll::Ready(r) = pin!(h).poll(cx) {
+                self.handles.remove(ix);
+                println!("Got result out!!!!!!!!!!!!!!!!!!!!!!!!!!!! {r:?}");
+                return Poll::Ready(r);
+            }
+        }
+        Poll::Pending
+    }
+}
+
 impl<T> Parser<T> for Alt<T>
 where
     T: Clone + std::fmt::Debug + 'static,
@@ -792,12 +821,16 @@ where
                 .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p))
                 .collect::<Vec<_>>();
 
+            let mut fut = AltFuture { handles };
             // TODO: this should be some low priority error
             let mut res = Err(Error::Killed);
 
+            // must collect results as they come. If
+
             // return first succesful result or the best error
-            for h in handles {
-                res = match (res, h.await) {
+            while !fut.handles.is_empty() {
+                let hh = (&mut fut).await;
+                res = match (res, hh) {
                     (ok @ Ok(_), _) | (Err(_), ok @ Ok(_)) => return ok,
                     (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
                 }
