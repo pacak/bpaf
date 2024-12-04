@@ -515,7 +515,7 @@ impl<'a> Runner<'a> {
     }
 
     /// Populate ids with tasks that subscribed for the next token
-    fn parsers_for_next_word(&mut self) {
+    fn parsers_for_next_word(&mut self) -> Result<(), Error> {
         println!("currently args are {:?}[{:?}]", self.ctx.args, self.ctx.cur);
         // first we need to decide what parsers to run
         if let Some(front) = self.ctx.args.get(self.ctx.cur()) {
@@ -526,28 +526,32 @@ impl<'a> Runner<'a> {
             } else {
                 let x = self.positional.pop_front(&mut self.ids);
                 if x == 0 {
-                    panic!("no positionals");
+                    println!("no positionals");
+                    return Err(Error::Invalid);
                 }
-                return;
+                return Ok(());
             };
             println!("{:?}", self.named);
             match self.named.get(&name).copied() {
                 Some(c) => {
                     println!("waking {c:?} to parse {name:?}");
                     self.ids.insert(c);
+                    Ok(())
                 }
-                None => todo!(
-                    "unknown name - complain {:?} / {:?} / {:?}",
-                    name,
-                    front,
-                    self.named
-                ),
+                None => {
+                    println!(
+                        "unknown name - complain {:?} / {:?} / {:?}",
+                        name, front, self.named
+                    );
+                    Err(Error::Invalid)
+                }
             }
         } else {
             println!(
                 "nothing to parse, time to terminate things {:?}",
                 self.named
             );
+            Ok(())
         }
     }
 
@@ -593,7 +597,7 @@ impl<'a> Runner<'a> {
             }
 
             self.schedule_from_wakers();
-            self.parsers_for_next_word();
+            self.parsers_for_next_word()?;
 
             if self.ids.is_empty() {
                 for id in self.named.values() {

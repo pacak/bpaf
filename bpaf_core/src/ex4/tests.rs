@@ -106,7 +106,7 @@ fn badly_emulated_args() {
         &alt,
         &["--alice".into(), "--bob".into(), "10".into(), "20".into()],
     );
-    assert_eq!(r, Err(Error::Missing));
+    assert_eq!(r, Err(Error::Invalid));
 
     let r = parse_args(&alt, &["--alice".into(), "10".into()]);
     assert_eq!(r, Ok(('a', 10)));
