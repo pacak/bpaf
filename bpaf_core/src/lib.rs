@@ -1,13 +1,45 @@
-#![allow(dead_code)]
-
 mod visitor;
 
 use ex4::Fragment;
-use named::Argument;
-use named::Flag;
-use named::Named;
+use named::{Argument, Flag, Named};
 use positional::Positional;
+mod error;
 
+/// Parser with extra typestate information
+///
+/// **bpaf** exposes all of it's functionality using
+/// [Fluent interface](https://en.wikipedia.org/wiki/Fluent_interface?useskin=vector), this
+/// datatype collects all possible intermediate representations along with all the
+/// methods they support in the same place.
+///
+/// In additon to inherent methods, most of the `Cx` states implement [`Parser`] trait with more
+/// operations.
+///
+/// While this documentation explains *fluent interface* specifically, most of it applies
+// TODO - add link
+/// to the derive API as well, the main difference is that instead of methinds being chained
+/// on the parser - you list them inside derive annotations. In both of those examples `many` refers to
+/// [`Parser::many`].
+///
+/// Fluent API:
+/// ```ignore
+/// ...
+/// let parser = some_parser().many();
+/// ...
+/// ```
+///
+/// Derive API:
+/// ```ignore
+/// ...
+/// #[bpaf(external(some_parser), many)]
+/// parser: Vec<String>
+/// ...
+/// ```
+///
+///
+/// Some of the notable states
+///
+/// - [Named items](#named-items)
 pub struct Cx<I>(I);
 
 /// Make named item with short name
