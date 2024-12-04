@@ -17,22 +17,25 @@ use std::{
     vec,
 };
 
-pub(crate) fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
-    let result = Rc::new(Cell::new(None));
-    let exit = ExitHandle {
-        waker: Cell::new(None),
-        result: result.clone(),
-        id: Cell::new(None),
-    };
-    let exit = Rc::new(exit);
-    let join = JoinHandle {
-        task: Rc::downgrade(&exit),
-        result,
-    };
-    (exit, join)
+impl<'ctx> Ctx<'ctx> {
+    pub(crate) fn fork<T>(&self) -> (Rc<ExitHandle<'ctx, T>>, JoinHandle<'ctx, T>) {
+        let result = Rc::new(Cell::new(None));
+        let exit = ExitHandle {
+            waker: Cell::new(None),
+            result: result.clone(),
+            id: Cell::new(None),
+            ctx: self.clone(),
+        };
+        let exit = Rc::new(exit);
+        let join = JoinHandle {
+            task: Rc::downgrade(&exit),
+            result,
+        };
+        (exit, join)
+    }
 }
 
-impl<T> Drop for ExitHandle<T> {
+impl<T> Drop for ExitHandle<'_, T> {
     fn drop(&mut self) {
         // if waker is present - we must call it and mark the task as "killed"
         if let Some(waker) = self.waker.take() {
@@ -44,28 +47,31 @@ impl<T> Drop for ExitHandle<T> {
     }
 }
 
-pub(crate) struct ExitHandle<T> {
+pub(crate) struct ExitHandle<'a, T> {
     /// Id of child task
     pub(crate) id: Cell<Option<Id>>,
     /// Waker for parent task
     waker: Cell<Option<Waker>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
+    ctx: Ctx<'a>,
 }
 
-pub(crate) struct JoinHandle<T> {
-    task: Weak<ExitHandle<T>>,
+pub(crate) struct JoinHandle<'a, T> {
+    task: Weak<ExitHandle<'a, T>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 
-impl<T> Drop for JoinHandle<T> {
+impl<T> Drop for JoinHandle<'_, T> {
     fn drop(&mut self) {
         if let Some(child) = self.task.upgrade() {
-            println!("dropped a handle {:?}", child.id.take());
+            if let Some(id) = child.id.take() {
+                child.ctx.shared.borrow_mut().push_back(Op::KillTask { id });
+            }
         }
     }
 }
 
-impl<T: std::fmt::Debug> ExitHandle<T> {
+impl<T: std::fmt::Debug> ExitHandle<'_, T> {
     pub(crate) fn exit_task(self, result: Result<T, Error>) {
         println!("Setting result to {result:?}");
         self.result.set(Some(result));
@@ -74,7 +80,7 @@ impl<T: std::fmt::Debug> ExitHandle<T> {
         }
     }
 }
-impl<T> Future for JoinHandle<T> {
+impl<T> Future for JoinHandle<'_, T> {
     type Output = Result<T, Error>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
