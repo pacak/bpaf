@@ -1,6 +1,7 @@
 mod visitor;
 
-use ex4::Fragment;
+pub mod executor;
+use executor::Fragment;
 use named::{Argument, Flag, Named};
 use positional::Positional;
 mod error;
@@ -115,7 +116,7 @@ mod named {
     use std::marker::PhantomData;
 
     use crate::{
-        ex4::{Ctx, Error, Fragment, NamedFut},
+        executor::{Ctx, Error, Fragment, NamedFut},
         Parser,
     };
 
@@ -225,7 +226,7 @@ mod positional {
     use std::{marker::PhantomData, str::FromStr};
 
     use crate::{
-        ex4::{Ctx, Error, PositionalFut},
+        executor::{Ctx, Error, PositionalFut},
         Parser,
     };
     pub struct Positional<T> {
@@ -250,7 +251,7 @@ mod positional {
     where
         T: std::fmt::Debug + 'static + FromStr,
     {
-        fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::ex4::Fragment<'a, T> {
+        fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
             Box::pin(async {
                 let s = PositionalFut {
                     ctx,
@@ -263,18 +264,14 @@ mod positional {
     }
 }
 
-pub use ex4::Parser;
+pub use executor::Parser;
 
 impl<P, T> Parser<T> for Cx<P>
 where
     P: Parser<T>,
     T: 'static + std::fmt::Debug,
 {
-    fn run<'a>(&'a self, ctx: ex4::Ctx<'a>) -> Fragment<'a, T> {
+    fn run<'a>(&'a self, ctx: executor::Ctx<'a>) -> Fragment<'a, T> {
         self.0.run(ctx)
     }
 }
-
-//pub mod ex2;
-//pub mod ex3;
-pub mod ex4;
