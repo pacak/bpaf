@@ -89,7 +89,7 @@ pub struct RawCtx<'a> {
     /// Current cursor position
     cur: AtomicUsize,
     /// through this tasks can request event scheduling, etc
-    shared: RefCell<Vec<Op<'a>>>,
+    shared: RefCell<VecDeque<Op<'a>>>,
 }
 
 #[derive(Clone)]
@@ -141,7 +141,6 @@ where
         tasks: BTreeMap::new(),
         named: BTreeMap::new(),
         pending: Default::default(),
-        private: Default::default(),
         next_task_id: 0,
         positional: Default::default(),
         family: Default::default(),
@@ -158,6 +157,7 @@ impl<'a> Ctx<'a> {
         let ctx = self.clone();
         let (exit, join) = fork();
         let act = Box::pin(async move {
+            exit.id.set(ctx.current_task());
             let r = parser.run(ctx).await;
             let out = r.as_ref().err().cloned();
             if let Ok(exit) = Rc::try_unwrap(exit) {
@@ -177,13 +177,13 @@ impl<'a> Ctx<'a> {
     fn named_wake(&self, names: &'a [Name<'static>], waker: Waker) {
         self.shared
             .borrow_mut()
-            .push(Op::AddNamedListener { names, waker });
+            .push_back(Op::AddNamedListener { names, waker });
     }
 
     fn positional_wake(&self, waker: Waker) {
         self.shared
             .borrow_mut()
-            .push(Op::AddPositionalListener { waker })
+            .push_back(Op::AddPositionalListener { waker })
     }
 
     fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
@@ -193,7 +193,7 @@ impl<'a> Ctx<'a> {
     fn start_task(&self, parent: Parent, action: Action<'a>) {
         self.shared
             .borrow_mut()
-            .push(Op::SpawnTask { parent, action });
+            .push_back(Op::SpawnTask { parent, action });
     }
 
     fn current_task(&self) -> Option<Id> {
@@ -352,8 +352,6 @@ impl Wake for WakeTask {
 struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
-    /// A private copy of ctx
-    private: RefCell<Vec<Op<'ctx>>>,
     ids: HashSet<Id>,
     tasks: BTreeMap<Id, Task<'ctx>>,
     named: BTreeMap<Name<'static>, Id>,
@@ -362,6 +360,11 @@ struct Runner<'ctx> {
 
     /// id to wake up
     pending: Arc<Mutex<Vec<Id>>>,
+}
+
+enum TaskOp {
+    Wake(Id),
+    Kill(Id),
 }
 
 enum Arg<'a> {
@@ -428,14 +431,14 @@ impl<'a> Runner<'a> {
             .expect("Misbehaving waker")
     }
 
-    fn handle_shared(&mut self) -> bool {
-        self.private.swap(&self.ctx.shared);
-        let mut shared = self.private.borrow_mut();
+    fn next_op(&self) -> Option<Op<'a>> {
+        self.ctx.shared.borrow_mut().pop_front()
+    }
 
-        if shared.is_empty() {
-            return false;
-        }
-        for item in shared.drain(..) {
+    fn handle_shared(&mut self) -> bool {
+        let mut saw = false;
+        while let Some(item) = self.next_op() {
+            saw = true;
             match item {
                 Op::SpawnTask { parent, action } => {
                     let id = Id(self.next_task_id);
@@ -474,7 +477,7 @@ impl<'a> Runner<'a> {
                 Op::RemoveNamedListener { names, id } => todo!(),
             }
         }
-        true
+        saw
     }
 
     /// Add task IDs from waker list into `ids`
