@@ -320,13 +320,10 @@ struct Runner<'ctx> {
     positional: Pecking,
     family: FamilyTree,
 
-    /// id to wake up
+    /// Shared with Wakers,
+    ///
+    /// contains a vector [`Id`] for tasks to wake up.
     pending: Arc<Mutex<Vec<Id>>>,
-}
-
-enum TaskOp {
-    Wake(Id),
-    Kill(Id),
 }
 
 enum Arg<'a> {
@@ -525,12 +522,21 @@ impl<'a> Runner<'a> {
         // register - gets a chance to do so then
         // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
-        if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
-            // TODO
-            assert_eq!(self.ctx.cur(), self.ctx.args.len());
-            return r;
-        }
+        // root spawns a child task - it can't return until
+        // child task(s) finish - it won't happen until later
+        assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 
+        // After this point progress is separated in two distinct parts:
+        //
+        // - First we repeatedly handle all the pending request until there's
+        //   none left
+        //
+        // - then we pick one or more tasks to wake up to parse
+        //   the prefix of the output and run them in parallel.
+        //
+        //   Tasks that consume the most - keep running, the rest
+        //   gets terminated since they belong to alt branches
+        //   that couldn't consume everything.
         let mut par = Vec::new();
         loop {
             println!("going though shared things");
@@ -611,6 +617,8 @@ impl<'a> Runner<'a> {
 /// Run a task in a context, return number of items consumed an a result
 ///
 /// does not advance the pointer
+///
+/// This is a separate method rather than a method on [`Runner`] since
 fn run_task(task: &mut Task, ctx: &Ctx) -> (Poll<Option<Error>>, usize) {
     let before = ctx.cur();
     let mut cx = Context::from_waker(&task.waker);
