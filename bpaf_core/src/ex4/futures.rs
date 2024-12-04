@@ -22,6 +22,7 @@ pub(crate) fn fork<T>() -> (Rc<ExitHandle<T>>, JoinHandle<T>) {
     let exit = ExitHandle {
         waker: Cell::new(None),
         result: result.clone(),
+        id: Cell::new(None),
     };
     let exit = Rc::new(exit);
     let join = JoinHandle {
@@ -44,6 +45,9 @@ impl<T> Drop for ExitHandle<T> {
 }
 
 pub(crate) struct ExitHandle<T> {
+    /// Id of child task
+    pub(crate) id: Cell<Option<Id>>,
+    /// Waker for parent task
     waker: Cell<Option<Waker>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
@@ -51,6 +55,14 @@ pub(crate) struct ExitHandle<T> {
 pub(crate) struct JoinHandle<T> {
     task: Weak<ExitHandle<T>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
+}
+
+impl<T> Drop for JoinHandle<T> {
+    fn drop(&mut self) {
+        if let Some(child) = self.task.upgrade() {
+            println!("dropped a handle {:?}", child.id.take());
+        }
+    }
 }
 
 impl<T: std::fmt::Debug> ExitHandle<T> {
@@ -116,10 +128,13 @@ impl Drop for NamedFut<'_> {
     fn drop(&mut self) {
         println!("dropped {:?}", self.name);
         if let Some(id) = self.task_id {
-            self.ctx.shared.borrow_mut().push(Op::RemoveNamedListener {
-                names: self.name,
-                id,
-            });
+            self.ctx
+                .shared
+                .borrow_mut()
+                .push_back(Op::RemoveNamedListener {
+                    names: self.name,
+                    id,
+                });
         }
     }
 }
