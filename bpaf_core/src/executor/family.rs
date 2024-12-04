@@ -1,6 +1,63 @@
+//! Relationship between different tasks
+//!
+//! Tasks are spawned and executed in prod/sum groups.
+//!
+//! For parallel case it is important to know mutual exclusivity, for sequential case - parser priority
+
 use std::collections::{BTreeMap, HashMap};
 
-use super::{Action, BranchId, Id, NodeKind, Parent};
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub(crate) struct Id(u32);
+impl Id {
+    const ROOT: Self = Self(0);
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) enum NodeKind {
+    Sum,
+    Prod,
+}
+
+impl Id {
+    pub(crate) fn new(id: u32) -> Self {
+        Self(id)
+    }
+    pub(crate) fn sum(self, field: u32) -> Parent {
+        Parent {
+            kind: NodeKind::Sum,
+            id: self,
+            field,
+        }
+    }
+
+    pub(crate) fn prod(self, field: u32) -> Parent {
+        Parent {
+            kind: NodeKind::Prod,
+            id: self,
+            field,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+pub(crate) struct Parent {
+    pub(crate) kind: NodeKind,
+    pub(crate) id: Id,
+    pub(crate) field: u32,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub(crate) struct BranchId {
+    parent: Id,
+    field: u32,
+}
+
+impl BranchId {
+    pub(crate) const ROOT: Self = Self {
+        parent: Id::ROOT,
+        field: 0,
+    };
+}
 
 #[derive(Debug)]
 struct Node {

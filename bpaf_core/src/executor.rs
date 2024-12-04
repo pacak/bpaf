@@ -16,52 +16,11 @@ use std::{
     vec,
 };
 
+mod family;
 mod futures;
 
+use family::{BranchId, FamilyTree, *};
 pub use futures::*;
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) struct Id(u32);
-impl Id {
-    const ROOT: Self = Self(0);
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-
-enum NodeKind {
-    Sum,
-    Prod,
-}
-
-impl Id {
-    fn sum(self, field: u32) -> Parent {
-        Parent {
-            kind: NodeKind::Sum,
-            id: self,
-            field,
-        }
-    }
-
-    fn prod(self, field: u32) -> Parent {
-        Parent {
-            kind: NodeKind::Prod,
-            id: self,
-            field,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Parent {
-    kind: NodeKind,
-    id: Id,
-    field: u32,
-}
-impl Parent {
-    fn new(id: Id, field: u32, kind: NodeKind) -> Self {
-        Self { id, field, kind }
-    }
-}
 
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
 
@@ -418,12 +377,6 @@ fn split_param(value: &str) -> Arg {
 }
 
 impl<'a> Runner<'a> {
-    /// Create waker for a task with a given ID
-    fn waker_for_id(&self, id: Id) -> Waker {
-        let pending = self.pending.clone();
-        Waker::from(Arc::new(WakeTask { id, pending }))
-    }
-
     /// Get a task ID for the waker
     fn resolve(&self, waker: &Waker) -> Id {
         waker.wake_by_ref();
@@ -434,7 +387,9 @@ impl<'a> Runner<'a> {
             .expect("Misbehaving waker")
     }
 
+    /// Get the next pending operation
     fn next_op(&self) -> Option<Op<'a>> {
+        // mostly to make sure borrow gets dropped in time
         self.ctx.shared.borrow_mut().pop_front()
     }
 
@@ -444,9 +399,7 @@ impl<'a> Runner<'a> {
             saw = true;
             match item {
                 Op::SpawnTask { parent, action } => {
-                    let id = Id(self.next_task_id);
-                    self.next_task_id += 1;
-                    let waker = self.waker_for_id(id);
+                    let (id, waker) = self.next_id();
 
                     let mut task = Task {
                         action,
@@ -560,16 +513,13 @@ impl<'a> Runner<'a> {
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
     {
-        let root_id = self.next_id();
+        let (root_id, root_waker) = self.next_id();
 
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
-        let mut handle = pin!(self
-            .ctx
-            .spawn(Parent::new(root_id, 0, NodeKind::Prod), parser));
-        let root_waker = self.waker_for_id(root_id);
+        let mut handle = pin!(self.ctx.spawn(root_id.prod(0), parser));
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
@@ -647,10 +597,14 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn next_id(&mut self) -> Id {
+    /// Allocate next task [`Id`] and a [`Waker`] for that task.
+    fn next_id(&mut self) -> (Id, Waker) {
         let id = self.next_task_id;
         self.next_task_id += 1;
-        Id(id)
+        let id = Id::new(id);
+        let pending = self.pending.clone();
+        let waker = Waker::from(Arc::new(WakeTask { id, pending }));
+        (id, waker)
     }
 }
 
@@ -681,9 +635,6 @@ impl RawCtx<'_> {
             .fetch_add(inc, std::sync::atomic::Ordering::Relaxed);
     }
 }
-
-#[cfg(test)]
-mod tests;
 
 struct Alt<T: Clone + 'static> {
     items: Vec<Box<dyn Parser<T>>>,
@@ -763,9 +714,6 @@ impl Future for ChildErrors {
         todo!()
     }
 }
-
-use family::FamilyTree;
-mod family;
 
 // For every Sum, as soon as we start making any progress with any branch, no matter how deep - we
 // must terminate all branches that don't make progress
@@ -936,15 +884,5 @@ impl Pecking {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct BranchId {
-    parent: Id,
-    field: u32,
-}
-
-impl BranchId {
-    const ROOT: Self = Self {
-        parent: Id::ROOT,
-        field: 0,
-    };
-}
+#[cfg(test)]
+mod tests;
