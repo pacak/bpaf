@@ -314,7 +314,7 @@ impl Wake for WakeTask {
 struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
-    ids: HashSet<Id>,
+    ids: VecDeque<Id>,
     tasks: BTreeMap<Id, Task<'ctx>>,
     named: BTreeMap<Name<'static>, Id>,
     positional: Pecking,
@@ -450,7 +450,7 @@ impl<'a> Runner<'a> {
 
     fn run_scheduled(&mut self) -> bool {
         let changes = self.ids.is_empty();
-        for id in self.ids.drain() {
+        for id in self.ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
                 if let Poll::Ready(res) = task.poll(id, &self.ctx) {
                     if let Some(err) = res {
@@ -485,7 +485,7 @@ impl<'a> Runner<'a> {
             match self.named.get(&name).copied() {
                 Some(c) => {
                     println!("waking {c:?} to parse {name:?}");
-                    self.ids.insert(c);
+                    self.ids.push_back(c);
                     Ok(())
                 }
                 None => {
@@ -558,7 +558,7 @@ impl<'a> Runner<'a> {
             if self.ids.is_empty() {
                 for id in self.named.values() {
                     println!("waking {id:?} to handle noparse");
-                    self.ids.insert(*id);
+                    self.ids.push_back(*id);
                 }
                 self.named.clear();
                 self.positional.drain_to(&mut self.ids);
@@ -571,7 +571,7 @@ impl<'a> Runner<'a> {
             println!("We are going to parse the next workd with {:?}", self.ids);
             // actual feed consumption happens here
             let mut max_consumed = 0;
-            for id in self.ids.drain() {
+            while let Some(id) = self.ids.pop_front() {
                 // each scheduled task gets a chance to run,
                 if let Some(task) = self.tasks.get_mut(&id) {
                     let (poll, consumed) = run_task(task, &self.ctx);
@@ -846,17 +846,17 @@ impl Pecking {
         }
     }
 
-    fn pop_front(&mut self, ids: &mut HashSet<Id>) -> usize {
+    fn pop_front(&mut self, ids: &mut VecDeque<Id>) -> usize {
         match self {
             Pecking::Empty => 0,
             Pecking::Single(branch_id, id) => {
-                ids.insert(*id);
+                ids.push_back(*id);
                 *self = Pecking::Empty;
                 1
             }
             Pecking::Queue(branch_id, vec_deque) => {
                 if let Some(f) = vec_deque.pop_front() {
-                    ids.insert(f);
+                    ids.push_back(f);
                     1
                 } else {
                     0
@@ -866,7 +866,7 @@ impl Pecking {
                 let mut cnt = 0;
                 for m in hash_map.values_mut() {
                     if let Some(f) = m.pop_front() {
-                        ids.insert(f);
+                        ids.push_back(f);
                         cnt += 1;
                     }
                 }
@@ -875,11 +875,11 @@ impl Pecking {
         }
     }
 
-    fn drain_to(&mut self, ids: &mut HashSet<Id>) {
+    fn drain_to(&mut self, ids: &mut VecDeque<Id>) {
         match self {
             Pecking::Empty => {}
             Pecking::Single(branch_id, id) => {
-                ids.insert(*id);
+                ids.push_back(*id);
             }
             Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
             Pecking::Forest(hash_map) => {
