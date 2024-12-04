@@ -111,6 +111,9 @@ enum Op<'a> {
         parent: Parent,
         action: Action<'a>,
     },
+    KillTask {
+        id: Id,
+    },
     AddNamedListener {
         names: &'a [Name<'static>],
         waker: Waker,
@@ -475,6 +478,9 @@ impl<'a> Runner<'a> {
                     println!("positional: {:?}", self.positional);
                 }
                 Op::RemoveNamedListener { names, id } => todo!(),
+                Op::KillTask { id } => {
+                    println!("kill task {id:?}");
+                }
             }
         }
         saw
