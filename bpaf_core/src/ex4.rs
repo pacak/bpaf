@@ -152,13 +152,13 @@ where
 }
 
 impl<'a> Ctx<'a> {
-    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<T>
+    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<'a, T>
     where
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
     {
         let ctx = self.clone();
-        let (exit, join) = fork();
+        let (exit, join) = self.fork();
         let act = Box::pin(async move {
             exit.id.set(ctx.current_task());
             let r = parser.run(ctx).await;
@@ -477,8 +477,14 @@ impl<'a> Runner<'a> {
                     self.positional.insert(id, branch);
                     println!("positional: {:?}", self.positional);
                 }
-                Op::RemoveNamedListener { names, id } => todo!(),
+                Op::RemoveNamedListener { names, id } => {
+                    for name in names {
+                        self.named.remove(name);
+                    }
+                    println!("remove named listener for {names:?} {id:?}");
+                }
                 Op::KillTask { id } => {
+                    self.tasks.remove(&id);
                     println!("kill task {id:?}");
                 }
             }
@@ -688,11 +694,11 @@ where
     }
 }
 
-struct AltFuture<T> {
-    handles: Vec<JoinHandle<T>>,
+struct AltFuture<'a, T> {
+    handles: Vec<JoinHandle<'a, T>>,
 }
 
-impl<T: std::fmt::Debug> Future for AltFuture<T> {
+impl<T: std::fmt::Debug> Future for AltFuture<'_, T> {
     type Output = Result<T, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
