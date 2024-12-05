@@ -16,6 +16,70 @@ use std::{
     vec,
 };
 
+// # those error messages can be handled
+//     /// Tried to consume an env variable which wasn't set
+//     can handle
+//     NoEnv(&'static str),
+//
+//     /// User specified an error message on some
+//     ParseSome(&'static str),
+//
+//     /// User asked for parser to fail explicitly
+//     ParseFail(&'static str),
+//
+//     /// pure_with failed to parse a value
+//     PureFailed(String),
+//
+//     /// Expected one of those values
+//     ///
+//     /// Used internally to generate better error messages
+//     Missing(Vec<MissingItem>),
+//
+// -------------------------------------------------------------------------------------
+//     /// Parsing failed and this is the final output
+//     ParseFailure(ParseFailure),
+//
+//     /// Tried to consume a strict positional argument, value was present but was not strictly
+//     /// positional
+//     StrictPos(usize, Metavar),
+//
+//     /// Tried to consume a non-strict positional argument, but the value was strict
+//     NonStrictPos(usize, Metavar),
+//
+//     /// Parser provided by user failed to parse a value
+//     ParseFailed(Option<usize>, String),
+//
+//     /// Parser provided by user failed to validate a value
+//     GuardFailed(Option<usize>, &'static str),
+//
+//     /// Argument requres a value but something else was passed,
+//     /// required: --foo <BAR>
+//     /// given: --foo --bar
+//     ///        --foo -- bar
+//     ///        --foo
+//     NoArgument(usize, Metavar),
+//
+//     /// Parser is expected to consume all the things from the command line
+//     /// this item will contain an index of the unconsumed value
+//     Unconsumed(/* TODO - unused? */ usize),
+//
+//     /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
+//     Ambiguity(usize, String),
+//
+//     /// Suggested fixes for typos or missing input
+//     Suggestion(usize, Suggestion),
+//
+//     /// Two arguments are mutually exclusive
+//     /// --release --dev
+//     Conflict(/* winner */ usize, usize),
+//
+//     /// Expected one or more items in the scope, got someting else if any
+//     Expected(Vec<Item>, Option<usize>),
+//
+//     /// Parameter is accepted but only once
+//     OnlyOnce(/* winner */ usize, usize),
+// }
+
 mod family;
 mod futures;
 
@@ -151,10 +215,6 @@ impl<'a> Ctx<'a> {
             .push_back(Op::AddPositionalListener { waker })
     }
 
-    fn take_name(&self, name: &[Name<'static>]) -> Option<Name<'static>> {
-        todo!()
-    }
-
     fn start_task(&self, parent: Parent, action: Action<'a>) {
         self.shared
             .borrow_mut()
@@ -195,7 +255,9 @@ where
     T: 'static + std::fmt::Debug,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        todo!()
+        Box::pin(async {
+            //
+        })
     }
 }
 
@@ -232,6 +294,13 @@ impl Error {
             (e @ Error::Invalid, _) | (_, e @ Error::Invalid) => e,
             (e, Error::Killed) | (Error::Killed, e) => e,
             (Error::Missing, Error::Missing) => Error::Missing,
+        }
+    }
+    fn can_handle(&self) -> bool {
+        match self {
+            Error::Missing => true,
+            Error::Invalid => false,
+            Error::Killed => todo!(),
         }
     }
 }
@@ -586,11 +655,19 @@ impl<'a> Runner<'a> {
         loop {
             self.handle_non_consuming();
 
+            // need to generate errors for:
+            // - conflict
+            // - no parse
+            //
+
             assert!(self.ctx.shared.borrow().is_empty());
             assert!(self.pending.lock().expect("poison").is_empty());
 
+            // check how to parse next word
             self.parsers_for_next_word()?;
 
+            // if we don't know how to parse it - prepare an error using
+            // available names,
             if self.ids.is_empty() {
                 for id in self.named.values() {
                     println!("waking {id:?} to handle noparse");
@@ -663,6 +740,26 @@ impl RawCtx<'_> {
     fn advance(&self, inc: usize) {
         self.cur
             .fetch_add(inc, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+struct Optional<P> {
+    inner: P,
+}
+
+impl<P, T> Parser<Option<T>> for Optional<P>
+where
+    P: Parser<T>,
+    T: std::fmt::Debug + 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
+        Box::pin(async {
+            match self.inner.run(ctx).await {
+                Ok(ok) => Ok(Some(ok)),
+                Err(e) if e.can_handle() => Ok(None),
+                Err(e) => Err(e),
+            }
+        })
     }
 }
 
