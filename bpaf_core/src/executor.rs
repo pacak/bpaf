@@ -70,6 +70,9 @@ enum Op<'a> {
         parent: Parent,
         action: Action<'a>,
     },
+    WakeTask {
+        id: Id,
+    },
     KillTask {
         id: Id,
     },
@@ -384,16 +387,37 @@ impl<'a> Runner<'a> {
             .expect("Misbehaving waker")
     }
 
-    /// Get the next pending operation
-    fn next_op(&self) -> Option<Op<'a>> {
-        // mostly to make sure borrow gets dropped in time
-        self.ctx.shared.borrow_mut().pop_front()
+    /// Looks for things requested by wakers and schedules it to ops
+    fn wakers_to_ops(&self) {
+        self.ctx.shared.borrow_mut().extend(
+            self.pending
+                .lock()
+                .expect("poison")
+                .drain(..)
+                .map(|id| Op::WakeTask { id }),
+        )
     }
 
-    fn handle_shared(&mut self) -> bool {
-        let mut saw = false;
-        while let Some(item) = self.next_op() {
-            saw = true;
+    fn handle_non_consuming(&mut self) {
+        loop {
+            let mut shared = self.ctx.shared.borrow_mut();
+            let Some(item) = shared.pop_front() else {
+                shared.extend(
+                    self.pending
+                        .lock()
+                        .expect("poison")
+                        .drain(..)
+                        .map(|id| Op::WakeTask { id }),
+                );
+                if shared.is_empty() {
+                    return;
+                } else {
+                    continue;
+                }
+            };
+            // tasks are going to borrow from shared when running
+            drop(shared);
+
             match item {
                 Op::SpawnTask { parent, action } => {
                     let (id, waker) = self.next_id();
@@ -406,7 +430,8 @@ impl<'a> Runner<'a> {
                     };
 
                     if task.poll(id, &self.ctx).is_pending() {
-                        // task is till pending, get real branch
+                        // task is still pending, get the real BranchId
+                        // and save it
                         self.family.insert(parent, id);
                         task.branch = self.family.branch_for(id);
                         println!("started {id:?} in {:?}", task.branch);
@@ -437,9 +462,18 @@ impl<'a> Runner<'a> {
                     self.tasks.remove(&id);
                     println!("kill task {id:?}");
                 }
+                Op::WakeTask { id } => {
+                    let Some(task) = self.tasks.get_mut(&id) else {
+                        println!("waking up removed task {id:?}");
+                        continue;
+                    };
+
+                    if task.poll(id, &self.ctx).is_ready() {
+                        self.tasks.remove(&id);
+                    }
+                }
             }
         }
-        saw
     }
 
     /// Add task IDs from waker list into `ids`
@@ -540,19 +574,13 @@ impl<'a> Runner<'a> {
         let mut par = Vec::new();
         loop {
             println!("going though shared things");
-            // first we wake spawn all the pending tasks and poll them to
-            // make sure things propagate. this might take several loops
-            loop {
-                while self.handle_shared() {
-                    self.schedule_from_wakers();
-                }
-                self.schedule_from_wakers();
-                if !self.run_scheduled() {
-                    break;
-                }
-            }
+            let before = self.ctx.cur();
+            self.handle_non_consuming();
+            assert_eq!(before, self.ctx.cur());
 
-            self.schedule_from_wakers();
+            assert!(self.ctx.shared.borrow().is_empty());
+            assert!(self.pending.lock().expect("poison").is_empty());
+
             self.parsers_for_next_word()?;
 
             if self.ids.is_empty() {
