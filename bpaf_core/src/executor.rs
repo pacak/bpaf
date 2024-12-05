@@ -382,7 +382,7 @@ impl<'a> Runner<'a> {
         waker.wake_by_ref();
         self.pending
             .lock()
-            .expect("poision")
+            .expect("poison")
             .pop()
             .expect("Misbehaving waker")
     }
@@ -398,7 +398,11 @@ impl<'a> Runner<'a> {
         )
     }
 
+    /// Handle scheduled operations
+    ///
+    /// This should advance all the tasks as far as possible without consuming the input
     fn handle_non_consuming(&mut self) {
+        let before = self.ctx.cur();
         loop {
             let mut shared = self.ctx.shared.borrow_mut();
             let Some(item) = shared.pop_front() else {
@@ -410,6 +414,7 @@ impl<'a> Runner<'a> {
                         .map(|id| Op::WakeTask { id }),
                 );
                 if shared.is_empty() {
+                    assert_eq!(before, self.ctx.cur());
                     return;
                 } else {
                     continue;
@@ -474,12 +479,6 @@ impl<'a> Runner<'a> {
                 }
             }
         }
-    }
-
-    /// Add task IDs from waker list into `ids`
-    fn schedule_from_wakers(&mut self) {
-        self.ids
-            .extend(self.pending.lock().expect("poison").drain(..));
     }
 
     fn run_scheduled(&mut self) -> bool {
@@ -573,10 +572,7 @@ impl<'a> Runner<'a> {
         //   that couldn't consume everything.
         let mut par = Vec::new();
         loop {
-            println!("going though shared things");
-            let before = self.ctx.cur();
             self.handle_non_consuming();
-            assert_eq!(before, self.ctx.cur());
 
             assert!(self.ctx.shared.borrow().is_empty());
             assert!(self.pending.lock().expect("poison").is_empty());
