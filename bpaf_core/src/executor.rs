@@ -164,6 +164,18 @@ impl<'a> Ctx<'a> {
     fn current_task(&self) -> Option<Id> {
         *self.current_task.borrow()
     }
+
+    /// Run a task in a context, return number of items consumed an a result
+    ///
+    /// does not advance the pointer
+    fn run_task(&self, task: &mut Task<'a>) -> (Poll<Option<Error>>, usize) {
+        let before = self.cur();
+        let mut cx = Context::from_waker(&task.waker);
+        let r = task.action.as_mut().poll(&mut cx);
+        let after = self.cur();
+        self.set_cur(before);
+        (r, after - before)
+    }
 }
 
 impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
@@ -598,7 +610,7 @@ impl<'a> Runner<'a> {
             while let Some(id) = self.ids.pop_front() {
                 // each scheduled task gets a chance to run,
                 if let Some(task) = self.tasks.get_mut(&id) {
-                    let (poll, consumed) = run_task(task, &self.ctx);
+                    let (poll, consumed) = self.ctx.run_task(task);
                     if let Poll::Ready(r) = poll {
                         if let Some(err) = r {
                             print!("check if parent is interested in this error {err:?}");
@@ -636,20 +648,6 @@ impl<'a> Runner<'a> {
         let waker = Waker::from(Arc::new(WakeTask { id, pending }));
         (id, waker)
     }
-}
-
-/// Run a task in a context, return number of items consumed an a result
-///
-/// does not advance the pointer
-///
-/// This is a separate method rather than a method on [`Runner`] since
-fn run_task(task: &mut Task, ctx: &Ctx) -> (Poll<Option<Error>>, usize) {
-    let before = ctx.cur();
-    let mut cx = Context::from_waker(&task.waker);
-    let r = task.action.as_mut().poll(&mut cx);
-    let after = ctx.cur();
-    ctx.set_cur(before);
-    (r, after - before)
 }
 
 impl RawCtx<'_> {
