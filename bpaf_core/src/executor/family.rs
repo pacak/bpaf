@@ -4,7 +4,14 @@
 //!
 //! For parallel case it is important to know mutual exclusivity, for sequential case - parser priority
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, VecDeque};
+
+use crate::{
+    executor::{split_param, Arg},
+    named::Name,
+};
+
+use super::Error;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub(crate) struct Id(u32);
@@ -57,6 +64,10 @@ impl BranchId {
         parent: Id::ROOT,
         field: 0,
     };
+    pub(crate) const DUMMY: Self = Self {
+        parent: Id::ROOT,
+        field: 0,
+    };
 }
 
 #[derive(Debug)]
@@ -69,18 +80,117 @@ struct Node {
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree {
+    named: BTreeMap<Name<'static>, Pecking>,
+    positional: Pecking,
     children: HashMap<Id, Node>,  // parent -> children
     parents: HashMap<Id, Parent>, // child -> parent
 }
 
 impl FamilyTree {
-    pub(crate) fn insert(&mut self, parent: Parent, id: Id) {
+    pub(crate) fn add_positional(&mut self, id: Id) {
+        let branch = self.branch_for(id);
+        self.positional.insert(id, branch);
+    }
+    pub(crate) fn remove_positional(&mut self, id: Id) {
+        todo!()
+    }
+
+    pub(crate) fn add_named(&mut self, id: Id, names: &[Name<'static>]) {
+        let branch = self.branch_for(id);
+
+        for name in names.iter() {
+            self.named.entry(*name).or_default().insert(id, branch);
+        }
+        println!("Added {names:?}, now it is {self:?}");
+    }
+    pub(crate) fn remove_named(&mut self, id: Id, names: &[Name<'static>]) {
+        for name in names {
+            self.named.remove(name);
+        }
+        println!("remove named listener for {names:?} {id:?}");
+    }
+
+    pub(crate) fn pick_parsers_for(
+        &mut self,
+        input: &str,
+        out: &mut VecDeque<(Id, usize)>,
+    ) -> Result<(), Error> {
+        // Populate ids with tasks that subscribed for the next token
+        println!("Picking parser to deal with {input:?}");
+
+        // first we need to decide what parsers to run
+        match split_param(input) {
+            Arg::Named { name, val: _ } => {
+                let Some(q) = self.named.get_mut(name.as_bytes()) else {
+                    return Err(Error::Invalid);
+                };
+
+                println!("looking in {q:?}");
+                q.pop_front(out);
+                println!("got {out:?}");
+            }
+            Arg::ShortSet { names } => todo!(),
+            Arg::Positional { value } => {
+                self.positional.pop_front(out);
+            }
+        }
+        Ok(())
+        // match x {
+        //     Arg::Named { name, val: _ } => {
+        //         let Some(x) = self.named.get_mut(&name) else {
+        //             return Err(Error::Missing);
+        //         };
+        //         x.pop_front(out);
+        //
+        //         Ok(())
+        //     }
+        //     Arg::ShortSet { names } => todo!(),
+        //     Arg::Positional { value } => todo!(),
+        // }
+        //     let name = if let Some(long) = front.strip_prefix("--") {
+        //         Name::Long(long)
+        //     } else if let Some(short) = front.strip_prefix("-") {
+        //         Name::Short(short.chars().next().unwrap())
+        //     } else {
+        //         let x = self.positional.pop_front(&mut out);
+        //         if x == 0 {
+        //             println!("no positionals");
+        //             return Err(Error::Invalid);
+        //         }
+        //         return Ok(());
+        //     };
+        //     println!("{:?}", self.named);
+        //     match self.named.get(&name).copied() {
+        //         Some(c) => {
+        //             println!("waking {c:?} to parse {name:?}");
+        //             out.push_back((c, 0));
+        //             Ok(())
+        //         }
+        //         None => {
+        //             println!(
+        //                 "unknown name - complain {:?} / {:?} / {:?}",
+        //                 name, front, self.named
+        //             );
+        //             Err(Error::Invalid)
+        //         }
+        //     }
+        // } else {
+        //     println!(
+        //         "nothing to parse, time to terminate things {:?}",
+        //         self.named
+        //     );
+        //     Ok(())
+        // }
+    }
+
+    pub(crate) fn insert(&mut self, parent: Parent, id: Id) -> BranchId {
         self.parents.insert(id, parent);
         let entry = self.children.entry(parent.id).or_insert(Node {
             ty: parent.kind,
             children: BTreeMap::new(),
         });
         entry.children.insert(parent.field, id);
+        self.branch_for(id)
     }
 
     pub(crate) fn remove(&mut self, id: Id) {
@@ -107,7 +217,7 @@ impl FamilyTree {
         best
     }
 
-    pub(crate) fn branch_for(&self, id: Id) -> BranchId {
+    fn branch_for(&self, id: Id) -> BranchId {
         match self.top_sum_parent(id) {
             Some(p) => BranchId {
                 parent: p.id,
@@ -144,4 +254,140 @@ fn alt_parent_1() {
 
     assert_eq!(f.children.len(), 1, "{f:?}");
     assert_eq!(f.parents.len(), 0);
+}
+
+/// # Pecking order
+///
+/// For as long as there's only one task to wake up for the input - it is safe to just
+/// wake it up and be done with it, but users are allowed to specify multiple consumers for the
+/// same name as well as multiple positional consumers that don't have names at all. This requires
+/// deciding which parser gets to run first or gets to run at all.
+///
+/// Rules for priority are:
+///
+/// - sum branches run in parallel, left most wins if there's multiple successes
+/// - parsers inside a product run sequentially, left most wins
+///
+/// Therefore we are going to arrange tasks in following order:
+/// There's one queue for each branch_id (sum parent id + field), every queue contains
+/// items from the same product, so their priority is how far from the left end they are
+///
+/// "any" parsers get to run for both named and positional input inside their branch
+/// accoding to their priority, if at the front. Consider a few queues
+/// - `[named, any]` - `any` doesn't run since `named` takes priority
+/// - `[any1, named, any2]` - `any1` runs, if it fails to match anything - `named` runs.
+/// - `[any1, any2, named]` - `any1` runs, if not - `any2`, if not - `named`
+///
+/// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
+///
+///
+/// # Operations needed
+///
+/// - `Pecking::insert`
+/// - `Pecking::select`
+/// - `Pecking::remove`?
+#[derive(Debug, Default)]
+enum Pecking {
+    /// No parsers at all, this makes sense for `positional` and `any` items, with
+    /// named might as well drop the parser
+    #[default]
+    Empty,
+
+    /// A single parser
+    ///
+    /// Usually a unique named argument or a single positional item to the parser
+    Single(BranchId, Id),
+    /// There's multiple parsers, but they all belong to the same queue
+    ///
+    /// Several positional items
+    Queue(BranchId, VecDeque<Id>),
+
+    /// Multiple alternative branches, VecDeque contains at least one item
+    Forest(HashMap<BranchId, VecDeque<Id>>),
+}
+
+impl Pecking {
+    fn insert(&mut self, id: Id, branch: BranchId) {
+        match self {
+            Pecking::Empty => *self = Pecking::Single(branch, id),
+            Pecking::Single(prev_bi, prev_id) => {
+                if *prev_bi == branch {
+                    let mut queue = VecDeque::new();
+                    queue.push_back(*prev_id);
+                    queue.push_back(id);
+                    *self = Pecking::Queue(branch, queue)
+                } else {
+                    let mut forest = HashMap::new();
+                    let mut queue = VecDeque::new();
+                    queue.push_back(*prev_id);
+                    forest.insert(*prev_bi, queue);
+
+                    let mut queue = VecDeque::new();
+                    queue.push_back(id);
+                    forest.insert(branch, queue);
+                    *self = Pecking::Forest(forest)
+                }
+            }
+            Pecking::Queue(prev_bi, vec_deque) => {
+                if *prev_bi == branch {
+                    vec_deque.push_back(id);
+                } else {
+                    let mut forest = HashMap::new();
+                    forest.insert(*prev_bi, std::mem::take(vec_deque));
+                    let mut queue = VecDeque::new();
+                    queue.push_back(id);
+                    forest.insert(branch, queue);
+                    *self = Pecking::Forest(forest);
+                }
+            }
+            Pecking::Forest(forest) => {
+                forest.entry(branch).or_default().push_back(id);
+            }
+        }
+    }
+
+    fn pop_front(&mut self, ids: &mut VecDeque<(Id, usize)>) -> usize {
+        match self {
+            Pecking::Empty => 0,
+            Pecking::Single(branch_id, id) => {
+                ids.push_back((*id, 0));
+                *self = Pecking::Empty;
+                1
+            }
+            Pecking::Queue(branch_id, vec_deque) => {
+                if let Some(f) = vec_deque.pop_front() {
+                    ids.push_back((f, 0));
+                    1
+                } else {
+                    0
+                }
+            }
+            Pecking::Forest(hash_map) => {
+                let mut cnt = 0;
+                for m in hash_map.values_mut() {
+                    if let Some(f) = m.pop_front() {
+                        ids.push_back((f, 0));
+                        cnt += 1;
+                    }
+                }
+                cnt
+            }
+        }
+    }
+
+    fn drain_to(&mut self, ids: &mut VecDeque<Id>) {
+        match self {
+            Pecking::Empty => {}
+            Pecking::Single(branch_id, id) => {
+                ids.push_back(*id);
+            }
+            Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
+            Pecking::Forest(hash_map) => {
+                for mut queue in std::mem::take(hash_map).into_values() {
+                    ids.extend(queue.drain(..));
+                }
+            }
+        }
+        *self = Pecking::Empty;
+    }
 }

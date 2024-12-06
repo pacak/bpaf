@@ -1,6 +1,8 @@
 mod visitor;
 
 pub mod executor;
+use std::collections::BTreeMap;
+
 use executor::Fragment;
 use named::{Argument, Flag, Named};
 use positional::Positional;
@@ -172,16 +174,33 @@ mod named {
 
     #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Name<'a> {
-        Short(char),
+        Short(char, [u8; 4]),
         Long(&'a str),
     }
+    impl Name<'_> {
+        pub(crate) fn as_bytes(&self) -> &[u8] {
+            match self {
+                Name::Short(_, a) => a.as_slice(),
+                Name::Long(l) => l.as_bytes(),
+            }
+        }
+    }
+
+    impl std::borrow::Borrow<[u8]> for Name<'_> {
+        fn borrow(&self) -> &[u8] {
+            self.as_bytes()
+        }
+    }
+
     pub struct Named {
         names: Vec<Name<'static>>,
         help: Option<String>,
     }
     pub(crate) fn short(name: char) -> Named {
+        let mut buf = [0; 4];
+        name.encode_utf8(&mut buf);
         Named {
-            names: vec![Name::Short(name)],
+            names: vec![Name::Short(name, buf)],
             help: None,
         }
     }
@@ -193,7 +212,9 @@ mod named {
     }
     impl Named {
         pub(crate) fn short(&mut self, name: char) {
-            self.names.push(Name::Short(name));
+            let mut buf = [0; 4];
+            name.encode_utf8(&mut buf);
+            self.names.push(Name::Short(name, buf));
         }
         pub(crate) fn long(&mut self, name: &'static str) {
             self.names.push(Name::Long(name));
