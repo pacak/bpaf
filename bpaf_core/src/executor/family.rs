@@ -91,8 +91,10 @@ impl FamilyTree {
         let branch = self.branch_for(id);
         self.positional.insert(id, branch);
     }
+
     pub(crate) fn remove_positional(&mut self, id: Id) {
-        todo!()
+        println!("need to remove positional {id:?}");
+        //        self.positional.remove(id);
     }
 
     pub(crate) fn add_named(&mut self, id: Id, names: &[Name<'static>]) {
@@ -103,6 +105,7 @@ impl FamilyTree {
         }
         println!("Added {names:?}, now it is {self:?}");
     }
+
     pub(crate) fn remove_named(&mut self, id: Id, names: &[Name<'static>]) {
         for name in names {
             self.named.remove(name);
@@ -119,7 +122,7 @@ impl FamilyTree {
         println!("Picking parser to deal with {input:?}");
 
         // first we need to decide what parsers to run
-        match split_param(input) {
+        match split_param(input)? {
             Arg::Named { name, val: _ } => {
                 let Some(q) = self.named.get_mut(name.as_bytes()) else {
                     return Err(Error::Invalid);
@@ -135,52 +138,6 @@ impl FamilyTree {
             }
         }
         Ok(())
-        // match x {
-        //     Arg::Named { name, val: _ } => {
-        //         let Some(x) = self.named.get_mut(&name) else {
-        //             return Err(Error::Missing);
-        //         };
-        //         x.pop_front(out);
-        //
-        //         Ok(())
-        //     }
-        //     Arg::ShortSet { names } => todo!(),
-        //     Arg::Positional { value } => todo!(),
-        // }
-        //     let name = if let Some(long) = front.strip_prefix("--") {
-        //         Name::Long(long)
-        //     } else if let Some(short) = front.strip_prefix("-") {
-        //         Name::Short(short.chars().next().unwrap())
-        //     } else {
-        //         let x = self.positional.pop_front(&mut out);
-        //         if x == 0 {
-        //             println!("no positionals");
-        //             return Err(Error::Invalid);
-        //         }
-        //         return Ok(());
-        //     };
-        //     println!("{:?}", self.named);
-        //     match self.named.get(&name).copied() {
-        //         Some(c) => {
-        //             println!("waking {c:?} to parse {name:?}");
-        //             out.push_back((c, 0));
-        //             Ok(())
-        //         }
-        //         None => {
-        //             println!(
-        //                 "unknown name - complain {:?} / {:?} / {:?}",
-        //                 name, front, self.named
-        //             );
-        //             Err(Error::Invalid)
-        //         }
-        //     }
-        // } else {
-        //     println!(
-        //         "nothing to parse, time to terminate things {:?}",
-        //         self.named
-        //     );
-        //     Ok(())
-        // }
     }
 
     pub(crate) fn insert(&mut self, parent: Parent, id: Id) -> BranchId {

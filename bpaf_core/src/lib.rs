@@ -20,14 +20,14 @@ mod error;
 ///
 /// While this documentation explains *fluent interface* specifically, most of it applies
 // TODO - add link
-/// to the derive API as well, the main difference is that instead of methinds being chained
+/// to the derive API as well, the main difference is that instead of methods being chained
 /// on the parser - you list them inside derive annotations. In both of those examples `many` refers to
 /// [`Parser::many`].
 ///
 /// Fluent API:
 /// ```ignore
 /// ...
-/// let parser = some_parser().many();
+/// let field = some_parser().many();
 /// ...
 /// ```
 ///
@@ -35,7 +35,7 @@ mod error;
 /// ```ignore
 /// ...
 /// #[bpaf(external(some_parser), many)]
-/// parser: Vec<String>
+/// field: Vec<String>
 /// ...
 /// ```
 ///
@@ -88,7 +88,7 @@ impl Cx<Named> {
     }
 }
 
-/// # Ready made parser
+/// # Parser for a named item
 impl<T> Cx<Flag<T>> {
     pub fn help(mut self, help: String) -> Self {
         self.0.help(help);
@@ -177,12 +177,20 @@ mod named {
         Short(char, [u8; 4]),
         Long(&'a str),
     }
+
     impl Name<'_> {
         pub(crate) fn as_bytes(&self) -> &[u8] {
             match self {
                 Name::Short(_, a) => a.as_slice(),
                 Name::Long(l) => l.as_bytes(),
             }
+        }
+
+        pub(crate) fn short(name: char) -> Name<'static> {
+            let mut buf = [0; 4];
+            name.encode_utf8(&mut buf);
+
+            Name::Short(name, buf)
         }
     }
 
@@ -196,6 +204,7 @@ mod named {
         names: Vec<Name<'static>>,
         help: Option<String>,
     }
+
     pub(crate) fn short(name: char) -> Named {
         let mut buf = [0; 4];
         name.encode_utf8(&mut buf);
@@ -274,11 +283,7 @@ mod positional {
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
             Box::pin(async {
-                let s = PositionalFut {
-                    ctx,
-                    registered: false,
-                }
-                .await;
+                let s = PositionalFut { ctx, task_id: None }.await;
                 T::from_str(s?).map_err(|_| Error::Invalid)
             })
         }
