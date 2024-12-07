@@ -1,17 +1,15 @@
-#![allow(unused_imports, dead_code, unused_variables)]
-use crate::{long, named::Name, positional};
+#![allow(dead_code)]
+
+use crate::named::Name;
 use std::{
-    cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    cell::RefCell,
+    collections::{BTreeMap, HashMap, VecDeque},
     fmt::Debug,
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
-    rc::{Rc, Weak},
-    sync::{
-        atomic::{AtomicU32, AtomicUsize},
-        Arc, Mutex,
-    },
+    rc::Rc,
+    sync::{atomic::AtomicUsize, Arc, Mutex},
     task::{Context, Poll, Wake, Waker},
 };
 
