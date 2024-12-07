@@ -70,18 +70,24 @@ impl BranchId {
     };
 }
 
+#[derive(Debug)]
+struct TaskInfo {
+    parent: Parent,
+    branch: BranchId,
+}
+
 // For any node I need to be able to find all sum siblings
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree {
     named: BTreeMap<Name<'static>, Pecking>,
     positional: Pecking,
-    parents: HashMap<Id, Parent>, // child -> parent
+    tasks: HashMap<Id, TaskInfo>,
 }
 
 impl FamilyTree {
     pub(crate) fn add_positional(&mut self, id: Id) {
-        let branch = self.branch_for(id);
+        let branch = self.tasks.get(&id).unwrap().branch;
         self.positional.insert(id, branch);
     }
 
@@ -91,7 +97,7 @@ impl FamilyTree {
     }
 
     pub(crate) fn add_named(&mut self, id: Id, names: &[Name<'static>]) {
-        let branch = self.branch_for(id);
+        let branch = self.tasks.get(&id).unwrap().branch;
 
         for name in names.iter() {
             self.named.entry(*name).or_default().insert(id, branch);
@@ -133,39 +139,46 @@ impl FamilyTree {
         Ok(())
     }
 
-    pub(crate) fn insert(&mut self, parent: Parent, id: Id) -> BranchId {
-        self.parents.insert(id, parent);
-        self.branch_for(id)
+    pub(crate) fn insert(&mut self, parent: Parent, id: Id) {
+        let branch = match parent.kind {
+            NodeKind::Sum => BranchId {
+                parent: parent.id,
+                field: parent.field,
+            },
+            NodeKind::Prod => self
+                .tasks
+                .get(&parent.id)
+                .map_or(BranchId::ROOT, |t| t.branch),
+        };
+
+        let info = TaskInfo { parent, branch };
+        self.tasks.insert(id, info);
     }
 
     pub(crate) fn remove(&mut self, id: Id) {
-        use std::collections::hash_map::Entry;
-        let Some(parent) = self.parents.remove(&id) else {
-            return;
-        };
-    }
-    //        fn missing_siblings(&self) {}
-
-    fn top_sum_parent(&self, mut id: Id) -> Option<Parent> {
-        let mut best = None;
-        while let Some(parent) = self.parents.get(&id) {
-            if parent.kind == NodeKind::Sum {
-                best = Some(*parent);
-            }
-            id = parent.id;
-        }
-        best
+        self.tasks.remove(&id);
     }
 
-    fn branch_for(&self, id: Id) -> BranchId {
-        match self.top_sum_parent(id) {
-            Some(p) => BranchId {
-                parent: p.id,
-                field: p.field,
-            },
-            None => BranchId::ROOT,
-        }
-    }
+    // fn top_sum_parent(&self, mut id: Id) -> Option<Parent> {
+    //     let mut best = None;
+    //     while let Some(parent) = self.parents.get(&id) {
+    //         if parent.kind == NodeKind::Sum {
+    //             best = Some(*parent);
+    //         }
+    //         id = parent.id;
+    //     }
+    //     best
+    // }
+    //
+    // fn branch_for(&self, id: Id) -> BranchId {
+    //     match self.top_sum_parent(id) {
+    //         Some(p) => BranchId {
+    //             parent: p.id,
+    //             field: p.field,
+    //         },
+    //         None => BranchId::ROOT,
+    //     }
+    // }
 }
 
 //
@@ -177,23 +190,23 @@ impl FamilyTree {
 // [[x, (X, [x, x])], x] => [[_, (X, [x, x])]
 // [[x, (x, [x, x])], x]
 
-#[test]
-fn alt_parent_1() {
-    let mut f = FamilyTree::default();
-    f.insert(Id(0).sum(0), Id(1));
-    f.insert(Id(1).sum(0), Id(2));
-    f.insert(Id(1).sum(1), Id(3));
-
-    assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap().id);
-    assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap().id);
-    assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap().id);
-
-    f.remove(Id(3));
-    f.remove(Id(2));
-    f.remove(Id(1));
-
-    assert_eq!(f.parents.len(), 0);
-}
+// #[test]
+// fn alt_parent_1() {
+//     let mut f = FamilyTree::default();
+//     f.insert(Id(0).sum(0), Id(1));
+//     f.insert(Id(1).sum(0), Id(2));
+//     f.insert(Id(1).sum(1), Id(3));
+//
+//     assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap().id);
+//     assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap().id);
+//     assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap().id);
+//
+//     f.remove(Id(3));
+//     f.remove(Id(2));
+//     f.remove(Id(1));
+//
+//     assert_eq!(f.tasks.len(), 0);
+// }
 
 /// # Pecking order
 ///
