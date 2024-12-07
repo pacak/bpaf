@@ -70,19 +70,12 @@ impl BranchId {
     };
 }
 
-#[derive(Debug)]
-struct Node {
-    ty: NodeKind,
-    children: BTreeMap<u32, Id>,
-}
-
 // For any node I need to be able to find all sum siblings
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree {
     named: BTreeMap<Name<'static>, Pecking>,
     positional: Pecking,
-    children: HashMap<Id, Node>,  // parent -> children
     parents: HashMap<Id, Parent>, // child -> parent
 }
 
@@ -142,11 +135,6 @@ impl FamilyTree {
 
     pub(crate) fn insert(&mut self, parent: Parent, id: Id) -> BranchId {
         self.parents.insert(id, parent);
-        let entry = self.children.entry(parent.id).or_insert(Node {
-            ty: parent.kind,
-            children: BTreeMap::new(),
-        });
-        entry.children.insert(parent.field, id);
         self.branch_for(id)
     }
 
@@ -155,11 +143,6 @@ impl FamilyTree {
         let Some(parent) = self.parents.remove(&id) else {
             return;
         };
-        let Entry::Occupied(mut e) = self.children.entry(parent.id) else {
-            return;
-        };
-        e.get_mut().children.remove(&parent.field);
-        self.children.remove(&id);
     }
     //        fn missing_siblings(&self) {}
 
@@ -209,7 +192,6 @@ fn alt_parent_1() {
     f.remove(Id(2));
     f.remove(Id(1));
 
-    assert_eq!(f.children.len(), 1, "{f:?}");
     assert_eq!(f.parents.len(), 0);
 }
 
