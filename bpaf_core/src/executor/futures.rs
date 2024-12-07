@@ -52,6 +52,7 @@ pub(crate) struct ExitHandle<'a, T> {
     pub(crate) id: Cell<Option<Id>>,
     /// Waker for parent task
     waker: Cell<Option<Waker>>,
+    /// A way to pass the result from ExitHandle side to JoinHandle
     result: Rc<Cell<Option<Result<T, Error>>>>,
     ctx: Ctx<'a>,
 }
@@ -100,15 +101,26 @@ impl<T> Future for JoinHandle<'_, T> {
 
 pub struct PositionalFut<'a> {
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) registered: bool,
+    pub(crate) task_id: Option<Id>,
+}
+impl Drop for PositionalFut<'_> {
+    fn drop(&mut self) {
+        println!("dropped positional");
+        if let Some(id) = self.task_id {
+            self.ctx
+                .shared
+                .borrow_mut()
+                .push_back(Op::RemovePositionalListener { id });
+        }
+    }
 }
 
 impl<'ctx> Future for PositionalFut<'ctx> {
     type Output = Result<&'ctx str, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if !self.registered {
-            self.registered = true;
+        if self.task_id.is_none() {
+            self.task_id = self.ctx.current_task();
             self.ctx.positional_wake(cx.waker().clone());
             return Poll::Pending;
         }
@@ -163,7 +175,7 @@ impl Future for NamedFut<'_> {
             return Poll::Ready(Err(Error::Missing));
         };
 
-        Poll::Ready(match split_param(front) {
+        Poll::Ready(match split_param(front)? {
             Arg::Named { name, val } => {
                 let r = self
                     .name

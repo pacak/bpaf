@@ -86,7 +86,6 @@ use family::{BranchId, FamilyTree, *};
 pub use futures::*;
 
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
-
 struct Task<'a> {
     action: Action<'a>,
     branch: BranchId,
@@ -149,6 +148,9 @@ enum Op<'a> {
     },
     AddPositionalListener {
         waker: Waker,
+    },
+    RemovePositionalListener {
+        id: Id,
     },
 }
 
@@ -420,43 +422,42 @@ enum Arg<'a> {
     },
 }
 
-fn spa(value: &str) -> Arg {
-    todo!()
+fn is_short(name: &str) -> Result<Name, Error> {
+    let mut chars = name.chars();
+    match (chars.next(), chars.next()) {
+        (None, None) => todo!(), // don't know
+        (Some(n), None) => Ok(Name::short(n)),
+        (None, Some(_)) => Err(Error::Killed), // unreachable
+        (Some(_), Some(_)) => todo!("short name set?"),
+    }
 }
 
-fn split_param(value: &str) -> Arg {
+/// Parse front
+fn split_param(value: &str) -> Result<Arg, Error> {
     if let Some(long_name) = value.strip_prefix("--") {
         match long_name.split_once('=') {
-            Some((name, arg)) => Arg::Named {
+            Some((name, arg)) => Ok(Arg::Named {
                 name: Name::Long(name),
                 val: Some(arg),
-            },
-            None => Arg::Named {
+            }),
+            None => Ok(Arg::Named {
                 name: Name::Long(long_name),
                 val: None,
-            },
+            }),
         }
     } else if let Some(short_name) = value.strip_prefix("-") {
         match short_name.split_once('=') {
-            Some((name, arg)) => {
-                let name = name.chars().next().unwrap(); // TODO
-                todo!();
-                // Arg::Named {
-                //     name: Name::Short(name),
-                //     val: Some(arg),
-                // }
-            }
-            None => {
-                let name = short_name.chars().next().unwrap(); // TODO
-                todo!();
-                // Arg::Named {
-                //     name: Name::Short(name),
-                //     val: None,
-                // }
-            }
+            Some((name, arg)) => Ok(Arg::Named {
+                name: is_short(name)?,
+                val: Some(arg),
+            }),
+            None => Ok(Arg::Named {
+                name: is_short(short_name)?,
+                val: None,
+            }),
         }
     } else {
-        Arg::Positional { value }
+        Ok(Arg::Positional { value })
     }
 }
 
@@ -530,12 +531,15 @@ impl<'a> Runner<'a> {
                     println!("named add for {id:?}");
                     self.family.add_named(id, names);
                 }
+                Op::RemoveNamedListener { names, id } => {
+                    self.family.remove_named(id, names);
+                }
                 Op::AddPositionalListener { waker } => {
                     let id = self.resolve(&waker);
                     self.family.add_positional(id);
                 }
-                Op::RemoveNamedListener { names, id } => {
-                    self.family.remove_named(id, names);
+                Op::RemovePositionalListener { id } => {
+                    self.family.remove_positional(id);
                 }
                 Op::KillTask { id } => {
                     self.tasks.remove(&id);
