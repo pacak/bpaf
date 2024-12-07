@@ -1,4 +1,6 @@
-use super::{long, parse_args, positional, Alt, Error, Pair, Parser};
+use crate::{long, positional};
+
+use super::{parse_args, Alt, Error, Pair, Parser};
 
 #[test]
 fn simple_flag_parser() {
