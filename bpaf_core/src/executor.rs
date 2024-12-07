@@ -86,7 +86,6 @@ pub use futures::*;
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
 struct Task<'a> {
     action: Action<'a>,
-    branch: BranchId,
     waker: Waker,
 }
 
@@ -510,15 +509,11 @@ impl<'a> Runner<'a> {
                 Op::SpawnTask { parent, action } => {
                     let (id, waker) = self.next_id();
 
-                    let mut task = Task {
-                        action,
-                        waker,
-                        branch: BranchId::DUMMY, // start with a dummy branch
-                    };
+                    let mut task = Task { action, waker };
 
                     if task.poll(id, &self.ctx).is_pending() {
                         // task is still pending, get the real BranchId to save it
-                        task.branch = self.family.insert(parent, id);
+                        self.family.insert(parent, id);
                         self.tasks.insert(id, task);
                     } else {
                         println!("done already");
