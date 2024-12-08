@@ -102,14 +102,14 @@ impl FamilyTree {
         for name in names.iter() {
             self.named.entry(*name).or_default().insert(id, branch);
         }
-        println!("Added {names:?}, now it is {self:?}");
+        // println!("Added {names:?}, now it is {self:?}");
     }
 
     pub(crate) fn remove_named(&mut self, id: Id, names: &[Name<'static>]) {
         for name in names {
             self.named.remove(name);
         }
-        println!("remove named listener for {names:?} {id:?}");
+        // println!("remove named listener for {names:?} {id:?}");
     }
 
     pub(crate) fn pick_parsers_for(
@@ -126,16 +126,14 @@ impl FamilyTree {
                 let Some(q) = self.named.get_mut(name.as_bytes()) else {
                     return Err(Error::Invalid);
                 };
-
-                println!("looking in {q:?}");
                 q.pop_front(out);
-                println!("got {out:?}");
             }
             Arg::ShortSet { names } => todo!(),
             Arg::Positional { value } => {
                 self.positional.pop_front(out);
             }
         }
+        println!("Got {out:?}");
         Ok(())
     }
 
