@@ -179,7 +179,7 @@ impl Future for NamedFut<'_> {
         };
 
         Poll::Ready(match split_param(front)? {
-            Arg::Named { name, val } => {
+            Arg::Named { name, value: val } => {
                 assert!(val.is_none());
                 let r = self
                     .name
