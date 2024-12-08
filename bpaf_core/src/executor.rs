@@ -274,6 +274,13 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
     {
         Rc::new(self)
     }
+
+    fn many(self) -> crate::Cx<Many<Self>>
+    where
+        Self: Sized,
+    {
+        crate::Cx(Many(self))
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -336,7 +343,7 @@ where
 }
 
 #[derive(Clone)]
-struct Many<P>(P);
+pub struct Many<P>(P);
 impl<T, P> Parser<Vec<T>> for Many<P>
 where
     P: Parser<T>,

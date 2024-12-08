@@ -98,6 +98,14 @@ fn pair_of_positionals() {
 }
 
 #[test]
+fn many_positionals_good() {
+    let a = positional::<String>("A").many();
+
+    let r = parse_args(&a, &["a".into(), "b".into(), "c".into()]);
+    assert_eq!(r, Ok(vec!["a".into(), "b".into(), "c".into()]));
+}
+
+#[test]
 fn badly_emulated_args() {
     let alice_f = long("alice").req_flag('a').into_box();
     let bob_f = long("bob").req_flag('b').into_box();
