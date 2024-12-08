@@ -53,10 +53,16 @@ pub(crate) struct Parent {
     pub(crate) field: u32,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub(crate) struct BranchId {
     parent: Id,
     field: u32,
+}
+
+impl std::fmt::Debug for BranchId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "B({}:{})", self.parent.0, self.field)
+    }
 }
 
 impl BranchId {
