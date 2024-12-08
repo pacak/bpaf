@@ -408,7 +408,7 @@ struct Runner<'ctx> {
 enum Arg<'a> {
     Named {
         name: Name<'a>,
-        val: Option<&'a str>,
+        value: Option<&'a str>,
     },
     ShortSet {
         names: Vec<char>,
@@ -434,22 +434,22 @@ fn split_param(value: &str) -> Result<Arg, Error> {
         match long_name.split_once('=') {
             Some((name, arg)) => Ok(Arg::Named {
                 name: Name::Long(name),
-                val: Some(arg),
+                value: Some(arg),
             }),
             None => Ok(Arg::Named {
                 name: Name::Long(long_name),
-                val: None,
+                value: None,
             }),
         }
     } else if let Some(short_name) = value.strip_prefix("-") {
         match short_name.split_once('=') {
             Some((name, arg)) => Ok(Arg::Named {
                 name: is_short(name)?,
-                val: Some(arg),
+                value: Some(arg),
             }),
             None => Ok(Arg::Named {
                 name: is_short(short_name)?,
-                val: None,
+                value: None,
             }),
         }
     } else {

@@ -98,8 +98,8 @@ impl FamilyTree {
     }
 
     pub(crate) fn remove_positional(&mut self, id: Id) {
-        println!("need to remove positional {id:?}");
-        //        self.positional.remove(id);
+        let branch = self.tasks.get(&id).unwrap().branch;
+        self.positional.remove(branch, id);
     }
 
     pub(crate) fn add_named(&mut self, id: Id, names: &[Name<'static>]) {
@@ -108,14 +108,22 @@ impl FamilyTree {
         for name in names.iter() {
             self.named.entry(*name).or_default().insert(id, branch);
         }
-        // println!("Added {names:?}, now it is {self:?}");
+        println!("Added {names:?}, now it is {self:?}");
     }
 
     pub(crate) fn remove_named(&mut self, id: Id, names: &[Name<'static>]) {
+        let branch = self.tasks.get(&id).unwrap().branch;
         for name in names {
-            self.named.remove(name);
+            let std::collections::btree_map::Entry::Occupied(mut entry) = self.named.entry(*name)
+            else {
+                continue;
+            };
+            entry.get_mut().remove(branch, id);
+            if entry.get().is_empty() {
+                entry.remove();
+            }
         }
-        // println!("remove named listener for {names:?} {id:?}");
+        self.tasks.remove(&id);
     }
 
     pub(crate) fn pick_parsers_for(
@@ -123,20 +131,21 @@ impl FamilyTree {
         input: &str,
         out: &mut VecDeque<(Id, usize)>,
     ) -> Result<(), Error> {
+        out.clear();
         // Populate ids with tasks that subscribed for the next token
         println!("Picking parser to deal with {input:?}");
 
         // first we need to decide what parsers to run
         match split_param(input)? {
-            Arg::Named { name, val: _ } => {
+            Arg::Named { name, value: _ } => {
                 let Some(q) = self.named.get_mut(name.as_bytes()) else {
                     return Err(Error::Invalid);
                 };
-                q.pop_front(out);
+                q.peek_front(out);
             }
             Arg::ShortSet { names } => todo!(),
-            Arg::Positional { value } => {
-                self.positional.pop_front(out);
+            Arg::Positional { value: _ } => {
+                self.positional.peek_front(out);
             }
         }
         println!("Got {out:?}");
@@ -185,33 +194,6 @@ impl FamilyTree {
     // }
 }
 
-//
-
-// [[X, x], x] => [[X, _], _]
-// [[x, x], X] => [_, X]
-
-// [[X, (x, [x, x])], x] => [[X, _], _]
-// [[x, (X, [x, x])], x] => [[_, (X, [x, x])]
-// [[x, (x, [x, x])], x]
-
-// #[test]
-// fn alt_parent_1() {
-//     let mut f = FamilyTree::default();
-//     f.insert(Id(0).sum(0), Id(1));
-//     f.insert(Id(1).sum(0), Id(2));
-//     f.insert(Id(1).sum(1), Id(3));
-//
-//     assert_eq!(Id(0), f.top_sum_parent(Id(1)).unwrap().id);
-//     assert_eq!(Id(0), f.top_sum_parent(Id(2)).unwrap().id);
-//     assert_eq!(Id(0), f.top_sum_parent(Id(3)).unwrap().id);
-//
-//     f.remove(Id(3));
-//     f.remove(Id(2));
-//     f.remove(Id(1));
-//
-//     assert_eq!(f.tasks.len(), 0);
-// }
-
 /// # Pecking order
 ///
 /// For as long as there's only one task to wake up for the input - it is safe to just
@@ -235,13 +217,6 @@ impl FamilyTree {
 /// - `[any1, any2, named]` - `any1` runs, if not - `any2`, if not - `named`
 ///
 /// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
-///
-///
-/// # Operations needed
-///
-/// - `Pecking::insert`
-/// - `Pecking::select`
-/// - `Pecking::remove`?
 #[derive(Debug, Default)]
 enum Pecking {
     /// No parsers at all, this makes sense for `positional` and `any` items, with
@@ -262,7 +237,50 @@ enum Pecking {
     Forest(HashMap<BranchId, VecDeque<Id>>),
 }
 
+fn remove_first(q: &mut VecDeque<Id>, id: Id) {
+    let Some(pos) = q.iter().position(|i| *i == id) else {
+        panic!("Trying to remove {id:?} that's not present in {q:?}");
+    };
+    q.remove(pos);
+}
+
 impl Pecking {
+    fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
+    }
+    /// removes an item from a pecking order,
+    fn remove(&mut self, branch: BranchId, id: Id) {
+        match self {
+            Self::Empty => panic!("trying to remove a listener from an empty"),
+            Self::Single(branch_id, cur_id) => {
+                assert_eq!(*branch_id, branch);
+                assert_eq!(*cur_id, id);
+                *self = Self::Empty;
+            }
+            Self::Queue(branch_id, vec_deque) => {
+                assert_eq!(*branch_id, branch);
+                remove_first(vec_deque, id);
+                if vec_deque.is_empty() {
+                    *self = Self::Empty;
+                }
+            }
+            Self::Forest(hash_map) => {
+                let std::collections::hash_map::Entry::Occupied(mut entry) = hash_map.entry(branch)
+                else {
+                    panic!("Trying to remove branch {branch:?} from {self:?}");
+                };
+
+                remove_first(entry.get_mut(), id);
+                if entry.get().is_empty() {
+                    entry.remove();
+                }
+                if hash_map.is_empty() {
+                    *self = Self::Empty;
+                }
+            }
+        }
+    }
+
     fn insert(&mut self, id: Id, branch: BranchId) {
         match self {
             Pecking::Empty => *self = Pecking::Single(branch, id),
@@ -302,48 +320,40 @@ impl Pecking {
         }
     }
 
-    fn pop_front(&mut self, ids: &mut VecDeque<(Id, usize)>) -> usize {
+    fn peek_front(&self, ids: &mut VecDeque<(Id, usize)>) {
         match self {
-            Pecking::Empty => 0,
-            Pecking::Single(branch_id, id) => {
+            Pecking::Empty => panic!("empty_queue"),
+            Pecking::Single(_branch_id, id) => {
                 ids.push_back((*id, 0));
-                *self = Pecking::Empty;
-                1
             }
-            Pecking::Queue(branch_id, vec_deque) => {
-                if let Some(f) = vec_deque.pop_front() {
-                    ids.push_back((f, 0));
-                    1
-                } else {
-                    0
+            Pecking::Queue(_branch_id, vec_deque) => {
+                if let Some(f) = vec_deque.front() {
+                    ids.push_back((*f, 0));
                 }
             }
             Pecking::Forest(hash_map) => {
-                let mut cnt = 0;
-                for m in hash_map.values_mut() {
-                    if let Some(f) = m.pop_front() {
-                        ids.push_back((f, 0));
-                        cnt += 1;
+                for m in hash_map.values() {
+                    if let Some(f) = m.front() {
+                        ids.push_back((*f, 0));
                     }
                 }
-                cnt
             }
         }
     }
 
-    fn drain_to(&mut self, ids: &mut VecDeque<Id>) {
-        match self {
-            Pecking::Empty => {}
-            Pecking::Single(branch_id, id) => {
-                ids.push_back(*id);
-            }
-            Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
-            Pecking::Forest(hash_map) => {
-                for mut queue in std::mem::take(hash_map).into_values() {
-                    ids.extend(queue.drain(..));
-                }
-            }
-        }
-        *self = Pecking::Empty;
-    }
+    // fn drain_to(&mut self, ids: &mut VecDeque<Id>) {
+    //     match self {
+    //         Pecking::Empty => {}
+    //         Pecking::Single(branch_id, id) => {
+    //             ids.push_back(*id);
+    //         }
+    //         Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
+    //         Pecking::Forest(hash_map) => {
+    //             for mut queue in std::mem::take(hash_map).into_values() {
+    //                 ids.extend(queue.drain(..));
+    //             }
+    //         }
+    //     }
+    //     *self = Pecking::Empty;
+    // }
 }
