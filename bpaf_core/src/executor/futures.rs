@@ -66,7 +66,11 @@ impl<T> Drop for JoinHandle<'_, T> {
     fn drop(&mut self) {
         if let Some(child) = self.task.upgrade() {
             if let Some(id) = child.id.take() {
-                child.ctx.shared.borrow_mut().push_back(Op::KillTask { id });
+                child
+                    .ctx
+                    .shared
+                    .borrow_mut()
+                    .push_back(Op::ParentExited { id });
             }
         }
     }
@@ -144,7 +148,7 @@ pub struct NamedFut<'a> {
 
 impl Drop for NamedFut<'_> {
     fn drop(&mut self) {
-        println!("dropped {:?}", self.name);
+        println!("dropped {:?}, id: {:?}", self.name, self.task_id);
         if let Some(id) = self.task_id {
             self.ctx
                 .shared
@@ -170,13 +174,13 @@ impl Future for NamedFut<'_> {
             return Poll::Pending;
         }
 
-        self.task_id = None;
         let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
             return Poll::Ready(Err(Error::Missing));
         };
 
         Poll::Ready(match split_param(front)? {
             Arg::Named { name, val } => {
+                assert!(val.is_none());
                 let r = self
                     .name
                     .iter()

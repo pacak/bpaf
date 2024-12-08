@@ -132,7 +132,8 @@ enum Op<'a> {
     WakeTask {
         id: Id,
     },
-    KillTask {
+    /// Parent is no longer interested
+    ParentExited {
         id: Id,
     },
     AddNamedListener {
@@ -164,7 +165,6 @@ where
 
     let runner = Runner {
         ctx,
-        ids: Default::default(),
         tasks: BTreeMap::new(),
         pending: Default::default(),
         next_task_id: 0,
@@ -395,7 +395,6 @@ impl Wake for WakeTask {
 struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
-    ids: VecDeque<Id>,
     tasks: BTreeMap<Id, Task<'ctx>>,
 
     family: FamilyTree,
@@ -508,35 +507,36 @@ impl<'a> Runner<'a> {
             match item {
                 Op::SpawnTask { parent, action } => {
                     let (id, waker) = self.next_id();
-
                     let mut task = Task { action, waker };
-
                     if task.poll(id, &self.ctx).is_pending() {
-                        // task is still pending, get the real BranchId to save it
+                        // Only keep tasks that are not immediately resolved
                         self.family.insert(parent, id);
                         self.tasks.insert(id, task);
                     } else {
-                        println!("done already");
+                        println!("Task {id:?} is resolved immediately after spawning");
                     }
                 }
                 Op::AddNamedListener { names, waker } => {
                     let id = self.resolve(&waker);
-                    println!("named add for {id:?}");
+                    println!("{id:?}: Add listener for {names:?}");
                     self.family.add_named(id, names);
                 }
                 Op::RemoveNamedListener { names, id } => {
+                    println!("{id:?}: Remove listener for {names:?}");
                     self.family.remove_named(id, names);
                 }
                 Op::AddPositionalListener { waker } => {
                     let id = self.resolve(&waker);
+                    println!("{id:?}: Add positional listener");
                     self.family.add_positional(id);
                 }
                 Op::RemovePositionalListener { id } => {
+                    println!("{id:?}: Remove positional listener");
                     self.family.remove_positional(id);
                 }
-                Op::KillTask { id } => {
+                Op::ParentExited { id } => {
+                    println!("{id:?}: Parent exited");
                     self.tasks.remove(&id);
-                    println!("kill task {id:?}");
                 }
                 Op::WakeTask { id } => {
                     let Some(task) = self.tasks.get_mut(&id) else {
@@ -552,21 +552,21 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn run_scheduled(&mut self) -> bool {
-        let changes = self.ids.is_empty();
-        for id in self.ids.drain(..) {
-            if let Some(task) = self.tasks.get_mut(&id) {
-                if let Poll::Ready(res) = task.poll(id, &self.ctx) {
-                    if let Some(err) = res {
-                        println!("task failed, see if parent cares");
-                    }
-                    println!("Task {id:?} is done, dropping it");
-                    self.tasks.remove(&id);
-                }
-            }
-        }
-        !changes
-    }
+    // fn run_scheduled(&mut self) -> bool {
+    //     let changes = self.ids.is_empty();
+    //     for id in self.ids.drain(..) {
+    //         if let Some(task) = self.tasks.get_mut(&id) {
+    //             if let Poll::Ready(res) = task.poll(id, &self.ctx) {
+    //                 if let Some(err) = res {
+    //                     println!("task failed, see if parent cares");
+    //                 }
+    //                 println!("Task {id:?} is done, dropping it");
+    //                 self.tasks.remove(&id);
+    //             }
+    //         }
+    //     }
+    //     !changes
+    // }
 
     fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
@@ -603,6 +603,7 @@ impl<'a> Runner<'a> {
         let mut par = VecDeque::new();
         loop {
             self.handle_non_consuming();
+            println!("============= Non consuming part done");
 
             // need to generate errors for:
             // - conflict
@@ -616,26 +617,12 @@ impl<'a> Runner<'a> {
                 println!("nothing to consume");
                 break;
             };
+
             // check how to parse next word
             self.family.pick_parsers_for(front, &mut par)?;
 
-            // if we don't know how to parse it - prepare an error using
-            // available names,
-            if par.is_empty() {
-                panic!("If there are unconsumed items ({front:?}) but no parsers");
-                // for id in self.named.values() {
-                //     println!("waking {id:?} to handle noparse");
-                //     self.ids.push_back(*id);
-                // }
-                // self.named.clear();
-                // self.positional.drain_to(&mut self.ids);
-                //
-                // if self.ids.is_empty() {
-                //     break;
-                // }
-            }
+            assert!(!par.is_empty(), "pick for parsers didn't raise an error");
 
-            println!("We are going to parse the next workd with {:?}", self.ids);
             // actual feed consumption happens here
             let mut max_consumed = 0;
             for (id, t) in par.iter_mut() {
@@ -659,12 +646,13 @@ impl<'a> Runner<'a> {
 
             par.retain(|(_id, len)| *len == max_consumed);
 
-            println!("forest: {:?}", self.family);
             // next task is to go over all the `par` results up to root, mark
             // all the alt branches that are still present in `par` and their
             // parents up to the top most alt branch as safe and
             // terminate all unmarked branches
             self.ctx.advance(max_consumed);
+
+            println!("============= Consuming part done, advanced by {max_consumed}");
         }
 
         // at this point there's nothing left to consume, let's run existing tasks to completion
