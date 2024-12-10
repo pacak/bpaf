@@ -98,7 +98,9 @@ struct TaskInfo {
     branch: BranchId,
     // Problem: .many() will repeatedly spawn the inner parser until interrupted
     // by something. This interacts badly with parsers that consume the same object type in the
-    // same parser...
+    // same parser... When parsers are positional and values are "a b c d", first call
+    // for .many() consumes "a" and a new parser gets spawned, then call to the second parser
+    // consumes "b" and only then first parser deals with "c" and "d", resulting in ([a, c, d], b).
 
     // I want to know the position of the item in the virtual product
     // for that I need to know parent offset as well as child on the left offset...
@@ -386,20 +388,4 @@ impl Pecking {
             }
         }
     }
-
-    // fn drain_to(&mut self, ids: &mut VecDeque<Id>) {
-    //     match self {
-    //         Pecking::Empty => {}
-    //         Pecking::Single(branch_id, id) => {
-    //             ids.push_back(*id);
-    //         }
-    //         Pecking::Queue(branch_id, vec_deque) => ids.extend(vec_deque.drain(..)),
-    //         Pecking::Forest(hash_map) => {
-    //             for mut queue in std::mem::take(hash_map).into_values() {
-    //                 ids.extend(queue.drain(..));
-    //             }
-    //         }
-    //     }
-    //     *self = Pecking::Empty;
-    // }
 }
