@@ -219,27 +219,6 @@ impl FamilyTree {
     pub(crate) fn remove(&mut self, id: Id) {
         self.tasks.remove(&id);
     }
-
-    // fn top_sum_parent(&self, mut id: Id) -> Option<Parent> {
-    //     let mut best = None;
-    //     while let Some(parent) = self.parents.get(&id) {
-    //         if parent.kind == NodeKind::Sum {
-    //             best = Some(*parent);
-    //         }
-    //         id = parent.id;
-    //     }
-    //     best
-    // }
-    //
-    // fn branch_for(&self, id: Id) -> BranchId {
-    //     match self.top_sum_parent(id) {
-    //         Some(p) => BranchId {
-    //             parent: p.id,
-    //             field: p.field,
-    //         },
-    //         None => BranchId::ROOT,
-    //     }
-    // }
 }
 
 /// # Pecking order
@@ -258,6 +237,8 @@ impl FamilyTree {
 /// There's one queue for each branch_id (sum parent id + field), every queue contains
 /// items from the same product, so their priority is how far from the left end they are
 ///
+/// In practice all we need is a single BTreeSet :)
+///
 /// "any" parsers get to run for both named and positional input inside their branch
 /// accoding to their priority, if at the front. Consider a few queues
 /// - `[named, any]` - `any` doesn't run since `named` takes priority
@@ -265,25 +246,7 @@ impl FamilyTree {
 /// - `[any1, any2, named]` - `any1` runs, if not - `any2`, if not - `named`
 ///
 /// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
-// #[derive(Debug, Default)]
-// enum Pecking {
-//     /// No parsers at all, this makes sense for `positional` and `any` items, with
-//     /// named might as well drop the parser
-//     #[default]
-//     Empty,
-//
-//     /// A single parser
-//     ///
-//     /// Usually a unique named argument or a single positional item to the parser
-//     Single(BranchId, Id),
-//     /// There's multiple parsers, but they all belong to the same queue
-//     ///
-//     /// Several positional items
-//     Queue(BranchId, VecDeque<Id>),
-//
-//     /// Multiple alternative branches, VecDeque contains at least one item
-//     Forest(HashMap<BranchId, VecDeque<Id>>),
-// }
+
 #[derive(Debug, Clone, Default)]
 struct Pecking(BTreeSet<(Id, BranchId)>);
 
