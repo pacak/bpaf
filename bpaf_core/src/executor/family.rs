@@ -78,8 +78,41 @@ impl BranchId {
 
 #[derive(Debug)]
 struct TaskInfo {
+    /// Pointer to the parent item plus some info about it:
+    /// - parent id
+    /// - field number,
+    /// - parent type (sum/prod)
     parent: Parent,
+
+    /// Id field number of the nearest sum parent
+    /// When consuming things in the same category (same name or
+    /// several positional items) we want to know if those things
+    /// are being consumed in parallel. `branch` holds id and field
+    /// of the nearest sum parent.
+    ///
+    /// If they are the same - items consumed belong to the same prod
+    /// type so must be consumed sequentially. If they are different -
+    /// they belong to different branches and can be consumed concurrently
+    ///
+    /// Longest match wins though.
     branch: BranchId,
+    // I want to know the position of the item in the virtual product
+    // for that I need to know parent offset as well as child on the left offset...
+    //
+    // (a*, b): a < b; [0] < [1]
+    // ((a*, b), c): a < b < c: [0, 0] < [0, 1] < [1]
+    // ((e, b, a*), c): e < b < a < c; [0, 0] < [0, 1] < [0, 2] < [1]
+    // ((a, b), (c, d)): a < b < c < d; [0, 0] < [0, 1] < [1, 0] < [1, 1]
+    //
+    // Easiest way is to build paths to the each id and sort them in
+    // lexicographical order... But this is allocations.
+    // We can treat it by sort of linked list
+    // by keeping depth and field number. This way
+    // we can recover the order by getting right/left item
+    // to the same depth, if they match parent - compare field ids.
+    // otherwise - keep going up until branch id...
+    //
+    // Alternatively - try to reuse the same task ids and have queus as ordered sets...
 }
 
 // For any node I need to be able to find all sum siblings
