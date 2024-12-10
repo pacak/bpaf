@@ -2,19 +2,11 @@ use crate::named::Name;
 
 use super::{split_param, Arg, Ctx, Error, Id, Op};
 use std::{
-    cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
-    fmt::Debug,
+    cell::Cell,
     future::Future,
-    marker::PhantomData,
-    pin::{pin, Pin},
+    pin::Pin,
     rc::{Rc, Weak},
-    sync::{
-        atomic::{AtomicU32, AtomicUsize},
-        Arc, Mutex,
-    },
-    task::{Context, Poll, Wake, Waker},
-    vec,
+    task::{Context, Poll, Waker},
 };
 
 impl<'ctx> Ctx<'ctx> {

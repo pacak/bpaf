@@ -1,4 +1,4 @@
-use crate::{long, positional};
+use crate::{long, positional, short};
 
 use super::{parse_args, Alt, Error, Pair, Parser};
 
@@ -103,6 +103,29 @@ fn many_positionals_good() {
 
     let r = parse_args(&a, &["a".into(), "b".into(), "c".into()]);
     assert_eq!(r, Ok(vec!["a".into(), "b".into(), "c".into()]));
+}
+
+#[test]
+fn depth_first() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let ab = Pair(a, b);
+    let c = short('c').req_flag('c');
+    let abc = Pair(ab, c);
+    let r = parse_args(&abc, &["-a".into(), "-b".into(), "-c".into()]);
+    assert_eq!(r, Ok((('a', 'b'), 'c')));
+}
+
+#[test]
+/// This can never produce the result since `a` is greedy
+fn many_positionals_bad() {
+    let a = positional::<String>("A").many();
+    let b = positional::<String>("B");
+    let p = Pair(a, b);
+
+    let r = parse_args(&p, &["a".into(), "b".into(), "c".into()]);
+    todo!("{r:?}");
+    //    assert_eq!(r,
 }
 
 #[test]
