@@ -96,6 +96,10 @@ struct TaskInfo {
     ///
     /// Longest match wins though.
     branch: BranchId,
+    // Problem: .many() will repeatedly spawn the inner parser until interrupted
+    // by something. This interacts badly with parsers that consume the same object type in the
+    // same parser...
+
     // I want to know the position of the item in the virtual product
     // for that I need to know parent offset as well as child on the left offset...
     //
@@ -104,7 +108,7 @@ struct TaskInfo {
     // ((e, b, a*), c): e < b < a < c; [0, 0] < [0, 1] < [0, 2] < [1]
     // ((a, b), (c, d)): a < b < c < d; [0, 0] < [0, 1] < [1, 0] < [1, 1]
     //
-    // Easiest way is to build paths to the each id and sort them in
+    // 1. Easiest way is to build paths to the each id and sort them in
     // lexicographical order... But this is allocations.
     // We can treat it by sort of linked list
     // by keeping depth and field number. This way
@@ -112,7 +116,16 @@ struct TaskInfo {
     // to the same depth, if they match parent - compare field ids.
     // otherwise - keep going up until branch id...
     //
-    // Alternatively - try to reuse the same task ids and have queus as ordered sets...
+    // 2. Alternatively - try to reuse the same task ids and have queus as ordered sets...
+    // easiest way to achieve this is by adding a boolean flag to spawn operation
+    // asking to retain and reuse current next_task_id seem to work fine - requires some
+    // shuffling though.
+    //
+    // 3. Finally - declare this a feature. By definition parsers are greedy and there's
+    // no fallback so .positional().many() followed by .positional() can never match
+    // anything, not until we start adding .take() or .range()...
+    //
+    //
 }
 
 // For any node I need to be able to find all sum siblings
