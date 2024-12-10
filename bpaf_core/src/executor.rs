@@ -80,7 +80,7 @@ use std::{
 mod family;
 mod futures;
 
-use family::{BranchId, FamilyTree, *};
+use family::{FamilyTree, *};
 pub use futures::*;
 
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
@@ -128,6 +128,7 @@ enum Op<'a> {
     SpawnTask {
         parent: Parent,
         action: Action<'a>,
+        keep_id: bool,
     },
     WakeTask {
         id: Id,
@@ -150,6 +151,9 @@ enum Op<'a> {
     RemovePositionalListener {
         id: Id,
     },
+    RestoreIdCounter {
+        id: u32,
+    },
 }
 
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
@@ -169,12 +173,13 @@ where
         pending: Default::default(),
         next_task_id: 0,
         family: Default::default(),
+        parent_ids: Default::default(),
     };
     runner.run_parser(parser)
 }
 
 impl<'a> Ctx<'a> {
-    fn spawn<T, P>(&self, parent: Parent, parser: &'a P) -> JoinHandle<'a, T>
+    fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
     where
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
@@ -190,7 +195,7 @@ impl<'a> Ctx<'a> {
             }
             out
         });
-        self.start_task(parent, act);
+        self.start_task(parent, act, keep_id);
         join
     }
 
@@ -211,10 +216,12 @@ impl<'a> Ctx<'a> {
             .push_back(Op::AddPositionalListener { waker })
     }
 
-    fn start_task(&self, parent: Parent, action: Action<'a>) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::SpawnTask { parent, action });
+    fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
+        self.shared.borrow_mut().push_back(Op::SpawnTask {
+            parent,
+            action,
+            keep_id,
+        });
     }
 
     fn current_task(&self) -> Option<Id> {
@@ -328,6 +335,7 @@ where
                     kind: NodeKind::Prod,
                 },
                 &self.0,
+                false,
             );
             let futb = ctx.spawn(
                 Parent {
@@ -336,6 +344,7 @@ where
                     kind: NodeKind::Prod,
                 },
                 &self.1,
+                false,
             );
             Ok((futa.await?, futb.await?))
         })
@@ -352,15 +361,14 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
         let mut res = Vec::new();
         Box::pin(async move {
-            let id = ctx.current_id();
             let parent = Parent {
-                id,
+                id: ctx.current_id(),
                 field: 0,
-                kind: NodeKind::Sum,
+                kind: NodeKind::Prod,
             };
 
             loop {
-                match ctx.spawn(parent, &self.0).await {
+                match ctx.spawn(parent, &self.0, true).await {
                     Ok(t) => res.push(t),
                     Err(Error::Missing) => return Ok(res),
                     Err(e) => return Err(e),
@@ -403,6 +411,9 @@ struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
     tasks: BTreeMap<Id, Task<'ctx>>,
+
+    /// For those tasks that asked us to retain the id according to the parent
+    parent_ids: HashMap<Parent, u32>,
 
     family: FamilyTree,
 
@@ -508,20 +519,58 @@ impl<'a> Runner<'a> {
                     continue;
                 }
             };
+            let before = shared.len();
             // tasks are going to borrow from shared when running
             drop(shared);
 
             match item {
-                Op::SpawnTask { parent, action } => {
+                Op::SpawnTask {
+                    parent,
+                    action,
+                    mut keep_id,
+                } => {
+                    let original_id = self.next_task_id;
+
+                    println!("original id {:?}", self.next_task_id);
+
+                    if keep_id {
+                        if let Some(prev_id) = self.parent_ids.get(&parent) {
+                            self.next_task_id = *prev_id;
+                            keep_id = false;
+                        } else {
+                            self.parent_ids.insert(parent, self.next_task_id);
+                        }
+                    }
+                    println!("Id with parent {parent:?}: {}", self.next_task_id);
+
                     let (id, waker) = self.next_id();
                     let mut task = Task { action, waker };
                     if task.poll(id, &self.ctx).is_pending() {
                         // Only keep tasks that are not immediately resolved
                         self.family.insert(parent, id);
-                        self.tasks.insert(id, task);
+                        let x = self.tasks.insert(id, task);
+                        assert!(x.is_none());
                     } else {
                         println!("Task {id:?} is resolved immediately after spawning");
                     }
+
+                    // To execute parsers in depth first order we must
+                    // execute children of the tasks as well as anything they
+                    // need (adding listeners) before the siblings. Easiest way
+                    // to do that is to rotate the queue by exact amount added - forward
+                    let mut shared = self.ctx.shared.borrow_mut();
+                    let mut after = shared.len();
+                    if keep_id {
+                        after += 1;
+                        shared.push_back(Op::RestoreIdCounter { id: original_id });
+                    }
+                    // before:
+                    // T S1 S2 S3
+                    // task T is consumed and it spawns some children: C1/C2
+                    // S1 S2 S3 C1 C2
+                    // rotate right by 2:
+                    // C1 C2 S1 S2 S3
+                    shared.rotate_right(after - before);
                 }
                 Op::AddNamedListener { names, waker } => {
                     let id = self.resolve(&waker);
@@ -534,7 +583,7 @@ impl<'a> Runner<'a> {
                 }
                 Op::AddPositionalListener { waker } => {
                     let id = self.resolve(&waker);
-                    println!("{id:?}: Add positional listener");
+                    println!("{id:?}: Add positional listener {id:?}");
                     self.family.add_positional(id);
                 }
                 Op::RemovePositionalListener { id } => {
@@ -554,6 +603,9 @@ impl<'a> Runner<'a> {
                     if task.poll(id, &self.ctx).is_ready() {
                         self.tasks.remove(&id);
                     }
+                }
+                Op::RestoreIdCounter { id } => {
+                    self.next_task_id = id + 1;
                 }
             }
         }
@@ -586,7 +638,7 @@ impl<'a> Runner<'a> {
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead.
-        let mut handle = pin!(self.ctx.spawn(root_id.prod(0), parser));
+        let mut handle = pin!(self.ctx.spawn(root_id.prod(0), parser, false));
 
         // poll root handle once so whatever needs to be
         // register - gets a chance to do so then
@@ -771,7 +823,7 @@ where
                 .items
                 .iter()
                 .enumerate()
-                .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p))
+                .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p, false))
                 .collect::<Vec<_>>();
 
             let mut fut = AltFuture { handles };
