@@ -187,7 +187,7 @@ impl FamilyTree {
         match split_param(input)? {
             Arg::Named { name, value: _ } => {
                 let Some(q) = self.named.get_mut(name.as_bytes()) else {
-                    return Err(Error::Invalid);
+                    todo!(); // return Err(Error::Invalid);
                 };
                 q.peek_front(out);
             }

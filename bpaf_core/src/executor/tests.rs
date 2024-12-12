@@ -1,15 +1,15 @@
 use crate::{long, positional, short};
 
-use super::{parse_args, Alt, Error, Pair, Parser};
+use super::{run_parser, Alt, Pair, Parser};
 
 #[test]
 fn simple_flag_parser() {
     let alice = long("alice").switch();
-    let r = parse_args(&alice, &["--alice".into()]);
+    let r = run_parser(&alice, &["--alice"]);
     assert_eq!(r, Ok(true));
 
-    //    let r = parse_args(&alice, &[]);
-    //    assert_eq!(r, Ok(false));
+    let r = run_parser(&alice, &[]);
+    assert_eq!(r, Ok(false));
 }
 
 #[test]
@@ -18,16 +18,16 @@ fn pair_of_flags() {
     let bob = long("bob").switch();
     let both = Pair(alice, bob);
 
-    let r = parse_args(&both, &["--alice".into(), "--bob".into()]);
+    let r = run_parser(&both, &["--alice", "--bob"]);
     assert_eq!(r, Ok((true, true)));
 
-    let r = parse_args(&both, &["--bob".into()]);
+    let r = run_parser(&both, &["--bob"]);
     assert_eq!(r, Ok((false, true)));
 
-    let r = parse_args(&both, &["--alice".into()]);
+    let r = run_parser(&both, &["--alice"]);
     assert_eq!(r, Ok((true, false)));
 
-    let r = parse_args(&both, &[]);
+    let r = run_parser(&both, &[]);
     assert_eq!(r, Ok((false, false)));
 }
 
@@ -35,11 +35,11 @@ fn pair_of_flags() {
 fn req_flag() {
     let alice = long("alice").req_flag(());
 
-    let r = parse_args(&alice, &["--alice".into()]);
+    let r = run_parser(&alice, &["--alice"]);
     assert_eq!(r, Ok(()));
 
-    let r = parse_args(&alice, &[]);
-    assert_eq!(r, Err(Error::Missing));
+    let r = run_parser(&alice, &[]).unwrap_err();
+    assert_eq!(r, "Expected --alice");
 }
 
 #[test]
@@ -51,13 +51,13 @@ fn alt_of_req() {
         items: vec![alice, bob],
     };
 
-    let r = parse_args(&alt, &["--bob".into()]);
+    let r = run_parser(&alt, &["--bob"]);
     assert_eq!(r, Ok('b'));
 
-    // let r = parse_args(&alt, &["--alice".into(), "--bob".into()]);
+    // let r = run_parser(&alt, &["--alice", "--bob"]);
     // assert_eq!(r, Err(Error::Invalid));
     //
-    // let r = parse_args(&alt, &["--alice".into()]);
+    // let r = run_parser(&alt, &["--alice"]);
     // assert_eq!(r, Ok('a'));
 }
 
@@ -66,7 +66,7 @@ fn pair_of_duplicated_names() {
     let alice1 = long("alice").req_flag('1').into_box();
     let alice2 = long("alice").req_flag('2').into_box();
     let pair = Pair(alice1, alice2);
-    let r = parse_args(&pair, &["--alice".into(), "--alice".into()]);
+    let r = run_parser(&pair, &["--alice", "--alice"]);
     assert_eq!(r, Ok(('1', '2')));
 }
 
@@ -74,10 +74,10 @@ fn pair_of_duplicated_names() {
 fn simple_positional() {
     let a = positional::<String>("ARG");
 
-    let r = parse_args(&a, &[]);
-    assert_eq!(r, Err(Error::Missing));
+    let r = run_parser(&a, &[]).unwrap_err();
+    assert_eq!(r, "Expected <ARG>");
 
-    let r = parse_args(&a, &["item".into()]);
+    let r = run_parser(&a, &["item"]);
     assert_eq!(r.as_deref(), Ok("item"));
 }
 
@@ -87,22 +87,22 @@ fn pair_of_positionals() {
     let bob = positional::<u32>("BOB");
     let both = Pair(alice, bob);
 
-    let r = parse_args(&both, &["1".into(), "2".into()]);
+    let r = run_parser(&both, &["1", "2"]);
     assert_eq!(r, Ok((1, 2)));
 
-    let r = parse_args(&both, &["1".into()]);
-    assert_eq!(r, Err(Error::Missing));
+    let r = run_parser(&both, &["1"]).unwrap_err();
+    assert_eq!(r, "Expected <BOB>");
 
-    let r = parse_args(&both, &[]);
-    assert_eq!(r, Err(Error::Missing));
+    let r = run_parser(&both, &[]).unwrap_err();
+    assert_eq!(r, "Expected <ALICE>");
 }
 
 #[test]
 fn many_positionals_good() {
-    let a = positional::<String>("A").many();
+    let a = positional::<String>("A").many::<Vec<_>>();
 
-    let r = parse_args(&a, &["a".into(), "b".into(), "c".into()]);
-    assert_eq!(r, Ok(vec!["a".into(), "b".into(), "c".into()]));
+    let r = run_parser(&a, &["a", "b", "c"]).unwrap();
+    assert_eq!(r, &["a", "b", "c"]);
 }
 
 #[test]
@@ -112,19 +112,19 @@ fn depth_first() {
     let ab = Pair(a, b);
     let c = short('c').req_flag('c');
     let abc = Pair(ab, c);
-    let r = parse_args(&abc, &["-a".into(), "-b".into(), "-c".into()]);
+    let r = run_parser(&abc, &["-a", "-b", "-c"]);
     assert_eq!(r, Ok((('a', 'b'), 'c')));
 }
 
 #[test]
 /// This can never produce the result since `a` is greedy
 fn many_positionals_bad() {
-    let a = positional::<String>("A").many();
+    let a = positional::<String>("A").many::<Vec<_>>();
     let b = positional::<String>("B");
     let p = Pair(a, b);
 
-    let r = parse_args(&p, &["a".into(), "b".into(), "c".into()]);
-    todo!("{r:?}");
+    let r = run_parser(&p, &["a", "b", "c"]).unwrap_err();
+    assert_eq!(r, "Expected <B>");
     //    assert_eq!(r,
 }
 
@@ -141,18 +141,18 @@ fn badly_emulated_args() {
         items: vec![alice, bob],
     };
 
-    let r = parse_args(&alt, &["--alice".into(), "--bob".into()]);
-    assert_eq!(r, Err(Error::Missing));
+    let r = run_parser(&alt, &["--alice", "--bob"]).unwrap_err();
+    assert_eq!(r, "Expected <ALICE>, <BOB>");
 
-    // let r = parse_args(
+    // let r = run_parser(
     //     &alt,
-    //     &["--alice".into(), "--bob".into(), "10".into(), "20".into()],
+    //     &["--alice", "--bob", "10", "20"],
     // );
     // assert_eq!(r, Err(Error::Invalid));
 
-    let r = parse_args(&alt, &["--alice".into(), "10".into()]);
+    let r = run_parser(&alt, &["--alice", "10"]);
     assert_eq!(r, Ok(('a', 10)));
 
-    let r = parse_args(&alt, &["--bob".into(), "20".into()]);
+    let r = run_parser(&alt, &["--bob", "20"]);
     assert_eq!(r, Ok(('b', 20)));
 }
