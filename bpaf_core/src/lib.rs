@@ -1,8 +1,7 @@
 mod visitor;
 
 pub mod executor;
-use std::collections::BTreeMap;
-
+pub mod parsers;
 use executor::Fragment;
 use named::{Argument, Flag, Named};
 use positional::Positional;
@@ -118,7 +117,8 @@ mod named {
     use std::marker::PhantomData;
 
     use crate::{
-        executor::{Ctx, Error, Fragment, NamedFut},
+        error::{Error, MissingItem},
+        executor::{Ctx, Fragment, NamedFut},
         Parser,
     };
 
@@ -140,6 +140,7 @@ mod named {
                 name: self.names.as_slice(),
                 ctx,
                 task_id: None,
+                meta: None, // TODO - use separate instances for Argument and Flag
             })
         }
     }
@@ -152,9 +153,9 @@ mod named {
             Box::pin(async move {
                 match self.named.run(input).await {
                     Ok(_) => Ok(self.present.clone()),
-                    Err(Error::Missing) => match self.absent.as_ref().cloned() {
+                    Err(e) if e.handle_with_fallback() => match self.absent.as_ref().cloned() {
                         Some(v) => Ok(v),
-                        None => Err(Error::Missing),
+                        None => Err(e),
                     },
                     Err(e) => Err(e),
                 }
@@ -256,7 +257,8 @@ mod positional {
     use std::{marker::PhantomData, str::FromStr};
 
     use crate::{
-        executor::{Ctx, Error, PositionalFut},
+        error::{Error, Message},
+        executor::{Ctx, PositionalFut},
         Parser,
     };
     pub struct Positional<T> {
@@ -280,11 +282,19 @@ mod positional {
     impl<T> Parser<T> for Positional<T>
     where
         T: std::fmt::Debug + 'static + FromStr,
+        <T as std::str::FromStr>::Err: std::fmt::Display,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
             Box::pin(async {
-                let s = PositionalFut { ctx, task_id: None }.await;
-                T::from_str(s?).map_err(|_| Error::Invalid)
+                let s = PositionalFut {
+                    ctx,
+                    task_id: None,
+                    meta: self.meta,
+                }
+                .await;
+                T::from_str(s?).map_err(|e| Error {
+                    message: Message::ParseFailed(None, format!("{e}")),
+                })
             })
         }
     }

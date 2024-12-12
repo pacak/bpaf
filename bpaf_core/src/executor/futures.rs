@@ -1,4 +1,4 @@
-use crate::named::Name;
+use crate::{error::MissingItem, named::Name};
 
 use super::{split_param, Arg, Ctx, Error, Id, Op};
 use std::{
@@ -27,17 +27,19 @@ impl<'ctx> Ctx<'ctx> {
     }
 }
 
-impl<T> Drop for ExitHandle<'_, T> {
-    fn drop(&mut self) {
-        // if waker is present - we must call it and mark the task as "killed"
-        if let Some(waker) = self.waker.take() {
-            let x = self.result.replace(Some(Err(Error::Killed)));
-            assert!(x.is_none(), "Cloned ExitHandle?");
-            println!("Dropped handle with waker!");
-            waker.wake();
-        };
-    }
-}
+// impl<T> Drop for ExitHandle<'_, T> {
+//     fn drop(&mut self) {
+//         // if waker is present - we must call it and mark the task as "killed"
+//         if let Some(waker) = self.waker.take() {
+//             // I think this killed is only needed so I can emit Op::Kill and remove the task
+//             // from the list.
+//             let x = self.result.replace(Some(Err(Error::Killed)));
+//             assert!(x.is_none(), "Cloned ExitHandle?");
+//             println!("Dropped handle with waker!");
+//             waker.wake();
+//         };
+//     }
+// }
 
 pub(crate) struct ExitHandle<'a, T> {
     /// Id of child task
@@ -96,6 +98,7 @@ impl<T> Future for JoinHandle<'_, T> {
 }
 
 pub struct PositionalFut<'a> {
+    pub(crate) meta: &'static str,
     pub(crate) ctx: Ctx<'a>,
     pub(crate) task_id: Option<Id>,
 }
@@ -122,18 +125,22 @@ impl<'ctx> Future for PositionalFut<'ctx> {
         }
 
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
-            Some(s) if s.starts_with('-') => Err(Error::Invalid),
+            // TODO - check if we are after --
+            Some(s) if s.starts_with('-') => Error::unexpected(),
             Some(s) => {
                 self.ctx.advance(1);
                 Ok(s.as_str())
             }
-            None => Err(Error::Missing),
+            None => Err(Error::missing::<&str>(MissingItem::Positional {
+                meta: self.meta,
+            })),
         })
     }
 }
 
 pub struct NamedFut<'a> {
     pub(crate) name: &'a [Name<'static>],
+    pub(crate) meta: Option<&'static str>,
     pub(crate) ctx: Ctx<'a>,
     pub(crate) task_id: Option<Id>,
 }
@@ -167,7 +174,10 @@ impl Future for NamedFut<'_> {
         }
 
         let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
-            return Poll::Ready(Err(Error::Missing));
+            return Poll::Ready(Err(Error::missing::<Name>(MissingItem::Named {
+                name: self.name.to_vec(),
+                meta: self.meta,
+            })));
         };
 
         Poll::Ready(match split_param(front)? {
@@ -178,14 +188,19 @@ impl Future for NamedFut<'_> {
                     .iter()
                     .copied()
                     .find(|n| *n == name)
-                    .ok_or(Error::Missing);
+                    .ok_or_else(|| {
+                        Error::missing::<Name>(MissingItem::Named {
+                            name: self.name.to_vec(),
+                            meta: self.meta,
+                        })
+                    });
                 if r.is_ok() {
                     self.ctx.advance(1);
                 }
 
                 r
             }
-            Arg::ShortSet { .. } | Arg::Positional { .. } => Err(Error::Invalid),
+            Arg::ShortSet { .. } | Arg::Positional { .. } => Error::unexpected(),
         })
     }
 }

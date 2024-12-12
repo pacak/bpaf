@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
-use crate::named::Name;
+use crate::{error::Error, named::Name, parsers::Many, Cx};
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap, VecDeque},
     fmt::Debug,
     future::Future,
     marker::PhantomData,
+    ops::RangeBounds,
     pin::{pin, Pin},
     rc::Rc,
     sync::{atomic::AtomicUsize, Arc, Mutex},
@@ -77,8 +78,8 @@ use std::{
 //     OnlyOnce(/* winner */ usize, usize),
 // }
 
-mod family;
-mod futures;
+pub(crate) mod family;
+pub(crate) mod futures;
 
 use family::{FamilyTree, *};
 pub use futures::*;
@@ -156,6 +157,14 @@ enum Op<'a> {
     },
 }
 
+fn run_parser<T>(parser: &impl Parser<T>, args: &[&str]) -> Result<T, String>
+where
+    T: 'static + std::fmt::Debug,
+{
+    let args = args.iter().map(|a| String::from(*a)).collect::<Vec<_>>();
+    parse_args(parser, &args).map_err(|e| e.render())
+}
+
 fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
@@ -179,7 +188,12 @@ where
 }
 
 impl<'a> Ctx<'a> {
-    fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
+    pub(crate) fn spawn<T, P>(
+        &self,
+        parent: Parent,
+        parser: &'a P,
+        keep_id: bool,
+    ) -> JoinHandle<'a, T>
     where
         P: Parser<T>,
         T: std::fmt::Debug + 'static,
@@ -193,6 +207,7 @@ impl<'a> Ctx<'a> {
             if let Ok(exit) = Rc::try_unwrap(exit) {
                 exit.exit_task(r);
             }
+            // TODO - Do I really want for tasks to return errors? Not used right now
             out
         });
         self.start_task(parent, act, keep_id);
@@ -282,39 +297,89 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
         Rc::new(self)
     }
 
-    fn many(self) -> crate::Cx<Many<Self>>
+    fn many<C>(self) -> crate::Cx<Many<Self, C, T>>
     where
         Self: Sized,
     {
-        crate::Cx(Many(self))
+        crate::Cx(Many {
+            inner: self,
+            error: "",
+            at_least: 0,
+            at_most: u32::MAX,
+            ty: PhantomData,
+        })
+    }
+
+    fn some<C>(self, error: &'static str) -> crate::Cx<Many<Self, C, T>>
+    where
+        Self: Sized,
+    {
+        crate::Cx(Many {
+            inner: self,
+            error,
+            at_least: 1,
+            at_most: u32::MAX,
+            ty: PhantomData,
+        })
+    }
+
+    fn take<C>(self, at_most: u32) -> crate::Cx<Many<Self, C, T>>
+    where
+        Self: Sized,
+    {
+        crate::Cx(Many {
+            inner: self,
+            error: "",
+            at_least: 0,
+            at_most,
+            ty: PhantomData,
+        })
+    }
+
+    fn at_least<C>(self, at_least: u32, error: &'static str) -> Cx<Many<Self, C, T>>
+    where
+        Self: Sized,
+    {
+        Cx(Many {
+            inner: self,
+            error,
+            at_least,
+            at_most: u32::MAX,
+            ty: PhantomData,
+        })
+    }
+
+    fn in_range<C>(self, range: impl RangeBounds<u32>, error: &'static str) -> Cx<Many<Self, C, T>>
+    where
+        Self: Sized,
+    {
+        Cx(Many {
+            inner: self,
+            error,
+            at_least: match range.start_bound() {
+                std::ops::Bound::Included(x) => *x,
+                std::ops::Bound::Excluded(x) => *x + 1,
+                std::ops::Bound::Unbounded => 0,
+            },
+            at_most: match range.end_bound() {
+                std::ops::Bound::Included(m) => m.saturating_add(1),
+                std::ops::Bound::Excluded(m) => *m,
+                std::ops::Bound::Unbounded => u32::MAX,
+            },
+            ty: PhantomData,
+        })
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub enum Error {
-    Missing,
-    Invalid,
-    /// Low priority error that gets created when a branch gets killed
-    /// to allow more successful alternative to run.
-    /// At least one branch in the sum
-    Killed,
-}
-impl Error {
-    fn combine_with(self, e2: Error) -> Error {
-        match (self, e2) {
-            (e @ Error::Invalid, _) | (_, e @ Error::Invalid) => e,
-            (e, Error::Killed) | (Error::Killed, e) => e,
-            (Error::Missing, Error::Missing) => Error::Missing,
-        }
-    }
-    fn can_handle(&self) -> bool {
-        match self {
-            Error::Missing => true,
-            Error::Invalid => false,
-            Error::Killed => todo!(),
-        }
-    }
-}
+// #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+// pub enum Error {
+//     Missing,
+//     Invalid,
+//     /// Low priority error that gets created when a branch gets killed
+//     /// to allow more successful alternative to run.
+//     /// At least one branch in the sum
+//     Killed,
+// }
 
 #[derive(Clone)]
 struct Pair<A, B>(A, B);
@@ -347,33 +412,6 @@ where
                 false,
             );
             Ok((futa.await?, futb.await?))
-        })
-    }
-}
-
-#[derive(Clone)]
-pub struct Many<P>(P);
-impl<T, P> Parser<Vec<T>> for Many<P>
-where
-    P: Parser<T>,
-    T: std::fmt::Debug + 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
-        let mut res = Vec::new();
-        Box::pin(async move {
-            let parent = Parent {
-                id: ctx.current_id(),
-                field: 0,
-                kind: NodeKind::Prod,
-            };
-
-            loop {
-                match ctx.spawn(parent, &self.0, true).await {
-                    Ok(t) => res.push(t),
-                    Err(Error::Missing) => return Ok(res),
-                    Err(e) => return Err(e),
-                }
-            }
         })
     }
 }
@@ -438,11 +476,14 @@ enum Arg<'a> {
 
 fn is_short(name: &str) -> Result<Name, Error> {
     let mut chars = name.chars();
-    match (chars.next(), chars.next()) {
-        (None, None) => todo!(), // don't know
-        (Some(n), None) => Ok(Name::short(n)),
-        (None, Some(_)) => Err(Error::Killed), // unreachable
-        (Some(_), Some(_)) => todo!("short name set?"),
+    match chars.next() {
+        Some(c) => match chars.next() {
+            // saw `-ab`
+            Some(_) => Error::unexpected(),
+            None => Ok(Name::short(c)),
+        },
+        // saw `-`
+        None => Error::unexpected(),
     }
 }
 
@@ -743,7 +784,7 @@ impl<'a> Runner<'a> {
 }
 
 impl RawCtx<'_> {
-    fn current_id(&self) -> Id {
+    pub(crate) fn current_id(&self) -> Id {
         self.current_task.borrow().expect("not in a task")
     }
     fn cur(&self) -> usize {
@@ -771,7 +812,7 @@ where
         Box::pin(async {
             match self.inner.run(ctx).await {
                 Ok(ok) => Ok(Some(ok)),
-                Err(e) if e.can_handle() => Ok(None),
+                Err(e) if e.handle_with_fallback() => Ok(None),
                 Err(e) => Err(e),
             }
         })
@@ -828,7 +869,7 @@ where
 
             let mut fut = AltFuture { handles };
             // TODO: this should be some low priority error
-            let mut res = Err(Error::Killed);
+            let mut res = Error::empty();
 
             // must collect results as they come. If
 
