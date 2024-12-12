@@ -17,9 +17,16 @@ impl Error {
             message: Message::Unexpected,
         })
     }
+
     pub(crate) fn missing<T>(item: MissingItem) -> Error {
         Self {
             message: Message::Missing(vec![item]),
+        }
+    }
+
+    pub(crate) fn fail(message: &'static str) -> Error {
+        Error {
+            message: Message::Fail(message),
         }
     }
 
