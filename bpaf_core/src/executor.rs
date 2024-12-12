@@ -107,6 +107,7 @@ pub struct RawCtx<'a> {
     args: &'a [String],
     /// Current cursor position
     cur: AtomicUsize,
+    front: Option<Arg<'a>>,
     /// through this tasks can request event scheduling, etc
     shared: RefCell<VecDeque<Op<'a>>>,
 }
@@ -174,6 +175,7 @@ where
         current_task: Default::default(),
         shared: Default::default(),
         cur: AtomicUsize::from(0),
+        front: None,
     }));
 
     let runner = Runner {
@@ -378,6 +380,7 @@ enum Arg<'a> {
         value: Option<&'a str>,
     },
     ShortSet {
+        current: usize,
         names: Vec<char>,
     },
     Positional {

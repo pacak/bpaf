@@ -156,3 +156,11 @@ fn badly_emulated_args() {
     let r = run_parser(&alt, &["--bob", "20"]);
     assert_eq!(r, Ok(('b', 20)));
 }
+
+#[test]
+fn guard_and_pair() {
+    let a = short('a')
+        .argument::<usize>("A")
+        .guard(|x: i32| x < 10, "must be small");
+    let b = short('b').req_flag(true);
+}
