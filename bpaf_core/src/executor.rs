@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{error::Error, named::Name, parsers::Many, Cx};
+use crate::{error::Error, named::Name, parsers::Many, Cx, Parser};
 use std::{
     cell::RefCell,
     collections::{BTreeMap, HashMap, VecDeque},
@@ -281,95 +281,6 @@ where
 }
 
 pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
-pub trait Parser<T: 'static + std::fmt::Debug> {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
-    fn into_box(self) -> Box<dyn Parser<T>>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
-    }
-
-    fn into_rc(self) -> Rc<dyn Parser<T>>
-    where
-        Self: Sized + 'static,
-    {
-        Rc::new(self)
-    }
-
-    fn many<C>(self) -> crate::Cx<Many<Self, C, T>>
-    where
-        Self: Sized,
-    {
-        crate::Cx(Many {
-            inner: self,
-            error: "",
-            at_least: 0,
-            at_most: u32::MAX,
-            ty: PhantomData,
-        })
-    }
-
-    fn some<C>(self, error: &'static str) -> crate::Cx<Many<Self, C, T>>
-    where
-        Self: Sized,
-    {
-        crate::Cx(Many {
-            inner: self,
-            error,
-            at_least: 1,
-            at_most: u32::MAX,
-            ty: PhantomData,
-        })
-    }
-
-    fn take<C>(self, at_most: u32) -> crate::Cx<Many<Self, C, T>>
-    where
-        Self: Sized,
-    {
-        crate::Cx(Many {
-            inner: self,
-            error: "",
-            at_least: 0,
-            at_most,
-            ty: PhantomData,
-        })
-    }
-
-    fn at_least<C>(self, at_least: u32, error: &'static str) -> Cx<Many<Self, C, T>>
-    where
-        Self: Sized,
-    {
-        Cx(Many {
-            inner: self,
-            error,
-            at_least,
-            at_most: u32::MAX,
-            ty: PhantomData,
-        })
-    }
-
-    fn in_range<C>(self, range: impl RangeBounds<u32>, error: &'static str) -> Cx<Many<Self, C, T>>
-    where
-        Self: Sized,
-    {
-        Cx(Many {
-            inner: self,
-            error,
-            at_least: match range.start_bound() {
-                std::ops::Bound::Included(x) => *x,
-                std::ops::Bound::Excluded(x) => *x + 1,
-                std::ops::Bound::Unbounded => 0,
-            },
-            at_most: match range.end_bound() {
-                std::ops::Bound::Included(m) => m.saturating_add(1),
-                std::ops::Bound::Excluded(m) => *m,
-                std::ops::Bound::Unbounded => u32::MAX,
-            },
-            ty: PhantomData,
-        })
-    }
-}
 
 // #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 // pub enum Error {
