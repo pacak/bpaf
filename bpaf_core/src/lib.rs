@@ -6,7 +6,7 @@ use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
 
 use executor::{Ctx, Fragment};
 use named::{Argument, Flag, Named};
-use parsers::Many;
+use parsers::{Guard, Many};
 use positional::Positional;
 mod error;
 
@@ -147,13 +147,22 @@ mod named {
         }
     }
 
+    impl<T> Parser<T> for Argument<T>
+    where
+        T: std::fmt::Debug + 'static,
+    {
+        fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+            Box::pin(async move { todo!() })
+        }
+    }
+
     impl<T> Parser<T> for Flag<T>
     where
         T: std::fmt::Debug + Clone + 'static,
     {
-        fn run<'a>(&'a self, input: Ctx<'a>) -> Fragment<'a, T> {
+        fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
             Box::pin(async move {
-                match self.named.run(input).await {
+                match self.named.run(ctx).await {
                     Ok(_) => Ok(self.present.clone()),
                     Err(e) if e.handle_with_fallback() => match self.absent.as_ref().cloned() {
                         Some(v) => Ok(v),
@@ -389,6 +398,19 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
             },
             ty: PhantomData,
         })
+    }
+
+    fn guard<F, Q>(self, check: F, message: &'static str) -> Guard<Self, F, Q>
+    where
+        T: std::borrow::Borrow<Q> + std::fmt::Debug + 'static,
+        Self: Sized,
+    {
+        Guard {
+            inner: self,
+            check,
+            message,
+            ty: PhantomData,
+        }
     }
 }
 

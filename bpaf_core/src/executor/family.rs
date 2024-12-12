@@ -191,7 +191,7 @@ impl FamilyTree {
                 };
                 q.peek_front(out);
             }
-            Arg::ShortSet { names } => todo!(),
+            Arg::ShortSet { names, current } => todo!(),
             Arg::Positional { value: _ } => {
                 self.positional.peek_front(out);
             }

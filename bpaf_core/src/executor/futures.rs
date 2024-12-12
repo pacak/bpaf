@@ -138,6 +138,25 @@ impl<'ctx> Future for PositionalFut<'ctx> {
     }
 }
 
+// For named items we must be able to consume
+// - flags: -a, --alice
+// - arguments: -aval, -a val, -a=val, --alice=val --alice val
+//
+// Additionally flags can be mashed together: -abc is -a -b -c
+
+pub(crate) struct FlagFut<'a> {
+    pub(crate) name: &'a [Name<'static>],
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) task_id: Option<Id>,
+}
+
+pub(crate) struct ArgFut<'a> {
+    pub(crate) name: &'a [Name<'static>],
+    pub(crate) meta: &'static str,
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) task_id: Option<Id>,
+}
+
 pub struct NamedFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) meta: Option<&'static str>,
