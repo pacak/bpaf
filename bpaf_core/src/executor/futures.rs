@@ -27,20 +27,6 @@ impl<'ctx> Ctx<'ctx> {
     }
 }
 
-// impl<T> Drop for ExitHandle<'_, T> {
-//     fn drop(&mut self) {
-//         // if waker is present - we must call it and mark the task as "killed"
-//         if let Some(waker) = self.waker.take() {
-//             // I think this killed is only needed so I can emit Op::Kill and remove the task
-//             // from the list.
-//             let x = self.result.replace(Some(Err(Error::Killed)));
-//             assert!(x.is_none(), "Cloned ExitHandle?");
-//             println!("Dropped handle with waker!");
-//             waker.wake();
-//         };
-//     }
-// }
-
 pub(crate) struct ExitHandle<'a, T> {
     /// Id of child task
     pub(crate) id: Cell<Option<Id>>,
@@ -131,9 +117,7 @@ impl<'ctx> Future for PositionalFut<'ctx> {
                 self.ctx.advance(1);
                 Ok(s.as_str())
             }
-            None => Err(Error::missing::<&str>(MissingItem::Positional {
-                meta: self.meta,
-            })),
+            None => Err(Error::missing(MissingItem::Positional { meta: self.meta })),
         })
     }
 }
@@ -157,69 +141,104 @@ pub(crate) struct ArgFut<'a> {
     pub(crate) task_id: Option<Id>,
 }
 
-pub struct NamedFut<'a> {
-    pub(crate) name: &'a [Name<'static>],
-    pub(crate) meta: Option<&'static str>,
-    pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
-}
-
-impl Drop for NamedFut<'_> {
+impl Drop for ArgFut<'_> {
     fn drop(&mut self) {
-        println!("dropped {:?}, id: {:?}", self.name, self.task_id);
         if let Some(id) = self.task_id {
-            self.ctx
-                .shared
-                .borrow_mut()
-                .push_back(Op::RemoveNamedListener {
-                    names: self.name,
-                    id,
-                });
+            self.ctx.remove_named_listener(false, id, self.name);
         }
     }
 }
 
-impl Future for NamedFut<'_> {
-    type Output = Result<Name<'static>, Error>;
+impl Drop for FlagFut<'_> {
+    fn drop(&mut self) {
+        if let Some(id) = self.task_id {
+            self.ctx.remove_named_listener(true, id, self.name);
+        }
+    }
+}
 
-    fn poll(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
+impl ArgFut<'_> {
+    fn missing(&self) -> Poll<Result<String, Error>> {
+        Poll::Ready(Err(Error::missing(MissingItem::Named {
+            name: self.name.to_vec(),
+            meta: Some(self.meta),
+        })))
+    }
+}
+impl Future for ArgFut<'_> {
+    type Output = Result<String, Error>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
             self.task_id = self.ctx.current_task();
-            self.ctx.named_wake(self.name, cx.waker().clone());
+            self.ctx
+                .add_named_wake(false, self.name, cx.waker().clone());
             return Poll::Pending;
         }
 
-        let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
-            return Poll::Ready(Err(Error::missing::<Name>(MissingItem::Named {
-                name: self.name.to_vec(),
-                meta: self.meta,
-            })));
+        let front = self.ctx.front.borrow();
+        let Some(Arg::Named { name, value }) = front.as_ref() else {
+            return self.missing();
+        };
+        if !self.name.contains(name) {
+            return self.missing();
+        }
+        if let Some(v) = value {
+            self.ctx.advance(1);
+            return Poll::Ready(Ok((*v).to_owned()));
+        }
+        let Some(v) = self.ctx.args.get(self.ctx.cur() + 1) else {
+            // TODO - this lacks a value
+            return self.missing();
+        };
+        if v.starts_with('-') {
+            // TODO - this lacks a value
+            self.missing()
+        } else {
+            self.ctx.advance(2);
+            Poll::Ready(Ok(v.to_owned()))
+        }
+    }
+}
+
+impl FlagFut<'_> {
+    fn missing(&self) -> Poll<Result<(), Error>> {
+        Poll::Ready(Err(Error::missing(MissingItem::Named {
+            name: self.name.to_vec(),
+            meta: None,
+        })))
+    }
+}
+impl Future for FlagFut<'_> {
+    type Output = Result<(), Error>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task_id.is_none() {
+            self.task_id = self.ctx.current_task();
+            self.ctx.add_named_wake(true, self.name, cx.waker().clone());
+            return Poll::Pending;
+        }
+
+        let front = self.ctx.front.borrow();
+        let Some(front) = front.as_ref() else {
+            return self.missing();
         };
 
-        Poll::Ready(match split_param(front)? {
-            Arg::Named { name, value: val } => {
-                assert!(val.is_none());
-                let r = self
-                    .name
-                    .iter()
-                    .copied()
-                    .find(|n| *n == name)
-                    .ok_or_else(|| {
-                        Error::missing::<Name>(MissingItem::Named {
-                            name: self.name.to_vec(),
-                            meta: self.meta,
-                        })
-                    });
-                if r.is_ok() {
-                    self.ctx.advance(1);
+        match dbg!(front) {
+            Arg::Named { name, value } => {
+                if self.name.contains(name) {
+                    if value.is_none() {
+                        self.ctx.advance(1);
+                        Poll::Ready(Ok(()))
+                    } else {
+                        todo!()
+                    }
+                } else {
+                    self.missing()
                 }
-
-                r
             }
-            Arg::ShortSet { .. } | Arg::Positional { .. } => Error::unexpected(),
-        })
+            Arg::ShortSet { current, names } => todo!(),
+            Arg::Positional { value } => todo!(),
+        }
     }
 }

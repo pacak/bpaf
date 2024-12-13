@@ -134,7 +134,8 @@ struct TaskInfo {
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree {
-    named: BTreeMap<Name<'static>, Pecking>,
+    flags: BTreeMap<Name<'static>, Pecking>,
+    args: BTreeMap<Name<'static>, Pecking>,
     positional: Pecking,
     tasks: HashMap<Id, TaskInfo>,
 }
@@ -150,20 +151,28 @@ impl FamilyTree {
         self.positional.remove(branch, id);
     }
 
-    pub(crate) fn add_named(&mut self, id: Id, names: &[Name<'static>]) {
+    pub(crate) fn add_named(&mut self, flag: bool, id: Id, names: &[Name<'static>]) {
         let branch = self.tasks.get(&id).unwrap().branch;
-
+        let map = if flag {
+            &mut self.flags
+        } else {
+            &mut self.args
+        };
         for name in names.iter() {
-            self.named.entry(*name).or_default().insert(id, branch);
+            map.entry(*name).or_default().insert(id, branch);
         }
         println!("Added {names:?}, now it is {self:?}");
     }
 
-    pub(crate) fn remove_named(&mut self, id: Id, names: &[Name<'static>]) {
+    pub(crate) fn remove_named(&mut self, flag: bool, id: Id, names: &[Name<'static>]) {
         let branch = self.tasks.get(&id).unwrap().branch;
+        let map = if flag {
+            &mut self.flags
+        } else {
+            &mut self.args
+        };
         for name in names {
-            let std::collections::btree_map::Entry::Occupied(mut entry) = self.named.entry(*name)
-            else {
+            let std::collections::btree_map::Entry::Occupied(mut entry) = map.entry(*name) else {
                 continue;
             };
             entry.get_mut().remove(branch, id);
@@ -176,20 +185,35 @@ impl FamilyTree {
 
     pub(crate) fn pick_parsers_for(
         &mut self,
-        input: &str,
+        front: &Arg,
         out: &mut VecDeque<(Id, usize)>,
     ) -> Result<(), Error> {
         out.clear();
         // Populate ids with tasks that subscribed for the next token
-        println!("Picking parser to deal with {input:?}");
+        println!("Picking parser to deal with {front:?}");
 
         // first we need to decide what parsers to run
-        match split_param(input)? {
-            Arg::Named { name, value: _ } => {
-                let Some(q) = self.named.get_mut(name.as_bytes()) else {
-                    todo!(); // return Err(Error::Invalid);
+        match front {
+            Arg::Named {
+                name,
+                value: Some(arg),
+            } => {
+                if let Some(q) = self.args.get_mut(name.as_bytes()) {
+                    q.peek_front(out);
+                } else {
+                    todo!("not found {name:?}")
+                }
+            }
+            Arg::Named { name, value: None } => {
+                if let Some(q) = self.flags.get_mut(name.as_bytes()) {
+                    q.peek_front(out);
                 };
-                q.peek_front(out);
+                if let Some(q) = self.args.get_mut(name.as_bytes()) {
+                    q.peek_front(out);
+                };
+                if out.is_empty() {
+                    todo!("no such {name:?}");
+                }
             }
             Arg::ShortSet { names, current } => todo!(),
             Arg::Positional { value: _ } => {

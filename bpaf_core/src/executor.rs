@@ -107,7 +107,7 @@ pub struct RawCtx<'a> {
     args: &'a [String],
     /// Current cursor position
     cur: AtomicUsize,
-    front: Option<Arg<'a>>,
+    front: RefCell<Option<Arg<'a>>>,
     /// through this tasks can request event scheduling, etc
     shared: RefCell<VecDeque<Op<'a>>>,
 }
@@ -140,10 +140,12 @@ enum Op<'a> {
         id: Id,
     },
     AddNamedListener {
+        flag: bool,
         names: &'a [Name<'static>],
         waker: Waker,
     },
     RemoveNamedListener {
+        flag: bool,
         names: &'a [Name<'static>],
         id: Id,
     },
@@ -175,7 +177,7 @@ where
         current_task: Default::default(),
         shared: Default::default(),
         cur: AtomicUsize::from(0),
-        front: None,
+        front: Default::default(),
     }));
 
     let runner = Runner {
@@ -221,10 +223,16 @@ impl<'a> Ctx<'a> {
     /// this needs name to know what to look for, waker since that's how futures work....
     /// Or do they...
     /// But I also need an ID so I can start placing items into priority forest
-    fn named_wake(&self, names: &'a [Name<'static>], waker: Waker) {
+    fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], waker: Waker) {
         self.shared
             .borrow_mut()
-            .push_back(Op::AddNamedListener { names, waker });
+            .push_back(Op::AddNamedListener { flag, names, waker });
+    }
+
+    fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::RemoveNamedListener { flag, names, id });
     }
 
     fn positional_wake(&self, waker: Waker) {
@@ -306,24 +314,8 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
         Box::pin(async move {
             let id = ctx.current_id();
-            let futa = ctx.spawn(
-                Parent {
-                    id,
-                    field: 0,
-                    kind: NodeKind::Prod,
-                },
-                &self.0,
-                false,
-            );
-            let futb = ctx.spawn(
-                Parent {
-                    id,
-                    field: 1,
-                    kind: NodeKind::Prod,
-                },
-                &self.1,
-                false,
-            );
+            let futa = ctx.spawn(id.prod(0), &self.0, false);
+            let futb = ctx.spawn(id.prod(1), &self.1, false);
             Ok((futa.await?, futb.await?))
         })
     }
@@ -374,7 +366,8 @@ struct Runner<'ctx> {
     pending: Arc<Mutex<Vec<Id>>>,
 }
 
-enum Arg<'a> {
+#[derive(Debug)]
+pub(crate) enum Arg<'a> {
     Named {
         name: Name<'a>,
         value: Option<&'a str>,
@@ -401,7 +394,11 @@ fn is_short(name: &str) -> Result<Name, Error> {
     }
 }
 
-/// Parse front
+/// Parse front argument
+///
+/// it will return errors for constructions like
+/// -foo=bar
+/// Hmm... But maybe pass those by `any` later
 fn split_param(value: &str) -> Result<Arg, Error> {
     if let Some(long_name) = value.strip_prefix("--") {
         match long_name.split_once('=') {
@@ -527,14 +524,14 @@ impl<'a> Runner<'a> {
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
                 }
-                Op::AddNamedListener { names, waker } => {
+                Op::AddNamedListener { flag, names, waker } => {
                     let id = self.resolve(&waker);
                     println!("{id:?}: Add listener for {names:?}");
-                    self.family.add_named(id, names);
+                    self.family.add_named(flag, id, names);
                 }
-                Op::RemoveNamedListener { names, id } => {
+                Op::RemoveNamedListener { flag, names, id } => {
                     println!("{id:?}: Remove listener for {names:?}");
-                    self.family.remove_named(id, names);
+                    self.family.remove_named(flag, id, names);
                 }
                 Op::AddPositionalListener { waker } => {
                     let id = self.resolve(&waker);
@@ -627,14 +624,16 @@ impl<'a> Runner<'a> {
             assert!(self.ctx.shared.borrow().is_empty());
             assert!(self.pending.lock().expect("poison").is_empty());
 
-            let Some(front) = self.ctx.args.get(self.ctx.cur()) else {
+            let Some(front_arg) = self.ctx.args.get(self.ctx.cur()) else {
                 println!("nothing to consume");
                 break;
             };
+            let front = split_param(front_arg)?;
 
             // check how to parse next word
-            self.family.pick_parsers_for(front, &mut par)?;
+            self.family.pick_parsers_for(&front, &mut par)?;
 
+            *self.ctx.front.borrow_mut() = Some(front);
             assert!(!par.is_empty(), "pick for parsers didn't raise an error");
 
             // actual feed consumption happens here
@@ -654,7 +653,7 @@ impl<'a> Runner<'a> {
 
                     println!("{id:?} consumed {consumed}!");
                 } else {
-                    println!("family gave us terminated parser {id:?} for {front:?}");
+                    println!("family gave us terminated parser {id:?} for {front_arg:?}");
                 }
             }
 
