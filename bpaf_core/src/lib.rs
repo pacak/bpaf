@@ -117,10 +117,11 @@ impl<T> Cx<Positional<T>> {
 }
 
 mod named {
-    use std::marker::PhantomData;
+    use std::{marker::PhantomData, str::FromStr};
 
     use crate::{
-        executor::{Ctx, Fragment, NamedFut},
+        error::Error,
+        executor::{ArgFut, Ctx, FlagFut, Fragment},
         Parser,
     };
 
@@ -136,23 +137,26 @@ mod named {
         absent: Option<T>,
     }
 
-    impl Parser<Name<'static>> for Named {
-        fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Name<'static>> {
-            Box::pin(NamedFut {
-                name: self.names.as_slice(),
-                ctx,
-                task_id: None,
-                meta: None, // TODO - use separate instances for Argument and Flag
-            })
-        }
-    }
-
     impl<T> Parser<T> for Argument<T>
     where
-        T: std::fmt::Debug + 'static,
+        T: std::fmt::Debug + 'static + FromStr,
+        <T as FromStr>::Err: std::error::Error,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-            Box::pin(async move { todo!() })
+            Box::pin(async move {
+                let fut = ArgFut {
+                    name: &self.named.names,
+                    meta: self.meta,
+                    ctx,
+                    task_id: None,
+                };
+
+                let s = fut.await?;
+                match s.parse::<T>() {
+                    Ok(t) => Ok(t),
+                    Err(e) => Err(Error::parse_fail(format!("Can't parse {s:?} : {e}"))),
+                }
+            })
         }
     }
 
@@ -162,7 +166,12 @@ mod named {
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
             Box::pin(async move {
-                match self.named.run(ctx).await {
+                let fut = FlagFut {
+                    name: &self.named.names,
+                    ctx,
+                    task_id: None,
+                };
+                match fut.await {
                     Ok(_) => Ok(self.present.clone()),
                     Err(e) if e.handle_with_fallback() => match self.absent.as_ref().cloned() {
                         Some(v) => Ok(v),

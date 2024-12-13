@@ -17,8 +17,13 @@ impl Error {
             message: Message::Unexpected,
         })
     }
+    pub(crate) fn parse_fail(message: String) -> Error {
+        Self {
+            message: Message::ParseFailed(None, message),
+        }
+    }
 
-    pub(crate) fn missing<T>(item: MissingItem) -> Error {
+    pub(crate) fn missing(item: MissingItem) -> Error {
         Self {
             message: Message::Missing(vec![item]),
         }
@@ -66,6 +71,7 @@ impl Message {
             Self::Killed => true,
             Self::Conflict(..) => false,
             Self::Unexpected => false,
+            Self::ParseFailed(..) => false,
             Self::ParseFailed(..) => false,
         }
     }
