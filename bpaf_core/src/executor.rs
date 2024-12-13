@@ -732,11 +732,20 @@ where
     }
 }
 
-struct Alt<T: Clone + 'static> {
+pub(crate) struct Alt<T: Clone + 'static> {
     items: Vec<Box<dyn Parser<T>>>,
 }
 
 impl<T> Parser<T> for Box<dyn Parser<T>>
+where
+    T: std::fmt::Debug + Clone + 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        self.as_ref().run(ctx)
+    }
+}
+
+impl<T> Parser<T> for Rc<dyn Parser<T>>
 where
     T: std::fmt::Debug + Clone + 'static,
 {
@@ -811,6 +820,21 @@ impl Future for ChildErrors {
     }
 }
 
+pub struct Con<T> {
+    // visitor closure
+    // visit: Box<dyn Visit>,
+    pub run: Box<dyn FnOnce(Ctx) -> Fragment<T>>,
+}
+
+impl<T> Parser<T> for Con<T>
+where
+    T: std::fmt::Debug + 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        //        (self.run)(ctx)
+    }
+}
+
 // For every Sum, as soon as we start making any progress with any branch, no matter how deep - we
 // must terminate all branches that don't make progress
 //
@@ -834,10 +858,6 @@ impl Future for ChildErrors {
 // Every sibling of an alt can consume a separate instance ... positional
 // items go into a set of queues keyed by (Id, i32) and we can run one positional item from each
 // queue :)
-
-struct PosPrio {
-    prio: HashMap<Parent, VecDeque<Id>>,
-}
 
 // several named items with the same name in a product
 // go sequentially
