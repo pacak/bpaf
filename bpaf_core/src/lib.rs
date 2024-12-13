@@ -2,13 +2,105 @@ mod visitor;
 
 pub mod executor;
 pub mod parsers;
-use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
-
+pub use error::Error;
+pub use executor::Con;
 use executor::{Ctx, Fragment};
 use named::{Argument, Flag, Named};
 use parsers::{Guard, Many};
 use positional::Positional;
+use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
 mod error;
+
+#[macro_export]
+macro_rules! construct {
+    // === capture initial shape of the query
+
+    // construct!(Enum::Cons { a, b, c })
+    ($(::)? $ns:ident $(:: $con:ident)* { $($tokens:tt)* }) =>
+        {{ $crate::construct!(@prepare [named [$ns $(:: $con)*]] [] $($tokens)*) }};
+
+    // construct!(Enum::Cons ( a, b, c ))
+    ($(::)? $ns:ident $(:: $con:ident)* ( $($tokens:tt)* )) =>
+        {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
+
+    // construct!( a, b, c )
+    ($first:ident $($tokens:tt)*) =>
+        {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
+
+    // construct!([a, b, c])
+    ([$first:ident $($tokens:tt)*]) =>
+        {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
+
+    // === expand function calls in argument lists, if any
+    // this is done for both prod and sum type constructors
+
+    // instantiate field from a function call with possible arguments
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident ($($param:tt)*) $(, $($rest:tt)*)? ) => {{
+        let $field = $field($($param)*);
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($($rest)*)?)
+    }};
+    // field is already a variable - we can use it as is.
+    (@prepare $ty:tt [$($fields:tt)*] $field:ident $(, $($rest:tt)*)? ) => {{
+        $crate::construct!(@prepare $ty [$($fields)* $field] $($($rest)* )?)
+    }};
+
+    // === fields are done (no 4th argument), can start constructing parsers
+
+    // All the logic for sum parser sits inside of Alt datatype
+    (@prepare [alt] [ $($field:ident)*]) => {
+        $crate::Alt { items: vec![ ($field.to_box())*] }
+    };
+
+    // For product type the logic is a bit more complicated - do one more step
+    (@prepare $ty:tt [$($fields:tt)*]) => {
+        $crate::construct!(@fin $ty [ $($fields)* ])
+    };
+
+    // === Making a body for the product parser
+
+    // Two special cases where we construct something with no fields, use `Parser::pure` for that
+    (@fin [named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
+    (@fin [pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
+
+
+    (@fin $ty:tt [$($fields:ident)*]) => {{
+        $(let $fields = $fields.into_rc();)*
+        // <- visitor goes here
+        let run = move |ctx: $crate::Ctx| {
+            let mut n = 0;
+
+            $(let $fields = $fields.clone();)*
+            let frag: $crate::executor::Fragment::<_> = Box::pin(async move {
+                let id = ctx.current_id();
+                $(
+                    let $fields = ctx.spawn(id.prod(n), &$fields, false);
+                    n += 1;
+                )*
+                // <- check parent errors here
+                ::std::result::Result::Ok::<_, $crate::Error>
+                    ($crate::construct!(@make $ty [$($fields)*]))
+            });
+            frag
+
+        //
+        //     args.current = None;
+        //     ::std::result::Result::Ok::<_, $crate::Error>
+        //         ($crate::construct!(@make $ty [$front $($fields)*]))
+        // };
+        };
+        $crate::Con { run: Box::new(run) }
+    }};
+
+    // === Pack parsed results into a constructor
+    // this gets called from a step above
+    //
+    // for named they go into {}
+    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields.await?),* } };
+    // for positional - ()
+    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields.await?),* ) };
+    // And this handles the case where there's no constructor and we are makig a tuple
+    (@make [pos                ] [$($fields:ident)*]) => { ( $($fields.await?),* ) };
+}
 
 /// Parser with extra typestate information
 ///

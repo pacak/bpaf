@@ -1,4 +1,8 @@
-use crate::{long, positional, short};
+use crate::{
+    construct,
+    executor::{Ctx, Fragment},
+    long, positional, short, Error,
+};
 
 use super::{run_parser, Alt, Pair, Parser};
 
@@ -12,11 +16,64 @@ fn simple_flag_parser() {
     assert_eq!(r, Ok(false));
 }
 
+fn annotate<T, F>(f: F) -> F
+where
+    F: for<'a> Fn(super::Ctx<'a>) -> super::Fragment<'a, T>,
+{
+    f
+}
+
+//fn run<'a>(&'a self, ctx: Ctx<'a>) -> Pin<Box<dyn Future<Output = Result<(RA, RB), Error>> + 'a>> {}
+
+#[test]
+fn derp() {
+    use crate::executor::*;
+
+    use std::{future::Future, pin::Pin};
+
+    let run = move |ctx: Ctx| {
+        let p: Pin<Box<dyn Future<Output = ()>>> = Box::pin(async { () });
+        p
+    };
+    let run: Box<dyn Fn(Ctx) -> Pin<Box<dyn Future<Output = ()>>>> = Box::new(run);
+}
+
+// #[test]
+// fn lifetimes<'a>() {
+//     let alice = long("alice").switch();
+//     let bob = long("bob").switch();
+//
+//     let alice = alice.into_rc();
+//     let bob = bob.into_rc();
+//     let run: Box<dyn for<'a> Fn(Ctx<'a>) -> Fragment<'a, _>> = Box::new(move |ctx: Ctx| {
+//         let mut n = 0;
+//         let alice = &alice; //.clone();
+//         let bob = &bob; // .clone();
+//         let frag: crate::executor::Fragment<'a, _> = Box::pin(async move {
+//             let id = ctx.current_id();
+//             let alice = ctx.spawn(id.prod(0), alice, false);
+//
+//             let bob = ctx.spawn(id.prod(1), bob, false);
+//
+//             ::std::result::Result::Ok::<_, crate::Error>((alice.await?, bob.await?))
+//         });
+//         frag
+//     });
+//     let both = crate::Con { run };
+//
+//     let r = run_parser(&both, &["--alice", "--bob"]);
+//     assert_eq!(r, Ok((true, true)));
+// }
+
 #[test]
 fn pair_of_flags() {
     let alice = long("alice").switch();
     let bob = long("bob").switch();
     let both = Pair(alice, bob);
+
+    //    let both = construct!(alice, bob);
+
+    //    let both = crate::Con { run: Box::new(run) };
 
     let r = run_parser(&both, &["--alice", "--bob"]);
     assert_eq!(r, Ok((true, true)));
