@@ -82,6 +82,61 @@ impl<T> Future for JoinHandle<'_, T> {
     }
 }
 
+impl<'a> Ctx<'a> {
+    pub(crate) fn early_exit(self, cnt: u32) -> EarlyExitFut<'a> {
+        let id = self.current_id();
+        EarlyExitFut {
+            id,
+            ctx: self,
+            cnt,
+            registered: false,
+            early_err: None,
+        }
+    }
+}
+
+pub(crate) struct EarlyExitFut<'a> {
+    /// Look for failures for tasks with this parent
+    id: Id,
+    /// There are this many children left
+    cnt: u32,
+    ctx: Ctx<'a>,
+    registered: bool,
+    early_err: Option<Error>,
+}
+
+impl Future for EarlyExitFut<'_> {
+    type Output = Result<(), Error>;
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if !self.registered {
+            self.registered = true;
+            self.ctx.add_children_exit_listener(self.id);
+            return Poll::Pending;
+        }
+
+        if let Some(err) = self.ctx.child_exit.take() {
+            self.early_err = Some(match self.early_err.take() {
+                Some(e) => e.combine_with(err),
+                None => err,
+            });
+        }
+
+        self.cnt -= 1;
+        if self.cnt == 0 {
+            Poll::Ready(self.early_err.take().map_or(Ok(()), Err))
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+impl Drop for EarlyExitFut<'_> {
+    fn drop(&mut self) {
+        self.ctx.remove_children_exit_listener(self.id);
+    }
+}
+
 pub struct PositionalFut<'a> {
     pub(crate) meta: &'static str,
     pub(crate) ctx: Ctx<'a>,
@@ -223,7 +278,7 @@ impl Future for FlagFut<'_> {
             return self.missing();
         };
 
-        match dbg!(front) {
+        match front {
             Arg::Named { name, value } => {
                 if self.name.contains(name) {
                     if value.is_none() {

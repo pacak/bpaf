@@ -165,7 +165,7 @@ impl Message {
         use std::fmt::Write;
         let mut res = String::new();
         match self {
-            Message::Fail(_) => todo!(),
+            Message::Fail(msg) => write!(res, "failed: {msg}")?,
             Message::Missing(xs) => {
                 write!(res, "Expected ")?;
                 for (ix, item) in xs.iter().take(4).enumerate() {
@@ -187,7 +187,7 @@ impl Message {
                 }
             }
             Message::Conflict(_, _) => todo!(),
-            Message::Unexpected => todo!(),
+            Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
             Message::Killed => todo!(),
             Message::ParseFailed(_, _) => todo!(),
         }

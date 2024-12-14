@@ -3,8 +3,8 @@
 use crate::{error::Error, named::Name, parsers::Many, Cx, Metavisit, Parser};
 use std::{
     any::Any,
-    cell::RefCell,
-    collections::{BTreeMap, HashMap, VecDeque},
+    cell::{Cell, RefCell},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     fmt::Debug,
     future::Future,
     marker::PhantomData,
@@ -88,6 +88,7 @@ pub use futures::*;
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
 struct Task<'a> {
     action: Action<'a>,
+    parent: Id,
     waker: Waker,
 }
 
@@ -111,6 +112,7 @@ pub struct RawCtx<'a> {
     front: RefCell<Option<Arg<'a>>>,
     /// through this tasks can request event scheduling, etc
     shared: RefCell<VecDeque<Op<'a>>>,
+    child_exit: Cell<Option<Error>>,
 }
 
 #[derive(Clone)]
@@ -135,6 +137,7 @@ enum Op<'a> {
     },
     WakeTask {
         id: Id,
+        error: Option<Error>,
     },
     /// Parent is no longer interested
     ParentExited {
@@ -159,6 +162,13 @@ enum Op<'a> {
     RestoreIdCounter {
         id: u32,
     },
+
+    AddExitListener {
+        parent: Id,
+    },
+    RemoveExitListener {
+        parent: Id,
+    },
 }
 
 pub fn run_parser<T>(parser: &impl Parser<T>, args: &[&str]) -> Result<T, String>
@@ -179,6 +189,7 @@ where
         shared: Default::default(),
         cur: AtomicUsize::from(0),
         front: Default::default(),
+        child_exit: Default::default(),
     }));
 
     let runner = Runner {
@@ -188,6 +199,7 @@ where
         next_task_id: 0,
         family: Default::default(),
         parent_ids: Default::default(),
+        wake_on_child_exit: Default::default(),
     };
     runner.run_parser(parser)
 }
@@ -219,15 +231,21 @@ impl<'a> Ctx<'a> {
         join
     }
 
-    ///
-    ///
-    /// this needs name to know what to look for, waker since that's how futures work....
-    /// Or do they...
-    /// But I also need an ID so I can start placing items into priority forest
     fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], waker: Waker) {
         self.shared
             .borrow_mut()
             .push_back(Op::AddNamedListener { flag, names, waker });
+    }
+
+    fn add_children_exit_listener(&self, parent: Id) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::AddExitListener { parent });
+    }
+    fn remove_children_exit_listener(&self, parent: Id) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::RemoveExitListener { parent });
     }
 
     fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
@@ -356,6 +374,10 @@ struct Runner<'ctx> {
     ctx: Ctx<'ctx>,
     tasks: BTreeMap<Id, Task<'ctx>>,
 
+    /// Prod type items want to be notified about children exiting, in order
+    /// they exit instead of order they are defined
+    wake_on_child_exit: HashSet<Id>,
+
     /// For those tasks that asked us to retain the id according to the parent
     parent_ids: HashMap<Parent, u32>,
 
@@ -439,17 +461,6 @@ impl<'a> Runner<'a> {
             .expect("Misbehaving waker")
     }
 
-    /// Looks for things requested by wakers and schedules it to ops
-    fn wakers_to_ops(&self) {
-        self.ctx.shared.borrow_mut().extend(
-            self.pending
-                .lock()
-                .expect("poison")
-                .drain(..)
-                .map(|id| Op::WakeTask { id }),
-        )
-    }
-
     /// Handle scheduled operations
     ///
     /// This should advance all the tasks as far as possible without consuming the input
@@ -463,7 +474,7 @@ impl<'a> Runner<'a> {
                         .lock()
                         .expect("poison")
                         .drain(..)
-                        .map(|id| Op::WakeTask { id }),
+                        .map(|id| Op::WakeTask { id, error: None }),
                 );
                 if shared.is_empty() {
                     assert_eq!(before, self.ctx.cur());
@@ -497,14 +508,21 @@ impl<'a> Runner<'a> {
                     println!("Id with parent {parent:?}: {}", self.next_task_id);
 
                     let (id, waker) = self.next_id();
-                    let mut task = Task { action, waker };
-                    if task.poll(id, &self.ctx).is_pending() {
-                        // Only keep tasks that are not immediately resolved
-                        self.family.insert(parent, id);
-                        let x = self.tasks.insert(id, task);
-                        assert!(x.is_none());
-                    } else {
-                        println!("Task {id:?} is resolved immediately after spawning");
+                    let mut task = Task {
+                        action,
+                        waker,
+                        parent: parent.id,
+                    };
+                    match task.poll(id, &self.ctx) {
+                        Poll::Ready(r) => {
+                            todo!("Exited immediately with {r:?}");
+                        }
+                        Poll::Pending => {
+                            // Only keep tasks that are not immediately resolved
+                            self.family.insert(parent, id);
+                            let x = self.tasks.insert(id, task);
+                            assert!(x.is_none());
+                        }
                     }
 
                     // To execute parsers in depth first order we must
@@ -547,38 +565,37 @@ impl<'a> Runner<'a> {
                     println!("{id:?}: Parent exited");
                     self.tasks.remove(&id);
                 }
-                Op::WakeTask { id } => {
+                Op::WakeTask { id, error } => {
                     let Some(task) = self.tasks.get_mut(&id) else {
                         println!("waking up removed task {id:?}");
                         continue;
                     };
 
-                    if task.poll(id, &self.ctx).is_ready() {
-                        self.tasks.remove(&id);
+                    self.ctx.child_exit.set(error);
+
+                    if let Poll::Ready(error) = task.poll(id, &self.ctx) {
+                        if let Some(task) = self.tasks.remove(&id) {
+                            if self.wake_on_child_exit.contains(&task.parent) {
+                                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
+                                    id: task.parent,
+                                    error,
+                                });
+                            }
+                        }
                     }
                 }
                 Op::RestoreIdCounter { id } => {
                     self.next_task_id = id + 1;
                 }
+                Op::AddExitListener { parent } => {
+                    self.wake_on_child_exit.insert(parent);
+                }
+                Op::RemoveExitListener { parent } => {
+                    self.wake_on_child_exit.remove(&parent);
+                }
             }
         }
     }
-
-    // fn run_scheduled(&mut self) -> bool {
-    //     let changes = self.ids.is_empty();
-    //     for id in self.ids.drain(..) {
-    //         if let Some(task) = self.tasks.get_mut(&id) {
-    //             if let Poll::Ready(res) = task.poll(id, &self.ctx) {
-    //                 if let Some(err) = res {
-    //                     println!("task failed, see if parent cares");
-    //                 }
-    //                 println!("Task {id:?} is done, dropping it");
-    //                 self.tasks.remove(&id);
-    //             }
-    //         }
-    //     }
-    //     !changes
-    // }
 
     fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
@@ -644,11 +661,15 @@ impl<'a> Runner<'a> {
                 if let Some(task) = self.tasks.get_mut(id) {
                     let (poll, consumed) = self.ctx.run_task(task);
                     *t = consumed;
-                    if let Poll::Ready(r) = poll {
-                        if let Some(err) = r {
-                            print!("check if parent is interested in this error {err:?}");
-                        }
-                        self.tasks.remove(id);
+                    if let Poll::Ready(error) = poll {
+                        if let Some(task) = self.tasks.remove(id) {
+                            if self.wake_on_child_exit.contains(&task.parent) {
+                                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
+                                    id: task.parent,
+                                    error,
+                                });
+                            }
+                        };
                     }
                     max_consumed = consumed.max(max_consumed);
 
@@ -675,7 +696,7 @@ impl<'a> Runner<'a> {
         // errors or or those "not found" errors are going to be converted into something useful
         let mut shared = self.ctx.shared.borrow_mut();
         for id in self.tasks.keys().copied() {
-            shared.push_back(Op::WakeTask { id });
+            shared.push_back(Op::WakeTask { id, error: None });
         }
         drop(shared);
         self.handle_non_consuming();
