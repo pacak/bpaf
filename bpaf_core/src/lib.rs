@@ -1,16 +1,21 @@
-mod visitor;
-
+mod error;
 pub mod executor;
 pub mod parsers;
-pub use error::Error;
-pub use executor::{Alt, Con};
-use executor::{Ctx, Fragment};
-use named::{Argument, Flag, Named};
-use parsers::{Guard, Many};
-use positional::Positional;
+mod visitor;
+
+pub use crate::{
+    error::Error,
+    executor::{Alt, Con},
+};
+
+use crate::{
+    executor::{Ctx, Fragment},
+    named::{Argument, Flag, Named},
+    parsers::{Guard, Many},
+    positional::Positional,
+    visitor::Visitor,
+};
 use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
-use visitor::Visitor;
-mod error;
 
 #[macro_export]
 macro_rules! construct {
@@ -89,6 +94,9 @@ macro_rules! construct {
         // Next problem is that downcast_ref needs to know the type to recover, we do this
         // by getting a type hint PhantomData<T> from Rc<dyn Parser<T>>, passing the hint
         // (PhantomData is Copy!) into the `run` and use it to downcast to the precise type
+        //
+        // If only `call` on `Fn` had a reference on `&self` lifetime in the output...
+        // `fn call(&self, args: Args) -> Self::Output`
         let run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, _>> =
             Box::new(move |parsers, ctx| {
             let mut n = 0;
@@ -437,7 +445,7 @@ mod positional {
 pub trait Parser<T: 'static> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
 
-    fn visit(&self, visitor: &mut dyn Visitor) {}
+    fn visit(&self, _visitor: &mut dyn Visitor) {}
     fn into_box(self) -> Box<dyn Parser<T>>
     where
         Self: Sized + 'static,
