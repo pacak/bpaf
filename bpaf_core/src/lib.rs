@@ -64,31 +64,36 @@ macro_rules! construct {
 
 
     (@fin $ty:tt [$($fields:ident)*]) => {{
-        $(let $fields = $fields.into_rc();)*
+        $(
+            let $fields: Box<dyn Parser<_>> = $fields.into_box();
+            let $fields: Box<dyn Any> = Box::new($fields);
+        )*
+        let parsers = vec![$($fields),*];
+
         // <- visitor goes here
-        let run = move |ctx: $crate::Ctx| {
+        let run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, _>> =
+            Box::new(|parsers, ctx| {
             let mut n = 0;
 
-            $(let $fields = $fields.clone();)*
-            let frag: $crate::executor::Fragment::<_> = Box::pin(async move {
+            $(
+                let $fields = parsers[n].downcast_ref::<Box<dyn Parser<_>>>().unwrap();
+                { #![allow(unused_assignments)] n += 1; }
+            )*
+            Box::pin(async move {
+                #![allow(unused_assignments)]
                 let id = ctx.current_id();
+                let mut n = 0;
                 $(
-                    let $fields = ctx.spawn(id.prod(n), &$fields, false);
+                    let $fields = ctx.spawn(id.prod(n), $fields, false);
                     n += 1;
                 )*
                 // <- check parent errors here
                 ::std::result::Result::Ok::<_, $crate::Error>
                     ($crate::construct!(@make $ty [$($fields)*]))
-            });
-            frag
+            })
+        });
+        $crate::Con { parsers, run }
 
-        //
-        //     args.current = None;
-        //     ::std::result::Result::Ok::<_, $crate::Error>
-        //         ($crate::construct!(@make $ty [$front $($fields)*]))
-        // };
-        };
-        $crate::Con { run: Box::new(run) }
     }};
 
     // === Pack parsed results into a constructor
