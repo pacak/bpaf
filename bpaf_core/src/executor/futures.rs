@@ -1,6 +1,6 @@
 use crate::{error::MissingItem, named::Name};
 
-use super::{split_param, Arg, Ctx, Error, Id, Op};
+use super::{Arg, Ctx, Error, Id, Op};
 use std::{
     cell::Cell,
     future::Future,
@@ -56,9 +56,8 @@ impl<T> Drop for JoinHandle<'_, T> {
     }
 }
 
-impl<T: std::fmt::Debug> ExitHandle<'_, T> {
+impl<T> ExitHandle<'_, T> {
     pub(crate) fn exit_task(self, result: Result<T, Error>) {
-        println!("Setting result to {result:?}");
         self.result.set(Some(result));
         if let Some(waker) = self.waker.take() {
             waker.wake()

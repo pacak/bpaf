@@ -201,7 +201,7 @@ impl<'a> Ctx<'a> {
     ) -> JoinHandle<'a, T>
     where
         P: Parser<T>,
-        T: std::fmt::Debug + 'static,
+        T: 'static,
     {
         let ctx = self.clone();
         let (exit, join) = self.fork();
@@ -739,7 +739,7 @@ pub(crate) struct Alt<T: Clone + 'static> {
 
 impl<T> Parser<T> for Box<dyn Parser<T>>
 where
-    T: std::fmt::Debug + Clone + 'static,
+    T: 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.as_ref().run(ctx)
@@ -748,7 +748,7 @@ where
 
 impl<T> Parser<T> for Rc<dyn Parser<T>>
 where
-    T: std::fmt::Debug + Clone + 'static,
+    T: 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.as_ref().run(ctx)
@@ -759,14 +759,13 @@ struct AltFuture<'a, T> {
     handles: Vec<JoinHandle<'a, T>>,
 }
 
-impl<T: std::fmt::Debug> Future for AltFuture<'_, T> {
+impl<T> Future for AltFuture<'_, T> {
     type Output = Result<T, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         for (ix, mut h) in self.as_mut().handles.iter_mut().enumerate() {
             if let Poll::Ready(r) = pin!(h).poll(cx) {
                 self.handles.remove(ix);
-                println!("Got result out!!!!!!!!!!!!!!!!!!!!!!!!!!!! {r:?}");
                 return Poll::Ready(r);
             }
         }
