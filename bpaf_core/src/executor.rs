@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{error::Error, named::Name, parsers::Many, Cx, Parser};
+use crate::{error::Error, named::Name, parsers::Many, Cx, Metavisit, Parser};
 use std::{
     any::Any,
     cell::RefCell,
@@ -822,7 +822,7 @@ impl Future for ChildErrors {
 
 pub struct Con<T> {
     // tor closure
-    // visit: Box<dyn Visit>,
+    pub visitors: Vec<Box<dyn Metavisit>>,
     pub parsers: Vec<Box<dyn Any>>,
 
     pub run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, T>>,
