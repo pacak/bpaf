@@ -63,21 +63,31 @@ macro_rules! construct {
     (@fin [named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
     (@fin [pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-
     (@fin $ty:tt [$($fields:ident)*]) => {{
+        let mut visitors = Vec::<Box<dyn $crate::Metavisit>>::new();
         $(
-            let $fields: Box<dyn Parser<_>> = $fields.into_box();
+            let $fields: ::std::rc::Rc<dyn Parser<_>> = $fields.into_rc();
+            visitors.push(Box::new($fields.clone()));
             let $fields: Box<dyn Any> = Box::new($fields);
         )*
         let parsers = vec![$($fields),*];
 
-        // <- visitor goes here
+        // making a future assumes parser is borrowed with the same lifetime as the
+        // context. This helps to avoid a whole lot of boxing.
+        // Problem is that here parsers are owned, so we must store them inside Con.
+        //
+        // There's several parsers and type aligned sequences are not a thing so
+        // each parser is casted first into a parser trait object then into Any trait object
+        // and passed along with the context.
+        //
+        // Later Any::downcast_ref helps to recover parser trait objects to run and create the
+        // future
         let run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, _>> =
             Box::new(|parsers, ctx| {
             let mut n = 0;
 
             $(
-                let $fields = parsers[n].downcast_ref::<Box<dyn Parser<_>>>().unwrap();
+                let $fields = parsers[n].downcast_ref::<::std::rc::Rc<dyn Parser<_>>>().unwrap();
                 { #![allow(unused_assignments)] n += 1; }
             )*
             Box::pin(async move {
@@ -93,7 +103,7 @@ macro_rules! construct {
                     ($crate::construct!(@make $ty [$($fields)*]))
             })
         });
-        $crate::Con { parsers, run }
+        $crate::Con { visitors, parsers, run }
 
     }};
 
