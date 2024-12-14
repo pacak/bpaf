@@ -2,11 +2,11 @@ use std::any::Any;
 
 use crate::{
     construct,
-    executor::{Ctx, Fragment},
+    executor::{Ctx, Fragment, Pair},
     long, positional, short, Error,
 };
 
-use super::{run_parser, Alt, Pair, Parser};
+use super::{run_parser, Alt, Parser};
 
 #[test]
 fn simple_flag_parser() {
@@ -54,9 +54,7 @@ fn alt_of_req() {
     let alice = long("alice").req_flag('a').into_box();
     let bob = long("bob").req_flag('b').into_box();
 
-    let alt = Alt {
-        items: vec![alice, bob],
-    };
+    let alt = construct!([alice, bob]);
 
     let r = run_parser(&alt, &["--bob"]);
     assert_eq!(r, Ok('b'));
@@ -72,7 +70,7 @@ fn alt_of_req() {
 fn pair_of_duplicated_names() {
     let alice1 = long("alice").req_flag('1').into_box();
     let alice2 = long("alice").req_flag('2').into_box();
-    let pair = Pair(alice1, alice2);
+    let pair = construct!(alice1, alice2);
     let r = run_parser(&pair, &["--alice", "--alice"]);
     assert_eq!(r, Ok(('1', '2')));
 }
@@ -92,7 +90,7 @@ fn simple_positional() {
 fn pair_of_positionals() {
     let alice = positional::<u32>("ALICE");
     let bob = positional::<u32>("BOB");
-    let both = Pair(alice, bob);
+    let both = construct!(alice, bob);
 
     let r = run_parser(&both, &["1", "2"]);
     assert_eq!(r, Ok((1, 2)));
@@ -116,9 +114,9 @@ fn many_positionals_good() {
 fn depth_first() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
-    let ab = Pair(a, b);
+    let ab = construct!(a, b);
     let c = short('c').req_flag('c');
-    let abc = Pair(ab, c);
+    let abc = construct!(ab, c);
     let r = run_parser(&abc, &["-a", "-b", "-c"]);
     assert_eq!(r, Ok((('a', 'b'), 'c')));
 }
@@ -128,7 +126,7 @@ fn depth_first() {
 fn many_positionals_bad() {
     let a = positional::<String>("A").many::<Vec<_>>();
     let b = positional::<String>("B");
-    let p = Pair(a, b);
+    let p = construct!(a, b);
 
     let r = run_parser(&p, &["a", "b", "c"]).unwrap_err();
     assert_eq!(r, "Expected <B>");
@@ -141,8 +139,8 @@ fn badly_emulated_args() {
     let bob_f = long("bob").req_flag('b').into_box();
     let alice_p = positional::<u32>("ALICE");
     let bob_p = positional::<u32>("BOB");
-    let alice = Pair(alice_f, alice_p).into_box();
-    let bob = Pair(bob_f, bob_p).into_box();
+    let alice = construct!(alice_f, alice_p).into_box();
+    let bob = construct!(bob_f, bob_p).into_box();
 
     let alt = Alt {
         items: vec![alice, bob],

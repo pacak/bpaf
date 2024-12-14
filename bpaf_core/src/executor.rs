@@ -161,7 +161,7 @@ enum Op<'a> {
     },
 }
 
-fn run_parser<T>(parser: &impl Parser<T>, args: &[&str]) -> Result<T, String>
+pub fn run_parser<T>(parser: &impl Parser<T>, args: &[&str]) -> Result<T, String>
 where
     T: 'static + std::fmt::Debug,
 {
@@ -733,7 +733,7 @@ where
     }
 }
 
-pub(crate) struct Alt<T: Clone + 'static> {
+pub struct Alt<T: Clone + 'static> {
     items: Vec<Box<dyn Parser<T>>>,
 }
 
@@ -818,6 +818,13 @@ impl Future for ChildErrors {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         todo!()
     }
+}
+
+pub fn downcast<T: 'static>(_: PhantomData<T>, parser: &Box<dyn Any>) -> &Rc<dyn Parser<T>> {
+    parser.downcast_ref().expect("Can't downcast")
+}
+pub fn hint<T: 'static>(_: impl Parser<T>) -> PhantomData<T> {
+    PhantomData
 }
 
 pub struct Con<T> {
