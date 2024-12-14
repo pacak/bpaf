@@ -9,6 +9,7 @@ use named::{Argument, Flag, Named};
 use parsers::{Guard, Many};
 use positional::Positional;
 use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
+use visitor::Visitor;
 mod error;
 
 #[macro_export]
@@ -236,7 +237,7 @@ mod named {
 
     impl<T> Parser<T> for Argument<T>
     where
-        T: std::fmt::Debug + 'static + FromStr,
+        T: 'static + FromStr,
         <T as FromStr>::Err: std::error::Error,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
@@ -259,7 +260,7 @@ mod named {
 
     impl<T> Parser<T> for Flag<T>
     where
-        T: std::fmt::Debug + Clone + 'static,
+        T: Clone + 'static,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
             Box::pin(async move {
@@ -398,7 +399,7 @@ mod positional {
 
     impl<T> Parser<T> for Positional<T>
     where
-        T: std::fmt::Debug + 'static + FromStr,
+        T: 'static + FromStr,
         <T as std::str::FromStr>::Err: std::fmt::Display,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
@@ -417,8 +418,10 @@ mod positional {
     }
 }
 
-pub trait Parser<T: 'static + std::fmt::Debug> {
+pub trait Parser<T: 'static> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
+
+    fn visit(&self, visitor: &mut dyn Visitor) {}
     fn into_box(self) -> Box<dyn Parser<T>>
     where
         Self: Sized + 'static,
@@ -508,7 +511,7 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
 
     fn guard<F, Q>(self, check: F, message: &'static str) -> Guard<Self, F, Q>
     where
-        T: std::borrow::Borrow<Q> + std::fmt::Debug + 'static,
+        T: std::borrow::Borrow<Q> + 'static,
         Self: Sized,
     {
         Guard {
@@ -523,9 +526,19 @@ pub trait Parser<T: 'static + std::fmt::Debug> {
 impl<P, T> Parser<T> for Cx<P>
 where
     P: Parser<T>,
-    T: 'static + std::fmt::Debug,
+    T: 'static,
 {
     fn run<'a>(&'a self, ctx: executor::Ctx<'a>) -> Fragment<'a, T> {
         self.0.run(ctx)
+    }
+}
+
+pub trait Metavisit {
+    fn visit(&self, visitor: &mut dyn Visitor);
+}
+
+impl<T: 'static> Metavisit for Rc<dyn Parser<T>> {
+    fn visit(&self, visitor: &mut dyn Visitor) {
+        <Self as Parser<T>>::visit(self, visitor)
     }
 }
