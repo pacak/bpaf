@@ -3,7 +3,7 @@ mod visitor;
 pub mod executor;
 pub mod parsers;
 pub use error::Error;
-pub use executor::Con;
+pub use executor::{Alt, Con};
 use executor::{Ctx, Fragment};
 use named::{Argument, Flag, Named};
 use parsers::{Guard, Many};
@@ -25,11 +25,11 @@ macro_rules! construct {
         {{ $crate::construct!(@prepare [pos [$ns $(:: $con)*]] [] $($tokens)*) }};
 
     // construct!( a, b, c )
-    ($first:ident $($tokens:tt)*) =>
+    ($first:ident $($tokens:tt)*) => // first to make sure we have at least one item
         {{ $crate::construct!(@prepare [pos] [] $first $($tokens)*) }};
 
     // construct!([a, b, c])
-    ([$first:ident $($tokens:tt)*]) =>
+    ([$first:ident $($tokens:tt)*]) => // first - to make sure we have at lest one item
         {{ $crate::construct!(@prepare [alt] [] $first $($tokens)*) }};
 
     // === expand function calls in argument lists, if any
@@ -49,7 +49,7 @@ macro_rules! construct {
 
     // All the logic for sum parser sits inside of Alt datatype
     (@prepare [alt] [ $($field:ident)*]) => {
-        $crate::Alt { items: vec![ ($field.to_box())*] }
+        $crate::Alt { items: vec![ $($field.into_box()),*] }
     };
 
     // For product type the logic is a bit more complicated - do one more step
@@ -63,14 +63,17 @@ macro_rules! construct {
     (@fin [named [$($con:tt)+]] []) => { $crate::pure($($con)+ { })};
     (@fin [pos   [$($con:tt)+]] []) => { $crate::pure($($con)+ ( ))};
 
-    (@fin $ty:tt [$($fields:ident)*]) => {{
+    (@fin $ty:tt [$($fields:ident)*]) => {
+                #[allow(unused_assignments)]
+        {
         let mut visitors = Vec::<Box<dyn $crate::Metavisit>>::new();
+        let mut parsers = Vec::<Box<dyn Any>>::new();
         $(
             let $fields: ::std::rc::Rc<dyn Parser<_>> = $fields.into_rc();
             visitors.push(Box::new($fields.clone()));
-            let $fields: Box<dyn Any> = Box::new($fields);
+            parsers.push(Box::new($fields.clone()));
+            let $fields = $crate::executor::hint($fields);
         )*
-        let parsers = vec![$($fields),*];
 
         // making a future assumes parser is borrowed with the same lifetime as the
         // context. This helps to avoid a whole lot of boxing.
@@ -82,16 +85,19 @@ macro_rules! construct {
         //
         // Later Any::downcast_ref helps to recover parser trait objects to run and create the
         // future
+        //
+        // Next problem is that downcast_ref needs to know the type to recover, we do this
+        // by getting a type hint PhantomData<T> from Rc<dyn Parser<T>>, passing the hint
+        // (PhantomData is Copy!) into the `run` and use it to downcast to the precise type
         let run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, _>> =
-            Box::new(|parsers, ctx| {
+            Box::new(move |parsers, ctx| {
             let mut n = 0;
 
             $(
-                let $fields = parsers[n].downcast_ref::<::std::rc::Rc<dyn Parser<_>>>().unwrap();
-                { #![allow(unused_assignments)] n += 1; }
+                let $fields = $crate::executor::downcast($fields, &parsers[n]);
+                n += 1;
             )*
             Box::pin(async move {
-                #![allow(unused_assignments)]
                 let id = ctx.current_id();
                 let mut n = 0;
                 $(
