@@ -2,6 +2,7 @@
 
 use crate::{error::Error, named::Name, parsers::Many, Cx, Parser};
 use std::{
+    any::Any,
     cell::RefCell,
     collections::{BTreeMap, HashMap, VecDeque},
     fmt::Debug,
@@ -821,9 +822,11 @@ impl Future for ChildErrors {
 }
 
 pub struct Con<T> {
-    // visitor closure
+    // tor closure
     // visit: Box<dyn Visit>,
-    pub run: Box<dyn FnOnce(Ctx) -> Fragment<T>>,
+    pub parsers: Vec<Box<dyn Any>>,
+
+    pub run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, T>>,
 }
 
 impl<T> Parser<T> for Con<T>
@@ -831,7 +834,7 @@ where
     T: std::fmt::Debug + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        //        (self.run)(ctx)
+        (self.run)(&self.parsers, ctx)
     }
 }
 
