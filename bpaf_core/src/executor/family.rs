@@ -161,7 +161,7 @@ impl FamilyTree {
         for name in names.iter() {
             map.entry(*name).or_default().insert(id, branch);
         }
-        println!("Added {names:?}, now it is {self:?}");
+        // println!("Added {names:?}, now it is {self:?}");
     }
 
     pub(crate) fn remove_named(&mut self, flag: bool, id: Id, names: &[Name<'static>]) {

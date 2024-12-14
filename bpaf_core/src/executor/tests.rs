@@ -163,9 +163,58 @@ fn badly_emulated_args() {
 }
 
 #[test]
-fn guard_and_pair() {
+fn argument_flavors() {
+    let a = short('a').argument::<usize>("A");
+
+    let r = run_parser(&a, &["-a3"]).unwrap_err();
+    assert_eq!(r, "unexpected item!"); // TODO
+
+    let r = run_parser(&a, &["-a=3"]);
+    assert_eq!(r, Ok(3));
+
+    let r = run_parser(&a, &["-a", "3"]);
+    assert_eq!(r, Ok(3));
+}
+
+#[test]
+fn simple_guard() {
     let a = short('a')
         .argument::<usize>("A")
-        .guard(|x: i32| x < 10, "must be small");
-    let b = short('b').req_flag(true);
+        .guard(|x: &usize| *x < 10, "must be small");
+
+    let r = run_parser(&a, &["-a=3"]);
+    assert_eq!(r, Ok(3));
+
+    let r = run_parser(&a, &["-a=13"]).unwrap_err();
+    assert_eq!(r, "failed: must be small");
+}
+
+#[test]
+fn req_flag_and_guard_pair() {
+    let a = short('a')
+        .argument::<usize>("A")
+        .guard(|x: &usize| *x < 10, "must be small");
+    let b = short('b').req_flag(());
+    let p = construct!(a, b);
+
+    let r = run_parser(&p, &["-a=13"]).unwrap_err();
+    assert_eq!(r, "failed: must be small");
+
+    let r = run_parser(&p, &["-a=3"]).unwrap_err();
+    assert_eq!(r, "Expected -b");
+}
+
+#[test]
+fn guard_and_req_flag_pair() {
+    let a = short('a')
+        .argument::<usize>("A")
+        .guard(|x: &usize| *x < 10, "must be small");
+    let b = short('b').req_flag(());
+    let p = construct!(b, a);
+
+    let r = run_parser(&p, &["-a=13"]).unwrap_err();
+    assert_eq!(r, "failed: must be small");
+
+    let r = run_parser(&p, &["-a=3"]).unwrap_err();
+    assert_eq!(r, "Expected -b");
 }

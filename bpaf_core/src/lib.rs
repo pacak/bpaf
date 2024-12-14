@@ -112,7 +112,7 @@ macro_rules! construct {
                     let $fields = ctx.spawn(id.prod(n), $fields, false);
                     n += 1;
                 )*
-                // <- check parent errors here
+                ctx.early_exit(n).await?;
                 ::std::result::Result::Ok::<_, $crate::Error>
                     ($crate::construct!(@make $ty [$($fields)*]))
             })
