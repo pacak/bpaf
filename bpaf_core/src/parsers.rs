@@ -43,6 +43,7 @@ where
                     Err(e) => return Err(e),
                 }
             };
+            // TODO - handle error-missing + at least
             if res.len() as u32 >= self.at_least {
                 Ok(res.into_iter().collect())
             } else if let Err(err) = err {
@@ -75,6 +76,91 @@ where
             } else {
                 Err(Error::fail(self.message))
             }
+        })
+    }
+}
+
+pub struct Count<P, T> {
+    pub(crate) inner: P,
+    pub(crate) ctx: PhantomData<T>,
+}
+
+impl<P, T> Parser<usize> for Count<P, T>
+where
+    P: Parser<T>,
+    T: 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, usize> {
+        Box::pin(async move {
+            let mut count = 0;
+            while (self.inner.run(ctx.clone()).await).is_ok() {
+                count += 1;
+            }
+            Ok(count)
+        })
+    }
+}
+
+pub struct Last<P, T> {
+    pub(crate) inner: P,
+    pub(crate) ctx: PhantomData<T>,
+}
+
+impl<P, T> Parser<T> for Last<P, T>
+where
+    T: 'static,
+    P: Parser<T>,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(async move {
+            let mut last = self.inner.run(ctx.clone()).await?;
+            while let Ok(t) = self.inner.run(ctx.clone()).await {
+                last = t;
+            }
+            Ok(last)
+        })
+    }
+}
+
+pub struct Map<P, F, T, R> {
+    pub(crate) inner: P,
+    pub(crate) map: F,
+    pub(crate) ctx: PhantomData<(T, R)>,
+}
+
+impl<P, F, T, R> Parser<R> for Map<P, F, T, R>
+where
+    P: Parser<T>,
+    F: Fn(T) -> R,
+
+    R: 'static,
+    T: 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
+        let inner = self.inner.run(ctx);
+        Box::pin(async move { Ok((self.map)(inner.await?)) })
+    }
+}
+
+pub struct Parse<P, F, T, R> {
+    pub(crate) inner: P,
+    pub(crate) ctx: PhantomData<(T, R)>,
+    pub(crate) f: F,
+}
+
+impl<P, F, T, R, E> Parser<R> for Parse<P, F, T, R>
+where
+    P: Parser<T>,
+    F: Fn(T) -> Result<R, E>,
+    E: ToString,
+    R: 'static,
+    T: 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
+        let inner = self.inner.run(ctx);
+        Box::pin(async move {
+            let t = inner.await?;
+            (self.f)(t).map_err(|e| Error::parse_fail(e.to_string()))
         })
     }
 }

@@ -849,7 +849,6 @@ pub fn hint<T: 'static>(_: impl Parser<T>) -> PhantomData<T> {
 }
 
 pub struct Con<T> {
-    // tor closure
     pub visitors: Vec<Box<dyn Metavisit>>,
     pub parsers: Vec<Box<dyn Any>>,
 
