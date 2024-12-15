@@ -5,13 +5,13 @@ mod visitor;
 
 pub use crate::{
     error::Error,
-    executor::{Alt, Con},
+    executor::{run_parser, Alt, Con},
 };
 
 use crate::{
     executor::{Ctx, Fragment},
     named::{Argument, Flag, Named},
-    parsers::{Guard, Many},
+    parsers::{Count, Guard, Last, Many, Map, Parse},
     positional::Positional,
     visitor::Visitor,
 };
@@ -444,8 +444,9 @@ mod positional {
 
 pub trait Parser<T: 'static> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
-
     fn visit(&self, _visitor: &mut dyn Visitor) {}
+
+    /// Convert parser into Boxed trait object
     fn into_box(self) -> Box<dyn Parser<T>>
     where
         Self: Sized + 'static,
@@ -453,6 +454,7 @@ pub trait Parser<T: 'static> {
         Box::new(self)
     }
 
+    /// Convert parser into Rc trait object
     fn into_rc(self) -> Rc<dyn Parser<T>>
     where
         Self: Sized + 'static,
@@ -460,6 +462,7 @@ pub trait Parser<T: 'static> {
         Rc::new(self)
     }
 
+    /// many/some/collect/take/at_least/in_range
     fn many<C>(self) -> crate::Cx<Many<Self, C, T>>
     where
         Self: Sized,
@@ -531,6 +534,50 @@ pub trait Parser<T: 'static> {
             },
             ty: PhantomData,
         })
+    }
+
+    fn count(self) -> Count<Self, T>
+    where
+        Self: Sized + Parser<T>,
+    {
+        Count {
+            inner: self,
+            ctx: PhantomData,
+        }
+    }
+
+    fn last(self) -> Last<Self, T>
+    where
+        Self: Sized + Parser<T>,
+    {
+        Last {
+            inner: self,
+            ctx: PhantomData,
+        }
+    }
+
+    fn map<F, R>(self, map: F) -> Map<Self, F, T, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> R + 'static,
+    {
+        Map {
+            inner: self,
+            ctx: PhantomData,
+            map,
+        }
+    }
+    fn parse<F, R, E>(self, f: F) -> Parse<Self, F, T, R>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> Result<R, E>,
+        E: ToString,
+    {
+        Parse {
+            inner: self,
+            f,
+            ctx: PhantomData,
+        }
     }
 
     fn guard<F, Q>(self, check: F, message: &'static str) -> Guard<Self, F, Q>
