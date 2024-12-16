@@ -381,7 +381,7 @@ struct Runner<'ctx> {
     /// For those tasks that asked us to retain the id according to the parent
     parent_ids: HashMap<Parent, u32>,
 
-    family: FamilyTree,
+    family: FamilyTree<'ctx>,
 
     /// Shared with Wakers,
     ///
@@ -410,7 +410,7 @@ fn is_short(name: &str) -> Result<Name, Error> {
         Some(c) => match chars.next() {
             // saw `-ab`
             Some(_) => Error::unexpected(),
-            None => Ok(Name::short(c)),
+            None => Ok(Name::Short(c)),
         },
         // saw `-`
         None => Error::unexpected(),
