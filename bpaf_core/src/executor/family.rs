@@ -133,14 +133,14 @@ struct TaskInfo {
 // For any node I need to be able to find all sum siblings
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
-pub(crate) struct FamilyTree {
-    flags: BTreeMap<Name<'static>, Pecking>,
-    args: BTreeMap<Name<'static>, Pecking>,
+pub(crate) struct FamilyTree<'ctx> {
+    flags: BTreeMap<Name<'ctx>, Pecking>,
+    args: BTreeMap<Name<'ctx>, Pecking>,
     positional: Pecking,
     tasks: HashMap<Id, TaskInfo>,
 }
 
-impl FamilyTree {
+impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn add_positional(&mut self, id: Id) {
         let branch = self.tasks.get(&id).unwrap().branch;
         self.positional.insert(id, branch);
@@ -185,7 +185,7 @@ impl FamilyTree {
 
     pub(crate) fn pick_parsers_for(
         &mut self,
-        front: &Arg,
+        front: &Arg<'ctx>,
         out: &mut VecDeque<(Id, usize)>,
     ) -> Result<(), Error> {
         out.clear();
@@ -198,17 +198,17 @@ impl FamilyTree {
                 name,
                 value: Some(arg),
             } => {
-                if let Some(q) = self.args.get_mut(name.as_bytes()) {
+                if let Some(q) = self.args.get_mut(name) {
                     q.peek_front(out);
                 } else {
                     todo!("not found {name:?}")
                 }
             }
             Arg::Named { name, value: None } => {
-                if let Some(q) = self.flags.get_mut(name.as_bytes()) {
+                if let Some(q) = self.flags.get_mut(name) {
                     q.peek_front(out);
                 };
-                if let Some(q) = self.args.get_mut(name.as_bytes()) {
+                if let Some(q) = self.args.get_mut(name) {
                     q.peek_front(out);
                 };
                 if out.is_empty() {
@@ -272,7 +272,7 @@ impl FamilyTree {
 /// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
 
 #[derive(Debug, Clone, Default)]
-struct Pecking(BTreeSet<(Id, BranchId)>);
+pub(crate) struct Pecking(BTreeSet<(Id, BranchId)>);
 
 impl Pecking {
     /// removes an item from a pecking order,
