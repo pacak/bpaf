@@ -1,6 +1,7 @@
 mod error;
 pub mod executor;
 pub mod parsers;
+mod split;
 mod visitor;
 
 pub use crate::{
@@ -317,30 +318,8 @@ mod named {
 
     #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Name<'a> {
-        Short(char, [u8; 4]),
+        Short(char),
         Long(&'a str),
-    }
-
-    impl Name<'_> {
-        pub(crate) fn as_bytes(&self) -> &[u8] {
-            match self {
-                Name::Short(_, a) => a.as_slice(),
-                Name::Long(l) => l.as_bytes(),
-            }
-        }
-
-        pub(crate) fn short(name: char) -> Name<'static> {
-            let mut buf = [0; 4];
-            name.encode_utf8(&mut buf);
-
-            Name::Short(name, buf)
-        }
-    }
-
-    impl std::borrow::Borrow<[u8]> for Name<'_> {
-        fn borrow(&self) -> &[u8] {
-            self.as_bytes()
-        }
     }
 
     pub struct Named {
@@ -349,10 +328,8 @@ mod named {
     }
 
     pub(crate) fn short(name: char) -> Named {
-        let mut buf = [0; 4];
-        name.encode_utf8(&mut buf);
         Named {
-            names: vec![Name::Short(name, buf)],
+            names: vec![Name::Short(name)],
             help: None,
         }
     }
@@ -364,9 +341,7 @@ mod named {
     }
     impl Named {
         pub(crate) fn short(&mut self, name: char) {
-            let mut buf = [0; 4];
-            name.encode_utf8(&mut buf);
-            self.names.push(Name::Short(name, buf));
+            self.names.push(Name::Short(name));
         }
         pub(crate) fn long(&mut self, name: &'static str) {
             self.names.push(Name::Long(name));

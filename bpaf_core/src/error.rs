@@ -174,8 +174,8 @@ impl Message {
                     }
                     match item {
                         MissingItem::Named { name, meta } => match (name[0], meta) {
-                            (Name::Short(s, _), None) => write!(res, "-{s}")?,
-                            (Name::Short(s, _), Some(m)) => write!(res, "-{s}={}", Metavar(m))?,
+                            (Name::Short(s), None) => write!(res, "-{s}")?,
+                            (Name::Short(s), Some(m)) => write!(res, "-{s}={}", Metavar(m))?,
                             (Name::Long(l), None) => write!(res, "--{l}")?,
                             (Name::Long(l), Some(m)) => write!(res, "--{l}={}", Metavar(m))?,
                         },
