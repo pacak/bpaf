@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::{error::Error, named::Name, parsers::Many, Cx, Metavisit, Parser};
+use crate::{error::Error, named::Name, parsers::Many, split::split_param, Cx, Metavisit, Parser};
 use std::{
     any::Any,
     cell::{Cell, RefCell},
@@ -404,51 +404,51 @@ pub(crate) enum Arg<'a> {
     },
 }
 
-fn is_short(name: &str) -> Result<Name, Error> {
-    let mut chars = name.chars();
-    match chars.next() {
-        Some(c) => match chars.next() {
-            // saw `-ab`
-            Some(_) => Error::unexpected(),
-            None => Ok(Name::Short(c)),
-        },
-        // saw `-`
-        None => Error::unexpected(),
-    }
-}
-
-/// Parse front argument
-///
-/// it will return errors for constructions like
-/// -foo=bar
-/// Hmm... But maybe pass those by `any` later
-fn split_param(value: &str) -> Result<Arg, Error> {
-    if let Some(long_name) = value.strip_prefix("--") {
-        match long_name.split_once('=') {
-            Some((name, arg)) => Ok(Arg::Named {
-                name: Name::Long(name),
-                value: Some(arg),
-            }),
-            None => Ok(Arg::Named {
-                name: Name::Long(long_name),
-                value: None,
-            }),
-        }
-    } else if let Some(short_name) = value.strip_prefix("-") {
-        match short_name.split_once('=') {
-            Some((name, arg)) => Ok(Arg::Named {
-                name: is_short(name)?,
-                value: Some(arg),
-            }),
-            None => Ok(Arg::Named {
-                name: is_short(short_name)?,
-                value: None,
-            }),
-        }
-    } else {
-        Ok(Arg::Positional { value })
-    }
-}
+// fn is_short(name: &str) -> Result<Name, Error> {
+//     let mut chars = name.chars();
+//     match chars.next() {
+//         Some(c) => match chars.next() {
+//             // saw `-ab`
+//             Some(_) => Error::unexpected(),
+//             None => Ok(Name::Short(c)),
+//         },
+//         // saw `-`
+//         None => Error::unexpected(),
+//     }
+// }
+//
+// /// Parse front argument
+// ///
+// /// it will return errors for constructions like
+// /// -foo=bar
+// /// Hmm... But maybe pass those by `any` later
+// fn split_param(value: &str) -> Result<Arg, Error> {
+//     if let Some(long_name) = value.strip_prefix("--") {
+//         match long_name.split_once('=') {
+//             Some((name, arg)) => Ok(Arg::Named {
+//                 name: Name::Long(name),
+//                 value: Some(arg),
+//             }),
+//             None => Ok(Arg::Named {
+//                 name: Name::Long(long_name),
+//                 value: None,
+//             }),
+//         }
+//     } else if let Some(short_name) = value.strip_prefix("-") {
+//         match short_name.split_once('=') {
+//             Some((name, arg)) => Ok(Arg::Named {
+//                 name: is_short(name)?,
+//                 value: Some(arg),
+//             }),
+//             None => Ok(Arg::Named {
+//                 name: is_short(short_name)?,
+//                 value: None,
+//             }),
+//         }
+//     } else {
+//         Ok(Arg::Positional { value })
+//     }
+// }
 
 impl<'a> Runner<'a> {
     /// Get a task ID for the waker
@@ -646,7 +646,7 @@ impl<'a> Runner<'a> {
                 println!("nothing to consume");
                 break;
             };
-            let front = split_param(front_arg)?;
+            let front = split_param(front_arg, &self.family.args, &self.family.flags)?;
 
             // check how to parse next word
             self.family.pick_parsers_for(&front, &mut par)?;

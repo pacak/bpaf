@@ -166,8 +166,8 @@ fn badly_emulated_args() {
 fn argument_flavors() {
     let a = short('a').argument::<usize>("A");
 
-    let r = run_parser(&a, &["-a3"]).unwrap_err();
-    assert_eq!(r, "unexpected item!"); // TODO
+    let r = run_parser(&a, &["-a3"]);
+    assert_eq!(r, Ok(3));
 
     let r = run_parser(&a, &["-a=3"]);
     assert_eq!(r, Ok(3));

@@ -134,8 +134,8 @@ struct TaskInfo {
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree<'ctx> {
-    flags: BTreeMap<Name<'ctx>, Pecking>,
-    args: BTreeMap<Name<'ctx>, Pecking>,
+    pub(crate) flags: BTreeMap<Name<'ctx>, Pecking>,
+    pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
     positional: Pecking,
     tasks: HashMap<Id, TaskInfo>,
 }
