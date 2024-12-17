@@ -4,7 +4,7 @@ use crate::{
     error::Error,
     named::Name,
     parsers::Many,
-    split::{split_param, Arg},
+    split::{split_param, Arg, OsOrStr},
     Cx, Metavisit, Parser,
 };
 use std::{
@@ -112,7 +112,7 @@ pub struct RawCtx<'a> {
     /// Gets populated with current taskid when it is running
     current_task: RefCell<Option<Id>>,
     /// All the arguments passed to the app including the app name in 0th
-    args: &'a [String],
+    args: &'a [OsOrStr<'a>],
     /// Current cursor position
     cur: AtomicUsize,
     front: RefCell<Option<Arg<'a>>>,
@@ -177,15 +177,22 @@ enum Op<'a> {
     },
 }
 
-pub fn run_parser<T>(parser: &impl Parser<T>, args: &[&str]) -> Result<T, String>
+pub fn run_parser<'a, T, I>(
+    parser: &'a impl Parser<T>,
+    args: impl IntoIterator<Item = I>,
+) -> Result<T, String>
 where
     T: 'static + std::fmt::Debug,
+    OsOrStr<'a>: From<I>,
 {
-    let args = args.iter().map(|a| String::from(*a)).collect::<Vec<_>>();
+    let args = args
+        .into_iter()
+        .map(|a| OsOrStr::from(a))
+        .collect::<Vec<_>>();
     parse_args(parser, &args).map_err(|e| e.render())
 }
 
-fn parse_args<T>(parser: &impl Parser<T>, args: &[String]) -> Result<T, Error>
+fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
 {
