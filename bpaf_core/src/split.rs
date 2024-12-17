@@ -4,6 +4,7 @@ use crate::{
     Error,
 };
 use std::{
+    borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
 };
@@ -85,7 +86,7 @@ fn mixed_arg(input: &OsStr) -> Option<Arg> {
             let name = std::str::from_utf8(&name).ok()?;
             let rest = OsString::from_vec(input.get(eq + 1..)?.to_vec());
             return Some(Arg::Named {
-                name: Name::Long(name),
+                name: Name::Long(Cow::Borrowed(name)),
                 value: todo!("{:?}", Some(rest)),
             });
         } else if input[1].is_ascii_alphanumeric() {
@@ -147,13 +148,13 @@ pub(crate) fn split_param<'a>(
             }
             // `--foo=bar`
             Arg::Named {
-                name: Name::Long(name),
+                name: Name::Long(Cow::Borrowed(name)),
                 value: Some(arg),
             }
         } else {
             // `--foo`
             Arg::Named {
-                name: Name::Long(long),
+                name: Name::Long(Cow::Borrowed(long)),
                 value: None,
             }
         }
