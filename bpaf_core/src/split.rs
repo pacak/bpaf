@@ -7,6 +7,11 @@ use std::{
     str::FromStr,
 };
 
+struct ArgItem {
+    force_pos: bool,
+    value: OsOrStr<'static>,
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum OsOrStr<'a> {
     Str(Cow<'a, str>),
@@ -18,6 +23,12 @@ impl OsOrStr<'_> {
         match self {
             OsOrStr::Str(cow) => String::from(cow.as_ref()).into(),
             OsOrStr::Os(cow) => cow.into(),
+        }
+    }
+    pub(crate) fn is_named(&self) -> bool {
+        match self {
+            OsOrStr::Str(cow) => cow.starts_with('-'),
+            OsOrStr::Os(cow) => false,
         }
     }
 
@@ -58,6 +69,12 @@ impl<'a> From<&'a str> for OsOrStr<'a> {
     }
 }
 
+impl<'a> From<&&'a str> for OsOrStr<'a> {
+    fn from(value: &&'a str) -> Self {
+        Self::Str(Cow::Borrowed(value))
+    }
+}
+
 impl<'a> From<&'a String> for OsOrStr<'a> {
     fn from(value: &'a String) -> Self {
         Self::Str(Cow::Borrowed(value))
@@ -79,15 +96,15 @@ pub(crate) enum Arg<'a> {
     },
 }
 
-fn ascii_prefix(input: &OsStr) -> Option<(String, OsString)> {
+fn ascii_prefix(input: &OsStr) -> Option<(Cow<str>, Cow<OsStr>)> {
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt;
         let input = input.as_bytes();
         let pos = input.iter().position(|c| !c.is_ascii())?;
-        let prefix = std::str::from_utf8(&input[..pos]).ok()?.to_owned();
-        let suffix = OsStr::from_bytes(&input[pos..]).to_owned();
-        Some((prefix, suffix))
+        let prefix = std::str::from_utf8(&input[..pos]).ok()?;
+        let suffix = OsStr::from_bytes(&input[pos..]);
+        Some((Cow::Borrowed(prefix), Cow::Borrowed(suffix)))
     }
     #[cfg(windows)]
     {
@@ -97,7 +114,7 @@ fn ascii_prefix(input: &OsStr) -> Option<(String, OsString)> {
         let prefix = wide[..pos].iter().map(|c| *c as u8).collect::<Vec<_>>();
         let prefix = std::string::String::from_utf8(prefix).ok()?;
         let suffix = OsString::from_wide(&wide[pos..]);
-        Some((prefix, suffix))
+        Some((Cow::Owned(prefix), Cow::Owned(suffix)))
     }
     #[cfg(not(any(windows, unix)))]
     {
@@ -182,11 +199,23 @@ impl<'a> TryFrom<&'a str> for ShortOrSet<'a> {
     }
 }
 
+pub(crate) fn split_param<'a>(
+    value: &'a OsOrStr,
+
+    args: &BTreeMap<Name, Pecking>,
+    flags: &BTreeMap<Name, Pecking>,
+) -> Result<Arg<'a>, Error> {
+    match value {
+        OsOrStr::Str(cow) => split_str_param(cow.as_ref(), args, flags),
+        OsOrStr::Os(cow) => todo!(),
+    }
+}
+
 // Try to parse a front value into a flag/argument/positional/set of bools
 //
 // Will reject ambiguities or combinations like `-foo=bar`
 // Does not check if name is actually available unless faced with ambiguity possibility.
-pub(crate) fn split_param<'a>(
+pub(crate) fn split_str_param<'a>(
     value: &'a str,
     args: &BTreeMap<Name, Pecking>,
     flags: &BTreeMap<Name, Pecking>,

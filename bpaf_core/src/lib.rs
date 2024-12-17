@@ -408,9 +408,9 @@ mod positional {
                     task_id: None,
                     meta: self.meta,
                 }
-                .await;
-                T::from_str(s?).map_err(|e| Error {
-                    message: Message::ParseFailed(None, format!("{e}")),
+                .await?;
+                s.parse().map_err(|e| Error {
+                    message: Message::ParseFailed(None, e),
                 })
             })
         }

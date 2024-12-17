@@ -2,7 +2,7 @@ use std::any::Any;
 
 use crate::{
     construct,
-    executor::{Ctx, Fragment, Pair},
+    executor::{Ctx, Fragment},
     long, positional, short, Error,
 };
 
@@ -14,7 +14,7 @@ fn simple_flag_parser() {
     let r = run_parser(&alice, &["--alice"]);
     assert_eq!(r, Ok(true));
 
-    let r = run_parser(&alice, &[]);
+    let r = run_parser::<_, &&str>(&alice, &[]);
     assert_eq!(r, Ok(false));
 }
 
@@ -34,7 +34,7 @@ fn pair_of_flags() {
     let r = run_parser(&both, &["--alice"]);
     assert_eq!(r, Ok((true, false)));
 
-    let r = run_parser(&both, &[]);
+    let r = run_parser::<_, &&str>(&both, &[]);
     assert_eq!(r, Ok((false, false)));
 }
 
@@ -45,7 +45,7 @@ fn req_flag() {
     let r = run_parser(&alice, &["--alice"]);
     assert_eq!(r, Ok(()));
 
-    let r = run_parser(&alice, &[]).unwrap_err();
+    let r = run_parser::<_, &&str>(&alice, &[]).unwrap_err();
     assert_eq!(r, "Expected --alice");
 }
 
@@ -79,7 +79,7 @@ fn pair_of_duplicated_names() {
 fn simple_positional() {
     let a = positional::<String>("ARG");
 
-    let r = run_parser(&a, &[]).unwrap_err();
+    let r = run_parser::<_, &&str>(&a, &[]).unwrap_err();
     assert_eq!(r, "Expected <ARG>");
 
     let r = run_parser(&a, &["item"]);
@@ -98,7 +98,7 @@ fn pair_of_positionals() {
     let r = run_parser(&both, &["1"]).unwrap_err();
     assert_eq!(r, "Expected <BOB>");
 
-    let r = run_parser(&both, &[]).unwrap_err();
+    let r = run_parser::<_, &&str>(&both, &[]).unwrap_err();
     assert_eq!(r, "Expected <ALICE>");
 }
 

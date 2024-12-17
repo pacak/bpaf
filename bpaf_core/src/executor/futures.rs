@@ -137,7 +137,7 @@ impl Drop for EarlyExitFut<'_> {
     }
 }
 
-pub struct PositionalFut<'a> {
+pub(crate) struct PositionalFut<'a> {
     pub(crate) meta: &'static str,
     pub(crate) ctx: Ctx<'a>,
     pub(crate) task_id: Option<Id>,
@@ -155,7 +155,7 @@ impl Drop for PositionalFut<'_> {
 }
 
 impl<'ctx> Future for PositionalFut<'ctx> {
-    type Output = Result<&'ctx str, Error>;
+    type Output = Result<OsOrStr<'ctx>, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
@@ -166,10 +166,10 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
             // TODO - check if we are after --
-            Some(s) if s.starts_with('-') => Error::unexpected(),
+            Some(s) if s.is_named() => Error::unexpected(),
             Some(s) => {
                 self.ctx.advance(1);
-                Ok(s.as_str())
+                Ok(s.to_owned())
             }
             None => Err(Error::missing(MissingItem::Positional { meta: self.meta })),
         })
@@ -239,18 +239,18 @@ impl<'ctx> Future for ArgFut<'ctx> {
         }
         if let Some(v) = value {
             self.ctx.advance(1);
-            return Poll::Ready(Ok((*v).to_owned()));
+            return Poll::Ready(Ok(v.to_owned()));
         }
         let Some(v) = self.ctx.args.get(self.ctx.cur() + 1) else {
             // TODO - this lacks a value
             return Poll::Ready(Err(self.missing()));
         };
-        if v.starts_with('-') {
+        if v.is_named() {
             // TODO - this lacks a value
             Poll::Ready(Err(self.missing()))
         } else {
             self.ctx.advance(2);
-            Poll::Ready(Ok(v.into()))
+            Poll::Ready(Ok(v.to_owned()))
         }
     }
 }
