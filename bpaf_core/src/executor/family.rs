@@ -159,7 +159,7 @@ impl<'ctx> FamilyTree<'ctx> {
             &mut self.args
         };
         for name in names.iter() {
-            map.entry(*name).or_default().insert(id, branch);
+            map.entry(name.clone()).or_default().insert(id, branch);
         }
         // println!("Added {names:?}, now it is {self:?}");
     }
@@ -172,7 +172,8 @@ impl<'ctx> FamilyTree<'ctx> {
             &mut self.args
         };
         for name in names {
-            let std::collections::btree_map::Entry::Occupied(mut entry) = map.entry(*name) else {
+            let std::collections::btree_map::Entry::Occupied(mut entry) = map.entry(name.clone())
+            else {
                 continue;
             };
             entry.get_mut().remove(branch, id);

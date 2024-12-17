@@ -240,7 +240,7 @@ impl<T> Cx<Positional<T>> {
 }
 
 mod named {
-    use std::{marker::PhantomData, str::FromStr};
+    use std::{borrow::Cow, marker::PhantomData, str::FromStr};
 
     use crate::{
         error::Error,
@@ -316,10 +316,10 @@ mod named {
         }
     }
 
-    #[derive(Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Name<'a> {
         Short(char),
-        Long(&'a str),
+        Long(Cow<'a, str>),
     }
 
     pub struct Named {
@@ -335,7 +335,7 @@ mod named {
     }
     pub(crate) fn long(name: &'static str) -> Named {
         Named {
-            names: vec![Name::Long(name)],
+            names: vec![Name::Long(Cow::Borrowed(name))],
             help: None,
         }
     }
@@ -344,7 +344,7 @@ mod named {
             self.names.push(Name::Short(name));
         }
         pub(crate) fn long(&mut self, name: &'static str) {
-            self.names.push(Name::Long(name));
+            self.names.push(Name::Long(Cow::Borrowed(name)));
         }
         pub(crate) fn help(&mut self, help: String) {
             self.help = Some(help);
@@ -588,3 +588,8 @@ impl<T: 'static> Metavisit for Rc<dyn Parser<T>> {
         <Self as Parser<T>>::visit(self, visitor)
     }
 }
+
+// TODO:
+// - non-utf8
+// - error messages:
+//   - conflict
