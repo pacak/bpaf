@@ -165,11 +165,13 @@ impl<'ctx> Future for PositionalFut<'ctx> {
         }
 
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
-            // TODO - check if we are after --
-            Some(s) if s.is_named() => Error::unexpected(),
             Some(s) => {
-                self.ctx.advance(1);
-                Ok(s.to_owned())
+                if s.is_named() {
+                    Error::unexpected()
+                } else {
+                    self.ctx.advance(1);
+                    Ok(s.to_owned())
+                }
             }
             None => Err(Error::missing(MissingItem::Positional { meta: self.meta })),
         })
