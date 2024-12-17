@@ -1,20 +1,71 @@
-use crate::{
-    executor::{family::Pecking, Arg},
-    named::Name,
-    Error,
-};
+use crate::{executor::family::Pecking, named::Name, Error};
 use std::{
     borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
+    path::PathBuf,
+    str::FromStr,
 };
 
-enum OsOrStr<'a> {
-    Str(&'a str),
-    Os(OsString),
+#[derive(Debug, Clone)]
+pub(crate) enum OsOrStr<'a> {
+    Str(Cow<'a, str>),
+    Os(Cow<'a, OsStr>),
 }
 
-enum Arg1<'a> {
+impl OsOrStr<'_> {
+    fn os(&self) -> OsString {
+        match self {
+            OsOrStr::Str(cow) => String::from(cow.as_ref()).into(),
+            OsOrStr::Os(cow) => cow.into(),
+        }
+    }
+
+    fn str(&self) -> Option<&str> {
+        match self {
+            OsOrStr::Str(cow) => Some(cow.as_ref()),
+            OsOrStr::Os(_) => None,
+        }
+    }
+
+    pub(crate) fn parse<T>(&self) -> Result<T, String>
+    where
+        T: FromStr + 'static,
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        use std::any::{Any, TypeId};
+        if TypeId::of::<T>() == TypeId::of::<OsString>() {
+            let anybox: Box<dyn Any> = Box::new(self.os());
+            Ok(*(anybox.downcast::<T>().unwrap()))
+        } else if TypeId::of::<T>() == TypeId::of::<PathBuf>() {
+            let anybox: Box<dyn Any> = Box::new(PathBuf::from(self.os()));
+            Ok(*(anybox.downcast::<T>().unwrap()))
+        } else {
+            match self.str() {
+                Some(s) => T::from_str(s).map_err(|e| e.to_string()),
+                None => Err(format!(
+                    "{} is not a valid utf8",
+                    self.os().to_string_lossy()
+                )),
+            }
+        }
+    }
+}
+
+impl<'a> From<&'a str> for OsOrStr<'a> {
+    fn from(value: &'a str) -> Self {
+        Self::Str(Cow::Borrowed(value))
+    }
+}
+
+impl<'a> From<&'a String> for OsOrStr<'a> {
+    fn from(value: &'a String) -> Self {
+        Self::Str(Cow::Borrowed(value))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum Arg<'a> {
     Named {
         name: Name<'a>,
         value: Option<OsOrStr<'a>>,
@@ -24,7 +75,7 @@ enum Arg1<'a> {
         names: Vec<char>,
     },
     Positional {
-        value: &'a str,
+        value: OsOrStr<'a>,
     },
 }
 
@@ -149,7 +200,7 @@ pub(crate) fn split_param<'a>(
             // `--foo=bar`
             Arg::Named {
                 name: Name::Long(Cow::Borrowed(name)),
-                value: Some(arg),
+                value: Some(OsOrStr::from(arg)),
             }
         } else {
             // `--foo`
@@ -160,7 +211,10 @@ pub(crate) fn split_param<'a>(
         }
     } else if value == "-" {
         // single dash is a positional item
-        Arg::Positional { value }
+
+        Arg::Positional {
+            value: OsOrStr::from(value),
+        }
     } else if let Some(short_name) = value.strip_prefix("-") {
         if let Some((name, arg)) = short_name.split_once('=') {
             // not `-foo=bar`
@@ -171,7 +225,7 @@ pub(crate) fn split_param<'a>(
             // but `-f=bar` is okay
             Arg::Named {
                 name,
-                value: Some(arg),
+                value: Some(OsOrStr::from(arg)),
             }
         } else {
             match ShortOrSet::try_from(short_name)? {
@@ -187,7 +241,7 @@ pub(crate) fn split_param<'a>(
                         (true, true) => return Err(Error::fail("ambiguity")),
                         (true, false) => Arg::Named {
                             name: Name::Short(names[0]),
-                            value: Some(arg),
+                            value: Some(OsOrStr::from(arg)),
                         },
                         (false, true) => Arg::ShortSet { current: 0, names },
                         (false, false) => return Err(Error::fail("not expected in this context")),
@@ -196,6 +250,8 @@ pub(crate) fn split_param<'a>(
             }
         }
     } else {
-        Arg::Positional { value }
+        Arg::Positional {
+            value: OsOrStr::from(value),
+        }
     })
 }
