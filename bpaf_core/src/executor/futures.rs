@@ -1,4 +1,4 @@
-use crate::{error::MissingItem, named::Name};
+use crate::{error::MissingItem, named::Name, split::OsOrStr};
 
 use super::{Arg, Ctx, Error, Id, Op};
 use std::{
@@ -212,15 +212,15 @@ impl Drop for FlagFut<'_> {
 }
 
 impl ArgFut<'_> {
-    fn missing(&self) -> Poll<Result<String, Error>> {
-        Poll::Ready(Err(Error::missing(MissingItem::Named {
+    fn missing(&self) -> Error {
+        Error::missing(MissingItem::Named {
             name: self.name.to_vec(),
             meta: Some(self.meta),
-        })))
+        })
     }
 }
-impl Future for ArgFut<'_> {
-    type Output = Result<String, Error>;
+impl<'ctx> Future for ArgFut<'ctx> {
+    type Output = Result<OsOrStr<'ctx>, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
@@ -232,10 +232,10 @@ impl Future for ArgFut<'_> {
 
         let front = self.ctx.front.borrow();
         let Some(Arg::Named { name, value }) = front.as_ref() else {
-            return self.missing();
+            return Poll::Ready(Err(self.missing()));
         };
         if !self.name.contains(name) {
-            return self.missing();
+            return Poll::Ready(Err(self.missing()));
         }
         if let Some(v) = value {
             self.ctx.advance(1);
@@ -243,14 +243,14 @@ impl Future for ArgFut<'_> {
         }
         let Some(v) = self.ctx.args.get(self.ctx.cur() + 1) else {
             // TODO - this lacks a value
-            return self.missing();
+            return Poll::Ready(Err(self.missing()));
         };
         if v.starts_with('-') {
             // TODO - this lacks a value
-            self.missing()
+            Poll::Ready(Err(self.missing()))
         } else {
             self.ctx.advance(2);
-            Poll::Ready(Ok(v.to_owned()))
+            Poll::Ready(Ok(v.into()))
         }
     }
 }
