@@ -3,18 +3,15 @@
 use crate::{
     error::Error,
     named::Name,
-    parsers::Many,
     split::{split_param, Arg, OsOrStr},
-    Cx, Metavisit, Parser,
+    Metavisit, Parser,
 };
 use std::{
     any::Any,
     cell::{Cell, RefCell},
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
-    fmt::Debug,
     future::Future,
     marker::PhantomData,
-    ops::RangeBounds,
     pin::{pin, Pin},
     rc::Rc,
     sync::{atomic::AtomicUsize, Arc, Mutex},
@@ -89,7 +86,7 @@ pub(crate) mod family;
 pub(crate) mod futures;
 
 use family::{FamilyTree, *};
-pub use futures::*;
+use futures::JoinHandle;
 
 type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
 struct Task<'a> {
@@ -526,14 +523,7 @@ impl<'a> Runner<'a> {
                     self.ctx.child_exit.set(error);
 
                     if let Poll::Ready(error) = task.poll(id, &self.ctx) {
-                        if let Some(task) = self.tasks.remove(&id) {
-                            if self.wake_on_child_exit.contains(&task.parent) {
-                                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
-                                    id: task.parent,
-                                    error,
-                                });
-                            }
-                        }
+                        self.handle_task_exit(id, error);
                     }
                 }
                 Op::RestoreIdCounter { id } => {
@@ -660,6 +650,20 @@ impl<'a> Runner<'a> {
         }
     }
 
+    #[inline(never)]
+    fn handle_task_exit(&mut self, id: Id, error: Option<Error>) {
+        if let Some(task) = self.tasks.remove(&id) {
+            if self.wake_on_child_exit.contains(&task.parent) {
+                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
+                    id: task.parent,
+                    error,
+                });
+            }
+        } else {
+            panic!("TODO, how?");
+        };
+    }
+
     /// Allocate next task [`Id`] and a [`Waker`] for that task.
     fn next_id(&mut self) -> (Id, Waker) {
         let id = self.next_task_id;
@@ -708,7 +712,7 @@ where
 }
 
 pub struct Alt<T: Clone + 'static> {
-    items: Vec<Box<dyn Parser<T>>>,
+    pub items: Vec<Box<dyn Parser<T>>>,
 }
 
 impl<T> Parser<T> for Box<dyn Parser<T>>
@@ -782,18 +786,7 @@ where
     }
 }
 
-struct ChildErrors {
-    id: Id,
-}
-
-impl Future for ChildErrors {
-    type Output = Option<(/* field */ u32, Error)>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
-    }
-}
-
+// [`downcast`] + [`hint`] are used to smuggle type of the field inside the [`Con`]
 pub fn downcast<T: 'static>(_: PhantomData<T>, parser: &Box<dyn Any>) -> &Rc<dyn Parser<T>> {
     parser.downcast_ref().expect("Can't downcast")
 }
@@ -805,6 +798,7 @@ pub struct Con<T> {
     pub visitors: Vec<Box<dyn Metavisit>>,
     pub parsers: Vec<Box<dyn Any>>,
 
+    #[allow(clippy::type_complexity)] // And who's fault is that?
     pub run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, T>>,
 }
 
