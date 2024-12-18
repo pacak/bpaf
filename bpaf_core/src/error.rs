@@ -17,6 +17,7 @@ impl Error {
             message: Message::Unexpected,
         })
     }
+
     pub(crate) fn parse_fail(message: String) -> Error {
         Self {
             message: Message::ParseFailed(None, message),

@@ -86,9 +86,9 @@ pub(crate) mod family;
 pub(crate) mod futures;
 
 use family::{FamilyTree, *};
-use futures::JoinHandle;
+use futures::{ErrorHandle, JoinHandle};
 
-type Action<'a> = Pin<Box<dyn Future<Output = Option<Error>> + 'a>>;
+type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
 struct Task<'a> {
     action: Action<'a>,
     parent: Id,
@@ -96,7 +96,7 @@ struct Task<'a> {
 }
 
 impl Task<'_> {
-    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<Option<Error>> {
+    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<ErrorHandle> {
         *ctx.current_task.borrow_mut() = Some(id);
         let mut cx = Context::from_waker(&self.waker);
         let poll = self.action.as_mut().poll(&mut cx);
@@ -210,17 +210,14 @@ where
         family: Default::default(),
         parent_ids: Default::default(),
         wake_on_child_exit: Default::default(),
+        winners: Vec::new(),
+        prev_pos: 0,
     };
     runner.run_parser(parser)
 }
 
 impl<'a> Ctx<'a> {
-    pub(crate) fn spawn<T, P>(
-        &self,
-        parent: Parent,
-        parser: &'a P,
-        keep_id: bool,
-    ) -> JoinHandle<'a, T>
+    pub fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
     where
         P: Parser<T>,
         T: 'static,
@@ -230,12 +227,14 @@ impl<'a> Ctx<'a> {
         let act = Box::pin(async move {
             exit.id.set(ctx.current_task());
             let r = parser.run(ctx).await;
-            let out = r.as_ref().err().cloned();
+
             if let Ok(exit) = Rc::try_unwrap(exit) {
-                exit.exit_task(r);
+                // This is used to handle erors in Con or similar in execution order
+                // instead of definition order with `EarlyExitFut`
+                exit.exit_task(r)
+            } else {
+                unreachable!("We have more than one copy of the exit handle!")
             }
-            // TODO - Do I really want for tasks to return errors? Not used right now
-            out
         });
         self.start_task(parent, act, keep_id);
         join
@@ -285,7 +284,7 @@ impl<'a> Ctx<'a> {
     /// Run a task in a context, return number of items consumed an a result
     ///
     /// does not advance the pointer
-    fn run_task(&self, task: &mut Task<'a>) -> (Poll<Option<Error>>, usize) {
+    fn run_task(&self, task: &mut Task<'a>) -> (Poll<ErrorHandle>, usize) {
         let before = self.cur();
         let mut cx = Context::from_waker(&task.waker);
         let r = task.action.as_mut().poll(&mut cx);
@@ -397,6 +396,14 @@ struct Runner<'ctx> {
     ///
     /// contains a vector [`Id`] for tasks to wake up.
     pending: Arc<Mutex<Vec<Id>>>,
+
+    /// Contains IDs that managed to advance last iteration
+    /// Any consuming parsers that are not in this
+    /// list but are terminated in the following non advancing
+    /// step are in conflict with the last consumed segment
+    winners: Vec<Id>,
+
+    prev_pos: usize,
 }
 
 impl<'a> Runner<'a> {
@@ -463,8 +470,8 @@ impl<'a> Runner<'a> {
                         parent: parent.id,
                     };
                     match task.poll(id, &self.ctx) {
-                        Poll::Ready(r) => {
-                            todo!("Exited immediately with {r:?}");
+                        Poll::Ready(_r) => {
+                            todo!("Exited immediately");
                         }
                         Poll::Pending => {
                             // Only keep tasks that are not immediately resolved
@@ -498,8 +505,17 @@ impl<'a> Runner<'a> {
                     self.family.add_named(flag, id, names);
                 }
                 Op::RemoveNamedListener { flag, names, id } => {
+                    let conflict = if self.winners.contains(&id) {
+                        None
+                    } else {
+                        println!(
+                            "Conflict between {names:?} and {:?}",
+                            &self.ctx.args[self.prev_pos]
+                        );
+                        Some(self.prev_pos)
+                    };
                     println!("{id:?}: Remove listener for {names:?}");
-                    self.family.remove_named(flag, id, names);
+                    self.family.remove_named(flag, id, names, conflict);
                 }
                 Op::AddPositionalListener { waker } => {
                     let id = self.resolve(&waker);
@@ -571,11 +587,13 @@ impl<'a> Runner<'a> {
         //   Tasks that consume the most - keep running, the rest
         //   gets terminated since they belong to alt branches
         //   that couldn't consume everything.
-        let mut par = VecDeque::new();
+        let mut ids = VecDeque::new();
+        let mut out = VecDeque::new();
         loop {
             self.handle_non_consuming();
             println!("============= Non consuming part done");
 
+            self.winners.clear();
             // need to generate errors for:
             // - conflict
             // - no parse
@@ -592,28 +610,24 @@ impl<'a> Runner<'a> {
             let front = split_param(front_arg, &self.family.args, &self.family.flags)?;
 
             // check how to parse next word
-            self.family.pick_parsers_for(&front, &mut par)?;
+            // TODO - we want to run one parser per branch, usually first that succeeds,
+            // pick parsers should arrange greedy first with `Any` sprinkled in between....
+            //
+            // Do I need to have greedy first?
+            self.family.pick_parsers_for(&front, &mut ids)?;
 
             *self.ctx.front.borrow_mut() = Some(front);
-            assert!(!par.is_empty(), "pick for parsers didn't raise an error");
+            assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
 
             // actual feed consumption happens here
             let mut max_consumed = 0;
-            for (id, t) in par.iter_mut() {
+
+            for id in ids.drain(..) {
                 // each scheduled task gets a chance to run,
-                if let Some(task) = self.tasks.get_mut(id) {
+                if let Some(task) = self.tasks.get_mut(&id) {
                     let (poll, consumed) = self.ctx.run_task(task);
-                    *t = consumed;
-                    if let Poll::Ready(error) = poll {
-                        if let Some(task) = self.tasks.remove(id) {
-                            if self.wake_on_child_exit.contains(&task.parent) {
-                                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
-                                    id: task.parent,
-                                    error,
-                                });
-                            }
-                        };
-                    }
+                    out.push_back((id, poll, consumed));
+
                     max_consumed = consumed.max(max_consumed);
 
                     println!("{id:?} consumed {consumed}!");
@@ -622,12 +636,18 @@ impl<'a> Runner<'a> {
                 }
             }
 
-            par.retain(|(_id, len)| *len == max_consumed);
+            for (id, poll, consumed) in out.drain(..) {
+                if let Poll::Ready(eh) = poll {
+                    if consumed < max_consumed {
+                        eh.set(Some(Error::fail("terminated due to low priority")));
+                    } else {
+                        self.winners.push(id);
+                    }
+                    self.handle_task_exit(id, eh);
+                }
+            }
 
-            // next task is to go over all the `par` results up to root, mark
-            // all the alt branches that are still present in `par` and their
-            // parents up to the top most alt branch as safe and
-            // terminate all unmarked branches
+            self.prev_pos = self.ctx.cur();
             self.ctx.advance(max_consumed);
 
             println!("============= Consuming part done, advanced by {max_consumed}");
@@ -651,9 +671,11 @@ impl<'a> Runner<'a> {
     }
 
     #[inline(never)]
-    fn handle_task_exit(&mut self, id: Id, error: Option<Error>) {
+    fn handle_task_exit(&mut self, id: Id, error_handle: ErrorHandle) {
         if let Some(task) = self.tasks.remove(&id) {
             if self.wake_on_child_exit.contains(&task.parent) {
+                let error = error_handle.take();
+                error_handle.set(error.clone());
                 self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
                     id: task.parent,
                     error,
@@ -676,7 +698,7 @@ impl<'a> Runner<'a> {
 }
 
 impl RawCtx<'_> {
-    pub(crate) fn current_id(&self) -> Id {
+    pub fn current_id(&self) -> Id {
         self.current_task.borrow().expect("not in a task")
     }
     fn cur(&self) -> usize {
