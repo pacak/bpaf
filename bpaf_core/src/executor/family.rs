@@ -197,7 +197,7 @@ impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn pick_parsers_for(
         &mut self,
         front: &Arg<'ctx>,
-        out: &mut VecDeque<Id>,
+        out: &mut Vec<Id>,
     ) -> Result<(), Error> {
         out.clear();
         // Populate ids with tasks that subscribed for the next token
@@ -299,7 +299,7 @@ impl Pecking {
         self.0.insert((id, branch));
     }
 
-    fn queue_heads(&self, ids: &mut VecDeque<Id>) {
+    fn queue_heads(&self, ids: &mut Vec<Id>) {
         let mut prev_branch = None;
         for (id, branch) in self.0.iter() {
             if let Some(prev) = prev_branch {
@@ -307,7 +307,7 @@ impl Pecking {
                     break;
                 }
             }
-            ids.push_back(*id);
+            ids.push(*id);
             prev_branch = Some(branch);
         }
     }

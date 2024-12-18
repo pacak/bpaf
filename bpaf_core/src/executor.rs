@@ -587,8 +587,8 @@ impl<'a> Runner<'a> {
         //   Tasks that consume the most - keep running, the rest
         //   gets terminated since they belong to alt branches
         //   that couldn't consume everything.
-        let mut ids = VecDeque::new();
-        let mut out = VecDeque::new();
+        let mut ids = Vec::new();
+        let mut out = Vec::new();
         loop {
             self.handle_non_consuming();
             println!("============= Non consuming part done");
@@ -626,7 +626,7 @@ impl<'a> Runner<'a> {
                 // each scheduled task gets a chance to run,
                 if let Some(task) = self.tasks.get_mut(&id) {
                     let (poll, consumed) = self.ctx.run_task(task);
-                    out.push_back((id, poll, consumed));
+                    out.push((id, poll, consumed));
 
                     max_consumed = consumed.max(max_consumed);
 
