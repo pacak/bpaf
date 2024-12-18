@@ -244,7 +244,10 @@ mod named {
 
     use crate::{
         error::Error,
-        executor::{ArgFut, Ctx, FlagFut, Fragment},
+        executor::{
+            futures::{ArgFut, FlagFut},
+            Ctx, Fragment,
+        },
         Parser,
     };
 
@@ -375,7 +378,7 @@ mod positional {
 
     use crate::{
         error::{Error, Message},
-        executor::{Ctx, PositionalFut},
+        executor::{futures::PositionalFut, Ctx},
         Parser,
     };
     pub struct Positional<T> {
