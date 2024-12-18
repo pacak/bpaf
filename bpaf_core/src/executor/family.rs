@@ -6,15 +6,10 @@
 
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 
-use crate::{
-    executor::{split_param, Arg},
-    named::Name,
-};
-
-use super::Error;
+use crate::{error::Error, executor::Arg, named::Name};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) struct Id(u32);
+pub struct Id(u32);
 impl Id {
     const ROOT: Self = Self(0);
 }
@@ -29,6 +24,7 @@ impl Id {
     pub(crate) fn new(id: u32) -> Self {
         Self(id)
     }
+
     pub(crate) fn sum(self, field: u32) -> Parent {
         Parent {
             kind: NodeKind::Sum,
@@ -37,7 +33,7 @@ impl Id {
         }
     }
 
-    pub(crate) fn prod(self, field: u32) -> Parent {
+    pub fn prod(self, field: u32) -> Parent {
         Parent {
             kind: NodeKind::Prod,
             id: self,
@@ -47,7 +43,7 @@ impl Id {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) struct Parent {
+pub struct Parent {
     pub(crate) kind: NodeKind,
     pub(crate) id: Id,
     pub(crate) field: u32,
@@ -134,10 +130,12 @@ struct TaskInfo {
 // and order prod siblings in a pecking order
 #[derive(Debug, Default)]
 pub(crate) struct FamilyTree<'ctx> {
+    // TODO - use HashMap?
     pub(crate) flags: BTreeMap<Name<'ctx>, Pecking>,
     pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
     positional: Pecking,
     tasks: HashMap<Id, TaskInfo>,
+    conflicts: BTreeMap<Name<'ctx>, usize>,
 }
 
 impl<'ctx> FamilyTree<'ctx> {
@@ -159,12 +157,24 @@ impl<'ctx> FamilyTree<'ctx> {
             &mut self.args
         };
         for name in names.iter() {
+            self.conflicts.remove(name);
             map.entry(name.clone()).or_default().insert(id, branch);
         }
         // println!("Added {names:?}, now it is {self:?}");
     }
 
-    pub(crate) fn remove_named(&mut self, flag: bool, id: Id, names: &[Name<'static>]) {
+    pub(crate) fn remove_named(
+        &mut self,
+        flag: bool,
+        id: Id,
+        names: &[Name<'static>],
+        conflict: Option<usize>,
+    ) {
+        if let Some(conflict) = conflict {
+            for name in names {
+                self.conflicts.insert(name.clone(), conflict);
+            }
+        }
         let branch = self.tasks.get(&id).unwrap().branch;
         let map = if flag {
             &mut self.flags
@@ -187,7 +197,7 @@ impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn pick_parsers_for(
         &mut self,
         front: &Arg<'ctx>,
-        out: &mut VecDeque<(Id, usize)>,
+        out: &mut VecDeque<Id>,
     ) -> Result<(), Error> {
         out.clear();
         // Populate ids with tasks that subscribed for the next token
@@ -197,28 +207,32 @@ impl<'ctx> FamilyTree<'ctx> {
         match front {
             Arg::Named {
                 name,
-                value: Some(arg),
+                value: Some(_),
             } => {
                 if let Some(q) = self.args.get_mut(name) {
-                    q.peek_front(out);
+                    q.queue_heads(out);
                 } else {
                     todo!("not found {name:?}")
                 }
             }
             Arg::Named { name, value: None } => {
                 if let Some(q) = self.flags.get_mut(name) {
-                    q.peek_front(out);
+                    q.queue_heads(out);
                 };
                 if let Some(q) = self.args.get_mut(name) {
-                    q.peek_front(out);
+                    q.queue_heads(out);
                 };
                 if out.is_empty() {
-                    todo!("no such {name:?}");
+                    if let Some(x) = self.conflicts.get(name) {
+                        todo!("Conflict with {x}");
+                    } else {
+                        todo!("Unexpected item {name:?}");
+                    }
                 }
             }
             Arg::ShortSet { names, current } => todo!(),
             Arg::Positional { value: _ } => {
-                self.positional.peek_front(out);
+                self.positional.queue_heads(out);
             }
         }
         println!("Got {out:?}");
@@ -285,7 +299,7 @@ impl Pecking {
         self.0.insert((id, branch));
     }
 
-    fn peek_front(&self, ids: &mut VecDeque<(Id, usize)>) {
+    fn queue_heads(&self, ids: &mut VecDeque<Id>) {
         let mut prev_branch = None;
         for (id, branch) in self.0.iter() {
             if let Some(prev) = prev_branch {
@@ -293,7 +307,7 @@ impl Pecking {
                     break;
                 }
             }
-            ids.push_back((*id, 0));
+            ids.push_back(*id);
             prev_branch = Some(branch);
         }
     }

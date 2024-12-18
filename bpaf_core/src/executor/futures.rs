@@ -11,17 +11,21 @@ use std::{
 
 impl<'ctx> Ctx<'ctx> {
     pub(crate) fn fork<T>(&self) -> (Rc<ExitHandle<'ctx, T>>, JoinHandle<'ctx, T>) {
-        let result = Rc::new(Cell::new(None));
+        let success = Rc::new(Cell::new(None));
+        let failure = Rc::new(Cell::new(None));
         let exit = ExitHandle {
             waker: Cell::new(None),
-            result: result.clone(),
+
             id: Cell::new(None),
             ctx: self.clone(),
+            failure: failure.clone(),
+            success: success.clone(),
         };
         let exit = Rc::new(exit);
         let join = JoinHandle {
             task: Rc::downgrade(&exit),
-            result,
+            success,
+            failure,
         };
         (exit, join)
     }
@@ -32,14 +36,20 @@ pub(crate) struct ExitHandle<'a, T> {
     pub(crate) id: Cell<Option<Id>>,
     /// Waker for parent task
     waker: Cell<Option<Waker>>,
-    /// A way to pass the result from ExitHandle side to JoinHandle
-    result: Rc<Cell<Option<Result<T, Error>>>>,
+
+    /// Handle can hold both success and a failure if parser succeeded
+    /// but was terminated due better (gredier) parser in a parallel branch
+    /// Failre takes priority
+    failure: Rc<Cell<Option<Error>>>,
+    success: Rc<Cell<Option<T>>>,
+
     ctx: Ctx<'a>,
 }
 
-pub(crate) struct JoinHandle<'a, T> {
+pub struct JoinHandle<'a, T> {
     task: Weak<ExitHandle<'a, T>>,
-    result: Rc<Cell<Option<Result<T, Error>>>>,
+    failure: Rc<Cell<Option<Error>>>,
+    success: Rc<Cell<Option<T>>>,
 }
 
 impl<T> Drop for JoinHandle<'_, T> {
@@ -56,12 +66,19 @@ impl<T> Drop for JoinHandle<'_, T> {
     }
 }
 
+pub(crate) type ErrorHandle = Rc<Cell<Option<Error>>>;
+
 impl<T> ExitHandle<'_, T> {
-    pub(crate) fn exit_task(self, result: Result<T, Error>) {
-        self.result.set(Some(result));
+    pub(crate) fn exit_task(self, result: Result<T, Error>) -> ErrorHandle {
+        match result {
+            Ok(ok) => self.success.set(Some(ok)),
+            Err(err) => self.failure.set(Some(err)),
+        }
+
         if let Some(waker) = self.waker.take() {
             waker.wake()
         }
+        self.failure.clone()
     }
 }
 impl<T> Future for JoinHandle<'_, T> {
@@ -75,15 +92,20 @@ impl<T> Future for JoinHandle<'_, T> {
             }
             None => {
                 println!("Getting result out!");
-
-                Poll::Ready(self.result.take().expect("Task exit sets result"))
+                if let Some(err) = self.failure.take() {
+                    Poll::Ready(Err(err))
+                } else if let Some(ok) = self.success.take() {
+                    Poll::Ready(Ok(ok))
+                } else {
+                    unreachable!("Child task exited without setting either result or success");
+                }
             }
         }
     }
 }
 
 impl<'a> Ctx<'a> {
-    pub(crate) fn early_exit(self, cnt: u32) -> EarlyExitFut<'a> {
+    pub fn early_exit(self, cnt: u32) -> EarlyExitFut<'a> {
         let id = self.current_id();
         EarlyExitFut {
             id,
@@ -95,7 +117,7 @@ impl<'a> Ctx<'a> {
     }
 }
 
-pub(crate) struct EarlyExitFut<'a> {
+pub struct EarlyExitFut<'a> {
     /// Look for failures for tasks with this parent
     id: Id,
     /// There are this many children left
