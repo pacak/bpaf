@@ -598,6 +598,7 @@ impl<'a> Runner<'a> {
                 println!("nothing to consume");
                 break;
             };
+            // TODO - here we should check if we saw -- and in argument-only mode
             let front = split_param(front_arg, &self.family.args, &self.family.flags)?;
 
             // check how to parse next word
