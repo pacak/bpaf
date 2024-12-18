@@ -6,11 +6,10 @@ mod visitor;
 
 pub use crate::{
     error::Error,
-    executor::{run_parser, Alt, Con},
+    executor::{run_parser, Alt, Con, Ctx, Fragment},
 };
 
 use crate::{
-    executor::{Ctx, Fragment},
     named::{Argument, Flag, Named},
     parsers::{Count, Guard, Last, Many, Map, Parse},
     positional::Positional,
@@ -73,7 +72,7 @@ macro_rules! construct {
                 #[allow(unused_assignments)]
         {
         let mut visitors = Vec::<Box<dyn $crate::Metavisit>>::new();
-        let mut parsers = Vec::<Box<dyn Any>>::new();
+        let mut parsers = Vec::<Box<dyn ::std::any::Any>>::new();
         $(
             let $fields: ::std::rc::Rc<dyn Parser<_>> = $fields.into_rc();
             visitors.push(Box::new($fields.clone()));
@@ -98,7 +97,7 @@ macro_rules! construct {
         //
         // If only `call` on `Fn` had a reference on `&self` lifetime in the output...
         // `fn call(&self, args: Args) -> Self::Output`
-        let run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, _>> =
+        let run: Box<dyn for<'a> Fn(&'a [Box<dyn ::std::any::Any>], Ctx<'a>) -> Fragment<'a, _>> =
             Box::new(move |parsers, ctx| {
             let mut n = 0;
 
