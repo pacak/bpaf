@@ -63,6 +63,15 @@ impl OsOrStr<'_> {
     }
 }
 
+impl<'a> OsOrStr<'a> {
+    fn as_ref(&'a self) -> OsOrStr<'a> {
+        match self {
+            OsOrStr::Str(cow) => Self::Str(Cow::Borrowed(cow.as_ref())),
+            OsOrStr::Os(cow) => Self::Os(Cow::Borrowed(cow.as_ref())),
+        }
+    }
+}
+
 impl<'a> From<&'a str> for OsOrStr<'a> {
     fn from(value: &'a str) -> Self {
         Self::Str(Cow::Borrowed(value))
@@ -207,7 +216,12 @@ pub(crate) fn split_param<'a>(
 ) -> Result<Arg<'a>, Error> {
     match value {
         OsOrStr::Str(cow) => split_str_param(cow.as_ref(), args, flags),
-        OsOrStr::Os(cow) => todo!(),
+        OsOrStr::Os(cow) => match ascii_prefix(cow.as_ref()) {
+            Some(_) => todo!(),
+            None => Ok(Arg::Positional {
+                value: value.as_ref(),
+            }),
+        },
     }
 }
 
