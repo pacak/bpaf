@@ -11,7 +11,7 @@ use crate::{error::Error, executor::Arg, named::Name};
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Id(u32);
 impl Id {
-    const ROOT: Self = Self(0);
+    const ROOT: Self = Self(1);
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -62,11 +62,11 @@ impl std::fmt::Debug for BranchId {
 }
 
 impl BranchId {
-    pub(crate) const ROOT: Self = Self {
-        parent: Id::ROOT,
+    pub(crate) const ZERO: Self = Self {
+        parent: Id(0),
         field: 0,
     };
-    pub(crate) const DUMMY: Self = Self {
+    pub(crate) const ROOT: Self = Self {
         parent: Id::ROOT,
         field: 0,
     };
@@ -197,7 +197,7 @@ impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn pick_parsers_for(
         &mut self,
         front: &Arg<'ctx>,
-        out: &mut Vec<Id>,
+        out: &mut Vec<(BranchId, Id)>,
     ) -> Result<(), Error> {
         out.clear();
         // Populate ids with tasks that subscribed for the next token
@@ -210,17 +210,17 @@ impl<'ctx> FamilyTree<'ctx> {
                 value: Some(_),
             } => {
                 if let Some(q) = self.args.get_mut(name) {
-                    q.queue_heads(out);
+                    q.queue_all(out);
                 } else {
                     todo!("not found {name:?}")
                 }
             }
             Arg::Named { name, value: None } => {
                 if let Some(q) = self.flags.get_mut(name) {
-                    q.queue_heads(out);
+                    q.queue_all(out);
                 };
                 if let Some(q) = self.args.get_mut(name) {
-                    q.queue_heads(out);
+                    q.queue_all(out);
                 };
                 if out.is_empty() {
                     if let Some(x) = self.conflicts.get(name) {
@@ -299,15 +299,24 @@ impl Pecking {
         self.0.insert((id, branch));
     }
 
-    fn queue_heads(&self, ids: &mut Vec<Id>) {
+    fn queue_all(&self, ids: &mut Vec<(BranchId, Id)>) {
+        ids.extend(self.0.iter().copied().map(|(i, b)| (b, i)));
+    }
+
+    /// use for Positional items that we know will succeed for sure
+    fn queue_heads(&self, ids: &mut Vec<(BranchId, Id)>) {
         let mut prev_branch = None;
-        for (id, branch) in self.0.iter() {
+        // iteration gives first id from each branch before
+        // before switching to the second id from one of the branches that have more than one item
+        for (id, branch) in self.0.iter().copied() {
             if let Some(prev) = prev_branch {
+                // if new branch is not greater than previous item - we've are
+                // on a second lap, time to stop.
                 if prev >= branch {
                     break;
                 }
             }
-            ids.push(*id);
+            ids.push((branch, id));
             prev_branch = Some(branch);
         }
     }

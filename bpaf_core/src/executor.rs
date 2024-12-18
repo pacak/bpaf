@@ -14,7 +14,10 @@ use std::{
     marker::PhantomData,
     pin::{pin, Pin},
     rc::Rc,
-    sync::{atomic::AtomicUsize, Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, AtomicUsize},
+        Arc, Mutex,
+    },
     task::{Context, Poll, Wake, Waker},
 };
 
@@ -116,6 +119,10 @@ pub struct RawCtx<'a> {
     /// through this tasks can request event scheduling, etc
     shared: RefCell<VecDeque<Op<'a>>>,
     child_exit: Cell<Option<Error>>,
+
+    /// By the end we are trying to kill all the children, when set - children
+    /// should fail when encounter unexpected input, otherwise - keep running
+    term: AtomicBool,
 }
 
 #[derive(Clone)]
@@ -154,6 +161,12 @@ enum Op<'a> {
     RemoveNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
+        id: Id,
+    },
+    AddFallback {
+        waker: Waker,
+    },
+    RemoveFallback {
         id: Id,
     },
     AddPositionalListener {
@@ -200,6 +213,7 @@ where
         cur: AtomicUsize::from(0),
         front: Default::default(),
         child_exit: Default::default(),
+        term: Default::default(),
     }));
 
     let runner = Runner {
@@ -244,6 +258,17 @@ impl<'a> Ctx<'a> {
         self.shared
             .borrow_mut()
             .push_back(Op::AddNamedListener { flag, names, waker });
+    }
+
+    fn add_fallback(&self, waker: Waker) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::AddFallback { waker });
+    }
+    fn remove_fallback(&self, id: Id) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::RemoveFallback { id });
     }
 
     fn add_children_exit_listener(&self, parent: Id) {
@@ -505,7 +530,7 @@ impl<'a> Runner<'a> {
                     self.family.add_named(flag, id, names);
                 }
                 Op::RemoveNamedListener { flag, names, id } => {
-                    let conflict = if self.winners.contains(&id) {
+                    let conflict = if self.winners.contains(&id) || self.ctx.args.is_empty() {
                         None
                     } else {
                         println!(
@@ -551,6 +576,8 @@ impl<'a> Runner<'a> {
                 Op::RemoveExitListener { parent } => {
                     self.wake_on_child_exit.remove(&parent);
                 }
+                Op::AddFallback { waker } => todo!(),
+                Op::RemoveFallback { id } => todo!(),
             }
         }
     }
@@ -622,10 +649,19 @@ impl<'a> Runner<'a> {
             // actual feed consumption happens here
             let mut max_consumed = 0;
 
-            for id in ids.drain(..) {
+            ids.sort();
+            let mut last_branch = BranchId::ZERO;
+            for (branch, id) in ids.drain(..) {
+                if branch == last_branch {
+                    println!("skipping {id:?}");
+                    continue;
+                }
                 // each scheduled task gets a chance to run,
                 if let Some(task) = self.tasks.get_mut(&id) {
                     let (poll, consumed) = self.ctx.run_task(task);
+                    if consumed > 0 {
+                        last_branch = branch;
+                    }
                     out.push((id, poll, consumed));
 
                     max_consumed = consumed.max(max_consumed);
@@ -657,6 +693,7 @@ impl<'a> Runner<'a> {
         // first by waking them up all the consuming events (most of them fail with "not found")
         // and then by processing all the non-consuming events - this would either create some
         // errors or or those "not found" errors are going to be converted into something useful
+        self.ctx.set_term();
         let mut shared = self.ctx.shared.borrow_mut();
         for id in self.tasks.keys().copied() {
             shared.push_back(Op::WakeTask { id, error: None });
@@ -704,6 +741,13 @@ impl RawCtx<'_> {
     fn cur(&self) -> usize {
         self.cur.load(std::sync::atomic::Ordering::Relaxed)
     }
+    fn set_term(&self) {
+        self.term.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+    fn is_term(&self) -> bool {
+        self.term.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     fn set_cur(&self, new: usize) {
         self.cur.store(new, std::sync::atomic::Ordering::Relaxed);
     }

@@ -6,6 +6,7 @@ use std::{
     future::Future,
     pin::Pin,
     rc::{Rc, Weak},
+    sync::atomic::AtomicUsize,
     task::{Context, Poll, Waker},
 };
 
@@ -185,7 +186,6 @@ impl<'ctx> Future for PositionalFut<'ctx> {
             self.ctx.positional_wake(cx.waker().clone());
             return Poll::Pending;
         }
-
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
             Some(s) => {
                 if s.is_named() {
@@ -195,7 +195,13 @@ impl<'ctx> Future for PositionalFut<'ctx> {
                     Ok(s.to_owned())
                 }
             }
-            None => Err(Error::missing(MissingItem::Positional { meta: self.meta })),
+            None => {
+                if self.ctx.is_term() {
+                    Err(Error::missing(MissingItem::Positional { meta: self.meta }))
+                } else {
+                    return Poll::Pending;
+                }
+            }
         })
     }
 }
@@ -253,13 +259,16 @@ impl<'ctx> Future for ArgFut<'ctx> {
                 .add_named_wake(false, self.name, cx.waker().clone());
             return Poll::Pending;
         }
+        if self.ctx.is_term() {
+            return Poll::Ready(Err(self.missing()));
+        }
 
         let front = self.ctx.front.borrow();
         let Some(Arg::Named { name, value }) = front.as_ref() else {
-            return Poll::Ready(Err(self.missing()));
+            return Poll::Pending;
         };
         if !self.name.contains(name) {
-            return Poll::Ready(Err(self.missing()));
+            return Poll::Pending;
         }
         if let Some(v) = value {
             self.ctx.advance(1);
@@ -318,5 +327,32 @@ impl Future for FlagFut<'_> {
             Arg::ShortSet { current, names } => todo!(),
             Arg::Positional { value } => todo!(),
         }
+    }
+}
+
+pub(crate) struct FallbackFut<'ctx> {
+    pub(crate) ctx: Ctx<'ctx>,
+    pub(crate) task_id: Option<Id>,
+}
+
+impl Drop for FallbackFut<'_> {
+    fn drop(&mut self) {
+        if let Some(id) = self.task_id {
+            self.ctx.remove_fallback(id);
+        }
+    }
+}
+
+impl<'ctx> Future for FallbackFut<'ctx> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task_id.is_none() {
+            self.task_id = self.ctx.current_task();
+            self.ctx.add_fallback(cx.waker().clone());
+            return Poll::Pending;
+        }
+
+        Poll::Ready(())
     }
 }
