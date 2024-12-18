@@ -182,8 +182,9 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            self.task_id = self.ctx.current_task();
-            self.ctx.positional_wake(cx.waker().clone());
+            let id = self.ctx.current_task();
+            self.task_id = Some(id);
+            self.ctx.positional_wake(id);
             return Poll::Pending;
         }
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
@@ -252,11 +253,11 @@ impl ArgFut<'_> {
 impl<'ctx> Future for ArgFut<'ctx> {
     type Output = Result<OsOrStr<'ctx>, Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            self.task_id = self.ctx.current_task();
-            self.ctx
-                .add_named_wake(false, self.name, cx.waker().clone());
+            let id = self.ctx.current_task();
+            self.task_id = Some(id);
+            self.ctx.add_named_wake(false, self.name, id);
             return Poll::Pending;
         }
         if self.ctx.is_term() {
@@ -301,8 +302,9 @@ impl Future for FlagFut<'_> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            self.task_id = self.ctx.current_task();
-            self.ctx.add_named_wake(true, self.name, cx.waker().clone());
+            let id = self.ctx.current_task();
+            self.task_id = Some(id);
+            self.ctx.add_named_wake(true, self.name, id);
             return Poll::Pending;
         }
 
@@ -348,8 +350,9 @@ impl<'ctx> Future for FallbackFut<'ctx> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            self.task_id = self.ctx.current_task();
-            self.ctx.add_fallback(cx.waker().clone());
+            let id = self.ctx.current_task();
+            self.task_id = Some(id);
+            self.ctx.add_fallback(id);
             return Poll::Pending;
         }
 

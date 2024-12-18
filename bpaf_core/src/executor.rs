@@ -156,7 +156,7 @@ enum Op<'a> {
     AddNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
-        waker: Waker,
+        id: Id,
     },
     RemoveNamedListener {
         flag: bool,
@@ -164,13 +164,13 @@ enum Op<'a> {
         id: Id,
     },
     AddFallback {
-        waker: Waker,
+        id: Id,
     },
     RemoveFallback {
         id: Id,
     },
     AddPositionalListener {
-        waker: Waker,
+        id: Id,
     },
     RemovePositionalListener {
         id: Id,
@@ -239,7 +239,7 @@ impl<'a> Ctx<'a> {
         let ctx = self.clone();
         let (exit, join) = self.fork();
         let act = Box::pin(async move {
-            exit.id.set(ctx.current_task());
+            exit.id.set(Some(ctx.current_task()));
             let r = parser.run(ctx).await;
 
             if let Ok(exit) = Rc::try_unwrap(exit) {
@@ -254,16 +254,14 @@ impl<'a> Ctx<'a> {
         join
     }
 
-    fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], waker: Waker) {
+    fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], id: Id) {
         self.shared
             .borrow_mut()
-            .push_back(Op::AddNamedListener { flag, names, waker });
+            .push_back(Op::AddNamedListener { flag, names, id });
     }
 
-    fn add_fallback(&self, waker: Waker) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddFallback { waker });
+    fn add_fallback(&self, id: Id) {
+        self.shared.borrow_mut().push_back(Op::AddFallback { id });
     }
     fn remove_fallback(&self, id: Id) {
         self.shared
@@ -288,10 +286,10 @@ impl<'a> Ctx<'a> {
             .push_back(Op::RemoveNamedListener { flag, names, id });
     }
 
-    fn positional_wake(&self, waker: Waker) {
+    fn positional_wake(&self, id: Id) {
         self.shared
             .borrow_mut()
-            .push_back(Op::AddPositionalListener { waker })
+            .push_back(Op::AddPositionalListener { id })
     }
 
     fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
@@ -302,8 +300,10 @@ impl<'a> Ctx<'a> {
         });
     }
 
-    fn current_task(&self) -> Option<Id> {
-        *self.current_task.borrow()
+    fn current_task(&self) -> Id {
+        self.current_task
+            .borrow()
+            .expect("should only be called from a Future")
     }
 
     /// Run a task in a context, return number of items consumed an a result
@@ -524,8 +524,7 @@ impl<'a> Runner<'a> {
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
                 }
-                Op::AddNamedListener { flag, names, waker } => {
-                    let id = self.resolve(&waker);
+                Op::AddNamedListener { flag, names, id } => {
                     println!("{id:?}: Add listener for {names:?}");
                     self.family.add_named(flag, id, names);
                 }
@@ -542,8 +541,7 @@ impl<'a> Runner<'a> {
                     println!("{id:?}: Remove listener for {names:?}");
                     self.family.remove_named(flag, id, names, conflict);
                 }
-                Op::AddPositionalListener { waker } => {
-                    let id = self.resolve(&waker);
+                Op::AddPositionalListener { id } => {
                     println!("{id:?}: Add positional listener {id:?}");
                     self.family.add_positional(id);
                 }
@@ -576,7 +574,7 @@ impl<'a> Runner<'a> {
                 Op::RemoveExitListener { parent } => {
                     self.wake_on_child_exit.remove(&parent);
                 }
-                Op::AddFallback { waker } => todo!(),
+                Op::AddFallback { id } => todo!(),
                 Op::RemoveFallback { id } => todo!(),
             }
         }
