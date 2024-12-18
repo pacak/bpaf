@@ -73,7 +73,6 @@ impl Message {
             Self::Conflict(..) => false,
             Self::Unexpected => false,
             Self::ParseFailed(..) => false,
-            Self::ParseFailed(..) => false,
         }
     }
 }
