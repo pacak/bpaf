@@ -119,7 +119,12 @@ pub struct RawCtx<'a> {
     front: RefCell<Option<Arg<'a>>>,
     /// through this tasks can request event scheduling, etc
     shared: RefCell<VecDeque<Op<'a>>>,
+
+    /// Used to pass information about children exit
     child_exit: Cell<Option<Error>>,
+
+    /// number of ietms consumed by children tasks
+    items_consumed: Cell<u32>,
 
     /// By the end we are trying to kill all the children, when set - children
     /// should fail when encounter unexpected input, otherwise - keep running
@@ -210,6 +215,7 @@ where
     let ctx = Ctx(Rc::new(RawCtx {
         args,
         current_task: Default::default(),
+        items_consumed: Default::default(),
         shared: Default::default(),
         cur: AtomicUsize::from(0),
         front: Default::default(),
@@ -399,7 +405,7 @@ struct WakeTask {
 
 impl Wake for WakeTask {
     fn wake(self: std::sync::Arc<Self>) {
-        println!("Waking up {:?}", self.id);
+        // println!("Waking up {:?}", self.id);
         self.pending.lock().expect("poison").push(self.id);
     }
 }
@@ -492,6 +498,7 @@ impl<'a> Runner<'a> {
                         parent: parent.id,
                         consumed: 0,
                     };
+                    self.ctx.items_consumed.set(0);
                     match task.poll(id, &self.ctx) {
                         Poll::Ready(_r) => {
                             todo!("Exited immediately");
@@ -563,9 +570,9 @@ impl<'a> Runner<'a> {
                         println!("waking up removed task {id:?}");
                         continue;
                     };
-
+                    println!("Waking {id:?} - consumed count is {:?}", task.consumed);
+                    self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
-
                     if let Poll::Ready(error) = task.poll(id, &self.ctx) {
                         self.handle_task_exit(id, error);
                     }
@@ -704,6 +711,7 @@ impl<'a> Runner<'a> {
                 // each scheduled task gets a chance to run,
                 if let Some(task) = self.tasks.get_mut(&id) {
                     let (poll, consumed) = self.ctx.run_task(task);
+                    task.consumed += consumed as u32;
                     if consumed > 0 {
                         last_branch = branch;
                     }
@@ -808,6 +816,7 @@ impl<'a> Runner<'a> {
 
     #[inline(never)]
     fn handle_task_exit(&mut self, id: Id, error_handle: ErrorHandle) {
+        println!("Handling exit for {id:?}");
         if let Some(task) = self.tasks.remove(&id) {
             if self.wake_on_child_exit.contains(&task.parent) {
                 let error = error_handle.take();
@@ -818,6 +827,7 @@ impl<'a> Runner<'a> {
                 });
             }
             if let Some(parent) = self.tasks.get_mut(&task.parent) {
+                println!("pushing exit {} to parent {:?}", task.consumed, task.parent);
                 parent.consumed += task.consumed;
             }
         } else {
@@ -869,11 +879,11 @@ where
     T: std::fmt::Debug + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
-        Box::pin(async {
+        Box::pin(async move {
             let _guard = FallbackGuard::new(ctx.clone());
-            match self.inner.run(ctx).await {
+            match self.inner.run(ctx.clone()).await {
                 Ok(ok) => Ok(Some(ok)),
-                Err(e) if e.handle_with_fallback() => Ok(None),
+                Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => Ok(None),
                 Err(e) => Err(e),
             }
         })
