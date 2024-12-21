@@ -4,6 +4,8 @@ pub mod parsers;
 mod split;
 mod visitor;
 
+use executor::Optional;
+
 pub use crate::{
     error::Error,
     executor::{run_parser, Alt, Con, Ctx, Fragment},
@@ -568,6 +570,13 @@ pub trait Parser<T: 'static> {
             message,
             ty: PhantomData,
         }
+    }
+
+    fn optional(self) -> Cx<Optional<Self>>
+    where
+        Self: Sized,
+    {
+        Cx(Optional { inner: self })
     }
 }
 

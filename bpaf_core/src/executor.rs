@@ -96,6 +96,7 @@ struct Task<'a> {
     action: Action<'a>,
     parent: Id,
     waker: Waker,
+    consumed: u32,
 }
 
 impl Task<'_> {
@@ -445,7 +446,7 @@ impl<'a> Runner<'a> {
     /// Handle scheduled operations
     ///
     /// This should advance all the tasks as far as possible without consuming the input
-    fn handle_non_consuming(&mut self) {
+    fn propagate(&mut self) {
         let before = self.ctx.cur();
         loop {
             let mut shared = self.ctx.shared.borrow_mut();
@@ -475,9 +476,6 @@ impl<'a> Runner<'a> {
                     mut keep_id,
                 } => {
                     let original_id = self.next_task_id;
-
-                    println!("original id {:?}", self.next_task_id);
-
                     if keep_id {
                         if let Some(prev_id) = self.parent_ids.get(&parent) {
                             self.next_task_id = *prev_id;
@@ -486,13 +484,13 @@ impl<'a> Runner<'a> {
                             self.parent_ids.insert(parent, self.next_task_id);
                         }
                     }
-                    println!("Id with parent {parent:?}: {}", self.next_task_id);
 
                     let (id, waker) = self.next_id();
                     let mut task = Task {
                         action,
                         waker,
                         parent: parent.id,
+                        consumed: 0,
                     };
                     match task.poll(id, &self.ctx) {
                         Poll::Ready(_r) => {
@@ -503,6 +501,9 @@ impl<'a> Runner<'a> {
                             self.family.insert(parent, id);
                             let x = self.tasks.insert(id, task);
                             assert!(x.is_none());
+                            println!(
+                                "Spawned task {id:?} with parent {parent:?}, static id? {keep_id:?}"
+                            );
                         }
                     }
 
@@ -551,7 +552,11 @@ impl<'a> Runner<'a> {
                 }
                 Op::ParentExited { id } => {
                     println!("{id:?}: Parent exited");
-                    self.tasks.remove(&id);
+                    if let Some(task) = self.tasks.remove(&id) {
+                        if let Some(parent) = self.tasks.get_mut(&task.parent) {
+                            parent.consumed += task.consumed;
+                        }
+                    }
                 }
                 Op::WakeTask { id, error } => {
                     let Some(task) = self.tasks.get_mut(&id) else {
@@ -574,8 +579,14 @@ impl<'a> Runner<'a> {
                 Op::RemoveExitListener { parent } => {
                     self.wake_on_child_exit.remove(&parent);
                 }
-                Op::AddFallback { id } => todo!(),
-                Op::RemoveFallback { id } => todo!(),
+                Op::AddFallback { id } => {
+                    println!("Adding exit fallback to {id:?}");
+                    self.family.add_fallback(id);
+                }
+                Op::RemoveFallback { id } => {
+                    println!("Removing exit fallback from {id:?}");
+                    self.family.remove_fallback(id);
+                }
             }
         }
     }
@@ -615,14 +626,10 @@ impl<'a> Runner<'a> {
         let mut ids = Vec::new();
         let mut out = Vec::new();
         loop {
-            self.handle_non_consuming();
-            println!("============= Non consuming part done");
+            self.propagate();
+            println!("============= Propagate done");
 
             self.winners.clear();
-            // need to generate errors for:
-            // - conflict
-            // - no parse
-            //
 
             assert!(self.ctx.shared.borrow().is_empty());
             assert!(self.pending.lock().expect("poison").is_empty());
@@ -639,7 +646,47 @@ impl<'a> Runner<'a> {
             // pick parsers should arrange greedy first with `Any` sprinkled in between....
             //
             // Do I need to have greedy first?
-            self.family.pick_parsers_for(&front, &mut ids)?;
+            if let Err(err) = self.family.pick_parsers_for(&front, &mut ids) {
+                self.family.pick_fallback(&mut ids);
+
+                todo!("fallback: {ids:?}");
+                //
+            }
+            if ids.is_empty() {
+                // there's no ids so we must see if there's any fallback items, if there are -
+                // wake all the children then wake fallback items.
+                self.family.pick_fallback(&mut ids);
+                let Some((_branch, fallback)) = ids.first().copied() else {
+                    if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
+                        match r {
+                            Ok(_) => return Error::unexpected(),
+                            Err(err) => return Err(err),
+                        }
+                    }
+                    break;
+                };
+                let child = self.first_child(fallback);
+                if let Some(task) = self.tasks.get_mut(&child) {
+                    println!("Going to run {child:?} as part of fallback parser");
+                    self.ctx.set_term(true);
+                    let (error_handle, consumed) = self.ctx.run_task(task);
+                    self.ctx.set_term(false);
+                    println!(
+                        "running {child:?} consumed {consumed:?}. is it ready? {:?}",
+                        error_handle.is_ready()
+                    );
+                    task.consumed += consumed as u32;
+                    if let Poll::Ready(handle) = error_handle {
+                        self.handle_task_exit(child, handle);
+                    } else {
+                        todo!()
+                    }
+                } else {
+                    todo!()
+                }
+
+                continue;
+            }
 
             *self.ctx.front.borrow_mut() = Some(front);
             assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
@@ -660,11 +707,14 @@ impl<'a> Runner<'a> {
                     if consumed > 0 {
                         last_branch = branch;
                     }
+
+                    println!(
+                        "{id:?} consumed {consumed}, is ready? {:?}!",
+                        poll.is_ready()
+                    );
                     out.push((id, poll, consumed));
 
                     max_consumed = consumed.max(max_consumed);
-
-                    println!("{id:?} consumed {consumed}!");
                 } else {
                     println!("family gave us terminated parser {id:?} for {front_arg:?}");
                 }
@@ -691,18 +741,69 @@ impl<'a> Runner<'a> {
         // first by waking them up all the consuming events (most of them fail with "not found")
         // and then by processing all the non-consuming events - this would either create some
         // errors or or those "not found" errors are going to be converted into something useful
-        self.ctx.set_term();
+        self.ctx.set_term(true);
         let mut shared = self.ctx.shared.borrow_mut();
         for id in self.tasks.keys().copied() {
             shared.push_back(Op::WakeTask { id, error: None });
         }
         drop(shared);
-        self.handle_non_consuming();
+        self.propagate();
 
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(r) => r,
             Poll::Pending => panic!("process is complete but somehow we don't have a result o_O"),
         }
+    }
+
+    /// Find the deepest left most child
+    ///
+    /// Assuming we did non consuming prcessing prior to that - it will be
+    /// a consuming parser
+    fn first_child(&self, mut parent_id: Id) -> Id {
+        for (child_id, task) in self.tasks.range(parent_id..).skip(1) {
+            if task.parent == parent_id {
+                parent_id = *child_id;
+            } else {
+                return parent_id;
+            }
+        }
+        parent_id
+    }
+
+    fn task_children(&self, id: Id) -> Vec<Id> {
+        //          root
+        //         /   \
+        //     parent   sibling
+        //     /   \
+        //   c1    c2
+        //        /  \
+        //      c3    c4
+        //
+        // c1 -> parent    (1)
+        // c2 -> parent    (2)
+        // c3 -> c2        (3)
+        // c4 -> c2        (4)
+        // sibling -> root (5)
+        let mut stack = vec![id];
+        let mut children = Vec::new();
+        for (cid, task) in self.tasks.range(id..) {
+            loop {
+                if stack.is_empty() {
+                    return children;
+                }
+                if stack.last().copied() == Some(task.parent) {
+                    // next item is a child of the previous item, cases (1) and (3)
+                    stack.push(*cid);
+                    break;
+                } else {
+                    // next item is not a child of a current one, go up a stack
+                    // after c4 we'll remove a few times until
+                    stack.pop();
+                }
+            }
+            children.push(*cid);
+        }
+        children
     }
 
     #[inline(never)]
@@ -715,6 +816,9 @@ impl<'a> Runner<'a> {
                     id: task.parent,
                     error,
                 });
+            }
+            if let Some(parent) = self.tasks.get_mut(&task.parent) {
+                parent.consumed += task.consumed;
             }
         } else {
             panic!("TODO, how?");
@@ -739,8 +843,8 @@ impl RawCtx<'_> {
     fn cur(&self) -> usize {
         self.cur.load(std::sync::atomic::Ordering::Relaxed)
     }
-    fn set_term(&self) {
-        self.term.store(true, std::sync::atomic::Ordering::Relaxed);
+    fn set_term(&self, val: bool) {
+        self.term.store(val, std::sync::atomic::Ordering::Relaxed);
     }
     fn is_term(&self) -> bool {
         self.term.load(std::sync::atomic::Ordering::Relaxed)
@@ -755,8 +859,8 @@ impl RawCtx<'_> {
     }
 }
 
-struct Optional<P> {
-    inner: P,
+pub struct Optional<P> {
+    pub(crate) inner: P,
 }
 
 impl<P, T> Parser<Option<T>> for Optional<P>
@@ -766,12 +870,38 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
         Box::pin(async {
+            let _guard = FallbackGuard::new(ctx.clone());
             match self.inner.run(ctx).await {
                 Ok(ok) => Ok(Some(ok)),
                 Err(e) if e.handle_with_fallback() => Ok(None),
                 Err(e) => Err(e),
             }
         })
+    }
+}
+
+/// Fallback registration
+///
+/// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
+/// dropped
+struct FallbackGuard<'ctx> {
+    id: Id,
+    ctx: Ctx<'ctx>,
+}
+
+impl<'ctx> FallbackGuard<'ctx> {
+    fn new(ctx: Ctx<'ctx>) -> Self {
+        ctx.add_fallback(ctx.current_id());
+        Self {
+            id: ctx.current_id(),
+            ctx,
+        }
+    }
+}
+
+impl Drop for FallbackGuard<'_> {
+    fn drop(&mut self) {
+        self.ctx.remove_fallback(self.id);
     }
 }
 
