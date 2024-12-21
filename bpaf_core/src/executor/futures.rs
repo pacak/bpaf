@@ -6,7 +6,6 @@ use std::{
     future::Future,
     pin::Pin,
     rc::{Rc, Weak},
-    sync::atomic::AtomicUsize,
     task::{Context, Poll, Waker},
 };
 
@@ -254,22 +253,25 @@ impl<'ctx> Future for ArgFut<'ctx> {
     type Output = Result<OsOrStr<'ctx>, Error>;
 
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        // registration
         if self.task_id.is_none() {
             let id = self.ctx.current_task();
             self.task_id = Some(id);
             self.ctx.add_named_wake(false, self.name, id);
             return Poll::Pending;
         }
+        // on term - exit immediately
         if self.ctx.is_term() {
             return Poll::Ready(Err(self.missing()));
         }
 
         let front = self.ctx.front.borrow();
         let Some(Arg::Named { name, value }) = front.as_ref() else {
-            return Poll::Pending;
+            unreachable!();
+            //return Poll::Ready(Err(Error::fail("Unexpected item!")));
         };
         if !self.name.contains(name) {
-            return Poll::Pending;
+            unreachable!();
         }
         if let Some(v) = value {
             self.ctx.advance(1);
@@ -329,33 +331,5 @@ impl Future for FlagFut<'_> {
             Arg::ShortSet { current, names } => todo!(),
             Arg::Positional { value } => todo!(),
         }
-    }
-}
-
-pub(crate) struct FallbackFut<'ctx> {
-    pub(crate) ctx: Ctx<'ctx>,
-    pub(crate) task_id: Option<Id>,
-}
-
-impl Drop for FallbackFut<'_> {
-    fn drop(&mut self) {
-        if let Some(id) = self.task_id {
-            self.ctx.remove_fallback(id);
-        }
-    }
-}
-
-impl<'ctx> Future for FallbackFut<'ctx> {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.add_fallback(id);
-            return Poll::Pending;
-        }
-
-        Poll::Ready(())
     }
 }

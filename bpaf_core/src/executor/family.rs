@@ -133,6 +133,7 @@ pub(crate) struct FamilyTree<'ctx> {
     // TODO - use HashMap?
     pub(crate) flags: BTreeMap<Name<'ctx>, Pecking>,
     pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
+    fallback: Pecking,
     positional: Pecking,
     tasks: HashMap<Id, TaskInfo>,
     conflicts: BTreeMap<Name<'ctx>, usize>,
@@ -163,6 +164,16 @@ impl<'ctx> FamilyTree<'ctx> {
         // println!("Added {names:?}, now it is {self:?}");
     }
 
+    pub(crate) fn add_fallback(&mut self, id: Id) {
+        let branch = self.tasks.get(&id).unwrap().branch;
+        self.fallback.insert(id, branch);
+    }
+    pub(crate) fn remove_fallback(&mut self, id: Id) {
+        println!("removing fallback {id:?}");
+        let branch = self.tasks.get(&id).unwrap().branch;
+        self.fallback.remove(branch, id);
+    }
+
     pub(crate) fn remove_named(
         &mut self,
         flag: bool,
@@ -191,7 +202,12 @@ impl<'ctx> FamilyTree<'ctx> {
                 entry.remove();
             }
         }
-        self.tasks.remove(&id);
+        //        self.tasks.remove(&id);
+    }
+
+    pub(crate) fn pick_fallback(&mut self, out: &mut Vec<(BranchId, Id)>) {
+        out.clear();
+        self.fallback.queue_heads(out);
     }
 
     pub(crate) fn pick_parsers_for(
@@ -225,8 +241,8 @@ impl<'ctx> FamilyTree<'ctx> {
                 if out.is_empty() {
                     if let Some(x) = self.conflicts.get(name) {
                         todo!("Conflict with {x}");
-                    } else {
-                        todo!("Unexpected item {name:?}");
+                        //                    } else {
+                        //                        todo!("Unexpected item {name:?}");
                     }
                 }
             }
@@ -291,6 +307,7 @@ pub(crate) struct Pecking(BTreeSet<(Id, BranchId)>);
 
 impl Pecking {
     /// removes an item from a pecking order,
+    // TODO - flip here or in insert
     fn remove(&mut self, branch: BranchId, id: Id) {
         self.0.remove(&(id, branch));
     }
