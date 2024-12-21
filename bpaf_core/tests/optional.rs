@@ -35,6 +35,16 @@ fn nested() {
 }
 
 #[test]
+fn non_consuming() {
+    let a = positional::<usize>("A");
+    let b = short('b').switch();
+    let ab = construct!(a, b).optional();
+
+    let r = run_parser(&ab, ["-b"]).unwrap_err();
+    assert_eq!(r, "Expected <A>");
+}
+
+#[test]
 fn many() {
     let a = positional::<usize>("A").many::<Vec<_>>();
     let r = run_parser(&a, ["1", "2", "3"]).unwrap();
