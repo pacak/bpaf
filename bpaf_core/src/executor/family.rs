@@ -247,9 +247,7 @@ impl<'ctx> FamilyTree<'ctx> {
                 };
                 if out.is_empty() {
                     if let Some(x) = self.conflicts.get(name) {
-                        todo!("Conflict with {x}");
-                        //                    } else {
-                        //                        todo!("Unexpected item {name:?}");
+                        return Err(Error::parse_fail(format!("{name} conflicts with {x}")));
                     }
                 }
             }
