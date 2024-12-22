@@ -2,6 +2,7 @@ use crate::{
     ctx::Ctx,
     error::Error,
     named::Name,
+    pecking::Pecking,
     split::{split_param, Arg, OsOrStr},
     Metavisit, Parser,
 };
@@ -16,25 +17,100 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
-pub(crate) mod family;
+//pub(crate) mod family;
 pub(crate) mod futures;
 
-use self::{
-    family::{FamilyTree, *},
-    futures::{ErrorHandle, JoinHandle},
-};
+use self::futures::{ErrorHandle, JoinHandle};
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Id(u32);
+impl Id {
+    pub(crate) const ZERO: Self = Self(0);
+    const ROOT: Self = Self(1);
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub(crate) enum NodeKind {
+    Sum,
+    Prod,
+}
+
+impl Id {
+    pub(crate) fn new(id: u32) -> Self {
+        Self(id)
+    }
+
+    pub(crate) fn sum(self, field: u32) -> Parent {
+        Parent {
+            kind: NodeKind::Sum,
+            id: self,
+            field,
+        }
+    }
+
+    pub fn prod(self, field: u32) -> Parent {
+        Parent {
+            kind: NodeKind::Prod,
+            id: self,
+            field,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Parent {
+    pub(crate) kind: NodeKind,
+    pub(crate) id: Id,
+    pub(crate) field: u32,
+}
+
+// TODO - it should be possible to replace this with id of the first child attached
+// to the field - they are always spawned tasks
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+pub struct BranchId {
+    pub(crate) parent: Id,
+    pub(crate) field: u32,
+}
+
+impl std::fmt::Debug for BranchId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "B({}:{})", self.parent.0, self.field)
+    }
+}
+
+impl BranchId {
+    pub(crate) const ZERO: Self = Self {
+        parent: Id(0),
+        field: 0,
+    };
+    pub(crate) const ROOT: Self = Self {
+        parent: Id::ROOT,
+        field: 0,
+    };
+    pub(crate) fn succ(&self) -> Self {
+        Self {
+            parent: self.parent,
+            field: self.field + 1,
+        }
+    }
+}
 
 pub type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
 pub(crate) struct Task<'a> {
     pub(crate) action: Action<'a>,
-    pub(crate) parent: Id,
+    // TODO - do I need "field" here?
+    pub(crate) parent: Parent,
+    // TODO - this can be a simple Id
+    pub(crate) branch: BranchId,
     pub(crate) waker: Waker,
     pub(crate) consumed: u32,
+
+    pub(crate) done: bool,
 }
 
 impl Task<'_> {
     fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<ErrorHandle> {
-        *ctx.current_task.borrow_mut() = Some(id);
+        *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let mut cx = Context::from_waker(&self.waker);
         let poll = self.action.as_mut().poll(&mut cx);
         *ctx.current_task.borrow_mut() = None;
@@ -53,29 +129,35 @@ pub(crate) enum Op<'a> {
         error: Option<Error>,
     },
     /// Parent is no longer interested
-    ParentExited {
+    RemoveTask {
         id: Id,
     },
     AddNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
+        branch: BranchId,
         id: Id,
     },
     RemoveNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
+        branch: BranchId,
         id: Id,
     },
     AddFallback {
+        branch: BranchId,
         id: Id,
     },
     RemoveFallback {
+        branch: BranchId,
         id: Id,
     },
     AddPositionalListener {
+        branch: BranchId,
         id: Id,
     },
     RemovePositionalListener {
+        branch: BranchId,
         id: Id,
     },
     RestoreIdCounter {
@@ -114,11 +196,16 @@ where
         tasks: BTreeMap::new(),
         pending: Default::default(),
         next_task_id: 0,
-        family: Default::default(),
+
         parent_ids: Default::default(),
         wake_on_child_exit: Default::default(),
         winners: Vec::new(),
         prev_pos: 0,
+        flags: Default::default(),
+        args: Default::default(),
+        fallback: Default::default(),
+        positional: Default::default(),
+        conflicts: Default::default(),
     };
     runner.run_parser(parser)
 }
@@ -149,7 +236,13 @@ struct Runner<'ctx> {
     /// For those tasks that asked us to retain the id according to the parent
     parent_ids: HashMap<Parent, u32>,
 
-    family: FamilyTree<'ctx>,
+    // TODO - use HashMap?
+    pub(crate) flags: BTreeMap<Name<'ctx>, Pecking>,
+    pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
+    fallback: Pecking,
+    positional: Pecking,
+
+    conflicts: BTreeMap<Name<'ctx>, usize>,
 
     /// Shared with Wakers,
     ///
@@ -173,6 +266,7 @@ impl<'a> Runner<'a> {
         let before = self.ctx.cur();
         loop {
             let mut shared = self.ctx.shared.borrow_mut();
+            // get the next operation, or populate them from tasks to wake
             let Some(item) = shared.pop_front() else {
                 shared.extend(
                     self.pending
@@ -213,25 +307,39 @@ impl<'a> Runner<'a> {
                     }
 
                     let (id, waker) = self.next_id();
+
+                    let branch = match parent.kind {
+                        NodeKind::Sum => BranchId {
+                            parent: parent.id,
+                            field: parent.field,
+                        },
+                        NodeKind::Prod => self
+                            .tasks
+                            .get(&parent.id)
+                            .map_or(BranchId::ROOT, |t| t.branch),
+                    };
                     let mut task = Task {
                         action,
                         waker,
-                        parent: parent.id,
+                        parent,
                         consumed: 0,
+                        branch,
+                        done: false,
                     };
                     self.ctx.items_consumed.set(0);
+                    // try to immediately poll the task to handle task that produce
+                    // the result without consuming anything from the input or spawning
+                    // children: parsers such are `fail` or `pure` create those.
+                    // If not handled here - they will be never woken up
                     match task.poll(id, &self.ctx) {
                         Poll::Ready(_r) => {
+                            task.done = true;
                             todo!("Exited immediately");
                         }
                         Poll::Pending => {
                             // Only keep tasks that are not immediately resolved
-                            self.family.insert(parent, id);
-                            let x = self.tasks.insert(id, task);
-                            assert!(x.is_none());
-                            println!(
-                                "Spawned task {id:?} with parent {parent:?}, static id? {keep_id:?}"
-                            );
+                            assert!(self.tasks.insert(id, task).is_none());
+                            println!("Spawned task {id:?} with parent {parent:?}");
                         }
                     }
 
@@ -253,11 +361,29 @@ impl<'a> Runner<'a> {
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
                 }
-                Op::AddNamedListener { flag, names, id } => {
-                    println!("{id:?}: Add listener for {names:?}");
-                    self.family.add_named(flag, id, names);
+                Op::AddNamedListener {
+                    flag,
+                    names,
+                    branch,
+                    id,
+                } => {
+                    let branch = self.tasks[&id].branch;
+                    let map = if flag {
+                        &mut self.flags
+                    } else {
+                        &mut self.args
+                    };
+                    for name in names.iter() {
+                        self.conflicts.remove(name);
+                        map.entry(name.clone()).or_default().insert(branch, id);
+                    }
                 }
-                Op::RemoveNamedListener { flag, names, id } => {
+                Op::RemoveNamedListener {
+                    flag,
+                    names,
+                    branch,
+                    id,
+                } => {
                     let conflict = if self.winners.contains(&id) || self.ctx.args.is_empty() {
                         None
                     } else {
@@ -268,20 +394,42 @@ impl<'a> Runner<'a> {
                         Some(self.prev_pos)
                     };
                     println!("{id:?}: Remove listener for {names:?}");
-                    self.family.remove_named(flag, id, names, conflict);
+
+                    if let Some(conflict) = conflict {
+                        for name in names {
+                            self.conflicts.insert(name.clone(), conflict);
+                        }
+                    }
+
+                    let map = if flag {
+                        &mut self.flags
+                    } else {
+                        &mut self.args
+                    };
+                    for name in names {
+                        let std::collections::btree_map::Entry::Occupied(mut entry) =
+                            map.entry(name.clone())
+                        else {
+                            continue;
+                        };
+                        entry.get_mut().remove(branch, id);
+                        if entry.get().is_empty() {
+                            entry.remove();
+                        }
+                    }
                 }
-                Op::AddPositionalListener { id } => {
+                Op::AddPositionalListener { branch, id } => {
                     println!("{id:?}: Add positional listener {id:?}");
-                    self.family.add_positional(id);
+                    self.positional.insert(branch, id);
                 }
-                Op::RemovePositionalListener { id } => {
+                Op::RemovePositionalListener { branch, id } => {
                     println!("{id:?}: Remove positional listener");
-                    self.family.remove_positional(id);
+                    self.positional.remove(branch, id);
                 }
-                Op::ParentExited { id } => {
-                    println!("{id:?}: Parent exited");
+                Op::RemoveTask { id } => {
+                    println!("{id:?}: Removing task");
                     if let Some(task) = self.tasks.remove(&id) {
-                        if let Some(parent) = self.tasks.get_mut(&task.parent) {
+                        if let Some(parent) = self.tasks.get_mut(&task.parent.id) {
                             parent.consumed += task.consumed;
                         }
                     }
@@ -291,10 +439,15 @@ impl<'a> Runner<'a> {
                         println!("waking up removed task {id:?}");
                         continue;
                     };
+                    if task.done {
+                        println!("waking up done task {id:?}");
+                        continue;
+                    }
                     println!("Waking {id:?} - consumed count is {:?}", task.consumed);
                     self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
                     if let Poll::Ready(error) = task.poll(id, &self.ctx) {
+                        task.done = true;
                         self.handle_task_exit(id, error);
                     }
                 }
@@ -307,16 +460,79 @@ impl<'a> Runner<'a> {
                 Op::RemoveExitListener { parent } => {
                     self.wake_on_child_exit.remove(&parent);
                 }
-                Op::AddFallback { id } => {
+                Op::AddFallback { branch, id } => {
                     println!("Adding exit fallback to {id:?}");
-                    self.family.add_fallback(id);
+                    self.fallback.insert(branch, id);
                 }
-                Op::RemoveFallback { id } => {
+                Op::RemoveFallback { branch, id } => {
                     println!("Removing exit fallback from {id:?}");
-                    self.family.remove_fallback(id);
+                    self.fallback.remove(branch, id);
                 }
             }
         }
+    }
+
+    fn pick_parsers(&self, front: &Arg, ids: &mut Vec<(BranchId, Id)>) -> Result<(), Error> {
+        debug_assert!(ids.is_empty());
+        match front {
+            Arg::Named { name, value: _ } => {
+                if let Some(p) = self.args.get(name) {
+                    ids.extend(p.heads());
+                }
+                if let Some(p) = self.flags.get(name) {
+                    ids.extend(p.heads());
+                }
+            }
+            Arg::ShortSet { current, names } => todo!(),
+            Arg::Positional { value } => {
+                ids.extend(self.positional.heads());
+            }
+        }
+
+        // TODO - include Any here
+        if !ids.is_empty() {
+            ids.sort(); // sort by branch
+            return Ok(());
+        }
+
+        todo!();
+        // if ids.is_empty() {
+        //     // there's no ids so we must see if there's any fallback items, if there are -
+        //     // wake all the children then wake fallback items.
+        //     self.family.pick_fallback(&mut ids);
+        //     let Some((_branch, fallback)) = ids.first().copied() else {
+        //         if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
+        //             match r {
+        //                 Ok(_) => return Error::unexpected(),
+        //                 Err(err) => return Err(err),
+        //             }
+        //         }
+        //         break;
+        //     };
+        //     let child = self.first_child(fallback);
+        //     if let Some(task) = self.tasks.get_mut(&child) {
+        //         println!("Going to run {child:?} as part of fallback parser");
+        //         self.ctx.set_term(true);
+        //         let (error_handle, consumed) = self.ctx.run_task(task);
+        //         self.ctx.set_term(false);
+        //         println!(
+        //             "running {child:?} consumed {consumed:?}. is it ready? {:?}",
+        //             error_handle.is_ready()
+        //         );
+        //         task.consumed += consumed as u32;
+        //         if let Poll::Ready(handle) = error_handle {
+        //             self.handle_task_exit(child, handle);
+        //         } else {
+        //             todo!()
+        //         }
+        //     } else {
+        //         todo!()
+        //     }
+        // }
+    }
+
+    fn consume(&mut self, ids: &mut Vec<(BranchId, Id)>) -> Result<(), Error> {
+        todo!()
     }
 
     fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
@@ -367,62 +583,17 @@ impl<'a> Runner<'a> {
                 break;
             };
             // TODO - here we should check if we saw -- and in argument-only mode
-            let front = split_param(front_arg, &self.family.args, &self.family.flags)?;
+            let front = split_param(front_arg, &self.args, &self.flags)?;
 
-            // check how to parse next word
-            // TODO - we want to run one parser per branch, usually first that succeeds,
-            // pick parsers should arrange greedy first with `Any` sprinkled in between....
-            //
-            // Do I need to have greedy first?
-            if let Err(err) = self.family.pick_parsers_for(&front, &mut ids) {
-                self.family.pick_fallback(&mut ids);
-
-                todo!("fallback: {ids:?}");
-                //
-            }
-            if ids.is_empty() {
-                // there's no ids so we must see if there's any fallback items, if there are -
-                // wake all the children then wake fallback items.
-                self.family.pick_fallback(&mut ids);
-                let Some((_branch, fallback)) = ids.first().copied() else {
-                    if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
-                        match r {
-                            Ok(_) => return Error::unexpected(),
-                            Err(err) => return Err(err),
-                        }
-                    }
-                    break;
-                };
-                let child = self.first_child(fallback);
-                if let Some(task) = self.tasks.get_mut(&child) {
-                    println!("Going to run {child:?} as part of fallback parser");
-                    self.ctx.set_term(true);
-                    let (error_handle, consumed) = self.ctx.run_task(task);
-                    self.ctx.set_term(false);
-                    println!(
-                        "running {child:?} consumed {consumed:?}. is it ready? {:?}",
-                        error_handle.is_ready()
-                    );
-                    task.consumed += consumed as u32;
-                    if let Poll::Ready(handle) = error_handle {
-                        self.handle_task_exit(child, handle);
-                    } else {
-                        todo!()
-                    }
-                } else {
-                    todo!()
-                }
-
-                continue;
-            }
+            self.pick_parsers(&front, &mut ids)?;
+            println!("Going to parse {front:?} with {ids:?}");
 
             *self.ctx.front.borrow_mut() = Some(front);
-            assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
+            debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
 
             // actual feed consumption happens here
             let mut max_consumed = 0;
 
-            ids.sort();
             let mut last_branch = BranchId::ZERO;
             for (branch, id) in ids.drain(..) {
                 if branch == last_branch {
@@ -490,7 +661,7 @@ impl<'a> Runner<'a> {
     /// a consuming parser
     fn first_child(&self, mut parent_id: Id) -> Id {
         for (child_id, task) in self.tasks.range(parent_id..).skip(1) {
-            if task.parent == parent_id {
+            if task.parent.id == parent_id {
                 parent_id = *child_id;
             } else {
                 return parent_id;
@@ -502,19 +673,23 @@ impl<'a> Runner<'a> {
     #[inline(never)]
     fn handle_task_exit(&mut self, id: Id, error_handle: ErrorHandle) {
         println!("Handling exit for {id:?}");
-        if let Some(task) = self.tasks.remove(&id) {
-            if self.wake_on_child_exit.contains(&task.parent) {
+        if let Some(task) = self.tasks.get_mut(&id) {
+            if self.wake_on_child_exit.contains(&task.parent.id) {
                 let error = error_handle.take();
                 error_handle.set(error.clone());
                 self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
-                    id: task.parent,
+                    id: task.parent.id,
                     error,
                 });
             }
-            if let Some(parent) = self.tasks.get_mut(&task.parent) {
-                println!("pushing exit {} to parent {:?}", task.consumed, task.parent);
-                parent.consumed += task.consumed;
-            }
+            self.ctx
+                .shared
+                .borrow_mut()
+                .push_back(Op::RemoveTask { id });
+            // if let Some(parent) = self.tasks.get_mut(&task.parent.id) {
+            //     println!("pushing exit {} to parent {:?}", task.consumed, task.parent);
+            //     parent.consumed += task.consumed;
+            // }
         } else {
             panic!("TODO, how?");
         };
@@ -580,7 +755,7 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
-            let id = ctx.current_id();
+            let (_branch, id) = ctx.current_id();
 
             // Spawn a task for all the branches
             let handles = self

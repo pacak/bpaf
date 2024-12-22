@@ -1,6 +1,6 @@
 use crate::{error::MissingItem, named::Name, split::OsOrStr};
 
-use super::{Arg, Ctx, Error, Id, Op};
+use super::{Arg, BranchId, Ctx, Error, Id, Op};
 use std::{
     cell::Cell,
     future::Future,
@@ -60,7 +60,7 @@ impl<T> Drop for JoinHandle<'_, T> {
                     .ctx
                     .shared
                     .borrow_mut()
-                    .push_back(Op::ParentExited { id });
+                    .push_back(Op::RemoveTask { id });
             }
         }
     }
@@ -106,7 +106,7 @@ impl<T> Future for JoinHandle<'_, T> {
 
 impl<'a> Ctx<'a> {
     pub fn early_exit(self, cnt: u32) -> EarlyExitFut<'a> {
-        let id = self.current_id();
+        let (_branch, id) = self.current_id();
         EarlyExitFut {
             id,
             ctx: self,
@@ -162,16 +162,16 @@ impl Drop for EarlyExitFut<'_> {
 pub(crate) struct PositionalFut<'a> {
     pub(crate) meta: &'static str,
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
+    pub(crate) task_id: Option<(BranchId, Id)>,
 }
 impl Drop for PositionalFut<'_> {
     fn drop(&mut self) {
         println!("dropped positional");
-        if let Some(id) = self.task_id {
+        if let Some((branch, id)) = self.task_id {
             self.ctx
                 .shared
                 .borrow_mut()
-                .push_back(Op::RemovePositionalListener { id });
+                .push_back(Op::RemovePositionalListener { branch, id });
         }
     }
 }
@@ -181,9 +181,9 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.positional_wake(id);
+            let (branch, id) = self.ctx.current_task();
+            self.task_id = Some((branch, id));
+            self.ctx.positional_wake(branch, id);
             return Poll::Pending;
         }
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
@@ -215,28 +215,28 @@ impl<'ctx> Future for PositionalFut<'ctx> {
 pub(crate) struct FlagFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
+    pub(crate) task_id: Option<(BranchId, Id)>,
 }
 
 pub(crate) struct ArgFut<'a> {
     pub(crate) name: &'a [Name<'static>],
     pub(crate) meta: &'static str,
     pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
+    pub(crate) task_id: Option<(BranchId, Id)>,
 }
 
 impl Drop for ArgFut<'_> {
     fn drop(&mut self) {
-        if let Some(id) = self.task_id {
-            self.ctx.remove_named_listener(false, id, self.name);
+        if let Some((branch, id)) = self.task_id {
+            self.ctx.remove_named_listener(false, branch, id, self.name);
         }
     }
 }
 
 impl Drop for FlagFut<'_> {
     fn drop(&mut self) {
-        if let Some(id) = self.task_id {
-            self.ctx.remove_named_listener(true, id, self.name);
+        if let Some((branch, id)) = self.task_id {
+            self.ctx.remove_named_listener(true, branch, id, self.name);
         }
     }
 }
@@ -255,9 +255,9 @@ impl<'ctx> Future for ArgFut<'ctx> {
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         // registration
         if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.add_named_wake(false, self.name, id);
+            let (branch, id) = self.ctx.current_task();
+            self.task_id = Some((branch, id));
+            self.ctx.add_named_wake(false, self.name, branch, id);
             return Poll::Pending;
         }
         // on term - exit immediately
@@ -304,9 +304,9 @@ impl Future for FlagFut<'_> {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.add_named_wake(true, self.name, id);
+            let (branch, id) = self.ctx.current_task();
+            self.task_id = Some((branch, id));
+            self.ctx.add_named_wake(true, self.name, branch, id);
             return Poll::Pending;
         }
 
