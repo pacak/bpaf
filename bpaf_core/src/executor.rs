@@ -182,7 +182,11 @@ impl<'a> Runner<'a> {
                         .map(|id| Op::WakeTask { id, error: None }),
                 );
                 if shared.is_empty() {
-                    assert_eq!(before, self.ctx.cur());
+                    assert_eq!(
+                        before,
+                        self.ctx.cur(),
+                        "propagation should not consume items"
+                    );
                     return;
                 } else {
                     continue;
