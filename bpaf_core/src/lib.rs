@@ -1,6 +1,7 @@
 mod error;
 pub mod executor;
 pub mod parsers;
+mod pecking;
 mod split;
 mod visitor;
 
