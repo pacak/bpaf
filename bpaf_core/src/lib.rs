@@ -1,3 +1,4 @@
+mod ctx;
 mod error;
 pub mod executor;
 pub mod parsers;
@@ -8,8 +9,9 @@ mod visitor;
 use executor::Optional;
 
 pub use crate::{
+    ctx::Ctx,
     error::Error,
-    executor::{run_parser, Alt, Con, Ctx, Fragment},
+    executor::{run_parser, Alt, Con, Fragment},
 };
 
 use crate::{
@@ -245,10 +247,11 @@ mod named {
     use std::{borrow::Cow, marker::PhantomData, str::FromStr};
 
     use crate::{
+        ctx::Ctx,
         error::Error,
         executor::{
             futures::{ArgFut, FlagFut},
-            Ctx, Fragment,
+            Fragment,
         },
         Parser,
     };
@@ -321,6 +324,15 @@ mod named {
         }
     }
 
+    impl std::fmt::Display for Name<'_> {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Name::Short(s) => write!(f, "-{s}"),
+                Name::Long(l) => write!(f, "--{l}"),
+            }
+        }
+    }
+
     #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
     pub enum Name<'a> {
         Short(char),
@@ -379,8 +391,9 @@ mod positional {
     use std::{marker::PhantomData, str::FromStr};
 
     use crate::{
+        ctx::Ctx,
         error::{Error, Message},
-        executor::{futures::PositionalFut, Ctx},
+        executor::futures::PositionalFut,
         Parser,
     };
     pub struct Positional<T> {
@@ -586,7 +599,7 @@ where
     P: Parser<T>,
     T: 'static,
 {
-    fn run<'a>(&'a self, ctx: executor::Ctx<'a>) -> Fragment<'a, T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.0.run(ctx)
     }
 }
