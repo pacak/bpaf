@@ -362,42 +362,6 @@ pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
 //     Killed,
 // }
 
-#[derive(Clone)]
-struct Pair<A, B>(A, B);
-impl<A, B, RA, RB> Parser<(RA, RB)> for Pair<A, B>
-where
-    A: Parser<RA>,
-    B: Parser<RB>,
-    RA: 'static + std::fmt::Debug,
-    RB: 'static + std::fmt::Debug,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
-        Box::pin(async move {
-            let id = ctx.current_id();
-            let futa = ctx.spawn(id.prod(0), &self.0, false);
-            let futb = ctx.spawn(id.prod(1), &self.1, false);
-            Ok((futa.await?, futb.await?))
-        })
-    }
-}
-
-#[derive(Clone)]
-struct Map<P, F, T>(P, F, PhantomData<T>);
-impl<T: 'static, R, F, P> Parser<R> for Map<P, F, T>
-where
-    P: Parser<T>,
-    T: std::fmt::Debug + Clone,
-    R: std::fmt::Debug + 'static,
-    F: Fn(T) -> R + 'static + Clone,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
-        Box::pin(async move {
-            let t = self.0.run(ctx).await?;
-            Ok((self.1)(t))
-        })
-    }
-}
-
 struct WakeTask {
     id: Id,
     pending: Arc<Mutex<Vec<Id>>>,
