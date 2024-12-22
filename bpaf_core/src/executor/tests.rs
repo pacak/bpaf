@@ -39,13 +39,13 @@ fn pair_of_flags() {
 }
 
 #[test]
-fn req_flag() {
+fn req_flag_simple() {
     let alice = long("alice").req_flag(());
 
-    let r = run_parser(&alice, &["--alice"]);
+    let r = run_parser(&alice, ["--alice"]);
     assert_eq!(r, Ok(()));
 
-    let r = run_parser::<_, &&str>(&alice, &[]).unwrap_err();
+    let r = run_parser::<_, &str>(&alice, []).unwrap_err();
     assert_eq!(r, "Expected --alice");
 }
 
