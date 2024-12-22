@@ -7,77 +7,6 @@
 use crate::{error::Error, executor::Arg, named::Name, pecking::Pecking};
 use std::collections::{BTreeMap, HashMap};
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Id(u32);
-impl Id {
-    pub(crate) const ZERO: Self = Self(0);
-    const ROOT: Self = Self(1);
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) enum NodeKind {
-    Sum,
-    Prod,
-}
-
-impl Id {
-    pub(crate) fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    pub(crate) fn sum(self, field: u32) -> Parent {
-        Parent {
-            kind: NodeKind::Sum,
-            id: self,
-            field,
-        }
-    }
-
-    pub fn prod(self, field: u32) -> Parent {
-        Parent {
-            kind: NodeKind::Prod,
-            id: self,
-            field,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Parent {
-    pub(crate) kind: NodeKind,
-    pub(crate) id: Id,
-    pub(crate) field: u32,
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub(crate) struct BranchId {
-    pub(crate) parent: Id,
-    pub(crate) field: u32,
-}
-
-impl std::fmt::Debug for BranchId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "B({}:{})", self.parent.0, self.field)
-    }
-}
-
-impl BranchId {
-    pub(crate) const ZERO: Self = Self {
-        parent: Id(0),
-        field: 0,
-    };
-    pub(crate) const ROOT: Self = Self {
-        parent: Id::ROOT,
-        field: 0,
-    };
-    pub(crate) fn succ(&self) -> Self {
-        Self {
-            parent: self.parent,
-            field: self.field + 1,
-        }
-    }
-}
-
 #[derive(Debug)]
 struct TaskInfo {
     /// Pointer to the parent item plus some info about it:
@@ -154,30 +83,6 @@ impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn remove_positional(&mut self, id: Id) {
         let branch = self.tasks.get(&id).unwrap().branch;
         self.positional.remove(branch, id);
-    }
-
-    pub(crate) fn add_named(&mut self, flag: bool, id: Id, names: &[Name<'static>]) {
-        let branch = self.tasks.get(&id).unwrap().branch;
-        let map = if flag {
-            &mut self.flags
-        } else {
-            &mut self.args
-        };
-        for name in names.iter() {
-            self.conflicts.remove(name);
-            map.entry(name.clone()).or_default().insert(branch, id);
-        }
-        // println!("Added {names:?}, now it is {self:?}");
-    }
-
-    pub(crate) fn add_fallback(&mut self, id: Id) {
-        let branch = self.tasks.get(&id).unwrap().branch;
-        self.fallback.insert(branch, id);
-    }
-    pub(crate) fn remove_fallback(&mut self, id: Id) {
-        println!("removing fallback {id:?}");
-        let branch = self.tasks.get(&id).unwrap().branch;
-        self.fallback.remove(branch, id);
     }
 
     pub(crate) fn remove_named(

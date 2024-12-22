@@ -8,9 +8,8 @@ use std::{
 
 use crate::{
     executor::{
-        family::{Id, Parent},
         futures::{ErrorHandle, JoinHandle},
-        Action, Op, Task,
+        Action, BranchId, Id, Op, Parent, Task,
     },
     named::Name,
     split::{Arg, OsOrStr},
@@ -19,7 +18,7 @@ use crate::{
 
 pub struct RawCtx<'a> {
     /// Gets populated with current taskid when it is running
-    pub(crate) current_task: RefCell<Option<Id>>,
+    pub(crate) current_task: RefCell<Option<(BranchId, Id)>>,
     /// All the arguments passed to the app including the app name in 0th
     pub(crate) args: &'a [OsOrStr<'a>],
     /// Current cursor position
@@ -69,7 +68,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 }
 
 impl RawCtx<'_> {
-    pub fn current_id(&self) -> Id {
+    pub fn current_id(&self) -> (BranchId, Id) {
         self.current_task.borrow().expect("not in a task")
     }
     pub(crate) fn cur(&self) -> usize {
@@ -100,7 +99,7 @@ impl<'a> Ctx<'a> {
         let ctx = self.clone();
         let (exit, join) = self.fork();
         let act = Box::pin(async move {
-            exit.id.set(Some(ctx.current_task()));
+            exit.id.set(Some(ctx.current_task().1));
             let r = parser.run(ctx).await;
 
             if let Ok(exit) = Rc::try_unwrap(exit) {
@@ -115,20 +114,31 @@ impl<'a> Ctx<'a> {
         join
     }
 
-    pub(crate) fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddNamedListener { flag, names, id });
+    pub(crate) fn add_named_wake(
+        &self,
+        flag: bool,
+        names: &'a [Name<'static>],
+        branch: BranchId,
+        id: Id,
+    ) {
+        self.shared.borrow_mut().push_back(Op::AddNamedListener {
+            flag,
+            names,
+            branch,
+            id,
+        });
     }
 
-    pub(crate) fn add_fallback(&self, id: Id) {
-        self.shared.borrow_mut().push_back(Op::AddFallback { id });
-    }
-
-    pub(crate) fn remove_fallback(&self, id: Id) {
+    pub(crate) fn add_fallback(&self, branch: BranchId, id: Id) {
         self.shared
             .borrow_mut()
-            .push_back(Op::RemoveFallback { id });
+            .push_back(Op::AddFallback { branch, id });
+    }
+
+    pub(crate) fn remove_fallback(&self, branch: BranchId, id: Id) {
+        self.shared
+            .borrow_mut()
+            .push_back(Op::RemoveFallback { branch, id });
     }
 
     pub(crate) fn add_children_exit_listener(&self, parent: Id) {
@@ -143,16 +153,25 @@ impl<'a> Ctx<'a> {
             .push_back(Op::RemoveExitListener { parent });
     }
 
-    pub(crate) fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveNamedListener { flag, names, id });
+    pub(crate) fn remove_named_listener(
+        &self,
+        flag: bool,
+        branch: BranchId,
+        id: Id,
+        names: &'a [Name<'static>],
+    ) {
+        self.shared.borrow_mut().push_back(Op::RemoveNamedListener {
+            flag,
+            names,
+            branch,
+            id,
+        });
     }
 
-    pub(crate) fn positional_wake(&self, id: Id) {
+    pub(crate) fn positional_wake(&self, branch: BranchId, id: Id) {
         self.shared
             .borrow_mut()
-            .push_back(Op::AddPositionalListener { id })
+            .push_back(Op::AddPositionalListener { branch, id })
     }
 
     pub(crate) fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
@@ -163,7 +182,7 @@ impl<'a> Ctx<'a> {
         });
     }
 
-    pub(crate) fn current_task(&self) -> Id {
+    pub(crate) fn current_task(&self) -> (BranchId, Id) {
         self.current_task
             .borrow()
             .expect("should only be called from a Future")

@@ -109,7 +109,7 @@ macro_rules! construct {
                 n += 1;
             )*
             Box::pin(async move {
-                let id = ctx.current_id();
+                let (_branch, id) = ctx.current_id();
                 let mut n = 0;
                 $(
                     let $fields = ctx.spawn(id.prod(n), $fields, false);

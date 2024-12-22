@@ -3,10 +3,7 @@ use std::{borrow::Borrow, marker::PhantomData};
 use crate::{
     ctx::Ctx,
     error::Error,
-    executor::{
-        family::{Id, NodeKind, Parent},
-        Fragment,
-    },
+    executor::{BranchId, Fragment, Id, NodeKind, Parent},
     Parser,
 };
 
@@ -28,8 +25,9 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, C> {
         let mut res = Vec::new();
         Box::pin(async move {
+            let (_branch, id) = ctx.current_id();
             let parent = Parent {
-                id: ctx.current_id(),
+                id,
                 field: 0,
                 kind: NodeKind::Prod,
             };
@@ -192,22 +190,21 @@ where
 /// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
 /// dropped
 struct FallbackGuard<'ctx> {
+    branch: BranchId,
     id: Id,
     ctx: Ctx<'ctx>,
 }
 
 impl<'ctx> FallbackGuard<'ctx> {
     fn new(ctx: Ctx<'ctx>) -> Self {
-        ctx.add_fallback(ctx.current_id());
-        Self {
-            id: ctx.current_id(),
-            ctx,
-        }
+        let (branch, id) = ctx.current_id();
+        ctx.add_fallback(branch, id);
+        Self { branch, id, ctx }
     }
 }
 
 impl Drop for FallbackGuard<'_> {
     fn drop(&mut self) {
-        self.ctx.remove_fallback(self.id);
+        self.ctx.remove_fallback(self.branch, self.id);
     }
 }
