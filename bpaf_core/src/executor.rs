@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 use crate::{
+    ctx::Ctx,
     error::Error,
     named::Name,
     split::{split_param, Arg, OsOrStr},
@@ -8,16 +9,12 @@ use crate::{
 };
 use std::{
     any::Any,
-    cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
     rc::Rc,
-    sync::{
-        atomic::{AtomicBool, AtomicUsize},
-        Arc, Mutex,
-    },
+    sync::{Arc, Mutex},
     task::{Context, Poll, Wake, Waker},
 };
 
@@ -91,12 +88,12 @@ pub(crate) mod futures;
 use family::{FamilyTree, *};
 use futures::{ErrorHandle, JoinHandle};
 
-type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
-struct Task<'a> {
-    action: Action<'a>,
-    parent: Id,
-    waker: Waker,
-    consumed: u32,
+pub type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
+pub(crate) struct Task<'a> {
+    pub(crate) action: Action<'a>,
+    pub(crate) parent: Id,
+    pub(crate) waker: Waker,
+    pub(crate) consumed: u32,
 }
 
 impl Task<'_> {
@@ -109,43 +106,7 @@ impl Task<'_> {
     }
 }
 
-pub struct RawCtx<'a> {
-    /// Gets populated with current taskid when it is running
-    current_task: RefCell<Option<Id>>,
-    /// All the arguments passed to the app including the app name in 0th
-    args: &'a [OsOrStr<'a>],
-    /// Current cursor position
-    cur: AtomicUsize,
-    front: RefCell<Option<Arg<'a>>>,
-    /// through this tasks can request event scheduling, etc
-    shared: RefCell<VecDeque<Op<'a>>>,
-
-    /// Used to pass information about children exit
-    child_exit: Cell<Option<Error>>,
-
-    /// number of ietms consumed by children tasks
-    items_consumed: Cell<u32>,
-
-    /// By the end we are trying to kill all the children, when set - children
-    /// should fail when encounter unexpected input, otherwise - keep running
-    term: AtomicBool,
-}
-
-#[derive(Clone)]
-#[repr(transparent)]
-// this is a newtype instead of struct since things like RawCtx::spawn
-// need to pass it by ownership
-pub struct Ctx<'a>(Rc<RawCtx<'a>>);
-
-impl<'a> std::ops::Deref for Ctx<'a> {
-    type Target = RawCtx<'a>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-enum Op<'a> {
+pub(crate) enum Op<'a> {
     SpawnTask {
         parent: Parent,
         action: Action<'a>,
@@ -212,19 +173,8 @@ fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
 where
     T: 'static + std::fmt::Debug,
 {
-    let ctx = Ctx(Rc::new(RawCtx {
-        args,
-        current_task: Default::default(),
-        items_consumed: Default::default(),
-        shared: Default::default(),
-        cur: AtomicUsize::from(0),
-        front: Default::default(),
-        child_exit: Default::default(),
-        term: Default::default(),
-    }));
-
     let runner = Runner {
-        ctx,
+        ctx: Ctx::new(args),
         tasks: BTreeMap::new(),
         pending: Default::default(),
         next_task_id: 0,
@@ -235,95 +185,6 @@ where
         prev_pos: 0,
     };
     runner.run_parser(parser)
-}
-
-impl<'a> Ctx<'a> {
-    pub fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
-    where
-        P: Parser<T>,
-        T: 'static,
-    {
-        let ctx = self.clone();
-        let (exit, join) = self.fork();
-        let act = Box::pin(async move {
-            exit.id.set(Some(ctx.current_task()));
-            let r = parser.run(ctx).await;
-
-            if let Ok(exit) = Rc::try_unwrap(exit) {
-                // This is used to handle erors in Con or similar in execution order
-                // instead of definition order with `EarlyExitFut`
-                exit.exit_task(r)
-            } else {
-                unreachable!("We have more than one copy of the exit handle!")
-            }
-        });
-        self.start_task(parent, act, keep_id);
-        join
-    }
-
-    fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddNamedListener { flag, names, id });
-    }
-
-    fn add_fallback(&self, id: Id) {
-        self.shared.borrow_mut().push_back(Op::AddFallback { id });
-    }
-    fn remove_fallback(&self, id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveFallback { id });
-    }
-
-    fn add_children_exit_listener(&self, parent: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddExitListener { parent });
-    }
-    fn remove_children_exit_listener(&self, parent: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveExitListener { parent });
-    }
-
-    fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveNamedListener { flag, names, id });
-    }
-
-    fn positional_wake(&self, id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddPositionalListener { id })
-    }
-
-    fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
-        self.shared.borrow_mut().push_back(Op::SpawnTask {
-            parent,
-            action,
-            keep_id,
-        });
-    }
-
-    fn current_task(&self) -> Id {
-        self.current_task
-            .borrow()
-            .expect("should only be called from a Future")
-    }
-
-    /// Run a task in a context, return number of items consumed an a result
-    ///
-    /// does not advance the pointer
-    fn run_task(&self, task: &mut Task<'a>) -> (Poll<ErrorHandle>, usize) {
-        let before = self.cur();
-        let mut cx = Context::from_waker(&task.waker);
-        let r = task.action.as_mut().poll(&mut cx);
-        let after = self.cur();
-        self.set_cur(before);
-        (r, after - before)
-    }
 }
 
 impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
@@ -807,29 +668,6 @@ impl<'a> Runner<'a> {
         let pending = self.pending.clone();
         let waker = Waker::from(Arc::new(WakeTask { id, pending }));
         (id, waker)
-    }
-}
-
-impl RawCtx<'_> {
-    pub fn current_id(&self) -> Id {
-        self.current_task.borrow().expect("not in a task")
-    }
-    fn cur(&self) -> usize {
-        self.cur.load(std::sync::atomic::Ordering::Relaxed)
-    }
-    fn set_term(&self, val: bool) {
-        self.term.store(val, std::sync::atomic::Ordering::Relaxed);
-    }
-    fn is_term(&self) -> bool {
-        self.term.load(std::sync::atomic::Ordering::Relaxed)
-    }
-
-    fn set_cur(&self, new: usize) {
-        self.cur.store(new, std::sync::atomic::Ordering::Relaxed);
-    }
-    fn advance(&self, inc: usize) {
-        self.cur
-            .fetch_add(inc, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
