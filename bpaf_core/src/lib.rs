@@ -6,8 +6,6 @@ mod pecking;
 mod split;
 mod visitor;
 
-use executor::Optional;
-
 pub use crate::{
     ctx::Ctx,
     error::Error,
@@ -16,7 +14,7 @@ pub use crate::{
 
 use crate::{
     named::{Argument, Flag, Named},
-    parsers::{Count, Guard, Last, Many, Map, Parse},
+    parsers::{Count, Guard, Last, Many, Map, Optional, Parse},
     positional::Positional,
     visitor::Visitor,
 };

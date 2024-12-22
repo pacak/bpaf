@@ -4,7 +4,7 @@ use crate::{
     ctx::Ctx,
     error::Error,
     executor::{
-        family::{NodeKind, Parent},
+        family::{Id, NodeKind, Parent},
         Fragment,
     },
     Parser,
@@ -163,5 +163,51 @@ where
             let t = inner.await?;
             (self.f)(t).map_err(|e| Error::parse_fail(e.to_string()))
         })
+    }
+}
+
+pub struct Optional<P> {
+    pub(crate) inner: P,
+}
+
+impl<P, T> Parser<Option<T>> for Optional<P>
+where
+    P: Parser<T>,
+    T: std::fmt::Debug + 'static,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
+        Box::pin(async move {
+            let _guard = FallbackGuard::new(ctx.clone());
+            match self.inner.run(ctx.clone()).await {
+                Ok(ok) => Ok(Some(ok)),
+                Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => Ok(None),
+                Err(e) => Err(e),
+            }
+        })
+    }
+}
+
+/// Fallback registration
+///
+/// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
+/// dropped
+struct FallbackGuard<'ctx> {
+    id: Id,
+    ctx: Ctx<'ctx>,
+}
+
+impl<'ctx> FallbackGuard<'ctx> {
+    fn new(ctx: Ctx<'ctx>) -> Self {
+        ctx.add_fallback(ctx.current_id());
+        Self {
+            id: ctx.current_id(),
+            ctx,
+        }
+    }
+}
+
+impl Drop for FallbackGuard<'_> {
+    fn drop(&mut self) {
+        self.ctx.remove_fallback(self.id);
     }
 }

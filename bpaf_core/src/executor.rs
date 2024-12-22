@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+//#![allow(dead_code)]
 
 use crate::{
     ctx::Ctx,
@@ -18,75 +18,13 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
-// # those error messages can be handled
-//     /// Tried to consume an env variable which wasn't set
-//     can handle
-//     NoEnv(&'static str),
-//
-//     /// User specified an error message on some
-//     ParseSome(&'static str),
-//
-//     /// User asked for parser to fail explicitly
-//     ParseFail(&'static str),
-//
-//     /// pure_with failed to parse a value
-//     PureFailed(String),
-//
-//     /// Expected one of those values
-//     ///
-//     /// Used internally to generate better error messages
-//     Missing(Vec<MissingItem>),
-//
-// -------------------------------------------------------------------------------------
-//     /// Parsing failed and this is the final output
-//     ParseFailure(ParseFailure),
-//
-//     /// Tried to consume a strict positional argument, value was present but was not strictly
-//     /// positional
-//     StrictPos(usize, Metavar),
-//
-//     /// Tried to consume a non-strict positional argument, but the value was strict
-//     NonStrictPos(usize, Metavar),
-//
-//     /// Parser provided by user failed to parse a value
-//     ParseFailed(Option<usize>, String),
-//
-//     /// Parser provided by user failed to validate a value
-//     GuardFailed(Option<usize>, &'static str),
-//
-//     /// Argument requres a value but something else was passed,
-//     /// required: --foo <BAR>
-//     /// given: --foo --bar
-//     ///        --foo -- bar
-//     ///        --foo
-//     NoArgument(usize, Metavar),
-//
-//     /// Parser is expected to consume all the things from the command line
-//     /// this item will contain an index of the unconsumed value
-//     Unconsumed(/* TODO - unused? */ usize),
-//
-//     /// argument is ambigoups - parser can accept it as both a set of flags and a short flag with no =
-//     Ambiguity(usize, String),
-//
-//     /// Suggested fixes for typos or missing input
-//     Suggestion(usize, Suggestion),
-//
-//     /// Two arguments are mutually exclusive
-//     /// --release --dev
-//     Conflict(/* winner */ usize, usize),
-//
-//     /// Expected one or more items in the scope, got someting else if any
-//     Expected(Vec<Item>, Option<usize>),
-//
-//     /// Parameter is accepted but only once
-//     OnlyOnce(/* winner */ usize, usize),
-// }
-
 pub(crate) mod family;
 pub(crate) mod futures;
 
-use family::{FamilyTree, *};
-use futures::{ErrorHandle, JoinHandle};
+use self::{
+    family::{FamilyTree, *},
+    futures::{ErrorHandle, JoinHandle},
+};
 
 pub type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
 pub(crate) struct Task<'a> {
@@ -187,41 +125,7 @@ where
     runner.run_parser(parser)
 }
 
-impl<A, B, RA, RB> Parser<(RA, RB)> for (A, B)
-where
-    A: Parser<RA>,
-    B: Parser<RB>,
-    RA: 'static + std::fmt::Debug,
-    RB: 'static + std::fmt::Debug,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, (RA, RB)> {
-        todo!()
-    }
-}
-
-impl<T> Parser<T> for Vec<Box<dyn Parser<T>>>
-where
-    T: 'static + std::fmt::Debug,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        Box::pin(async {
-            todo!();
-            //
-        })
-    }
-}
-
 pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
-
-// #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-// pub enum Error {
-//     Missing,
-//     Invalid,
-//     /// Low priority error that gets created when a branch gets killed
-//     /// to allow more successful alternative to run.
-//     /// At least one branch in the sum
-//     Killed,
-// }
 
 struct WakeTask {
     id: Id,
@@ -264,16 +168,6 @@ struct Runner<'ctx> {
 }
 
 impl<'a> Runner<'a> {
-    /// Get a task ID for the waker
-    fn resolve(&self, waker: &Waker) -> Id {
-        waker.wake_by_ref();
-        self.pending
-            .lock()
-            .expect("poison")
-            .pop()
-            .expect("Misbehaving waker")
-    }
-
     /// Handle scheduled operations
     ///
     /// This should advance all the tasks as far as possible without consuming the input
@@ -603,42 +497,6 @@ impl<'a> Runner<'a> {
         parent_id
     }
 
-    fn task_children(&self, id: Id) -> Vec<Id> {
-        //          root
-        //         /   \
-        //     parent   sibling
-        //     /   \
-        //   c1    c2
-        //        /  \
-        //      c3    c4
-        //
-        // c1 -> parent    (1)
-        // c2 -> parent    (2)
-        // c3 -> c2        (3)
-        // c4 -> c2        (4)
-        // sibling -> root (5)
-        let mut stack = vec![id];
-        let mut children = Vec::new();
-        for (cid, task) in self.tasks.range(id..) {
-            loop {
-                if stack.is_empty() {
-                    return children;
-                }
-                if stack.last().copied() == Some(task.parent) {
-                    // next item is a child of the previous item, cases (1) and (3)
-                    stack.push(*cid);
-                    break;
-                } else {
-                    // next item is not a child of a current one, go up a stack
-                    // after c4 we'll remove a few times until
-                    stack.pop();
-                }
-            }
-            children.push(*cid);
-        }
-        children
-    }
-
     #[inline(never)]
     fn handle_task_exit(&mut self, id: Id, error_handle: ErrorHandle) {
         println!("Handling exit for {id:?}");
@@ -668,52 +526,6 @@ impl<'a> Runner<'a> {
         let pending = self.pending.clone();
         let waker = Waker::from(Arc::new(WakeTask { id, pending }));
         (id, waker)
-    }
-}
-
-pub struct Optional<P> {
-    pub(crate) inner: P,
-}
-
-impl<P, T> Parser<Option<T>> for Optional<P>
-where
-    P: Parser<T>,
-    T: std::fmt::Debug + 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
-        Box::pin(async move {
-            let _guard = FallbackGuard::new(ctx.clone());
-            match self.inner.run(ctx.clone()).await {
-                Ok(ok) => Ok(Some(ok)),
-                Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => Ok(None),
-                Err(e) => Err(e),
-            }
-        })
-    }
-}
-
-/// Fallback registration
-///
-/// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
-/// dropped
-struct FallbackGuard<'ctx> {
-    id: Id,
-    ctx: Ctx<'ctx>,
-}
-
-impl<'ctx> FallbackGuard<'ctx> {
-    fn new(ctx: Ctx<'ctx>) -> Self {
-        ctx.add_fallback(ctx.current_id());
-        Self {
-            id: ctx.current_id(),
-            ctx,
-        }
-    }
-}
-
-impl Drop for FallbackGuard<'_> {
-    fn drop(&mut self) {
-        self.ctx.remove_fallback(self.id);
     }
 }
 
@@ -747,8 +559,11 @@ impl<T> Future for AltFuture<'_, T> {
     type Output = Result<T, Error>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        assert!(!self.as_ref().handles.is_empty());
         for (ix, mut h) in self.as_mut().handles.iter_mut().enumerate() {
             if let Poll::Ready(r) = pin!(h).poll(cx) {
+                // This future can be called multiple times, as long as there
+                // are handles to be consumed
                 self.handles.remove(ix);
                 return Poll::Ready(r);
             }
