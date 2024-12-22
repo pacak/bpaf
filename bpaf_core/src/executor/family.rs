@@ -4,13 +4,13 @@
 //!
 //! For parallel case it is important to know mutual exclusivity, for sequential case - parser priority
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
-
-use crate::{error::Error, executor::Arg, named::Name};
+use crate::{error::Error, executor::Arg, named::Name, pecking::Pecking};
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Id(u32);
 impl Id {
+    pub(crate) const ZERO: Self = Self(0);
     const ROOT: Self = Self(1);
 }
 
@@ -51,8 +51,8 @@ pub struct Parent {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub(crate) struct BranchId {
-    parent: Id,
-    field: u32,
+    pub(crate) parent: Id,
+    pub(crate) field: u32,
 }
 
 impl std::fmt::Debug for BranchId {
@@ -70,6 +70,12 @@ impl BranchId {
         parent: Id::ROOT,
         field: 0,
     };
+    pub(crate) fn succ(&self) -> Self {
+        Self {
+            parent: self.parent,
+            field: self.field + 1,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -142,7 +148,7 @@ pub(crate) struct FamilyTree<'ctx> {
 impl<'ctx> FamilyTree<'ctx> {
     pub(crate) fn add_positional(&mut self, id: Id) {
         let branch = self.tasks.get(&id).unwrap().branch;
-        self.positional.insert(id, branch);
+        self.positional.insert(branch, id);
     }
 
     pub(crate) fn remove_positional(&mut self, id: Id) {
@@ -159,14 +165,14 @@ impl<'ctx> FamilyTree<'ctx> {
         };
         for name in names.iter() {
             self.conflicts.remove(name);
-            map.entry(name.clone()).or_default().insert(id, branch);
+            map.entry(name.clone()).or_default().insert(branch, id);
         }
         // println!("Added {names:?}, now it is {self:?}");
     }
 
     pub(crate) fn add_fallback(&mut self, id: Id) {
         let branch = self.tasks.get(&id).unwrap().branch;
-        self.fallback.insert(id, branch);
+        self.fallback.insert(branch, id);
     }
     pub(crate) fn remove_fallback(&mut self, id: Id) {
         println!("removing fallback {id:?}");
@@ -198,7 +204,7 @@ impl<'ctx> FamilyTree<'ctx> {
                 continue;
             };
             entry.get_mut().remove(branch, id);
-            if entry.get().0.is_empty() {
+            if entry.get().is_empty() {
                 entry.remove();
             }
         }
@@ -207,7 +213,7 @@ impl<'ctx> FamilyTree<'ctx> {
 
     pub(crate) fn pick_fallback(&mut self, out: &mut Vec<(BranchId, Id)>) {
         out.clear();
-        self.fallback.queue_heads(out);
+        out.extend(self.fallback.heads());
     }
 
     pub(crate) fn pick_parsers_for(
@@ -226,17 +232,18 @@ impl<'ctx> FamilyTree<'ctx> {
                 value: Some(_),
             } => {
                 if let Some(q) = self.args.get_mut(name) {
-                    q.queue_all(out);
+                    out.extend(q.iter());
+                //                    q.queue_all(out);
                 } else {
                     todo!("not found {name:?}")
                 }
             }
             Arg::Named { name, value: None } => {
                 if let Some(q) = self.flags.get_mut(name) {
-                    q.queue_all(out);
+                    out.extend(q.heads());
                 };
                 if let Some(q) = self.args.get_mut(name) {
-                    q.queue_all(out);
+                    out.extend(q.heads());
                 };
                 if out.is_empty() {
                     if let Some(x) = self.conflicts.get(name) {
@@ -248,7 +255,7 @@ impl<'ctx> FamilyTree<'ctx> {
             }
             Arg::ShortSet { names, current } => todo!(),
             Arg::Positional { value: _ } => {
-                self.positional.queue_heads(out);
+                out.extend(self.positional.heads());
             }
         }
         println!("Got {out:?}");
@@ -273,68 +280,5 @@ impl<'ctx> FamilyTree<'ctx> {
 
     pub(crate) fn remove(&mut self, id: Id) {
         self.tasks.remove(&id);
-    }
-}
-
-/// # Pecking order
-///
-/// For as long as there's only one task to wake up for the input - it is safe to just
-/// wake it up and be done with it, but users are allowed to specify multiple consumers for the
-/// same name as well as multiple positional consumers that don't have names at all. This requires
-/// deciding which parser gets to run first or gets to run at all.
-///
-/// Rules for priority are:
-///
-/// - sum branches run in parallel, left most wins if there's multiple successes
-/// - parsers inside a product run sequentially, left most wins
-///
-/// Therefore we are going to arrange tasks in following order:
-/// There's one queue for each branch_id (sum parent id + field), every queue contains
-/// items from the same product, so their priority is how far from the left end they are
-///
-/// In practice all we need is a single BTreeSet :)
-///
-/// "any" parsers get to run for both named and positional input inside their branch
-/// accoding to their priority, if at the front. Consider a few queues
-/// - `[named, any]` - `any` doesn't run since `named` takes priority
-/// - `[any1, named, any2]` - `any1` runs, if it fails to match anything - `named` runs.
-/// - `[any1, any2, named]` - `any1` runs, if not - `any2`, if not - `named`
-///
-/// "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
-
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Pecking(BTreeSet<(Id, BranchId)>);
-
-impl Pecking {
-    /// removes an item from a pecking order,
-    // TODO - flip here or in insert
-    fn remove(&mut self, branch: BranchId, id: Id) {
-        self.0.remove(&(id, branch));
-    }
-
-    fn insert(&mut self, id: Id, branch: BranchId) {
-        self.0.insert((id, branch));
-    }
-
-    fn queue_all(&self, ids: &mut Vec<(BranchId, Id)>) {
-        ids.extend(self.0.iter().copied().map(|(i, b)| (b, i)));
-    }
-
-    /// use for Positional items that we know will succeed for sure
-    fn queue_heads(&self, ids: &mut Vec<(BranchId, Id)>) {
-        let mut prev_branch = None;
-        // iteration gives first id from each branch before
-        // before switching to the second id from one of the branches that have more than one item
-        for (id, branch) in self.0.iter().copied() {
-            if let Some(prev) = prev_branch {
-                // if new branch is not greater than previous item - we've are
-                // on a second lap, time to stop.
-                if prev >= branch {
-                    break;
-                }
-            }
-            ids.push((branch, id));
-            prev_branch = Some(branch);
-        }
     }
 }
