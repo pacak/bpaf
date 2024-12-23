@@ -255,6 +255,7 @@ struct Runner<'ctx> {
     /// step are in conflict with the last consumed segment
     winners: Vec<Id>,
 
+    /// Used to generate errors for conflicts
     prev_pos: usize,
 }
 
@@ -483,8 +484,16 @@ impl<'a> Runner<'a> {
                     ids.extend(p.heads());
                 }
             }
-            Arg::ShortSet { current, names } => todo!(),
-            Arg::Positional { value } => {
+            Arg::ShortSet { current, names } => {
+                let name = Name::Short(names[*current]);
+                if let Some(p) = self.args.get(&name) {
+                    ids.extend(p.heads());
+                }
+                if let Some(p) = self.flags.get(&name) {
+                    ids.extend(p.heads());
+                }
+            }
+            Arg::Positional { value: _ } => {
                 ids.extend(self.positional.heads());
             }
         }
@@ -531,8 +540,82 @@ impl<'a> Runner<'a> {
         // }
     }
 
-    fn consume(&mut self, ids: &mut Vec<(BranchId, Id)>) -> Result<(), Error> {
-        todo!()
+    fn consume(
+        &mut self,
+        front: Arg<'a>,
+        ids: &mut Vec<(BranchId, Id)>,
+        out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
+    ) -> Result<(), Error> {
+        debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
+
+        *self.ctx.front.borrow_mut() = Some(front);
+
+        // actual feed consumption happens here
+        let mut max_consumed = 0;
+
+        let mut last_branch = BranchId::ZERO;
+        for (branch, id) in ids.drain(..) {
+            if branch == last_branch {
+                println!("skipping {id:?}");
+                continue;
+            }
+            // each scheduled task gets a chance to run,
+            if let Some(task) = self.tasks.get_mut(&id) {
+                let (poll, consumed) = self.ctx.run_task(task);
+                task.consumed += consumed as u32;
+                if poll.is_ready() {
+                    last_branch = branch;
+                }
+
+                println!(
+                    "{id:?} consumed {consumed}, is ready? {:?}!",
+                    poll.is_ready()
+                );
+                out.push((id, poll, consumed));
+
+                max_consumed = consumed.max(max_consumed);
+            } else {
+                todo!("got already terminated parser");
+            }
+        }
+
+        for (id, poll, consumed) in out.drain(..) {
+            if let Poll::Ready(eh) = poll {
+                if consumed < max_consumed {
+                    eh.set(Some(Error::fail("terminated due to low priority")));
+                } else {
+                    self.winners.push(id);
+                }
+                self.handle_task_exit(id, eh);
+            }
+        }
+
+        let front = self.ctx.front.borrow_mut().take();
+        match front {
+            Some(Arg::ShortSet { current, names }) => {
+                if max_consumed == 0 {
+                    if names.len() > current + 1 {
+                        let arg = Arg::ShortSet {
+                            current: current + 1,
+                            names,
+                        };
+                        *self.ctx.front.borrow_mut() = Some(arg);
+
+                        println!("Microadvance by 1");
+                    } else {
+                        self.ctx.advance(1);
+                    }
+                } else {
+                    todo!("any?");
+                }
+            }
+            _ => {
+                self.prev_pos = self.ctx.cur();
+                self.ctx.advance(max_consumed);
+            }
+        }
+
+        Ok(())
     }
 
     fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
@@ -582,59 +665,22 @@ impl<'a> Runner<'a> {
                 println!("nothing to consume");
                 break;
             };
-            // TODO - here we should check if we saw -- and in argument-only mode
-            let front = split_param(front_arg, &self.args, &self.flags)?;
+
+            // TODO - here we should check if we saw "--" and in argument-only mode
+
+            let front = if let Some(set @ Arg::ShortSet { .. }) = self.ctx.front.borrow_mut().take()
+            {
+                // if we are in the middle of micro-advance - keep doing it
+                set
+            } else {
+                split_param(front_arg, &self.args, &self.flags)?
+            };
 
             self.pick_parsers(&front, &mut ids)?;
             println!("Going to parse {front:?} with {ids:?}");
+            self.consume(front, &mut ids, &mut out)?;
 
-            *self.ctx.front.borrow_mut() = Some(front);
-            debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
-
-            // actual feed consumption happens here
-            let mut max_consumed = 0;
-
-            let mut last_branch = BranchId::ZERO;
-            for (branch, id) in ids.drain(..) {
-                if branch == last_branch {
-                    println!("skipping {id:?}");
-                    continue;
-                }
-                // each scheduled task gets a chance to run,
-                if let Some(task) = self.tasks.get_mut(&id) {
-                    let (poll, consumed) = self.ctx.run_task(task);
-                    task.consumed += consumed as u32;
-                    if consumed > 0 {
-                        last_branch = branch;
-                    }
-
-                    println!(
-                        "{id:?} consumed {consumed}, is ready? {:?}!",
-                        poll.is_ready()
-                    );
-                    out.push((id, poll, consumed));
-
-                    max_consumed = consumed.max(max_consumed);
-                } else {
-                    println!("family gave us terminated parser {id:?} for {front_arg:?}");
-                }
-            }
-
-            for (id, poll, consumed) in out.drain(..) {
-                if let Poll::Ready(eh) = poll {
-                    if consumed < max_consumed {
-                        eh.set(Some(Error::fail("terminated due to low priority")));
-                    } else {
-                        self.winners.push(id);
-                    }
-                    self.handle_task_exit(id, eh);
-                }
-            }
-
-            self.prev_pos = self.ctx.cur();
-            self.ctx.advance(max_consumed);
-
-            println!("============= Consuming part done, advanced by {max_consumed}");
+            println!("============= Consuming part done");
         }
 
         // at this point there's nothing left to consume, let's run existing tasks to completion
