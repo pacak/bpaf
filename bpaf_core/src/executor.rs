@@ -174,7 +174,7 @@ pub(crate) enum Op<'a> {
 
 pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) -> Result<T, String>
 where
-    T: 'static + std::fmt::Debug,
+    T: 'static,
 {
     let args = Into::into(args);
     parse_args(parser, args.as_ref()).map_err(|e| e.render())
@@ -182,7 +182,7 @@ where
 
 fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
 where
-    T: 'static + std::fmt::Debug,
+    T: 'static,
 {
     let runner = Runner {
         ctx: Ctx::new(args),
@@ -613,7 +613,7 @@ impl<'a> Runner<'a> {
     fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
         P: Parser<T>,
-        T: std::fmt::Debug + 'static,
+        T: 'static,
     {
         let (root_id, root_waker) = self.next_id();
 
