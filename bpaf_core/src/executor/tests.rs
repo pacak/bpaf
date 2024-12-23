@@ -8,11 +8,12 @@ use super::{run_parser, Alt, Parser};
 
 #[test]
 fn simple_flag_parser() {
-    let alice = long("alice").switch();
-    let r = run_parser(&alice, ["--alice"]);
+    let parser = long("alice").switch().to_options();
+
+    let r = parser.run_inner(["--alice"]);
     assert_eq!(r, Ok(true));
 
-    let r = run_parser(&alice, []);
+    let r = parser.run_inner([]);
     assert_eq!(r, Ok(false));
 }
 
@@ -21,29 +22,29 @@ fn pair_of_flags() {
     let alice = long("alice").switch();
     let bob = long("bob").switch();
 
-    let both = construct!(alice, bob);
+    let parser = construct!(alice, bob).to_options();
 
-    let r = run_parser(&both, ["--alice", "--bob"]);
+    let r = parser.run_inner(["--alice", "--bob"]);
     assert_eq!(r, Ok((true, true)));
 
-    let r = run_parser(&both, ["--bob"]);
+    let r = parser.run_inner(["--bob"]);
     assert_eq!(r, Ok((false, true)));
 
-    let r = run_parser(&both, ["--alice"]);
+    let r = parser.run_inner(["--alice"]);
     assert_eq!(r, Ok((true, false)));
 
-    let r = run_parser(&both, []);
+    let r = parser.run_inner([]);
     assert_eq!(r, Ok((false, false)));
 }
 
 #[test]
 fn req_flag_simple() {
-    let alice = long("alice").req_flag(());
+    let parser = long("alice").req_flag(()).to_options();
 
-    let r = run_parser(&alice, ["--alice"]);
+    let r = parser.run_inner(["--alice"]);
     assert_eq!(r, Ok(()));
 
-    let r = run_parser(&alice, []).unwrap_err();
+    let r = parser.run_inner([]).unwrap_err();
     assert_eq!(r, "Expected --alice");
 }
 
@@ -52,9 +53,9 @@ fn alt_of_req() {
     let alice = long("alice").req_flag('a').into_box();
     let bob = long("bob").req_flag('b').into_box();
 
-    let alt = construct!([alice, bob]);
+    let parser = construct!([alice, bob]).to_options();
 
-    let r = run_parser(&alt, &["--bob"]);
+    let r = parser.run_inner(["--bob"]);
     assert_eq!(r, Ok('b'));
 
     // let r = run_parser(&alt, &["--alice", "--bob"]);
@@ -68,19 +69,19 @@ fn alt_of_req() {
 fn pair_of_duplicated_names() {
     let alice1 = long("alice").req_flag('1').into_box();
     let alice2 = long("alice").req_flag('2').into_box();
-    let pair = construct!(alice1, alice2);
-    let r = run_parser(&pair, &["--alice", "--alice"]);
+    let parser = construct!(alice1, alice2).to_options();
+    let r = parser.run_inner(["--alice", "--alice"]);
     assert_eq!(r, Ok(('1', '2')));
 }
 
 #[test]
 fn simple_positional() {
-    let a = positional::<String>("ARG");
+    let parser = positional::<String>("ARG").to_options();
 
-    let r = run_parser(&a, &[]).unwrap_err();
+    let r = parser.run_inner([]).unwrap_err();
     assert_eq!(r, "Expected <ARG>");
 
-    let r = run_parser(&a, &["item"]);
+    let r = parser.run_inner(["item"]);
     assert_eq!(r.as_deref(), Ok("item"));
 }
 
