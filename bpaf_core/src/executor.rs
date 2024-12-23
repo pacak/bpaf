@@ -3,7 +3,7 @@ use crate::{
     error::Error,
     named::Name,
     pecking::Pecking,
-    split::{split_param, Arg, OsOrStr},
+    split::{split_param, Arg, Args, OsOrStr},
     Metavisit, Parser,
 };
 use std::{
@@ -172,19 +172,12 @@ pub(crate) enum Op<'a> {
     },
 }
 
-pub fn run_parser<'a, T, I>(
-    parser: &'a impl Parser<T>,
-    args: impl IntoIterator<Item = I>,
-) -> Result<T, String>
+pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) -> Result<T, String>
 where
     T: 'static + std::fmt::Debug,
-    OsOrStr<'a>: From<I>,
 {
-    let args = args
-        .into_iter()
-        .map(|a| OsOrStr::from(a))
-        .collect::<Vec<_>>();
-    parse_args(parser, &args).map_err(|e| e.render())
+    let args = Into::into(args);
+    parse_args(parser, args.as_ref()).map_err(|e| e.render())
 }
 
 fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
@@ -253,6 +246,8 @@ struct Runner<'ctx> {
     /// Any consuming parsers that are not in this
     /// list but are terminated in the following non advancing
     /// step are in conflict with the last consumed segment
+    ///
+    /// This exists to produce better error messages
     winners: Vec<Id>,
 
     /// Used to generate errors for conflicts
@@ -368,7 +363,6 @@ impl<'a> Runner<'a> {
                     branch,
                     id,
                 } => {
-                    let branch = self.tasks[&id].branch;
                     let map = if flag {
                         &mut self.flags
                     } else {
@@ -600,8 +594,6 @@ impl<'a> Runner<'a> {
                             names,
                         };
                         *self.ctx.front.borrow_mut() = Some(arg);
-
-                        println!("Microadvance by 1");
                     } else {
                         self.ctx.advance(1);
                     }

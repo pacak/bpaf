@@ -7,9 +7,77 @@ use std::{
     str::FromStr,
 };
 
-struct ArgItem {
-    force_pos: bool,
-    value: OsOrStr<'static>,
+pub struct Args<'a> {
+    args: Vec<OsOrStr<'a>>,
+}
+impl<'a> AsRef<[OsOrStr<'a>]> for Args<'a> {
+    fn as_ref(&self) -> &[OsOrStr<'a>] {
+        self.args.as_slice()
+    }
+}
+
+impl<'a, const N: usize> From<&'a [&'a str; N]> for Args<'a> {
+    fn from(value: &'a [&'a str; N]) -> Self {
+        Self {
+            args: value.iter().copied().map(OsOrStr::from).collect(),
+        }
+    }
+}
+
+impl<'a, const N: usize> From<[&'a str; N]> for Args<'a> {
+    fn from(value: [&'a str; N]) -> Self {
+        Self {
+            args: value.iter().copied().map(OsOrStr::from).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a [&'a OsStr]> for Args<'a> {
+    fn from(value: &'a [&'a OsStr]) -> Self {
+        Self {
+            args: value.iter().copied().map(OsOrStr::from).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a [&'a str]> for Args<'a> {
+    fn from(value: &'a [&'a str]) -> Self {
+        Self {
+            args: value.iter().copied().map(OsOrStr::from).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a [String]> for Args<'a> {
+    fn from(value: &'a [String]) -> Self {
+        Self {
+            args: value.iter().map(|s| OsOrStr::from(s.as_str())).collect(),
+        }
+    }
+}
+
+impl<'a> From<&'a [OsString]> for Args<'a> {
+    fn from(value: &'a [OsString]) -> Self {
+        Self {
+            args: value.iter().map(|s| OsOrStr::from(s.as_os_str())).collect(),
+        }
+    }
+}
+
+impl From<std::env::Args> for Args<'static> {
+    fn from(value: std::env::Args) -> Self {
+        Self {
+            args: value.into_iter().map(OsOrStr::from).collect(),
+        }
+    }
+}
+
+impl From<std::env::ArgsOs> for Args<'static> {
+    fn from(value: std::env::ArgsOs) -> Self {
+        Self {
+            args: value.into_iter().map(OsOrStr::from).collect(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -78,15 +146,27 @@ impl<'a> From<&'a str> for OsOrStr<'a> {
     }
 }
 
-impl<'a> From<&&'a str> for OsOrStr<'a> {
-    fn from(value: &&'a str) -> Self {
-        Self::Str(Cow::Borrowed(value))
+impl From<String> for OsOrStr<'static> {
+    fn from(value: String) -> Self {
+        Self::Str(Cow::Owned(value))
     }
 }
 
-impl<'a> From<&'a String> for OsOrStr<'a> {
-    fn from(value: &'a String) -> Self {
-        Self::Str(Cow::Borrowed(value))
+// impl<'a> From<&&'a str> for OsOrStr<'a> {
+//     fn from(value: &&'a str) -> Self {
+//         Self::Str(Cow::Borrowed(value))
+//     }
+// }
+
+impl<'a> From<&'a OsStr> for OsOrStr<'a> {
+    fn from(value: &'a OsStr) -> Self {
+        Self::Os(Cow::Borrowed(value))
+    }
+}
+
+impl From<OsString> for OsOrStr<'static> {
+    fn from(value: OsString) -> Self {
+        Self::Os(Cow::Owned(value))
     }
 }
 
