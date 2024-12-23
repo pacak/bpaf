@@ -75,15 +75,9 @@ pub(crate) struct FamilyTree<'ctx> {
 }
 
 impl<'ctx> FamilyTree<'ctx> {
-    pub(crate) fn add_positional(&mut self, id: Id) {
-        let branch = self.tasks.get(&id).unwrap().branch;
-        self.positional.insert(branch, id);
-    }
+    pub(crate) fn add_positional(&mut self, id: Id) {}
 
-    pub(crate) fn remove_positional(&mut self, id: Id) {
-        let branch = self.tasks.get(&id).unwrap().branch;
-        self.positional.remove(branch, id);
-    }
+    pub(crate) fn remove_positional(&mut self, id: Id) {}
 
     pub(crate) fn remove_named(
         &mut self,
@@ -92,27 +86,6 @@ impl<'ctx> FamilyTree<'ctx> {
         names: &[Name<'static>],
         conflict: Option<usize>,
     ) {
-        if let Some(conflict) = conflict {
-            for name in names {
-                self.conflicts.insert(name.clone(), conflict);
-            }
-        }
-        let branch = self.tasks.get(&id).unwrap().branch;
-        let map = if flag {
-            &mut self.flags
-        } else {
-            &mut self.args
-        };
-        for name in names {
-            let std::collections::btree_map::Entry::Occupied(mut entry) = map.entry(name.clone())
-            else {
-                continue;
-            };
-            entry.get_mut().remove(branch, id);
-            if entry.get().is_empty() {
-                entry.remove();
-            }
-        }
         //        self.tasks.remove(&id);
     }
 
