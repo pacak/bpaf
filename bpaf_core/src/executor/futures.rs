@@ -328,7 +328,14 @@ impl Future for FlagFut<'_> {
                     self.missing()
                 }
             }
-            Arg::ShortSet { current, names } => todo!(),
+            Arg::ShortSet { current, names } => {
+                let short = Name::Short(names[*current]);
+                if self.name.contains(&short) {
+                    Poll::Ready(Ok(()))
+                } else {
+                    todo!();
+                }
+            }
             Arg::Positional { value } => todo!(),
         }
     }
