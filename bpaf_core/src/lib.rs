@@ -6,6 +6,8 @@ mod pecking;
 mod split;
 mod visitor;
 
+use split::Args;
+
 pub use crate::{
     ctx::Ctx,
     error::Error,
@@ -589,6 +591,35 @@ pub trait Parser<T: 'static> {
         Self: Sized,
     {
         Cx(Optional { inner: self })
+    }
+
+    fn to_options(self) -> Cx<Options<T>>
+    where
+        Self: Sized + 'static,
+    {
+        Cx(Options {
+            parser: self.into_box(),
+        })
+    }
+}
+
+pub struct Options<T> {
+    parser: Box<dyn Parser<T>>,
+}
+
+pub type OptionParser<T> = Cx<Options<T>>;
+
+impl<T: 'static> Cx<Options<T>> {
+    pub fn run(&self) -> T {
+        self.try_run().unwrap() // TODO
+    }
+
+    pub fn try_run(&self) -> Result<T, String> {
+        run_parser(&self.0.parser, std::env::args_os())
+    }
+
+    pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, String> {
+        run_parser(&self.0.parser, args)
     }
 }
 
