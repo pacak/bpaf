@@ -64,7 +64,7 @@ impl<'a> From<&'a [OsString]> for Args<'a> {
     }
 }
 
-impl From<std::env::Args> for Args<'static> {
+impl From<std::env::Args> for Args<'_> {
     fn from(value: std::env::Args) -> Self {
         Self {
             args: value.into_iter().map(OsOrStr::from).collect(),
@@ -72,7 +72,7 @@ impl From<std::env::Args> for Args<'static> {
     }
 }
 
-impl From<std::env::ArgsOs> for Args<'static> {
+impl From<std::env::ArgsOs> for Args<'_> {
     fn from(value: std::env::ArgsOs) -> Self {
         Self {
             args: value.into_iter().map(OsOrStr::from).collect(),
