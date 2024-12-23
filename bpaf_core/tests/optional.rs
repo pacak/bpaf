@@ -4,7 +4,7 @@ use bpaf_core::*;
 fn simple() {
     let a = short('a').argument::<usize>("A").optional();
 
-    let r = run_parser::<_, &&str>(&a, &[]).unwrap();
+    let r = run_parser(&a, []).unwrap();
 
     assert_eq!(r, None);
 }
@@ -21,7 +21,7 @@ fn nested() {
     let r = run_parser(&ab, ["1", "-b"]).unwrap_err();
     assert_eq!(r, "unexpected item!");
 
-    let r = run_parser::<_, &&str>(&ab, []).unwrap();
+    let r = run_parser(&ab, []).unwrap();
     assert_eq!(r, None);
 
     let r = run_parser(&ab, ["-b", "3", "1"]).unwrap();
