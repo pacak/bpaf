@@ -493,6 +493,7 @@ impl<'a> Runner<'a> {
         }
     }
 
+    /// Pick one or more parsers that can handle front argument
     fn pick_parsers(&self, front: &Arg, ids: &mut Vec<(BranchId, Id)>) {
         debug_assert!(ids.is_empty());
         match front {
@@ -654,7 +655,7 @@ impl<'a> Runner<'a> {
 
             let Some(front_arg) = self.ctx.args.get(self.ctx.cur()) else {
                 println!("nothing to consume");
-                break false;
+                break None;
             };
 
             // TODO - here we should check if we saw "--" and in argument-only mode
@@ -668,7 +669,7 @@ impl<'a> Runner<'a> {
                     let front = Arg::ShortSet { current, names };
                     self.pick_parsers(&front, &mut ids);
                     if ids.is_empty() {
-                        break 'outer true;
+                        break 'outer Some(front);
                     }
                     self.consume(front, &mut ids, &mut out)?;
                 }
@@ -677,7 +678,7 @@ impl<'a> Runner<'a> {
 
             self.pick_parsers(&front, &mut ids);
             if ids.is_empty() {
-                break true;
+                break Some(front);
             }
             self.consume(front, &mut ids, &mut out)?;
             println!("============= Consuming part done");
@@ -704,12 +705,11 @@ impl<'a> Runner<'a> {
         println!("Final propagation");
         self.propagate();
 
-        match handle.as_mut().poll(&mut root_cx) {
-            Poll::Ready(t) => match t {
-                Ok(_) if unparsed => todo!(),
-                r => r,
-            },
-            Poll::Pending => panic!("process is complete but somehow we don't have a result o_O"),
+        let r = handle.as_mut().poll(&mut root_cx);
+        match (r, unparsed) {
+            (Poll::Pending, _) => unreachable!("bpaf internal error: Failed to produce result"),
+            (Poll::Ready(r), None) | (Poll::Ready(r @ Err(_)), _) => r,
+            (Poll::Ready(Ok(_)), Some(unconsumed)) => Err(self.explain_unparsed(&unconsumed)),
         }
     }
 
