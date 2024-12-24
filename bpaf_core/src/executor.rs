@@ -8,6 +8,7 @@ use crate::{
 };
 use std::{
     any::Any,
+    borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     marker::PhantomData,
@@ -170,6 +171,16 @@ pub(crate) enum Op<'a> {
     RemoveExitListener {
         parent: Id,
     },
+    AddLiteral {
+        branch: BranchId,
+        id: Id,
+        values: &'a [Name<'static>],
+    },
+    RemoveLiteral {
+        branch: BranchId,
+        id: Id,
+        values: &'a [Name<'static>],
+    },
 }
 
 pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) -> Result<T, String>
@@ -184,22 +195,7 @@ fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
 where
     T: 'static,
 {
-    let runner = Runner {
-        ctx: Ctx::new(args),
-        tasks: BTreeMap::new(),
-        pending: Default::default(),
-        next_task_id: 0,
-
-        parent_ids: Default::default(),
-        wake_on_child_exit: Default::default(),
-        winners: Vec::new(),
-        prev_pos: 0,
-        flags: Default::default(),
-        args: Default::default(),
-        fallback: Default::default(),
-        positional: Default::default(),
-        conflicts: Default::default(),
-    };
+    let runner = Runner::new(Ctx::new(args));
     runner.run_parser(parser)
 }
 
@@ -217,7 +213,28 @@ impl Wake for WakeTask {
     }
 }
 
-struct Runner<'ctx> {
+impl<'ctx> Runner<'ctx> {
+    pub(crate) fn new(ctx: Ctx<'ctx>) -> Self {
+        Self {
+            tasks: BTreeMap::new(),
+            pending: Default::default(),
+            next_task_id: 0,
+            parent_ids: Default::default(),
+            wake_on_child_exit: Default::default(),
+            winners: Vec::new(),
+            prev_pos: ctx.cur(),
+            flags: Default::default(),
+            args: Default::default(),
+            fallback: Default::default(),
+            positional: Default::default(),
+            conflicts: Default::default(),
+            literal: Default::default(),
+            ctx,
+        }
+    }
+}
+
+pub(crate) struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
     tasks: BTreeMap<Id, Task<'ctx>>,
@@ -234,6 +251,8 @@ struct Runner<'ctx> {
     pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
     fallback: Pecking,
     positional: Pecking,
+
+    literal: BTreeMap<Name<'ctx>, Pecking>,
 
     conflicts: BTreeMap<Name<'ctx>, usize>,
 
@@ -379,15 +398,16 @@ impl<'a> Runner<'a> {
                     branch,
                     id,
                 } => {
-                    let conflict = if self.winners.contains(&id) || self.ctx.args.is_empty() {
-                        None
-                    } else {
-                        println!(
-                            "Conflict between {names:?} and {:?}",
-                            &self.ctx.args[self.prev_pos]
-                        );
-                        Some(self.prev_pos)
-                    };
+                    let conflict =
+                        if self.winners.contains(&id) || self.ctx.front.borrow().is_none() {
+                            None
+                        } else {
+                            println!(
+                                "Conflict between {names:?} and {:?}",
+                                &self.ctx.args[self.prev_pos]
+                            );
+                            Some(self.prev_pos)
+                        };
                     println!("{id:?}: Remove listener for {names:?}");
 
                     if let Some(conflict) = conflict {
@@ -463,6 +483,21 @@ impl<'a> Runner<'a> {
                     println!("Removing exit fallback from {id:?}");
                     self.fallback.remove(branch, id);
                 }
+                Op::AddLiteral { branch, id, values } => {
+                    for val in values {
+                        self.literal
+                            .entry(val.clone())
+                            .or_default()
+                            .insert(branch, id);
+                    }
+                }
+                Op::RemoveLiteral { branch, id, values } => {
+                    for val in values {
+                        if let Some(e) = self.literal.get_mut(val) {
+                            e.remove(branch, id);
+                        }
+                    }
+                }
             }
         }
     }
@@ -487,7 +522,18 @@ impl<'a> Runner<'a> {
                     ids.extend(p.heads());
                 }
             }
-            Arg::Positional { value: _ } => {
+            Arg::Positional { value } => {
+                if let OsOrStr::Str(name) = &value {
+                    let mut cs = name.chars();
+                    if let (Some(c), None) = (cs.next(), cs.next()) {
+                        let name = Name::Short(c);
+                        if let Some(p) = self.literal.get(&name) {
+                            ids.extend(p.heads());
+                        }
+                    } else if let Some(p) = self.literal.get(&Name::Long(Cow::Borrowed(name))) {
+                        ids.extend(p.heads());
+                    }
+                }
                 ids.extend(self.positional.heads());
             }
         }
@@ -536,13 +582,10 @@ impl<'a> Runner<'a> {
 
     fn consume(
         &mut self,
-        front: Arg<'a>,
         ids: &mut Vec<(BranchId, Id)>,
         out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
     ) -> Result<(), Error> {
         debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
-
-        *self.ctx.front.borrow_mut() = Some(front);
 
         // actual feed consumption happens here
         let mut max_consumed = 0;
@@ -610,7 +653,7 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
+    pub(crate) fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
         P: Parser<T>,
         T: 'static,
@@ -644,6 +687,9 @@ impl<'a> Runner<'a> {
         //   that couldn't consume everything.
         let mut ids = Vec::new();
         let mut out = Vec::new();
+
+        println!("Need to parse {:?}", &self.ctx.args.get(self.ctx.cur()..));
+
         loop {
             self.propagate();
             println!("============= Propagate done");
@@ -668,9 +714,11 @@ impl<'a> Runner<'a> {
                 split_param(front_arg, &self.args, &self.flags)?
             };
 
+            println!("Picking parser for {front:?}");
             self.pick_parsers(&front, &mut ids)?;
             println!("Going to parse {front:?} with {ids:?}");
-            self.consume(front, &mut ids, &mut out)?;
+            *self.ctx.front.borrow_mut() = Some(front);
+            self.consume(&mut ids, &mut out)?;
 
             println!("============= Consuming part done");
         }
@@ -679,12 +727,37 @@ impl<'a> Runner<'a> {
         // first by waking them up all the consuming events (most of them fail with "not found")
         // and then by processing all the non-consuming events - this would either create some
         // errors or or those "not found" errors are going to be converted into something useful
+
         self.ctx.set_term(true);
-        let mut shared = self.ctx.shared.borrow_mut();
-        for id in self.tasks.keys().copied() {
-            shared.push_back(Op::WakeTask { id, error: None });
+        self.drain_all_consumers(&mut ids);
+        ids.sort();
+        println!(
+            "Going to terminate all the consumers: {ids:?}, cursor {:?}",
+            self.ctx.cur()
+        );
+        self.ctx.cur();
+        *self.ctx.front.borrow_mut() = None;
+        for (_branch, id) in ids.drain(..) {
+            if let Some(task) = self.tasks.get_mut(&id) {
+                let (poll, consumed) = self.ctx.run_task(task);
+                debug_assert_eq!(consumed, 0, "Consumed during termination?");
+                debug_assert!(poll.is_ready(), "Termination left task stil pending?");
+                if let Poll::Ready(handle) = poll {
+                    self.handle_task_exit(id, handle);
+                }
+            }
         }
-        drop(shared);
+        // let mut shared = self.ctx.shared.borrow_mut();
+        //
+        // println!(
+        //     "Waking tasks to terminate them, current position is still at {:?}",
+        //     self.ctx.cur()
+        // );
+        // for id in self.tasks.keys().copied() {
+        //     shared.push_back(Op::WakeTask { id, error: None });
+        // }
+        // drop(shared);
+        println!("Final propagation");
         self.propagate();
 
         match handle.as_mut().poll(&mut root_cx) {
@@ -706,6 +779,16 @@ impl<'a> Runner<'a> {
             }
         }
         parent_id
+    }
+
+    #[inline(never)]
+    /// Drain all consumers so they can be polled to emit default values
+    fn drain_all_consumers(&mut self, ids: &mut Vec<(BranchId, Id)>) {
+        ids.extend(self.flags.values().flat_map(|v| v.iter()));
+        ids.extend(self.positional.iter());
+        ids.extend(self.args.values().flat_map(|v| v.iter()));
+        ids.extend(self.literal.values().flat_map(|v| v.iter()));
+        // TODO: any
     }
 
     #[inline(never)]

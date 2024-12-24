@@ -3,6 +3,7 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
+    os::unix::ffi::OsStrExt,
     path::PathBuf,
     str::FromStr,
 };
@@ -132,10 +133,19 @@ impl OsOrStr<'_> {
 }
 
 impl<'a> OsOrStr<'a> {
-    fn as_ref(&'a self) -> OsOrStr<'a> {
+    pub(crate) fn as_ref(&'a self) -> OsOrStr<'a> {
         match self {
             OsOrStr::Str(cow) => Self::Str(Cow::Borrowed(cow.as_ref())),
             OsOrStr::Os(cow) => Self::Os(Cow::Borrowed(cow.as_ref())),
+        }
+    }
+}
+
+impl PartialEq<str> for OsOrStr<'_> {
+    fn eq(&self, other: &str) -> bool {
+        match self {
+            OsOrStr::Str(cow) => cow == other,
+            OsOrStr::Os(cow) => other == AsRef::<OsStr>::as_ref(&cow),
         }
     }
 }

@@ -139,7 +139,7 @@ impl Future for EarlyExitFut<'_> {
 
         if let Some(err) = self.ctx.child_exit.take() {
             self.early_err = Some(match self.early_err.take() {
-                Some(e) => e.combine_with(err),
+                Some(e) => err.combine_with(e),
                 None => err,
             });
         }
@@ -336,7 +336,65 @@ impl Future for FlagFut<'_> {
                     todo!();
                 }
             }
-            Arg::Positional { value } => todo!(),
+            Arg::Positional { value } => {
+                todo!("Found {value:?}, expected one of {:?}", self.name);
+            }
+        }
+    }
+}
+
+/// Match literal positional value - doesn't start with - or --
+pub(crate) struct LiteralFut<'a> {
+    /// Name match values without prefix!
+    /// TODO - do I really want to keep Name here?
+    pub(crate) values: &'a [Name<'static>],
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) task_id: Option<(BranchId, Id)>,
+}
+
+impl<'ctx> LiteralFut<'ctx> {
+    fn missing(&self) -> Poll<Result<(), Error>> {
+        todo!()
+    }
+}
+
+impl<'ctx> Future for LiteralFut<'ctx> {
+    type Output = Result<(), Error>;
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task_id.is_none() {
+            let (branch, id) = self.ctx.current_task();
+            self.task_id = Some((branch, id));
+            self.ctx.add_literal_wake(self.values, branch, id);
+            return Poll::Pending;
+        }
+
+        let front = self.ctx.front.borrow();
+        let Some(front) = front.as_ref() else {
+            return self.missing();
+        };
+        // TODO - this can be less clumsy
+        if let Arg::Positional { value } = front {
+            let mut name = [0; 4];
+
+            for expected in self.values {
+                let expected = match expected {
+                    Name::Short(s) => s.encode_utf8(&mut name),
+                    Name::Long(long) => long.as_ref(),
+                };
+                if value == expected {
+                    return Poll::Ready(Ok(()));
+                }
+            }
+        }
+        todo!()
+    }
+}
+
+impl Drop for LiteralFut<'_> {
+    fn drop(&mut self) {
+        if let Some((branch, id)) = self.task_id.take() {
+            self.ctx.remove_literal(self.values, branch, id);
         }
     }
 }

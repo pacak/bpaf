@@ -3,8 +3,9 @@ use std::{borrow::Borrow, marker::PhantomData};
 use crate::{
     ctx::Ctx,
     error::Error,
-    executor::{BranchId, Fragment, Id, NodeKind, Parent},
-    Parser,
+    executor::{futures::LiteralFut, BranchId, Fragment, Id, NodeKind, Parent},
+    named::Name,
+    OptionParser, Parser,
 };
 
 #[derive(Clone)]
@@ -206,5 +207,32 @@ impl<'ctx> FallbackGuard<'ctx> {
 impl Drop for FallbackGuard<'_> {
     fn drop(&mut self) {
         self.ctx.remove_fallback(self.branch, self.id);
+    }
+}
+
+pub struct Command<T> {
+    pub(crate) names: Vec<Name<'static>>,
+    pub(crate) parser: OptionParser<T>,
+    pub(crate) adjacent: bool,
+}
+
+impl<T: 'static> Parser<T> for Command<T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(async move {
+            LiteralFut {
+                values: &self.names,
+                ctx: ctx.clone(),
+                task_id: None,
+            }
+            .await?;
+            println!("========== Running inner parser");
+            ctx.advance(1);
+            println!("{:?}", &ctx.args[ctx.cur()..]);
+            let runner = crate::executor::Runner::new(ctx);
+
+            let r = runner.run_parser(&self.parser.0.parser);
+            println!("=========== Inner done with {:?}", r.is_ok());
+            r
+        })
     }
 }

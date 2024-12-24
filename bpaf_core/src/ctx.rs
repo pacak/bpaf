@@ -114,6 +114,18 @@ impl<'a> Ctx<'a> {
         join
     }
 
+    fn queue(&self, op: Op<'a>) {
+        self.shared.borrow_mut().push_back(op);
+    }
+
+    pub(crate) fn add_literal_wake(&self, values: &'a [Name<'static>], branch: BranchId, id: Id) {
+        self.queue(Op::AddLiteral { branch, id, values })
+    }
+
+    pub(crate) fn remove_literal(&self, values: &'a [Name<'static>], branch: BranchId, id: Id) {
+        self.queue(Op::RemoveLiteral { branch, id, values })
+    }
+
     pub(crate) fn add_named_wake(
         &self,
         flag: bool,
