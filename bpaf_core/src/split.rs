@@ -3,7 +3,6 @@ use std::{
     borrow::Cow,
     collections::BTreeMap,
     ffi::{OsStr, OsString},
-    os::unix::ffi::OsStrExt,
     path::PathBuf,
     str::FromStr,
 };
