@@ -542,7 +542,6 @@ impl<'a> Runner<'a> {
         if ids.is_empty() {
             // looking for fallback
             ids.extend(self.fallback.heads());
-
             self.ctx.set_term(true);
         } else {
             self.ctx.set_term(false);
@@ -552,10 +551,12 @@ impl<'a> Runner<'a> {
 
     fn consume(
         &mut self,
+        front: Arg<'a>,
         ids: &mut Vec<(BranchId, Id)>,
         out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
     ) -> Result<(), Error> {
         debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
+        *self.ctx.front.borrow_mut() = Some(front);
 
         // actual feed consumption happens here
         let mut max_consumed = 0;
@@ -622,7 +623,7 @@ impl<'a> Runner<'a> {
 
         Ok(())
     }
-    pub(crate) fn give_up(&self, front: &Arg) -> Error {
+    pub(crate) fn explain_unparsed(&self, front: &Arg) -> Error {
         // Don't know how to parse front, time to produce the error
         // Potential errors are:
         // 1. two names cannot be used at once
@@ -648,31 +649,18 @@ impl<'a> Runner<'a> {
         let mut root_cx = Context::from_waker(&root_waker);
         debug_assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 
-        // After this point progress is separated in two distinct parts:
-        //
-        // - First we repeatedly handle all the pending request until there's
-        //   none left
-        //
-        // - then we pick one or more tasks to wake up to parse
-        //   the prefix of the output and run them in parallel.
-        //
-        //   Tasks that consume the most - keep running, the rest
-        //   gets terminated since they belong to alt branches
-        //   that couldn't consume everything.
+        // mostly to avoid allocations
         let mut ids = Vec::new();
         let mut out = Vec::new();
         let mut give_up = false;
-
-        println!("Need to parse {:?}", &self.ctx.args.get(self.ctx.cur()..));
 
         loop {
             self.propagate();
             println!("============= Propagate done");
 
             self.winners.clear();
-
-            assert!(self.ctx.shared.borrow().is_empty());
-            assert!(self.pending.lock().expect("poison").is_empty());
+            debug_assert!(self.ctx.shared.borrow().is_empty());
+            debug_assert!(self.pending.lock().expect("poison").is_empty());
 
             let Some(front_arg) = self.ctx.args.get(self.ctx.cur()) else {
                 println!("nothing to consume");
@@ -680,26 +668,31 @@ impl<'a> Runner<'a> {
             };
 
             // TODO - here we should check if we saw "--" and in argument-only mode
+            let mut front = split_param(front_arg, &self.args, &self.flags)?;
 
-            let front = if let Some(set @ Arg::ShortSet { .. }) = self.ctx.front.borrow_mut().take()
-            {
-                // if we are in the middle of micro-advance - keep doing it
-                set
-            } else {
-                split_param(front_arg, &self.args, &self.flags)?
-            };
+            if let Arg::ShortSet { current: _, names } = &mut front {
+                for current in 0..names.len() {
+                    // TODO - can avoid cloning here by either changing ShortSet
+                    // to be an RC or by fishing names back out from self.ctx.front
+                    let names = names.clone();
+                    let front = Arg::ShortSet { current, names };
+                    self.pick_parsers(&front, &mut ids);
+                    if ids.is_empty() {
+                        give_up = true;
+                        break;
+                    }
+                    self.consume(front, &mut ids, &mut out)?;
+                }
+                continue;
+            }
 
-            println!("Picking parser for {front:?}");
             self.pick_parsers(&front, &mut ids);
             if ids.is_empty() {
                 give_up = true;
                 break;
-                return Err(self.give_up(&front));
+                return Err(self.explain_unparsed(&front));
             }
-            println!("Going to parse {front:?} with {ids:?}");
-            *self.ctx.front.borrow_mut() = Some(front);
-            self.consume(&mut ids, &mut out)?;
-
+            self.consume(front, &mut ids, &mut out)?;
             println!("============= Consuming part done");
         }
 
