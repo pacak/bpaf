@@ -187,16 +187,9 @@ pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) 
 where
     T: 'static,
 {
-    let args = Into::into(args);
-    parse_args(parser, args.as_ref()).map_err(|e| e.render())
-}
-
-fn parse_args<T>(parser: &impl Parser<T>, args: &[OsOrStr]) -> Result<T, Error>
-where
-    T: 'static,
-{
-    let runner = Runner::new(Ctx::new(args));
-    runner.run_parser(parser)
+    Runner::new(Ctx::new(args.into().as_ref()))
+        .run_parser(parser)
+        .map_err(|e| e.render())
 }
 
 pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
