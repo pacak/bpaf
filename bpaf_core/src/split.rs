@@ -409,7 +409,7 @@ pub(crate) fn split_str_param<'a>(
                     let is_flags = names.iter().all(|f| flags.contains_key(&Name::Short(*f)));
 
                     match (is_arg, is_flags) {
-                        (true, true) => return Err(Error::fail("ambiguity")),
+                        (true, true) => return Err(Error::fail("ambiguity")), // TODO
                         (true, false) => Arg::Named {
                             name: Name::Short(names[0]),
                             value: Some(OsOrStr::from(arg)),
