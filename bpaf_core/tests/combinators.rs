@@ -42,8 +42,10 @@ fn sum_of_flag_arg1() {
 fn sum_of_flag_arg2() {
     let a = short('a').argument::<usize>("A");
     let b = short('a').req_flag('a').map(|_| 0);
-    let p = construct!(a, b);
+    let p = construct!(a, b).to_options();
+    let r = p.run_inner(["-a", "-a", "1"]);
 
-    assert_eq!((0, 1), run_parser(&p, ["-a", "-a", "1"]).unwrap());
+    todo!("{:?}", r);
+
     //assert_eq!((1, 0), run_parser(&p, ["-a", "1", "-a"]).unwrap());
 }
