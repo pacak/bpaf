@@ -1,10 +1,8 @@
 use crate::{
     construct,
     executor::{Ctx, Fragment},
-    long, positional, short,
+    long, positional, short, Parser,
 };
-
-use super::{run_parser, Alt, Parser};
 
 #[test]
 fn simple_flag_parser() {
@@ -89,23 +87,23 @@ fn simple_positional() {
 fn pair_of_positionals() {
     let alice = positional::<u32>("ALICE");
     let bob = positional::<u32>("BOB");
-    let both = construct!(alice, bob);
+    let parser = construct!(alice, bob).to_options();
 
-    let r = run_parser(&both, &["1", "2"]);
+    let r = parser.run_inner(["1", "2"]);
     assert_eq!(r, Ok((1, 2)));
 
-    let r = run_parser(&both, &["1"]).unwrap_err();
+    let r = parser.run_inner(["1"]).unwrap_err();
     assert_eq!(r, "Expected <BOB>");
 
-    let r = run_parser(&both, &[]).unwrap_err();
-    assert_eq!(r, "Expected <ALICE>");
+    let r = parser.run_inner([]).unwrap_err();
+    assert_eq!(r, "Expected <ALICE>, <BOB>");
 }
 
 #[test]
 fn many_positionals_good() {
-    let a = positional::<String>("A").many::<Vec<_>>();
+    let a = positional::<String>("A").many::<Vec<_>>().to_options();
 
-    let r = run_parser(&a, &["a", "b", "c"]).unwrap();
+    let r = a.run_inner(["a", "b", "c"]).unwrap();
     assert_eq!(r, &["a", "b", "c"]);
 }
 
@@ -115,8 +113,8 @@ fn depth_first() {
     let b = short('b').req_flag('b');
     let ab = construct!(a, b);
     let c = short('c').req_flag('c');
-    let abc = construct!(ab, c);
-    let r = run_parser(&abc, &["-a", "-b", "-c"]);
+    let parser = construct!(ab, c).to_options();
+    let r = parser.run_inner(["-a", "-b", "-c"]);
     assert_eq!(r, Ok((('a', 'b'), 'c')));
 }
 
@@ -125,9 +123,9 @@ fn depth_first() {
 fn many_positionals_bad() {
     let a = positional::<String>("A").many::<Vec<_>>();
     let b = positional::<String>("B");
-    let p = construct!(a, b);
+    let p = construct!(a, b).to_options();
 
-    let r = run_parser(&p, &["a", "b", "c"]).unwrap_err();
+    let r = p.run_inner(["a", "b", "c"]).unwrap_err();
     assert_eq!(r, "Expected <B>");
     //    assert_eq!(r,
 }
@@ -138,14 +136,12 @@ fn badly_emulated_args() {
     let bob_f = long("bob").req_flag('b').into_box();
     let alice_p = positional::<u32>("ALICE");
     let bob_p = positional::<u32>("BOB");
-    let alice = construct!(alice_f, alice_p).into_box();
-    let bob = construct!(bob_f, bob_p).into_box();
+    let alice = construct!(alice_f, alice_p);
+    let bob = construct!(bob_f, bob_p);
 
-    let alt = Alt {
-        items: vec![alice, bob],
-    };
+    let a = construct!([alice, bob]).to_options();
 
-    let r = run_parser(&alt, &["--alice", "--bob"]).unwrap_err();
+    let r = a.run_inner(["--alice", "--bob"]).unwrap_err();
     assert_eq!(r, "Expected <ALICE>, <BOB>");
 
     // let r = run_parser(
@@ -154,24 +150,24 @@ fn badly_emulated_args() {
     // );
     // assert_eq!(r, Err(Error::Invalid));
 
-    let r = run_parser(&alt, &["--alice", "10"]);
+    let r = a.run_inner(["--alice", "10"]);
     assert_eq!(r, Ok(('a', 10)));
 
-    let r = run_parser(&alt, &["--bob", "20"]);
+    let r = a.run_inner(["--bob", "20"]);
     assert_eq!(r, Ok(('b', 20)));
 }
 
 #[test]
 fn argument_flavors() {
-    let a = short('a').argument::<usize>("A");
+    let a = short('a').argument::<usize>("A").to_options();
 
-    let r = run_parser(&a, &["-a3"]);
+    let r = a.run_inner(["-a3"]);
     assert_eq!(r, Ok(3));
 
-    let r = run_parser(&a, &["-a=3"]);
+    let r = a.run_inner(["-a=3"]);
     assert_eq!(r, Ok(3));
 
-    let r = run_parser(&a, &["-a", "3"]);
+    let r = a.run_inner(["-a", "3"]);
     assert_eq!(r, Ok(3));
 }
 
@@ -179,12 +175,13 @@ fn argument_flavors() {
 fn simple_guard() {
     let a = short('a')
         .argument::<usize>("A")
-        .guard(|x: &usize| *x < 10, "must be small");
+        .guard(|x: &usize| *x < 10, "must be small")
+        .to_options();
 
-    let r = run_parser(&a, &["-a=3"]);
+    let r = a.run_inner(["-a=3"]);
     assert_eq!(r, Ok(3));
 
-    let r = run_parser(&a, &["-a=13"]).unwrap_err();
+    let r = a.run_inner(["-a=13"]).unwrap_err();
     assert_eq!(r, "failed: must be small");
 }
 
@@ -194,12 +191,12 @@ fn req_flag_and_guard_pair() {
         .argument::<usize>("A")
         .guard(|x: &usize| *x < 10, "must be small");
     let b = short('b').req_flag(());
-    let p = construct!(a, b);
+    let p = construct!(a, b).to_options();
 
-    let r = run_parser(&p, &["-a=13"]).unwrap_err();
+    let r = p.run_inner(["-a=13"]).unwrap_err();
     assert_eq!(r, "failed: must be small");
 
-    let r = run_parser(&p, &["-a=3"]).unwrap_err();
+    let r = p.run_inner(["-a=3"]).unwrap_err();
     assert_eq!(r, "Expected -b");
 }
 
@@ -209,11 +206,11 @@ fn guard_and_req_flag_pair() {
         .argument::<usize>("A")
         .guard(|x: &usize| *x < 10, "must be small");
     let b = short('b').req_flag(());
-    let p = construct!(b, a);
+    let p = construct!(b, a).to_options();
 
-    let r = run_parser(&p, &["-a=13"]).unwrap_err();
+    let r = p.run_inner(["-a=13"]).unwrap_err();
     assert_eq!(r, "failed: must be small");
 
-    let r = run_parser(&p, &["-a=3"]).unwrap_err();
+    let r = p.run_inner(["-a=3"]).unwrap_err();
     assert_eq!(r, "Expected -b");
 }

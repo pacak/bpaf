@@ -6,6 +6,8 @@ mod pecking;
 mod split;
 mod visitor;
 
+use named::Name;
+use parsers::Command;
 use split::Args;
 
 pub use crate::{
@@ -20,7 +22,7 @@ use crate::{
     positional::Positional,
     visitor::Visitor,
 };
-use std::{marker::PhantomData, ops::RangeBounds, rc::Rc};
+use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
 
 #[macro_export]
 macro_rules! construct {
@@ -620,6 +622,28 @@ impl<T: 'static> Cx<Options<T>> {
 
     pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, String> {
         run_parser(&self.0.parser, args)
+    }
+
+    pub fn command(self, name: &'static str) -> Cx<Command<T>> {
+        Cx(Command {
+            names: vec![Name::Long(Cow::Borrowed(name))],
+            parser: self,
+            adjacent: false,
+        })
+    }
+}
+
+impl<T> Cx<Command<T>> {
+    pub fn short(mut self, name: char) -> Self {
+        // TODO - same approach in all the Cx things
+        self.0.names.push(Name::Short(name));
+        self
+    }
+
+    pub fn long(mut self, name: &'static str) -> Self {
+        // TODO - same approach in all the Cx things
+        self.0.names.push(Name::Long(Cow::Borrowed(name)));
+        self
     }
 }
 
