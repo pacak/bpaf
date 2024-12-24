@@ -461,10 +461,8 @@ impl<'a> Runner<'a> {
                     println!("Waking {id:?} - consumed count is {:?}", task.consumed);
                     self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
-                    if let Poll::Ready(error) = task.poll(id, &self.ctx) {
-                        task.done = true;
-                        self.handle_task_exit(id, error);
-                    }
+                    let poll = task.poll(id, &self.ctx);
+                    self.handle_task_poll(id, poll);
                 }
                 Op::RestoreIdCounter { id } => {
                     self.next_task_id = id + 1;
@@ -588,14 +586,14 @@ impl<'a> Runner<'a> {
         }
 
         for (id, poll, consumed) in out.drain(..) {
-            if let Poll::Ready(eh) = poll {
+            if let Poll::Ready(eh) = &poll {
                 if consumed < max_consumed {
                     eh.set(Some(Error::fail("terminated due to low priority")));
                 } else {
                     self.winners.push(id);
                 }
-                self.handle_task_exit(id, eh);
             }
+            self.handle_task_poll(id, poll);
         }
 
         let front = self.ctx.front.borrow_mut().take();
@@ -652,9 +650,8 @@ impl<'a> Runner<'a> {
         // mostly to avoid allocations
         let mut ids = Vec::new();
         let mut out = Vec::new();
-        let mut give_up = false;
 
-        loop {
+        let unparsed = 'outer: loop {
             self.propagate();
             println!("============= Propagate done");
 
@@ -664,7 +661,7 @@ impl<'a> Runner<'a> {
 
             let Some(front_arg) = self.ctx.args.get(self.ctx.cur()) else {
                 println!("nothing to consume");
-                break;
+                break false;
             };
 
             // TODO - here we should check if we saw "--" and in argument-only mode
@@ -678,8 +675,7 @@ impl<'a> Runner<'a> {
                     let front = Arg::ShortSet { current, names };
                     self.pick_parsers(&front, &mut ids);
                     if ids.is_empty() {
-                        give_up = true;
-                        break;
+                        break 'outer true;
                     }
                     self.consume(front, &mut ids, &mut out)?;
                 }
@@ -688,61 +684,37 @@ impl<'a> Runner<'a> {
 
             self.pick_parsers(&front, &mut ids);
             if ids.is_empty() {
-                give_up = true;
-                break;
-                return Err(self.explain_unparsed(&front));
+                break true;
             }
             self.consume(front, &mut ids, &mut out)?;
             println!("============= Consuming part done");
-        }
+        };
 
-        // at this point there's nothing left to consume, let's run existing tasks to completion
+        // at this point we are done consuming, either there's nothing more left or we don't know
+        // how to consume the rest., let's run existing tasks to completion
         // first by waking them up all the consuming events (most of them fail with "not found")
         // and then by processing all the non-consuming events - this would either create some
         // errors or or those "not found" errors are going to be converted into something useful
 
         self.ctx.set_term(true);
         self.drain_all_consumers(&mut ids);
-        ids.sort();
-        println!(
-            "Going to terminate all the consumers: {ids:?}, cursor {:?}",
-            self.ctx.cur()
-        );
-        self.ctx.cur();
+
         *self.ctx.front.borrow_mut() = None;
         for (_branch, id) in ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
                 let (poll, consumed) = self.ctx.run_task(task);
                 debug_assert_eq!(consumed, 0, "Consumed during termination?");
                 debug_assert!(poll.is_ready(), "Termination left task stil pending?");
-                if let Poll::Ready(handle) = poll {
-                    self.handle_task_exit(id, handle);
-                }
+                self.handle_task_poll(id, poll);
             }
         }
-        // let mut shared = self.ctx.shared.borrow_mut();
-        //
-        // println!(
-        //     "Waking tasks to terminate them, current position is still at {:?}",
-        //     self.ctx.cur()
-        // );
-        // for id in self.tasks.keys().copied() {
-        //     shared.push_back(Op::WakeTask { id, error: None });
-        // }
-        // drop(shared);
         println!("Final propagation");
         self.propagate();
 
         match handle.as_mut().poll(&mut root_cx) {
             Poll::Ready(t) => match t {
-                Ok(r) => {
-                    if give_up {
-                        todo!();
-                    } else {
-                        Ok(r)
-                    }
-                }
-                Err(e) => Err(e),
+                Ok(_) if unparsed => todo!(),
+                r => r,
             },
             Poll::Pending => panic!("process is complete but somehow we don't have a result o_O"),
         }
@@ -774,28 +746,31 @@ impl<'a> Runner<'a> {
     }
 
     #[inline(never)]
-    fn handle_task_exit(&mut self, id: Id, error_handle: ErrorHandle) {
-        println!("Handling exit for {id:?}");
-        if let Some(task) = self.tasks.get_mut(&id) {
-            if self.wake_on_child_exit.contains(&task.parent.id) {
-                let error = error_handle.take();
-                error_handle.set(error.clone());
-                self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
-                    id: task.parent.id,
-                    error,
-                });
-            }
-            self.ctx
-                .shared
-                .borrow_mut()
-                .push_back(Op::RemoveTask { id });
-            // if let Some(parent) = self.tasks.get_mut(&task.parent.id) {
-            //     println!("pushing exit {} to parent {:?}", task.consumed, task.parent);
-            //     parent.consumed += task.consumed;
-            // }
-        } else {
-            panic!("TODO, how?");
+    /// Handle potential task completion
+    /// - notify parent if it is interested in error codes
+    /// - queue task termination if task is complete
+    ///
+    /// It cannot run the task as well since to be able to handle sum types
+    /// we need to be able to decide which tasks to terminate based on consumed length
+    fn handle_task_poll(&mut self, id: Id, poll: Poll<ErrorHandle>) {
+        let Poll::Ready(handle) = poll else {
+            return;
         };
+        println!("Handling exit for {id:?}");
+        let task = self.tasks.get_mut(&id).expect("We know it's there");
+        task.done = true;
+        if self.wake_on_child_exit.contains(&task.parent.id) {
+            let error = handle.take();
+            handle.set(error.clone());
+            self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
+                id: task.parent.id,
+                error,
+            });
+        }
+        self.ctx
+            .shared
+            .borrow_mut()
+            .push_back(Op::RemoveTask { id });
     }
 
     /// Allocate next task [`Id`] and a [`Waker`] for that task.
