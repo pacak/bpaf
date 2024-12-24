@@ -502,7 +502,7 @@ impl<'a> Runner<'a> {
         }
     }
 
-    fn pick_parsers(&self, front: &Arg, ids: &mut Vec<(BranchId, Id)>) -> Result<(), Error> {
+    fn pick_parsers(&self, front: &Arg, ids: &mut Vec<(BranchId, Id)>) {
         debug_assert!(ids.is_empty());
         match front {
             Arg::Named { name, value: _ } => {
@@ -539,45 +539,15 @@ impl<'a> Runner<'a> {
         }
 
         // TODO - include Any here
-        if !ids.is_empty() {
-            ids.sort(); // sort by branch
-            return Ok(());
-        }
+        if ids.is_empty() {
+            // looking for fallback
+            ids.extend(self.fallback.heads());
 
-        todo!();
-        // if ids.is_empty() {
-        //     // there's no ids so we must see if there's any fallback items, if there are -
-        //     // wake all the children then wake fallback items.
-        //     self.family.pick_fallback(&mut ids);
-        //     let Some((_branch, fallback)) = ids.first().copied() else {
-        //         if let Poll::Ready(r) = handle.as_mut().poll(&mut root_cx) {
-        //             match r {
-        //                 Ok(_) => return Error::unexpected(),
-        //                 Err(err) => return Err(err),
-        //             }
-        //         }
-        //         break;
-        //     };
-        //     let child = self.first_child(fallback);
-        //     if let Some(task) = self.tasks.get_mut(&child) {
-        //         println!("Going to run {child:?} as part of fallback parser");
-        //         self.ctx.set_term(true);
-        //         let (error_handle, consumed) = self.ctx.run_task(task);
-        //         self.ctx.set_term(false);
-        //         println!(
-        //             "running {child:?} consumed {consumed:?}. is it ready? {:?}",
-        //             error_handle.is_ready()
-        //         );
-        //         task.consumed += consumed as u32;
-        //         if let Poll::Ready(handle) = error_handle {
-        //             self.handle_task_exit(child, handle);
-        //         } else {
-        //             todo!()
-        //         }
-        //     } else {
-        //         todo!()
-        //     }
-        // }
+            self.ctx.set_term(true);
+        } else {
+            self.ctx.set_term(false);
+            ids.sort(); // sort by branch
+        }
     }
 
     fn consume(
@@ -652,6 +622,16 @@ impl<'a> Runner<'a> {
 
         Ok(())
     }
+    pub(crate) fn give_up(&self, front: &Arg) -> Error {
+        // Don't know how to parse front, time to produce the error
+        // Potential errors are:
+        // 1. two names cannot be used at once
+        // 2. name can only be used once
+        // 3. there's a typo in the name
+        // 4. not available in the main parser, but present in a sub parser in some way
+        //
+        todo!("There's an item we can't parse, produce an error")
+    }
 
     pub(crate) fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
@@ -663,16 +643,10 @@ impl<'a> Runner<'a> {
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
-        // We spawn it as a task instead.
+        // We spawn it as a task instead and keep the handle
         let mut handle = pin!(self.ctx.spawn(root_id.prod(0), parser, false));
-
-        // poll root handle once so whatever needs to be
-        // register - gets a chance to do so then
-        // set it aside until all child tasks are satisfied
         let mut root_cx = Context::from_waker(&root_waker);
-        // root spawns a child task - it can't return until
-        // child task(s) finish - it won't happen until later
-        assert!(handle.as_mut().poll(&mut root_cx).is_pending());
+        debug_assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 
         // After this point progress is separated in two distinct parts:
         //
@@ -687,6 +661,7 @@ impl<'a> Runner<'a> {
         //   that couldn't consume everything.
         let mut ids = Vec::new();
         let mut out = Vec::new();
+        let mut give_up = false;
 
         println!("Need to parse {:?}", &self.ctx.args.get(self.ctx.cur()..));
 
@@ -715,7 +690,12 @@ impl<'a> Runner<'a> {
             };
 
             println!("Picking parser for {front:?}");
-            self.pick_parsers(&front, &mut ids)?;
+            self.pick_parsers(&front, &mut ids);
+            if ids.is_empty() {
+                give_up = true;
+                break;
+                return Err(self.give_up(&front));
+            }
             println!("Going to parse {front:?} with {ids:?}");
             *self.ctx.front.borrow_mut() = Some(front);
             self.consume(&mut ids, &mut out)?;
@@ -761,7 +741,16 @@ impl<'a> Runner<'a> {
         self.propagate();
 
         match handle.as_mut().poll(&mut root_cx) {
-            Poll::Ready(r) => r,
+            Poll::Ready(t) => match t {
+                Ok(r) => {
+                    if give_up {
+                        todo!();
+                    } else {
+                        Ok(r)
+                    }
+                }
+                Err(e) => Err(e),
+            },
             Poll::Pending => panic!("process is complete but somehow we don't have a result o_O"),
         }
     }
