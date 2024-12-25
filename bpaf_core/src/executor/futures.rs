@@ -1,4 +1,8 @@
-use crate::{error::MissingItem, named::Name, split::OsOrStr};
+use crate::{
+    error::{Message, Metavar, MissingItem},
+    named::Name,
+    split::OsOrStr,
+};
 
 use super::{Arg, BranchId, Ctx, Error, Id, Op};
 use std::{
@@ -220,7 +224,7 @@ pub(crate) struct FlagFut<'a> {
 
 pub(crate) struct ArgFut<'a> {
     pub(crate) name: &'a [Name<'static>],
-    pub(crate) meta: &'static str,
+    pub(crate) meta: Metavar,
     pub(crate) ctx: Ctx<'a>,
     pub(crate) task_id: Option<(BranchId, Id)>,
 }
@@ -268,26 +272,30 @@ impl<'ctx> Future for ArgFut<'ctx> {
         let front = self.ctx.front.borrow();
         let Some(Arg::Named { name, value }) = front.as_ref() else {
             unreachable!();
-            //return Poll::Ready(Err(Error::fail("Unexpected item!")));
         };
-        if !self.name.contains(name) {
-            unreachable!();
-        }
         if let Some(v) = value {
             self.ctx.advance(1);
             return Poll::Ready(Ok(v.to_owned()));
         }
-        let Some(v) = self.ctx.args.get(self.ctx.cur() + 1) else {
-            // TODO - this lacks a value
-            return Poll::Ready(Err(self.missing()));
-        };
-        if v.is_named() {
-            // TODO - this lacks a value
-            Poll::Ready(Err(self.missing()))
-        } else {
-            self.ctx.advance(2);
-            Poll::Ready(Ok(v.to_owned()))
-        }
+        Poll::Ready(match self.ctx.args.get(self.ctx.cur() + 1) {
+            None => Err(Error::from(Message::ArgNeedsValue {
+                name: name.to_owned(),
+                meta: self.meta,
+            })),
+            Some(v) => {
+                let val = v.to_owned();
+                if val.is_named() {
+                    Err(Error::from(Message::ArgNeedsValueGotNamed {
+                        name: name.to_owned(),
+                        meta: self.meta,
+                        val,
+                    }))
+                } else {
+                    self.ctx.advance(2);
+                    Ok(val)
+                }
+            }
+        })
     }
 }
 

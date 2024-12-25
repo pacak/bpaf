@@ -1,6 +1,6 @@
-use crate::named::Name;
+use crate::{named::Name, split::OsOrStr};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct Error {
     pub(crate) message: Message,
 }
@@ -73,11 +73,19 @@ impl Message {
             Self::Conflict(..) => false,
             Self::Unexpected => false,
             Self::ParseFailed(..) => false,
+            Self::ArgNeedsValue { .. } => false,
+            Self::ArgNeedsValueGotNamed { .. } => false,
         }
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+impl From<Message> for Error {
+    fn from(message: Message) -> Self {
+        Error { message }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub(crate) enum Message {
     /// Pure text message that comes from `.some()` or `fail()
     ///
@@ -93,6 +101,20 @@ pub(crate) enum Message {
     /// Generated as a dummy error message...
     /// Do I need it? Not used anymore
     Killed,
+
+    /// expected --foo BAR, found --foo
+    ArgNeedsValue {
+        name: Name<'static>,
+        meta: Metavar,
+    },
+
+    /// expected --foo BAR, got --foo --bar, try --foo=--bar
+    ArgNeedsValueGotNamed {
+        name: Name<'static>,
+        meta: Metavar,
+        val: OsOrStr<'static>,
+    },
+
     // // those can be caught ---------------------------------------------------------------
     // /// Tried to consume an env variable with no fallback, variable was not set
     // NoEnv(&'static str),
@@ -174,10 +196,8 @@ impl Message {
                     }
                     match item {
                         MissingItem::Named { name, meta } => match (&name[0], meta) {
-                            (Name::Short(s), None) => write!(res, "-{s}")?,
-                            (Name::Short(s), Some(m)) => write!(res, "-{s}={}", Metavar(m))?,
-                            (Name::Long(l), None) => write!(res, "--{l}")?,
-                            (Name::Long(l), Some(m)) => write!(res, "--{l}={}", Metavar(m))?,
+                            (name, None) => write!(res, "{name}")?,
+                            (name, Some(m)) => write!(res, "{name}={m}")?,
                         },
                         MissingItem::Positional { meta } => write!(res, "{}", Metavar(meta))?,
                         MissingItem::Command { name: _ } => write!(res, "COMMAND")?,
@@ -190,11 +210,14 @@ impl Message {
             Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
             Message::Killed => todo!(),
             Message::ParseFailed(_, _) => todo!(),
+            Message::ArgNeedsValue { name, meta } => todo!(),
+            Message::ArgNeedsValueGotNamed { name, meta, val } => todo!(),
         }
         Ok(res)
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct Metavar(pub(crate) &'static str);
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -206,7 +229,7 @@ impl std::fmt::Display for Metavar {
 pub(crate) enum MissingItem {
     Named {
         name: Vec<Name<'static>>,
-        meta: Option<&'static str>,
+        meta: Option<Metavar>,
     },
     Positional {
         meta: &'static str,

@@ -43,6 +43,7 @@ fn sum_of_flag_arg2() {
     let a = short('a').argument::<usize>("A");
     let b = short('a').req_flag('a').map(|_| 0);
     let p = construct!(a, b).to_options();
+    // items are consumed left to right, so first -a is an argument
     let r = p.run_inner(["-a", "-a", "1"]);
 
     todo!("{:?}", r);

@@ -250,7 +250,7 @@ mod named {
 
     use crate::{
         ctx::Ctx,
-        error::Error,
+        error::{Error, Metavar},
         executor::{
             futures::{ArgFut, FlagFut},
             Fragment,
@@ -279,7 +279,7 @@ mod named {
             Box::pin(async move {
                 let fut = ArgFut {
                     name: &self.named.names,
-                    meta: self.meta,
+                    meta: Metavar(self.meta),
                     ctx,
                     task_id: None,
                 };
@@ -339,6 +339,16 @@ mod named {
     pub enum Name<'a> {
         Short(char),
         Long(Cow<'a, str>),
+    }
+
+    impl Name<'_> {
+        /// Convert possibly borrowed name into an owned one
+        pub(crate) fn to_owned(&self) -> Name<'static> {
+            match self {
+                Self::Short(s) => Name::Short(*s),
+                Self::Long(cow) => Name::Long(Cow::Owned(cow.to_string())),
+            }
+        }
     }
 
     pub struct Named {
