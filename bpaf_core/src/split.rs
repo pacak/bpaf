@@ -86,11 +86,32 @@ pub(crate) enum OsOrStr<'a> {
     Os(Cow<'a, OsStr>),
 }
 
+impl std::fmt::Display for OsOrStr<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            OsOrStr::Str(cow) => write!(f, "{cow}"),
+            OsOrStr::Os(cow) => {
+                let os: &OsStr = cow.as_ref();
+                write!(f, "{}", os.to_string_lossy())
+            }
+        }
+    }
+}
+
 impl OsOrStr<'_> {
     fn os(&self) -> OsString {
         match self {
             OsOrStr::Str(cow) => String::from(cow.as_ref()).into(),
             OsOrStr::Os(cow) => cow.into(),
+        }
+    }
+    pub(crate) fn to_owned(&self) -> OsOrStr<'static> {
+        match self {
+            OsOrStr::Str(cow) => OsOrStr::Str(Cow::Owned(cow.as_ref().to_owned())),
+            OsOrStr::Os(cow) => {
+                let os: &OsStr = cow.as_ref();
+                OsOrStr::Os(Cow::Owned(os.to_owned()))
+            }
         }
     }
     pub(crate) fn is_named(&self) -> bool {
