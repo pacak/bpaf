@@ -611,16 +611,15 @@ pub trait Parser<T: 'static> {
         }
     }
 
-    fn guard<F, Q>(self, check: F, message: &'static str) -> Guard<Self, F, Q>
+    fn guard<F>(self, check: F, message: &'static str) -> Guard<Self, F>
     where
-        T: std::borrow::Borrow<Q> + 'static,
         Self: Sized,
+        F: Fn(&T) -> bool,
     {
         Guard {
             inner: self,
             check,
             message,
-            ty: PhantomData,
         }
     }
 
