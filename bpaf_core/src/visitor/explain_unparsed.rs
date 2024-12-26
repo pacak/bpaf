@@ -14,11 +14,15 @@ use std::collections::BTreeMap;
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
 pub(crate) struct ExplainUnparsed<'a> {
+    // ============== this things are passed from the parser
+    /// An item we couldn't parse
     unparsed: Arg<'a>,
+    /// All the items we managed to parse succesfully
     parsed: &'a [OsOrStr<'a>],
+    /// If parser failed with "there are missing items" - those are missing items
     missing: Option<Vec<MissingItem>>,
 
-    /// Each name is annotated with it's branch id and if it is contained in `many` in some way
+    // ============== inner state
     all_names: BTreeMap<Name<'a>, NameEntry>,
     branch_id: u32,
     in_many: u32,
@@ -67,25 +71,24 @@ impl<'a> ExplainUnparsed<'a> {
             }
         }
 
-        println!("{parsed:?}");
-        // DO I care about
+        // Suggestions I'd like to make
 
         // 1. two names cannot be used at once
-        //
+        //    implemented in is_in_conflict
         //
         // 2. name can only be used once
-        //    track if we are in `many`
-        //    - if we are not in many and see the name
-        //    - if we see the name only once
+        //    - name must be in parsed once and must not be wraped inside of `many
         //
         // 3. there's a typo in the name
         //    - user typed --f instead of -f
-        //    - user typed -foo instead of foo
-        //    - track all the names, look for shortest lev distance
+        //    - user typed -foo instead of foo (we'll see it as named arg Foo with name f and val "oo"
+        //    - track all the names, look for shortest damerau levenshtein (copy/paste it from
+        //      src/meta_youmean.rs)
         //
         // 4. not available in the main parser, but present in a sub parser in some way
-        //    - go one level deep into subparsers
-        //    - look for exact names
+        //    - go one level deep into subparsers (visitor for command returns bool asking
+        //      if it should go in or skip it)
+        //    - look for exact names only
         println!("Try improve error message with this {self:?}");
         match self.missing {
             Some(m) => Error {
