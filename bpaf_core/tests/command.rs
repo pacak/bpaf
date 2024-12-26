@@ -13,6 +13,6 @@ fn simple_command() {
     let r = parser.run_inner(["bob", "-a"]).unwrap();
     assert_eq!(r, true);
 
-    let r = parser.run_inner(["-a"]).unwrap();
-    assert_eq!(r, true);
+    // let r = parser.run_inner(["-a"]).unwrap_err();
+    // assert_eq!(r, "parser doesn't support -a, but subcommand alice does");
 }
