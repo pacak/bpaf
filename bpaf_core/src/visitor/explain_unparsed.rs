@@ -1,4 +1,5 @@
 use crate::{
+    error::MissingItem,
     named::Name,
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Visitor},
@@ -9,8 +10,9 @@ use std::collections::BTreeMap;
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
 pub(crate) struct ExplainUnparsed<'a> {
-    arg: Arg<'a>,
+    unparsed: Arg<'a>,
     parsed: &'a [OsOrStr<'a>],
+    missing: Option<Vec<MissingItem>>,
 
     /// Each name is annotated with it's branch id and if it is contained in `many` in some way
     all_names: BTreeMap<Name<'a>, NameEntry>, // <(Name<'a>, usize, bool)>,
@@ -27,10 +29,15 @@ struct NameEntry {
 }
 
 impl<'a> ExplainUnparsed<'a> {
-    pub(crate) fn new(arg: Arg<'a>, parsed: &'a [OsOrStr<'a>]) -> Self {
+    pub(crate) fn new(
+        missing: Option<Vec<MissingItem>>,
+        arg: Arg<'a>,
+        parsed: &'a [OsOrStr<'a>],
+    ) -> Self {
         Self {
-            arg,
+            unparsed: arg,
             parsed,
+            missing,
             in_many: 0,
             stack: Default::default(),
             branch_id: 0,
@@ -38,7 +45,7 @@ impl<'a> ExplainUnparsed<'a> {
         }
     }
 
-    pub(crate) fn explain(&self) -> Error {
+    pub(crate) fn explain(self) -> Error {
         let m = BTreeMap::new();
 
         let parsed = self
@@ -50,7 +57,7 @@ impl<'a> ExplainUnparsed<'a> {
             })
             .collect::<Vec<_>>();
 
-        if let Arg::Named { name, .. } = &self.arg {
+        if let Arg::Named { name, .. } = &self.unparsed {
             if let Some(err) = self.is_in_conflict(&parsed, name.as_ref()) {
                 return err;
             }
@@ -75,7 +82,16 @@ impl<'a> ExplainUnparsed<'a> {
         // 4. not available in the main parser, but present in a sub parser in some way
         //    - go one level deep into subparsers
         //    - look for exact names
-        todo!("{self:?}");
+        println!("Try improve error message with this {self:?}");
+        match self.missing {
+            Some(m) => Error {
+                message: crate::error::Message::Missing(m),
+            },
+            None => {
+                let unparsed = self.unparsed;
+                Error::parse_fail(format!("Unexpected item {unparsed:?}"))
+            }
+        }
     }
 
     fn advance_branch_id(&mut self) {
