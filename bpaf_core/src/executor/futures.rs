@@ -164,7 +164,7 @@ impl Drop for EarlyExitFut<'_> {
 }
 
 pub(crate) struct PositionalFut<'a> {
-    pub(crate) meta: &'static str,
+    pub(crate) meta: Metavar,
     pub(crate) ctx: Ctx<'a>,
     pub(crate) task_id: Option<(BranchId, Id)>,
 }
@@ -362,7 +362,7 @@ pub(crate) struct LiteralFut<'a> {
 
 impl<'ctx> LiteralFut<'ctx> {
     fn missing(&self) -> Poll<Result<(), Error>> {
-        todo!()
+        todo!();
     }
 }
 

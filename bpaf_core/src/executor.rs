@@ -4,7 +4,8 @@ use crate::{
     named::Name,
     pecking::Pecking,
     split::{split_param, Arg, Args, OsOrStr},
-    Metavisit, Parser,
+    visitor::Group,
+    Metavisit, Parser, UnparsedName,
 };
 use std::{
     any::Any,
@@ -615,16 +616,6 @@ impl<'a> Runner<'a> {
 
         Ok(())
     }
-    pub(crate) fn explain_unparsed(&self, front: &Arg) -> Error {
-        // Don't know how to parse front, time to produce the error
-        // Potential errors are:
-        // 1. two names cannot be used at once
-        // 2. name can only be used once
-        // 3. there's a typo in the name
-        // 4. not available in the main parser, but present in a sub parser in some way
-        //
-        todo!("There's an item we can't parse, produce an error")
-    }
 
     pub(crate) fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
@@ -709,7 +700,16 @@ impl<'a> Runner<'a> {
         match (r, unparsed) {
             (Poll::Pending, _) => unreachable!("bpaf internal error: Failed to produce result"),
             (Poll::Ready(r), None) | (Poll::Ready(r @ Err(_)), _) => r,
-            (Poll::Ready(Ok(_)), Some(unconsumed)) => Err(self.explain_unparsed(&unconsumed)),
+            (Poll::Ready(Ok(_)), Some(unconsumed)) => match unconsumed {
+                Arg::Named { name, value: _ } => {
+                    let parsed = &self.ctx.args[0..self.ctx.cur()];
+                    let mut v = UnparsedName::new(name, parsed);
+                    parser.visit(&mut v);
+                    Err(v.explain())
+                }
+                Arg::ShortSet { current, names } => todo!(),
+                Arg::Positional { value } => todo!(),
+            },
         }
     }
 
@@ -788,6 +788,10 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.as_ref().run(ctx)
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.as_ref().visit(visitor)
+    }
 }
 
 impl<T> Parser<T> for Rc<dyn Parser<T>>
@@ -796,6 +800,10 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.as_ref().run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.as_ref().visit(visitor)
     }
 }
 
@@ -853,6 +861,14 @@ where
             res
         })
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Sum);
+        for i in &self.items {
+            i.visit(visitor);
+        }
+        visitor.pop_group();
+    }
 }
 
 // [`downcast`] + [`hint`] are used to smuggle type of the field inside the [`Con`]
@@ -877,6 +893,14 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         (self.run)(&self.parsers, ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Prod);
+        for v in &self.visitors {
+            v.visit(visitor);
+        }
+        visitor.pop_group();
     }
 }
 

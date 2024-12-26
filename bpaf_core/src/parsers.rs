@@ -5,6 +5,7 @@ use crate::{
     error::Error,
     executor::{futures::LiteralFut, BranchId, Fragment, Id, NodeKind, Parent},
     named::Name,
+    visitor::Group,
     OptionParser, Parser,
 };
 
@@ -53,6 +54,12 @@ where
             }
         })
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Many);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
 }
 
 pub struct Guard<P, F, Q> {
@@ -78,6 +85,10 @@ where
             }
         })
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor);
+    }
 }
 
 pub struct Count<P, T> {
@@ -98,6 +109,12 @@ where
             }
             Ok(count)
         })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Many);
+        self.inner.visit(visitor);
+        visitor.pop_group();
     }
 }
 
@@ -120,6 +137,12 @@ where
             Ok(last)
         })
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Many);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
 }
 
 pub struct Map<P, F, T, R> {
@@ -139,6 +162,10 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
         let inner = self.inner.run(ctx);
         Box::pin(async move { Ok((self.map)(inner.await?)) })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor);
     }
 }
 
@@ -163,6 +190,10 @@ where
             (self.f)(t).map_err(|e| Error::parse_fail(e.to_string()))
         })
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor);
+    }
 }
 
 pub struct Optional<P> {
@@ -183,6 +214,12 @@ where
                 Err(e) => Err(e),
             }
         })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
     }
 }
 
@@ -234,5 +271,12 @@ impl<T: 'static> Parser<T> for Command<T> {
             println!("=========== Inner done with {:?}", r.is_ok());
             r
         })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        let recursive = visitor.command(&self.names);
+        if recursive {
+            self.parser.0.parser.visit(visitor);
+        }
     }
 }
