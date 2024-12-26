@@ -5,7 +5,7 @@ use crate::{
     pecking::Pecking,
     split::{split_param, Arg, Args, OsOrStr},
     visitor::Group,
-    Metavisit, Parser, UnparsedName,
+    ExplainUnparsed, Metavisit, Parser,
 };
 use std::{
     any::Any,
@@ -700,16 +700,12 @@ impl<'a> Runner<'a> {
         match (r, unparsed) {
             (Poll::Pending, _) => unreachable!("bpaf internal error: Failed to produce result"),
             (Poll::Ready(r), None) | (Poll::Ready(r @ Err(_)), _) => r,
-            (Poll::Ready(Ok(_)), Some(unconsumed)) => match unconsumed {
-                Arg::Named { name, value: _ } => {
-                    let parsed = &self.ctx.args[0..self.ctx.cur()];
-                    let mut v = UnparsedName::new(name, parsed);
-                    parser.visit(&mut v);
-                    Err(v.explain())
-                }
-                Arg::ShortSet { current, names } => todo!(),
-                Arg::Positional { value } => todo!(),
-            },
+            (Poll::Ready(Ok(_)), Some(unparsed)) => {
+                let parsed = &self.ctx.args[0..self.ctx.cur()];
+                let mut v = ExplainUnparsed::new(unparsed, parsed);
+                parser.visit(&mut v);
+                Err(v.explain())
+            }
         }
     }
 
