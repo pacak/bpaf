@@ -152,6 +152,12 @@ impl From<String> for OsOrStr<'static> {
     }
 }
 
+impl<'a> From<Cow<'a, str>> for OsOrStr<'a> {
+    fn from(value: Cow<'a, str>) -> Self {
+        Self::Str(value)
+    }
+}
+
 // impl<'a> From<&&'a str> for OsOrStr<'a> {
 //     fn from(value: &&'a str) -> Self {
 //         Self::Str(Cow::Borrowed(value))
@@ -290,17 +296,50 @@ impl<'a> TryFrom<&'a str> for ShortOrSet<'a> {
 
 pub(crate) fn split_param<'a>(
     value: &'a OsOrStr,
-
     args: &BTreeMap<Name, Pecking>,
     flags: &BTreeMap<Name, Pecking>,
 ) -> Result<Arg<'a>, Error> {
     match value {
         OsOrStr::Str(cow) => split_str_param(cow.as_ref(), args, flags),
-        OsOrStr::Os(cow) => match ascii_prefix(cow.as_ref()) {
-            Some(_) => todo!(),
-            None => Ok(Arg::Positional {
-                value: value.as_ref(),
-            }),
+        OsOrStr::Os(cow) => match cow.to_str() {
+            Some(value) => split_str_param(value, args, flags),
+            None => match ascii_prefix(cow.as_ref()) {
+                Some((prefix, suffix)) => match split_str_param(prefix.as_ref(), args, flags)? {
+                    Arg::Named { name, value } => {
+                        let value = if let Some(value) = value {
+                            let mut os = value.os();
+                            os.push(&suffix);
+                            os
+                        } else {
+                            suffix.into_owned()
+                        };
+
+                        let name = match name {
+                            Name::Short(c) => Name::Short(c),
+                            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
+                        };
+
+                        Ok(Arg::Named {
+                            name,
+                            value: Some(OsOrStr::from(value)),
+                        })
+                    }
+                    Arg::ShortSet { names, .. } => {
+                        let mut os: OsString = String::from_iter(&names[1..]).into();
+                        os.push(&suffix);
+                        Ok(Arg::Named {
+                            name: Name::Short(names[0]),
+                            value: Some(OsOrStr::from(os)),
+                        })
+                    }
+                    Arg::Positional { .. } => Ok(Arg::Positional {
+                        value: value.clone(),
+                    }),
+                },
+                None => Ok(Arg::Positional {
+                    value: value.as_ref(),
+                }),
+            },
         },
     }
 }
