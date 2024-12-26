@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
-pub(crate) struct UnparsedName<'a> {
-    name: Name<'a>,
+pub(crate) struct ExplainUnparsed<'a> {
+    arg: Arg<'a>,
     parsed: &'a [OsOrStr<'a>],
 
     /// Each name is annotated with it's branch id and if it is contained in `many` in some way
@@ -26,10 +26,10 @@ struct NameEntry {
     count: u32,
 }
 
-impl<'a> UnparsedName<'a> {
-    pub(crate) fn new(name: Name<'a>, parsed: &'a [OsOrStr<'a>]) -> Self {
+impl<'a> ExplainUnparsed<'a> {
+    pub(crate) fn new(arg: Arg<'a>, parsed: &'a [OsOrStr<'a>]) -> Self {
         Self {
-            name,
+            arg,
             parsed,
             in_many: 0,
             stack: Default::default(),
@@ -50,8 +50,10 @@ impl<'a> UnparsedName<'a> {
             })
             .collect::<Vec<_>>();
 
-        if let Some(err) = self.is_in_conflict(&parsed, self.name.as_ref()) {
-            return err;
+        if let Arg::Named { name, .. } = &self.arg {
+            if let Some(err) = self.is_in_conflict(&parsed, name.as_ref()) {
+                return err;
+            }
         }
 
         println!("{parsed:?}");
@@ -98,14 +100,13 @@ impl<'a> UnparsedName<'a> {
                         loser: unparsed.to_owned(),
                     },
                 });
-                //                println!("{unparsed:?} conflicts with {p:?}");
             }
         }
         None
     }
 }
 
-impl<'a> Visitor<'a> for UnparsedName<'a> {
+impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
     fn item(&mut self, item: Item<'a>) {
         self.advance_branch_id();
 
