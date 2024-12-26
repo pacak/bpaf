@@ -62,23 +62,22 @@ where
     }
 }
 
-pub struct Guard<P, F, Q> {
+pub struct Guard<P, F> {
     pub(crate) inner: P,
     pub(crate) check: F,
-    pub(crate) ty: PhantomData<Q>,
     pub(crate) message: &'static str,
 }
 
-impl<P, F, T, Q> Parser<T> for Guard<P, F, Q>
+impl<P, F, T> Parser<T> for Guard<P, F>
 where
     P: Parser<T>,
-    T: Borrow<Q> + std::fmt::Debug + 'static,
-    F: Fn(&Q) -> bool,
+    T: 'static,
+    F: Fn(&T) -> bool,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
             let t = self.inner.run(ctx).await?;
-            if (self.check)(t.borrow()) {
+            if (self.check)(&t) {
                 Ok(t)
             } else {
                 Err(Error::fail(self.message))
