@@ -21,7 +21,7 @@ use crate::{
     named::{Argument, Flag, Named},
     parsers::{Count, Guard, Last, Many, Map, Optional, Parse},
     positional::Positional,
-    visitor::{explain_unparsed::UnparsedName, Visitor},
+    visitor::{explain_unparsed::ExplainUnparsed, Visitor},
 };
 use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
 

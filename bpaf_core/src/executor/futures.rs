@@ -360,13 +360,15 @@ pub(crate) struct LiteralFut<'a> {
     pub(crate) task_id: Option<(BranchId, Id)>,
 }
 
-impl<'ctx> LiteralFut<'ctx> {
-    fn missing(&self) -> Poll<Result<(), Error>> {
-        todo!();
+impl LiteralFut<'_> {
+    fn missing(&self) -> Error {
+        Error::missing(MissingItem::Command {
+            name: self.values.to_vec(),
+        })
     }
 }
 
-impl<'ctx> Future for LiteralFut<'ctx> {
+impl Future for LiteralFut<'_> {
     type Output = Result<(), Error>;
 
     fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
@@ -379,7 +381,7 @@ impl<'ctx> Future for LiteralFut<'ctx> {
 
         let front = self.ctx.front.borrow();
         let Some(front) = front.as_ref() else {
-            return self.missing();
+            return Poll::Ready(Err(self.missing()));
         };
         // TODO - this can be less clumsy
         if let Arg::Positional { value } = front {

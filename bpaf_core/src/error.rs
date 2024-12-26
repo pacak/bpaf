@@ -244,7 +244,7 @@ pub(crate) enum MissingItem {
         meta: Metavar,
     },
     Command {
-        name: &'static str,
+        name: Vec<Name<'static>>,
     },
     Any {
         metavar: &'static str,
