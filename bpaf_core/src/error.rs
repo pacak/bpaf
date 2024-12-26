@@ -49,6 +49,14 @@ impl Error {
     pub(crate) fn render(self) -> String {
         self.message.render()
     }
+
+    pub(crate) fn get_missing(self) -> Option<Vec<MissingItem>> {
+        if let Message::Missing(vec) = self.message {
+            Some(vec)
+        } else {
+            None
+        }
+    }
 }
 
 impl Message {

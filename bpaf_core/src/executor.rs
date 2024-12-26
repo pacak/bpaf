@@ -669,6 +669,7 @@ impl<'a> Runner<'a> {
 
             self.pick_parsers(&front, &mut ids);
             if ids.is_empty() {
+                println!("No parsers for {front:?}, exiting");
                 break Some(front);
             }
             self.consume(front, &mut ids, &mut out)?;
@@ -696,17 +697,26 @@ impl<'a> Runner<'a> {
         println!("Final propagation");
         self.propagate();
 
-        let r = handle.as_mut().poll(&mut root_cx);
-        match (r, unparsed) {
-            (Poll::Pending, _) => unreachable!("bpaf internal error: Failed to produce result"),
-            (Poll::Ready(r), None) | (Poll::Ready(r @ Err(_)), _) => r,
-            (Poll::Ready(Ok(_)), Some(unparsed)) => {
-                let parsed = &self.ctx.args[0..self.ctx.cur()];
-                let mut v = ExplainUnparsed::new(unparsed, parsed);
-                parser.visit(&mut v);
-                Err(v.explain())
-            }
-        }
+        let Poll::Ready(result) = handle.as_mut().poll(&mut root_cx) else {
+            unreachable!("bpaf internal error: Failed to produce result");
+        };
+
+        let Some(unparsed) = unparsed else {
+            // parsed everything - can't improve error message if it is an error
+            return result;
+        };
+
+        // TODO
+        // if prefix_only {
+        //     return result;
+        // }
+
+        let missing = result.err().and_then(|e| e.get_missing());
+
+        let parsed = &self.ctx.args[0..self.ctx.cur()];
+        let mut v = ExplainUnparsed::new(missing, unparsed, parsed);
+        parser.visit(&mut v);
+        Err(v.explain())
     }
 
     /// Find the deepest left most child
@@ -726,12 +736,17 @@ impl<'a> Runner<'a> {
 
     #[inline(never)]
     /// Drain all consumers so they can be polled to emit default values
+
     fn drain_all_consumers(&mut self, ids: &mut Vec<(BranchId, Id)>) {
         ids.extend(self.flags.values().flat_map(|v| v.iter()));
         ids.extend(self.positional.iter());
         ids.extend(self.args.values().flat_map(|v| v.iter()));
         ids.extend(self.literal.values().flat_map(|v| v.iter()));
         // TODO: any
+
+        ids.sort_by_key(|(_b, id)| *id);
+        ids.dedup_by_key(|(_b, id)| *id);
+        ids.sort();
     }
 
     #[inline(never)]
