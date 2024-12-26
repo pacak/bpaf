@@ -5,7 +5,10 @@ fn alt_of_req_flags() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
     let p = construct!([a, b]);
-    assert_eq!("no", run_parser(&p, ["-a", "-b"]).unwrap_err());
+    assert_eq!(
+        "-b cannot be used at the same time as -a",
+        run_parser(&p, ["-a", "-b"]).unwrap_err()
+    );
 }
 
 #[test]
@@ -44,9 +47,9 @@ fn sum_of_flag_arg2() {
     let b = short('a').req_flag('a').map(|_| 0);
     let p = construct!(a, b).to_options();
     // items are consumed left to right, so first -a is an argument
-    let r = p.run_inner(["-a", "-a", "1"]);
+    let r = p.run_inner(["-a", "-a", "1"]).unwrap_err();
 
-    todo!("{:?}", r);
+    assert_eq!(r, "-a wants a value <A>, got -a, try using -a=-a");
 
     //assert_eq!((1, 0), run_parser(&p, ["-a", "1", "-a"]).unwrap());
 }
