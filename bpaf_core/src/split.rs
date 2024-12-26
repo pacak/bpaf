@@ -188,12 +188,6 @@ impl<'a> From<Cow<'a, str>> for OsOrStr<'a> {
     }
 }
 
-// impl<'a> From<&&'a str> for OsOrStr<'a> {
-//     fn from(value: &&'a str) -> Self {
-//         Self::Str(Cow::Borrowed(value))
-//     }
-// }
-
 impl<'a> From<&'a OsStr> for OsOrStr<'a> {
     fn from(value: &'a OsStr) -> Self {
         Self::Os(Cow::Borrowed(value))
