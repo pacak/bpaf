@@ -6,6 +6,7 @@ mod pecking;
 mod split;
 mod visitor;
 
+use error::Metavar;
 use named::Name;
 use parsers::Command;
 use split::Args;
@@ -20,7 +21,7 @@ use crate::{
     named::{Argument, Flag, Named},
     parsers::{Count, Guard, Last, Many, Map, Optional, Parse},
     positional::Positional,
-    visitor::Visitor,
+    visitor::{explain_unparsed::UnparsedName, Visitor},
 };
 use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
 
@@ -186,7 +187,7 @@ pub fn long(name: &'static str) -> Cx<Named> {
 }
 
 pub fn positional<T>(meta: &'static str) -> Cx<Positional<T>> {
-    Cx(positional::positional(meta))
+    Cx(positional::positional(Metavar(meta)))
 }
 
 /// # Named items
@@ -255,13 +256,14 @@ mod named {
             futures::{ArgFut, FlagFut},
             Fragment,
         },
+        visitor::Item,
         Parser,
     };
 
     pub struct Argument<T> {
         named: Named,
         ty: PhantomData<T>,
-        meta: &'static str,
+        meta: Metavar,
     }
 
     pub struct Flag<T> {
@@ -279,7 +281,7 @@ mod named {
             Box::pin(async move {
                 let fut = ArgFut {
                     name: &self.named.names,
-                    meta: Metavar(self.meta),
+                    meta: self.meta,
                     ctx,
                     task_id: None,
                 };
@@ -289,6 +291,13 @@ mod named {
                     Ok(t) => Ok(t),
                     Err(e) => Err(Error::parse_fail(format!("Can't parse {s:?} : {e}"))),
                 }
+            })
+        }
+
+        fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+            visitor.item(Item::Arg {
+                names: &self.named.names,
+                meta: self.meta,
             })
         }
     }
@@ -312,6 +321,12 @@ mod named {
                     },
                     Err(e) => Err(e),
                 }
+            })
+        }
+
+        fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+            visitor.item(Item::Flag {
+                names: &self.named.names,
             })
         }
     }
@@ -349,6 +364,12 @@ mod named {
                 Self::Long(cow) => Name::Long(Cow::Owned(cow.to_string())),
             }
         }
+        pub(crate) fn as_ref(&self) -> Name {
+            match self {
+                Name::Short(s) => Name::Short(*s),
+                Name::Long(cow) => Name::Long(Cow::Borrowed(cow.as_ref())),
+            }
+        }
     }
 
     pub struct Named {
@@ -382,7 +403,7 @@ mod named {
             Argument {
                 named: self,
                 ty: PhantomData,
-                meta,
+                meta: Metavar(meta),
             }
         }
     }
@@ -404,16 +425,17 @@ mod positional {
 
     use crate::{
         ctx::Ctx,
-        error::{Error, Message},
+        error::{Error, Message, Metavar},
         executor::futures::PositionalFut,
+        visitor::Item,
         Parser,
     };
     pub struct Positional<T> {
-        meta: &'static str,
+        meta: Metavar,
         help: Option<String>,
         ty: PhantomData<T>,
     }
-    pub(crate) fn positional<T>(meta: &'static str) -> Positional<T> {
+    pub(crate) fn positional<T>(meta: Metavar) -> Positional<T> {
         Positional {
             meta,
             help: None,
@@ -444,12 +466,16 @@ mod positional {
                 })
             })
         }
+
+        fn visit(&self, visitor: &mut dyn crate::Visitor) {
+            visitor.item(Item::Positional { meta: self.meta })
+        }
     }
 }
 
 pub trait Parser<T: 'static> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
-    fn visit(&self, _visitor: &mut dyn Visitor) {}
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 
     /// Convert parser into Boxed trait object
     fn into_box(self) -> Box<dyn Parser<T>>
@@ -665,19 +691,18 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         self.0.run(ctx)
     }
-}
 
-pub trait Metavisit {
-    fn visit(&self, visitor: &mut dyn Visitor);
-}
-
-impl<T: 'static> Metavisit for Rc<dyn Parser<T>> {
-    fn visit(&self, visitor: &mut dyn Visitor) {
-        <Self as Parser<T>>::visit(self, visitor)
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.0.visit(visitor)
     }
 }
 
-// TODO:
-// - non-utf8
-// - error messages:
-//   - conflict
+pub trait Metavisit {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
+}
+
+impl<T: 'static> Metavisit for Rc<dyn Parser<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        <Self as Parser<T>>::visit(self, visitor)
+    }
+}

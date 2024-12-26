@@ -70,7 +70,7 @@ impl Message {
             // this should never reach the consumer - it gets generated
             // when handle gets thrown out
             Self::Killed => true,
-            Self::Conflict(..) => false,
+            Self::Conflicts { .. } => false,
             Self::Unexpected => false,
             Self::ParseFailed(..) => false,
             Self::ArgNeedsValue { .. } => false,
@@ -93,7 +93,6 @@ pub(crate) enum Message {
     /// be addressed to one specific command line item
     Fail(&'static str),
     Missing(Vec<MissingItem>),
-    Conflict(usize, usize),
 
     /// Passed something that wasn't expected, such as `-` for an argument name, etc.
     Unexpected,
@@ -113,6 +112,11 @@ pub(crate) enum Message {
         name: Name<'static>,
         meta: Metavar,
         val: OsOrStr<'static>,
+    },
+
+    Conflicts {
+        winner: Name<'static>,
+        loser: Name<'static>,
     },
 
     // // those can be caught ---------------------------------------------------------------
@@ -199,19 +203,24 @@ impl Message {
                             (name, None) => write!(res, "{name}")?,
                             (name, Some(m)) => write!(res, "{name}={m}")?,
                         },
-                        MissingItem::Positional { meta } => write!(res, "{}", Metavar(meta))?,
+                        MissingItem::Positional { meta } => write!(res, "{}", meta)?,
                         MissingItem::Command { name: _ } => write!(res, "COMMAND")?,
                         MissingItem::Any { metavar } => todo!(),
                         MissingItem::Env { name } => todo!(),
                     }
                 }
             }
-            Message::Conflict(_, _) => todo!(),
+            Message::Conflicts { winner, loser } => {
+                write!(res, "{loser} cannot be used at the same time as {winner}")?
+            }
             Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
             Message::Killed => todo!(),
             Message::ParseFailed(_, _) => todo!(),
-            Message::ArgNeedsValue { name, meta } => todo!(),
-            Message::ArgNeedsValueGotNamed { name, meta, val } => todo!(),
+            Message::ArgNeedsValue { name, meta } => write!(res, "{name} wants a value {meta}")?,
+            Message::ArgNeedsValueGotNamed { name, meta, val } => write!(
+                res,
+                "{name} wants a value {meta}, got {val}, try using {name}={val}"
+            )?,
         }
         Ok(res)
     }
@@ -232,7 +241,7 @@ pub(crate) enum MissingItem {
         meta: Option<Metavar>,
     },
     Positional {
-        meta: &'static str,
+        meta: Metavar,
     },
     Command {
         name: &'static str,
