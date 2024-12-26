@@ -736,7 +736,6 @@ impl<'a> Runner<'a> {
 
     #[inline(never)]
     /// Drain all consumers so they can be polled to emit default values
-
     fn drain_all_consumers(&mut self, ids: &mut Vec<(BranchId, Id)>) {
         ids.extend(self.flags.values().flat_map(|v| v.iter()));
         ids.extend(self.positional.iter());

@@ -1,3 +1,7 @@
+//! This visitor tries to explain unparsed items passed by user but not consumed by the parser
+//!
+//! Visitor makes best effort to explain
+
 use crate::{
     error::MissingItem,
     named::Name,
@@ -15,7 +19,7 @@ pub(crate) struct ExplainUnparsed<'a> {
     missing: Option<Vec<MissingItem>>,
 
     /// Each name is annotated with it's branch id and if it is contained in `many` in some way
-    all_names: BTreeMap<Name<'a>, NameEntry>, // <(Name<'a>, usize, bool)>,
+    all_names: BTreeMap<Name<'a>, NameEntry>,
     branch_id: u32,
     in_many: u32,
     stack: Vec<Group>,
