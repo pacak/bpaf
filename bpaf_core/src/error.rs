@@ -79,6 +79,7 @@ impl Message {
             // when handle gets thrown out
             Self::Killed => true,
             Self::Conflicts { .. } => false,
+            Self::OnlyOnce { .. } => false,
             Self::Unexpected => false,
             Self::ParseFailed(..) => false,
             Self::ArgNeedsValue { .. } => false,
@@ -186,8 +187,10 @@ pub(crate) enum Message {
     // /// Expected one or more items in the scope, got someting else if any
     // Expected(Vec<Item>, Option<usize>),
     //
-    // /// Parameter is accepted but only once
-    // OnlyOnce(/* winner */ usize, usize),
+    /// Parameter is accepted but only once
+    OnlyOnce {
+        name: Name<'static>,
+    },
 }
 
 impl Message {
@@ -228,6 +231,10 @@ impl Message {
             Message::ArgNeedsValueGotNamed { name, meta, val } => write!(
                 res,
                 "{name} wants a value {meta}, got {val}, try using {name}={val}"
+            )?,
+            Message::OnlyOnce { name } => write!(
+                res,
+                "argument `{name}` cannot be used multiple times in this context"
             )?,
         }
         Ok(res)

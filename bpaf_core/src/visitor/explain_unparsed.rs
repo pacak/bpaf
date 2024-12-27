@@ -69,6 +69,9 @@ impl<'a> ExplainUnparsed<'a> {
             if let Some(err) = self.is_in_conflict(&parsed, name.as_ref()) {
                 return err;
             }
+            if let Some(err) = self.is_redundant(&parsed, name.as_ref()) {
+                return err;
+            }
         }
 
         // Suggestions I'd like to make
@@ -125,6 +128,23 @@ impl<'a> ExplainUnparsed<'a> {
                 });
             }
         }
+        None
+    }
+
+    fn is_redundant(&self, parsed: &[Name], unparsed: Name) -> Option<Error> {
+        let unparsed_info = self.all_names.get(&unparsed)?;
+        if unparsed_info.in_many {
+            return None;
+        }
+
+        if parsed.contains(&unparsed) {
+            return Some(Error {
+                message: crate::error::Message::OnlyOnce {
+                    name: unparsed.to_owned(),
+                },
+            });
+        }
+
         None
     }
 }

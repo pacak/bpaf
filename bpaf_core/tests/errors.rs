@@ -339,4 +339,12 @@ fn used_only_once_is_more_important_error() {
         err,
         "argument `--sort` cannot be used multiple times in this context"
     );
+    let err = opts
+        .run_inner(&["--sort", "--filter", "--sort", "--filter"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        err,
+        "argument `--sort` cannot be used multiple times in this context"
+    );
 }
