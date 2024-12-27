@@ -425,12 +425,11 @@ pub(crate) fn split_str_param<'a>(
 
                     match (is_arg, is_flags) {
                         (true, true) => return Err(Error::fail("ambiguity")), // TODO
-                        (true, false) => Arg::Named {
+                        (_, false) => Arg::Named {
                             name: Name::Short(names[0]),
                             value: Some(OsOrStr::from(arg)),
                         },
                         (false, true) => Arg::ShortSet { current: 0, names },
-                        (false, false) => return Err(Error::fail("not expected in this context")),
                     }
                 }
             }
