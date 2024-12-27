@@ -534,10 +534,13 @@ impl<'a> Runner<'a> {
         // TODO - include Any here
         if ids.is_empty() {
             // looking for fallback
-            ids.extend(self.fallback.heads());
-            self.ctx.set_term(true);
+            if let Some((_branch, id)) = self.fallback.heads().next() {
+                let f = self.first_child(id);
+                let branch = self.tasks.get(&id).unwrap().branch;
+                ids.push((branch, f));
+                self.ctx.set_term(true);
+            }
         } else {
-            self.ctx.set_term(false);
             ids.sort(); // sort by branch
         }
     }
@@ -637,6 +640,7 @@ impl<'a> Runner<'a> {
         let mut out = Vec::new();
 
         let unparsed = 'outer: loop {
+            self.ctx.set_term(false);
             self.propagate();
             println!("============= Propagate done");
 
