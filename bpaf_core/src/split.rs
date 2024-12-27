@@ -117,7 +117,7 @@ impl OsOrStr<'_> {
     pub(crate) fn is_named(&self) -> bool {
         match self {
             OsOrStr::Str(cow) => cow.starts_with('-'),
-            OsOrStr::Os(cow) => false,
+            OsOrStr::Os(_) => false,
         }
     }
 
