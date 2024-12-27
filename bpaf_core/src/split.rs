@@ -241,58 +241,6 @@ fn ascii_prefix(input: &OsStr) -> Option<(Cow<str>, Cow<OsStr>)> {
     }
 }
 
-// Try to split OsString into utf8 prefix and non-utf8 body
-// split points (_) located as such:
-// --foo=_REST
-// -f=_REST
-// -f_REST
-// -foo
-//
-// It should be able to handle all the same scenarios as `split_param` that include
-// a non-utf argument. For fully utf8 items we'll use `split_param` directly
-//
-//
-// fn mixed_arg(input: &OsStr) -> Option<Arg> {
-//     #[cfg(unix)]
-//     {
-//         use std::os::unix::ffi::{OsStrExt, OsStringExt};
-//
-//         let input = input.as_bytes();
-//         // shortest valid mixed non-utf argument is 3 bytes long: -cX and it must starts with a dash
-//         if input.len() < 3 || input[0] != b'-' {
-//             return None;
-//         }
-//
-//         if input[1] == b'-' {
-//             // long name, must be in form of --NAME=REST
-//             let eq = input.iter().position(|c| *c == b'=')?;
-//             let name = &input[2..eq];
-//             if !name.is_ascii() || name.is_empty() {
-//                 return None;
-//             }
-//             let name = std::str::from_utf8(&name).ok()?;
-//             let rest = OsString::from_vec(input.get(eq + 1..)?.to_vec());
-//             return Some(Arg::Named {
-//                 name: Name::Long(Cow::Borrowed(name)),
-//                 value: todo!("{:?}", Some(rest)),
-//             });
-//         } else if input[1].is_ascii_alphanumeric() {
-//             // short name in form of -N=REST or -NREST
-//             let rest = &input[if input[2] == b'=' { 3 } else { 2 }..];
-//             let rest = OsStr::from_bytes(rest);
-//             return Some(Arg::Named {
-//                 name: Name::Short(input[1] as char),
-//                 value: todo!("{:?}", Some(rest)),
-//             });
-//         }
-//     }
-//     #[cfg(windows)]
-//     {}
-//     return None;
-//
-//     None
-// }
-
 enum ShortOrSet<'a> {
     Short(Name<'a>),
     Set(Vec<char>, &'a str),
