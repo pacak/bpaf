@@ -440,3 +440,48 @@ pub(crate) fn split_str_param<'a>(
         }
     })
 }
+
+#[cfg(any(windows, unix))]
+#[test]
+fn non_utf8() {
+    let suffix;
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::OsStringExt;
+        suffix = OsString::from_wide(&[0x0066, 0x006f, 0xD800, 0x006f]);
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStringExt;
+        suffix = OsString::from_vec(vec![0x66, 0x6f, 0xD8, 0x6f]);
+    }
+
+    let mut os1 = OsString::new();
+    let mut os2 = OsString::new();
+    let m = BTreeMap::new();
+    for n in &[Name::Short('a'), Name::Long(Cow::Borrowed("alice"))] {
+        for sep in &["=", ""] {
+            for mid in &["x", ""] {
+                if matches!(n, Name::Long(_)) && sep.is_empty() {
+                    continue;
+                }
+
+                os1.clear();
+                os1.push(format!("{n}{sep}{mid}"));
+                os1.push(&suffix);
+
+                let val = OsOrStr::from(os1.as_os_str());
+                let r = split_param(&val, &m, &m).unwrap();
+                let Arg::Named { name, value } = r else {
+                    panic!("{os1:?} should parse into a named arg");
+                };
+
+                os2.clear();
+                os2.push(mid);
+                os2.push(&suffix);
+                assert_eq!(name, n.as_ref());
+                assert_eq!(value.unwrap().os(), os2);
+            }
+        }
+    }
+}
