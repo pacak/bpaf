@@ -38,6 +38,14 @@ where
                 if res.len() as u32 >= self.at_most {
                     break Ok(());
                 };
+                if ctx.is_term() {
+                    // Termination at this point means that the inner parser
+                    // won't be able to produce any more result.
+                    // Not even fallback since those will be terminated sooner
+                    // albe to produce any more
+                    break Ok(());
+                }
+                let _guard = FallbackGuard::new(ctx.clone());
                 match ctx.spawn(parent, &self.inner, true).await {
                     Ok(t) => res.push(t),
                     Err(e) if e.handle_with_fallback() => break Err(e),
@@ -223,6 +231,10 @@ where
 }
 
 /// Fallback registration
+///
+/// Registers interest in "no parse" scenario. With that in place if executor doesn't know
+/// what parsers to run it would start terminating children of whaterver task that instantiates
+/// this guard - this means the parser will receive an error.
 ///
 /// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
 /// dropped

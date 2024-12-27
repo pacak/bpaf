@@ -10,6 +10,24 @@ fn simple() {
 }
 
 #[test]
+fn repeated() {
+    let a = positional::<usize>("A");
+    let b = short('b').argument::<usize>("B").optional();
+    let parser = construct!(a, b).many::<Vec<_>>().to_options();
+
+    let r = parser.run_inner(["1", "2", "-b=3"]).unwrap();
+    assert_eq!(r, &[(1, None), (2, Some(3))]);
+
+    let r = parser
+        .run_inner(["1", "2", "-b=3", "4", "-b", "5", "6"])
+        .unwrap();
+    assert_eq!(r, &[(1, None), (2, Some(3)), (4, Some(5)), (6, None)]);
+
+    let r = parser.run_inner(["4", "-b", "5", "6"]).unwrap();
+    assert_eq!(r, &[(4, Some(5)), (6, None)]);
+}
+
+#[test]
 fn nested() {
     let a = positional::<usize>("A");
     let b = short('b').argument::<usize>("B").optional();

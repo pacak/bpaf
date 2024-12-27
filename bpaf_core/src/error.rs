@@ -226,7 +226,7 @@ impl Message {
             }
             Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
             Message::Killed => todo!(),
-            Message::ParseFailed(_, _) => todo!(),
+            Message::ParseFailed(_, x) => write!(res, "{x}")?,
             Message::ArgNeedsValue { name, meta } => write!(res, "{name} wants a value {meta}")?,
             Message::ArgNeedsValueGotNamed { name, meta, val } => write!(
                 res,
