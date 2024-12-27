@@ -190,13 +190,20 @@ impl<'a> From<Cow<'a, str>> for OsOrStr<'a> {
 
 impl<'a> From<&'a OsStr> for OsOrStr<'a> {
     fn from(value: &'a OsStr) -> Self {
-        Self::Os(Cow::Borrowed(value))
+        if let Some(value) = value.to_str() {
+            Self::Str(Cow::Borrowed(value))
+        } else {
+            Self::Os(Cow::Borrowed(value))
+        }
     }
 }
 
 impl From<OsString> for OsOrStr<'static> {
     fn from(value: OsString) -> Self {
-        Self::Os(Cow::Owned(value))
+        match value.into_string() {
+            Ok(value) => Self::Str(Cow::Owned(value)),
+            Err(value) => Self::Os(Cow::Owned(value)),
+        }
     }
 }
 
