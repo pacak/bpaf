@@ -9,7 +9,7 @@ mod visitor;
 use error::Metavar;
 use named::Name;
 use parsers::Command;
-use split::Args;
+use split::{Args, OsOrStr};
 
 pub use crate::{
     ctx::Ctx,
@@ -703,5 +703,36 @@ pub trait Metavisit {
 impl<T: 'static> Metavisit for Rc<dyn Parser<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         <Self as Parser<T>>::visit(self, visitor)
+    }
+}
+
+pub fn any<I, T>(metavar: &'static str, check: impl Fn(I) -> Option<T> + 'static) -> Cx<Anything<T>>
+where
+    I: std::str::FromStr + 'static,
+    <I as std::str::FromStr>::Err: std::fmt::Display,
+{
+    Cx(Anything {
+        metavar: Metavar(metavar),
+        check: Box::new(move |os: OsOrStr| check(os.parse::<I>().ok()?)),
+    })
+}
+
+pub struct Anything<T> {
+    metavar: Metavar,
+    check: Box<dyn Fn(OsOrStr) -> Option<T>>,
+}
+
+impl<T: 'static> Parser<T> for Anything<T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(executor::futures::AnyFut {
+            check: &self.check,
+            metavar: self.metavar,
+            ctx,
+            task_id: None,
+        })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        todo!()
     }
 }
