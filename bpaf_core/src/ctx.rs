@@ -140,7 +140,7 @@ impl<'a> Ctx<'a> {
         branch: BranchId,
         id: Id,
     ) {
-        self.shared.borrow_mut().push_back(Op::AddNamedListener {
+        self.queue(Op::AddNamedListener {
             flag,
             names,
             branch,
@@ -149,27 +149,19 @@ impl<'a> Ctx<'a> {
     }
 
     pub(crate) fn add_fallback(&self, branch: BranchId, id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddFallback { branch, id });
+        self.queue(Op::AddFallback { branch, id });
     }
 
     pub(crate) fn remove_fallback(&self, branch: BranchId, id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveFallback { branch, id });
+        self.queue(Op::RemoveFallback { branch, id });
     }
 
     pub(crate) fn add_children_exit_listener(&self, parent: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddExitListener { parent });
+        self.queue(Op::AddExitListener { parent });
     }
 
     pub(crate) fn remove_children_exit_listener(&self, parent: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::RemoveExitListener { parent });
+        self.queue(Op::RemoveExitListener { parent });
     }
 
     pub(crate) fn remove_named_listener(
@@ -179,7 +171,7 @@ impl<'a> Ctx<'a> {
         id: Id,
         names: &'a [Name<'static>],
     ) {
-        self.shared.borrow_mut().push_back(Op::RemoveNamedListener {
+        self.queue(Op::RemoveNamedListener {
             flag,
             names,
             branch,
@@ -188,13 +180,11 @@ impl<'a> Ctx<'a> {
     }
 
     pub(crate) fn positional_wake(&self, branch: BranchId, id: Id) {
-        self.shared
-            .borrow_mut()
-            .push_back(Op::AddPositionalListener { branch, id })
+        self.queue(Op::AddPositionalListener { branch, id })
     }
 
     pub(crate) fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
-        self.shared.borrow_mut().push_back(Op::SpawnTask {
+        self.queue(Op::SpawnTask {
             parent,
             action,
             keep_id,
