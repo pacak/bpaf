@@ -552,6 +552,7 @@ impl<'a> Runner<'a> {
         ids: &mut Vec<(BranchId, Id)>,
         out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
     ) -> Result<(), Error> {
+        let microadvance = matches!(front, Arg::ShortSet { .. });
         debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
         *self.ctx.front.borrow_mut() = Some(front);
 
@@ -569,6 +570,7 @@ impl<'a> Runner<'a> {
                 let (poll, consumed) = self.ctx.run_task(task);
                 task.consumed += consumed as u32;
                 if poll.is_ready() {
+                    task.consumed += microadvance as u32;
                     last_branch = branch;
                 }
 
@@ -668,6 +670,7 @@ impl<'a> Runner<'a> {
                         break 'outer Some(front);
                     }
                     self.consume(front, &mut ids, &mut out)?;
+                    self.propagate();
                 }
                 continue;
             }
