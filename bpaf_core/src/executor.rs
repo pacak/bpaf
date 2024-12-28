@@ -195,6 +195,15 @@ pub(crate) enum Op<'a> {
         id: Id,
         values: &'a [Name<'static>],
     },
+    AddAny {
+        branch: BranchId,
+        id: Id,
+    },
+
+    RemoveAny {
+        branch: BranchId,
+        id: Id,
+    },
 }
 
 pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) -> Result<T, String>
@@ -236,6 +245,7 @@ impl<'ctx> Runner<'ctx> {
             positional: Default::default(),
             conflicts: Default::default(),
             literal: Default::default(),
+            any: Default::default(),
             ctx,
         }
     }
@@ -258,6 +268,10 @@ pub(crate) struct Runner<'ctx> {
     pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
     fallback: Pecking,
     positional: Pecking,
+
+    /// Parsers for "anything" they behave similar to positional parsers, but
+    /// unlike regular positional items they can opt not to consume a value
+    any: Pecking,
 
     literal: BTreeMap<Name<'ctx>, Pecking>,
 
@@ -503,6 +517,12 @@ impl<'a> Runner<'a> {
                         }
                     }
                 }
+                Op::AddAny { branch, id } => {
+                    self.any.insert(branch, id);
+                }
+                Op::RemoveAny { branch, id } => {
+                    self.any.remove(branch, id);
+                }
             }
         }
     }
@@ -543,6 +563,7 @@ impl<'a> Runner<'a> {
                 ids.extend(self.positional.heads());
             }
         }
+        ids.extend(self.any.iter());
 
         // TODO - include Any here
         if ids.is_empty() {
@@ -581,11 +602,13 @@ impl<'a> Runner<'a> {
             // each scheduled task gets a chance to run,
             if let Some(task) = self.tasks.get_mut(&id) {
                 let (poll, consumed) = self.ctx.run_task(task);
-                task.consumed += consumed as u32;
                 if poll.is_ready() {
                     task.consumed += microadvance as u32;
                     last_branch = branch;
+                } else {
+                    continue;
                 }
+                task.consumed += consumed as u32;
 
                 println!(
                     "{id:?} consumed {consumed}, is ready? {:?}!",

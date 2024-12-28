@@ -408,3 +408,47 @@ impl Drop for LiteralFut<'_> {
         }
     }
 }
+
+pub(crate) struct AnyFut<'a, T> {
+    pub(crate) check: &'a dyn Fn(OsOrStr) -> Option<T>,
+    pub(crate) ctx: Ctx<'a>,
+    pub(crate) metavar: Metavar,
+    pub(crate) task_id: Option<(BranchId, Id)>,
+}
+
+impl<T> Future for AnyFut<'_, T> {
+    type Output = Result<T, Error>;
+
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
+        if self.task_id.is_none() {
+            let (branch, id) = self.ctx.current_task();
+            self.task_id = Some((branch, id));
+            self.ctx.add_any_wake(branch, id);
+            return Poll::Pending;
+        }
+
+        if self.ctx.is_term() {
+            let missing = MissingItem::Positional { meta: self.metavar };
+            return Poll::Ready(Err(Error::missing(missing)));
+        }
+        let Some(arg) = self.ctx.args.get(self.ctx.cur()) else {
+            debug_assert!(false, "This should not be reachable");
+            return Poll::Pending;
+        };
+        match (self.check)(arg.as_ref()) {
+            Some(t) => {
+                self.ctx.advance(1);
+                Poll::Ready(Ok(t))
+            }
+            None => Poll::Pending,
+        }
+    }
+}
+
+impl<T> Drop for AnyFut<'_, T> {
+    fn drop(&mut self) {
+        if let Some((branch, id)) = self.task_id.take() {
+            self.ctx.remove_any(branch, id);
+        }
+    }
+}
