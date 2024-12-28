@@ -31,3 +31,13 @@ fn merged_shorts_simple() {
     let r = run_parser(&parser, ["-abc"]).unwrap();
     assert_eq!(r, (true, true, true));
 }
+
+#[test]
+fn many_switch() {
+    let a = short('a').switch();
+    let parser = a.many::<Vec<_>>().to_options();
+
+    //    let r = parser.run_inner(["-aaa"]).unwrap();
+    let r = parser.run_inner(["-a", "-a", "-a"]).unwrap();
+    assert_eq!(r, [true, true, true]);
+}

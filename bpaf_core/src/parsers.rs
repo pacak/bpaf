@@ -34,6 +34,7 @@ where
                 kind: NodeKind::Prod,
             };
 
+            let mut prev_consumed = 0;
             let err = loop {
                 if res.len() as u32 >= self.at_most {
                     break Ok(());
@@ -46,10 +47,37 @@ where
                     break Ok(());
                 }
                 let _guard = FallbackGuard::new(ctx.clone());
-                match ctx.spawn(parent, &self.inner, true).await {
-                    Ok(t) => res.push(t),
-                    Err(e) if e.handle_with_fallback() => break Err(e),
-                    Err(e) => return Err(e),
+                let r = ctx.spawn(parent, &self.inner, true).await;
+
+                // If parser produces a result without consuming anything
+                // from the command line - this means it will continue to do
+                // so indefinitely, so the idea is to stop consuming once we
+                // reach such item (and throw it away - to deal with
+                // switch().many() producing several true followed by false.
+                //
+                // At the same time it is still a good idea to return the
+                // first such value... At least that's how v0.9 behaves
+
+                let consumed = ctx.items_consumed.get() - prev_consumed;
+                prev_consumed = ctx.items_consumed.get();
+                match r {
+                    Ok(t) => {
+                        if consumed > 0 {
+                            res.push(t);
+                        } else {
+                            if res.is_empty() {
+                                res.push(t);
+                            }
+                            break Ok(());
+                        }
+                    }
+                    Err(e) => {
+                        if e.handle_with_fallback() && consumed == 0 {
+                            break Ok(());
+                        } else {
+                            return Err(e);
+                        }
+                    }
                 }
             };
             // TODO - handle error-missing + at least
