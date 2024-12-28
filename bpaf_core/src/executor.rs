@@ -533,10 +533,11 @@ impl<'a> Runner<'a> {
 
         // TODO - include Any here
         if ids.is_empty() {
-            // looking for fallback
-            if let Some((_branch, id)) = self.fallback.heads().next() {
+            if let Some((branch, id)) = self.fallback.heads().next() {
                 let f = self.first_child(id);
-                let branch = self.tasks.get(&id).unwrap().branch;
+                // Not the right branch, but the right one is not needed - it is only used
+                // for deduplication. Should `ids` be `Vec<(Option<BranchId>, Id)>` instead?
+                // let branch = self.tasks.get(&id).unwrap().branch;
                 ids.push((branch, f));
                 self.ctx.set_term(true);
             }
