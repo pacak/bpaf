@@ -126,6 +126,13 @@ impl<'a> Ctx<'a> {
         self.queue(Op::RemoveLiteral { branch, id, values })
     }
 
+    pub(crate) fn add_any_wake(&self, branch: BranchId, id: Id) {
+        self.queue(Op::AddAny { branch, id });
+    }
+    pub(crate) fn remove_any(&self, branch: BranchId, id: Id) {
+        self.queue(Op::RemoveAny { branch, id });
+    }
+
     pub(crate) fn add_named_wake(
         &self,
         flag: bool,
