@@ -19,6 +19,19 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
+// TODO:
+// - cleanup family
+// - proper support for --
+// - simplify branchid - can be simple a pair of two ids
+// - port missing items
+// - port tests
+// - shell completion
+// - help
+// - any
+// - colorschemes
+// - documentation
+// - markdown/manpage
+
 //pub(crate) mod family;
 pub(crate) mod futures;
 
