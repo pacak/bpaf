@@ -6,7 +6,7 @@ use crate::{
     executor::{futures::LiteralFut, BranchId, Fragment, Id, NodeKind, Parent},
     named::Name,
     visitor::Group,
-    OptionParser, Parser,
+    Fallback, FallbackWith, OptionParser, Parser, Pure,
 };
 
 #[derive(Clone)]
@@ -21,8 +21,8 @@ pub struct Many<P, C, T> {
 impl<T, P, C> Parser<C> for Many<P, C, T>
 where
     P: Parser<T>,
-    T: std::fmt::Debug + 'static,
-    C: FromIterator<T> + std::fmt::Debug + 'static,
+    T: 'static,
+    C: FromIterator<T> + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, C> {
         let mut res = Vec::new();
@@ -238,7 +238,7 @@ pub struct Optional<P> {
 impl<P, T> Parser<Option<T>> for Optional<P>
 where
     P: Parser<T>,
-    T: std::fmt::Debug + 'static,
+    T: 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Option<T>> {
         Box::pin(async move {
@@ -317,5 +317,65 @@ impl<T: 'static> Parser<T> for Command<T> {
         if recursive {
             self.parser.0.parser.visit(visitor);
         }
+    }
+}
+
+impl<T, P> Parser<T> for Fallback<P, T>
+where
+    T: 'static + Clone,
+    P: Parser<T>,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(async move {
+            let _guard = FallbackGuard::new(ctx.clone());
+            match self.inner.run(ctx.clone()).await {
+                Ok(ok) => Ok(ok),
+                Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => {
+                    Ok(self.value.clone())
+                }
+                Err(e) => Err(e),
+            }
+        })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::visitor::Visitor<'a>) {
+        todo!()
+    }
+}
+
+impl<T: 'static, P, F, E> Parser<T> for FallbackWith<P, T, F, E>
+where
+    P: Parser<T>,
+    F: Fn() -> Result<T, E>,
+    E: ToString,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(async move {
+            let _guard = FallbackGuard::new(ctx.clone());
+            match self.inner.run(ctx.clone()).await {
+                Ok(ok) => Ok(ok),
+                Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => {
+                    match (self.f)() {
+                        Ok(ok) => Ok(ok),
+                        Err(e) => Err(Error::parse_fail(e.to_string())),
+                    }
+                }
+                Err(e) => Err(e),
+            }
+        })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::visitor::Visitor<'a>) {
+        todo!()
+    }
+}
+
+impl<T: 'static + Clone> Parser<T> for Pure<T> {
+    fn run<'a>(&'a self, _ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(async move { Ok(self.value.clone()) })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::visitor::Visitor<'a>) {
+        todo!();
     }
 }
