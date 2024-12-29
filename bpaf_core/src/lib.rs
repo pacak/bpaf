@@ -175,6 +175,7 @@ macro_rules! construct {
 /// Some of the notable states
 ///
 /// - [Named items](#named-items)
+#[must_use = "Bpaf parsers do nothing unless executed"]
 pub struct Cx<I>(I);
 
 /// Make named item with short name
@@ -474,7 +475,12 @@ mod positional {
 }
 
 pub trait Parser<T: 'static> {
+    #[doc(hidden)]
+    /// Create a fragment that executor can work with
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T>;
+
+    #[doc(hidden)]
+    /// Gather information
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 
     /// Convert parser into Boxed trait object
@@ -598,6 +604,8 @@ pub trait Parser<T: 'static> {
             map,
         }
     }
+
+    /// Apply a failing transformation to a contained value
     fn parse<F, R, E>(self, f: F) -> Parse<Self, F, T, R>
     where
         Self: Sized + Parser<T>,
@@ -630,6 +638,26 @@ pub trait Parser<T: 'static> {
         Cx(Optional { inner: self })
     }
 
+    fn fallback(self, value: T) -> Cx<Fallback<Self, T>>
+    where
+        Self: Sized,
+    {
+        Cx(Fallback { inner: self, value })
+    }
+
+    fn fallback_with<F, E>(self, f: F) -> Cx<FallbackWith<Self, T, F, E>>
+    where
+        Self: Sized,
+        F: Fn() -> Result<T, E>,
+        E: ToString,
+    {
+        Cx(FallbackWith {
+            inner: self,
+            f,
+            ctx: PhantomData,
+        })
+    }
+
     fn to_options(self) -> Cx<Options<T>>
     where
         Self: Sized + 'static,
@@ -638,6 +666,35 @@ pub trait Parser<T: 'static> {
             parser: self.into_box(),
         })
     }
+
+    // hide
+    // hide_usage
+    // with_usage
+    // group_help
+    // with_group_help
+    // complete
+    // complete_shell
+    //
+    // "render items inside as a custom help section"
+}
+
+pub struct Fallback<P, T> {
+    inner: P,
+    value: T,
+}
+
+pub struct FallbackWith<P, T, F, E> {
+    inner: P,
+    f: F,
+    ctx: PhantomData<(T, E)>,
+}
+
+fn pure<T>(value: T) -> Cx<Pure<T>> {
+    Cx(Pure { value })
+}
+
+pub struct Pure<T> {
+    value: T,
 }
 
 pub struct Options<T> {
