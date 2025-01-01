@@ -1,6 +1,8 @@
 use crate::{error::Metavar, named::Name, Parser};
-pub(crate) mod explain_unparsed;
+mod explain_unparsed;
 pub(crate) mod help;
+
+pub(crate) use explain_unparsed::ExplainUnparsed;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Item<'a> {
@@ -53,44 +55,6 @@ pub trait Visitor<'a> {
     // help default item
     // custom text in usage
     // custom text in help
-}
-
-pub trait Revisit<'a>: Visitor<'a> {
-    fn visit(&mut self, visitor: &mut dyn Visitor<'a>);
-}
-
-struct HideUsage<P> {
-    inner: P,
-}
-
-impl<T: 'static, P> Parser<T> for HideUsage<P>
-where
-    P: Parser<T>,
-{
-    fn run<'a>(&'a self, ctx: crate::Ctx<'a>) -> crate::Fragment<'a, T> {
-        todo!()
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        if visitor.mode() != Mode::Usage {
-            self.inner.visit(visitor);
-        }
-    }
-}
-
-struct CustomHelp<P> {
-    inner: P,
-    custom: fn(&P, &mut dyn Visitor),
-}
-
-impl<T: 'static, P: Parser<T>> Parser<T> for CustomHelp<P> {
-    fn run<'a>(&'a self, ctx: crate::Ctx<'a>) -> crate::Fragment<'a, T> {
-        todo!()
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        (self.custom)(&self.inner, visitor);
-    }
 }
 
 fn other_commands<'a, T: 'static>(parser: &'a impl Parser<T>, visitor: &mut dyn Visitor<'a>) {

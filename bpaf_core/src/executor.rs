@@ -4,8 +4,8 @@ use crate::{
     named::Name,
     pecking::Pecking,
     split::{split_param, Arg, Args, OsOrStr},
-    visitor::Group,
-    ExplainUnparsed, Metavisit, Parser,
+    visitor::{ExplainUnparsed, Group},
+    Metavisit, Parser,
 };
 use std::{
     any::Any,
