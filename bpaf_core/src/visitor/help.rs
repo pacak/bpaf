@@ -1,3 +1,5 @@
+//! This visitor is responsible for generating the help message
+
 use mini_ansi::Style;
 
 use crate::{
@@ -9,6 +11,7 @@ use crate::{
 
 pub const WIDTH: usize = 100;
 pub const MAX_TAB: usize = 24;
+const PADDING: &str = "                                                  ";
 
 #[derive(Debug, Clone)]
 enum HelpItem<'a> {
@@ -181,7 +184,6 @@ fn write_items(res: &mut String, tab: usize, items: &[HelpItem]) -> std::fmt::Re
     Ok(())
 }
 
-const PADDING: &str = "                                                  ";
 fn write_text(res: &mut String, char_pos: &mut usize, tab: usize, input: &str) {
     let x = res.rsplit_once("\n").unwrap().1;
     assert_eq!(
@@ -346,10 +348,25 @@ fn foo() {
 
     let h = Help::new(&parser);
 
-    let r = h.render("asdf");
+    let r = h.render("myapp");
 
-    println!("{r}");
-    todo!();
+    let expected = "
+Alice and Bob:
+    -a, --alice    This is an example flag 1
+    -b, --bob=BOB  This is an example flag 2
+
+Available positional items:
+        FRANK      Let me be Frank
+        <Grace|Sybil>  Either of those two
+
+Available options:
+        --charlie=<1..10>  Charlie takes numerical value and some words and more words, more than
+                   can fit on a single line. Or two lines. Or three. Actually let's try to make it
+                   span more than two lines, ideally three.
+    -e, --eve      Required flag
+";
+
+    assert_eq!(r, expected);
 }
 
 pub mod mini_ansi {

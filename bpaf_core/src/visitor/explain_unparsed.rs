@@ -3,11 +3,11 @@
 //! Visitor makes best effort to explain
 
 use crate::{
+    error::Error,
     error::MissingItem,
     named::Name,
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Mode, Visitor},
-    Error,
 };
 use std::collections::BTreeMap;
 
