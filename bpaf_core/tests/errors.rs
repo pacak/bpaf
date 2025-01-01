@@ -25,10 +25,10 @@ fn simple_command() {
 fn alt_of_req_flags() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
-    let p = construct!([a, b]);
+    let p = construct!([a, b]).to_options();
     assert_eq!(
         "-b cannot be used at the same time as -a",
-        run_parser(&p, ["-a", "-b"]).unwrap_err()
+        p.run_inner(["-a", "-b"]).unwrap_err()
     );
 }
 
