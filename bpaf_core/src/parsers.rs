@@ -1,13 +1,23 @@
-use std::marker::PhantomData;
+//! All the individual parser components
+//!
+//! This module exposes parsers that accept further configuration with builder pattern
+//!
+//! **In most cases you won’t be using those names directly, they’re only listed here to provide access to documentation**
 
+//!
 use crate::{
     ctx::Ctx,
-    error::Error,
-    executor::{futures::LiteralFut, BranchId, Fragment, Id, NodeKind, Parent},
+    error::{Error, Metavar},
+    executor::{
+        futures::{AnyFut, LiteralFut},
+        BranchId, Fragment, Id, NodeKind, Parent,
+    },
     named::Name,
-    visitor::Group,
-    Fallback, FallbackWith, OptionParser, Parser, Pure,
+    split::OsOrStr,
+    visitor::{Group, Mode, Visitor},
+    OptionParser, Parser,
 };
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 pub struct Many<P, C, T> {
@@ -377,5 +387,91 @@ impl<T: 'static + Clone> Parser<T> for Pure<T> {
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::visitor::Visitor<'a>) {
         todo!();
+    }
+}
+
+pub struct GroupHelp<P> {
+    pub(crate) inner: P,
+    pub(crate) title: &'static str,
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for GroupHelp<P> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        self.inner.run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(Group::HelpGroup(self.title));
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}
+
+pub struct Fallback<P, T> {
+    pub(crate) inner: P,
+    pub(crate) value: T,
+}
+
+pub struct FallbackWith<P, T, F, E> {
+    pub(crate) inner: P,
+    pub(crate) f: F,
+    pub(crate) ctx: PhantomData<(T, E)>,
+}
+
+pub struct Pure<T> {
+    pub(crate) value: T,
+}
+
+pub struct Anything<T> {
+    pub(crate) metavar: Metavar,
+    pub(crate) check: Box<dyn Fn(OsOrStr) -> Option<T>>,
+}
+
+impl<T: 'static> Parser<T> for Anything<T> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        Box::pin(AnyFut {
+            check: &self.check,
+            metavar: self.metavar,
+            ctx,
+            task_id: None,
+        })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        todo!()
+    }
+}
+
+pub struct HideUsage<P> {
+    pub(crate) inner: P,
+}
+
+impl<T: 'static, P> Parser<T> for HideUsage<P>
+where
+    P: Parser<T>,
+{
+    fn run<'a>(&'a self, ctx: crate::Ctx<'a>) -> crate::Fragment<'a, T> {
+        self.inner.run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        if visitor.mode() != Mode::Usage {
+            self.inner.visit(visitor);
+        }
+    }
+}
+
+pub struct CustomHelp<P> {
+    pub(crate) inner: P,
+    pub(crate) custom: fn(&P, &mut dyn Visitor),
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for CustomHelp<P> {
+    fn run<'a>(&'a self, ctx: crate::Ctx<'a>) -> crate::Fragment<'a, T> {
+        self.inner.run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        (self.custom)(&self.inner, visitor);
     }
 }
