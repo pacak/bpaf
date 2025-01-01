@@ -9,7 +9,6 @@ mod visitor;
 /// Reexports used by the [`construct!`] macro
 #[doc(hidden)]
 pub mod __private {
-
     pub use crate::{
         ctx::Ctx,
         error::Error,
@@ -23,10 +22,13 @@ use crate::{
     error::Metavar,
     executor::{run_parser, Fragment},
     named::{Argument, Flag, Name, Named},
-    parsers::{Command, Count, Guard, Last, Many, Map, Optional, Parse},
+    parsers::{
+        Anything, Command, Count, Fallback, FallbackWith, GroupHelp, Guard, HideUsage, Last, Many,
+        Map, Optional, Parse, Pure,
+    },
     positional::Positional,
     split::{Args, OsOrStr},
-    visitor::{explain_unparsed::ExplainUnparsed, Visitor},
+    visitor::Visitor,
 };
 use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
 
@@ -686,6 +688,13 @@ pub trait Parser<T: 'static> {
         Cx(GroupHelp { inner: self, title })
     }
 
+    fn hide_usage(self) -> Cx<HideUsage<Self>>
+    where
+        Self: Sized,
+    {
+        Cx(HideUsage { inner: self })
+    }
+
     // hide
     // hide_usage
     // with_usage
@@ -697,39 +706,8 @@ pub trait Parser<T: 'static> {
     // "render items inside as a custom help section"
 }
 
-pub struct GroupHelp<P> {
-    inner: P,
-    title: &'static str,
-}
-impl<T: 'static, P: Parser<T>> Parser<T> for GroupHelp<P> {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        self.inner.run(ctx)
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        visitor.push_group(visitor::Group::HelpGroup(self.title));
-        self.inner.visit(visitor);
-        visitor.pop_group();
-    }
-}
-
-pub struct Fallback<P, T> {
-    inner: P,
-    value: T,
-}
-
-pub struct FallbackWith<P, T, F, E> {
-    inner: P,
-    f: F,
-    ctx: PhantomData<(T, E)>,
-}
-
 pub fn pure<T>(value: T) -> Cx<Pure<T>> {
     Cx(Pure { value })
-}
-
-pub struct Pure<T> {
-    value: T,
 }
 
 pub struct Options<T> {
@@ -807,24 +785,4 @@ where
         metavar: Metavar(metavar),
         check: Box::new(move |os: OsOrStr| check(os.parse::<I>().ok()?)),
     })
-}
-
-pub struct Anything<T> {
-    metavar: Metavar,
-    check: Box<dyn Fn(OsOrStr) -> Option<T>>,
-}
-
-impl<T: 'static> Parser<T> for Anything<T> {
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        Box::pin(executor::futures::AnyFut {
-            check: &self.check,
-            metavar: self.metavar,
-            ctx,
-            task_id: None,
-        })
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        todo!()
-    }
 }
