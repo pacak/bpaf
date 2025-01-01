@@ -6,7 +6,7 @@ use crate::{
     error::MissingItem,
     named::Name,
     split::{split_param, Arg, OsOrStr},
-    visitor::{Group, Item, Visitor},
+    visitor::{Group, Item, Mode, Visitor},
     Error,
 };
 use std::collections::BTreeMap;
@@ -184,5 +184,9 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
             self.in_many -= 1;
         }
         self.stack.pop();
+    }
+
+    fn mode(&self) -> Mode {
+        Mode::Info
     }
 }
