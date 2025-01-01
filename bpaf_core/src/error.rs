@@ -245,8 +245,32 @@ impl Message {
 pub struct Metavar(pub(crate) &'static str);
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "<{}>", self.0)
+        if self.is_angled() {
+            write!(f, "<{}>", self.0)
+        } else {
+            write!(f, "{}", self.0)
+        }
     }
+}
+
+impl Metavar {
+    pub(crate) fn is_angled(&self) -> bool {
+        !self
+            .0
+            .chars()
+            .all(|c| c.is_uppercase() || c.is_ascii_digit() || c == '-' || c == '_')
+    }
+}
+
+#[test]
+fn metavar_display_and_with() {
+    let a = Metavar("A");
+    assert_eq!(a.to_string(), "A");
+    assert_eq!(a.width(), 1);
+
+    let a = Metavar("a|b");
+    assert_eq!(a.to_string(), "<a|b>");
+    assert_eq!(a.width(), 5);
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]

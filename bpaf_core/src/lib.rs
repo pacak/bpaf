@@ -203,7 +203,7 @@ impl Cx<Named> {
         self.0.long(name);
         self
     }
-    pub fn help(mut self, help: String) -> Self {
+    pub fn help(mut self, help: &'static str) -> Self {
         self.0.help(help);
         self
     }
@@ -223,7 +223,7 @@ impl Cx<Named> {
 
 /// # Parser for a named item
 impl<T> Cx<Flag<T>> {
-    pub fn help(mut self, help: String) -> Self {
+    pub fn help(mut self, help: &'static str) -> Self {
         self.0.help(help);
         self
     }
@@ -231,7 +231,7 @@ impl<T> Cx<Flag<T>> {
 }
 
 impl<T> Cx<Argument<T>> {
-    pub fn help(mut self, help: String) -> Self {
+    pub fn help(mut self, help: &'static str) -> Self {
         self.0.help(help);
         self
     }
@@ -241,7 +241,7 @@ impl<T> Cx<Argument<T>> {
 ///
 /// Parses a positional item, usually with something attached
 impl<T> Cx<Positional<T>> {
-    pub fn help(mut self, help: String) -> Self {
+    pub fn help(mut self, help: &'static str) -> Self {
         self.0.help(help);
         self
     }
@@ -299,6 +299,7 @@ mod named {
             visitor.item(Item::Arg {
                 names: &self.named.names,
                 meta: self.meta,
+                help: self.named.help,
             })
         }
     }
@@ -328,6 +329,7 @@ mod named {
         fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
             visitor.item(Item::Flag {
                 names: &self.named.names,
+                help: self.named.help,
             })
         }
     }
@@ -375,7 +377,7 @@ mod named {
 
     pub struct Named {
         names: Vec<Name<'static>>,
-        help: Option<String>,
+        help: Option<&'static str>,
     }
 
     pub(crate) fn short(name: char) -> Named {
@@ -397,7 +399,7 @@ mod named {
         pub(crate) fn long(&mut self, name: &'static str) {
             self.names.push(Name::Long(Cow::Borrowed(name)));
         }
-        pub(crate) fn help(&mut self, help: String) {
+        pub(crate) fn help(&mut self, help: &'static str) {
             self.help = Some(help);
         }
         pub(crate) fn argument<T>(self, meta: &'static str) -> Argument<T> {
@@ -409,13 +411,13 @@ mod named {
         }
     }
     impl<T> Flag<T> {
-        pub(crate) fn help(&mut self, help: String) {
+        pub(crate) fn help(&mut self, help: &'static str) {
             self.named.help = Some(help);
         }
     }
 
     impl<T> Argument<T> {
-        pub(crate) fn help(&mut self, help: String) {
+        pub(crate) fn help(&mut self, help: &'static str) {
             self.named.help = Some(help);
         }
     }
@@ -433,7 +435,7 @@ mod positional {
     };
     pub struct Positional<T> {
         meta: Metavar,
-        help: Option<String>,
+        help: Option<&'static str>,
         ty: PhantomData<T>,
     }
     pub(crate) fn positional<T>(meta: Metavar) -> Positional<T> {
@@ -444,7 +446,7 @@ mod positional {
         }
     }
     impl<T> Positional<T> {
-        pub(crate) fn help(&mut self, help: String) {
+        pub(crate) fn help(&mut self, help: &'static str) {
             self.help = Some(help);
         }
     }
@@ -468,8 +470,11 @@ mod positional {
             })
         }
 
-        fn visit(&self, visitor: &mut dyn crate::Visitor) {
-            visitor.item(Item::Positional { meta: self.meta })
+        fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+            visitor.item(Item::Positional {
+                meta: self.meta,
+                help: self.help.as_deref(),
+            })
         }
     }
 }
@@ -667,6 +672,13 @@ pub trait Parser<T: 'static> {
         })
     }
 
+    fn group_help(self, title: &'static str) -> Cx<GroupHelp<Self>>
+    where
+        Self: Sized,
+    {
+        Cx(GroupHelp { inner: self, title })
+    }
+
     // hide
     // hide_usage
     // with_usage
@@ -676,6 +688,22 @@ pub trait Parser<T: 'static> {
     // complete_shell
     //
     // "render items inside as a custom help section"
+}
+
+pub struct GroupHelp<P> {
+    inner: P,
+    title: &'static str,
+}
+impl<T: 'static, P: Parser<T>> Parser<T> for GroupHelp<P> {
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
+        self.inner.run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(visitor::Group::HelpGroup(self.title));
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
 }
 
 pub struct Fallback<P, T> {
