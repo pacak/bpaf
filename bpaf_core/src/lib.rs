@@ -1,26 +1,31 @@
 mod ctx;
 mod error;
-pub mod executor;
+mod executor;
 pub mod parsers;
 mod pecking;
 mod split;
 mod visitor;
 
-use error::Metavar;
-use named::Name;
-use parsers::Command;
-use split::{Args, OsOrStr};
+/// Reexports used by the [`construct!`] macro
+#[doc(hidden)]
+pub mod __private {
 
-pub use crate::{
-    ctx::Ctx,
-    error::Error,
-    executor::{run_parser, Alt, Con, Fragment},
-};
+    pub use crate::{
+        ctx::Ctx,
+        error::Error,
+        executor::{downcast, hint, run_parser, Alt, Con, Fragment},
+        Metavisit, Parser,
+    };
+}
 
 use crate::{
-    named::{Argument, Flag, Named},
-    parsers::{Count, Guard, Last, Many, Map, Optional, Parse},
+    ctx::Ctx,
+    error::Metavar,
+    executor::{run_parser, Fragment},
+    named::{Argument, Flag, Name, Named},
+    parsers::{Command, Count, Guard, Last, Many, Map, Optional, Parse},
     positional::Positional,
+    split::{Args, OsOrStr},
     visitor::{explain_unparsed::ExplainUnparsed, Visitor},
 };
 use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
@@ -62,7 +67,7 @@ macro_rules! construct {
 
     // All the logic for sum parser sits inside of Alt datatype
     (@prepare [alt] [ $($field:ident)*]) => {
-        $crate::Alt { items: vec![ $($field.into_box()),*] }
+        $crate::__private::Alt { items: ::std::vec![ $($field.into_box()),*] }
     };
 
     // For product type the logic is a bit more complicated - do one more step
@@ -79,13 +84,13 @@ macro_rules! construct {
     (@fin $ty:tt [$($fields:ident)*]) => {
                 #[allow(unused_assignments)]
         {
-        let mut visitors = Vec::<Box<dyn $crate::Metavisit>>::new();
-        let mut parsers = Vec::<Box<dyn ::std::any::Any>>::new();
+        let mut visitors = ::std::vec::Vec::<::std::boxed::Box<dyn $crate::__private::Metavisit>>::new();
+        let mut parsers = ::std::vec::Vec::<::std::boxed::Box<dyn ::std::any::Any>>::new();
         $(
-            let $fields: ::std::rc::Rc<dyn Parser<_>> = $fields.into_rc();
-            visitors.push(Box::new($fields.clone()));
-            parsers.push(Box::new($fields.clone()));
-            let $fields = $crate::executor::hint($fields);
+            let $fields: ::std::rc::Rc<dyn $crate::__private::Parser<_>> = $fields.into_rc();
+            visitors.push(::std::boxed::Box::new($fields.clone()));
+            parsers.push(::std::boxed::Box::new($fields.clone()));
+            let $fields = $crate::__private::hint($fields);
         )*
 
         // making a future assumes parser is borrowed with the same lifetime as the
@@ -105,15 +110,17 @@ macro_rules! construct {
         //
         // If only `call` on `Fn` had a reference on `&self` lifetime in the output...
         // `fn call(&self, args: Args) -> Self::Output`
-        let run: Box<dyn for<'a> Fn(&'a [Box<dyn ::std::any::Any>], Ctx<'a>) -> Fragment<'a, _>> =
-            Box::new(move |parsers, ctx| {
+        let run: ::std::boxed::Box<dyn for<'a>
+            ::std::ops::Fn(&'a [::std::boxed::Box<dyn ::std::any::Any>], $crate::__private::Ctx<'a>) ->
+                $crate::__private::Fragment<'a, _>> =
+            ::std::boxed::Box::new(move |parsers, ctx| {
             let mut n = 0;
 
             $(
-                let $fields = $crate::executor::downcast($fields, &parsers[n]);
+                let $fields = $crate::__private::downcast($fields, &parsers[n]);
                 n += 1;
             )*
-            Box::pin(async move {
+            ::std::boxed::Box::pin(async move {
                 let (_branch, id) = ctx.current_id();
                 let mut n = 0;
                 $(
@@ -121,11 +128,11 @@ macro_rules! construct {
                     n += 1;
                 )*
                 ctx.early_exit(n).await?;
-                ::std::result::Result::Ok::<_, $crate::Error>
+                ::std::result::Result::Ok::<_, $crate::__private::Error>
                     ($crate::construct!(@make $ty [$($fields)*]))
             })
         });
-        $crate::Con { visitors, parsers, run }
+        $crate::__private::Con { visitors, parsers, run }
 
     }};
 
@@ -717,7 +724,7 @@ pub struct FallbackWith<P, T, F, E> {
     ctx: PhantomData<(T, E)>,
 }
 
-fn pure<T>(value: T) -> Cx<Pure<T>> {
+pub fn pure<T>(value: T) -> Cx<Pure<T>> {
     Cx(Pure { value })
 }
 
