@@ -2,9 +2,9 @@ use bpaf_core::*;
 
 #[test]
 fn simple() {
-    let a = short('a').argument::<usize>("A").optional();
+    let a = short('a').argument::<usize>("A").optional().to_options();
 
-    let r = run_parser(&a, []).unwrap();
+    let r = a.run_inner([]).unwrap();
 
     assert_eq!(r, None);
 }
@@ -31,24 +31,24 @@ fn repeated() {
 fn nested() {
     let a = positional::<usize>("A");
     let b = short('b').argument::<usize>("B").optional();
-    let ab = construct!(a, b).optional();
+    let ab = construct!(a, b).optional().to_options();
 
-    let r = run_parser(&ab, ["-b"]).unwrap_err();
+    let r = ab.run_inner(["-b"]).unwrap_err();
     assert_eq!(r, "unexpected item!");
 
-    let r = run_parser(&ab, ["1", "-b"]).unwrap_err();
+    let r = ab.run_inner(["1", "-b"]).unwrap_err();
     assert_eq!(r, "unexpected item!");
 
-    let r = run_parser(&ab, []).unwrap();
+    let r = ab.run_inner([]).unwrap();
     assert_eq!(r, None);
 
-    let r = run_parser(&ab, ["-b", "3", "1"]).unwrap();
+    let r = ab.run_inner(["-b", "3", "1"]).unwrap();
     assert_eq!(r, Some((1, Some(3))));
 
-    let r = run_parser(&ab, ["1", "-b", "3"]).unwrap();
+    let r = ab.run_inner(["1", "-b", "3"]).unwrap();
     assert_eq!(r, Some((1, Some(3))));
 
-    let r = run_parser(&ab, ["1"]).unwrap();
+    let r = ab.run_inner(["1"]).unwrap();
     assert_eq!(r, Some((1, None)));
 }
 
@@ -56,15 +56,15 @@ fn nested() {
 fn non_consuming() {
     let a = positional::<usize>("A");
     let b = short('b').switch();
-    let ab = construct!(a, b).optional();
+    let ab = construct!(a, b).optional().to_options();
 
-    let r = run_parser(&ab, ["-b"]).unwrap_err();
+    let r = ab.run_inner(["-b"]).unwrap_err();
     assert_eq!(r, "Expected <A>");
 }
 
 #[test]
 fn many() {
-    let a = positional::<usize>("A").many::<Vec<_>>();
-    let r = run_parser(&a, ["1", "2", "3"]).unwrap();
+    let a = positional::<usize>("A").many::<Vec<_>>().to_options();
+    let r = a.run_inner(["1", "2", "3"]).unwrap();
     assert_eq!(r, &[1, 2, 3,]);
 }
