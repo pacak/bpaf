@@ -7,13 +7,14 @@ use std::{
 };
 
 use crate::{
+    error::Error,
     executor::{
         futures::{ErrorHandle, JoinHandle},
         Action, BranchId, Id, Op, Parent, Task,
     },
     named::Name,
     split::{Arg, OsOrStr},
-    Error, Parser,
+    Parser,
 };
 
 pub struct RawCtx<'a> {

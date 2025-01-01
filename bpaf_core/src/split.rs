@@ -1,4 +1,4 @@
-use crate::{named::Name, pecking::Pecking, Error};
+use crate::{error::Error, named::Name, pecking::Pecking};
 use std::{
     borrow::Cow,
     collections::BTreeMap,
