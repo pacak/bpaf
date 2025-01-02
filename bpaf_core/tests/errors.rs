@@ -66,12 +66,12 @@ fn no_argument() {
     let b = short('2').switch();
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(&["-a", "-42"]).unwrap();
+    let r = parser.run_inner(["-a", "-42"]).unwrap();
     assert_eq!(r, (-42, false));
 
     //    let r = parser.run_inner(&["-a", "-4"])).unwrap();
     //    assert_eq!(r, (-4, flse));
-    let r = parser.run_inner(&["-a", "-2"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-a", "-2"]).unwrap_err().unwrap_stderr();
 
     // can we restore this?
     // "`-a` requires an argument `N`, got a flag `-2`, try `-a=-2` to use it as an argument"
@@ -85,10 +85,10 @@ fn cannot_be_used_partial_arg() {
     let parser = construct!([a, b]).to_options();
 
     // TODO - error message can be improved...
-    let res = parser.run_inner(&["-b", "-a"]).unwrap_err().unwrap_stderr();
+    let res = parser.run_inner(["-b", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "`-b` is not expected in this context");
 
-    let res = parser.run_inner(&["-a", "-b"]).unwrap_err().unwrap_stderr();
+    let res = parser.run_inner(["-a", "-b"]).unwrap_err().unwrap_stderr();
     assert_eq!(res, "`-b` is not expected in this context");
 }
 
@@ -137,7 +137,7 @@ fn guard_message() {
         .guard(|n| *n <= 10u32, "too high")
         .to_options();
 
-    let res = parser.run_inner(&["-a", "30"]).unwrap_err().unwrap_stderr();
+    let res = parser.run_inner(["-a", "30"]).unwrap_err().unwrap_stderr();
 
     assert_eq!(res, "`30`: too high");
 }
@@ -148,7 +148,7 @@ fn strict_positional_argument() {
     let parser = a.to_options();
 
     let r = parser
-        .run_inner(&["-a", "--", "10"])
+        .run_inner(["-a", "--", "10"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`-a` requires an argument `N`");
@@ -160,13 +160,13 @@ fn not_expected_at_all() {
     let parser = a.to_options();
 
     let r = parser
-        .run_inner(&["--megapotato"])
+        .run_inner(["--megapotato"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`--megapotato` is not expected in this context");
 
     let r = parser
-        .run_inner(&["megapotato"])
+        .run_inner(["megapotato"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`megapotato` is not expected in this context");
@@ -179,7 +179,7 @@ fn cannot_be_used_twice() {
     let parser = construct!(a, b).to_options();
 
     let r = parser
-        .run_inner(&["-a", "-b", "-a"])
+        .run_inner(["-a", "-b", "-a"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -187,13 +187,13 @@ fn cannot_be_used_twice() {
         "argument `-a` cannot be used multiple times in this context"
     );
 
-    let r = parser.run_inner(&["-a", "-a"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-a", "-a"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
         "argument `-a` cannot be used multiple times in this context"
     );
 
-    let r = parser.run_inner(&["-abba"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-abba"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
         "argument `-a` cannot be used multiple times in this context"
@@ -237,7 +237,7 @@ fn cannot_be_used_twice() {
 fn adjacent_option_complains_to() {
     let parser = short('a').argument::<usize>("A").to_options();
 
-    let r = parser.run_inner(&["-ayam"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-ayam"]).unwrap_err().unwrap_stderr();
 
     // TODO - this should point to the whole "-ayam" thing
     assert_eq!(r, "couldn't parse `yam`: invalid digit found in string");
@@ -262,16 +262,16 @@ fn pos_with_invalid_arg() {
     let b = positional::<usize>("B");
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(&["-c", "12"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-c", "12"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "`-c` is not expected in this context");
 
-    let r = parser.run_inner(&["12", "-c"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["12", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "`-c` is not expected in this context");
 
-    let r = parser.run_inner(&["-c", "t"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["-c", "t"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
 
-    let r = parser.run_inner(&["t", "-c"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["t", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
 }
 
@@ -280,7 +280,7 @@ fn strictly_positional_help() {
     let parser = long("hhhh").switch().to_options();
 
     let r = parser
-        .run_inner(&["--", "--help"])
+        .run_inner(["--", "--help"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(r, "`--help` is not expected in this context");
@@ -311,7 +311,7 @@ fn two_required_fields_first_missing() {
     let a = long("a").argument::<u32>("A");
     let b = long("b").argument::<u32>("B");
     let parser = construct!(a, b).to_options();
-    let r = parser.run_inner(&["--b", "1"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner(["--b", "1"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected `--a=A`, pass `--help` for usage information");
 }
 
@@ -323,7 +323,7 @@ fn used_only_once_is_more_important_error() {
     let opts = construct!(format, sort, filter,).to_options();
 
     let err = opts
-        .run_inner(&["--filter", "--filter"])
+        .run_inner(["--filter", "--filter"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -332,7 +332,7 @@ fn used_only_once_is_more_important_error() {
     );
 
     let err = opts
-        .run_inner(&["--sort", "--sort"])
+        .run_inner(["--sort", "--sort"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
@@ -340,7 +340,7 @@ fn used_only_once_is_more_important_error() {
         "argument `--sort` cannot be used multiple times in this context"
     );
     let err = opts
-        .run_inner(&["--sort", "--filter", "--sort", "--filter"])
+        .run_inner(["--sort", "--filter", "--sort", "--filter"])
         .unwrap_err()
         .unwrap_stderr();
     assert_eq!(
