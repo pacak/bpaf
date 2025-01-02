@@ -27,7 +27,7 @@ fn alt_of_req_flags() {
     let b = short('b').req_flag('b');
     let p = construct!([a, b]).to_options();
     assert_eq!(
-        "-b cannot be used at the same time as -a",
+        "`-b` cannot be used at the same time as `-a`",
         p.run_inner(["-a", "-b"]).unwrap_err()
     );
 }
