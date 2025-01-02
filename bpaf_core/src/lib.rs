@@ -1,11 +1,11 @@
 mod ctx;
 mod error;
 mod executor;
+mod mini_ansi;
 pub mod parsers;
 mod pecking;
 mod split;
 mod visitor;
-
 /// Reexports used by the [`construct!`] macro
 #[doc(hidden)]
 pub mod __private {

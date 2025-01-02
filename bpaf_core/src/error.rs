@@ -1,4 +1,8 @@
-use crate::{named::Name, split::OsOrStr};
+use crate::{
+    mini_ansi::{Emphasis, Invalid},
+    named::Name,
+    split::OsOrStr,
+};
 
 #[derive(Debug, Clone)]
 pub struct Error {
@@ -124,8 +128,8 @@ pub(crate) enum Message {
     },
 
     Conflicts {
-        winner: Name<'static>,
-        loser: Name<'static>,
+        winner: Emphasis<Name<'static>>,
+        loser: Invalid<Name<'static>>,
     },
 
     // // those can be caught ---------------------------------------------------------------
@@ -224,6 +228,7 @@ impl Message {
             Message::Conflicts { winner, loser } => {
                 write!(res, "{loser} cannot be used at the same time as {winner}")?
             }
+
             Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
             Message::Killed => todo!(),
             Message::ParseFailed(_, x) => write!(res, "{x}")?,
@@ -237,6 +242,7 @@ impl Message {
                 "argument `{name}` cannot be used multiple times in this context"
             )?,
         }
+        res = crate::mini_ansi::mono(res);
         Ok(res)
     }
 }

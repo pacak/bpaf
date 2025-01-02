@@ -3,8 +3,8 @@
 //! Visitor makes best effort to explain
 
 use crate::{
-    error::Error,
-    error::MissingItem,
+    error::{Error, MissingItem},
+    mini_ansi::{Emphasis, Invalid},
     named::Name,
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Mode, Visitor},
@@ -122,8 +122,8 @@ impl<'a> ExplainUnparsed<'a> {
             if parsed.branch != unparsed_info.branch {
                 return Some(Error {
                     message: crate::error::Message::Conflicts {
-                        winner: p.to_owned(),
-                        loser: unparsed.to_owned(),
+                        winner: Emphasis(p.to_owned()),
+                        loser: Invalid(unparsed.to_owned()),
                     },
                 });
             }

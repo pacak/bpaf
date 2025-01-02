@@ -1,9 +1,8 @@
 //! This visitor is responsible for generating the help message
 
-use mini_ansi::Style;
-
 use crate::{
     error::Metavar,
+    mini_ansi::{mono, Style},
     named::Name,
     visitor::{Group, Item, Mode, Visitor},
     OptionParser, Parser,
@@ -102,7 +101,7 @@ impl<'a> Help<'a> {
             write_items(&mut res, tab, &self.commands)?;
         }
 
-        Ok(mini_ansi::strip_colors(res))
+        Ok(mono(res))
     }
 }
 
@@ -367,73 +366,6 @@ Available options:
 ";
 
     assert_eq!(r, expected);
-}
-
-pub mod mini_ansi {
-
-    impl std::fmt::Display for Style {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Style::Text => write!(f, "\u{1B}[0m"),
-                Style::Emphasis => write!(f, "\u{1B}[1m"),
-                Style::Literal => write!(f, "\u{1B}[2m"),
-                Style::Metavar => write!(f, "\u{1B}[3m"),
-                Style::Header => write!(f, "\u{1B}[4m"),
-                Style::Invalid => write!(f, "\u{1B}[9m"),
-            }
-        }
-    }
-
-    fn split_csi(input: &str) -> Option<(Style, &str)> {
-        todo!();
-    }
-
-    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-    pub enum Style {
-        /// Plain text, no decorations
-        Text,
-
-        /// Word with emphasis - things like “Usage”, “Available options”, etc
-        Emphasis,
-
-        /// Something user needs to type literally - command names, etc
-        Literal,
-
-        /// Metavavar placeholder - something user needs to replace with own input
-        Metavar,
-
-        /// Section header
-        Header,
-
-        /// Invalid input given by user - used to display invalid parts of the input
-        Invalid,
-    }
-
-    // TODO - currently this strips all the graphic rendition parameters correctly
-    // but mangles all other sequences. Should be able to do something smarter
-    pub(crate) fn strip_colors(mut input: String) -> String {
-        let mut state = 0;
-        input.retain(|c| match c {
-            '\u{1B}' => {
-                state = 1;
-                false
-            }
-            '[' if state == 1 => {
-                state = 2;
-                false
-            }
-            c if state == 2 && c.is_ascii_digit() => false,
-            'm' if state == 2 => {
-                state = 0;
-                false
-            }
-            _ => {
-                state = 0;
-                true
-            }
-        });
-        input
-    }
 }
 
 pub(super) struct Splitter<'a> {
