@@ -266,8 +266,8 @@ pub(crate) struct Runner<'ctx> {
     parent_ids: HashMap<Parent, u32>,
 
     // TODO - use HashMap?
-    pub(crate) flags: BTreeMap<Name<'ctx>, Pecking>,
-    pub(crate) args: BTreeMap<Name<'ctx>, Pecking>,
+    pub(crate) flags: HashMap<Name<'ctx>, Pecking>,
+    pub(crate) args: HashMap<Name<'ctx>, Pecking>,
     fallback: Pecking,
     positional: Pecking,
 
@@ -445,7 +445,7 @@ impl<'a> Runner<'a> {
                         &mut self.args
                     };
                     for name in names {
-                        let std::collections::btree_map::Entry::Occupied(mut entry) =
+                        let std::collections::hash_map::Entry::Occupied(mut entry) =
                             map.entry(name.clone())
                         else {
                             continue;
@@ -676,6 +676,31 @@ impl<'a> Runner<'a> {
         let mut root_cx = Context::from_waker(&root_waker);
         debug_assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 
+        let unparsed = self.inner_loop()?;
+
+        let Poll::Ready(result) = handle.as_mut().poll(&mut root_cx) else {
+            unreachable!("bpaf internal error: Failed to produce result");
+        };
+
+        let Some(unparsed) = unparsed else {
+            // parsed everything - can't improve error message if it is an error
+            return result;
+        };
+
+        // TODO
+        // if prefix_only {
+        //     return result;
+        // }
+
+        let missing = result.err().and_then(|e| e.get_missing());
+
+        let parsed = &self.ctx.args[0..self.ctx.cur()];
+        let mut v = ExplainUnparsed::new(missing, unparsed, parsed);
+        parser.visit(&mut v);
+        Err(v.explain())
+    }
+
+    fn inner_loop(&mut self) -> Result<Option<Arg<'a>>, Error> {
         // mostly to avoid allocations
         let mut ids = Vec::new();
         let mut out = Vec::new();
@@ -742,27 +767,7 @@ impl<'a> Runner<'a> {
         }
         println!("Final propagation");
         self.propagate();
-
-        let Poll::Ready(result) = handle.as_mut().poll(&mut root_cx) else {
-            unreachable!("bpaf internal error: Failed to produce result");
-        };
-
-        let Some(unparsed) = unparsed else {
-            // parsed everything - can't improve error message if it is an error
-            return result;
-        };
-
-        // TODO
-        // if prefix_only {
-        //     return result;
-        // }
-
-        let missing = result.err().and_then(|e| e.get_missing());
-
-        let parsed = &self.ctx.args[0..self.ctx.cur()];
-        let mut v = ExplainUnparsed::new(missing, unparsed, parsed);
-        parser.visit(&mut v);
-        Err(v.explain())
+        Ok(unparsed)
     }
 
     /// Find the deepest left most child
