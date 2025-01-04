@@ -1,7 +1,7 @@
 use crate::{error::Error, named::Name, pecking::Pecking};
 use std::{
     borrow::Cow,
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     ffi::{OsStr, OsString},
     path::PathBuf,
     str::FromStr,
@@ -284,8 +284,8 @@ impl<'a> TryFrom<&'a str> for ShortOrSet<'a> {
 
 pub(crate) fn split_param<'a>(
     value: &'a OsOrStr,
-    args: &BTreeMap<Name, Pecking>,
-    flags: &BTreeMap<Name, Pecking>,
+    args: &HashMap<Name, Pecking>,
+    flags: &HashMap<Name, Pecking>,
 ) -> Result<Arg<'a>, Error> {
     match value {
         OsOrStr::Str(cow) => split_str_param(cow.as_ref(), args, flags),
@@ -338,8 +338,8 @@ pub(crate) fn split_param<'a>(
 // Does not check if name is actually available unless faced with ambiguity possibility.
 pub(crate) fn split_str_param<'a>(
     value: &'a str,
-    args: &BTreeMap<Name, Pecking>,
-    flags: &BTreeMap<Name, Pecking>,
+    args: &HashMap<Name, Pecking>,
+    flags: &HashMap<Name, Pecking>,
 ) -> Result<Arg<'a>, Error> {
     Ok(if let Some(long) = value.strip_prefix("--") {
         if let Some((name, arg)) = long.split_once('=') {
@@ -422,7 +422,7 @@ fn non_utf8() {
 
     let mut os1 = OsString::new();
     let mut os2 = OsString::new();
-    let m = BTreeMap::new();
+    let m = HashMap::new();
     for n in &[Name::Short('a'), Name::Long(Cow::Borrowed("alice"))] {
         for sep in &["=", ""] {
             for mid in &["x", ""] {

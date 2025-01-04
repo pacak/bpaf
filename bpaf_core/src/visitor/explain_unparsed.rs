@@ -9,7 +9,7 @@ use crate::{
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Mode, Visitor},
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub(crate) struct ExplainUnparsed<'a> {
     missing: Option<Vec<MissingItem>>,
 
     // ============== inner state
-    all_names: BTreeMap<Name<'a>, NameEntry>,
+    all_names: HashMap<Name<'a>, NameEntry>,
     branch_id: u32,
     in_many: u32,
     stack: Vec<Group>,
@@ -54,7 +54,7 @@ impl<'a> ExplainUnparsed<'a> {
     }
 
     pub(crate) fn explain(self) -> Error {
-        let m = BTreeMap::new();
+        let m = HashMap::new();
 
         let parsed = self
             .parsed
