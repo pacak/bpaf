@@ -13,6 +13,7 @@ use crate::{
         Action, BranchId, Id, Op, Parent, Task,
     },
     named::Name,
+    parsers::HelpWrap,
     split::{Arg, OsOrStr},
     Parser,
 };
@@ -42,6 +43,8 @@ pub struct RawCtx<'a> {
     /// For the top level option parser this excludes things like the app name and
     /// cargo invocation if present, for subcommands this exludes the path to get to it
     pub(crate) ctx_start: Cell<u32>,
+
+    pub(crate) help_and_version: &'a dyn Parser<HelpWrap>,
 }
 
 #[derive(Clone)]
@@ -51,7 +54,11 @@ pub struct RawCtx<'a> {
 pub struct Ctx<'a>(Rc<RawCtx<'a>>);
 
 impl<'a> Ctx<'a> {
-    pub(crate) fn new(args: &'a [OsOrStr<'a>], ctx_start: u32) -> Self {
+    pub(crate) fn new(
+        args: &'a [OsOrStr<'a>],
+        ctx_start: u32,
+        help_and_version: &'a dyn Parser<HelpWrap>,
+    ) -> Self {
         Ctx(Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -62,6 +69,7 @@ impl<'a> Ctx<'a> {
             child_exit: Default::default(),
             term: Default::default(),
             ctx_start: Cell::new(ctx_start),
+            help_and_version,
         }))
     }
 }
@@ -103,7 +111,7 @@ impl RawCtx<'_> {
 impl<'a> Ctx<'a> {
     pub fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
     where
-        P: Parser<T>,
+        P: Parser<T> + ?Sized,
         T: 'static,
     {
         let ctx = self.clone();

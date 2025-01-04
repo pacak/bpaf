@@ -3,7 +3,7 @@ use crate::{
     error::Error,
     named::Name,
     pecking::Pecking,
-    split::{split_param, Arg, Args, OsOrStr},
+    split::{split_param, Arg, OsOrStr},
     visitor::{ExplainUnparsed, Group},
     Metavisit, Parser,
 };
@@ -20,12 +20,14 @@ use std::{
 };
 
 // TODO:
-// - move help parser into Ctx since it will be needed for nested things
 // - change Error into Message/Stdout/Stderr
 // - proper support for --
 // - simplify branchid - can be simple a pair of two ids - actually just one id for branch
+// - in help have proper usage line
+// - in --version have proper version from either top level parser or current level parser
 // - port missing items
 // - port tests
+//
 // - shell completion
 // - rename Cx into something meaningful
 // - colorschemes
@@ -204,16 +206,6 @@ pub(crate) enum Op<'a> {
         branch: BranchId,
         id: Id,
     },
-}
-
-pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) -> Result<T, String>
-where
-    T: 'static,
-{
-    let args = args.into();
-    Runner::new(Ctx::new(args.as_ref(), args.ctx_start))
-        .run_parser(parser)
-        .map_err(|e| e.render())
 }
 
 pub type Fragment<'a, T> = Pin<Box<dyn Future<Output = Result<T, Error>> + 'a>>;
@@ -662,7 +654,7 @@ impl<'a> Runner<'a> {
 
     pub(crate) fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
     where
-        P: Parser<T>,
+        P: Parser<T> + ?Sized,
         T: 'static,
     {
         let (root_id, root_waker) = self.next_id();
