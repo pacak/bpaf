@@ -362,7 +362,7 @@ mod named {
         }
     }
 
-    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
+    #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
     pub enum Name<'a> {
         Short(char),
         Long(Cow<'a, str>),
@@ -769,7 +769,6 @@ impl<T: 'static> Options<T> {
                     match ans {
                         HelpWrap::Version => todo!(),
                         HelpWrap::Help => help(),
-
                         HelpWrap::DetailedHelp => todo!(),
                     }
                 } else if ctx.current_ctx().is_empty() && self.fallback_to_usage {
