@@ -8,6 +8,7 @@ use std::{
 };
 
 pub struct Args<'a> {
+    pub(crate) ctx_start: u32,
     args: Vec<OsOrStr<'a>>,
 }
 impl<'a> AsRef<[OsOrStr<'a>]> for Args<'a> {
@@ -19,6 +20,7 @@ impl<'a> AsRef<[OsOrStr<'a>]> for Args<'a> {
 impl<'a, const N: usize> From<&'a [&'a str; N]> for Args<'a> {
     fn from(value: &'a [&'a str; N]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().copied().map(OsOrStr::from).collect(),
         }
     }
@@ -27,6 +29,7 @@ impl<'a, const N: usize> From<&'a [&'a str; N]> for Args<'a> {
 impl<'a, const N: usize> From<[&'a str; N]> for Args<'a> {
     fn from(value: [&'a str; N]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().copied().map(OsOrStr::from).collect(),
         }
     }
@@ -35,6 +38,7 @@ impl<'a, const N: usize> From<[&'a str; N]> for Args<'a> {
 impl<'a> From<&'a [&'a OsStr]> for Args<'a> {
     fn from(value: &'a [&'a OsStr]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().copied().map(OsOrStr::from).collect(),
         }
     }
@@ -43,6 +47,7 @@ impl<'a> From<&'a [&'a OsStr]> for Args<'a> {
 impl<'a> From<&'a [&'a str]> for Args<'a> {
     fn from(value: &'a [&'a str]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().copied().map(OsOrStr::from).collect(),
         }
     }
@@ -51,6 +56,7 @@ impl<'a> From<&'a [&'a str]> for Args<'a> {
 impl<'a> From<&'a [String]> for Args<'a> {
     fn from(value: &'a [String]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().map(|s| OsOrStr::from(s.as_str())).collect(),
         }
     }
@@ -59,6 +65,7 @@ impl<'a> From<&'a [String]> for Args<'a> {
 impl<'a> From<&'a [OsString]> for Args<'a> {
     fn from(value: &'a [OsString]) -> Self {
         Self {
+            ctx_start: 0,
             args: value.iter().map(|s| OsOrStr::from(s.as_os_str())).collect(),
         }
     }
@@ -67,6 +74,7 @@ impl<'a> From<&'a [OsString]> for Args<'a> {
 impl From<std::env::Args> for Args<'_> {
     fn from(value: std::env::Args) -> Self {
         Self {
+            ctx_start: 1,
             args: value.into_iter().map(OsOrStr::from).collect(),
         }
     }
@@ -75,6 +83,7 @@ impl From<std::env::Args> for Args<'_> {
 impl From<std::env::ArgsOs> for Args<'_> {
     fn from(value: std::env::ArgsOs) -> Self {
         Self {
+            ctx_start: 1,
             args: value.into_iter().map(OsOrStr::from).collect(),
         }
     }

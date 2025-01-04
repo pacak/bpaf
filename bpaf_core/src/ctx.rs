@@ -37,6 +37,11 @@ pub struct RawCtx<'a> {
     /// By the end we are trying to kill all the children, when set - children
     /// should fail when encounter unexpected input, otherwise - keep running
     term: AtomicBool,
+
+    /// Start of the current parsing context
+    /// For the top level option parser this excludes things like the app name and
+    /// cargo invocation if present, for subcommands this exludes the path to get to it
+    pub(crate) ctx_start: Cell<u32>,
 }
 
 #[derive(Clone)]
@@ -46,7 +51,7 @@ pub struct RawCtx<'a> {
 pub struct Ctx<'a>(Rc<RawCtx<'a>>);
 
 impl<'a> Ctx<'a> {
-    pub(crate) fn new(args: &'a [OsOrStr<'a>]) -> Self {
+    pub(crate) fn new(args: &'a [OsOrStr<'a>], ctx_start: u32) -> Self {
         Ctx(Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -56,6 +61,7 @@ impl<'a> Ctx<'a> {
             front: Default::default(),
             child_exit: Default::default(),
             term: Default::default(),
+            ctx_start: Cell::new(ctx_start),
         }))
     }
 }
@@ -71,6 +77,9 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 impl RawCtx<'_> {
     pub fn current_id(&self) -> (BranchId, Id) {
         self.current_task.borrow().expect("not in a task")
+    }
+    pub(crate) fn current_ctx(&self) -> &[OsOrStr] {
+        &self.args[self.ctx_start.get() as usize..]
     }
     pub(crate) fn cur(&self) -> usize {
         self.cur.load(std::sync::atomic::Ordering::Relaxed)
