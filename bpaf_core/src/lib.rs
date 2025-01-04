@@ -142,7 +142,7 @@ macro_rules! construct {
     // this gets called from a step above
     //
     // for named they go into {}
-    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ { $($fields.await?),* } };
+    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ {  $($fields: $fields.await?),* } };
     // for positional - ()
     (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields.await?),* ) };
     // And this handles the case where there's no constructor and we are makig a tuple
@@ -742,6 +742,10 @@ impl<T: 'static> Cx<Options<T>> {
             adjacent: false,
         })
     }
+    pub fn fallback_to_usage(mut self) -> Self {
+        self.0.fallback_to_usage = true;
+        self
+    }
 }
 
 impl<T: 'static> Options<T> {
@@ -755,19 +759,21 @@ impl<T: 'static> Options<T> {
         match executor::Runner::new(ctx.clone()).run_parser(&self.parser) {
             Ok(ok) => Ok(ok),
             Err(err) => {
+                let help = || {
+                    let mut help = visitor::help::Help::default();
+                    self.parser.visit(&mut help);
+                    hv.visit(&mut help);
+                    Err(help.render(""))
+                };
                 if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(hv) {
                     match ans {
                         HelpWrap::Version => todo!(),
-                        HelpWrap::Help => {
-                            let mut help = visitor::help::Help::default();
-                            self.parser.visit(&mut help);
-                            hv.visit(&mut help);
-                            Err(help.render(""))
-                        }
+                        HelpWrap::Help => help(),
+
                         HelpWrap::DetailedHelp => todo!(),
                     }
                 } else if ctx.current_ctx().is_empty() && self.fallback_to_usage {
-                    todo!()
+                    help()
                 } else {
                     Err(err.render())
                 }

@@ -22,9 +22,9 @@ use std::{
 // TODO:
 // - cleanup family (what's left of it)
 // - move help parser into Ctx since it will be needed for nested things
-// -
+// - change Error into Message/Stdout/Stderr
 // - proper support for --
-// - simplify branchid - can be simple a pair of two ids
+// - simplify branchid - can be simple a pair of two ids - actually just one id for branch
 // - port missing items
 // - port tests
 // - shell completion
