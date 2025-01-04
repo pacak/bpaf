@@ -337,9 +337,10 @@ fn foo() {
 
     let parser = construct!(ab, f, c, s, e).to_options();
 
-    let h = Help::new(&parser);
+    let mut help = Help::default();
+    parser.0.parser.visit(&mut help);
 
-    let r = h.render("myapp");
+    let r = help.render("myapp");
 
     let expected = "
 Alice and Bob:
