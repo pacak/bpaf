@@ -12,7 +12,7 @@ pub mod __private {
     pub use crate::{
         ctx::Ctx,
         error::Error,
-        executor::{downcast, hint, run_parser, Alt, Con, Fragment},
+        executor::{downcast, hint, Alt, Con, Fragment},
         Metavisit, Parser,
     };
 }
@@ -730,9 +730,9 @@ impl<T: 'static> Cx<Options<T>> {
     pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, String> {
         let args = args.into();
 
-        let hv = crate::parsers::help_and_version();
-        let ctx = Ctx::new(args.as_ref(), args.ctx_start);
-        self.0.execute(ctx, &hv)
+        let help = crate::parsers::help_and_version();
+        let ctx = Ctx::new(args.as_ref(), args.ctx_start, &help);
+        self.0.execute(ctx)
     }
 
     pub fn command(self, name: &'static str) -> Cx<Command<T>> {
@@ -749,23 +749,20 @@ impl<T: 'static> Cx<Options<T>> {
 }
 
 impl<T: 'static> Options<T> {
-    fn execute<'a>(
-        &'a self,
-        ctx: Ctx<'a>,
-        hv: &'a impl Parser<parsers::HelpWrap>,
-    ) -> Result<T, String> {
+    fn execute<'a>(&'a self, ctx: Ctx<'a>) -> Result<T, String> {
         use crate::parsers::HelpWrap;
 
+        let help_p = ctx.help_and_version;
         match executor::Runner::new(ctx.clone()).run_parser(&self.parser) {
             Ok(ok) => Ok(ok),
             Err(err) => {
                 let help = || {
                     let mut help = visitor::help::Help::default();
                     self.parser.visit(&mut help);
-                    hv.visit(&mut help);
+                    ctx.help_and_version.visit(&mut help);
                     Err(help.render(""))
                 };
-                if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(hv) {
+                if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(help_p) {
                     match ans {
                         HelpWrap::Version => todo!(),
                         HelpWrap::Help => help(),
