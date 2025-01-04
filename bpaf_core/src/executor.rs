@@ -20,14 +20,15 @@ use std::{
 };
 
 // TODO:
-// - cleanup family
+// - cleanup family (what's left of it)
+// - move help parser into Ctx since it will be needed for nested things
+// -
 // - proper support for --
 // - simplify branchid - can be simple a pair of two ids
 // - port missing items
 // - port tests
 // - shell completion
-// - help
-// - any
+// - rename Cx into something meaningful
 // - colorschemes
 // - documentation
 // - markdown/manpage
