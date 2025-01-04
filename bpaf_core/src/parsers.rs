@@ -349,7 +349,9 @@ where
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::visitor::Visitor<'a>) {
-        todo!()
+        visitor.push_group(Group::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
     }
 }
 
@@ -410,6 +412,12 @@ impl<T: 'static, P: Parser<T>> Parser<T> for GroupHelp<P> {
 pub struct Fallback<P, T> {
     pub(crate) inner: P,
     pub(crate) value: T,
+}
+
+impl<P, T> crate::Cx<Fallback<P, T>> {
+    pub fn display_fallback(self) -> Self {
+        self
+    }
 }
 
 pub struct FallbackWith<P, T, F, E> {
