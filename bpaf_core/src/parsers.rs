@@ -475,3 +475,35 @@ impl<T: 'static, P: Parser<T>> Parser<T> for CustomHelp<P> {
         (self.custom)(&self.inner, visitor);
     }
 }
+
+// pub struct IsEmpty<T>(T);
+//
+// impl<T: 'static> Parser<T> for IsEmpty<T> {
+//     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, ()> {
+//         todo!()
+//     }
+//
+//     fn visit<'a>(&'a self, _visitor: &mut dyn Visitor<'a>) {}
+// }
+
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum HelpWrap {
+    Version,
+    Help,
+    DetailedHelp,
+}
+
+pub(crate) fn help_and_version() -> impl Parser<HelpWrap> {
+    use crate::*;
+    let help = short('h')
+        .long("help")
+        .help("Prints help information")
+        .req_flag(HelpWrap::Help)
+        .hide_usage();
+    let version = short('V')
+        .long("version")
+        .help("Prints version information")
+        .req_flag(HelpWrap::Version)
+        .hide_usage();
+    construct!([help, version])
+}

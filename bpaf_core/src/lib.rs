@@ -20,7 +20,7 @@ pub mod __private {
 use crate::{
     ctx::Ctx,
     error::Metavar,
-    executor::{run_parser, Fragment},
+    executor::Fragment,
     named::{Argument, Flag, Name, Named},
     parsers::{
         Anything, Command, Count, Fallback, FallbackWith, GroupHelp, Guard, HideUsage, Last, Many,
@@ -482,7 +482,7 @@ mod positional {
         fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
             visitor.item(Item::Positional {
                 meta: self.meta,
-                help: self.help.as_deref(),
+                help: self.help,
             })
         }
     }
@@ -678,6 +678,7 @@ pub trait Parser<T: 'static> {
     {
         Cx(Options {
             parser: self.into_box(),
+            fallback_to_usage: false,
         })
     }
 
@@ -712,6 +713,7 @@ pub fn pure<T>(value: T) -> Cx<Pure<T>> {
 
 pub struct Options<T> {
     parser: Box<dyn Parser<T>>,
+    fallback_to_usage: bool,
 }
 
 pub type OptionParser<T> = Cx<Options<T>>;
@@ -722,11 +724,15 @@ impl<T: 'static> Cx<Options<T>> {
     }
 
     pub fn try_run(&self) -> Result<T, String> {
-        run_parser(&self.0.parser, std::env::args_os())
+        self.run_inner(std::env::args_os())
     }
 
     pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, String> {
-        run_parser(&self.0.parser, args)
+        let args = args.into();
+
+        let hv = crate::parsers::help_and_version();
+        let ctx = Ctx::new(args.as_ref(), args.ctx_start);
+        self.0.execute(ctx, &hv)
     }
 
     pub fn command(self, name: &'static str) -> Cx<Command<T>> {
@@ -735,6 +741,38 @@ impl<T: 'static> Cx<Options<T>> {
             parser: self,
             adjacent: false,
         })
+    }
+}
+
+impl<T: 'static> Options<T> {
+    fn execute<'a>(
+        &'a self,
+        ctx: Ctx<'a>,
+        hv: &'a impl Parser<parsers::HelpWrap>,
+    ) -> Result<T, String> {
+        use crate::parsers::HelpWrap;
+
+        match executor::Runner::new(ctx.clone()).run_parser(&self.parser) {
+            Ok(ok) => Ok(ok),
+            Err(err) => {
+                if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(hv) {
+                    match ans {
+                        HelpWrap::Version => todo!(),
+                        HelpWrap::Help => {
+                            let mut help = visitor::help::Help::default();
+                            self.parser.visit(&mut help);
+                            hv.visit(&mut help);
+                            Err(help.render(""))
+                        }
+                        HelpWrap::DetailedHelp => todo!(),
+                    }
+                } else if ctx.current_ctx().is_empty() && self.fallback_to_usage {
+                    todo!()
+                } else {
+                    Err(err.render())
+                }
+            }
+        }
     }
 }
 

@@ -18,7 +18,7 @@ enum HelpItem<'a> {
     Section(&'static str),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub(crate) struct Help<'a> {
     header: String,
     stack: Vec<Group>,
@@ -32,21 +32,13 @@ pub(crate) struct Help<'a> {
 
 impl<'a> Help<'a> {
     fn new<T: 'static>(parser: &'a OptionParser<T>) -> Self {
-        let mut help = Help {
-            header: String::new(),
-            footer: Default::default(),
-            stack: Default::default(),
-            named: Vec::new(),
-            positional: Vec::new(),
-            commands: Vec::new(),
-            custom: Vec::new(),
-            in_custom: 0,
-        };
+        let mut help = Help::default();
+
         parser.0.parser.visit(&mut help);
         help
     }
 
-    fn render(&self, appname: &str) -> String {
+    pub fn render(&self, appname: &str) -> String {
         // `    -v, --a  `
         let mut tab = 10;
         // measure tab offset first

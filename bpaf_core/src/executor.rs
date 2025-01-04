@@ -210,7 +210,8 @@ pub fn run_parser<'a, T>(parser: &'a impl Parser<T>, args: impl Into<Args<'a>>) 
 where
     T: 'static,
 {
-    Runner::new(Ctx::new(args.into().as_ref()))
+    let args = args.into();
+    Runner::new(Ctx::new(args.as_ref(), args.ctx_start))
         .run_parser(parser)
         .map_err(|e| e.render())
 }
@@ -831,7 +832,7 @@ impl<'a> Runner<'a> {
     }
 }
 
-pub struct Alt<T: Clone + 'static> {
+pub struct Alt<T: 'static> {
     pub items: Vec<Box<dyn Parser<T>>>,
 }
 
@@ -884,7 +885,7 @@ impl<T> Future for AltFuture<'_, T> {
 
 impl<T> Parser<T> for Alt<T>
 where
-    T: Clone + std::fmt::Debug + 'static,
+    T: Clone + 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
