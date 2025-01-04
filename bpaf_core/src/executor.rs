@@ -20,7 +20,6 @@ use std::{
 };
 
 // TODO:
-// - cleanup family (what's left of it)
 // - move help parser into Ctx since it will be needed for nested things
 // - change Error into Message/Stdout/Stderr
 // - proper support for --
@@ -700,6 +699,7 @@ impl<'a> Runner<'a> {
         Err(v.explain())
     }
 
+    /// Run configured parser for as long as possible,
     fn inner_loop(&mut self) -> Result<Option<Arg<'a>>, Error> {
         // mostly to avoid allocations
         let mut ids = Vec::new();
