@@ -20,9 +20,12 @@ use std::{
 };
 
 // TODO:
+// - make so tests are all passing
 // - proper support for --
 // - simplify branchid - can be simple a pair of two ids - actually just one id for branch
 // - in help have proper usage line
+// - support for prefix parsing only - chained subcommands, etc
+// - support for subparsers
 // - in --version have proper version from either top level parser or current level parser
 // - port missing items
 // - port tests
