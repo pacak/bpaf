@@ -9,7 +9,7 @@ use crate::{
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Mode, Visitor},
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
@@ -98,8 +98,8 @@ impl<'a> ExplainUnparsed<'a> {
                 message: crate::error::Message::Missing(m),
             },
             None => {
-                let unparsed = self.unparsed;
-                Error::parse_fail(format!("Unexpected item {unparsed:?}"))
+                let unparsed = self.unparsed.to_owned();
+                Error::unexpected(unparsed)
             }
         }
     }

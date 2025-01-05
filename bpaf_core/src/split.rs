@@ -216,6 +216,38 @@ impl From<OsString> for OsOrStr<'static> {
     }
 }
 
+impl Arg<'_> {
+    pub(crate) fn to_owned(&self) -> Arg<'static> {
+        match self {
+            Arg::Named { name, value } => Arg::Named {
+                name: name.to_owned(),
+                value: value.as_ref().map(|v| v.to_owned()),
+            },
+            Arg::ShortSet { current, names } => Arg::ShortSet {
+                current: *current,
+                names: names.clone(),
+            },
+            Arg::Positional { value } => Arg::Positional {
+                value: value.to_owned(),
+            },
+        }
+    }
+}
+
+impl std::fmt::Display for Arg<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Arg::Named { name, value: None } => write!(f, "{name}"),
+            Arg::Named {
+                name,
+                value: Some(value),
+            } => write!(f, "{name}={value}"),
+            Arg::ShortSet { current, names } => todo!(),
+            Arg::Positional { value } => value.fmt(f),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum Arg<'a> {
     Named {

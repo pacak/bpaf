@@ -183,7 +183,7 @@ impl Drop for PositionalFut<'_> {
 impl<'ctx> Future for PositionalFut<'ctx> {
     type Output = Result<OsOrStr<'ctx>, Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
             let (branch, id) = self.ctx.current_task();
             self.task_id = Some((branch, id));
@@ -193,7 +193,7 @@ impl<'ctx> Future for PositionalFut<'ctx> {
         Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
             Some(s) => {
                 if s.is_named() {
-                    Error::unexpected()
+                    Err(Error::not_positional(s.to_owned()))
                 } else {
                     self.ctx.advance(1);
                     Ok(s.to_owned())

@@ -1,7 +1,7 @@
 use crate::{
     mini_ansi::{Emphasis, Invalid},
     named::Name,
-    split::OsOrStr,
+    split::{Arg, OsOrStr},
 };
 
 #[derive(Debug, Clone)]
@@ -47,12 +47,6 @@ impl Error {
         }
     }
 
-    pub(crate) fn unexpected<T>() -> Result<T, Error> {
-        Err(Self {
-            message: Message::Unexpected,
-        })
-    }
-
     pub(crate) fn parse_fail(message: String) -> Error {
         Self {
             message: Message::ParseFailed(None, message),
@@ -62,6 +56,19 @@ impl Error {
     pub(crate) fn missing(item: MissingItem) -> Error {
         Self {
             message: Message::Missing(vec![item]),
+        }
+    }
+
+    pub(crate) fn not_positional(arg: OsOrStr<'static>) -> Self {
+        Self {
+            message: Message::NotPositional {
+                arg: Invalid(arg.to_owned()),
+            },
+        }
+    }
+    pub(crate) fn unexpected(arg: Arg<'static>) -> Self {
+        Self {
+            message: Message::Unexpected { arg: Invalid(arg) },
         }
     }
 
@@ -115,8 +122,9 @@ impl Message {
             Self::Killed => true,
             Self::Conflicts { .. } => false,
             Self::OnlyOnce { .. } => false,
-            Self::Unexpected => false,
+            Self::Unexpected { .. } => false,
             Self::ParseFailed(..) => false,
+            Self::NotPositional { .. } => false,
             Self::ArgNeedsValue { .. } => false,
             Self::ArgNeedsValueGotNamed { .. } => false,
             Self::ParseFailure(_) => false,
@@ -140,7 +148,9 @@ pub(crate) enum Message {
     Missing(Vec<MissingItem>),
 
     /// Passed something that wasn't expected, such as `-` for an argument name, etc.
-    Unexpected,
+    Unexpected {
+        arg: Invalid<Arg<'static>>,
+    },
 
     /// Generated as a dummy error message...
     /// Do I need it? Not used anymore
@@ -164,6 +174,9 @@ pub(crate) enum Message {
         loser: Invalid<Name<'static>>,
     },
 
+    NotPositional {
+        arg: Invalid<OsOrStr<'static>>,
+    },
     // // those can be caught ---------------------------------------------------------------
     // /// Tried to consume an env variable with no fallback, variable was not set
     // NoEnv(&'static str),
@@ -263,7 +276,8 @@ impl Message {
                 write!(res, "{loser} cannot be used at the same time as {winner}")?
             }
 
-            Message::Unexpected => write!(res, "unexpected item!")?, // <- TODO
+            Message::Unexpected { arg } => write!(res, "{arg} is not expected in this context")?,
+            Message::NotPositional { arg } => write!(res, "{arg} not positional TODO")?,
             Message::Killed => todo!(),
             Message::ParseFailed(_, x) => write!(res, "{x}")?,
             Message::ArgNeedsValue { name, meta } => write!(res, "{name} wants a value {meta}")?,
