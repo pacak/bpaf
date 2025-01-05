@@ -77,6 +77,14 @@ impl Error {
             message: Message::Fail(message),
         }
     }
+    pub(crate) fn from_str_fail(value: OsOrStr<'static>, message: String) -> Self {
+        Self {
+            message: Message::FromStrFailed {
+                value: Invalid(value),
+                message,
+            },
+        }
+    }
 
     pub(crate) fn empty<T>() -> Result<T, Error> {
         Err(Self {
@@ -127,6 +135,7 @@ impl Message {
             Self::NotPositional { .. } => false,
             Self::ArgNeedsValue { .. } => false,
             Self::ArgNeedsValueGotNamed { .. } => false,
+            Self::FromStrFailed { .. } => false,
             Self::ParseFailure(_) => false,
         }
     }
@@ -198,7 +207,10 @@ pub(crate) enum Message {
     // // those cannot be caught-------------------------------------------------------------
     // /// Parsing failed and this is the final output
     // ParseFailure(ParseFailure),
-    //
+    FromStrFailed {
+        value: Invalid<OsOrStr<'static>>,
+        message: String,
+    },
     // /// Tried to consume a strict positional argument, value was present but was not strictly
     // /// positional
     // StrictPos(usize, Metavar),
@@ -290,6 +302,9 @@ impl Message {
                 "argument `{name}` cannot be used multiple times in this context"
             )?,
             Message::ParseFailure(parse_failure) => return Ok(parse_failure),
+            Message::FromStrFailed { value, message } => {
+                write!(res, "couldn't parse {value}: {message}")?
+            }
         }
         res = crate::mini_ansi::mono(res);
         Ok(ParseFailure::Stderr(res))
