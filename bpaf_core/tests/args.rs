@@ -6,20 +6,20 @@ fn parser() -> OptionParser<usize> {
 
 #[test]
 fn short_separate() {
-    let r = parser().run_inner(["-a", "10"]);
-    assert_eq!(r, Ok(10));
+    let r = parser().run_inner(["-a", "10"]).unwrap();
+    assert_eq!(r, 10);
 }
 
 #[test]
 fn short_join_eq() {
-    let r = parser().run_inner(["-a=10"]);
-    assert_eq!(r, Ok(10));
+    let r = parser().run_inner(["-a=10"]).unwrap();
+    assert_eq!(r, 10);
 }
 
 #[test]
 fn short_ajoint() {
-    let r = parser().run_inner(["-a10"]);
-    assert_eq!(r, Ok(10));
+    let r = parser().run_inner(["-a10"]).unwrap();
+    assert_eq!(r, 10);
 }
 
 #[test]
