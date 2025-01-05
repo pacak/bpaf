@@ -301,7 +301,7 @@ mod named {
                 let s = fut.await?;
                 match s.parse::<T>() {
                     Ok(t) => Ok(t),
-                    Err(e) => Err(Error::parse_fail(format!("Can't parse {s:?} : {e}"))),
+                    Err(e) => Err(Error::from_str_fail(s.to_owned(), e.to_string())),
                 }
             })
         }
