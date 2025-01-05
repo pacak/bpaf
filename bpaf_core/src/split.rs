@@ -1,7 +1,7 @@
 use crate::{error::Error, named::Name, pecking::Pecking};
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap},
+    collections::HashMap,
     ffi::{OsStr, OsString},
     path::PathBuf,
     str::FromStr,
