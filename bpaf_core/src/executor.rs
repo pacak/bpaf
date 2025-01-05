@@ -20,7 +20,6 @@ use std::{
 };
 
 // TODO:
-// - change Error into Message/Stdout/Stderr
 // - proper support for --
 // - simplify branchid - can be simple a pair of two ids - actually just one id for branch
 // - in help have proper usage line

@@ -13,6 +13,14 @@ use crate::{
 #[derive(Debug)]
 pub struct Error(pub(crate) Message);
 
+impl std::ops::Add for Error {
+    type Output = Error;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Error(self.0.combine_with(rhs.0))
+    }
+}
+
 impl Error {
     pub(crate) fn combine_with(self, other: Self) -> Self {
         Error(self.0.combine_with(other.0))
