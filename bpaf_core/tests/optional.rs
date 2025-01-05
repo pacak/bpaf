@@ -33,10 +33,10 @@ fn nested() {
     let b = short('b').argument::<usize>("B").optional();
     let ab = construct!(a, b).optional().to_options();
 
-    let r = ab.run_inner(["-b"]).unwrap_err();
+    let r = ab.run_inner(["-b"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "unexpected item!");
 
-    let r = ab.run_inner(["1", "-b"]).unwrap_err();
+    let r = ab.run_inner(["1", "-b"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "unexpected item!");
 
     let r = ab.run_inner([]).unwrap();
@@ -58,7 +58,7 @@ fn non_consuming() {
     let b = short('b').switch();
     let ab = construct!(a, b).optional().to_options();
 
-    let r = ab.run_inner(["-b"]).unwrap_err();
+    let r = ab.run_inner(["-b"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "Expected <A>");
 }
 

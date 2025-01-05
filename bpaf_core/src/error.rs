@@ -5,6 +5,37 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+pub enum ParseFailure {
+    Stdout(String),
+    Stderr(String),
+    Completion(String), // TODO - use OsString?
+}
+
+impl ParseFailure {
+    #[allow(clippy::must_use_candidate)]
+    #[track_caller]
+    pub fn unwrap_stdout(self) -> String {
+        match self {
+            ParseFailure::Stdout(o) => o,
+            ParseFailure::Stderr(_) | ParseFailure::Completion(_) => {
+                panic!("not an stdout: {self:?}")
+            }
+        }
+    }
+
+    #[allow(clippy::must_use_candidate)]
+    #[track_caller]
+    pub fn unwrap_stderr(self) -> String {
+        match self {
+            ParseFailure::Stderr(o) => o,
+            ParseFailure::Stdout(_) | ParseFailure::Completion(_) => {
+                panic!("not an stderr: {self:?}")
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Error {
     pub(crate) message: Message,
 }
@@ -50,7 +81,7 @@ impl Error {
         self.message.handle_with_fallback()
     }
 
-    pub(crate) fn render(self) -> String {
+    pub(crate) fn render(self) -> ParseFailure {
         self.message.render()
     }
 
@@ -88,6 +119,7 @@ impl Message {
             Self::ParseFailed(..) => false,
             Self::ArgNeedsValue { .. } => false,
             Self::ArgNeedsValueGotNamed { .. } => false,
+            Self::ParseFailure(_) => false,
         }
     }
 }
@@ -195,14 +227,16 @@ pub(crate) enum Message {
     OnlyOnce {
         name: Name<'static>,
     },
+
+    ParseFailure(ParseFailure),
 }
 
 impl Message {
-    pub(crate) fn render(&self) -> String {
+    pub(crate) fn render(self) -> ParseFailure {
         self.write_message()
             .expect("write to string shouldn't fail")
     }
-    fn write_message(&self) -> Result<String, std::fmt::Error> {
+    fn write_message(self) -> Result<ParseFailure, std::fmt::Error> {
         use std::fmt::Write;
         let mut res = String::new();
         match self {
@@ -241,9 +275,10 @@ impl Message {
                 res,
                 "argument `{name}` cannot be used multiple times in this context"
             )?,
+            Message::ParseFailure(parse_failure) => return Ok(parse_failure),
         }
         res = crate::mini_ansi::mono(res);
-        Ok(res)
+        Ok(ParseFailure::Stderr(res))
     }
 }
 

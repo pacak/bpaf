@@ -17,6 +17,8 @@ pub mod __private {
     };
 }
 
+use error::ParseFailure;
+
 use crate::{
     ctx::Ctx,
     error::Metavar,
@@ -723,11 +725,11 @@ impl<T: 'static> Cx<Options<T>> {
         self.try_run().unwrap() // TODO
     }
 
-    pub fn try_run(&self) -> Result<T, String> {
+    pub fn try_run(&self) -> Result<T, ParseFailure> {
         self.run_inner(std::env::args_os())
     }
 
-    pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, String> {
+    pub fn run_inner<'a>(&'a self, args: impl Into<Args<'a>>) -> Result<T, ParseFailure> {
         let args = args.into();
 
         let help = crate::parsers::help_and_version();
@@ -749,7 +751,7 @@ impl<T: 'static> Cx<Options<T>> {
 }
 
 impl<T: 'static> Options<T> {
-    fn execute<'a>(&'a self, ctx: Ctx<'a>) -> Result<T, String> {
+    fn execute<'a>(&'a self, ctx: Ctx<'a>) -> Result<T, ParseFailure> {
         use crate::parsers::HelpWrap;
 
         let help_p = ctx.help_and_version;
@@ -760,7 +762,7 @@ impl<T: 'static> Options<T> {
                     let mut help = visitor::help::Help::default();
                     self.parser.visit(&mut help);
                     ctx.help_and_version.visit(&mut help);
-                    Err(help.render(""))
+                    Err(ParseFailure::Stdout(help.render("")))
                 };
                 if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(help_p) {
                     match ans {

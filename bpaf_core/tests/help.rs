@@ -6,7 +6,7 @@ fn simple_help() {
     let b = short('b').long("bob").argument::<usize>("BOB");
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(["--help"]).unwrap_err();
+    let r = parser.run_inner(["--help"]).unwrap_err().unwrap_stdout();
 
     let expected = "
 Available options:

@@ -1,16 +1,5 @@
 use bpaf_core::*;
 
-trait Dummy {
-    fn unwrap_stderr(self) -> Self
-    where
-        Self: Sized,
-    {
-        self
-    }
-}
-
-impl Dummy for String {}
-
 #[test]
 fn simple_command() {
     let a = short('a').switch().to_options();
@@ -26,10 +15,8 @@ fn alt_of_req_flags() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
     let p = construct!([a, b]).to_options();
-    assert_eq!(
-        "`-b` cannot be used at the same time as `-a`",
-        p.run_inner(["-a", "-b"]).unwrap_err()
-    );
+    let r = p.run_inner(["-a", "-b"]).unwrap_err().unwrap_stderr();
+    assert_eq!("`-b` cannot be used at the same time as `-a`", r);
 }
 
 #[test]
@@ -38,7 +25,7 @@ fn sum_of_flag_arg2() {
     let b = short('a').req_flag('a').map(|_| 0);
     let p = construct!(a, b).to_options();
     // items are consumed left to right, so first -a is an argument
-    let r = p.run_inner(["-a", "-a", "1"]).unwrap_err();
+    let r = p.run_inner(["-a", "-a", "1"]).unwrap_err().unwrap_stderr();
 
     assert_eq!(r, "-a wants a value <A>, got -a, try using -a=-a");
 
@@ -55,7 +42,10 @@ fn this_or_that_odd() {
     let cd = construct!(a, c);
     let parser = construct!([ab, cd]).to_options();
 
-    let res = parser.run_inner(["-a", "-b", "-c"]).unwrap_err();
+    let res = parser
+        .run_inner(["-a", "-b", "-c"])
+        .unwrap_err()
+        .unwrap_stderr();
 
     assert_eq!(res, "`-c` cannot be used at the same time as `-b`");
 }
