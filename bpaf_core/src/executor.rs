@@ -22,6 +22,8 @@ use std::{
 // TODO:
 // - make so tests are all passing
 // - proper support for --
+// - don't run "explain" for --help or --version parsers?
+// - subparser visitor should tell the difference between command and plain subparser?
 // - simplify branchid - can be simple a pair of two ids - actually just one id for branch
 // - in help have proper usage line
 // - support for prefix parsing only - chained subcommands, etc
@@ -29,6 +31,7 @@ use std::{
 // - in --version have proper version from either top level parser or current level parser
 // - port missing items
 // - port tests
+// - Message or Error can have 'ctx lifetime?
 //
 // - shell completion
 // - rename Cx into something meaningful

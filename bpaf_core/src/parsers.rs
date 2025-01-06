@@ -328,7 +328,9 @@ impl<T: 'static> Parser<T> for Command<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let recursive = visitor.command(&self.names);
         if recursive {
+            visitor.push_group(Group::Subparser);
             self.parser.0.parser.visit(visitor);
+            visitor.pop_group();
         }
     }
 }
