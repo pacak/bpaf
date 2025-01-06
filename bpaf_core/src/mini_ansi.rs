@@ -21,7 +21,11 @@ pub struct Emphasis<T>(pub T);
 
 impl<T: std::fmt::Display> std::fmt::Display for Emphasis<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", Style::Emphasis, &self.0, Style::Text)
+        if f.alternate() {
+            write!(f, "{}{:#}{}", Style::Emphasis, &self.0, Style::Text)
+        } else {
+            write!(f, "{}{}{}", Style::Emphasis, &self.0, Style::Text)
+        }
     }
 }
 
@@ -30,7 +34,11 @@ pub struct Invalid<T>(pub T);
 
 impl<T: std::fmt::Display> std::fmt::Display for Invalid<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}{}{}", Style::Invalid, &self.0, Style::Text)
+        if f.alternate() {
+            write!(f, "{}{:#}{}", Style::Invalid, &self.0, Style::Text)
+        } else {
+            write!(f, "{}{}{}", Style::Invalid, &self.0, Style::Text)
+        }
     }
 }
 

@@ -33,6 +33,10 @@ pub enum Group {
     Sum,
     /// All nested items should go into a custom section
     HelpGroup(&'static str),
+
+    /// Items in this group belong to a subparser such as subcommand or
+    /// a parser adjacent to a name
+    Subparser,
 }
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Mode {
@@ -47,7 +51,8 @@ pub trait Visitor<'a> {
     /// Visitor should explain what
     fn mode(&self) -> Mode;
     fn item(&mut self, item: Item<'a>);
-    fn command(&mut self, names: &[Name]) -> bool;
+    /// If requested - command insides will be wrapped in a subparser group
+    fn command(&mut self, names: &'a [Name]) -> bool;
     fn push_group(&mut self, group: Group);
     fn pop_group(&mut self);
 

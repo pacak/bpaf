@@ -52,6 +52,14 @@ impl Error {
             message: Message::ParseFailed(None, message),
         }
     }
+    pub(crate) fn try_subcommand(unparsed: Arg<'static>, command: Name<'static>) -> Self {
+        Self {
+            message: Message::TrySubcommand {
+                value: Invalid(unparsed),
+                command: Emphasis(command),
+            },
+        }
+    }
 
     pub(crate) fn missing(item: MissingItem) -> Error {
         Self {
@@ -137,6 +145,7 @@ impl Message {
             Self::ArgNeedsValueGotNamed { .. } => false,
             Self::FromStrFailed { .. } => false,
             Self::ParseFailure(_) => false,
+            Self::TrySubcommand { .. } => false,
         }
     }
 }
@@ -220,6 +229,10 @@ pub(crate) enum Message {
     //
     /// Parser provided by user failed to parse a value
     ParseFailed(Option<usize>, String),
+    TrySubcommand {
+        value: Invalid<Arg<'static>>,
+        command: Emphasis<Name<'static>>,
+    },
     //
     // /// Parser provided by user failed to validate a value
     // GuardFailed(Option<usize>, &'static str),
@@ -305,6 +318,9 @@ impl Message {
             Message::FromStrFailed { value, message } => {
                 write!(res, "couldn't parse {value}: {message}")?
             }
+            Message::TrySubcommand { value, command } => write!(res,
+                "{value} is not valid in this context, did you mean to pass it to command {command:#}?")?,
+
         }
         res = crate::mini_ansi::mono(res);
         Ok(ParseFailure::Stderr(res))

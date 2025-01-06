@@ -26,6 +26,10 @@ pub(crate) struct ExplainUnparsed<'a> {
     all_names: HashMap<Name<'a>, NameEntry>,
     branch_id: u32,
     in_many: u32,
+
+    current_command: Option<Name<'a>>,
+    good_command: Option<Name<'a>>,
+
     stack: Vec<Group>,
 }
 
@@ -50,6 +54,9 @@ impl<'a> ExplainUnparsed<'a> {
             stack: Default::default(),
             branch_id: 0,
             all_names: Default::default(),
+
+            current_command: None,
+            good_command: None,
         }
     }
 
@@ -72,6 +79,10 @@ impl<'a> ExplainUnparsed<'a> {
             if let Some(err) = self.is_redundant(&parsed, name.as_ref()) {
                 return err;
             }
+        }
+
+        if let Some(good) = self.good_command {
+            return Error::try_subcommand(self.unparsed.to_owned(), good.to_owned());
         }
 
         // Suggestions I'd like to make
@@ -149,6 +160,19 @@ impl<'a> ExplainUnparsed<'a> {
     }
 }
 
+fn first_good<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
+    names.first().map(|n| n.as_ref())
+}
+
+impl<'a> ExplainUnparsed<'a> {
+    fn unparsed_arg_name(&'a self) -> Option<Name<'a>> {
+        match &self.unparsed {
+            Arg::Named { name, .. } => Some(name.as_ref()),
+            _ => None,
+        }
+    }
+}
+
 impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
     fn item(&mut self, item: Item<'a>) {
         self.advance_branch_id();
@@ -156,6 +180,12 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
         match item {
             Item::Flag { names, .. } | Item::Arg { names, .. } => {
                 for name in names {
+                    if self.current_command.is_some()
+                        && Some(name.as_ref()) == self.unparsed_arg_name()
+                    {
+                        self.good_command = self.current_command.clone();
+                    }
+
                     let e = self.all_names.entry(name.as_ref()).or_default();
                     e.in_many |= self.in_many > 0;
                     e.count += 1;
@@ -166,9 +196,14 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
         }
     }
 
-    fn command(&mut self, _: &[Name]) -> bool {
+    fn command(&mut self, x: &'a [Name<'a>]) -> bool {
         self.advance_branch_id();
-        false
+        if self.unparsed_arg_name().is_some() && self.current_command.is_none() {
+            self.current_command = first_good(x);
+            self.current_command.is_some()
+        } else {
+            false
+        }
     }
 
     fn push_group(&mut self, group: Group) {
@@ -180,10 +215,12 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
     }
 
     fn pop_group(&mut self) {
-        if self.stack.last().copied() == Some(Group::Many) {
+        let last = self.stack.pop();
+        if last == Some(Group::Many) {
             self.in_many -= 1;
+        } else if last == Some(Group::Subparser) {
+            self.current_command = None;
         }
-        self.stack.pop();
     }
 
     fn mode(&self) -> Mode {

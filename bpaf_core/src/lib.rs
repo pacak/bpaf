@@ -357,9 +357,16 @@ mod named {
 
     impl std::fmt::Display for Name<'_> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Name::Short(s) => write!(f, "-{s}"),
-                Name::Long(l) => write!(f, "--{l}"),
+            if f.alternate() {
+                match self {
+                    Name::Short(s) => write!(f, "{s}"),
+                    Name::Long(l) => write!(f, "{l}"),
+                }
+            } else {
+                match self {
+                    Name::Short(s) => write!(f, "-{s}"),
+                    Name::Long(l) => write!(f, "--{l}"),
+                }
             }
         }
     }
