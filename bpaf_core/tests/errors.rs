@@ -57,16 +57,15 @@ fn no_argument() {
     let b = short('2').switch();
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(["-a", "-42"]).unwrap();
-    assert_eq!(r, (-42, false));
+    let r = parser.run_inner(["-a", "-42"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-a` wants a value N, got `-42`, try using -a=-42");
 
-    //    let r = parser.run_inner(&["-a", "-4"])).unwrap();
-    //    assert_eq!(r, (-4, flse));
+    let r = parser.run_inner(["-a=-4", "-2"]).unwrap();
+    assert_eq!(r, (-4, true));
+
     let r = parser.run_inner(["-a", "-2"]).unwrap_err().unwrap_stderr();
 
-    // can we restore this?
-    // "`-a` requires an argument `N`, got a flag `-2`, try `-a=-2` to use it as an argument"
-    assert_eq!(r, "`-a` requires an argument `N`");
+    assert_eq!(r, "`-a` wants a value N, got `-2`, try using -a=-2");
 }
 
 #[test]
