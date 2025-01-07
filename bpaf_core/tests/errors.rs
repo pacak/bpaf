@@ -74,12 +74,11 @@ fn cannot_be_used_partial_arg() {
     let b = short('b').argument::<usize>("ARG");
     let parser = construct!([a, b]).to_options();
 
-    // TODO - error message can be improved...
     let res = parser.run_inner(["-b", "-a"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "`-b` is not expected in this context");
+    assert_eq!(res, "`-b` wants a value ARG, got `-a`, try using -b=-a");
 
     let res = parser.run_inner(["-a", "-b"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "`-b` is not expected in this context");
+    assert_eq!(res, "`-b` cannot be used at the same time as `-a`");
 }
 
 // #[test]
