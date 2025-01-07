@@ -318,7 +318,7 @@ impl<T: 'static> Parser<T> for Command<T> {
             ctx.ctx_start.set(ctx.cur() as u32);
             let runner = crate::executor::Runner::new(ctx.clone());
 
-            let r = runner.run_parser(&self.parser.0.parser);
+            let r = runner.run_parser(&self.parser.0.parser, true);
             ctx.ctx_start.set(prev_ctx);
             println!("=========== Inner done with {:?}", r.is_ok());
             r
