@@ -26,9 +26,9 @@ fn sum_of_flag_arg2() {
     let b = short('a').req_flag('a').map(|_| 0);
     let p = construct!(a, b).to_options();
     // items are consumed left to right, so first -a is an argument
-    let r = p.run_inner(["-a", "-a", "1"]).unwrap_err().unwrap_stderr();
+    let r = p.run_inner(["-a", "-b", "1"]).unwrap_err().unwrap_stderr();
 
-    assert_eq!(r, "-a wants a value <A>, got -a, try using -a=-a");
+    assert_eq!(r, "`-a` wants a value A, got `-b`, try using -a=-b");
 
     //assert_eq!((1, 0), run_parser(&p, ["-a", "1", "-a"]).unwrap());
 }

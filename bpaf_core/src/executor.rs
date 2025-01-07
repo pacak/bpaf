@@ -657,7 +657,11 @@ impl<'a> Runner<'a> {
         Ok(())
     }
 
-    pub(crate) fn run_parser<P, T>(mut self, parser: &'a P) -> Result<T, Error>
+    /// Execute the parser
+    ///
+    /// `primary` is set to false for parsers like `--version` or `--help`, they
+    /// don't care
+    pub(crate) fn run_parser<P, T>(mut self, parser: &'a P, primary: bool) -> Result<T, Error>
     where
         P: Parser<T> + ?Sized,
         T: 'static,
@@ -682,13 +686,22 @@ impl<'a> Runner<'a> {
             // parsed everything - can't improve error message if it is an error
             return result;
         };
+        if !primary {
+            return result;
+        }
 
         // TODO
         // if prefix_only {
         //     return result;
         // }
 
-        let missing = result.err().and_then(|e| e.get_missing());
+        let missing = match result {
+            Ok(_) => None,
+            Err(Error {
+                message: crate::error::Message::Missing(vec),
+            }) => Some(vec),
+            e => return e,
+        };
 
         let parsed = &self.ctx.args[0..self.ctx.cur()];
         let mut v = ExplainUnparsed::new(missing, unparsed, parsed);
