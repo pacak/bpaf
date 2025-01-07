@@ -308,7 +308,9 @@ impl Message {
             Message::ArgNeedsValue { name, meta } => write!(res, "{name} wants a value {meta}")?,
             Message::ArgNeedsValueGotNamed { name, meta, val } => write!(
                 res,
-                "{name} wants a value {meta}, got {val}, try using {name}={val}"
+                "{arg_parser} wants a value {meta}, got {bad_val}, try using {name}={val}",
+                arg_parser = Emphasis(&name),
+                bad_val = Invalid(&val)
             )?,
             Message::OnlyOnce { name } => write!(
                 res,

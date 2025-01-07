@@ -762,7 +762,7 @@ impl<T: 'static> Options<T> {
         use crate::parsers::HelpWrap;
 
         let help_p = ctx.help_and_version;
-        match executor::Runner::new(ctx.clone()).run_parser(&self.parser) {
+        match executor::Runner::new(ctx.clone()).run_parser(&self.parser, true) {
             Ok(ok) => Ok(ok),
             Err(err) => {
                 let help = || {
@@ -771,7 +771,7 @@ impl<T: 'static> Options<T> {
                     ctx.help_and_version.visit(&mut help);
                     Err(ParseFailure::Stdout(help.render("")))
                 };
-                if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(help_p) {
+                if let Ok(ans) = executor::Runner::new(ctx.clone()).run_parser(help_p, false) {
                     match ans {
                         HelpWrap::Version => todo!(),
                         HelpWrap::Help => help(),
