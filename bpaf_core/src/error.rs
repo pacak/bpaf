@@ -74,6 +74,18 @@ impl Error {
             },
         }
     }
+    pub(crate) fn try_positional(arg: Arg<'static>, meta: Metavar) -> Self {
+        Self {
+            message: Message::TryPositional {
+                value: Invalid(arg),
+                expected: Emphasis(meta),
+            },
+        }
+    }
+    pub(crate) fn new(message: Message) -> Self {
+        Self { message }
+    }
+
     pub(crate) fn unexpected(arg: Arg<'static>) -> Self {
         Self {
             message: Message::Unexpected { arg: Invalid(arg) },
@@ -146,6 +158,10 @@ impl Message {
             Self::FromStrFailed { .. } => false,
             Self::ParseFailure(_) => false,
             Self::TrySubcommand { .. } => false,
+            Self::TryPositional { .. } => false,
+            Self::TrySingleDash { .. } => false,
+            Self::TryDoubleDash { .. } => false,
+            Self::TryTypo { .. } => false,
         }
     }
 }
@@ -232,6 +248,23 @@ pub(crate) enum Message {
     TrySubcommand {
         value: Invalid<Arg<'static>>,
         command: Emphasis<Name<'static>>,
+    },
+    TryPositional {
+        value: Invalid<Arg<'static>>,
+        expected: Emphasis<Metavar>,
+    },
+
+    TrySingleDash {
+        input: Invalid<Name<'static>>,
+        short: Emphasis<Name<'static>>,
+    },
+    TryDoubleDash {
+        input: Invalid<String>,
+        long: Emphasis<Name<'static>>,
+    },
+    TryTypo {
+        input: Invalid<Name<'static>>,
+        long: Emphasis<Name<'static>>,
     },
     //
     // /// Parser provided by user failed to validate a value
@@ -322,6 +355,12 @@ impl Message {
             }
             Message::TrySubcommand { value, command } => write!(res,
                 "{value} is not valid in this context, did you mean to pass it to command {command:#}?")?,
+
+            Message::TryPositional { value, expected } => write!(res,
+                "Parser expects a positional {expected}, got a named {value}. If you meant to use it as {expected} - try inserting {ddash} in front of it", ddash = Emphasis("--"))?,
+            Message::TrySingleDash { input, short } => write!(res, "no such flag: {input} (with two dashes), did you mean {short}?")?,
+            Message::TryDoubleDash{ input, long } => write!(res, "no such flag: {input} (with one dash), did you mean {long}?")?,
+            Message::TryTypo { input, long } => write!(res, "no such flag: {input}, did you mean {long}?")?,
 
         }
         res = crate::mini_ansi::mono(res);

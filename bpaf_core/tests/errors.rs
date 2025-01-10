@@ -247,18 +247,39 @@ fn adjacent_option_complains_to() {
 
 #[test]
 fn pos_with_invalid_arg() {
-    let a = short('a').argument::<usize>("A").optional();
+    let a = short('b').long("alice").argument::<usize>("A").optional();
     let b = positional::<usize>("B");
     let parser = construct!(a, b).to_options();
-
-    let r = parser.run_inner(["-c", "12"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context");
 
     let r = parser.run_inner(["12", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "`-c` is not expected in this context");
 
+    let r = parser.run_inner(["-c", "12"]).unwrap_err().unwrap_stderr();
+    let expected = "Parser expects a positional `B`, got a named `-c`. If you meant to use it as `B` - try inserting `--` in front of it";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner(["-a=lice", "t"])
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected = "Parser expects a positional `B`, got a named `-a=lice`. If you meant to use it as `B` - try inserting `--` in front of it";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner(["-alice", "t"])
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected = "no such flag: `-alice` (with one dash), did you mean `--alice`?";
+    assert_eq!(r, expected);
+
     let r = parser.run_inner(["-c", "t"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
+
+    let r = parser
+        .run_inner(["--alic", "t"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "no such flag: `--alic`, did you mean `--alice`?");
 
     let r = parser.run_inner(["t", "-c"]).unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");

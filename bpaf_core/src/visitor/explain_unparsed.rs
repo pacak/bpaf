@@ -3,13 +3,16 @@
 //! Visitor makes best effort to explain
 
 use crate::{
-    error::{Error, MissingItem},
+    error::{Error, Message, MissingItem},
     mini_ansi::{Emphasis, Invalid},
     named::Name,
     split::{split_param, Arg, OsOrStr},
     visitor::{Group, Item, Mode, Visitor},
 };
-use std::collections::HashMap;
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, HashMap},
+};
 
 /// Visitor that tries to explain why we couldn't parse a name
 #[derive(Debug)]
@@ -23,7 +26,8 @@ pub(crate) struct ExplainUnparsed<'a> {
     missing: Option<Vec<MissingItem>>,
 
     // ============== inner state
-    all_names: HashMap<Name<'a>, NameEntry>,
+    // Can't use HashMap to keep results deterministic
+    all_names: BTreeMap<Name<'a>, NameEntry>,
     branch_id: u32,
     in_many: u32,
 
@@ -31,6 +35,7 @@ pub(crate) struct ExplainUnparsed<'a> {
     good_command: Option<Name<'a>>,
 
     stack: Vec<Group>,
+    unparsed_raw: Option<&'a str>,
 }
 
 #[derive(Debug, Default)]
@@ -43,11 +48,13 @@ struct NameEntry {
 impl<'a> ExplainUnparsed<'a> {
     pub(crate) fn new(
         missing: Option<Vec<MissingItem>>,
-        arg: Arg<'a>,
+        unparsed: Arg<'a>,
+        unparsed_raw: Option<&'a str>,
         parsed: &'a [OsOrStr<'a>],
     ) -> Self {
         Self {
-            unparsed: arg,
+            unparsed,
+            unparsed_raw,
             parsed,
             missing,
             in_many: 0,
@@ -73,16 +80,36 @@ impl<'a> ExplainUnparsed<'a> {
             .collect::<Vec<_>>();
 
         if let Arg::Named { name, .. } = &self.unparsed {
+            // two named items can't be used at once
             if let Some(err) = self.is_in_conflict(&parsed, name.as_ref()) {
                 return err;
             }
+            // a single named items can be used only once
             if let Some(err) = self.is_redundant(&parsed, name.as_ref()) {
                 return err;
             }
         }
 
+        // not supported directly, but supported by a subcommand
         if let Some(good) = self.good_command {
             return Error::try_subcommand(self.unparsed.to_owned(), good.to_owned());
+        }
+
+        if let Arg::Named { name, value } = &self.unparsed {
+            if let Some(err) = self.is_typo(name, value.as_ref()) {
+                return err;
+            }
+        }
+
+        // expect positional item or items, got named one
+        if let Some([MissingItem::Positional { meta }, rest @ ..]) = self.missing.as_deref() {
+            if matches!(self.unparsed, Arg::Named { .. })
+                && rest
+                    .iter()
+                    .all(|i| matches!(i, MissingItem::Positional { .. }))
+            {
+                return Error::try_positional(self.unparsed.to_owned(), *meta);
+            }
         }
 
         // Suggestions I'd like to make
@@ -149,11 +176,70 @@ impl<'a> ExplainUnparsed<'a> {
         }
 
         if parsed.contains(&unparsed) {
-            return Some(Error {
-                message: crate::error::Message::OnlyOnce {
-                    name: unparsed.to_owned(),
-                },
-            });
+            let name = unparsed.to_owned();
+            return Some(Error::new(Message::OnlyOnce { name }));
+        }
+
+        None
+    }
+
+    fn is_typo(&self, name: &Name, value: Option<&OsOrStr>) -> Option<Error> {
+        match name {
+            Name::Short(s) => {
+                if let Some(input) = self.unparsed_raw {
+                    if let Some(long) = input.strip_prefix('-') {
+                        let long = Name::Long(Cow::Borrowed(long));
+                        if self.all_names.contains_key(&long) {
+                            return Some(Error::new(Message::TryDoubleDash {
+                                input: Invalid(input.to_owned()),
+                                long: Emphasis(long.to_owned()),
+                            }));
+                        }
+                    }
+                }
+
+                self.is_typo_in_short(*s)
+            }
+
+            Name::Long(cow) => self.is_typo_in_long(cow),
+        }
+    }
+
+    fn is_typo_in_short(&self, name: char) -> Option<Error> {
+        None
+    }
+
+    fn is_typo_in_long(&self, name: &str) -> Option<Error> {
+        let mut best = None;
+        let mut best_distance = usize::MAX;
+        let name_len = name.chars().count();
+        if name_len == 1 {
+            let short = Name::Short(name.chars().next()?); // we checked - this is one char long name
+            for candidate in self.all_names.keys() {
+                if short == candidate.as_ref() {
+                    return Some(Error::new(Message::TrySingleDash {
+                        input: Invalid(Name::long(name).to_owned()),
+                        short: Emphasis(candidate.to_owned()),
+                    }));
+                }
+            }
+        }
+
+        for candidate in self.all_names.keys() {
+            if let Name::Long(cow) = candidate {
+                let this = damerau_levenshtein(name, cow);
+                if this < best_distance {
+                    best_distance = this;
+                    best = Some(candidate);
+                }
+            }
+        }
+
+        if name_len / 2 > best_distance {
+            return Some(Error::new(Message::TryTypo {
+                input: Invalid(Name::long(name).to_owned()),
+                long: Emphasis(best?.to_owned()),
+            }));
         }
 
         None
@@ -226,4 +312,48 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
     fn mode(&self) -> Mode {
         Mode::Info
     }
+}
+
+/// Damerau-Levenshtein distance function
+#[inline(never)]
+fn damerau_levenshtein(a: &str, b: &str) -> usize {
+    #![allow(clippy::many_single_char_names)]
+    let a_len = a.chars().count();
+    let b_len = b.chars().count();
+    let buf_size = (a_len + 1) * (b_len + 1);
+    if buf_size > 1_000_000 {
+        // don't DoS on inputs that are too big
+        return usize::MAX;
+    }
+    let mut d = vec![0; buf_size];
+
+    let ix = |ib, ia| a_len * ia + ib;
+
+    for i in 0..=a_len {
+        d[ix(i, 0)] = i;
+    }
+
+    for j in 0..=b_len {
+        d[ix(0, j)] = j;
+    }
+
+    let mut pa = '\0';
+    let mut pb = '\0';
+    for (i, ca) in a.chars().enumerate() {
+        let i = i + 1;
+        for (j, cb) in b.chars().enumerate() {
+            let j = j + 1;
+            let cost = usize::from(ca != cb);
+            d[ix(i, j)] = (d[ix(i - 1, j)] + 1)
+                .min(d[ix(i, j - 1)] + 1)
+                .min(d[ix(i - 1, j - 1)] + cost);
+            if i > 1 && j > 1 && ca == pb && cb == pa {
+                d[ix(i, j)] = d[ix(i, j)].min(d[ix(i - 2, j - 2)] + 1);
+            }
+            pb = cb;
+        }
+        pa = ca;
+    }
+
+    d[ix(a_len, b_len)]
 }

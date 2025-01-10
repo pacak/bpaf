@@ -704,7 +704,8 @@ impl<'a> Runner<'a> {
         };
 
         let parsed = &self.ctx.args[0..self.ctx.cur()];
-        let mut v = ExplainUnparsed::new(missing, unparsed, parsed);
+        let unparsed_raw = self.ctx.args[self.ctx.cur()].str();
+        let mut v = ExplainUnparsed::new(missing, unparsed, unparsed_raw, parsed);
         parser.visit(&mut v);
         Err(v.explain())
     }
