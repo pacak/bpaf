@@ -391,6 +391,9 @@ mod named {
                 Name::Long(cow) => Name::Long(Cow::Borrowed(cow.as_ref())),
             }
         }
+        pub(crate) fn long<'a>(name: &'a str) -> Name<'a> {
+            Name::Long(Cow::Borrowed(name))
+        }
     }
 
     pub struct Named {

@@ -190,22 +190,13 @@ impl<'ctx> Future for PositionalFut<'ctx> {
             self.ctx.positional_wake(branch, id);
             return Poll::Pending;
         }
-        Poll::Ready(match self.ctx.args.get(self.ctx.cur()) {
-            Some(s) => {
-                if s.is_named() {
-                    Err(Error::not_positional(s.to_owned()))
-                } else {
-                    self.ctx.advance(1);
-                    Ok(s.to_owned())
-                }
-            }
-            None => {
-                if self.ctx.is_term() {
-                    Err(Error::missing(MissingItem::Positional { meta: self.meta }))
-                } else {
-                    return Poll::Pending;
-                }
-            }
+
+        Poll::Ready(if self.ctx.is_term() {
+            Err(Error::missing(MissingItem::Positional { meta: self.meta }))
+        } else {
+            let ix = self.ctx.cur();
+            self.ctx.advance(1);
+            Ok(self.ctx.args[ix].as_ref())
         })
     }
 }

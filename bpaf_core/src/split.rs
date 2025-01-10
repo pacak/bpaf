@@ -130,7 +130,7 @@ impl OsOrStr<'_> {
         }
     }
 
-    fn str(&self) -> Option<&str> {
+    pub(crate) fn str(&self) -> Option<&str> {
         match self {
             OsOrStr::Str(cow) => Some(cow.as_ref()),
             OsOrStr::Os(_) => None,
