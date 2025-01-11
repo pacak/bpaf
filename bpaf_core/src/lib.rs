@@ -291,18 +291,14 @@ mod named {
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
             Box::pin(async move {
-                let fut = ArgFut {
+                ArgFut {
                     name: &self.named.names,
                     meta: self.meta,
                     ctx,
                     task_id: None,
-                };
-
-                let s = fut.await?;
-                match s.parse::<T>() {
-                    Ok(t) => Ok(t),
-                    Err(e) => Err(Error::from_str_fail(s.to_owned(), e.to_string())),
                 }
+                .await?
+                .parse::<T>()
             })
         }
 
@@ -479,15 +475,13 @@ mod positional {
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
             Box::pin(async {
-                let s = PositionalFut {
+                PositionalFut {
                     ctx,
                     task_id: None,
                     meta: self.meta,
                 }
-                .await?;
-                s.parse().map_err(|e| Error {
-                    message: Message::ParseFailed(None, e),
-                })
+                .await?
+                .parse::<T>()
             })
         }
 

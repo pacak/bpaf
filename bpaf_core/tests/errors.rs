@@ -273,7 +273,8 @@ fn pos_with_invalid_arg() {
     assert_eq!(r, expected);
 
     let r = parser.run_inner(["-c", "t"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
+    let expected = "Parser expects a positional `B`, got a named `-c`. If you meant to use it as `B` - try inserting `--` in front of it";
+    assert_eq!(r, expected);
 
     let r = parser
         .run_inner(["--alic", "t"])
