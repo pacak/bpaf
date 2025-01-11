@@ -1,4 +1,9 @@
-use crate::{error::Error, named::Name, pecking::Pecking};
+use crate::{
+    error::{Error, Message},
+    mini_ansi::Invalid,
+    named::Name,
+    pecking::Pecking,
+};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -137,7 +142,7 @@ impl OsOrStr<'_> {
         }
     }
 
-    pub(crate) fn parse<T>(&self) -> Result<T, String>
+    pub(crate) fn parse<T>(&self) -> Result<T, Error>
     where
         T: FromStr + 'static,
         <T as FromStr>::Err: std::fmt::Display,
@@ -151,11 +156,17 @@ impl OsOrStr<'_> {
             Ok(*(anybox.downcast::<T>().unwrap()))
         } else {
             match self.str() {
-                Some(s) => T::from_str(s).map_err(|e| e.to_string()),
-                None => Err(format!(
-                    "{} is not a valid utf8",
-                    self.os().to_string_lossy()
-                )),
+                Some(s) => match T::from_str(s) {
+                    Ok(v) => Ok(v),
+                    Err(err) => Err(Error::new(Message::FromStrFailed {
+                        value: Invalid(self.to_owned()),
+                        message: err.to_string(),
+                    })),
+                },
+                None => Err(Error::new(Message::FromStrFailed {
+                    value: Invalid(self.to_owned()),
+                    message: "not a valid utf8".to_owned(),
+                })),
             }
         }
     }
