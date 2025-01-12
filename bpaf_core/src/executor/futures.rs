@@ -309,6 +309,10 @@ impl Future for FlagFut<'_> {
             return Poll::Pending;
         }
 
+        if self.ctx.is_term() {
+            return self.missing();
+        }
+
         let front = self.ctx.front.borrow();
         let Some(front) = front.as_ref() else {
             return self.missing();
