@@ -246,7 +246,7 @@ impl<'a> ExplainUnparsed<'a> {
     }
 }
 
-fn first_good<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
+pub(crate) fn first_good<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
     names.first().map(|n| n.as_ref())
 }
 
