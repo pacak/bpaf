@@ -161,6 +161,7 @@ impl Message {
             Self::TryPositional { .. } => false,
             Self::TrySingleDash { .. } => false,
             Self::TryDoubleDash { .. } => false,
+            Self::GuardFailed { .. } => false,
             Self::TryTypo { .. } => false,
         }
     }
@@ -210,6 +211,9 @@ pub(crate) enum Message {
 
     NotPositional {
         arg: Invalid<OsOrStr<'static>>,
+    },
+    GuardFailed {
+        message: &'static str,
     },
     // // those can be caught ---------------------------------------------------------------
     // /// Tried to consume an env variable with no fallback, variable was not set
@@ -313,26 +317,17 @@ impl Message {
         match self {
             Message::Fail(msg) => write!(res, "failed: {msg}")?,
             Message::Missing(xs) => {
-                write!(res, "Expected ")?;
-                for (ix, item) in xs.iter().take(4).enumerate() {
-                    if ix > 0 {
-                        write!(res, ", ")?;
-                    }
-                    match item {
-                        MissingItem::Named { name, meta } => match (&name[0], meta) {
-                            (name, None) => write!(res, "{name}")?,
-                            (name, Some(m)) => write!(res, "{name}={m}")?,
-                        },
-                        MissingItem::Positional { meta } => write!(res, "{}", meta)?,
-                        MissingItem::Command { name: _ } => write!(res, "COMMAND")?,
-                        MissingItem::Any { metavar } => todo!(),
-                        MissingItem::Env { name } => todo!(),
-                    }
-                }
+                write!(res, "expected ")?;
+                write_missing(&mut res, &xs)?; // TODO - a newtype wrapper for a slice?
+                                               // Something that picks the best item and returns it
+                                               // as `impl Display`?
+                // TODO - can we use real --help command? Or can we drop this part if custom help
+                // is in use?
+                write!(res, ", pass {} for usage information", Emphasis(Name::long("help")))?;
             }
-            Message::Conflicts { winner, loser } => {
-                write!(res, "{loser} cannot be used at the same time as {winner}")?
-            }
+            Message::Conflicts { winner, loser } =>
+                write!(res, "{loser} cannot be used at the same time as {winner}")?,
+
 
             Message::Unexpected { arg } => write!(res, "{arg} is not expected in this context")?,
             Message::NotPositional { arg } => write!(res, "{arg} not positional TODO")?,
@@ -361,6 +356,7 @@ impl Message {
             Message::TrySingleDash { input, short } => write!(res, "no such flag: {input} (with two dashes), did you mean {short}?")?,
             Message::TryDoubleDash{ input, long } => write!(res, "no such flag: {input} (with one dash), did you mean {long}?")?,
             Message::TryTypo { input, long } => write!(res, "no such flag: {input}, did you mean {long}?")?,
+            Message::GuardFailed { message } => res.push_str(message),
 
         }
         res = crate::mini_ansi::mono(res);
@@ -413,9 +409,42 @@ pub(crate) enum MissingItem {
         name: Vec<Name<'static>>,
     },
     Any {
-        metavar: &'static str,
+        meta: Metavar,
     },
     Env {
         name: &'static str,
     },
+}
+
+/// Pick a missing item that best describes the situation
+fn write_missing(res: &mut String, items: &[MissingItem]) -> std::fmt::Result {
+    use std::fmt::Write;
+    if let Some(meta) = items.iter().find_map(|i| match i {
+        MissingItem::Positional { meta } => Some(meta),
+        MissingItem::Any { meta } => Some(meta),
+        _ => None,
+    }) {
+        write!(res, "{meta}")?;
+    } else if let Some((name, meta)) = items.iter().find_map(|i| match i {
+        MissingItem::Named { name, meta } => Some((first_good_name(name)?, meta)),
+        _ => None,
+    }) {
+        // TODO - figure emphasis
+        match meta {
+            Some(meta) => write!(res, "{name}={meta}")?,
+            None => write!(res, "{name}")?,
+        }
+    } else if items
+        .iter()
+        .any(|i| matches!(i, MissingItem::Command { .. }))
+    {
+        write!(res, "{}", Emphasis("COMMAND"))?;
+    } else {
+        write!(res, "some hidden item")?;
+    }
+    Ok(())
+}
+
+pub(crate) fn first_good_name<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
+    names.first().map(|n| n.as_ref())
 }

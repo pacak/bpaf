@@ -75,6 +75,7 @@ where
                         if consumed > 0 {
                             res.push(t);
                         } else {
+                            // TODO - add test for that
                             if res.is_empty() {
                                 res.push(t);
                             }
@@ -126,7 +127,17 @@ where
             if (self.check)(&t) {
                 Ok(t)
             } else {
-                Err(Error::fail(self.message))
+                // problem: Unlike the pure applicative versions
+                // we don't know what exactly was parsed in order to produce T even if it
+                // came from a primitive parser directly. For now just display the guard message
+                // and hope it was descriptive enough.
+                // TODO - document this
+                //
+                // In the future we can explore posibilities of either provenance of T
+                // or adding a guard a method on Positional/Named/Any that creates a custom
+                Err(Error::new(crate::error::Message::GuardFailed {
+                    message: self.message,
+                }))
             }
         })
     }
