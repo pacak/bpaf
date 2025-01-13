@@ -42,7 +42,9 @@ fn req_flag_simple() {
     assert_eq!(r, Unit);
 
     let r = parser.run_inner([]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected --alice");
+
+    let expected = "expected --alice, pass `--help` for usage information";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -76,7 +78,9 @@ fn simple_positional() {
     let parser = positional::<String>("ARG").to_options();
 
     let r = parser.run_inner([]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected <ARG>");
+
+    let expected = "expected ARG, pass `--help` for usage information";
+    assert_eq!(r, expected);
 
     let r = parser.run_inner(["item"]).unwrap();
     assert_eq!(r, "item");
@@ -92,10 +96,14 @@ fn pair_of_positionals() {
     assert_eq!(r, (1, 2));
 
     let r = parser.run_inner(["1"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected <BOB>");
+
+    let expected = "expected BOB, pass `--help` for usage information";
+    assert_eq!(r, expected);
 
     let r = parser.run_inner([]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected <ALICE>, <BOB>");
+    let expected = "expected ALICE, pass `--help` for usage information";
+    assert_eq!(r, expected);
+    // assert_eq!(r, "Expected <ALICE>, <BOB>");
 }
 
 #[test]
@@ -125,8 +133,9 @@ fn many_positionals_bad() {
     let p = construct!(a, b).to_options();
 
     let r = p.run_inner(["a", "b", "c"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected <B>");
-    //    assert_eq!(r,
+
+    let expected = "expected B, pass `--help` for usage information";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -144,7 +153,9 @@ fn badly_emulated_args() {
         .run_inner(["--alice", "--bob"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "Expected <ALICE>, <BOB>");
+
+    let expected = "expected ALICE, pass `--help` for usage information";
+    assert_eq!(r, expected);
 
     // let r = run_parser(
     //     &alt,
@@ -184,7 +195,7 @@ fn simple_guard() {
     assert_eq!(r, 3);
 
     let r = a.run_inner(["-a=13"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "failed: must be small");
+    assert_eq!(r, "must be small");
 }
 
 #[test]
@@ -196,10 +207,12 @@ fn req_flag_and_guard_pair() {
     let p = construct!(a, b).to_options();
 
     let r = p.run_inner(["-a=13"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "failed: must be small");
+    assert_eq!(r, "must be small");
 
     let r = p.run_inner(["-a=3"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected -b");
+
+    let expected = "expected -b, pass `--help` for usage information";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -211,8 +224,10 @@ fn guard_and_req_flag_pair() {
     let p = construct!(b, a).to_options();
 
     let r = p.run_inner(["-a=13"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "failed: must be small");
+    assert_eq!(r, "must be small");
 
     let r = p.run_inner(["-a=3"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "Expected -b");
+
+    let expected = "expected -b, pass `--help` for usage information";
+    assert_eq!(r, expected);
 }
