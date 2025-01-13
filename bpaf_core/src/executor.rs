@@ -235,13 +235,10 @@ impl<'ctx> Runner<'ctx> {
             next_task_id: 0,
             parent_ids: Default::default(),
             wake_on_child_exit: Default::default(),
-            winners: Vec::new(),
-            prev_pos: ctx.cur(),
             flags: Default::default(),
             args: Default::default(),
             fallback: Default::default(),
             positional: Default::default(),
-            conflicts: Default::default(),
             literal: Default::default(),
             any: Default::default(),
             ctx,
@@ -273,23 +270,10 @@ pub(crate) struct Runner<'ctx> {
 
     literal: BTreeMap<Name<'ctx>, Pecking>,
 
-    conflicts: BTreeMap<Name<'ctx>, usize>,
-
     /// Shared with Wakers,
     ///
     /// contains a vector [`Id`] for tasks to wake up.
     pending: Arc<Mutex<Vec<Id>>>,
-
-    /// Contains IDs that managed to advance last iteration
-    /// Any consuming parsers that are not in this
-    /// list but are terminated in the following non advancing
-    /// step are in conflict with the last consumed segment
-    ///
-    /// This exists to produce better error messages
-    winners: Vec<Id>,
-
-    /// Used to generate errors for conflicts
-    prev_pos: usize,
 }
 
 impl<'a> Runner<'a> {
@@ -407,7 +391,6 @@ impl<'a> Runner<'a> {
                         &mut self.args
                     };
                     for name in names.iter() {
-                        self.conflicts.remove(name);
                         map.entry(name.clone()).or_default().insert(branch, id);
                     }
                 }
@@ -417,23 +400,7 @@ impl<'a> Runner<'a> {
                     branch,
                     id,
                 } => {
-                    let conflict =
-                        if self.winners.contains(&id) || self.ctx.front.borrow().is_none() {
-                            None
-                        } else {
-                            println!(
-                                "Conflict between {names:?} and {:?}",
-                                &self.ctx.args[self.prev_pos]
-                            );
-                            Some(self.prev_pos)
-                        };
                     println!("{id:?}: Remove listener for {names:?}");
-
-                    if let Some(conflict) = conflict {
-                        for name in names {
-                            self.conflicts.insert(name.clone(), conflict);
-                        }
-                    }
 
                     let map = if flag {
                         &mut self.flags
@@ -623,9 +590,8 @@ impl<'a> Runner<'a> {
         for (id, poll, consumed) in out.drain(..) {
             if let Poll::Ready(eh) = &poll {
                 if consumed < max_consumed {
+                    // TODO  - custom error
                     eh.set(Some(Error::fail("terminated due to low priority")));
-                } else {
-                    self.winners.push(id);
                 }
             }
             self.handle_task_poll(id, poll);
@@ -648,10 +614,7 @@ impl<'a> Runner<'a> {
                     todo!("any?");
                 }
             }
-            _ => {
-                self.prev_pos = self.ctx.cur();
-                self.ctx.advance(max_consumed);
-            }
+            _ => self.ctx.advance(max_consumed),
         }
 
         Ok(())
@@ -721,7 +684,6 @@ impl<'a> Runner<'a> {
             self.propagate();
             println!("============= Propagate done");
 
-            self.winners.clear();
             debug_assert!(self.ctx.shared.borrow().is_empty());
             debug_assert!(self.pending.lock().expect("poison").is_empty());
 
