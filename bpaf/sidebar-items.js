@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"derive":["Bpaf"],"enum":["ParseFailure","ShellComp"],"fn":["any","choice","env","fail","literal","long","positional","pure","pure_with","short"],"macro":["construct"],"mod":["_documentation","batteries","doc","params","parsers"],"struct":["Args","Doc","OptionParser"],"trait":["Parser"]};

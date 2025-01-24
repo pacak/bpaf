@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"mod":["_0_simple_parser","_1_chaining","_2_combining","_3_subcommands","_4_decorating"]};
