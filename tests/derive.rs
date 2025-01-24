@@ -123,3 +123,15 @@ Available commands:
     let r = parser.run_inner(&["one"]).unwrap();
     assert_eq!(r, One);
 }
+
+#[test]
+fn pure_optional() {
+    #[derive(Bpaf, Debug, Clone)]
+    #[bpaf(options)]
+    struct Opts {
+        #[bpaf(pure(Default::default()))]
+        foo: Option<Vec<u32>>,
+    }
+
+    assert_eq!(opts().run().foo, None);
+}
