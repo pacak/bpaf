@@ -951,6 +951,42 @@ fn positional_bool() {
 }
 
 #[test]
+fn pure_optional_named() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(pure(x))]
+        flag: Option<Vec<X>>
+    };
+    let output = quote! {
+        ::bpaf::pure(x)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn pure_vec_named() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(pure(x))]
+        flag: Vec<X>
+    };
+    let output = quote! {
+        ::bpaf::pure(x)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
+fn pure_optional_pos() {
+    let input: UnnamedField = parse_quote! {
+        #[bpaf(pure(x))]
+         Option<Vec<X>>
+    };
+    let output = quote! {
+        ::bpaf::pure(x)
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn raw_literal() {
     let input: NamedField = parse_quote! {
         r#in: bool

@@ -280,7 +280,7 @@ impl StructField {
         let span = ty.span();
 
         if !(postpr.iter().any(|p| matches!(p, Post::Parse(_)))
-            || matches!(cons, Consumer::External { .. }))
+            || matches!(cons, Consumer::External { .. } | Consumer::Pure { .. }))
         {
             match shape {
                 Shape::Optional(_) => postpr.insert(0, Post::Parse(PostParse::Optional { span })),
