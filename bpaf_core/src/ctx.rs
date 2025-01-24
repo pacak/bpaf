@@ -14,7 +14,7 @@ use crate::{
     },
     named::Name,
     parsers::HelpWrap,
-    split::{Arg, OsOrStr},
+    split::OsOrStr,
     Parser,
 };
 
@@ -25,7 +25,13 @@ pub struct RawCtx<'a> {
     pub(crate) args: &'a [OsOrStr<'a>],
     /// Current cursor position
     cur: AtomicUsize,
-    pub(crate) front: RefCell<Option<Arg<'a>>>,
+    /// For option arguments with immediately adjacent values this
+    /// will be set to the value:
+    ///
+    /// `--foo bar` - None,
+    /// `--foo=bar` or `-fbar` - Some("bar")
+    pub(crate) front_value: RefCell<Option<OsOrStr<'a>>>,
+    // pub(crate) front: RefCell<Option<Arg<'a>>>,
     /// through this tasks can request event scheduling, etc
     pub(crate) shared: RefCell<VecDeque<Op<'a>>>,
 
@@ -44,6 +50,7 @@ pub struct RawCtx<'a> {
     /// cargo invocation if present, for subcommands this exludes the path to get to it
     pub(crate) ctx_start: Cell<u32>,
 
+    /// TODO
     pub(crate) help_and_version: &'a dyn Parser<HelpWrap>,
 }
 
@@ -65,7 +72,7 @@ impl<'a> Ctx<'a> {
             items_consumed: Default::default(),
             shared: Default::default(),
             cur: AtomicUsize::from(0),
-            front: Default::default(),
+            front_value: Default::default(),
             child_exit: Default::default(),
             term: Default::default(),
             ctx_start: Cell::new(ctx_start),
