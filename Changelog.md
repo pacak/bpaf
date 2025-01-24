@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.16], 2025-01-24
+- treat `pure` as an implicit consumer - don't add unnecessary `.optional()` or `.many()`
+- unbrainfart one of the examples
+
 ## bpaf [0.9.15], 2024-10-08
 - a fix for a previous fix of fish completions, again - regenerate the files
 
