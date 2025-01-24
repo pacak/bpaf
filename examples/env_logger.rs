@@ -32,7 +32,7 @@ fn verbose() -> impl Parser<LevelFilter> {
         .count()
         .map(|l| {
             use LevelFilter::*;
-            [Off, Error, Warn, Info, Debug, Trace][l.max(5)]
+            [Off, Error, Warn, Info, Debug, Trace][l.clamp(0, 5)]
         })
 }
 
