@@ -246,7 +246,7 @@ impl<'a> ExplainUnparsed<'a> {
     }
 }
 
-pub(crate) fn first_good<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
+pub(crate) fn first_good_name<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
     names.first().map(|n| n.as_ref())
 }
 
@@ -285,7 +285,7 @@ impl<'a> Visitor<'a> for ExplainUnparsed<'a> {
     fn command(&mut self, x: &'a [Name<'a>]) -> bool {
         self.advance_branch_id();
         if self.unparsed_arg_name().is_some() && self.current_command.is_none() {
-            self.current_command = first_good(x);
+            self.current_command = first_good_name(x);
             self.current_command.is_some()
         } else {
             false
