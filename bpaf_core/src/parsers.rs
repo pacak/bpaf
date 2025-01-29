@@ -323,8 +323,6 @@ impl<T: 'static> Parser<T> for Command<T> {
             }
             .await?;
             println!("========== Running inner parser");
-            ctx.advance(1);
-            println!("{:?}", &ctx.args[ctx.cur()..]);
             let prev_ctx = ctx.ctx_start.get();
             ctx.ctx_start.set(ctx.cur() as u32);
             let runner = crate::executor::Runner::new(ctx.clone());

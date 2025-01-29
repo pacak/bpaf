@@ -70,7 +70,7 @@ impl<'a> ExplainUnparsed<'a> {
     pub(crate) fn explain(self) -> Error {
         let m = HashMap::new();
 
-        let parsed = self
+        let mut parsed = self
             .parsed
             .iter()
             .flat_map(|sos| match split_param(sos, &m, &m).ok()? {
@@ -87,6 +87,21 @@ impl<'a> ExplainUnparsed<'a> {
             // a single named items can be used only once
             if let Some(err) = self.is_redundant(&parsed, name.as_ref()) {
                 return err;
+            }
+        }
+        if let Arg::ShortSet { current, names } = &self.unparsed {
+            if *current > 1 {
+                let prev = parsed.len();
+
+                for name in &names[..current - 1] {
+                    parsed.push(Name::Short(*name));
+                }
+                let name = Name::Short(names[current - 1]);
+
+                if let Some(err) = self.is_redundant(&parsed, name) {
+                    return err;
+                }
+                parsed.truncate(prev);
             }
         }
 
@@ -109,6 +124,16 @@ impl<'a> ExplainUnparsed<'a> {
                     .all(|i| matches!(i, MissingItem::Positional { .. }))
             {
                 return Error::try_positional(self.unparsed.to_owned(), *meta);
+            }
+        }
+
+        if let Arg::ShortSet { current, names } = &self.unparsed {
+            if *current > 1 {
+                panic!(
+                    "make a message pointing at a specific item {} of {:?}",
+                    names[*current - 1],
+                    names
+                );
             }
         }
 

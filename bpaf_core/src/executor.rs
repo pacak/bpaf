@@ -10,7 +10,7 @@ use crate::{
 use std::{
     any::Any,
     borrow::Cow,
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     marker::PhantomData,
     pin::{pin, Pin},
@@ -493,7 +493,7 @@ impl<'a> Runner<'a> {
     }
 
     /// Pick one or more parsers that can handle front argument
-    fn pick_parsers(&self, front: &Arg, ids: &mut Vec<(BranchId, Id)>) {
+    fn pick_parsers(&self, front: &mut Arg, ids: &mut Vec<(BranchId, Id)>) {
         debug_assert!(ids.is_empty());
         match front {
             Arg::Named { name, value: _ } => {
@@ -505,10 +505,16 @@ impl<'a> Runner<'a> {
                 }
             }
             Arg::ShortSet { current, names } => {
-                let name = Name::Short(names[*current]);
-                if let Some(p) = self.args.get(&name) {
-                    ids.extend(p.heads());
+                if *current == 0 {
+                    println!("pick any here");
+                    if ids.is_empty() {
+                        *current += 1;
+                    } else {
+                        return;
+                    }
                 }
+                println!("Picking for things in ShortSet {current:?} {names:?} ");
+                let name = Name::Short(names[*current - 1]);
                 if let Some(p) = self.flags.get(&name) {
                     ids.extend(p.heads());
                 }
@@ -547,21 +553,17 @@ impl<'a> Runner<'a> {
 
     fn consume(
         &mut self,
-        front: &'a Arg<'a>,
+        front: &mut Arg<'a>,
         ids: &mut Vec<(BranchId, Id)>,
         out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
-    ) -> Result<(), Error> {
-        // let microadvance = matches!(front, Arg::ShortSet { .. });
-        // debug_assert!(!ids.is_empty(), "pick for parsers didn't raise an error");
-        // match &front {
-        //     Arg::Named { name: _, value } => {
-        //         *self.ctx.front_value.borrow_mut() = value.as_ref().map(|v| v.as_ref())
-        //     }
-        //     Arg::ShortSet { .. } | Arg::Positional { .. } => {}
-        // }
-
+    ) -> Result<bool, Error> {
         // actual feed consumption happens here
         let mut max_consumed = 0;
+
+        assert!(!ids.is_empty());
+        if let Arg::Named { value, .. } = front {
+            *self.ctx.front_value.borrow_mut() = value.clone()
+        }
 
         let mut last_branch = BranchId::ZERO;
         for (branch, id) in ids.drain(..) {
@@ -573,7 +575,6 @@ impl<'a> Runner<'a> {
             if let Some(task) = self.tasks.get_mut(&id) {
                 let (poll, consumed) = self.ctx.run_task(task);
                 if poll.is_ready() {
-                    task.consumed += microadvance as u32;
                     last_branch = branch;
                 } else {
                     continue;
@@ -601,27 +602,23 @@ impl<'a> Runner<'a> {
             }
             self.handle_task_poll(id, poll);
         }
-
-        match front {
-            Arg::ShortSet { current, names } => {
-                if max_consumed == 0 {
-                    if names.len() > current + 1 {
-                        // let arg = Arg::ShortSet {
-                        //     current: current + 1,
-                        //     names,
-                        // };
-                        todo!();
-                    } else {
-                        self.ctx.advance(1);
-                    }
-                } else {
-                    todo!("any?");
-                }
+        if let Arg::ShortSet { current, .. } = front {
+            // This branch covers two cases - parsing a short set with "any" parser
+            // and parsing a single flag out of the short set. With current set to 0
+            // we are running "any" parsers only, if any of them succeed - no need to run any of
+            // the flag parsers since "any" consumed more items.
+            //
+            // For individual flags we'll have current > 0
+            if *current == 0 && max_consumed > 0 {
+                *front = Arg::DUMMY;
+                self.ctx.advance(max_consumed);
             }
-            _ => self.ctx.advance(max_consumed),
+        } else {
+            println!("Max consumed from {front:?} {max_consumed:?}");
+            self.ctx.advance(max_consumed)
         }
 
-        Ok(())
+        Ok(max_consumed > 0)
     }
 
     /// Execute the parser
@@ -682,10 +679,10 @@ impl<'a> Runner<'a> {
         // mostly to avoid allocations
         let mut ids = Vec::new();
         let mut out = Vec::new();
-        // A prefix of separated arguments. In most cases this should be just the front
-        // item,
-        let mut prefix = VecDeque::new();
-        let unparsed = 'outer: loop {
+
+        let mut prev_arg: Arg<'a> = Arg::DUMMY;
+
+        let no_parse = loop {
             self.ctx.set_term(false);
             self.propagate();
             println!("============= Propagate done");
@@ -693,39 +690,40 @@ impl<'a> Runner<'a> {
             debug_assert!(self.ctx.shared.borrow().is_empty());
             debug_assert!(self.pending.lock().expect("poison").is_empty());
 
-            let (front, flag_only) = match prefix.pop_front() {
-                Some(f) => (f, true),
-                None => match self.ctx.args.get(self.ctx.cur()) {
-                    Some(f) => {
-                        let f = split_param(f, &self.args, &self.flags)?;
-                        match f {
-                            Arg::ShortSet { current, names } => {
-                                for name in names {
-                                    prefix.push_back(Arg::Named {
-                                        name: Name::Short(name),
-                                        value: None,
-                                    });
-                                }
-                                (prefix.pop_front().unwrap(), true)
-                            }
-                            f => (f, false),
-                        }
+            let front = match &mut prev_arg {
+                Arg::ShortSet { current, names } if *current < names.len() => {
+                    *current += 1;
+                    &mut prev_arg
+                }
+                _ => {
+                    if matches!(prev_arg, Arg::ShortSet { .. }) {
+                        self.ctx.advance(1);
                     }
-                    None => {
+                    if let Some(val) = self.ctx.args.get(self.ctx.cur()) {
+                        prev_arg = split_param(val, &self.args, &self.flags)?;
+                        &mut prev_arg
+                    } else {
                         println!("nothing to consume");
-                        break None;
+                        break false;
                     }
-                },
+                }
             };
 
-            self.pick_parsers(&front, &mut ids);
+            self.pick_parsers(front, &mut ids);
             if ids.is_empty() {
                 println!("No parsers for {front:?}, exiting");
-                break Some(front);
+                break true;
             }
-            self.consume(&front, &mut ids, &mut out)?;
+
+            if !self.consume(front, &mut ids, &mut out)? {
+                break true;
+            }
             println!("============= Consuming part done");
         };
+
+        if no_parse {
+            println!("No valid parser to handle {prev_arg:?}, cleaning up");
+        }
 
         // at this point we are done consuming, either there's nothing more left or we don't know
         // how to consume the rest., let's run existing tasks to completion
@@ -733,12 +731,15 @@ impl<'a> Runner<'a> {
         // and then by processing all the non-consuming events - this would either create some
         // errors or or those "not found" errors are going to be converted into something useful
 
+        self.propagate();
         self.ctx.set_term(true);
-        self.drain_all_consumers(&mut ids);
+
+        self.prepare_consumers_for_draining(&mut ids);
 
         *self.ctx.front_value.borrow_mut() = None;
         for (_branch, id) in ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
+                println!("Need to terminate {id:?}");
                 let (poll, consumed) = self.ctx.run_task(task);
                 debug_assert_eq!(consumed, 0, "Consumed during termination?");
                 debug_assert!(poll.is_ready(), "Termination left task stil pending?");
@@ -747,7 +748,7 @@ impl<'a> Runner<'a> {
         }
         println!("Final propagation");
         self.propagate();
-        Ok(unparsed)
+        Ok(no_parse.then_some(prev_arg))
     }
 
     /// Find the deepest left most child
@@ -767,7 +768,7 @@ impl<'a> Runner<'a> {
 
     #[inline(never)]
     /// Drain all consumers so they can be polled to emit default values
-    fn drain_all_consumers(&mut self, ids: &mut Vec<(BranchId, Id)>) {
+    fn prepare_consumers_for_draining(&mut self, ids: &mut Vec<(BranchId, Id)>) {
         ids.extend(self.flags.values().flat_map(|v| v.iter()));
         ids.extend(self.positional.iter());
         ids.extend(self.args.values().flat_map(|v| v.iter()));

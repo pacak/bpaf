@@ -253,7 +253,14 @@ impl std::fmt::Display for Arg<'_> {
                 name,
                 value: Some(value),
             } => write!(f, "{name}={value}"),
-            Arg::ShortSet { current, names } => todo!(),
+            Arg::ShortSet { current: _, names } => {
+                write!(f, "-")?;
+                for n in names {
+                    write!(f, "{}", n)?
+                }
+                Ok(())
+            }
+
             Arg::Positional { value } => value.fmt(f),
         }
     }
@@ -272,6 +279,13 @@ pub(crate) enum Arg<'a> {
     Positional {
         value: OsOrStr<'a>,
     },
+}
+
+impl Arg<'static> {
+    pub(crate) const DUMMY: Self = Arg::Named {
+        name: Name::Short(' '),
+        value: None,
+    };
 }
 
 fn ascii_prefix(input: &OsStr) -> Option<(Cow<str>, Cow<OsStr>)> {

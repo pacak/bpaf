@@ -260,24 +260,35 @@ impl<'ctx> Future for ArgFut<'ctx> {
             return Poll::Ready(Err(self.missing()));
         }
 
-        let front = self.ctx.front.borrow();
-        let Some(Arg::Named { name, value }) = front.as_ref() else {
-            unreachable!();
-        };
-        if let Some(v) = value {
+        let front = self.ctx.front_value.borrow();
+        if let Some(v) = front.as_ref() {
             self.ctx.advance(1);
-            return Poll::Ready(Ok(v.to_owned()));
+            return Poll::Ready(Ok(v.clone()));
         }
+        // TODO Pass the name here too?
+        let name = || {
+            let front = self
+                .ctx
+                .args
+                .get(self.ctx.cur())
+                .expect("Should be present");
+            let m = Default::default();
+
+            match super::split_param(front, &m, &m).unwrap() {
+                Arg::Named { name, value: None } => name.to_owned(),
+                _ => panic!("Expected to see a name "),
+            }
+        };
         Poll::Ready(match self.ctx.args.get(self.ctx.cur() + 1) {
             None => Err(Error::from(Message::ArgNeedsValue {
-                name: name.to_owned(),
+                name: name(),
                 meta: self.meta,
             })),
             Some(v) => {
                 let val = v.to_owned();
                 if val.is_named() {
                     Err(Error::from(Message::ArgNeedsValueGotNamed {
-                        name: name.to_owned(),
+                        name: name(),
                         meta: self.meta,
                         val,
                     }))
@@ -301,7 +312,7 @@ impl FlagFut<'_> {
 impl Future for FlagFut<'_> {
     type Output = Result<(), Error>;
 
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         if self.task_id.is_none() {
             let (branch, id) = self.ctx.current_task();
             self.task_id = Some((branch, id));
@@ -310,38 +321,12 @@ impl Future for FlagFut<'_> {
         }
 
         if self.ctx.is_term() {
-            return self.missing();
-        }
+            self.missing()
+        } else {
+            assert!(self.ctx.front_value.borrow().is_none());
+            self.ctx.advance(1);
 
-        let front = self.ctx.front.borrow();
-        let Some(front) = front.as_ref() else {
-            return self.missing();
-        };
-
-        match front {
-            Arg::Named { name, value } => {
-                if self.name.contains(name) {
-                    if value.is_none() {
-                        self.ctx.advance(1);
-                        Poll::Ready(Ok(()))
-                    } else {
-                        todo!()
-                    }
-                } else {
-                    self.missing()
-                }
-            }
-            Arg::ShortSet { current, names } => {
-                let short = Name::Short(names[*current]);
-                if self.name.contains(&short) {
-                    Poll::Ready(Ok(()))
-                } else {
-                    todo!();
-                }
-            }
-            Arg::Positional { value } => {
-                todo!("Found {value:?}, expected one of {:?}", self.name);
-            }
+            Poll::Ready(Ok(()))
         }
     }
 }
@@ -374,25 +359,11 @@ impl Future for LiteralFut<'_> {
             return Poll::Pending;
         }
 
-        let front = self.ctx.front.borrow();
-        let Some(front) = front.as_ref() else {
+        if self.ctx.is_term() {
             return Poll::Ready(Err(self.missing()));
-        };
-        // TODO - this can be less clumsy
-        if let Arg::Positional { value } = front {
-            let mut name = [0; 4];
-
-            for expected in self.values {
-                let expected = match expected {
-                    Name::Short(s) => s.encode_utf8(&mut name),
-                    Name::Long(long) => long.as_ref(),
-                };
-                if value == expected {
-                    return Poll::Ready(Ok(()));
-                }
-            }
         }
-        todo!()
+        self.ctx.advance(1);
+        Poll::Ready(Ok(()))
     }
 }
 
