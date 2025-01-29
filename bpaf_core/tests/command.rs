@@ -13,6 +13,9 @@ fn simple_command() {
     let r = parser.run_inner(["bob", "-a"]).unwrap();
     assert_eq!(r, true);
 
-    // let r = parser.run_inner(["-a"]).unwrap_err();
-    // assert_eq!(r, "parser doesn't support -a, but subcommand alice does");
+    let r = parser.run_inner(["-a"]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "`-a` is not valid in this context, did you mean to pass it to command `alice`?"
+    );
 }

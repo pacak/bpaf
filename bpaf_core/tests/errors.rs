@@ -23,7 +23,7 @@ fn alt_of_req_flags() {
 #[test]
 fn sum_of_flag_arg2() {
     let a = short('a').argument::<usize>("A");
-    let b = short('a').req_flag('a').map(|_| 0);
+    let b = short('b').req_flag('b').map(|_| 0);
     let p = construct!(a, b).to_options();
     // items are consumed left to right, so first -a is an argument
     let r = p.run_inner(["-a", "-b", "1"]).unwrap_err().unwrap_stderr();
