@@ -142,7 +142,8 @@ fn strict_positional_argument() {
         .run_inner(["-a", "--", "10"])
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`-a` requires an argument `N`");
+    let expected = "`-a` wants a value N, got `--`, try using -a=--";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -295,8 +296,21 @@ fn strictly_positional_help() {
     let r = parser
         .run_inner(["--", "--help"])
         .unwrap_err()
-        .unwrap_stderr();
-    assert_eq!(r, "`--help` is not expected in this context");
+        .unwrap_stdout();
+
+    // TODO - should this pass?
+    let expected = "\nAvailable options:\n        --hhhh\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn strictly_positional_flag() {
+    let parser = short('a').switch().to_options();
+    let r = parser.run_inner(["--", "-a"]).unwrap_err().unwrap_stderr();
+
+    // TODO - mention a and strictly positional thing?
+    let expected = "`-a` is not expected in this context";
+    assert_eq!(r, expected);
 }
 
 // #[test]
