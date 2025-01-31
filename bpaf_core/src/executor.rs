@@ -682,6 +682,8 @@ impl<'a> Runner<'a> {
 
         let mut prev_arg: Arg<'a> = Arg::DUMMY;
 
+        let mut strict_pos = false;
+
         let no_parse = loop {
             self.ctx.set_term(false);
             self.propagate();
@@ -700,7 +702,18 @@ impl<'a> Runner<'a> {
                         self.ctx.advance(1);
                     }
                     if let Some(val) = self.ctx.args.get(self.ctx.cur()) {
-                        prev_arg = split_param(val, &self.args, &self.flags)?;
+                        if val == "--" && !strict_pos {
+                            strict_pos = true;
+                            self.ctx.advance(1);
+                            continue;
+                        }
+                        if strict_pos {
+                            prev_arg = Arg::Positional {
+                                value: val.as_ref(),
+                            };
+                        } else {
+                            prev_arg = split_param(val, &self.args, &self.flags)?;
+                        }
                         &mut prev_arg
                     } else {
                         println!("nothing to consume");
