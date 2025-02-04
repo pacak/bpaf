@@ -90,7 +90,7 @@ impl<'a> ExplainUnparsed<'a> {
             }
         }
         if let Arg::ShortSet { current, names } = &self.unparsed {
-            if *current > 1 {
+            if *current >= 1 {
                 let prev = parsed.len();
 
                 for name in &names[..current - 1] {

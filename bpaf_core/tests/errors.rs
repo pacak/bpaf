@@ -170,6 +170,12 @@ fn cannot_be_used_twice() {
     let b = short('b').switch().many::<Vec<_>>();
     let parser = construct!(a, b).to_options();
 
+    let r = parser.run_inner(["-aa"]).unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "argument `-a` cannot be used multiple times in this context"
+    );
+
     let r = parser.run_inner(["-abba"]).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,

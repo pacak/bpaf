@@ -684,6 +684,7 @@ impl<'a> Runner<'a> {
 
         let mut strict_pos = false;
 
+        let mut prev_consumed = false;
         let no_parse = loop {
             self.ctx.set_term(false);
             self.propagate();
@@ -693,6 +694,7 @@ impl<'a> Runner<'a> {
             debug_assert!(self.pending.lock().expect("poison").is_empty());
 
             let front = match &mut prev_arg {
+                Arg::ShortSet { .. } if !prev_consumed => &mut prev_arg,
                 Arg::ShortSet { current, names } if *current < names.len() => {
                     *current += 1;
                     &mut prev_arg
@@ -728,14 +730,12 @@ impl<'a> Runner<'a> {
                 break true;
             }
 
-            if !self.consume(front, &mut ids, &mut out)? {
-                break true;
-            }
+            prev_consumed = self.consume(front, &mut ids, &mut out)?;
             println!("============= Consuming part done");
         };
 
         if no_parse {
-            println!("No valid parser to handle {prev_arg:?}, cleaning up");
+            println!("==== loop done, no valid parser to handle {prev_arg:?}, cleaning up");
         }
 
         // at this point we are done consuming, either there's nothing more left or we don't know
