@@ -20,7 +20,6 @@ use std::{
 };
 
 // TODO:
-// - make so tests are all passing
 // - proper support for --
 // - don't run "explain" for --help or --version parsers?
 // - subparser visitor should tell the difference between command and plain subparser?
@@ -39,7 +38,6 @@ use std::{
 // - documentation
 // - markdown/manpage
 
-//pub(crate) mod family;
 pub(crate) mod futures;
 
 use self::futures::{ErrorHandle, JoinHandle};
