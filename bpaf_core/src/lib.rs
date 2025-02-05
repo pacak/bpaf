@@ -12,7 +12,8 @@ pub mod __private {
     pub use crate::{
         ctx::Ctx,
         error::Error,
-        executor::{downcast, hint, Alt, Con, Fragment},
+        executor::Fragment,
+        parsers::{downcast, hint, Alt, Con},
         Metavisit, Parser,
     };
 }

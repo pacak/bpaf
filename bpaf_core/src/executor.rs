@@ -4,15 +4,13 @@ use crate::{
     named::Name,
     pecking::Pecking,
     split::{split_param, Arg, OsOrStr},
-    visitor::{ExplainUnparsed, Group},
+    visitor::ExplainUnparsed,
     Metavisit, Parser,
 };
 use std::{
-    any::Any,
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
-    marker::PhantomData,
     pin::{pin, Pin},
     rc::Rc,
     sync::{Arc, Mutex},
@@ -40,7 +38,7 @@ use std::{
 
 pub(crate) mod futures;
 
-use self::futures::{ErrorHandle, JoinHandle};
+use self::futures::ErrorHandle;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Id(u32);
@@ -827,133 +825,6 @@ impl<'a> Runner<'a> {
         let pending = self.pending.clone();
         let waker = Waker::from(Arc::new(WakeTask { id, pending }));
         (id, waker)
-    }
-}
-
-pub struct Alt<T: 'static> {
-    pub items: Vec<Box<dyn Parser<T>>>,
-}
-
-impl<T> Parser<T> for Box<dyn Parser<T>>
-where
-    T: 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        self.as_ref().run(ctx)
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        self.as_ref().visit(visitor)
-    }
-}
-
-impl<T> Parser<T> for Rc<dyn Parser<T>>
-where
-    T: 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        self.as_ref().run(ctx)
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        self.as_ref().visit(visitor)
-    }
-}
-
-struct AltFuture<'a, T> {
-    handles: Vec<JoinHandle<'a, T>>,
-}
-
-impl<T> Future for AltFuture<'_, T> {
-    type Output = Result<T, Error>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        assert!(!self.as_ref().handles.is_empty());
-        for (ix, mut h) in self.as_mut().handles.iter_mut().enumerate() {
-            if let Poll::Ready(r) = pin!(h).poll(cx) {
-                // This future can be called multiple times, as long as there
-                // are handles to be consumed
-                self.handles.remove(ix);
-                return Poll::Ready(r);
-            }
-        }
-        Poll::Pending
-    }
-}
-
-impl<T> Parser<T> for Alt<T>
-where
-    T: Clone + 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        Box::pin(async move {
-            let (_branch, id) = ctx.current_id();
-
-            // Spawn a task for all the branches
-            let handles = self
-                .items
-                .iter()
-                .enumerate()
-                .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p, false))
-                .collect::<Vec<_>>();
-
-            let mut fut = AltFuture { handles };
-            // TODO: this should be some low priority error
-            let mut res = Error::empty();
-
-            // must collect results as they come. If
-
-            // return first succesful result or the best error
-            while !fut.handles.is_empty() {
-                let hh = (&mut fut).await;
-                res = match (res, hh) {
-                    (ok @ Ok(_), _) | (Err(_), ok @ Ok(_)) => return ok,
-                    (Err(e1), Err(e2)) => Err(e1.combine_with(e2)),
-                }
-            }
-            res
-        })
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Sum);
-        for i in &self.items {
-            i.visit(visitor);
-        }
-        visitor.pop_group();
-    }
-}
-
-// [`downcast`] + [`hint`] are used to smuggle type of the field inside the [`Con`]
-pub fn downcast<T: 'static>(_: PhantomData<T>, parser: &Box<dyn Any>) -> &Rc<dyn Parser<T>> {
-    parser.downcast_ref().expect("Can't downcast")
-}
-pub fn hint<T: 'static>(_: impl Parser<T>) -> PhantomData<T> {
-    PhantomData
-}
-
-pub struct Con<T> {
-    pub visitors: Vec<Box<dyn Metavisit>>,
-    pub parsers: Vec<Box<dyn Any>>,
-
-    #[allow(clippy::type_complexity)] // And who's fault is that?
-    pub run: Box<dyn for<'a> Fn(&'a [Box<dyn Any>], Ctx<'a>) -> Fragment<'a, T>>,
-}
-
-impl<T> Parser<T> for Con<T>
-where
-    T: std::fmt::Debug + 'static,
-{
-    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        (self.run)(&self.parsers, ctx)
-    }
-
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Prod);
-        for v in &self.visitors {
-            v.visit(visitor);
-        }
-        visitor.pop_group();
     }
 }
 
