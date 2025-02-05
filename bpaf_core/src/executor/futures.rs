@@ -1,10 +1,10 @@
+use crate::executor::{Arg, BranchId, Ctx, Error, Id, Op};
 use crate::{
     error::{Message, Metavar, MissingItem},
     named::Name,
     split::OsOrStr,
 };
-
-use super::{Arg, BranchId, Ctx, Error, Id, Op};
+use std::pin::pin;
 use std::{
     cell::Cell,
     future::Future,
@@ -416,5 +416,26 @@ impl<T> Drop for AnyFut<'_, T> {
         if let Some((branch, id)) = self.task_id.take() {
             self.ctx.remove_any(branch, id);
         }
+    }
+}
+
+pub(crate) struct AltFuture<'a, T> {
+    pub(crate) handles: Vec<JoinHandle<'a, T>>,
+}
+
+impl<T> Future for AltFuture<'_, T> {
+    type Output = Result<T, Error>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        assert!(!self.as_ref().handles.is_empty());
+        for (ix, mut h) in self.as_mut().handles.iter_mut().enumerate() {
+            if let Poll::Ready(r) = pin!(h).poll(cx) {
+                // This future can be called multiple times, as long as there
+                // are handles to be consumed
+                self.handles.remove(ix);
+                return Poll::Ready(r);
+            }
+        }
+        Poll::Pending
     }
 }
