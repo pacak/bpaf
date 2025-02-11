@@ -38,7 +38,7 @@ pub struct RawCtx<'a> {
     /// Used to pass information about children exit
     pub(crate) child_exit: Cell<Option<Error>>,
 
-    /// number of ietms consumed by children tasks
+    /// number of items consumed by children tasks
     pub(crate) items_consumed: Cell<u32>,
 
     /// By the end we are trying to kill all the children, when set - children
