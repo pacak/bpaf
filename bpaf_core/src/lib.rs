@@ -6,6 +6,9 @@ pub mod parsers;
 mod pecking;
 mod split;
 mod visitor;
+
+mod executor2;
+
 /// Reexports used by the [`construct!`] macro
 #[doc(hidden)]
 pub mod __private {
@@ -17,8 +20,6 @@ pub mod __private {
         Metavisit, Parser,
     };
 }
-
-use error::ParseFailure;
 
 use crate::{
     ctx::Ctx,
@@ -33,6 +34,7 @@ use crate::{
     split::{Args, OsOrStr},
     visitor::Visitor,
 };
+use error::ParseFailure;
 use std::{borrow::Cow, marker::PhantomData, ops::RangeBounds, rc::Rc};
 
 #[macro_export]
@@ -763,6 +765,7 @@ impl<T: 'static> Options<T> {
         match executor::Runner::new(ctx.clone()).run_parser(&self.parser, true) {
             Ok(ok) => Ok(ok),
             Err(err) => {
+                // return Err(err.render()); // TODO - don't merge
                 let help = || {
                     let mut help = visitor::help::Help::default();
                     self.parser.visit(&mut help);
