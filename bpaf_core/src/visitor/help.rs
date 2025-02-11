@@ -93,7 +93,7 @@ impl<'a> Help<'a> {
             write_items(&mut res, tab, &self.commands)?;
         }
 
-        Ok(mono(res))
+        Ok(mono(&res))
     }
 }
 

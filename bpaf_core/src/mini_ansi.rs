@@ -64,14 +64,14 @@ pub enum Style {
 }
 
 #[inline(never)]
-pub(crate) fn mono(input: String) -> String {
-    // TODO - convert input to Vec, do the transformation inplace then
-    // convert it back from Vec to String, should be smaller.
-    let mut out = String::with_capacity(input.len());
-    let mut input = input.chars();
+pub(crate) fn mono(input: &str) -> String {
+    // TODO - this can be done inplace if input is taken by value
+    let mut out = Vec::<u8>::with_capacity(input.len());
+    let bytes = input.as_bytes();
     let mut style = Style::Text;
     let mut state = State::Anywhere;
     let mut next_style = Style::Text;
+    let mut state_start = 0;
     #[derive(Copy, Clone)]
     enum State {
         Anywhere,
@@ -79,55 +79,56 @@ pub(crate) fn mono(input: String) -> String {
         Style,
         Fin,
     }
-    let mut c0 = ' ';
-    loop {
-        let Some(c) = input.next() else {
-            return out;
-        };
+    for (ix, c) in bytes.iter().copied().enumerate() {
         match state {
-            State::Anywhere if c == '\u{1B}' => state = State::Csi,
-            State::Anywhere => out.push(c),
-            State::Csi if c == '[' => state = State::Style,
+            State::Anywhere => {
+                if c == 0x1B {
+                    state_start = ix;
+                    state = State::Csi;
+                } else {
+                    out.push(c)
+                }
+            }
             State::Csi => {
-                out.push('\u{1B}');
-                out.push(c);
-                state = State::Anywhere;
+                if c == b'[' {
+                    state = State::Style;
+                } else {
+                    out.extend_from_slice(&bytes[state_start..ix + 1]);
+                    state = State::Anywhere;
+                }
             }
             State::Style => {
                 next_style = match c {
-                    '0' => Style::Text,
-                    '1' => Style::Emphasis,
-                    '2' => Style::Literal,
-                    '3' => Style::Metavar,
-                    '4' => Style::Header,
-                    '9' => Style::Invalid,
+                    b'0' => Style::Text,
+                    b'1' => Style::Emphasis,
+                    b'2' => Style::Literal,
+                    b'3' => Style::Metavar,
+                    b'4' => Style::Header,
+                    b'9' => Style::Invalid,
                     _ => {
-                        out.push_str("\u{1B}[");
-                        out.push(c);
+                        out.extend_from_slice(&bytes[state_start..ix + 1]);
                         state = State::Anywhere;
                         continue;
                     }
                 };
-                c0 = c;
                 state = State::Fin;
             }
-            State::Fin if c == 'm' => {
-                match (style, next_style) {
-                    (Style::Text, Style::Emphasis) => out.push('`'),
-                    (Style::Text, Style::Invalid) => out.push('`'),
-                    (Style::Emphasis, Style::Text) => out.push('`'),
-                    (Style::Invalid, Style::Text) => out.push('`'),
-                    _ => {}
-                }
-                style = next_style;
-                state = State::Anywhere;
-            }
             State::Fin => {
-                out.push_str("\u{1B}[");
-                out.push(c0);
-                out.push(c);
+                if c == b'm' {
+                    match (style, next_style) {
+                        (Style::Text, Style::Emphasis) => out.push(b'`'),
+                        (Style::Text, Style::Invalid) => out.push(b'`'),
+                        (Style::Emphasis, Style::Text) => out.push(b'`'),
+                        (Style::Invalid, Style::Text) => out.push(b'`'),
+                        _ => {}
+                    }
+                    style = next_style;
+                } else {
+                    out.extend_from_slice(&bytes[state_start..ix + 1]);
+                }
                 state = State::Anywhere;
             }
         }
     }
+    String::from_utf8(out).expect("Should be valid by construction")
 }
