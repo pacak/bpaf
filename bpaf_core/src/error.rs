@@ -359,7 +359,7 @@ impl Message {
             Message::GuardFailed { message } => res.push_str(message),
 
         }
-        res = crate::mini_ansi::mono(res);
+        res = crate::mini_ansi::mono(&res);
         Ok(ParseFailure::Stderr(res))
     }
 }
