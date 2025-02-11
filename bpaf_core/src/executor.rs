@@ -17,6 +17,9 @@ use std::{
     task::{Context, Poll, Wake, Waker},
 };
 
+// redesign
+// make executor more aware of tasks, this way
+
 // TODO:
 // - proper support for --
 // - don't run "explain" for --help or --version parsers?
@@ -110,6 +113,43 @@ impl BranchId {
             parent: self.parent,
             field: self.field + 1,
         }
+    }
+}
+
+enum Ac<'a> {
+    Fut(Box<dyn Future<Output = ErrorHandle> + 'a>),
+    Flag {
+        names: &'a [Name<'a>],
+        handle: futures::ExitHandle<'a, bool>,
+    },
+    Arg {
+        names: &'a [Name<'a>],
+        handle: futures::ExitHandle<'a, OsOrStr<'a>>,
+    },
+    Pos {
+        handle: futures::ExitHandle<'a, OsOrStr<'a>>,
+    },
+    Any {
+        foo: Box<dyn Pass>,
+    },
+}
+
+struct Ta<'a> {
+    action: Ac<'a>,
+}
+
+//fn any(metavar: Metavar) -> Parser<T>
+
+trait Pass {
+    fn try_parse(&self, val: OsOrStr) -> Option<ErrorHandle>;
+}
+
+impl<P, T> Pass for (P, futures::ExitHandle<'_, T>)
+where
+    P: Fn(OsOrStr) -> Option<T>,
+{
+    fn try_parse(&self, val: OsOrStr<'_>) -> Option<ErrorHandle> {
+        (self.0)(val).map(|t| self.1.exit_task(Ok(t)))
     }
 }
 

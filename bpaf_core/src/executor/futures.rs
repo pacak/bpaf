@@ -73,7 +73,7 @@ impl<T> Drop for JoinHandle<'_, T> {
 pub(crate) type ErrorHandle = Rc<Cell<Option<Error>>>;
 
 impl<T> ExitHandle<'_, T> {
-    pub(crate) fn exit_task(self, result: Result<T, Error>) -> ErrorHandle {
+    pub(crate) fn exit_task(&self, result: Result<T, Error>) -> ErrorHandle {
         match result {
             Ok(ok) => self.success.set(Some(ok)),
             Err(err) => self.failure.set(Some(err)),

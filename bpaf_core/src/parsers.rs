@@ -19,6 +19,54 @@ use crate::{
 };
 use std::{any::Any, marker::PhantomData, rc::Rc};
 
+pub struct ManyV<P> {
+    pub(crate) inner: P,
+}
+
+impl<P, T> Parser<Vec<T>> for ManyV<P>
+where
+    T: 'static,
+    P: Parser<T>,
+{
+    fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
+        Box::pin(async move {
+            let mut res = Vec::new();
+            let (_branch, id) = ctx.current_id();
+            let parent = Parent {
+                id,
+                field: 0,
+                kind: NodeKind::Prod,
+            };
+            let _guard = FallbackGuard::new(ctx.clone());
+            let mut prev_consumed = 0;
+            while !ctx.is_term() {
+                let r = ctx.spawn(parent, &self.inner, true).await;
+
+                let consumed = ctx.items_consumed.get() - prev_consumed;
+                prev_consumed = ctx.items_consumed.get();
+                match r {
+                    Ok(val) => res.push(val),
+                    Err(err) => {
+                        if err.handle_with_fallback() && consumed == 0 {
+                            break;
+                        } else {
+                            return Err(err);
+                        }
+                    }
+                }
+            }
+
+            Ok(res)
+        })
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(Group::Many);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}
+
 #[derive(Clone)]
 pub struct Many<P, C, T> {
     pub(crate) inner: P,
