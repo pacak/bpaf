@@ -477,6 +477,28 @@ Available options:
 }
 
 #[test]
+fn fallback_format_simple_arg() {
+    let parser = long("a")
+        .help("help for a")
+        .argument("NUM")
+        .fallback(42)
+        .format_fallback(|i, f| write!(f, "**{i}**"))
+        .to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--a=NUM]
+
+Available options:
+        --a=NUM  help for a
+                 [default: **42**]
+    -h, --help   Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn nested_group_help() {
     let a = short('a').switch().group_help("inner");
     let b = short('b').switch();

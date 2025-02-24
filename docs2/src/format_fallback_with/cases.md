@@ -5,11 +5,11 @@ computation when argument is not specified
 
 If value is present - fallback value is ignored
 
-> --version 10
+> --log-file output.txt
 
 Parsing errors are preserved and presented to the user
 
-> --version ten
+> --log-file /
 
 `bpaf` encases parsers with fallback value of some sort in usage with `[]`
 

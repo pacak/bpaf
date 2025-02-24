@@ -1,22 +1,27 @@
 <details><summary>Combinatoric example</summary>
 
 ```no_run
-fn try_to_get_version() -> Result<usize, &'static str> {
-    Ok(42)
+use std::{fmt::Display as _, path::PathBuf};
+fn try_to_get_log_file() -> Result<PathBuf, &'static str> {
+    Ok(PathBuf::from("logfile.txt"))
 }
 
 #[derive(Debug, Clone)]
 pub struct Options {
-    version: usize,
+    log_file: PathBuf,
 }
 
 pub fn options() -> OptionParser<Options> {
-    let version = long("version")
-        .help("Specify protocol version")
-        .argument("VERS")
-        .fallback_with(try_to_get_version)
-        .display_fallback();
-    construct!(Options { version }).to_options()
+    let log_file = long("log-file")
+        .help("Path to log file")
+        .argument::<PathBuf>("FILE")
+        .guard(
+            |log_file| !log_file.is_dir(),
+            "The log file can't be a directory",
+        )
+        .fallback_with(try_to_get_log_file)
+        .format_fallback(|path, f| path.display().fmt(f));
+    construct!(Options { log_file }).to_options()
 }
 
 fn main() {
@@ -28,16 +33,22 @@ fn main() {
 <details><summary>Derive example</summary>
 
 ```no_run
-fn try_to_get_version() -> Result<usize, &'static str> {
-    Ok(42)
+use std::{fmt::Display as _, path::PathBuf};
+fn try_to_get_log_file() -> Result<PathBuf, &'static str> {
+    Ok(PathBuf::from("logfile.txt"))
 }
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 pub struct Options {
-    #[bpaf(argument("VERS"), fallback_with(try_to_get_version), display_fallback)]
-    /// Specify protocol version
-    version: usize,
+    /// Path to log file
+    #[bpaf(
+        argument("FILE"),
+        guard(|log_file| !log_file.is_dir(), "The log file can't be a directory"),
+        fallback_with(try_to_get_log_file),
+        format_fallback(|path, f| path.display().fmt(f)),
+    )]
+    log_file: PathBuf,
 }
 
 fn main() {
@@ -54,7 +65,7 @@ computation when argument is not specified
 
 <div class='bpaf-doc'>
 $ app <br>
-Options { version: 42 }
+Options { log_file: "logfile.txt" }
 </div>
 
 
@@ -62,8 +73,8 @@ If value is present - fallback value is ignored
 
 
 <div class='bpaf-doc'>
-$ app --version 10<br>
-Options { version: 10 }
+$ app --log-file output.txt<br>
+Options { log_file: "output.txt" }
 </div>
 
 
@@ -71,8 +82,8 @@ Parsing errors are preserved and presented to the user
 
 
 <div class='bpaf-doc'>
-$ app --version ten<br>
-<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+$ app --log-file /<br>
+<b>Error:</b> <b>/</b>: The log file can't be a directory
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -93,11 +104,11 @@ div.bpaf-doc  { padding-left: 1em; }
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--version</b></tt>=<tt><i>VERS</i></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>    --version</b></tt>=<tt><i>VERS</i></tt></dt>
-<dd>Specify protocol version</dd>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--log-file</b></tt>=<tt><i>FILE</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --log-file</b></tt>=<tt><i>FILE</i></tt></dt>
+<dd>Path to log file</dd>
 <dt></dt>
-<dd>[default: 42]</dd>
+<dd>[default: logfile.txt]</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>

@@ -67,7 +67,7 @@ Options { version: 10 }
 </div>
 
 
-Parsing errors are preserved and preserved to user
+Parsing errors are preserved and presented to the user
 
 
 <div class='bpaf-doc'>

@@ -516,6 +516,20 @@ where
     }
 }
 
+/// An implementation detail for [`ParseFallback::format_fallback`] and
+/// [`ParseFallbackWith::format_fallback`], to allow for custom fallback formatting.
+struct DisplayWith<'a, T, F>(&'a T, F);
+
+impl<'a, T, F: Fn(&'a T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result> std::fmt::Display
+    for DisplayWith<'a, T, F>
+{
+    #[inline(always)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self(value, display) = self;
+        display(value, f)
+    }
+}
+
 impl<P, T: std::fmt::Display> ParseFallback<P, T> {
     /// Show [`fallback`](Parser::fallback) value in `--help` using [`Display`](std::fmt::Display)
     /// representation
@@ -536,6 +550,21 @@ impl<P, T: std::fmt::Debug> ParseFallback<P, T> {
     #[must_use]
     pub fn debug_fallback(mut self) -> Self {
         self.value_str = format!("[default: {:?}]", self.value);
+        self
+    }
+}
+
+impl<P, T> ParseFallback<P, T> {
+    /// Show [`fallback`](Parser::fallback) value in `--help` using the provided formatting
+    /// function.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/format_fallback.md"))]
+    #[must_use]
+    pub fn format_fallback(
+        mut self,
+        format: impl Fn(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+    ) -> Self {
+        self.value_str = format!("[default: {}]", DisplayWith(&self.value, format));
         self
     }
 }
@@ -573,6 +602,26 @@ where
     pub fn debug_fallback(mut self) -> Self {
         if let Ok(val) = (self.fallback)() {
             self.value_str = format!("[default: {:?}]", val);
+        }
+        self
+    }
+}
+
+impl<P, T, F, E> ParseFallbackWith<T, P, F, E>
+where
+    F: Fn() -> Result<T, E>,
+{
+    /// Show [`fallback_with`](Parser::fallback_with) value in `--help` using the provided
+    /// formatting function.
+    ///
+    #[cfg_attr(not(doctest), doc = include_str!("docs2/format_fallback_with.md"))]
+    #[must_use]
+    pub fn format_fallback(
+        mut self,
+        format: impl Fn(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+    ) -> Self {
+        if let Ok(val) = (self.fallback)() {
+            self.value_str = format!("[default: {}]", DisplayWith(&val, format));
         }
         self
     }

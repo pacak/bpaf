@@ -6,12 +6,13 @@ If value is present - fallback value is ignored
 
 > --jobs 10
 
-Parsing errors are preserved and preserved to user
+Parsing errors are preserved and presented to the user
 
 > --jobs ten
 
-With [`display_fallback`](ParseFallback::display_fallback) and
-[`debug_fallback`](ParseFallback::debug_fallback) you can make it so default value
-is visible in `--help` output
+With [`display_fallback`](ParseFallback::display_fallback),
+[`debug_fallback`](ParseFallback::debug_fallback), and
+[`format_fallback`](ParseFallback::format_fallback), you can make it so the default value
+is visible in the `--help` output.
 
 > --help

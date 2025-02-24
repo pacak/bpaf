@@ -4,11 +4,11 @@
 
 If value is present - fallback value is ignored
 
-> --jobs 10
+> --log-file output.txt
 
 Parsing errors are preserved and presented to the user
 
-> --jobs ten
+> --log-file /
 
 With [`display_fallback`](ParseFallback::display_fallback),
 [`debug_fallback`](ParseFallback::debug_fallback), and

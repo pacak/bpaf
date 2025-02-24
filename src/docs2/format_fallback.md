@@ -1,18 +1,23 @@
 <details><summary>Combinatoric example</summary>
 
 ```no_run
+use std::{fmt::Display as _, path::PathBuf};
 #[derive(Debug, Clone)]
 pub struct Options {
-    jobs: usize,
+    log_file: PathBuf,
 }
 
 pub fn options() -> OptionParser<Options> {
-    let jobs = long("jobs")
-        .help("Number of jobs")
-        .argument("JOBS")
-        .fallback(42)
-        .debug_fallback();
-    construct!(Options { jobs }).to_options()
+    let log_file = long("log-file")
+        .help("Path to log file")
+        .argument::<PathBuf>("FILE")
+        .guard(
+            |log_file| !log_file.is_dir(),
+            "The log file can't be a directory",
+        )
+        .fallback(PathBuf::from("logfile.txt"))
+        .format_fallback(|path, f| path.display().fmt(f));
+    construct!(Options { log_file }).to_options()
 }
 
 fn main() {
@@ -24,13 +29,19 @@ fn main() {
 <details><summary>Derive example</summary>
 
 ```no_run
+use std::{fmt::Display as _, path::PathBuf};
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 #[allow(dead_code)]
 pub struct Options {
-    /// Number of jobs
-    #[bpaf(argument("JOBS"), fallback(42), debug_fallback)]
-    jobs: usize,
+    /// Path to log file
+    #[bpaf(
+        argument("FILE"),
+        guard(|log_file| !log_file.is_dir(), "The log file can't be a directory"),
+        fallback(PathBuf::from("logfile.txt")),
+        format_fallback(|path, f| path.display().fmt(f)),
+    )]
+    log_file: PathBuf,
 }
 
 fn main() {
@@ -46,7 +57,7 @@ fn main() {
 
 <div class='bpaf-doc'>
 $ app <br>
-Options { jobs: 42 }
+Options { log_file: "logfile.txt" }
 </div>
 
 
@@ -54,8 +65,8 @@ If value is present - fallback value is ignored
 
 
 <div class='bpaf-doc'>
-$ app --jobs 10<br>
-Options { jobs: 10 }
+$ app --log-file output.txt<br>
+Options { log_file: "output.txt" }
 </div>
 
 
@@ -63,8 +74,8 @@ Parsing errors are preserved and presented to the user
 
 
 <div class='bpaf-doc'>
-$ app --jobs ten<br>
-<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+$ app --log-file /<br>
+<b>Error:</b> <b>/</b>: The log file can't be a directory
 <style>
 div.bpaf-doc {
     padding: 14px;
@@ -88,11 +99,11 @@ is visible in the `--help` output.
 
 <div class='bpaf-doc'>
 $ app --help<br>
-<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--jobs</b></tt>=<tt><i>JOBS</i></tt>]</p><p><div>
-<b>Available options:</b></div><dl><dt><tt><b>    --jobs</b></tt>=<tt><i>JOBS</i></tt></dt>
-<dd>Number of jobs</dd>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--log-file</b></tt>=<tt><i>FILE</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --log-file</b></tt>=<tt><i>FILE</i></tt></dt>
+<dd>Path to log file</dd>
 <dt></dt>
-<dd>[default: 42]</dd>
+<dd>[default: logfile.txt]</dd>
 <dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
 <dd>Prints help information</dd>
 </dl>
