@@ -6,7 +6,7 @@ If value is present - fallback value is ignored
 
 > --jobs 10
 
-Parsing errors are preserved and preserved to user
+Parsing errors are preserved and presented to the user
 
 > --jobs ten
 

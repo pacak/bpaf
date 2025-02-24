@@ -74,8 +74,9 @@
 //! - [`fallback`](Parser::fallback) and [`fallback_with`](Parser::fallback_with) - return a
 //!   different value if parser fails to find what it is looking for. Generated help for former
 //!   can be updated to include default value using
-//!   [`display_fallback`](ParseFallback::display_fallback) and
-//!   [`debug_fallback`](ParseFallback::debug_fallback) .
+//!   [`display_fallback`](ParseFallback::display_fallback),
+//!   [`debug_fallback`](ParseFallback::debug_fallback), or
+//!   [`format_fallback`](ParseFallback::format_fallback).
 //! - [`optional`](Parser::optional) - return `None` if value is missing instead of failing, see
 //!   also [`catch`](ParseOptional::catch) .
 //! - [`many`](Parser::many), [`some`](Parser::some) and [`collect`](Parser::collect) - collect
@@ -851,10 +852,11 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`fallback_with`](Parser::fallback_with) would allow to try to fallback to a value that
-    /// comes from a failing computation such as reading a file. By default fallback value will
-    /// not be shown in the `--help` output, you can change that by using
-    /// [`display_fallback`](ParseFallback::display_fallback) and
-    /// [`debug_fallback`](ParseFallback::debug_fallback).
+    /// comes from a failing computation such as reading a file. By default, the fallback value will
+    /// not be shown in the `--help` output; you can change that by using
+    /// [`display_fallback`](ParseFallback::display_fallback),
+    /// [`debug_fallback`](ParseFallback::debug_fallback), or
+    /// [`format_fallback`](ParseFallback::format_fallback).
     #[must_use]
     fn fallback(self, value: T) -> ParseFallback<Self, T>
     where
@@ -877,9 +879,11 @@ pub trait Parser<T> {
     ///
     /// # See also
     /// [`fallback`](Parser::fallback) implements similar logic expect that failures aren't expected.
-    /// By default fallback value will not be shown in the `--help` output, you can change that by using
-    /// [`display_fallback`](ParseFallbackWith::display_fallback) and
-    /// [`debug_fallback`](ParseFallbackWith::debug_fallback).
+    /// By default, the fallback value will
+    /// not be shown in the `--help` output; you can change that by using
+    /// [`display_fallback`](ParseFallbackWith::display_fallback),
+    /// [`debug_fallback`](ParseFallbackWith::debug_fallback), or
+    /// [`format_fallback`](ParseFallbackWith::format_fallback).
     #[must_use]
     fn fallback_with<F, E>(self, fallback: F) -> ParseFallbackWith<T, Self, F, E>
     where

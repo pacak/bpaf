@@ -232,6 +232,7 @@ impl ToTokens for PostDecor {
             PostDecor::CompleteShell { f, .. } => quote!(complete_shell(#f)),
             PostDecor::DebugFallback { .. } => quote!(debug_fallback()),
             PostDecor::DisplayFallback { .. } => quote!(display_fallback()),
+            PostDecor::FormatFallback { formatter, .. } => quote!(format_fallback(#formatter)),
             PostDecor::Fallback { value, .. } => quote!(fallback(#value)),
             PostDecor::FallbackWith { f, .. } => quote!(fallback_with(#f)),
             PostDecor::Last { .. } => quote!(last()),
@@ -299,6 +300,10 @@ pub(crate) enum PostDecor {
     DisplayFallback {
         span: Span,
     },
+    FormatFallback {
+        span: Span,
+        formatter: Box<Expr>,
+    },
     Fallback {
         span: Span,
         value: Box<Expr>,
@@ -338,6 +343,7 @@ impl PostDecor {
             | Self::CompleteShell { span, .. }
             | Self::DebugFallback { span }
             | Self::DisplayFallback { span }
+            | Self::FormatFallback { span, .. }
             | Self::Fallback { span, .. }
             | Self::Last { span }
             | Self::FallbackWith { span, .. }
@@ -512,6 +518,9 @@ impl PostDecor {
             Self::DebugFallback { span }
         } else if kw == "display_fallback" {
             Self::DisplayFallback { span }
+        } else if kw == "format_fallback" {
+            let formatter = parse_expr(input)?;
+            Self::FormatFallback { span, formatter }
         } else if kw == "fallback" {
             let value = parse_expr(input)?;
             Self::Fallback { span, value }

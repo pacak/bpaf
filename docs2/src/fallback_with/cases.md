@@ -7,7 +7,7 @@ If value is present - fallback value is ignored
 
 > --version 10
 
-Parsing errors are preserved and preserved to user
+Parsing errors are preserved and presented to the user
 
 > --version ten
 
