@@ -294,7 +294,6 @@ pub(crate) struct Runner<'ctx> {
     /// For those tasks that asked us to retain the id according to the parent
     parent_ids: HashMap<Parent, u32>,
 
-    // TODO - use HashMap?
     pub(crate) flags: HashMap<Name<'ctx>, Pecking>,
     pub(crate) args: HashMap<Name<'ctx>, Pecking>,
     fallback: Pecking,
