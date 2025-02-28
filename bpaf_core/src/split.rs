@@ -1,9 +1,4 @@
-use crate::{
-    error::{Error, Message},
-    mini_ansi::Invalid,
-    named::Name,
-    pecking::Pecking,
-};
+use crate::{error::Message, mini_ansi::Invalid, named::Name, pecking::Pecking};
 use std::{
     borrow::Cow,
     collections::HashMap,
@@ -142,7 +137,7 @@ impl OsOrStr<'_> {
         }
     }
 
-    pub(crate) fn parse<T>(&self) -> Result<T, Error>
+    pub(crate) fn parse<T>(&self) -> Result<T, Message>
     where
         T: FromStr + 'static,
         <T as FromStr>::Err: std::fmt::Display,
@@ -158,15 +153,15 @@ impl OsOrStr<'_> {
             match self.str() {
                 Some(s) => match T::from_str(s) {
                     Ok(v) => Ok(v),
-                    Err(err) => Err(Error::new(Message::FromStrFailed {
+                    Err(err) => Err(Message::FromStrFailed {
                         value: Invalid(self.to_owned()),
                         message: err.to_string(),
-                    })),
+                    }),
                 },
-                None => Err(Error::new(Message::FromStrFailed {
+                None => Err(Message::FromStrFailed {
                     value: Invalid(self.to_owned()),
                     message: "not a valid utf8".to_owned(),
-                })),
+                }),
             }
         }
     }
@@ -320,13 +315,13 @@ enum ShortOrSet<'a> {
 }
 
 impl<'a> TryFrom<&'a str> for ShortOrSet<'a> {
-    type Error = Error;
+    type Error = Message;
 
     #[inline(never)]
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         let mut s = value.chars();
         let Some(front) = s.next() else {
-            return Err(Error::fail("empty short name?"));
+            return Err(Message::Fail("empty short name?"));
         };
         Ok(if s.as_str().is_empty() {
             ShortOrSet::Short(Name::Short(front))
@@ -343,7 +338,7 @@ pub(crate) fn split_param<'a>(
     value: &'a OsOrStr,
     args: &HashMap<Name, Pecking>,
     flags: &HashMap<Name, Pecking>,
-) -> Result<Arg<'a>, Error> {
+) -> Result<Arg<'a>, Message> {
     match value {
         OsOrStr::Str(cow) => split_str_param(cow.as_ref(), args, flags),
         OsOrStr::Os(cow) => match cow.to_str() {
@@ -397,12 +392,12 @@ pub(crate) fn split_str_param<'a>(
     value: &'a str,
     args: &HashMap<Name, Pecking>,
     flags: &HashMap<Name, Pecking>,
-) -> Result<Arg<'a>, Error> {
+) -> Result<Arg<'a>, Message> {
     Ok(if let Some(long) = value.strip_prefix("--") {
         if let Some((name, arg)) = long.split_once('=') {
             // not `--=bar`
             if name.is_empty() {
-                return Err(Error::fail("Very unexpected short name"));
+                return Err(Message::Fail("Very unexpected short name"));
             }
             // `--foo=bar`
             Arg::Named {
@@ -426,7 +421,7 @@ pub(crate) fn split_str_param<'a>(
         if let Some((name, arg)) = short_name.split_once('=') {
             // not `-foo=bar`
             let ShortOrSet::Short(name) = ShortOrSet::try_from(name)? else {
-                return Err(Error::fail("No -foo=bar plz"));
+                return Err(Message::Fail("No -foo=bar plz")); // TODO
             };
 
             // but `-f=bar` is okay
@@ -445,7 +440,7 @@ pub(crate) fn split_str_param<'a>(
                     let is_flags = names.iter().all(|f| flags.contains_key(&Name::Short(*f)));
 
                     match (is_arg, is_flags) {
-                        (true, true) => return Err(Error::fail("ambiguity")), // TODO
+                        (true, true) => return Err(Message::Fail("ambiguity")), // TODO
                         (_, false) => Arg::Named {
                             name: Name::Short(names[0]),
                             value: Some(OsOrStr::from(arg)),

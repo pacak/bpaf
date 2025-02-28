@@ -192,7 +192,10 @@ impl<'ctx> Future for PositionalFut<'ctx> {
         }
 
         Poll::Ready(if self.ctx.is_term() {
-            Err(Error::missing(MissingItem::Positional { meta: self.meta }))
+            Err(Error::missing(
+                MissingItem::Positional { meta: self.meta },
+                self.ctx.cur(),
+            ))
         } else {
             let ix = self.ctx.cur();
             self.ctx.advance(1);
@@ -238,10 +241,13 @@ impl Drop for FlagFut<'_> {
 
 impl ArgFut<'_> {
     fn missing(&self) -> Error {
-        Error::missing(MissingItem::Named {
-            name: self.name.to_vec(),
-            meta: Some(self.meta),
-        })
+        Error::missing(
+            MissingItem::Named {
+                name: self.name.to_vec(),
+                meta: Some(self.meta),
+            },
+            self.ctx.cur(),
+        )
     }
 }
 impl<'ctx> Future for ArgFut<'ctx> {
@@ -280,18 +286,24 @@ impl<'ctx> Future for ArgFut<'ctx> {
             }
         };
         Poll::Ready(match self.ctx.args.get(self.ctx.cur() + 1) {
-            None => Err(Error::from(Message::ArgNeedsValue {
-                name: name(),
-                meta: self.meta,
-            })),
+            None => Err(Error::new(
+                Message::ArgNeedsValue {
+                    name: name(),
+                    meta: self.meta,
+                },
+                self.ctx.cur(),
+            )),
             Some(v) => {
                 let val = v.to_owned();
                 if val.is_named() {
-                    Err(Error::from(Message::ArgNeedsValueGotNamed {
-                        name: name(),
-                        meta: self.meta,
-                        val,
-                    }))
+                    Err(Error::new(
+                        Message::ArgNeedsValueGotNamed {
+                            name: name(),
+                            meta: self.meta,
+                            val,
+                        },
+                        self.ctx.cur(),
+                    ))
                 } else {
                     self.ctx.advance(2);
                     Ok(val)
@@ -303,10 +315,13 @@ impl<'ctx> Future for ArgFut<'ctx> {
 
 impl FlagFut<'_> {
     fn missing(&self) -> Poll<Result<(), Error>> {
-        Poll::Ready(Err(Error::missing(MissingItem::Named {
-            name: self.name.to_vec(),
-            meta: None,
-        })))
+        Poll::Ready(Err(Error::missing(
+            MissingItem::Named {
+                name: self.name.to_vec(),
+                meta: None,
+            },
+            self.ctx.cur(),
+        )))
     }
 }
 impl Future for FlagFut<'_> {
@@ -342,9 +357,12 @@ pub(crate) struct LiteralFut<'a> {
 
 impl LiteralFut<'_> {
     fn missing(&self) -> Error {
-        Error::missing(MissingItem::Command {
-            name: self.values.to_vec(),
-        })
+        Error::missing(
+            MissingItem::Command {
+                name: self.values.to_vec(),
+            },
+            self.ctx.cur(),
+        )
     }
 }
 
@@ -395,7 +413,7 @@ impl<T> Future for AnyFut<'_, T> {
 
         if self.ctx.is_term() {
             let missing = MissingItem::Positional { meta: self.metavar };
-            return Poll::Ready(Err(Error::missing(missing)));
+            return Poll::Ready(Err(Error::missing(missing, self.ctx.cur())));
         }
         let Some(arg) = self.ctx.args.get(self.ctx.cur()) else {
             debug_assert!(false, "This should not be reachable");

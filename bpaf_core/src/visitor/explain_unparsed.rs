@@ -3,7 +3,7 @@
 //! Visitor makes best effort to explain
 
 use crate::{
-    error::{Error, Message, MissingItem},
+    error::{Message, MissingItem},
     mini_ansi::{Emphasis, Invalid},
     named::Name,
     split::{split_param, Arg, OsOrStr},
@@ -67,7 +67,7 @@ impl<'a> ExplainUnparsed<'a> {
         }
     }
 
-    pub(crate) fn explain(self) -> Error {
+    pub(crate) fn explain(self) -> Message {
         let m = HashMap::new();
 
         let mut parsed = self
@@ -107,7 +107,10 @@ impl<'a> ExplainUnparsed<'a> {
 
         // not supported directly, but supported by a subcommand
         if let Some(good) = self.good_command {
-            return Error::try_subcommand(self.unparsed.to_owned(), good.to_owned());
+            return Message::TrySubcommand {
+                value: Invalid(self.unparsed.to_owned()),
+                command: Emphasis(good.to_owned()),
+            };
         }
 
         if let Arg::Named { name, value } = &self.unparsed {
@@ -123,7 +126,10 @@ impl<'a> ExplainUnparsed<'a> {
                     .iter()
                     .all(|i| matches!(i, MissingItem::Positional { .. }))
             {
-                return Error::try_positional(self.unparsed.to_owned(), *meta);
+                return Message::TryPositional {
+                    value: Invalid(self.unparsed.to_owned()),
+                    expected: Emphasis(*meta),
+                };
             }
         }
 
@@ -157,12 +163,13 @@ impl<'a> ExplainUnparsed<'a> {
         //    - look for exact names only
         println!("Try improve error message with this {self:?}");
         match self.missing {
-            Some(m) => Error {
-                message: crate::error::Message::Missing(m),
-            },
+            Some(m) => Message::Missing(m),
+
             None => {
                 let unparsed = self.unparsed.to_owned();
-                Error::unexpected(unparsed)
+                Message::Unexpected {
+                    arg: Invalid(unparsed),
+                }
             }
         }
     }
@@ -173,7 +180,7 @@ impl<'a> ExplainUnparsed<'a> {
         }
     }
 
-    fn is_in_conflict(&self, parsed: &[Name], unparsed: Name) -> Option<Error> {
+    fn is_in_conflict(&self, parsed: &[Name], unparsed: Name) -> Option<Message> {
         let unparsed_info = self.all_names.get(&unparsed)?;
         if unparsed_info.count > 1 || unparsed_info.in_many {
             return None;
@@ -183,18 +190,16 @@ impl<'a> ExplainUnparsed<'a> {
                 continue;
             };
             if parsed.branch != unparsed_info.branch {
-                return Some(Error {
-                    message: crate::error::Message::Conflicts {
-                        winner: Emphasis(p.to_owned()),
-                        loser: Invalid(unparsed.to_owned()),
-                    },
+                return Some(Message::Conflicts {
+                    winner: Emphasis(p.to_owned()),
+                    loser: Invalid(unparsed.to_owned()),
                 });
             }
         }
         None
     }
 
-    fn is_redundant(&self, parsed: &[Name], unparsed: Name) -> Option<Error> {
+    fn is_redundant(&self, parsed: &[Name], unparsed: Name) -> Option<Message> {
         let unparsed_info = self.all_names.get(&unparsed)?;
         if unparsed_info.in_many {
             return None;
@@ -202,23 +207,23 @@ impl<'a> ExplainUnparsed<'a> {
 
         if parsed.contains(&unparsed) {
             let name = unparsed.to_owned();
-            return Some(Error::new(Message::OnlyOnce { name }));
+            return Some(Message::OnlyOnce { name });
         }
 
         None
     }
 
-    fn is_typo(&self, name: &Name, value: Option<&OsOrStr>) -> Option<Error> {
+    fn is_typo(&self, name: &Name, value: Option<&OsOrStr>) -> Option<Message> {
         match name {
             Name::Short(s) => {
                 if let Some(input) = self.unparsed_raw {
                     if let Some(long) = input.strip_prefix('-') {
                         let long = Name::Long(Cow::Borrowed(long));
                         if self.all_names.contains_key(&long) {
-                            return Some(Error::new(Message::TryDoubleDash {
+                            return Some(Message::TryDoubleDash {
                                 input: Invalid(input.to_owned()),
                                 long: Emphasis(long.to_owned()),
-                            }));
+                            });
                         }
                     }
                 }
@@ -230,11 +235,12 @@ impl<'a> ExplainUnparsed<'a> {
         }
     }
 
-    fn is_typo_in_short(&self, name: char) -> Option<Error> {
+    fn is_typo_in_short(&self, _name: char) -> Option<Message> {
+        // TODO - look for possible short names here?
         None
     }
 
-    fn is_typo_in_long(&self, name: &str) -> Option<Error> {
+    fn is_typo_in_long(&self, name: &str) -> Option<Message> {
         let mut best = None;
         let mut best_distance = usize::MAX;
         let name_len = name.chars().count();
@@ -242,10 +248,10 @@ impl<'a> ExplainUnparsed<'a> {
             let short = Name::Short(name.chars().next()?); // we checked - this is one char long name
             for candidate in self.all_names.keys() {
                 if short == candidate.as_ref() {
-                    return Some(Error::new(Message::TrySingleDash {
+                    return Some(Message::TrySingleDash {
                         input: Invalid(Name::long(name).to_owned()),
                         short: Emphasis(candidate.to_owned()),
-                    }));
+                    });
                 }
             }
         }
@@ -261,10 +267,10 @@ impl<'a> ExplainUnparsed<'a> {
         }
 
         if name_len / 2 > best_distance {
-            return Some(Error::new(Message::TryTypo {
+            return Some(Message::TryTypo {
                 input: Invalid(Name::long(name).to_owned()),
                 long: Emphasis(best?.to_owned()),
-            }));
+            });
         }
 
         None

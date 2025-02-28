@@ -38,22 +38,39 @@ impl ParseFailure {
 #[derive(Debug, Clone)]
 pub struct Error {
     pub(crate) message: Message,
+    /// Error offset from the beginning of the line
+    ///
+    /// Errors that occur at earlier during parser take priority
+    /// this matters when combining erorrs from different parsers such as in Con
+    ///
+    pub(crate) offset: usize,
 }
 
 impl Error {
     pub(crate) fn combine_with(self, other: Self) -> Self {
-        Self {
-            message: self.message.combine_with(other.message),
+        match self.offset.cmp(&other.offset) {
+            std::cmp::Ordering::Less => self,
+            std::cmp::Ordering::Equal => Self {
+                message: self.message.combine_with(other.message),
+                ..self
+            },
+            std::cmp::Ordering::Greater => other,
         }
     }
 
-    pub(crate) fn parse_fail(message: String) -> Error {
+    pub(crate) fn parse_fail(message: String, offset: usize) -> Error {
         Self {
+            offset,
             message: Message::ParseFailed(None, message),
         }
     }
-    pub(crate) fn try_subcommand(unparsed: Arg<'static>, command: Name<'static>) -> Self {
+    pub(crate) fn try_subcommand(
+        unparsed: Arg<'static>,
+        command: Name<'static>,
+        offset: usize,
+    ) -> Self {
         Self {
+            offset,
             message: Message::TrySubcommand {
                 value: Invalid(unparsed),
                 command: Emphasis(command),
@@ -61,54 +78,61 @@ impl Error {
         }
     }
 
-    pub(crate) fn missing(item: MissingItem) -> Error {
+    pub(crate) fn missing(item: MissingItem, offset: usize) -> Error {
         Self {
             message: Message::Missing(vec![item]),
+            offset,
         }
     }
 
-    pub(crate) fn not_positional(arg: OsOrStr<'static>) -> Self {
+    pub(crate) fn not_positional(arg: OsOrStr<'static>, offset: usize) -> Self {
         Self {
             message: Message::NotPositional {
                 arg: Invalid(arg.to_owned()),
             },
+            offset,
         }
     }
-    pub(crate) fn try_positional(arg: Arg<'static>, meta: Metavar) -> Self {
+    pub(crate) fn try_positional(arg: Arg<'static>, meta: Metavar, offset: usize) -> Self {
         Self {
             message: Message::TryPositional {
                 value: Invalid(arg),
                 expected: Emphasis(meta),
             },
+            offset,
         }
     }
-    pub(crate) fn new(message: Message) -> Self {
-        Self { message }
+    pub(crate) fn new(message: Message, offset: usize) -> Self {
+        Self { message, offset }
     }
 
-    pub(crate) fn unexpected(arg: Arg<'static>) -> Self {
+    pub(crate) fn unexpected(arg: Arg<'static>, offset: usize) -> Self {
         Self {
             message: Message::Unexpected { arg: Invalid(arg) },
+            offset,
         }
     }
 
-    pub(crate) fn fail(message: &'static str) -> Error {
+    pub(crate) fn fail(message: &'static str, offset: usize) -> Error {
         Error {
             message: Message::Fail(message),
+            offset,
         }
     }
-    pub(crate) fn from_str_fail(value: OsOrStr<'static>, message: String) -> Self {
+    pub(crate) fn from_str_fail(value: OsOrStr<'static>, message: String, offset: usize) -> Self {
         Self {
             message: Message::FromStrFailed {
                 value: Invalid(value),
                 message,
             },
+            offset,
         }
     }
 
     pub(crate) fn empty<T>() -> Result<T, Error> {
         Err(Self {
             message: Message::Killed,
+            offset: usize::MAX,
         })
     }
 
@@ -167,11 +191,11 @@ impl Message {
     }
 }
 
-impl From<Message> for Error {
-    fn from(message: Message) -> Self {
-        Error { message }
-    }
-}
+// impl From<Message> for Error {
+//     fn from(message: Message) -> Self {
+//         Error { message }
+//     }
+// }
 
 #[derive(Debug, Clone)]
 pub(crate) enum Message {

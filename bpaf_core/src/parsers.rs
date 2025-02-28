@@ -171,7 +171,7 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
-            let t = self.inner.run(ctx).await?;
+            let t = self.inner.run(ctx.clone()).await?;
             if (self.check)(&t) {
                 Ok(t)
             } else {
@@ -183,9 +183,12 @@ where
                 //
                 // In the future we can explore posibilities of either provenance of T
                 // or adding a guard a method on Positional/Named/Any that creates a custom
-                Err(Error::new(crate::error::Message::GuardFailed {
-                    message: self.message,
-                }))
+                Err(Error::new(
+                    crate::error::Message::GuardFailed {
+                        message: self.message,
+                    },
+                    ctx.cur(),
+                ))
             }
         })
     }
@@ -288,10 +291,10 @@ where
     T: 'static,
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, R> {
-        let inner = self.inner.run(ctx);
+        let inner = self.inner.run(ctx.clone());
         Box::pin(async move {
             let t = inner.await?;
-            (self.f)(t).map_err(|e| Error::parse_fail(e.to_string()))
+            (self.f)(t).map_err(|e| Error::parse_fail(e.to_string(), ctx.cur()))
         })
     }
 
@@ -431,7 +434,7 @@ where
                 Err(e) if e.handle_with_fallback() && ctx.items_consumed.get() == 0 => {
                     match (self.f)() {
                         Ok(ok) => Ok(ok),
-                        Err(e) => Err(Error::parse_fail(e.to_string())),
+                        Err(e) => Err(Error::parse_fail(e.to_string(), ctx.cur())),
                     }
                 }
                 Err(e) => Err(e),

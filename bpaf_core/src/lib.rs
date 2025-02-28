@@ -297,11 +297,12 @@ mod named {
                 ArgFut {
                     name: &self.named.names,
                     meta: self.meta,
-                    ctx,
+                    ctx: ctx.clone(),
                     task_id: None,
                 }
                 .await?
                 .parse::<T>()
+                .map_err(|e| Error::new(e, ctx.cur()))
             })
         }
 
@@ -448,7 +449,7 @@ mod positional {
 
     use crate::{
         ctx::Ctx,
-        error::{Error, Message, Metavar},
+        error::{Error, Metavar},
         executor::futures::PositionalFut,
         visitor::Item,
         Parser,
@@ -477,14 +478,15 @@ mod positional {
         <T as std::str::FromStr>::Err: std::fmt::Display,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
-            Box::pin(async {
+            Box::pin(async move {
                 PositionalFut {
-                    ctx,
+                    ctx: ctx.clone(),
                     task_id: None,
                     meta: self.meta,
                 }
                 .await?
                 .parse::<T>()
+                .map_err(|e| Error::new(e, ctx.cur()))
             })
         }
 

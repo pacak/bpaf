@@ -1,18 +1,17 @@
 use crate::{
     ctx::Ctx,
-    error::Error,
+    error::{Error, Message},
     named::Name,
     pecking::Pecking,
     split::{split_param, Arg, OsOrStr},
     visitor::ExplainUnparsed,
-    Metavisit, Parser,
+    Parser,
 };
 use std::{
     borrow::Cow,
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
     pin::{pin, Pin},
-    rc::Rc,
     sync::{Arc, Mutex},
     task::{Context, Poll, Wake, Waker},
 };
@@ -632,7 +631,10 @@ impl<'a> Runner<'a> {
             if let Poll::Ready(eh) = &poll {
                 if consumed < max_consumed {
                     // TODO  - custom error
-                    eh.set(Some(Error::fail("terminated due to low priority")));
+                    eh.set(Some(Error::fail(
+                        "terminated due to low priority",
+                        usize::MAX,
+                    )));
                 }
             }
             self.handle_task_poll(id, poll);
@@ -697,7 +699,8 @@ impl<'a> Runner<'a> {
         let missing = match result {
             Ok(_) => None,
             Err(Error {
-                message: crate::error::Message::Missing(vec),
+                message: Message::Missing(vec),
+                offset: _,
             }) => Some(vec),
             e => return e,
         };
@@ -706,7 +709,11 @@ impl<'a> Runner<'a> {
         let unparsed_raw = self.ctx.args[self.ctx.cur()].str();
         let mut v = ExplainUnparsed::new(missing, unparsed, unparsed_raw, parsed);
         parser.visit(&mut v);
-        Err(v.explain())
+        let message = v.explain();
+        Err(Error {
+            message,
+            offset: self.ctx.cur(),
+        })
     }
 
     /// Run configured parser for as long as possible,
@@ -749,7 +756,13 @@ impl<'a> Runner<'a> {
                                 value: val.as_ref(),
                             };
                         } else {
-                            prev_arg = split_param(val, &self.args, &self.flags)?;
+                            prev_arg =
+                                split_param(val, &self.args, &self.flags).map_err(|message| {
+                                    Error {
+                                        message,
+                                        offset: self.ctx.cur(),
+                                    }
+                                })?;
                         }
                         &mut prev_arg
                     } else {
