@@ -1,5 +1,11 @@
 # Change Log
 
+## bpaf [0.9.17], bpaf_derive [0.5.17] - 2025-03-01
+- A new method `format_fallback` allows to format fallback values using
+  a custom formatting function. This extends functionality offered by `format_debug` and
+  `format_display` that use `Debug` and `Display` instances respectively
+  thanks @antalsz
+
 ## bpaf [0.9.16], 2025-01-24
 - treat `pure` as an implicit consumer - don't add unnecessary `.optional()` or `.many()`
 - unbrainfart one of the examples
