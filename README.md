@@ -109,7 +109,7 @@ contains examples for both combinatoric and derive style.
 	fn main() {
 	    // primitive parsers
 	    let speed = long("speed")
-	        .help("Speed in KPG")
+	        .help("Speed in KPH")
 	        .argument::<f64>("SPEED");
 
 	    let distance = long("distance")
