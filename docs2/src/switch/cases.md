@@ -2,7 +2,7 @@ In `--help` output `bpaf` shows switches as usual flags with no meta variable at
 
 > --help
 
-Both `switch` and `flag` succeed if value is not present, `switch` returns true, `flag` returns
+Both `switch` and `flag` succeed if value is not present, `switch` returns `false`, `flag` returns
 second value.
 
 >
