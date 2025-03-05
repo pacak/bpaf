@@ -101,7 +101,7 @@ div.bpaf-doc  { padding-left: 1em; }
 </div>
 
 
-Both `switch` and `flag` succeed if value is not present, `switch` returns true, `flag` returns
+Both `switch` and `flag` succeed if value is not present, `switch` returns `false`, `flag` returns
 second value.
 
 
