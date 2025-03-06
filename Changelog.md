@@ -1,5 +1,11 @@
 # Change Log
 
+## bpaf [0.9.18] - 2025-03-06
+- Several small documentation fixes (#414, #413)
+  thanks @yerke
+- `fallback_to_usage` only applies if parser fails (#415)
+  Previously it would print a usage info even if parser can succeed without any input
+
 ## bpaf [0.9.17], bpaf_derive [0.5.17] - 2025-03-01
 - A new method `format_fallback` allows to format fallback values using
   a custom formatting function. This extends functionality offered by `format_debug` and
