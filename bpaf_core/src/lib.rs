@@ -765,6 +765,7 @@ impl<T: 'static> Options<T> {
         match executor::Runner::new(ctx.clone()).run_parser(&self.parser, true) {
             Ok(ok) => Ok(ok),
             Err(err) => {
+                println!("============= Main parsing failed, processing help =============");
                 // return Err(err.render()); // TODO - don't merge
                 let help = || {
                     let mut help = visitor::help::Help::default();
