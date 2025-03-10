@@ -11,9 +11,9 @@ fn simple_any() {
     });
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(["if=hello", "of=world"]).unwrap();
-    assert_eq!(r, ("hello".to_owned(), "world".to_owned()));
-
     let r = parser.run_inner(["of=hello", "if=world"]).unwrap();
     assert_eq!(r, ("world".to_owned(), "hello".to_owned()));
+
+    let r = parser.run_inner(["if=hello", "of=world"]).unwrap();
+    assert_eq!(r, ("hello".to_owned(), "world".to_owned()));
 }

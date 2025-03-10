@@ -143,7 +143,10 @@ impl Future for EarlyExitFut<'_> {
 
         if let Some(err) = self.ctx.child_exit.take() {
             self.early_err = Some(match self.early_err.take() {
-                Some(e) => err.combine_with(e),
+                Some(e) => {
+                    assert!(e.offset <= err.offset);
+                    err.combine_with(e)
+                }
                 None => err,
             });
         }

@@ -17,9 +17,15 @@ use std::{
 };
 
 // redesign
-// make executor more aware of tasks, this way
-
+// make executor more aware of tasks
+//
+// Get rid of task exit code side channel
+//
+// Dedupe ways of polling tasks - currently there's two. one in Ctx::run_task, one in executor
+//
 // TODO:
+// - centralize task context management
+// - if we did nothing at all for the whole loop - panic
 // - proper support for --
 // - don't run "explain" for --help or --version parsers?
 // - subparser visitor should tell the difference between command and plain subparser?
@@ -167,6 +173,7 @@ pub(crate) struct Task<'a> {
 
 impl Task<'_> {
     fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<ErrorHandle> {
+        ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let mut cx = Context::from_waker(&self.waker);
         let poll = self.action.as_mut().poll(&mut cx);
@@ -478,7 +485,6 @@ impl<'a> Runner<'a> {
                         println!("waking up done task {id:?}");
                         continue;
                     }
-                    println!("Waking {id:?} - consumed count is {:?}", task.consumed);
                     self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
                     let poll = task.poll(id, &self.ctx);

@@ -14,7 +14,7 @@ mod executor2;
 pub mod __private {
     pub use crate::{
         ctx::Ctx,
-        error::Error,
+        error::{combine_error, Error},
         executor::Fragment,
         parsers::{downcast, hint, Alt, Con},
         Metavisit, Parser,
@@ -130,11 +130,20 @@ macro_rules! construct {
             ::std::boxed::Box::pin(async move {
                 let (_branch, id) = ctx.current_id();
                 let mut n = 0;
+                let mut err = None;
                 $(
                     let $fields = ctx.spawn(id.prod(n), $fields, false);
-                    n += 1;
+                    n += 1; // TODO - not needed - are we using?
                 )*
-                ctx.early_exit(n).await?;
+                $(
+                    let $fields = $fields.await;
+                    $crate::__private::combine_error(&mut err, $fields.as_ref().err());
+
+                )*
+                if let Some(err) = err {
+                    return ::std::result::Result::Err(err);
+                }
+
                 ::std::result::Result::Ok::<_, $crate::__private::Error>
                     ($crate::construct!(@make $ty [$($fields)*]))
             })
@@ -147,11 +156,11 @@ macro_rules! construct {
     // this gets called from a step above
     //
     // for named they go into {}
-    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ {  $($fields: $fields.await?),* } };
+    (@make [named [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ {  $($fields: $fields?),* } };
     // for positional - ()
-    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields.await?),* ) };
+    (@make [pos   [$($con:tt)+]] [$($fields:ident)*]) => { $($con)+ ( $($fields?),* ) };
     // And this handles the case where there's no constructor and we are makig a tuple
-    (@make [pos                ] [$($fields:ident)*]) => { ( $($fields.await?),* ) };
+    (@make [pos                ] [$($fields:ident)*]) => { ( $($fields?),* ) };
 }
 
 /// Parser with extra typestate information

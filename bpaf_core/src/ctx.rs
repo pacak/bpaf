@@ -227,6 +227,7 @@ impl<'a> Ctx<'a> {
     /// does not advance the pointer
     pub(crate) fn run_task(&self, task: &mut Task<'a>) -> (Poll<ErrorHandle>, usize) {
         let before = self.cur();
+        self.items_consumed.set(task.consumed);
         let mut cx = Context::from_waker(&task.waker);
         let r = task.action.as_mut().poll(&mut cx);
         let after = self.cur();

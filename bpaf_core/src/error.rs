@@ -472,3 +472,13 @@ fn write_missing(res: &mut String, items: &[MissingItem]) -> std::fmt::Result {
 pub(crate) fn first_good_name<'a>(names: &'a [Name<'a>]) -> Option<Name<'a>> {
     names.first().map(|n| n.as_ref())
 }
+pub fn combine_error(prev: &mut Option<Error>, other: Option<&Error>) {
+    let Some(other) = other else {
+        return;
+    };
+    let Some(this) = prev.take() else {
+        *prev = Some(other.clone());
+        return;
+    };
+    *prev = Some(this.combine_with(other.clone()));
+}
