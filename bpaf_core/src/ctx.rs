@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     error::Error,
-    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent},
+    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent, RawAction},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -196,10 +196,10 @@ impl<'a> Ctx<'a> {
         self.queue(Op::AddPositionalListener { branch, id })
     }
 
-    pub(crate) fn start_task(&self, parent: Parent, action: Action<'a>, keep_id: bool) {
+    pub(crate) fn start_task(&self, parent: Parent, action: RawAction<'a>, keep_id: bool) {
         self.queue(Op::SpawnTask {
             parent,
-            action,
+            action: Action::Raw(action),
             keep_id,
         });
     }

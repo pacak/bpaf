@@ -156,7 +156,12 @@ where
 
 // TODO - newtype?
 pub type PoisonHandle = Rc<Cell<bool>>;
-pub type Action<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
+
+pub(crate) enum Action<'a> {
+    Raw(RawAction<'a>),
+}
+
+pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
 pub(crate) struct Task<'a> {
     pub(crate) action: Action<'a>,
     // TODO - do I need "field" here?
@@ -178,7 +183,9 @@ impl Task<'_> {
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let mut cx = Context::from_waker(&self.waker);
-        let poll = self.action.as_mut().poll(&mut cx);
+        let poll = match &mut self.action {
+            Action::Raw(pin) => pin.as_mut().poll(&mut cx),
+        };
         *ctx.current_task.borrow_mut() = None;
         let after = ctx.cur();
         ctx.set_cur(before);
