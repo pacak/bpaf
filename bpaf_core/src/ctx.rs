@@ -3,12 +3,11 @@ use std::{
     collections::VecDeque,
     rc::Rc,
     sync::atomic::{AtomicBool, AtomicUsize},
-    task::{Context, Poll},
 };
 
 use crate::{
     error::Error,
-    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent, PoisonHandle, Task},
+    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -209,18 +208,5 @@ impl<'a> Ctx<'a> {
         self.current_task
             .borrow()
             .expect("should only be called from a Future")
-    }
-
-    /// Run a task in a context, return number of items consumed an a result
-    ///
-    /// does not advance the pointer
-    pub(crate) fn run_task(&self, task: &mut Task<'a>) -> (Poll<PoisonHandle>, usize) {
-        let before = self.cur();
-        self.items_consumed.set(task.consumed);
-        let mut cx = Context::from_waker(&task.waker);
-        let r = task.action.as_mut().poll(&mut cx);
-        let after = self.cur();
-        self.set_cur(before);
-        (r, after - before)
     }
 }

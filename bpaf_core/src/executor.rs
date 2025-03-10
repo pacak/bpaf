@@ -21,8 +21,6 @@ use std::{
 // redesign
 // make executor more aware of tasks
 //
-// Dedupe ways of polling tasks - currently there's two. one in Ctx::run_task, one in executor
-//
 // TODO:
 // - centralize task context management
 // - if we did nothing at all for the whole loop - panic
@@ -172,13 +170,19 @@ pub(crate) struct Task<'a> {
 }
 
 impl Task<'_> {
-    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<PoisonHandle> {
+    /// Run a task in a context, return number of items consumed an a result
+    ///
+    /// does not advance the pointer
+    fn poll(&mut self, id: Id, ctx: &Ctx) -> (Poll<PoisonHandle>, usize) {
+        let before = ctx.cur();
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let mut cx = Context::from_waker(&self.waker);
         let poll = self.action.as_mut().poll(&mut cx);
         *ctx.current_task.borrow_mut() = None;
-        poll
+        let after = ctx.cur();
+        ctx.set_cur(before);
+        (poll, after - before)
     }
 }
 
@@ -377,7 +381,7 @@ impl<'a> Runner<'a> {
                     // the result without consuming anything from the input or spawning
                     // children: parsers such are `fail` or `pure` create those.
                     // If not handled here - they will be never woken up
-                    match task.poll(id, &self.ctx) {
+                    match task.poll(id, &self.ctx).0 {
                         Poll::Ready(_r) => {
                             task.done = true;
                             todo!("Exited immediately");
@@ -474,7 +478,7 @@ impl<'a> Runner<'a> {
                     }
                     self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
-                    let poll = task.poll(id, &self.ctx);
+                    let (poll, _consumed) = task.poll(id, &self.ctx);
                     self.handle_task_poll(id, poll);
                 }
                 Op::RestoreIdCounter { id } => {
@@ -594,7 +598,7 @@ impl<'a> Runner<'a> {
             }
             // each scheduled task gets a chance to run,
             if let Some(task) = self.tasks.get_mut(&id) {
-                let (poll, consumed) = self.ctx.run_task(task);
+                let (poll, consumed) = task.poll(id, &self.ctx);
                 if poll.is_ready() {
                     last_branch = branch;
                 } else {
@@ -785,7 +789,7 @@ impl<'a> Runner<'a> {
         for (_branch, id) in ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
                 println!("Need to terminate {id:?}");
-                let (poll, consumed) = self.ctx.run_task(task);
+                let (poll, consumed) = task.poll(id, &self.ctx);
                 debug_assert_eq!(consumed, 0, "Consumed during termination?");
                 debug_assert!(poll.is_ready(), "Termination left task stil pending?");
                 self.handle_task_poll(id, poll);
