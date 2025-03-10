@@ -181,14 +181,6 @@ impl<'a> Ctx<'a> {
         self.queue(Op::RemoveFallback { branch, id });
     }
 
-    pub(crate) fn add_children_exit_listener(&self, parent: Id) {
-        self.queue(Op::AddExitListener { parent });
-    }
-
-    pub(crate) fn remove_children_exit_listener(&self, parent: Id) {
-        self.queue(Op::RemoveExitListener { parent });
-    }
-
     pub(crate) fn remove_named_listener(
         &self,
         flag: bool,

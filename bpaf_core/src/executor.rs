@@ -9,7 +9,7 @@ use crate::{
 };
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     future::Future,
     pin::{pin, Pin},
     sync::{Arc, Mutex},
@@ -227,13 +227,6 @@ pub(crate) enum Op<'a> {
     RestoreIdCounter {
         id: u32,
     },
-
-    AddExitListener {
-        parent: Id,
-    },
-    RemoveExitListener {
-        parent: Id,
-    },
     AddLiteral {
         branch: BranchId,
         id: Id,
@@ -276,7 +269,6 @@ impl<'ctx> Runner<'ctx> {
             pending: Default::default(),
             next_task_id: 0,
             parent_ids: Default::default(),
-            wake_on_child_exit: Default::default(),
             flags: Default::default(),
             args: Default::default(),
             fallback: Default::default(),
@@ -293,11 +285,6 @@ pub(crate) struct Runner<'ctx> {
     ctx: Ctx<'ctx>,
     tasks: BTreeMap<Id, Task<'ctx>>,
 
-    /// Prod type items want to be notified about children exiting, in order
-    /// they exit instead of order they are defined
-    wake_on_child_exit: HashSet<Id>,
-
-    /// For those tasks that asked us to retain the id according to the parent
     parent_ids: HashMap<Parent, u32>,
 
     pub(crate) flags: HashMap<Name<'ctx>, Pecking>,
@@ -492,12 +479,6 @@ impl<'a> Runner<'a> {
                 }
                 Op::RestoreIdCounter { id } => {
                     self.next_task_id = id + 1;
-                }
-                Op::AddExitListener { parent } => {
-                    self.wake_on_child_exit.insert(parent);
-                }
-                Op::RemoveExitListener { parent } => {
-                    self.wake_on_child_exit.remove(&parent);
                 }
                 Op::AddFallback { branch, id } => {
                     println!("Adding exit fallback to {id:?}");
@@ -855,20 +836,12 @@ impl<'a> Runner<'a> {
     /// It cannot run the task as well since to be able to handle sum types
     /// we need to be able to decide which tasks to terminate based on consumed length
     fn handle_task_poll(&mut self, id: Id, poll: Poll<ErrorHandle>) {
-        let Poll::Ready(handle) = poll else {
+        let Poll::Ready(_) = poll else {
             return;
         };
         println!("Handling exit for {id:?}");
         let task = self.tasks.get_mut(&id).expect("We know it's there");
         task.done = true;
-        if self.wake_on_child_exit.contains(&task.parent.id) {
-            let error = handle.take();
-            handle.set(error.clone());
-            self.ctx.shared.borrow_mut().push_front(Op::WakeTask {
-                id: task.parent.id,
-                error,
-            });
-        }
         self.ctx
             .shared
             .borrow_mut()
