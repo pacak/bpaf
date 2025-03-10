@@ -8,10 +8,7 @@ use std::{
 
 use crate::{
     error::Error,
-    executor::{
-        futures::{ErrorHandle, JoinHandle},
-        Action, BranchId, Id, Op, Parent, Task,
-    },
+    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent, PoisonHandle, Task},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -217,7 +214,7 @@ impl<'a> Ctx<'a> {
     /// Run a task in a context, return number of items consumed an a result
     ///
     /// does not advance the pointer
-    pub(crate) fn run_task(&self, task: &mut Task<'a>) -> (Poll<ErrorHandle>, usize) {
+    pub(crate) fn run_task(&self, task: &mut Task<'a>) -> (Poll<PoisonHandle>, usize) {
         let before = self.cur();
         self.items_consumed.set(task.consumed);
         let mut cx = Context::from_waker(&task.waker);

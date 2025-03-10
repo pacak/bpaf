@@ -9,17 +9,17 @@ use crate::{
 };
 use std::{
     borrow::Cow,
+    cell::Cell,
     collections::{BTreeMap, HashMap},
     future::Future,
     pin::{pin, Pin},
+    rc::Rc,
     sync::{Arc, Mutex},
     task::{Context, Poll, Wake, Waker},
 };
 
 // redesign
 // make executor more aware of tasks
-//
-// Get rid of task exit code side channel
 //
 // Dedupe ways of polling tasks - currently there's two. one in Ctx::run_task, one in executor
 //
@@ -45,8 +45,6 @@ use std::{
 // - markdown/manpage
 
 pub(crate) mod futures;
-
-use self::futures::ErrorHandle;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Id(u32);
@@ -122,7 +120,7 @@ impl BranchId {
 }
 
 enum Ac<'a> {
-    Fut(Box<dyn Future<Output = ErrorHandle> + 'a>),
+    Fut(Box<dyn Future<Output = PoisonHandle> + 'a>),
     Flag {
         names: &'a [Name<'a>],
         handle: futures::ExitHandle<'a, bool>,
@@ -146,19 +144,21 @@ struct Ta<'a> {
 //fn any(metavar: Metavar) -> Parser<T>
 
 trait Pass {
-    fn try_parse(&self, val: OsOrStr) -> Option<ErrorHandle>;
+    fn try_parse(&self, val: OsOrStr) -> Option<PoisonHandle>;
 }
 
 impl<P, T> Pass for (P, futures::ExitHandle<'_, T>)
 where
     P: Fn(OsOrStr) -> Option<T>,
 {
-    fn try_parse(&self, val: OsOrStr<'_>) -> Option<ErrorHandle> {
+    fn try_parse(&self, val: OsOrStr<'_>) -> Option<PoisonHandle> {
         (self.0)(val).map(|t| self.1.exit_task(Ok(t)))
     }
 }
 
-pub type Action<'a> = Pin<Box<dyn Future<Output = ErrorHandle> + 'a>>;
+// TODO - newtype?
+pub type PoisonHandle = Rc<Cell<bool>>;
+pub type Action<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
 pub(crate) struct Task<'a> {
     pub(crate) action: Action<'a>,
     // TODO - do I need "field" here?
@@ -172,7 +172,7 @@ pub(crate) struct Task<'a> {
 }
 
 impl Task<'_> {
-    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<ErrorHandle> {
+    fn poll(&mut self, id: Id, ctx: &Ctx) -> Poll<PoisonHandle> {
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let mut cx = Context::from_waker(&self.waker);
@@ -576,7 +576,7 @@ impl<'a> Runner<'a> {
         &mut self,
         front: &mut Arg<'a>,
         ids: &mut Vec<(BranchId, Id)>,
-        out: &mut Vec<(Id, Poll<ErrorHandle>, usize)>,
+        out: &mut Vec<(Id, Poll<PoisonHandle>, usize)>,
     ) -> Result<bool, Error> {
         // actual feed consumption happens here
         let mut max_consumed = 0;
@@ -618,10 +618,7 @@ impl<'a> Runner<'a> {
             if let Poll::Ready(eh) = &poll {
                 if consumed < max_consumed {
                     // TODO  - custom error
-                    eh.set(Some(Error::fail(
-                        "terminated due to low priority",
-                        usize::MAX,
-                    )));
+                    eh.set(true);
                 }
             }
             self.handle_task_poll(id, poll);
@@ -835,10 +832,10 @@ impl<'a> Runner<'a> {
     ///
     /// It cannot run the task as well since to be able to handle sum types
     /// we need to be able to decide which tasks to terminate based on consumed length
-    fn handle_task_poll(&mut self, id: Id, poll: Poll<ErrorHandle>) {
-        let Poll::Ready(_) = poll else {
+    fn handle_task_poll(&mut self, id: Id, poll: Poll<PoisonHandle>) {
+        if poll.is_pending() {
             return;
-        };
+        }
         println!("Handling exit for {id:?}");
         let task = self.tasks.get_mut(&id).expect("We know it's there");
         task.done = true;

@@ -13,23 +13,25 @@ use std::{
     task::{Context, Poll, Waker},
 };
 
+use super::PoisonHandle;
+
 impl<'ctx> Ctx<'ctx> {
     pub(crate) fn fork<T>(&self) -> (Rc<ExitHandle<'ctx, T>>, JoinHandle<'ctx, T>) {
-        let success = Rc::new(Cell::new(None));
-        let failure = Rc::new(Cell::new(None));
+        let result = Rc::new(Cell::new(None));
+        let poisoned = Rc::new(Cell::new(false));
         let exit = ExitHandle {
             waker: Cell::new(None),
 
             id: Cell::new(None),
             ctx: self.clone(),
-            failure: failure.clone(),
-            success: success.clone(),
+            result: result.clone(),
+            poisoned: poisoned.clone(),
         };
         let exit = Rc::new(exit);
         let join = JoinHandle {
             task: Rc::downgrade(&exit),
-            success,
-            failure,
+            result,
+            poisoned,
         };
         (exit, join)
     }
@@ -40,20 +42,22 @@ pub(crate) struct ExitHandle<'a, T> {
     pub(crate) id: Cell<Option<Id>>,
     /// Waker for parent task
     waker: Cell<Option<Waker>>,
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+    /// If we are running multiple tasks in parallel on the same bit of input
+    /// only task(s) that consume longest amount should succeed even if those
+    /// with shorter consumption can produce results.
+    poisoned: Rc<Cell<bool>>,
 
-    /// Handle can hold both success and a failure if parser succeeded
-    /// but was terminated due better (gredier) parser in a parallel branch
-    /// Failre takes priority
-    failure: Rc<Cell<Option<Error>>>,
-    success: Rc<Cell<Option<T>>>,
-
+    /// dropping join handle needs to terminate all the children?
+    /// TODO - we also track this in the executor
     ctx: Ctx<'a>,
 }
 
 pub struct JoinHandle<'a, T> {
     task: Weak<ExitHandle<'a, T>>,
-    failure: Rc<Cell<Option<Error>>>,
-    success: Rc<Cell<Option<T>>>,
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+    /// See ExitHandle::poisoned
+    poisoned: Rc<Cell<bool>>,
 }
 
 impl<T> Drop for JoinHandle<'_, T> {
@@ -70,19 +74,14 @@ impl<T> Drop for JoinHandle<'_, T> {
     }
 }
 
-pub(crate) type ErrorHandle = Rc<Cell<Option<Error>>>;
-
 impl<T> ExitHandle<'_, T> {
-    pub(crate) fn exit_task(&self, result: Result<T, Error>) -> ErrorHandle {
-        match result {
-            Ok(ok) => self.success.set(Some(ok)),
-            Err(err) => self.failure.set(Some(err)),
-        }
+    pub(crate) fn exit_task(&self, result: Result<T, Error>) -> PoisonHandle {
+        self.result.set(Some(result));
 
         if let Some(waker) = self.waker.take() {
-            waker.wake()
+            waker.wake();
         }
-        self.failure.clone()
+        self.poisoned.clone()
     }
 }
 impl<T> Future for JoinHandle<'_, T> {
@@ -96,13 +95,16 @@ impl<T> Future for JoinHandle<'_, T> {
             }
             None => {
                 println!("Getting result out!");
-                if let Some(err) = self.failure.take() {
-                    Poll::Ready(Err(err))
-                } else if let Some(ok) = self.success.take() {
-                    Poll::Ready(Ok(ok))
+                let res = self
+                    .result
+                    .take()
+                    .expect("Child task exited without setting either result or success");
+
+                Poll::Ready(if self.poisoned.get() {
+                    Err(Error::fail("poisoned", usize::MAX))
                 } else {
-                    unreachable!("Child task exited without setting either result or success");
-                }
+                    res
+                })
             }
         }
     }
