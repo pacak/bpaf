@@ -656,3 +656,26 @@ fn help_and_version_newline() {
         .unwrap_stdout();
     assert_eq!(r, "Version: 1\n");
 }
+
+#[test]
+fn fallback_to_usage_and_commands() {
+    let parser = pure(())
+        .to_options()
+        .descr("inner")
+        .command("cmd")
+        .to_options()
+        .descr("outer")
+        .fallback_to_usage();
+
+    let r = parser
+        .run_inner(&["cmd", "--help"])
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected =
+        "inner\n\nUsage: cmd \n\nAvailable options:\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stdout();
+    let expected = "outer\n\nUsage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    cmd         inner\n";
+    assert_eq!(r, expected);
+}

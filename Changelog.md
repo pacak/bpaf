@@ -1,5 +1,9 @@
 # Change Log
 
+## bpaf [0.9.19] - 2025-03-13
+- Fix one more problematic corner case of `fallback_to_usage` - it should no override
+  inner parser printing usage or version info
+
 ## bpaf [0.9.18] - 2025-03-06
 - Several small documentation fixes (#414, #413)
   thanks @yerke
