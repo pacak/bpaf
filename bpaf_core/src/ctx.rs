@@ -135,6 +135,8 @@ impl<'a> Ctx<'a> {
         join
     }
 
+    pub(crate) fn start_raw(&self, parent: Parent, action: Action<'a>, keep_id: bool) {}
+
     fn queue(&self, op: Op<'a>) {
         self.shared.borrow_mut().push_back(op);
     }

@@ -1,3 +1,5 @@
+use futures::ExitHandle;
+
 use crate::{
     ctx::Ctx,
     error::{Error, Message},
@@ -157,8 +159,25 @@ where
 // TODO - newtype?
 pub type PoisonHandle = Rc<Cell<bool>>;
 
+// I need a pair of handles to connect async tasks:
+// 1. when sender succeeds or fails - receiver gets notified
+// 2. sender can poison result after sending
+// 3. when receiver gets dropped - sender gets terminated
+
+struct Sender<T> {
+    //
+}
+
+struct Receiver<T> {
+}
+
 pub(crate) enum Action<'a> {
     Raw(RawAction<'a>),
+    Flag {
+        names: &'a [Name<'a>],
+        action: Box<Fn(Ctx<'a>)> -> PoisonHandle,
+//        exit: ExitHandle<'a, bool>,
+    },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -185,6 +204,7 @@ impl Task<'_> {
         let mut cx = Context::from_waker(&self.waker);
         let poll = match &mut self.action {
             Action::Raw(pin) => pin.as_mut().poll(&mut cx),
+            Action::Flag { names: _, exit } => Poll::Ready(exit.exit_task(Ok(!ctx.is_term()))),
         };
         *ctx.current_task.borrow_mut() = None;
         let after = ctx.cur();

@@ -278,7 +278,7 @@ mod named {
         error::{Error, Metavar},
         executor::{
             futures::{ArgFut, FlagFut},
-            Fragment,
+            Action, Fragment,
         },
         visitor::Item,
         Parser,
@@ -330,6 +330,12 @@ mod named {
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
             Box::pin(async move {
+                let (exit, join) = ctx.fork();
+                let act = Action::Flag {
+                    names: &self.named.names,
+                    exit,
+                };
+
                 let fut = FlagFut {
                     name: &self.named.names,
                     ctx,
