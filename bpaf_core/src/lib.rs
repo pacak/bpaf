@@ -129,11 +129,9 @@ macro_rules! construct {
             )*
             ::std::boxed::Box::pin(async move {
                 let (_branch, id) = ctx.current_id();
-                let mut n = 0;
                 let mut err = None;
                 $(
-                    let $fields = ctx.spawn(id.prod(n), $fields, false);
-                    n += 1; // TODO - not needed - are we using?
+                    let $fields = ctx.spawn(id.prod(), $fields, false);
                 )*
                 $(
                     let $fields = $fields.await;

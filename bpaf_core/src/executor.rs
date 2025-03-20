@@ -62,19 +62,17 @@ impl Id {
         Self(id)
     }
 
-    pub(crate) fn sum(self, field: u32) -> Parent {
+    pub(crate) fn sum(self) -> Parent {
         Parent {
             kind: NodeKind::Sum,
             id: self,
-            field,
         }
     }
 
-    pub fn prod(self, field: u32) -> Parent {
+    pub fn prod(self) -> Parent {
         Parent {
             kind: NodeKind::Prod,
             id: self,
-            field,
         }
     }
 }
@@ -83,7 +81,6 @@ impl Id {
 pub struct Parent {
     pub(crate) kind: NodeKind,
     pub(crate) id: Id,
-    pub(crate) field: u32,
 }
 
 // TODO - it should be possible to replace this with id of the first child attached
@@ -657,7 +654,7 @@ impl<'a> Runner<'a> {
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead and keep the handle
-        let mut handle = pin!(self.ctx.spawn(root_id.prod(0), parser, false));
+        let mut handle = pin!(self.ctx.spawn(root_id.prod(), parser, false));
         let mut root_cx = Context::from_waker(&root_waker);
         debug_assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 

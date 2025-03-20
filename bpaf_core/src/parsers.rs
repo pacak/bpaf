@@ -34,7 +34,6 @@ where
             let (_branch, id) = ctx.current_id();
             let parent = Parent {
                 id,
-                field: 0,
                 kind: NodeKind::Prod,
             };
             let _guard = FallbackGuard::new(ctx.clone());
@@ -88,7 +87,6 @@ where
             let (_branch, id) = ctx.current_id();
             let parent = Parent {
                 id,
-                field: 0,
                 kind: NodeKind::Prod,
             };
 
@@ -623,8 +621,7 @@ where
             let handles = self
                 .items
                 .iter()
-                .enumerate()
-                .map(|(ix, p)| ctx.spawn(id.sum(ix as u32), p, false))
+                .map(|p| ctx.spawn(id.sum(), p, false))
                 .collect::<Vec<_>>();
 
             let mut fut = AltFuture { handles };
