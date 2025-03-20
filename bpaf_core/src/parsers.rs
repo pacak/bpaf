@@ -10,7 +10,7 @@ use crate::{
     error::{Error, Metavar},
     executor::{
         futures::{AltFuture, AnyFut, LiteralFut},
-        BranchId, Fragment, Id, NodeKind, Parent,
+        BranchId, Fragment, Id,
     },
     named::Name,
     split::OsOrStr,
@@ -32,10 +32,7 @@ where
         Box::pin(async move {
             let mut res = Vec::new();
             let (_branch, id) = ctx.current_id();
-            let parent = Parent {
-                id,
-                kind: NodeKind::Prod,
-            };
+            let parent = id.prod();
             let _guard = FallbackGuard::new(ctx.clone());
             let mut prev_consumed = 0;
             while !ctx.is_term() {
@@ -85,10 +82,7 @@ where
         let mut res = Vec::new();
         Box::pin(async move {
             let (_branch, id) = ctx.current_id();
-            let parent = Parent {
-                id,
-                kind: NodeKind::Prod,
-            };
+            let parent = id.prod();
 
             let mut prev_consumed = 0;
             let err = loop {
