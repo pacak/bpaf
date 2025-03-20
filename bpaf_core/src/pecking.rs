@@ -82,15 +82,9 @@ impl Pecking {
 
 #[test]
 fn it_works() {
-    let b1 = BranchId {
-        parent: Id::ZERO,
-        field: 0,
-    };
+    let b1 = BranchId { parent: Id::new(1) };
 
-    let b2 = BranchId {
-        parent: Id::ZERO,
-        field: 1,
-    };
+    let b2 = BranchId { parent: Id::new(2) };
 
     let mut p = Pecking::default();
 

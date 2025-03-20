@@ -91,28 +91,20 @@ pub struct Parent {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct BranchId {
     pub(crate) parent: Id,
-    pub(crate) field: u32,
 }
 
 impl std::fmt::Debug for BranchId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "B({}:{})", self.parent.0, self.field)
+        write!(f, "B{}", self.parent.0)
     }
 }
 
 impl BranchId {
-    pub(crate) const ZERO: Self = Self {
-        parent: Id(0),
-        field: 0,
-    };
-    pub(crate) const ROOT: Self = Self {
-        parent: Id::ROOT,
-        field: 0,
-    };
+    pub(crate) const ZERO: Self = Self { parent: Id(0) };
+    pub(crate) const ROOT: Self = Self { parent: Id::ROOT };
     pub(crate) fn succ(&self) -> Self {
         Self {
-            parent: self.parent,
-            field: self.field + 1,
+            parent: Id(self.parent.0 + 1),
         }
     }
 }
@@ -366,10 +358,7 @@ impl<'a> Runner<'a> {
                     let (id, waker) = self.next_id();
 
                     let branch = match parent.kind {
-                        NodeKind::Sum => BranchId {
-                            parent: parent.id,
-                            field: parent.field,
-                        },
+                        NodeKind::Sum => BranchId { parent: id },
                         NodeKind::Prod => self
                             .tasks
                             .get(&parent.id)
