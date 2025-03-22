@@ -147,7 +147,7 @@ where
 pub type PoisonHandle = Rc<Cell<bool>>;
 
 pub(crate) enum Action<'a> {
-    Raw(RawAction<'a>),
+    Raw { act: RawAction<'a>, waker: Waker },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -157,7 +157,6 @@ pub(crate) struct Task<'a> {
     pub(crate) parent: Parent,
     // TODO - this can be a simple Id
     pub(crate) branch: BranchId,
-    pub(crate) waker: Waker,
     pub(crate) consumed: u32,
 
     pub(crate) done: bool,
@@ -171,9 +170,11 @@ impl Task<'_> {
         let before = ctx.cur();
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
-        let mut cx = Context::from_waker(&self.waker);
         let poll = match &mut self.action {
-            Action::Raw(pin) => pin.as_mut().poll(&mut cx),
+            Action::Raw { act, waker } => {
+                let mut cx = Context::from_waker(waker);
+                act.as_mut().poll(&mut cx)
+            }
         };
         *ctx.current_task.borrow_mut() = None;
         let after = ctx.cur();
@@ -185,7 +186,7 @@ impl Task<'_> {
 pub(crate) enum Op<'a> {
     SpawnTask {
         parent: Parent,
-        action: Action<'a>,
+        action: RawAction<'a>,
         keep_id: bool,
     },
     WakeTask {
@@ -362,8 +363,7 @@ impl<'a> Runner<'a> {
                             .map_or(BranchId::ROOT, |t| t.branch),
                     };
                     let mut task = Task {
-                        action,
-                        waker,
+                        action: Action::Raw { act: action, waker },
                         parent,
                         consumed: 0,
                         branch,

@@ -199,7 +199,7 @@ impl<'a> Ctx<'a> {
     pub(crate) fn start_task(&self, parent: Parent, action: RawAction<'a>, keep_id: bool) {
         self.queue(Op::SpawnTask {
             parent,
-            action: Action::Raw(action),
+            action: action,
             keep_id,
         });
     }
