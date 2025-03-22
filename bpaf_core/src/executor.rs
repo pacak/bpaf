@@ -147,7 +147,7 @@ where
 pub type PoisonHandle = Rc<Cell<bool>>;
 
 pub(crate) enum Action<'a> {
-    Raw { act: RawAction<'a>, waker: Waker },
+    Raw { action: RawAction<'a>, waker: Waker },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -171,7 +171,7 @@ impl Task<'_> {
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some((self.branch, id));
         let poll = match &mut self.action {
-            Action::Raw { act, waker } => {
+            Action::Raw { action: act, waker } => {
                 let mut cx = Context::from_waker(waker);
                 act.as_mut().poll(&mut cx)
             }
@@ -353,7 +353,7 @@ impl<'a> Runner<'a> {
                         }
                     }
 
-                    let (id, waker) = self.next_id();
+                    let id = self.next_id();
 
                     let branch = match parent.kind {
                         NodeKind::Sum => BranchId { parent: id },
@@ -363,7 +363,10 @@ impl<'a> Runner<'a> {
                             .map_or(BranchId::ROOT, |t| t.branch),
                     };
                     let mut task = Task {
-                        action: Action::Raw { act: action, waker },
+                        action: Action::Raw {
+                            action,
+                            waker: self.waker_for(id),
+                        },
                         parent,
                         consumed: 0,
                         branch,
@@ -648,7 +651,8 @@ impl<'a> Runner<'a> {
         P: Parser<T> + ?Sized,
         T: 'static,
     {
-        let (root_id, root_waker) = self.next_id();
+        let root_id = self.next_id();
+        let root_waker = self.waker_for(root_id);
 
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
@@ -842,14 +846,16 @@ impl<'a> Runner<'a> {
             .push_back(Op::RemoveTask { id });
     }
 
-    /// Allocate next task [`Id`] and a [`Waker`] for that task.
-    fn next_id(&mut self) -> (Id, Waker) {
+    /// Allocate next task [`Id`]
+    fn next_id(&mut self) -> Id {
         let id = self.next_task_id;
         self.next_task_id += 1;
-        let id = Id::new(id);
+        Id::new(id)
+    }
+    /// Make a [`Waker`] for a task with this [`Id`].
+    fn waker_for(&self, id: Id) -> Waker {
         let pending = self.pending.clone();
-        let waker = Waker::from(Arc::new(WakeTask { id, pending }));
-        (id, waker)
+        Waker::from(Arc::new(WakeTask { id, pending }))
     }
 }
 
