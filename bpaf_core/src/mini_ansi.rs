@@ -1,5 +1,3 @@
-use std::thread::AccessError;
-
 impl std::fmt::Display for Style {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -13,9 +11,6 @@ impl std::fmt::Display for Style {
     }
 }
 
-fn split_csi(input: &str) -> Option<(Style, &str)> {
-    todo!();
-}
 #[derive(Debug, Copy, Clone)]
 pub struct Emphasis<T>(pub T);
 
