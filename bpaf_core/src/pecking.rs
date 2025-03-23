@@ -24,32 +24,28 @@
 //!
 //! "any" are mixed with positional items the same way so we'll have to mix them in dynamically...
 
-use crate::executor::{BranchId, Id};
+use crate::executor::Id;
 use std::collections::BTreeSet;
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Pecking(BTreeSet<(BranchId, Id)>);
+pub(crate) struct Pecking(BTreeSet<Id>);
 
 pub(crate) struct PeckingIter<'a> {
-    order: &'a BTreeSet<(BranchId, Id)>,
-    prev_branch: Option<BranchId>,
+    order: &'a BTreeSet<Id>,
+    prev_branch: Option<Id>,
 }
 
 impl Iterator for PeckingIter<'_> {
-    type Item = (BranchId, Id);
+    type Item = Id;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (branch, id) = match self.prev_branch {
-            Some(branch) => self
-                .order
-                .range((branch.succ(), Id::ZERO)..)
-                .next()
-                .copied()?,
+        let id = match self.prev_branch {
+            Some(id) => self.order.range(id.next_branch()..).next().copied()?,
             None => self.order.first().copied()?,
         };
 
-        self.prev_branch = Some(branch);
-        Some((branch, id))
+        self.prev_branch = Some(id);
+        self.prev_branch
     }
 }
 
@@ -63,7 +59,7 @@ impl Pecking {
     }
 
     /// Iterate over all the items in all the queues,
-    pub(crate) fn iter(&self) -> std::collections::btree_set::Iter<(BranchId, Id)> {
+    pub(crate) fn iter(&self) -> std::collections::btree_set::Iter<Id> {
         self.0.iter()
     }
 
@@ -71,31 +67,27 @@ impl Pecking {
         self.0.is_empty()
     }
 
-    pub(crate) fn remove(&mut self, branch: BranchId, id: Id) {
-        self.0.remove(&(branch, id));
+    pub(crate) fn remove(&mut self, id: Id) {
+        self.0.remove(&id);
     }
 
-    pub(crate) fn insert(&mut self, branch: BranchId, id: Id) {
-        self.0.insert((branch, id));
+    pub(crate) fn insert(&mut self, id: Id) {
+        self.0.insert(id);
     }
 }
 
 #[test]
 fn it_works() {
-    let b1 = BranchId { parent: Id::new(1) };
-
-    let b2 = BranchId { parent: Id::new(2) };
-
     let mut p = Pecking::default();
 
-    p.insert(b1, Id::new(1));
-    p.insert(b1, Id::new(2));
-    p.insert(b1, Id::new(3));
-    p.insert(b2, Id::new(4));
-    p.insert(b2, Id::new(5));
-    p.insert(b2, Id::new(6));
+    p.insert(Id::new(1, 1));
+    p.insert(Id::new(1, 2));
+    p.insert(Id::new(1, 3));
+    p.insert(Id::new(2, 4));
+    p.insert(Id::new(2, 5));
+    p.insert(Id::new(2, 6));
 
     let xs = p.heads().collect::<Vec<_>>();
 
-    assert_eq!(xs, &[(b1, Id::new(1)), (b2, Id::new(4))]);
+    assert_eq!(xs, &[Id::new(1, 1), Id::new(2, 4)]);
 }

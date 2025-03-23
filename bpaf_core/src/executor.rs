@@ -45,103 +45,57 @@ use std::{
 pub(crate) mod futures;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Id(u32);
-impl Id {
-    pub(crate) const ZERO: Self = Self(0);
-    const ROOT: Self = Self(1);
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub(crate) enum NodeKind {
-    Sum,
-    Prod,
+pub struct Id {
+    branch: u32,
+    id: u32,
 }
 
 impl Id {
-    pub(crate) fn new(id: u32) -> Self {
-        Self(id)
-    }
-
-    pub(crate) fn sum(self) -> Parent {
-        Parent {
-            kind: NodeKind::Sum,
-            id: self,
-        }
-    }
-
-    pub fn prod(self) -> Parent {
-        Parent {
-            kind: NodeKind::Prod,
-            id: self,
-        }
+    pub(crate) fn new(branch: u32, id: u32) -> Self {
+        Id { branch, id }
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct Parent {
-    pub(crate) kind: NodeKind,
-    pub(crate) id: Id,
-}
-
-// TODO - it should be possible to replace this with id of the first child attached
-// to the field - they are always spawned tasks
-#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct BranchId {
-    pub(crate) parent: Id,
-}
-
-impl std::fmt::Debug for BranchId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "B{}", self.parent.0)
+impl Id {
+    pub(crate) fn next_branch(&self) -> Self {
+        let mut id = *self;
+        id.branch += 1;
+        id
     }
 }
 
-impl BranchId {
-    pub(crate) const ZERO: Self = Self { parent: Id(0) };
-    pub(crate) const ROOT: Self = Self { parent: Id::ROOT };
-    pub(crate) fn succ(&self) -> Self {
-        Self {
-            parent: Id(self.parent.0 + 1),
-        }
-    }
-}
-
-enum Ac<'a> {
-    Fut(Box<dyn Future<Output = PoisonHandle> + 'a>),
-    Flag {
-        names: &'a [Name<'a>],
-        handle: futures::ExitHandle<'a, bool>,
-    },
-    Arg {
-        names: &'a [Name<'a>],
-        handle: futures::ExitHandle<'a, OsOrStr<'a>>,
-    },
-    Pos {
-        handle: futures::ExitHandle<'a, OsOrStr<'a>>,
-    },
-    Any {
-        foo: Box<dyn Pass>,
-    },
-}
-
-struct Ta<'a> {
-    action: Ac<'a>,
-}
+// enum Ac<'a> {
+//     Fut(Box<dyn Future<Output = PoisonHandle> + 'a>),
+//     Flag {
+//         names: &'a [Name<'a>],
+//         handle: futures::ExitHandle<'a, bool>,
+//     },
+//     Arg {
+//         names: &'a [Name<'a>],
+//         handle: futures::ExitHandle<'a, OsOrStr<'a>>,
+//     },
+//     Pos {
+//         handle: futures::ExitHandle<'a, OsOrStr<'a>>,
+//     },
+//     Any {
+//         foo: Box<dyn Pass>,
+//     },
+// }
 
 //fn any(metavar: Metavar) -> Parser<T>
 
-trait Pass {
-    fn try_parse(&self, val: OsOrStr) -> Option<PoisonHandle>;
-}
-
-impl<P, T> Pass for (P, futures::ExitHandle<'_, T>)
-where
-    P: Fn(OsOrStr) -> Option<T>,
-{
-    fn try_parse(&self, val: OsOrStr<'_>) -> Option<PoisonHandle> {
-        (self.0)(val).map(|t| self.1.exit_task(Ok(t)))
-    }
-}
+// trait Pass {
+//     fn try_parse(&self, val: OsOrStr) -> Option<PoisonHandle>;
+// }
+//
+// impl<P, T> Pass for (P, futures::ExitHandle<'_, T>)
+// where
+//     P: Fn(OsOrStr) -> Option<T>,
+// {
+//     fn try_parse(&self, val: OsOrStr<'_>) -> Option<PoisonHandle> {
+//         (self.0)(val).map(|t| self.1.exit_task(Ok(t)))
+//     }
+// }
 
 // TODO - newtype?
 pub type PoisonHandle = Rc<Cell<bool>>;
@@ -153,10 +107,9 @@ pub(crate) enum Action<'a> {
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
 pub(crate) struct Task<'a> {
     pub(crate) action: Action<'a>,
-    // TODO - do I need "field" here?
-    pub(crate) parent: Parent,
-    // TODO - this can be a simple Id
-    pub(crate) branch: BranchId,
+
+    pub(crate) parent: Id,
+
     pub(crate) consumed: u32,
 
     pub(crate) done: bool,
@@ -169,7 +122,7 @@ impl Task<'_> {
     fn poll(&mut self, id: Id, ctx: &Ctx) -> (Poll<PoisonHandle>, usize) {
         let before = ctx.cur();
         ctx.items_consumed.set(self.consumed);
-        *ctx.current_task.borrow_mut() = Some((self.branch, id));
+        *ctx.current_task.borrow_mut() = Some(id);
         let poll = match &mut self.action {
             Action::Raw { action: act, waker } => {
                 let mut cx = Context::from_waker(waker);
@@ -183,11 +136,29 @@ impl Task<'_> {
     }
 }
 
+// TODO - make private and remove from __private reexport!
+#[derive(Debug, Copy, Clone)]
+pub enum IdStrat {
+    /// Use next available Id, keep this branch
+    ///
+    /// Regular spawn, most of tasks should be using this
+    KeepBranch,
+    /// Use next available Id, make it a new branch
+    ///
+    /// Any sum type should be using this
+    NewBranch,
+    /// This task and all of the children use Id starting from this one
+    ///
+    /// Used by variants of .many combinator
+    KeepId,
+}
+
 pub(crate) enum Op<'a> {
+    /// Spawn a child parser from
     SpawnTask {
-        parent: Parent,
+        parent: Id,
+        strat: IdStrat,
         action: RawAction<'a>,
-        keep_id: bool,
     },
     WakeTask {
         id: Id,
@@ -200,51 +171,41 @@ pub(crate) enum Op<'a> {
     AddNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
-        branch: BranchId,
         id: Id,
     },
     RemoveNamedListener {
         flag: bool,
         names: &'a [Name<'static>],
-        branch: BranchId,
         id: Id,
     },
     AddFallback {
-        branch: BranchId,
         id: Id,
     },
     RemoveFallback {
-        branch: BranchId,
         id: Id,
     },
     AddPositionalListener {
-        branch: BranchId,
         id: Id,
     },
     RemovePositionalListener {
-        branch: BranchId,
         id: Id,
     },
     RestoreIdCounter {
         id: u32,
     },
     AddLiteral {
-        branch: BranchId,
         id: Id,
         values: &'a [Name<'static>],
     },
     RemoveLiteral {
-        branch: BranchId,
         id: Id,
         values: &'a [Name<'static>],
     },
     AddAny {
-        branch: BranchId,
         id: Id,
     },
 
     RemoveAny {
-        branch: BranchId,
         id: Id,
     },
 }
@@ -269,7 +230,6 @@ impl<'ctx> Runner<'ctx> {
             tasks: BTreeMap::new(),
             pending: Default::default(),
             next_task_id: 0,
-            parent_ids: Default::default(),
             flags: Default::default(),
             args: Default::default(),
             fallback: Default::default(),
@@ -285,8 +245,6 @@ pub(crate) struct Runner<'ctx> {
     next_task_id: u32,
     ctx: Ctx<'ctx>,
     tasks: BTreeMap<Id, Task<'ctx>>,
-
-    parent_ids: HashMap<Parent, u32>,
 
     pub(crate) flags: HashMap<Name<'ctx>, Pecking>,
     pub(crate) args: HashMap<Name<'ctx>, Pecking>,
@@ -341,26 +299,21 @@ impl<'a> Runner<'a> {
                 Op::SpawnTask {
                     parent,
                     action,
-                    mut keep_id,
+                    strat,
                 } => {
-                    let original_id = self.next_task_id;
-                    if keep_id {
-                        if let Some(prev_id) = self.parent_ids.get(&parent) {
-                            self.next_task_id = *prev_id;
-                            keep_id = false;
-                        } else {
-                            self.parent_ids.insert(parent, self.next_task_id);
+                    let mut restore_id = None;
+                    let id = match strat {
+                        IdStrat::KeepBranch => self.next_id(parent.branch),
+                        IdStrat::NewBranch => {
+                            let mut id = self.next_id(parent.branch);
+                            id.branch = id.id;
+                            id
                         }
-                    }
-
-                    let id = self.next_id();
-
-                    let branch = match parent.kind {
-                        NodeKind::Sum => BranchId { parent: id },
-                        NodeKind::Prod => self
-                            .tasks
-                            .get(&parent.id)
-                            .map_or(BranchId::ROOT, |t| t.branch),
+                        IdStrat::KeepId => {
+                            restore_id = Some(self.next_task_id);
+                            self.next_task_id = parent.id + 1;
+                            self.next_id(parent.branch)
+                        }
                     };
                     let mut task = Task {
                         action: Action::Raw {
@@ -369,7 +322,6 @@ impl<'a> Runner<'a> {
                         },
                         parent,
                         consumed: 0,
-                        branch,
                         done: false,
                     };
                     self.ctx.items_consumed.set(0);
@@ -395,9 +347,10 @@ impl<'a> Runner<'a> {
                     // to do that is to rotate the queue by exact amount added - forward
                     let mut shared = self.ctx.shared.borrow_mut();
                     let mut after = shared.len();
-                    if keep_id {
+                    if let Some(id) = restore_id {
+                        shared.push_back(Op::RestoreIdCounter { id });
+
                         after += 1;
-                        shared.push_back(Op::RestoreIdCounter { id: original_id });
                     }
                     // before:
                     // T S1 S2 S3
@@ -407,27 +360,17 @@ impl<'a> Runner<'a> {
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
                 }
-                Op::AddNamedListener {
-                    flag,
-                    names,
-                    branch,
-                    id,
-                } => {
+                Op::AddNamedListener { flag, names, id } => {
                     let map = if flag {
                         &mut self.flags
                     } else {
                         &mut self.args
                     };
                     for name in names.iter() {
-                        map.entry(name.clone()).or_default().insert(branch, id);
+                        map.entry(name.clone()).or_default().insert(id);
                     }
                 }
-                Op::RemoveNamedListener {
-                    flag,
-                    names,
-                    branch,
-                    id,
-                } => {
+                Op::RemoveNamedListener { flag, names, id } => {
                     println!("{id:?}: Remove listener for {names:?}");
 
                     let map = if flag {
@@ -441,24 +384,24 @@ impl<'a> Runner<'a> {
                         else {
                             continue;
                         };
-                        entry.get_mut().remove(branch, id);
+                        entry.get_mut().remove(id);
                         if entry.get().is_empty() {
                             entry.remove();
                         }
                     }
                 }
-                Op::AddPositionalListener { branch, id } => {
+                Op::AddPositionalListener { id } => {
                     println!("{id:?}: Add positional listener {id:?}");
-                    self.positional.insert(branch, id);
+                    self.positional.insert(id);
                 }
-                Op::RemovePositionalListener { branch, id } => {
+                Op::RemovePositionalListener { id } => {
                     println!("{id:?}: Remove positional listener");
-                    self.positional.remove(branch, id);
+                    self.positional.remove(id);
                 }
                 Op::RemoveTask { id } => {
                     println!("{id:?}: Removing task");
                     if let Some(task) = self.tasks.remove(&id) {
-                        if let Some(parent) = self.tasks.get_mut(&task.parent.id) {
+                        if let Some(parent) = self.tasks.get_mut(&task.parent) {
                             parent.consumed += task.consumed;
                         }
                     }
@@ -480,41 +423,38 @@ impl<'a> Runner<'a> {
                 Op::RestoreIdCounter { id } => {
                     self.next_task_id = id + 1;
                 }
-                Op::AddFallback { branch, id } => {
+                Op::AddFallback { id } => {
                     println!("Adding exit fallback to {id:?}");
-                    self.fallback.insert(branch, id);
+                    self.fallback.insert(id);
                 }
-                Op::RemoveFallback { branch, id } => {
+                Op::RemoveFallback { id } => {
                     println!("Removing exit fallback from {id:?}");
-                    self.fallback.remove(branch, id);
+                    self.fallback.remove(id);
                 }
-                Op::AddLiteral { branch, id, values } => {
+                Op::AddLiteral { id, values } => {
                     for val in values {
-                        self.literal
-                            .entry(val.clone())
-                            .or_default()
-                            .insert(branch, id);
+                        self.literal.entry(val.clone()).or_default().insert(id);
                     }
                 }
-                Op::RemoveLiteral { branch, id, values } => {
+                Op::RemoveLiteral { id, values } => {
                     for val in values {
                         if let Some(e) = self.literal.get_mut(val) {
-                            e.remove(branch, id);
+                            e.remove(id);
                         }
                     }
                 }
-                Op::AddAny { branch, id } => {
-                    self.any.insert(branch, id);
+                Op::AddAny { id } => {
+                    self.any.insert(id);
                 }
-                Op::RemoveAny { branch, id } => {
-                    self.any.remove(branch, id);
+                Op::RemoveAny { id } => {
+                    self.any.remove(id);
                 }
             }
         }
     }
 
     /// Pick one or more parsers that can handle front argument
-    fn pick_parsers(&self, front: &mut Arg, ids: &mut Vec<(BranchId, Id)>) {
+    fn pick_parsers(&self, front: &mut Arg, ids: &mut Vec<Id>) {
         debug_assert!(ids.is_empty());
         match front {
             Arg::Named { name, value: _ } => {
@@ -559,12 +499,12 @@ impl<'a> Runner<'a> {
 
         // TODO - include Any here
         if ids.is_empty() {
-            if let Some((branch, id)) = self.fallback.heads().next() {
+            if let Some(id) = self.fallback.heads().next() {
                 let f = self.first_child(id);
                 // Not the right branch, but the right one is not needed - it is only used
                 // for deduplication. Should `ids` be `Vec<(Option<BranchId>, Id)>` instead?
                 // let branch = self.tasks.get(&id).unwrap().branch;
-                ids.push((branch, f));
+                ids.push(f);
                 self.ctx.set_term(true);
             }
         } else {
@@ -575,7 +515,7 @@ impl<'a> Runner<'a> {
     fn consume(
         &mut self,
         front: &mut Arg<'a>,
-        ids: &mut Vec<(BranchId, Id)>,
+        ids: &mut Vec<Id>,
         out: &mut Vec<(Id, Poll<PoisonHandle>, usize)>,
     ) -> Result<bool, Error> {
         // actual feed consumption happens here
@@ -586,9 +526,9 @@ impl<'a> Runner<'a> {
             *self.ctx.front_value.borrow_mut() = value.clone()
         }
 
-        let mut last_branch = BranchId::ZERO;
-        for (branch, id) in ids.drain(..) {
-            if branch == last_branch {
+        let mut last_branch = 0;
+        for id in ids.drain(..) {
+            if id.branch == last_branch {
                 println!("skipping {id:?}");
                 continue;
             }
@@ -596,7 +536,7 @@ impl<'a> Runner<'a> {
             if let Some(task) = self.tasks.get_mut(&id) {
                 let (poll, consumed) = task.poll(id, &self.ctx);
                 if poll.is_ready() {
-                    last_branch = branch;
+                    last_branch = id.branch;
                 } else {
                     continue;
                 }
@@ -651,14 +591,14 @@ impl<'a> Runner<'a> {
         P: Parser<T> + ?Sized,
         T: 'static,
     {
-        let root_id = self.next_id();
+        let root_id = self.next_id(1);
         let root_waker = self.waker_for(root_id);
 
         // first - shove parser into a task so wakers can work
         // as usual. Since we care about the result - output type
         // must be T so it can't go into tasks directly.
         // We spawn it as a task instead and keep the handle
-        let mut handle = pin!(self.ctx.spawn(root_id.prod(), parser, false));
+        let mut handle = pin!(self.ctx.spawn(root_id, IdStrat::KeepBranch, parser));
         let mut root_cx = Context::from_waker(&root_waker);
         debug_assert!(handle.as_mut().poll(&mut root_cx).is_pending());
 
@@ -783,7 +723,7 @@ impl<'a> Runner<'a> {
         self.prepare_consumers_for_draining(&mut ids);
 
         *self.ctx.front_value.borrow_mut() = None;
-        for (_branch, id) in ids.drain(..) {
+        for id in ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
                 println!("Need to terminate {id:?}");
                 let (poll, consumed) = task.poll(id, &self.ctx);
@@ -803,7 +743,7 @@ impl<'a> Runner<'a> {
     /// a consuming parser
     fn first_child(&self, mut parent_id: Id) -> Id {
         for (child_id, task) in self.tasks.range(parent_id..).skip(1) {
-            if task.parent.id == parent_id {
+            if task.parent == parent_id {
                 parent_id = *child_id;
             } else {
                 return parent_id;
@@ -814,16 +754,15 @@ impl<'a> Runner<'a> {
 
     #[inline(never)]
     /// Drain all consumers so they can be polled to emit default values
-    fn prepare_consumers_for_draining(&mut self, ids: &mut Vec<(BranchId, Id)>) {
+    fn prepare_consumers_for_draining(&mut self, ids: &mut Vec<Id>) {
         ids.extend(self.flags.values().flat_map(|v| v.iter()));
         ids.extend(self.positional.iter());
         ids.extend(self.args.values().flat_map(|v| v.iter()));
         ids.extend(self.literal.values().flat_map(|v| v.iter()));
         // TODO: any
 
-        ids.sort_by_key(|(_b, id)| *id);
-        ids.dedup_by_key(|(_b, id)| *id);
         ids.sort();
+        ids.dedup();
     }
 
     #[inline(never)]
@@ -847,10 +786,10 @@ impl<'a> Runner<'a> {
     }
 
     /// Allocate next task [`Id`]
-    fn next_id(&mut self) -> Id {
+    fn next_id(&mut self, branch: u32) -> Id {
         let id = self.next_task_id;
         self.next_task_id += 1;
-        Id::new(id)
+        Id::new(branch, id)
     }
     /// Make a [`Waker`] for a task with this [`Id`].
     fn waker_for(&self, id: Id) -> Waker {

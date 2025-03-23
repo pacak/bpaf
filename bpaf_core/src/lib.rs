@@ -15,7 +15,7 @@ pub mod __private {
     pub use crate::{
         ctx::Ctx,
         error::{combine_error, Error},
-        executor::Fragment,
+        executor::{Fragment, IdStrat},
         parsers::{downcast, hint, Alt, Con},
         Metavisit, Parser,
     };
@@ -128,10 +128,10 @@ macro_rules! construct {
                 n += 1;
             )*
             ::std::boxed::Box::pin(async move {
-                let (_branch, id) = ctx.current_id();
+                let id = ctx.current_id();
                 let mut err = None;
                 $(
-                    let $fields = ctx.spawn(id.prod(), $fields, false);
+                    let $fields = ctx.spawn(id, $crate::__private::IdStrat::KeepBranch, $fields );
                 )*
                 $(
                     let $fields = $fields.await;

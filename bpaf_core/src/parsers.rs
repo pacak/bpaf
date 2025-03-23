@@ -10,7 +10,7 @@ use crate::{
     error::{Error, Metavar},
     executor::{
         futures::{AltFuture, AnyFut, LiteralFut},
-        BranchId, Fragment, Id,
+        Fragment, Id, IdStrat,
     },
     named::Name,
     split::OsOrStr,
@@ -31,12 +31,11 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, Vec<T>> {
         Box::pin(async move {
             let mut res = Vec::new();
-            let (_branch, id) = ctx.current_id();
-            let parent = id.prod();
+            let id = ctx.current_id();
             let _guard = FallbackGuard::new(ctx.clone());
             let mut prev_consumed = 0;
             while !ctx.is_term() {
-                let r = ctx.spawn(parent, &self.inner, true).await;
+                let r = ctx.spawn(id, IdStrat::KeepId, &self.inner).await;
 
                 let consumed = ctx.items_consumed.get() - prev_consumed;
                 prev_consumed = ctx.items_consumed.get();
@@ -81,8 +80,7 @@ where
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, C> {
         let mut res = Vec::new();
         Box::pin(async move {
-            let (_branch, id) = ctx.current_id();
-            let parent = id.prod();
+            let id = ctx.current_id();
 
             let mut prev_consumed = 0;
             let err = loop {
@@ -97,7 +95,7 @@ where
                     break Ok(());
                 }
                 let _guard = FallbackGuard::new(ctx.clone());
-                let r = ctx.spawn(parent, &self.inner, true).await;
+                let r = ctx.spawn(id, IdStrat::KeepId, &self.inner).await;
 
                 // If parser produces a result without consuming anything
                 // from the command line - this means it will continue to do
@@ -331,22 +329,21 @@ where
 /// Mostly there so we can remove the interest in fallback once Optional parser finishes or gets
 /// dropped
 struct FallbackGuard<'ctx> {
-    branch: BranchId,
     id: Id,
     ctx: Ctx<'ctx>,
 }
 
 impl<'ctx> FallbackGuard<'ctx> {
     fn new(ctx: Ctx<'ctx>) -> Self {
-        let (branch, id) = ctx.current_id();
-        ctx.add_fallback(branch, id);
-        Self { branch, id, ctx }
+        let id = ctx.current_id();
+        ctx.add_fallback(id);
+        Self { id, ctx }
     }
 }
 
 impl Drop for FallbackGuard<'_> {
     fn drop(&mut self) {
-        self.ctx.remove_fallback(self.branch, self.id);
+        self.ctx.remove_fallback(self.id);
     }
 }
 
@@ -609,13 +606,13 @@ where
 {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
         Box::pin(async move {
-            let (_branch, id) = ctx.current_id();
+            let id = ctx.current_id();
 
             // Spawn a task for all the branches
             let handles = self
                 .items
                 .iter()
-                .map(|p| ctx.spawn(id.sum(), p, false))
+                .map(|p| ctx.spawn(id, IdStrat::NewBranch, p))
                 .collect::<Vec<_>>();
 
             let mut fut = AltFuture { handles };

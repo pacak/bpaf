@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     error::Error,
-    executor::{futures::JoinHandle, Action, BranchId, Id, Op, Parent, RawAction},
+    executor::{futures::JoinHandle, Id, IdStrat, Op, RawAction},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -16,7 +16,7 @@ use crate::{
 
 pub struct RawCtx<'a> {
     /// Gets populated with current taskid when it is running
-    pub(crate) current_task: RefCell<Option<(BranchId, Id)>>,
+    pub(crate) current_task: RefCell<Option<Id>>,
     /// All the arguments passed to the app including the app name in 0th
     pub(crate) args: &'a [OsOrStr<'a>],
     /// Current cursor position
@@ -86,7 +86,7 @@ impl<'a> std::ops::Deref for Ctx<'a> {
 }
 
 impl RawCtx<'_> {
-    pub fn current_id(&self) -> (BranchId, Id) {
+    pub fn current_id(&self) -> Id {
         self.current_task.borrow().expect("not in a task")
     }
     pub(crate) fn current_ctx(&self) -> &[OsOrStr] {
@@ -112,7 +112,7 @@ impl RawCtx<'_> {
 }
 
 impl<'a> Ctx<'a> {
-    pub fn spawn<T, P>(&self, parent: Parent, parser: &'a P, keep_id: bool) -> JoinHandle<'a, T>
+    pub fn spawn<T, P>(&self, parent: Id, strat: IdStrat, parser: &'a P) -> JoinHandle<'a, T>
     where
         P: Parser<T> + ?Sized,
         T: 'static,
@@ -120,7 +120,7 @@ impl<'a> Ctx<'a> {
         let ctx = self.clone();
         let (exit, join) = self.fork();
         let act = Box::pin(async move {
-            exit.id.set(Some(ctx.current_task().1));
+            exit.id.set(Some(ctx.current_task()));
             let r = parser.run(ctx).await;
 
             if let Ok(exit) = Rc::try_unwrap(exit) {
@@ -131,7 +131,7 @@ impl<'a> Ctx<'a> {
                 unreachable!("We have more than one copy of the exit handle!")
             }
         });
-        self.start_task(parent, act, keep_id);
+        self.start_task(parent, strat, act);
         join
     }
 
@@ -139,72 +139,50 @@ impl<'a> Ctx<'a> {
         self.shared.borrow_mut().push_back(op);
     }
 
-    pub(crate) fn add_literal_wake(&self, values: &'a [Name<'static>], branch: BranchId, id: Id) {
-        self.queue(Op::AddLiteral { branch, id, values })
+    pub(crate) fn add_literal_wake(&self, values: &'a [Name<'static>], id: Id) {
+        self.queue(Op::AddLiteral { id, values })
     }
 
-    pub(crate) fn remove_literal(&self, values: &'a [Name<'static>], branch: BranchId, id: Id) {
-        self.queue(Op::RemoveLiteral { branch, id, values })
+    pub(crate) fn remove_literal(&self, values: &'a [Name<'static>], id: Id) {
+        self.queue(Op::RemoveLiteral { id, values })
     }
 
-    pub(crate) fn add_any_wake(&self, branch: BranchId, id: Id) {
-        self.queue(Op::AddAny { branch, id });
+    pub(crate) fn add_any_wake(&self, id: Id) {
+        self.queue(Op::AddAny { id });
     }
-    pub(crate) fn remove_any(&self, branch: BranchId, id: Id) {
-        self.queue(Op::RemoveAny { branch, id });
-    }
-
-    pub(crate) fn add_named_wake(
-        &self,
-        flag: bool,
-        names: &'a [Name<'static>],
-        branch: BranchId,
-        id: Id,
-    ) {
-        self.queue(Op::AddNamedListener {
-            flag,
-            names,
-            branch,
-            id,
-        });
+    pub(crate) fn remove_any(&self, id: Id) {
+        self.queue(Op::RemoveAny { id });
     }
 
-    pub(crate) fn add_fallback(&self, branch: BranchId, id: Id) {
-        self.queue(Op::AddFallback { branch, id });
+    pub(crate) fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], id: Id) {
+        self.queue(Op::AddNamedListener { flag, names, id });
     }
 
-    pub(crate) fn remove_fallback(&self, branch: BranchId, id: Id) {
-        self.queue(Op::RemoveFallback { branch, id });
+    pub(crate) fn add_fallback(&self, id: Id) {
+        self.queue(Op::AddFallback { id });
     }
 
-    pub(crate) fn remove_named_listener(
-        &self,
-        flag: bool,
-        branch: BranchId,
-        id: Id,
-        names: &'a [Name<'static>],
-    ) {
-        self.queue(Op::RemoveNamedListener {
-            flag,
-            names,
-            branch,
-            id,
-        });
+    pub(crate) fn remove_fallback(&self, id: Id) {
+        self.queue(Op::RemoveFallback { id });
     }
 
-    pub(crate) fn positional_wake(&self, branch: BranchId, id: Id) {
-        self.queue(Op::AddPositionalListener { branch, id })
+    pub(crate) fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
+        self.queue(Op::RemoveNamedListener { flag, names, id });
     }
 
-    pub(crate) fn start_task(&self, parent: Parent, action: RawAction<'a>, keep_id: bool) {
+    pub(crate) fn positional_wake(&self, id: Id) {
+        self.queue(Op::AddPositionalListener { id })
+    }
+
+    pub(crate) fn start_task(&self, parent: Id, strat: IdStrat, action: RawAction<'a>) {
         self.queue(Op::SpawnTask {
             parent,
-            action: action,
-            keep_id,
+            action,
+            strat,
         });
     }
 
-    pub(crate) fn current_task(&self) -> (BranchId, Id) {
+    pub(crate) fn current_task(&self) -> Id {
         self.current_task
             .borrow()
             .expect("should only be called from a Future")
