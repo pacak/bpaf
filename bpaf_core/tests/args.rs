@@ -43,3 +43,10 @@ fn many_switch() {
     let r = parser.run_inner(["-a", "-a"]).unwrap();
     assert_eq!(r, [true, true]);
 }
+
+#[test]
+fn simple_switch() {
+    let parser = short('a').switch().to_options();
+    let r = parser.run_inner(["-a"]).unwrap();
+    assert!(r);
+}

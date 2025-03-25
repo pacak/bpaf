@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     error::Error,
-    executor::{futures::JoinHandle, Id, IdStrat, Op, RawAction},
+    executor::{futures::JoinHandle, Action, Id, IdStrat, Op, RawAction, Trigger},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -133,6 +133,11 @@ impl<'a> Ctx<'a> {
         });
         self.start_task(parent, strat, act);
         join
+    }
+
+    pub(crate) fn start_trigger(&self, action: Trigger<'a>) {
+        let parent = self.current_id();
+        self.queue(Op::SpawnTrigger { parent, action });
     }
 
     fn queue(&self, op: Op<'a>) {

@@ -44,10 +44,16 @@ use std::{
 
 pub(crate) mod futures;
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Id {
     branch: u32,
     id: u32,
+}
+
+impl std::fmt::Debug for Id {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "b{}:{}", self.branch, self.id)
+    }
 }
 
 impl Id {
@@ -61,6 +67,12 @@ impl Id {
         let mut id = *self;
         id.branch += 1;
         id
+    }
+    pub(crate) fn succ(&self) -> Self {
+        Self {
+            branch: self.branch,
+            id: self.id + 1,
+        }
     }
 }
 
@@ -102,6 +114,14 @@ pub type PoisonHandle = Rc<Cell<bool>>;
 
 pub(crate) enum Action<'a> {
     Raw { action: RawAction<'a>, waker: Waker },
+    Trigger(Trigger<'a>),
+}
+
+pub(crate) enum Trigger<'a> {
+    Flag {
+        names: &'a [Name<'a>],
+        action: Box<dyn Fn(bool) -> PoisonHandle + 'a>,
+    },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -127,6 +147,10 @@ impl Task<'_> {
             Action::Raw { action: act, waker } => {
                 let mut cx = Context::from_waker(waker);
                 act.as_mut().poll(&mut cx)
+            }
+
+            Action::Trigger(Trigger::Flag { names: _, action }) => {
+                Poll::Ready(action(!ctx.is_term()))
             }
         };
         *ctx.current_task.borrow_mut() = None;
@@ -159,6 +183,10 @@ pub(crate) enum Op<'a> {
         parent: Id,
         strat: IdStrat,
         action: RawAction<'a>,
+    },
+    SpawnTrigger {
+        parent: Id,
+        action: Trigger<'a>,
     },
     WakeTask {
         id: Id,
@@ -296,6 +324,23 @@ impl<'a> Runner<'a> {
             drop(shared);
 
             match item {
+                Op::SpawnTrigger { parent, action } => {
+                    let id = self.next_id(parent.branch);
+                    match action {
+                        Trigger::Flag { names, action: _ } => {
+                            for name in names.iter() {
+                                self.flags.entry(name.clone()).or_default().insert(id);
+                            }
+                        }
+                    }
+                    let task = Task {
+                        action: Action::Trigger(action),
+                        parent,
+                        consumed: 0,
+                        done: false,
+                    };
+                    assert!(self.tasks.insert(id, task).is_none());
+                }
                 Op::SpawnTask {
                     parent,
                     action,
@@ -315,11 +360,9 @@ impl<'a> Runner<'a> {
                             self.next_id(parent.branch)
                         }
                     };
+                    let waker = self.waker_for(id);
                     let mut task = Task {
-                        action: Action::Raw {
-                            action,
-                            waker: self.waker_for(id),
-                        },
+                        action: Action::Raw { action, waker },
                         parent,
                         consumed: 0,
                         done: false,
@@ -404,6 +447,32 @@ impl<'a> Runner<'a> {
                         if let Some(parent) = self.tasks.get_mut(&task.parent) {
                             parent.consumed += task.consumed;
                         }
+                    }
+                    use std::collections::btree_map::Entry;
+                    let Entry::Occupied(child) = self.tasks.entry(id.succ()) else {
+                        continue;
+                    };
+                    let child_task = child.get();
+                    if child_task.parent != id {
+                        continue;
+                    }
+                    if let Action::Trigger(ref action) = child_task.action {
+                        match action {
+                            Trigger::Flag { names, action: _ } => {
+                                for name in names.iter() {
+                                    let std::collections::hash_map::Entry::Occupied(mut entry) =
+                                        self.flags.entry(name.clone())
+                                    else {
+                                        continue;
+                                    };
+                                    entry.get_mut().remove(id.succ());
+                                    if entry.get().is_empty() {
+                                        entry.remove();
+                                    }
+                                }
+                            }
+                        }
+                        child.remove();
                     }
                 }
                 Op::WakeTask { id, error } => {
@@ -550,7 +619,7 @@ impl<'a> Runner<'a> {
 
                 max_consumed = consumed.max(max_consumed);
             } else {
-                todo!("got already terminated parser");
+                todo!("got already terminated parser: {id:?}");
             }
         }
 
@@ -778,7 +847,30 @@ impl<'a> Runner<'a> {
         }
         println!("Handling exit for {id:?}");
         let task = self.tasks.get_mut(&id).expect("We know it's there");
+
+        fn unregister_task<'a>(id: Id, task: &Task<'a>, flags: &mut HashMap<Name<'a>, Pecking>) {
+            match &task.action {
+                Action::Raw { .. } => {
+                    println!("Need to wipe trigger children of {id:?}");
+                }
+                Action::Trigger(Trigger::Flag { names, action: _ }) => {
+                    for name in names.iter() {
+                        let std::collections::hash_map::Entry::Occupied(mut entry) =
+                            flags.entry(name.clone())
+                        else {
+                            continue;
+                        };
+                        entry.get_mut().remove(id);
+                        if entry.get().is_empty() {
+                            entry.remove();
+                        }
+                    }
+                }
+            }
+        }
+        unregister_task(id, task, &mut self.flags);
         task.done = true;
+        // TODO - remove this in favor of removing immediately?
         self.ctx
             .shared
             .borrow_mut()

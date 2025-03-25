@@ -273,11 +273,8 @@ mod named {
 
     use crate::{
         ctx::Ctx,
-        error::{Error, Metavar},
-        executor::{
-            futures::{ArgFut, FlagFut},
-            Fragment,
-        },
+        error::{Error, Metavar, MissingItem},
+        executor::{futures::ArgFut, Fragment, Trigger},
         visitor::Item,
         Parser,
     };
@@ -327,21 +324,24 @@ mod named {
         T: Clone + 'static,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-            Box::pin(async move {
-                let fut = FlagFut {
-                    name: &self.named.names,
-                    ctx,
-                    task_id: None,
-                };
-                match fut.await {
-                    Ok(_) => Ok(self.present.clone()),
-                    Err(e) if e.handle_with_fallback() => match self.absent.as_ref().cloned() {
-                        Some(v) => Ok(v),
-                        None => Err(e),
-                    },
-                    Err(e) => Err(e),
+            let (exit, join) = ctx.fork();
+            let c = ctx.clone();
+            let action = Box::new(move |present: bool| {
+                if present {
+                    c.advance(1);
                 }
-            })
+                let val = match (present, self.absent.as_ref()) {
+                    (true, _) => Ok(self.present.clone()),
+                    (false, None) => Err(Error::missing(self.named.missing(None), c.cur())),
+                    (false, Some(val)) => Ok(val.clone()),
+                };
+                exit.exit_task(val)
+            });
+            ctx.start_trigger(Trigger::Flag {
+                names: &self.named.names,
+                action,
+            });
+            Box::pin(join)
         }
 
         fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -358,6 +358,13 @@ mod named {
                 named: self,
                 present,
                 absent,
+            }
+        }
+
+        pub(crate) fn missing(&self, meta: Option<Metavar>) -> MissingItem {
+            MissingItem::Named {
+                name: self.names.to_vec(),
+                meta,
             }
         }
     }
