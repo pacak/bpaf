@@ -21,7 +21,12 @@ use std::{
 // redesign
 // make executor more aware of tasks
 //
+//
+// problem - when parent gets dropped - we need to terminate all the children since
+// flag and other non future triggers don't register this signal
+//
 // TODO:
+// - switch from atomics to Cell<u32> -
 // - centralize task context management
 // - if we did nothing at all for the whole loop - panic
 // - proper support for --
@@ -122,6 +127,10 @@ pub(crate) enum Trigger<'a> {
         names: &'a [Name<'a>],
         action: Box<dyn Fn(bool) -> PoisonHandle + 'a>,
     },
+    Arg {
+        names: &'a [Name<'a>],
+        action: Box<dyn Fn(Option<OsOrStr<'a>>) -> PoisonHandle + 'a>,
+    },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -135,11 +144,16 @@ pub(crate) struct Task<'a> {
     pub(crate) done: bool,
 }
 
-impl Task<'_> {
+impl<'a> Task<'a> {
     /// Run a task in a context, return number of items consumed an a result
     ///
     /// does not advance the pointer
-    fn poll(&mut self, id: Id, ctx: &Ctx) -> (Poll<PoisonHandle>, usize) {
+    fn poll(
+        &mut self,
+        id: Id,
+        front: Option<OsOrStr<'a>>,
+        ctx: &Ctx,
+    ) -> (Poll<PoisonHandle>, usize) {
         let before = ctx.cur();
         ctx.items_consumed.set(self.consumed);
         *ctx.current_task.borrow_mut() = Some(id);
@@ -152,6 +166,8 @@ impl Task<'_> {
             Action::Trigger(Trigger::Flag { names: _, action }) => {
                 Poll::Ready(action(!ctx.is_term()))
             }
+
+            Action::Trigger(Trigger::Arg { names: _, action }) => Poll::Ready(action(front)),
         };
         *ctx.current_task.borrow_mut() = None;
         let after = ctx.cur();
@@ -194,16 +210,6 @@ pub(crate) enum Op<'a> {
     },
     /// Parent is no longer interested
     RemoveTask {
-        id: Id,
-    },
-    AddNamedListener {
-        flag: bool,
-        names: &'a [Name<'static>],
-        id: Id,
-    },
-    RemoveNamedListener {
-        flag: bool,
-        names: &'a [Name<'static>],
         id: Id,
     },
     AddFallback {
@@ -291,6 +297,23 @@ pub(crate) struct Runner<'ctx> {
     pending: Arc<Mutex<Vec<Id>>>,
 }
 
+fn remove_names_from_pecking<'a>(
+    id: Id,
+    names: &[Name<'a>],
+    pecking: &mut HashMap<Name<'a>, Pecking>,
+) {
+    for name in names.iter() {
+        let std::collections::hash_map::Entry::Occupied(mut entry) = pecking.entry(name.clone())
+        else {
+            continue;
+        };
+        entry.get_mut().remove(id);
+        if entry.get().is_empty() {
+            entry.remove();
+        }
+    }
+}
+
 impl<'a> Runner<'a> {
     /// Handle scheduled operations
     ///
@@ -330,6 +353,11 @@ impl<'a> Runner<'a> {
                         Trigger::Flag { names, action: _ } => {
                             for name in names.iter() {
                                 self.flags.entry(name.clone()).or_default().insert(id);
+                            }
+                        }
+                        Trigger::Arg { names, action: _ } => {
+                            for name in names.iter() {
+                                self.args.entry(name.clone()).or_default().insert(id);
                             }
                         }
                     }
@@ -372,7 +400,7 @@ impl<'a> Runner<'a> {
                     // the result without consuming anything from the input or spawning
                     // children: parsers such are `fail` or `pure` create those.
                     // If not handled here - they will be never woken up
-                    match task.poll(id, &self.ctx).0 {
+                    match task.poll(id, None, &self.ctx).0 {
                         Poll::Ready(_r) => {
                             task.done = true;
                             todo!("Exited immediately");
@@ -403,36 +431,6 @@ impl<'a> Runner<'a> {
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
                 }
-                Op::AddNamedListener { flag, names, id } => {
-                    let map = if flag {
-                        &mut self.flags
-                    } else {
-                        &mut self.args
-                    };
-                    for name in names.iter() {
-                        map.entry(name.clone()).or_default().insert(id);
-                    }
-                }
-                Op::RemoveNamedListener { flag, names, id } => {
-                    println!("{id:?}: Remove listener for {names:?}");
-
-                    let map = if flag {
-                        &mut self.flags
-                    } else {
-                        &mut self.args
-                    };
-                    for name in names {
-                        let std::collections::hash_map::Entry::Occupied(mut entry) =
-                            map.entry(name.clone())
-                        else {
-                            continue;
-                        };
-                        entry.get_mut().remove(id);
-                        if entry.get().is_empty() {
-                            entry.remove();
-                        }
-                    }
-                }
                 Op::AddPositionalListener { id } => {
                     println!("{id:?}: Add positional listener {id:?}");
                     self.positional.insert(id);
@@ -449,7 +447,8 @@ impl<'a> Runner<'a> {
                         }
                     }
                     use std::collections::btree_map::Entry;
-                    let Entry::Occupied(child) = self.tasks.entry(id.succ()) else {
+                    let cid = id.succ();
+                    let Entry::Occupied(child) = self.tasks.entry(cid) else {
                         continue;
                     };
                     let child_task = child.get();
@@ -459,17 +458,10 @@ impl<'a> Runner<'a> {
                     if let Action::Trigger(ref action) = child_task.action {
                         match action {
                             Trigger::Flag { names, action: _ } => {
-                                for name in names.iter() {
-                                    let std::collections::hash_map::Entry::Occupied(mut entry) =
-                                        self.flags.entry(name.clone())
-                                    else {
-                                        continue;
-                                    };
-                                    entry.get_mut().remove(id.succ());
-                                    if entry.get().is_empty() {
-                                        entry.remove();
-                                    }
-                                }
+                                remove_names_from_pecking(cid, names, &mut self.flags);
+                            }
+                            Trigger::Arg { names, action: _ } => {
+                                remove_names_from_pecking(cid, names, &mut self.args);
                             }
                         }
                         child.remove();
@@ -486,7 +478,7 @@ impl<'a> Runner<'a> {
                     }
                     self.ctx.items_consumed.set(task.consumed);
                     self.ctx.child_exit.set(error);
-                    let (poll, _consumed) = task.poll(id, &self.ctx);
+                    let (poll, _consumed) = task.poll(id, None, &self.ctx);
                     self.handle_task_poll(id, poll);
                 }
                 Op::RestoreIdCounter { id } => {
@@ -603,7 +595,11 @@ impl<'a> Runner<'a> {
             }
             // each scheduled task gets a chance to run,
             if let Some(task) = self.tasks.get_mut(&id) {
-                let (poll, consumed) = task.poll(id, &self.ctx);
+                let f = match front {
+                    Arg::Named { value, .. } => value.clone(),
+                    _ => None,
+                };
+                let (poll, consumed) = task.poll(id, f, &self.ctx);
                 if poll.is_ready() {
                     last_branch = id.branch;
                 } else {
@@ -792,10 +788,11 @@ impl<'a> Runner<'a> {
         self.prepare_consumers_for_draining(&mut ids);
 
         *self.ctx.front_value.borrow_mut() = None;
+
         for id in ids.drain(..) {
             if let Some(task) = self.tasks.get_mut(&id) {
                 println!("Need to terminate {id:?}");
-                let (poll, consumed) = task.poll(id, &self.ctx);
+                let (poll, consumed) = task.poll(id, None, &self.ctx);
                 debug_assert_eq!(consumed, 0, "Consumed during termination?");
                 debug_assert!(poll.is_ready(), "Termination left task stil pending?");
                 self.handle_task_poll(id, poll);
@@ -847,30 +844,18 @@ impl<'a> Runner<'a> {
         }
         println!("Handling exit for {id:?}");
         let task = self.tasks.get_mut(&id).expect("We know it's there");
-
-        fn unregister_task<'a>(id: Id, task: &Task<'a>, flags: &mut HashMap<Name<'a>, Pecking>) {
-            match &task.action {
-                Action::Raw { .. } => {
-                    println!("Need to wipe trigger children of {id:?}");
+        if let Action::Trigger(trigger) = &task.action {
+            match trigger {
+                Trigger::Flag { names, action: _ } => {
+                    remove_names_from_pecking(id, names, &mut self.flags);
                 }
-                Action::Trigger(Trigger::Flag { names, action: _ }) => {
-                    for name in names.iter() {
-                        let std::collections::hash_map::Entry::Occupied(mut entry) =
-                            flags.entry(name.clone())
-                        else {
-                            continue;
-                        };
-                        entry.get_mut().remove(id);
-                        if entry.get().is_empty() {
-                            entry.remove();
-                        }
-                    }
+                Trigger::Arg { names, action: _ } => {
+                    remove_names_from_pecking(id, names, &mut self.args);
                 }
             }
         }
-        unregister_task(id, task, &mut self.flags);
         task.done = true;
-        // TODO - remove this in favor of removing immediately?
+        // TODO - Can we remove the task immediately?
         self.ctx
             .shared
             .borrow_mut()

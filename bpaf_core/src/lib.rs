@@ -274,7 +274,8 @@ mod named {
     use crate::{
         ctx::Ctx,
         error::{Error, Metavar, MissingItem},
-        executor::{futures::ArgFut, Fragment, Trigger},
+        executor::{Fragment, Trigger},
+        split::OsOrStr,
         visitor::Item,
         Parser,
     };
@@ -297,17 +298,71 @@ mod named {
         <T as FromStr>::Err: std::error::Error,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-            Box::pin(async move {
-                ArgFut {
-                    name: &self.named.names,
-                    meta: self.meta,
-                    ctx: ctx.clone(),
-                    task_id: None,
+            let (exit, join) = ctx.fork();
+            let c = ctx.clone();
+            let action = Box::new(move |present: Option<OsOrStr>| {
+                let ctx = c.clone();
+                if ctx.is_term() {
+                    let err = Err(Error::missing(
+                        self.named.missing(Some(self.meta)),
+                        ctx.cur(),
+                    ));
+                    return exit.exit_task(err);
                 }
-                .await?
-                .parse::<T>()
-                .map_err(|e| Error::new(e, ctx.cur()))
-            })
+
+                // TODO Pass the name here too?
+                let name = || {
+                    let front = ctx.args.get(ctx.cur()).expect("Should be present");
+                    let m = Default::default();
+                    use crate::split::{split_param, Arg};
+                    match split_param(front, &m, &m).unwrap() {
+                        Arg::Named { name, value: None } => name.to_owned(),
+                        _ => panic!("Expected to see a name "),
+                    }
+                };
+                use crate::error::Message;
+
+                let val = match present {
+                    Some(v) => {
+                        c.advance(1);
+                        v
+                    }
+                    None => match ctx.args.get(ctx.cur() + 1) {
+                        None => {
+                            return exit.exit_task(Err(Error::new(
+                                Message::ArgNeedsValue {
+                                    name: name(),
+                                    meta: self.meta,
+                                },
+                                ctx.cur(),
+                            )))
+                        }
+                        Some(v) => {
+                            let val = v.to_owned();
+                            if val.is_named() {
+                                return exit.exit_task(Err(Error::new(
+                                    Message::ArgNeedsValueGotNamed {
+                                        name: name(),
+                                        meta: self.meta,
+                                        val,
+                                    },
+                                    ctx.cur(),
+                                )));
+                            } else {
+                                ctx.advance(2);
+                                val
+                            }
+                        }
+                    },
+                };
+
+                exit.exit_task(val.parse::<T>().map_err(|e| Error::new(e, ctx.cur())))
+            });
+            ctx.start_trigger(Trigger::Arg {
+                names: &self.named.names,
+                action,
+            });
+            Box::pin(join)
         }
 
         fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {

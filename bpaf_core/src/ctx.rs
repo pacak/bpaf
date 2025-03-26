@@ -159,20 +159,12 @@ impl<'a> Ctx<'a> {
         self.queue(Op::RemoveAny { id });
     }
 
-    pub(crate) fn add_named_wake(&self, flag: bool, names: &'a [Name<'static>], id: Id) {
-        self.queue(Op::AddNamedListener { flag, names, id });
-    }
-
     pub(crate) fn add_fallback(&self, id: Id) {
         self.queue(Op::AddFallback { id });
     }
 
     pub(crate) fn remove_fallback(&self, id: Id) {
         self.queue(Op::RemoveFallback { id });
-    }
-
-    pub(crate) fn remove_named_listener(&self, flag: bool, id: Id, names: &'a [Name<'static>]) {
-        self.queue(Op::RemoveNamedListener { flag, names, id });
     }
 
     pub(crate) fn positional_wake(&self, id: Id) {

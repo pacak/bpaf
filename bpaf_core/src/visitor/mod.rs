@@ -95,5 +95,5 @@ fn other_commands<'a, T: 'static>(parser: &'a impl Parser<T>, visitor: &mut dyn 
     };
     parser.visit(&mut oc);
     // visitor.help_section("more commands")
-    for x in oc.commands {}
+    for _x in oc.commands {}
 }
