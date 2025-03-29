@@ -26,6 +26,8 @@ use std::{
 // flag and other non future triggers don't register this signal
 //
 // TODO:
+// - factor out shared bits of argument parser so that getting an argument value from Ctx is not
+//   duplicated across all the possible T
 // - switch from atomics to Cell<u32> -
 // - centralize task context management
 // - if we did nothing at all for the whole loop - panic
@@ -807,6 +809,8 @@ impl<'a> Runner<'a> {
     ///
     /// Assuming we did non consuming prcessing prior to that - it will be
     /// a consuming parser
+    ///
+    /// TODO - drop, it would produce invalid value if called on an item with no children
     fn first_child(&self, mut parent_id: Id) -> Id {
         for (child_id, task) in self.tasks.range(parent_id..).skip(1) {
             if task.parent == parent_id {
