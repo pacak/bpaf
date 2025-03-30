@@ -7,7 +7,7 @@ use std::{
 
 use crate::{
     error::Error,
-    executor::{futures::JoinHandle, Action, Id, IdStrat, Op, RawAction, Trigger},
+    executor::{futures::JoinHandle, Id, IdStrat, Op, RawAction, Trigger},
     named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
@@ -165,10 +165,6 @@ impl<'a> Ctx<'a> {
 
     pub(crate) fn remove_fallback(&self, id: Id) {
         self.queue(Op::RemoveFallback { id });
-    }
-
-    pub(crate) fn positional_wake(&self, id: Id) {
-        self.queue(Op::AddPositionalListener { id })
     }
 
     pub(crate) fn start_task(&self, parent: Id, strat: IdStrat, action: RawAction<'a>) {

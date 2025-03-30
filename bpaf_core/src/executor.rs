@@ -133,6 +133,13 @@ pub(crate) enum Trigger<'a> {
         names: &'a [Name<'a>],
         action: Box<dyn Fn(Option<OsOrStr<'a>>) -> PoisonHandle + 'a>,
     },
+    Positional {
+        action: Box<dyn Fn(bool) -> PoisonHandle + 'a>,
+    },
+    Literal {
+        names: &'a [Name<'a>],
+        action: Box<dyn Fn(bool) -> PoisonHandle + 'a>,
+    },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -153,7 +160,7 @@ impl<'a> Task<'a> {
     fn poll(
         &mut self,
         id: Id,
-        front: Option<OsOrStr<'a>>,
+        front_named_arg: Option<OsOrStr<'a>>,
         ctx: &Ctx,
     ) -> (Poll<PoisonHandle>, usize) {
         let before = ctx.cur();
@@ -164,12 +171,12 @@ impl<'a> Task<'a> {
                 let mut cx = Context::from_waker(waker);
                 act.as_mut().poll(&mut cx)
             }
-
-            Action::Trigger(Trigger::Flag { names: _, action }) => {
-                Poll::Ready(action(!ctx.is_term()))
-            }
-
-            Action::Trigger(Trigger::Arg { names: _, action }) => Poll::Ready(action(front)),
+            Action::Trigger(trigger) => Poll::Ready(match trigger {
+                Trigger::Flag { names: _, action } => action(!ctx.is_term()),
+                Trigger::Arg { names: _, action } => action(front_named_arg),
+                Trigger::Positional { action } => action(!ctx.is_term()),
+                Trigger::Literal { names: _, action } => action(ctx.is_term()),
+            }),
         };
         *ctx.current_task.borrow_mut() = None;
         let after = ctx.cur();
@@ -218,12 +225,6 @@ pub(crate) enum Op<'a> {
         id: Id,
     },
     RemoveFallback {
-        id: Id,
-    },
-    AddPositionalListener {
-        id: Id,
-    },
-    RemovePositionalListener {
         id: Id,
     },
     RestoreIdCounter {
@@ -291,7 +292,7 @@ pub(crate) struct Runner<'ctx> {
     /// unlike regular positional items they can opt not to consume a value
     any: Pecking,
 
-    literal: BTreeMap<Name<'ctx>, Pecking>,
+    literal: HashMap<Name<'ctx>, Pecking>,
 
     /// Shared with Wakers,
     ///
@@ -362,6 +363,15 @@ impl<'a> Runner<'a> {
                                 self.args.entry(name.clone()).or_default().insert(id);
                             }
                         }
+                        Trigger::Positional { action: _ } => {
+                            println!("Adding positional parser {id:?}");
+                            self.positional.insert(id);
+                        }
+                        Trigger::Literal { names, action: _ } => {
+                            for name in names.iter() {
+                                self.literal.entry(name.clone()).or_default().insert(id);
+                            }
+                        }
                     }
                     let task = Task {
                         action: Action::Trigger(action),
@@ -385,8 +395,19 @@ impl<'a> Runner<'a> {
                             id
                         }
                         IdStrat::KeepId => {
-                            restore_id = Some(self.next_task_id);
-                            self.next_task_id = parent.id + 1;
+                            // We use KeepId strategy to be able to relaunch (inside of .many())
+                            // parsers with the same id - since priority system uses id
+                            // this means parsing priority isn't changing between different
+                            // invocations.
+                            //
+                            // Tricky part is that we don't want to restore the original id
+                            // on the first invocation of the KeepId strategy - so there's
+                            // no overlap in ids in the children of the KeepId parser and
+                            // whatever parser goes next
+                            if parent.id + 1 < self.next_task_id {
+                                restore_id = Some(self.next_task_id);
+                                self.next_task_id = parent.id + 1;
+                            }
                             self.next_id(parent.branch)
                         }
                     };
@@ -420,9 +441,10 @@ impl<'a> Runner<'a> {
                     // to do that is to rotate the queue by exact amount added - forward
                     let mut shared = self.ctx.shared.borrow_mut();
                     let mut after = shared.len();
+
+                    // for KeepId we might need to restore the original counter
                     if let Some(id) = restore_id {
                         shared.push_back(Op::RestoreIdCounter { id });
-
                         after += 1;
                     }
                     // before:
@@ -432,14 +454,6 @@ impl<'a> Runner<'a> {
                     // rotate right by 2:
                     // C1 C2 S1 S2 S3
                     shared.rotate_right(after - before);
-                }
-                Op::AddPositionalListener { id } => {
-                    println!("{id:?}: Add positional listener {id:?}");
-                    self.positional.insert(id);
-                }
-                Op::RemovePositionalListener { id } => {
-                    println!("{id:?}: Remove positional listener");
-                    self.positional.remove(id);
                 }
                 Op::RemoveTask { id } => {
                     println!("{id:?}: Removing task");
@@ -464,6 +478,10 @@ impl<'a> Runner<'a> {
                             }
                             Trigger::Arg { names, action: _ } => {
                                 remove_names_from_pecking(cid, names, &mut self.args);
+                            }
+                            Trigger::Positional { action: _ } => self.positional.remove(cid),
+                            Trigger::Literal { names, action: _ } => {
+                                remove_names_from_pecking(cid, names, &mut self.literal);
                             }
                         }
                         child.remove();
@@ -855,6 +873,12 @@ impl<'a> Runner<'a> {
                 }
                 Trigger::Arg { names, action: _ } => {
                     remove_names_from_pecking(id, names, &mut self.args);
+                }
+                Trigger::Positional { action: _ } => {
+                    self.positional.remove(id);
+                }
+                Trigger::Literal { names, action: _ } => {
+                    remove_names_from_pecking(id, names, &mut self.literal);
                 }
             }
         }

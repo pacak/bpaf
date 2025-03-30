@@ -519,7 +519,6 @@ mod positional {
     use crate::{
         ctx::Ctx,
         error::{Error, Metavar},
-        executor::futures::PositionalFut,
         visitor::Item,
         Parser,
     };
@@ -547,16 +546,26 @@ mod positional {
         <T as std::str::FromStr>::Err: std::fmt::Display,
     {
         fn run<'a>(&'a self, ctx: Ctx<'a>) -> crate::executor::Fragment<'a, T> {
-            Box::pin(async move {
-                PositionalFut {
-                    ctx: ctx.clone(),
-                    task_id: None,
-                    meta: self.meta,
-                }
-                .await?
-                .parse::<T>()
-                .map_err(|e| Error::new(e, ctx.cur()))
-            })
+            let (exit, join) = ctx.fork();
+            let c = ctx.clone();
+            let action = Box::new(move |present: bool| {
+                let ctx = c.clone();
+                let val = if present {
+                    let ix = ctx.cur();
+                    ctx.advance(1);
+                    ctx.args[ix]
+                        .parse::<T>()
+                        .map_err(|e| Error::new(e, ctx.cur()))
+                } else {
+                    Err(Error::missing(
+                        crate::error::MissingItem::Positional { meta: self.meta },
+                        c.cur(),
+                    ))
+                };
+                exit.exit_task(val)
+            });
+            ctx.start_trigger(crate::executor::Trigger::Positional { action });
+            Box::pin(join)
         }
 
         fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {

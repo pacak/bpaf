@@ -1,6 +1,6 @@
-use crate::executor::{Arg, Ctx, Error, Id, Op};
+use crate::executor::{Ctx, Error, Id, Op};
 use crate::{
-    error::{Message, Metavar, MissingItem},
+    error::{Metavar, MissingItem},
     named::Name,
     split::OsOrStr,
 };
@@ -107,47 +107,6 @@ impl<T> Future for JoinHandle<'_, T> {
                 })
             }
         }
-    }
-}
-
-pub(crate) struct PositionalFut<'a> {
-    pub(crate) meta: Metavar,
-    pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
-}
-impl Drop for PositionalFut<'_> {
-    fn drop(&mut self) {
-        println!("dropped positional");
-        if let Some(id) = self.task_id {
-            self.ctx
-                .shared
-                .borrow_mut()
-                .push_back(Op::RemovePositionalListener { id });
-        }
-    }
-}
-
-impl<'ctx> Future for PositionalFut<'ctx> {
-    type Output = Result<OsOrStr<'ctx>, Error>;
-
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.positional_wake(id);
-            return Poll::Pending;
-        }
-
-        Poll::Ready(if self.ctx.is_term() {
-            Err(Error::missing(
-                MissingItem::Positional { meta: self.meta },
-                self.ctx.cur(),
-            ))
-        } else {
-            let ix = self.ctx.cur();
-            self.ctx.advance(1);
-            Ok(self.ctx.args[ix].as_ref())
-        })
     }
 }
 
