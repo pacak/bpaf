@@ -419,21 +419,15 @@ impl<'a> Runner<'a> {
                         done: false,
                     };
                     self.ctx.items_consumed.set(0);
-                    // try to immediately poll the task to handle task that produce
-                    // the result without consuming anything from the input or spawning
-                    // children: parsers such are `fail` or `pure` create those.
-                    // If not handled here - they will be never woken up
-                    match task.poll(id, None, &self.ctx).0 {
-                        Poll::Ready(_r) => {
-                            task.done = true;
-                            todo!("Exited immediately");
-                        }
-                        Poll::Pending => {
-                            // Only keep tasks that are not immediately resolved
-                            assert!(self.tasks.insert(id, task).is_none());
-                            println!("Spawned task {id:?} with parent {parent:?}");
-                        }
-                    }
+
+                    // Poll a task once. It might exit immediately if task implements
+                    // something like `pure` or `fail`. This is fine, we still want to keep
+                    // them around - I'm planning to move ownership of the result from JoinHandle
+                    // and into ExitHandle so we can effectively "poison" shoter tasks by dropping
+                    // them.
+                    task.done = task.poll(id, None, &self.ctx).0.is_ready();
+                    assert!(self.tasks.insert(id, task).is_none());
+                    println!("Spawned task {id:?} with parent {parent:?}");
 
                     // To execute parsers in depth first order we must
                     // execute children of the tasks as well as anything they
