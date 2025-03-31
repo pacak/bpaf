@@ -642,7 +642,9 @@ impl<'a> Runner<'a> {
     /// Execute the parser
     ///
     /// `primary` is set to false for parsers like `--version` or `--help`, they
-    /// don't care
+    /// don't care about improving the error message.
+    ///
+    /// TODO - `primary` seem like an optimization. Do I need it?
     pub(crate) fn run_parser<P, T>(mut self, parser: &'a P, primary: bool) -> Result<T, Error>
     where
         P: Parser<T> + ?Sized,
