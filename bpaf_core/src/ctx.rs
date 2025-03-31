@@ -6,7 +6,6 @@ use std::{
 };
 
 use crate::{
-    error::Error,
     executor::{futures::JoinHandle, Id, IdStrat, Op, RawAction, Trigger},
     named::Name,
     parsers::HelpWrap,
@@ -30,9 +29,6 @@ pub struct RawCtx<'a> {
     // pub(crate) front: RefCell<Option<Arg<'a>>>,
     /// through this tasks can request event scheduling, etc
     pub(crate) shared: RefCell<VecDeque<Op<'a>>>,
-
-    /// Used to pass information about children exit
-    pub(crate) child_exit: Cell<Option<Error>>,
 
     /// number of items consumed by children tasks
     pub(crate) items_consumed: Cell<u32>,
@@ -69,7 +65,6 @@ impl<'a> Ctx<'a> {
             shared: Default::default(),
             cur: AtomicUsize::from(0),
             front_value: Default::default(),
-            child_exit: Default::default(),
             term: Default::default(),
             ctx_start: Cell::new(ctx_start),
             help_and_version,

@@ -491,7 +491,6 @@ impl<'a> Runner<'a> {
                         continue;
                     }
                     self.ctx.items_consumed.set(task.consumed);
-                    self.ctx.child_exit.set(error);
                     let (poll, _consumed) = task.poll(id, None, &self.ctx);
                     self.handle_task_poll(id, poll);
                 }
