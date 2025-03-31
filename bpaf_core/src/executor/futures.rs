@@ -11,19 +11,19 @@ use std::{
 use super::PoisonHandle;
 
 impl<'ctx> Ctx<'ctx> {
-    pub(crate) fn fork<T>(&self) -> (Rc<ExitHandle<'ctx, T>>, JoinHandle<'ctx, T>) {
+    pub(crate) fn fork<T>(&self) -> (Rc<ExitHandle<T>>, JoinHandle<'ctx, T>) {
         let result = Rc::new(Cell::new(None));
         let poisoned = Rc::new(Cell::new(false));
         let exit = ExitHandle {
             waker: Cell::new(None),
 
             id: Cell::new(None),
-            ctx: self.clone(),
             result: result.clone(),
             poisoned: poisoned.clone(),
         };
         let exit = Rc::new(exit);
         let join = JoinHandle {
+            ctx: self.clone(),
             task: Rc::downgrade(&exit),
             result,
             poisoned,
@@ -32,15 +32,26 @@ impl<'ctx> Ctx<'ctx> {
     }
 }
 
-pub(crate) struct ExitHandle<'a, T> {
+pub(crate) struct ExitHandle<T> {
     /// Id of child task
+    ///
+    /// used to kill the task when join handle is dropped
     pub(crate) id: Cell<Option<Id>>,
     /// Waker for parent task
+    ///
+    /// used to wake parent task when result is written
     waker: Cell<Option<Waker>>,
     result: Rc<Cell<Option<Result<T, Error>>>>,
     /// If we are running multiple tasks in parallel on the same bit of input
     /// only task(s) that consume longest amount should succeed even if those
     /// with shorter consumption can produce results.
+    poisoned: Rc<Cell<bool>>,
+}
+
+pub struct JoinHandle<'a, T> {
+    task: Weak<ExitHandle<T>>,
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+    /// See ExitHandle::poisoned
     poisoned: Rc<Cell<bool>>,
 
     /// dropping join handle needs to terminate all the children?
@@ -48,19 +59,11 @@ pub(crate) struct ExitHandle<'a, T> {
     ctx: Ctx<'a>,
 }
 
-pub struct JoinHandle<'a, T> {
-    task: Weak<ExitHandle<'a, T>>,
-    result: Rc<Cell<Option<Result<T, Error>>>>,
-    /// See ExitHandle::poisoned
-    poisoned: Rc<Cell<bool>>,
-}
-
 impl<T> Drop for JoinHandle<'_, T> {
     fn drop(&mut self) {
         if let Some(child) = self.task.upgrade() {
             if let Some(id) = child.id.take() {
-                child
-                    .ctx
+                self.ctx
                     .shared
                     .borrow_mut()
                     .push_back(Op::RemoveTask { id });
@@ -69,7 +72,7 @@ impl<T> Drop for JoinHandle<'_, T> {
     }
 }
 
-impl<T> ExitHandle<'_, T> {
+impl<T> ExitHandle<T> {
     pub(crate) fn exit_task(&self, result: Result<T, Error>) -> PoisonHandle {
         self.result.set(Some(result));
 
