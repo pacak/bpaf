@@ -215,7 +215,6 @@ pub(crate) enum Op<'a> {
     },
     WakeTask {
         id: Id,
-        error: Option<Error>,
     },
     /// Parent is no longer interested
     RemoveTask {
@@ -324,7 +323,7 @@ impl<'a> Runner<'a> {
                         .lock()
                         .expect("poison")
                         .drain(..)
-                        .map(|id| Op::WakeTask { id, error: None }),
+                        .map(|id| Op::WakeTask { id }),
                 );
                 if shared.is_empty() {
                     assert_eq!(
@@ -473,7 +472,7 @@ impl<'a> Runner<'a> {
                         child.remove();
                     }
                 }
-                Op::WakeTask { id, error } => {
+                Op::WakeTask { id } => {
                     let Some(task) = self.tasks.get_mut(&id) else {
                         println!("waking up removed task {id:?}");
                         continue;
