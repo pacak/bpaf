@@ -203,12 +203,21 @@ pub enum IdStrat {
 }
 
 pub(crate) enum Op<'a> {
-    /// Spawn a child parser from
+    /// Spawn a "raw" task
+    ///
+    /// It might contain children or produce a result right away, but it cannot parse anything by
+    /// itself. They can use custom id strategy
     SpawnTask {
         parent: Id,
         strat: IdStrat,
         action: RawAction<'a>,
     },
+
+    /// Spawn a "trigger" task
+    ///
+    /// Executor will wake up a trigger task when their condition is met, they can't have children
+    /// in a context of this executor so consumption must be atomic. They can spawn executors of
+    /// their own - command parser uses a literal trigger to do exactly that
     SpawnTrigger {
         parent: Id,
         action: Trigger<'a>,
@@ -247,7 +256,6 @@ struct WakeTask {
 
 impl Wake for WakeTask {
     fn wake(self: std::sync::Arc<Self>) {
-        // println!("Waking up {:?}", self.id);
         self.pending.lock().expect("poison").push(self.id);
     }
 }
