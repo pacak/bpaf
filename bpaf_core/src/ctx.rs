@@ -13,6 +13,10 @@ use crate::{
     Parser,
 };
 
+// TODO - remove some items:
+// - front_value and term - pass values to poll directly
+// - replace cur with Cell<u32>
+
 pub struct RawCtx<'a> {
     /// Gets populated with current taskid when it is running
     pub(crate) current_task: RefCell<Option<Id>>,
