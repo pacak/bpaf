@@ -142,13 +142,6 @@ impl<'a> Ctx<'a> {
         self.shared.borrow_mut().push_back(op);
     }
 
-    pub(crate) fn add_any_wake(&self, id: Id) {
-        self.queue(Op::AddAny { id });
-    }
-    pub(crate) fn remove_any(&self, id: Id) {
-        self.queue(Op::RemoveAny { id });
-    }
-
     pub(crate) fn add_fallback(&self, id: Id) {
         self.queue(Op::AddFallback { id });
     }

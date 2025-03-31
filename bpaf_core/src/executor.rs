@@ -140,6 +140,9 @@ pub(crate) enum Trigger<'a> {
         names: &'a [Name<'a>],
         action: Box<dyn Fn(bool) -> PoisonHandle + 'a>,
     },
+    Any {
+        action: Box<dyn Fn(bool) -> Option<PoisonHandle> + 'a>,
+    },
 }
 
 pub type RawAction<'a> = Pin<Box<dyn Future<Output = PoisonHandle> + 'a>>;
@@ -176,6 +179,10 @@ impl<'a> Task<'a> {
                 Trigger::Arg { names: _, action } => action(front_named_arg),
                 Trigger::Positional { action } => action(!ctx.is_term()),
                 Trigger::Literal { names: _, action } => action(!ctx.is_term()),
+                Trigger::Any { action } => match action(!ctx.is_term()) {
+                    Some(r) => r,
+                    None => return (Poll::Pending, 0),
+                },
             }),
         };
         *ctx.current_task.borrow_mut() = None;
@@ -237,13 +244,6 @@ pub(crate) enum Op<'a> {
     },
     RestoreIdCounter {
         id: u32,
-    },
-    AddAny {
-        id: Id,
-    },
-
-    RemoveAny {
-        id: Id,
     },
 }
 
@@ -371,6 +371,9 @@ impl<'a> Runner<'a> {
                                 self.literal.entry(name.clone()).or_default().insert(id);
                             }
                         }
+                        Trigger::Any { action: _ } => {
+                            self.any.insert(id);
+                        }
                     }
                     let task = Task {
                         action: Action::Trigger(action),
@@ -476,6 +479,9 @@ impl<'a> Runner<'a> {
                             Trigger::Literal { names, action: _ } => {
                                 remove_names_from_pecking(cid, names, &mut self.literal);
                             }
+                            Trigger::Any { action: _ } => {
+                                self.any.remove(cid);
+                            }
                         }
                         child.remove();
                     }
@@ -503,12 +509,6 @@ impl<'a> Runner<'a> {
                 Op::RemoveFallback { id } => {
                     println!("Removing exit fallback from {id:?}");
                     self.fallback.remove(id);
-                }
-                Op::AddAny { id } => {
-                    self.any.insert(id);
-                }
-                Op::RemoveAny { id } => {
-                    self.any.remove(id);
                 }
             }
         }
@@ -861,6 +861,9 @@ impl<'a> Runner<'a> {
                 }
                 Trigger::Literal { names, action: _ } => {
                     remove_names_from_pecking(id, names, &mut self.literal);
+                }
+                Trigger::Any { action: _ } => {
+                    self.any.remove(id);
                 }
             }
         }

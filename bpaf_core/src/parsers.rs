@@ -7,11 +7,8 @@
 //!
 use crate::{
     ctx::Ctx,
-    error::{Error, Metavar},
-    executor::{
-        futures::{AltFuture, AnyFut},
-        Fragment, Id, IdStrat,
-    },
+    error::{Error, Metavar, MissingItem},
+    executor::{futures::AltFuture, Fragment, Id, IdStrat, Trigger},
     named::Name,
     split::OsOrStr,
     visitor::{Group, Mode, Visitor},
@@ -508,12 +505,24 @@ pub struct Anything<T> {
 
 impl<T: 'static> Parser<T> for Anything<T> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        Box::pin(AnyFut {
-            check: &self.check,
-            metavar: self.metavar,
-            ctx,
-            task_id: None,
-        })
+        let (exit, join) = ctx.fork();
+
+        let c = ctx.clone();
+        let action = Box::new(move |present: bool| {
+            let ctx = c.clone();
+            if !present {
+                // TODO - use a better fitting missing item here?
+                let missing = MissingItem::Positional { meta: self.metavar };
+                let err = Err(Error::missing(missing, ctx.cur()));
+                return Some(exit.exit_task(err));
+            }
+            let arg = ctx.args.get(ctx.cur())?;
+            let t = (self.check)(arg.as_ref())?;
+            ctx.advance(1);
+            Some(exit.exit_task(Ok(t)))
+        });
+        ctx.start_trigger(Trigger::Any { action });
+        Box::pin(join)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
