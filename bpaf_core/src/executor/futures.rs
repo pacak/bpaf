@@ -110,53 +110,6 @@ impl<T> Future for JoinHandle<'_, T> {
     }
 }
 
-/// Match literal positional value - doesn't start with - or --
-pub(crate) struct LiteralFut<'a> {
-    /// Name match values without prefix!
-    /// TODO - do I really want to keep Name here?
-    pub(crate) values: &'a [Name<'static>],
-    pub(crate) ctx: Ctx<'a>,
-    pub(crate) task_id: Option<Id>,
-}
-
-impl LiteralFut<'_> {
-    fn missing(&self) -> Error {
-        Error::missing(
-            MissingItem::Command {
-                name: self.values.to_vec(),
-            },
-            self.ctx.cur(),
-        )
-    }
-}
-
-impl Future for LiteralFut<'_> {
-    type Output = Result<(), Error>;
-
-    fn poll(mut self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.task_id.is_none() {
-            let id = self.ctx.current_task();
-            self.task_id = Some(id);
-            self.ctx.add_literal_wake(self.values, id);
-            return Poll::Pending;
-        }
-
-        if self.ctx.is_term() {
-            return Poll::Ready(Err(self.missing()));
-        }
-        self.ctx.advance(1);
-        Poll::Ready(Ok(()))
-    }
-}
-
-impl Drop for LiteralFut<'_> {
-    fn drop(&mut self) {
-        if let Some(id) = self.task_id.take() {
-            self.ctx.remove_literal(self.values, id);
-        }
-    }
-}
-
 pub(crate) struct AnyFut<'a, T> {
     pub(crate) check: &'a dyn Fn(OsOrStr) -> Option<T>,
     pub(crate) ctx: Ctx<'a>,

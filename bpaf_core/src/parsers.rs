@@ -9,7 +9,7 @@ use crate::{
     ctx::Ctx,
     error::{Error, Metavar},
     executor::{
-        futures::{AltFuture, AnyFut, LiteralFut},
+        futures::{AltFuture, AnyFut},
         Fragment, Id, IdStrat,
     },
     named::Name,
@@ -355,23 +355,40 @@ pub struct Command<T> {
 
 impl<T: 'static> Parser<T> for Command<T> {
     fn run<'a>(&'a self, ctx: Ctx<'a>) -> Fragment<'a, T> {
-        Box::pin(async move {
-            LiteralFut {
-                values: &self.names,
-                ctx: ctx.clone(),
-                task_id: None,
-            }
-            .await?;
-            println!("========== Running inner parser");
-            let prev_ctx = ctx.ctx_start.get();
-            ctx.ctx_start.set(ctx.cur() as u32);
-            let runner = crate::executor::Runner::new(ctx.clone());
+        let (exit, join) = ctx.fork();
+        let c = ctx.clone();
+        let action = Box::new(move |present: bool| {
+            let ctx = c.clone();
+            let r = if present {
+                ctx.advance(1);
+                // TODO: Right now we are unconditionally pass control to the runner so adjacent
+                // parsers are not supported. But we can also support case where executor parsers a
+                // prefix of the input and returns the control back...
+                assert!(!self.adjacent);
 
-            let r = runner.run_parser(&self.parser.0.parser, true);
-            ctx.ctx_start.set(prev_ctx);
-            println!("=========== Inner done with {:?}", r.is_ok());
-            r
-        })
+                println!("========== Running inner parser");
+                let runner = crate::executor::Runner::new(ctx);
+
+                let r = runner.run_parser(&self.parser.0.parser, true);
+                println!(
+                    "=========== Inner done with {}",
+                    if r.is_ok() { "success" } else { "failure" }
+                );
+
+                r
+            } else {
+                let item = crate::error::MissingItem::Command {
+                    name: self.names.clone(),
+                };
+                Err(Error::missing(item, ctx.cur()))
+            };
+            exit.exit_task(r)
+        });
+        ctx.start_trigger(crate::executor::Trigger::Literal {
+            names: &self.names,
+            action,
+        });
+        Box::pin(join)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {

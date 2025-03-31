@@ -7,7 +7,6 @@ use std::{
 
 use crate::{
     executor::{futures::JoinHandle, Id, IdStrat, Op, RawAction, Trigger},
-    named::Name,
     parsers::HelpWrap,
     split::OsOrStr,
     Parser,
@@ -141,14 +140,6 @@ impl<'a> Ctx<'a> {
 
     fn queue(&self, op: Op<'a>) {
         self.shared.borrow_mut().push_back(op);
-    }
-
-    pub(crate) fn add_literal_wake(&self, values: &'a [Name<'static>], id: Id) {
-        self.queue(Op::AddLiteral { id, values })
-    }
-
-    pub(crate) fn remove_literal(&self, values: &'a [Name<'static>], id: Id) {
-        self.queue(Op::RemoveLiteral { id, values })
     }
 
     pub(crate) fn add_any_wake(&self, id: Id) {

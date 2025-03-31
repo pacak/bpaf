@@ -175,7 +175,7 @@ impl<'a> Task<'a> {
                 Trigger::Flag { names: _, action } => action(!ctx.is_term()),
                 Trigger::Arg { names: _, action } => action(front_named_arg),
                 Trigger::Positional { action } => action(!ctx.is_term()),
-                Trigger::Literal { names: _, action } => action(ctx.is_term()),
+                Trigger::Literal { names: _, action } => action(!ctx.is_term()),
             }),
         };
         *ctx.current_task.borrow_mut() = None;
@@ -229,14 +229,6 @@ pub(crate) enum Op<'a> {
     },
     RestoreIdCounter {
         id: u32,
-    },
-    AddLiteral {
-        id: Id,
-        values: &'a [Name<'static>],
-    },
-    RemoveLiteral {
-        id: Id,
-        values: &'a [Name<'static>],
     },
     AddAny {
         id: Id,
@@ -504,18 +496,6 @@ impl<'a> Runner<'a> {
                 Op::RemoveFallback { id } => {
                     println!("Removing exit fallback from {id:?}");
                     self.fallback.remove(id);
-                }
-                Op::AddLiteral { id, values } => {
-                    for val in values {
-                        self.literal.entry(val.clone()).or_default().insert(id);
-                    }
-                }
-                Op::RemoveLiteral { id, values } => {
-                    for val in values {
-                        if let Some(e) = self.literal.get_mut(val) {
-                            e.remove(id);
-                        }
-                    }
                 }
                 Op::AddAny { id } => {
                     self.any.insert(id);
