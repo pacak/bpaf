@@ -83,39 +83,6 @@ impl Id {
     }
 }
 
-// enum Ac<'a> {
-//     Fut(Box<dyn Future<Output = PoisonHandle> + 'a>),
-//     Flag {
-//         names: &'a [Name<'a>],
-//         handle: futures::ExitHandle<'a, bool>,
-//     },
-//     Arg {
-//         names: &'a [Name<'a>],
-//         handle: futures::ExitHandle<'a, OsOrStr<'a>>,
-//     },
-//     Pos {
-//         handle: futures::ExitHandle<'a, OsOrStr<'a>>,
-//     },
-//     Any {
-//         foo: Box<dyn Pass>,
-//     },
-// }
-
-//fn any(metavar: Metavar) -> Parser<T>
-
-// trait Pass {
-//     fn try_parse(&self, val: OsOrStr) -> Option<PoisonHandle>;
-// }
-//
-// impl<P, T> Pass for (P, futures::ExitHandle<'_, T>)
-// where
-//     P: Fn(OsOrStr) -> Option<T>,
-// {
-//     fn try_parse(&self, val: OsOrStr<'_>) -> Option<PoisonHandle> {
-//         (self.0)(val).map(|t| self.1.exit_task(Ok(t)))
-//     }
-// }
-
 // TODO - newtype?
 pub type PoisonHandle = Rc<Cell<bool>>;
 
@@ -317,32 +284,25 @@ fn remove_names_from_pecking<'a>(
 }
 
 impl<'a> Runner<'a> {
+    fn process_wakers(&mut self) {
+        self.ctx.shared.borrow_mut().extend(
+            self.pending
+                .lock()
+                .expect("poison")
+                .drain(..)
+                .map(|id| Op::WakeTask { id }),
+        )
+    }
     /// Handle scheduled operations
     ///
     /// This should advance all the tasks as far as possible without consuming the input
     fn propagate(&mut self) {
-        let before = self.ctx.cur();
         loop {
+            self.process_wakers();
             let mut shared = self.ctx.shared.borrow_mut();
             // get the next operation, or populate them from tasks to wake
             let Some(item) = shared.pop_front() else {
-                shared.extend(
-                    self.pending
-                        .lock()
-                        .expect("poison")
-                        .drain(..)
-                        .map(|id| Op::WakeTask { id }),
-                );
-                if shared.is_empty() {
-                    assert_eq!(
-                        before,
-                        self.ctx.cur(),
-                        "propagation should not consume items"
-                    );
-                    return;
-                } else {
-                    continue;
-                }
+                return;
             };
             let before = shared.len();
             // tasks are going to borrow from shared when running
@@ -468,6 +428,7 @@ impl<'a> Runner<'a> {
                         continue;
                     }
                     if let Action::Trigger(ref action) = child_task.action {
+                        // TODO - deduplicate
                         match action {
                             Trigger::Flag { names, action: _ } => {
                                 remove_names_from_pecking(cid, names, &mut self.flags);
@@ -622,6 +583,7 @@ impl<'a> Runner<'a> {
         for (id, poll, consumed) in out.drain(..) {
             if let Poll::Ready(eh) = &poll {
                 if consumed < max_consumed {
+                    println!("++++++++++ Will have to kill {id:?}");
                     // TODO  - custom error
                     eh.set(true);
                 }
@@ -822,6 +784,20 @@ impl<'a> Runner<'a> {
         parent_id
     }
 
+    fn first_deepest_child(&self, parent: Id) -> Option<Id> {
+        let mut current = parent;
+        for (child, task) in self.tasks.range(parent..).skip(1) {
+            if task.parent == current {
+                println!("advancing {:?} -> {:?}", parent, child);
+                current = *child;
+            } else {
+                println!("not advancing {:?} -> {:?}", parent, child);
+                return (current != parent).then_some(current);
+            }
+        }
+        None
+    }
+
     #[inline(never)]
     /// Drain all consumers so they can be polled to emit default values
     fn prepare_consumers_for_draining(&mut self, ids: &mut Vec<Id>) {
@@ -848,7 +824,9 @@ impl<'a> Runner<'a> {
         }
         println!("Handling exit for {id:?}");
         let task = self.tasks.get_mut(&id).expect("We know it's there");
+        task.done = true;
         if let Action::Trigger(trigger) = &task.action {
+            // TODO - deduplicate?
             match trigger {
                 Trigger::Flag { names, action: _ } => {
                     remove_names_from_pecking(id, names, &mut self.flags);
@@ -866,14 +844,22 @@ impl<'a> Runner<'a> {
                     self.any.remove(id);
                 }
             }
+        } else {
+            // this was a raw task, if it is done - it won't be polling any children - we can
+            // terminate them all here
+            while let Some(child) = self.first_deepest_child(id) {
+                todo!("Terminated {child:?}");
+                self.tasks.remove(&child);
+            }
         }
-        task.done = true;
         // TODO - Can we remove the task immediately?
         self.ctx
             .shared
             .borrow_mut()
             .push_back(Op::RemoveTask { id });
     }
+
+    fn unregister_trigger(&mut self, trigger: &Trigger) {}
 
     /// Allocate next task [`Id`]
     fn next_id(&mut self, branch: u32) -> Id {
