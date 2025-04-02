@@ -609,6 +609,108 @@ impl<'a> Runner<'a> {
         Ok(max_consumed > 0)
     }
 
+    // The parser has failed to consume everything, we need
+    // to prepare an explanation for the user. This method
+    // prepares the explainer.
+    #[inline(never)]
+    fn mk_explainer(
+        &self,
+        unparsed_raw: &'a OsOrStr,
+        failure: Option<Error>,
+    ) -> Result<ExplainUnparsed<'a>, Error> {
+        let missing = match failure {
+            None => None,
+            Some(Error {
+                message: Message::Missing(vec),
+                offset: _,
+            }) => Some(vec),
+            Some(err) => return Err(err),
+        };
+        let parsed_start = self.ctx.ctx_start.get() as usize;
+        let parsed_end = self.ctx.cur();
+        let parsed = &self.ctx.args[parsed_start..parsed_end];
+        let m = HashMap::new();
+        // TODO - don't do this here!
+        // Instead either try to guess the right value inside of the
+        // explainer or pass the actual unparsed value from the parser
+        let unparsed = split_param(unparsed_raw, &m, &m).unwrap();
+        let unparsed_raw = unparsed_raw.str();
+        Ok(ExplainUnparsed::new(
+            missing,
+            unparsed,
+            unparsed_raw,
+            parsed,
+        ))
+    }
+
+    fn run_parser1<T, P>(mut self, parser: &'a P, compact: bool) -> Result<T, Error>
+    where
+        P: Parser<T>,
+        T: 'static,
+    {
+        let root_id = self.next_id(0);
+        let root_waker = self.waker_for(root_id);
+        let mut handle = pin!(self.ctx.spawn(root_id, IdStrat::KeepBranch, parser));
+        let mut root_cx = Context::from_waker(&root_waker);
+        let _ = handle.as_mut().poll(&mut root_cx);
+
+        self.inner()?;
+
+        let Poll::Ready(result) = handle.as_mut().poll(&mut root_cx) else {
+            unreachable!("bpaf internal error: Failed to produce result");
+        };
+        if compact {
+            if let Some(unparsed_raw) = self.ctx.args.get(self.ctx.cur()) {
+                let mut explainer = self.mk_explainer(unparsed_raw, result.err())?;
+                parser.visit(&mut explainer);
+                let message = explainer.explain();
+                return Err(Error {
+                    message,
+                    offset: self.ctx.cur(),
+                });
+            }
+        }
+
+        result
+    }
+
+    fn inner(&mut self) -> Result<(), Error> {
+        self.propagate();
+        let mut strict_pos = false;
+        while let Some(front) = self.ctx.args.get(self.ctx.cur()) {
+            self.propagate();
+            // TODO - move strict_pos into runner? It might
+            // be useful to produce a better error message.
+            if front == "--" && !strict_pos {
+                strict_pos = true;
+                self.ctx.advance(1);
+                continue;
+            }
+            let param = split_param(front, &self.args, &self.flags).map_err(|message| Error {
+                message,
+                offset: self.ctx.cur(),
+            })?;
+            match param {
+                Arg::Named { name, value } => todo!(),
+                Arg::ShortSet { current, names } => {
+                    // try to parse any first?
+                    // or check if "any" shows up first?
+                    for name in names {
+                        self.propagate();
+                        let param = Arg::Named {
+                            name: Name::Short(name),
+                            value: None,
+                        };
+                        // try to parse param here
+                    }
+                    continue;
+                }
+                Arg::Positional { value } => todo!(),
+            }
+        }
+        Ok(())
+    }
+
     /// Execute the parser
     ///
     /// `primary` is set to false for parsers like `--version` or `--help`, they
@@ -902,3 +1004,28 @@ impl<'a> Runner<'a> {
 // go sequentially
 
 // For 'Any' - same idea as PosPrio, they just get to
+
+struct Reactor<'a> {
+    any: Pecking,
+    pos: Pecking,
+    named: BTreeSet<(RTy<'a>, Id)>,
+}
+
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq)]
+enum RTy<'a> {
+    Short(char),
+    Long(&'a str),
+    LitShort(char),
+    LitLong(&'a str),
+    Prefix(&'a str),
+}
+
+impl<'a> Reactor<'a> {
+    fn ins_named(&mut self, name: Name<'a>, id: Id) {
+        let r = match name {
+            Name::Short(s) => RTy::Short(s),
+            Name::Long(l) => RTy::Long(l),
+        };
+        self.named.insert((r, id));
+    }
+}
