@@ -1415,7 +1415,7 @@ where
     ParseCommand {
         longs: vec![name],
         shorts: Vec::new(),
-        help: subparser.short_descr().map(Into::into),
+        help: subparser.short_descr(),
         subparser,
         adjacent: false,
     }
