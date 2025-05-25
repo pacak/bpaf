@@ -1,28 +1,19 @@
 //
 use bpaf::{doc::*, *};
-#[derive(Debug, Clone)]
+const BINARY_USAGE: &[(&str, Style)] = &[
+    ("--binary", Style::Literal),
+    ("=", Style::Text),
+    ("BINARY", Style::Metavar),
+];
+
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
 pub struct Options {
+    /// Binary to run
+    #[bpaf(short, long, argument("BIN"), custom_usage(BINARY_USAGE))]
     binary: Option<String>,
+
+    /// Package to check
+    #[bpaf(short, long, argument("PACKAGE"))]
     package: Option<String>,
-}
-
-pub fn options() -> OptionParser<Options> {
-    let binary = short('b')
-        .long("binary")
-        .help("Binary to run")
-        .argument("BIN")
-        .optional()
-        .custom_usage(&[
-            ("--binary", Style::Literal),
-            ("=", Style::Text),
-            ("BINARY", Style::Metavar),
-        ]);
-
-    let package = short('p')
-        .long("package")
-        .help("Package to check")
-        .argument("PACKAGE")
-        .optional();
-
-    construct!(Options { binary, package }).to_options()
 }

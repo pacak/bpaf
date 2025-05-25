@@ -3,7 +3,6 @@
 
 use bpaf::{Args, OptionParser, ParseFailure};
 
-use comptester::zsh_comptest_with;
 #[cfg(test)]
 use pretty_assertions::assert_eq;
 
@@ -58,16 +57,12 @@ fn import_escaped_source(
     }
 }
 
-fn run_and_render<T: std::fmt::Debug>(
-    res: &mut String,
-    options: OptionParser<T>,
-    args: &[&str],
-    all_args: &str,
-    complete: Option<&str>,
-) -> std::fmt::Result {
+#[cfg(feature = "comptester")]
+fn run_and_render_completion(res: &mut String, all_args: &str, complete: &str) -> std::fmt::Result {
+    use comptester::zsh_comptest_with;
     use std::fmt::Write;
 
-    if let Some("zsh") = complete {
+    if "zsh" == complete {
         let all_args = all_args.strip_suffix("\\t").unwrap();
         let comp = zsh_comptest_with(&(all_args.to_owned() + "\t"), 80).unwrap();
         writeln!(
@@ -81,6 +76,17 @@ fn run_and_render<T: std::fmt::Debug>(
         )?;
         return Ok(());
     }
+
+    Ok(())
+}
+
+fn run_and_render<T: std::fmt::Debug>(
+    res: &mut String,
+    options: OptionParser<T>,
+    args: &[&str],
+    all_args: &str,
+) -> std::fmt::Result {
+    use std::fmt::Write;
 
     match options.run_inner(Args::from(args).set_name("app")) {
         Ok(ok) => writeln!(
