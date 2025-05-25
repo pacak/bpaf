@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.9.20] - 2025-05-25
+- Documentation fixes (#424)
+  thanks @yuriks
+- A few clippy suggested fixes
+
 ## bpaf [0.9.19] - 2025-03-13
 - Fix one more problematic corner case of `fallback_to_usage` - it should no override
   inner parser printing usage or version info
