@@ -806,7 +806,7 @@ impl<T> ParsePositional<T> {
         }
     }
 }
-
+#[allow(unused_variables)] // used when autocomplete is enabled
 fn parse_pos_word(
     args: &mut State,
     metavar: Metavar,
