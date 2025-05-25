@@ -306,7 +306,7 @@ impl<T> OptionParser<T> {
         ParseCommand {
             longs: vec![name],
             shorts: Vec::new(),
-            help: self.short_descr().map(Into::into),
+            help: self.short_descr(),
             subparser: self,
             adjacent: false,
         }
@@ -806,7 +806,7 @@ impl<T> ParsePositional<T> {
         }
     }
 }
-
+#[allow(unused_variables)] // used when autocomplete is enabled
 fn parse_pos_word(
     args: &mut State,
     metavar: Metavar,
