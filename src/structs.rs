@@ -950,7 +950,6 @@ where
 
 impl<T> ParseCon<T> {
     #[must_use]
-
     /// Automagically restrict the inner parser scope to accept adjacent values only
     ///
     /// `adjacent` can solve surprisingly wide variety of problems: sequential command chaining,

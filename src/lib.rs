@@ -400,7 +400,6 @@ pub use bpaf_derive::Bpaf;
 ///     CD { c: u32, d: u32 }
 /// }
 /// ```
-
 #[macro_export]
 macro_rules! construct {
     // construct!(Enum::Cons { a, b, c })
@@ -680,7 +679,6 @@ pub trait Parser<T> {
     /// [`many`](Parser::many) also collects results to a vector but succeeds with
     /// no matching values. [`collect`](Parser::collect) collects results into a [`FromIterator`]
     /// structure
-
     #[must_use]
     fn some(self, message: &'static str) -> ParseSome<Self>
     where
@@ -1214,8 +1212,6 @@ pub trait Parser<T> {
 
     /// Create a boxed representation for a parser
     ///
-    ///
-
     /// The boxed parser doesn't expose internal representation in its type and allows to return
     /// of different parsers in different conditional branches
     ///
