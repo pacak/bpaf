@@ -9,7 +9,7 @@ authors = [ "Michael Baykov <manpacket@gmail.com>" ]
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pacak/bpaf"
-rust-version = "1.56"
+rust-version = "1.68"
 include = [
   "src/**/*",
   "Cargo.toml",

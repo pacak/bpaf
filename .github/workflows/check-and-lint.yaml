@@ -68,7 +68,7 @@ jobs:
         run: cargo fmt --all -- --check
 
   compat:
-    name: Tests on linux with 1.56 toolchain
+    name: Tests on linux with 1.68 toolchain
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -77,7 +77,7 @@ jobs:
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.56
+          toolchain: 1.68
 
       - name: test minimal features
         run: cargo run --manifest-path legacy/Cargo.toml -- --help
