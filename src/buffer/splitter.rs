@@ -14,7 +14,7 @@ enum Code {
 
 /// Split payload into chunks annotated with character width and containing no newlines according
 /// to text formatting rules
-pub(super) fn split(input: &str) -> Splitter {
+pub(super) fn split(input: &str) -> Splitter<'_> {
     Splitter {
         input,
         #[cfg(feature = "docgen")]
