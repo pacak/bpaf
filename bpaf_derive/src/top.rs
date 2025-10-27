@@ -5,6 +5,7 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
+    spanned::Spanned,
     token,
     visit_mut::VisitMut,
     Attribute, Error, Expr, Ident, ItemFn, LitChar, LitStr, Result, Visibility,
@@ -218,32 +219,35 @@ impl ToTokens for Top {
                     short,
                     help,
                 } = command;
-                let name = name.as_ref().expect("Internal bpaf_derive error: Command name was not set! This is a bug, please report it.");
-                let long = long.iter().map(|v| quote!(.long(#v)));
-                let short = short.iter().map(|v| quote!(.short(#v)));
-                let help = help.as_ref().map(|v| quote!(.help(#v)));
-                quote! {
-                    #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+                if let Some(name) = name.as_ref() {
+                    let long = long.iter().map(|v| quote!(.long(#v)));
+                    let short = short.iter().map(|v| quote!(.short(#v)));
+                    let help = help.as_ref().map(|v| quote!(.help(#v)));
+                    quote! {
+                        #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
 
-                        #[allow(unused_imports)]
-                        use ::bpaf::Parser;
-                        #body
-                        #(.#attrs)*
-                        .to_options()
-                        #fallback_usage
-                        #version
-                        #descr
-                        #header
-                        #footer
-                        #usage
-                        #max_width
-                        .command(#name)
-                        #(#short)*
-                        #(#long)*
-                        #help
-                        #adjacent
-                        #boxed
+                            #[allow(unused_imports)]
+                            use ::bpaf::Parser;
+                            #body
+                            #(.#attrs)*
+                            .to_options()
+                            #fallback_usage
+                            #version
+                            #descr
+                            #header
+                            #footer
+                            #usage
+                            #max_width
+                            .command(#name)
+                            #(#short)*
+                            #(#long)*
+                            #help
+                            #adjacent
+                            #boxed
+                        }
                     }
+                } else {
+                    Error::new(self.span(), "Internal bpaf_derive error: Command name was not set! This is a bug, please report it.").to_compile_error()
                 }
             }
             Mode::Options { options } => {
