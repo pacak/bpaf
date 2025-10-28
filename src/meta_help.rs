@@ -166,7 +166,7 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
 
 impl<'a> HelpItems<'a> {
     #[inline(never)]
-    fn items_of_ty(&self, target: HiTy) -> impl Iterator<Item = &HelpItem> {
+    fn items_of_ty(&self, target: HiTy) -> impl Iterator<Item = &HelpItem<'a>> {
         HelpItemsIter {
             items: &self.items,
             target,

@@ -1,7 +1,7 @@
 use crate::{buffer::Doc, item::Item};
 
 #[doc(hidden)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub enum Meta {
     /// All arguments listed in a vector must be present
     And(Vec<Meta>),
@@ -24,6 +24,7 @@ pub enum Meta {
     /// Buffer is rendered after
     Suffix(Box<Meta>, Box<Doc>),
     /// This item is not rendered in the help message
+    #[default]
     Skip,
     /// TODO make it Option<Box<Doc>>
     CustomUsage(Box<Meta>, Box<Doc>),
@@ -32,11 +33,6 @@ pub enum Meta {
 }
 
 // to get std::mem::take to work
-impl Default for Meta {
-    fn default() -> Self {
-        Meta::Skip
-    }
-}
 
 // Meta::Strict should bubble up to one of 3 places:
 // - top level

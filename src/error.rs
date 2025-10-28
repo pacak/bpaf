@@ -256,7 +256,7 @@ fn check_conflicts(args: &State) -> Option<Message> {
     Some(Message::Conflict(winner, loser))
 }
 
-fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<str>> {
+fn textual_part(args: &State, ix: Option<usize>) -> Option<std::borrow::Cow<'_, str>> {
     match args.items.get(ix?)? {
         Arg::Short(_, _, _) | Arg::Long(_, _, _) => None,
         Arg::ArgWord(s) | Arg::Word(s) | Arg::PosWord(s) => Some(s.to_string_lossy()),
