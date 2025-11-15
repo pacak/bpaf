@@ -4,6 +4,7 @@ use std::ffi::{OsStr, OsString};
 ///
 /// [`OsString`] in Short/Long correspond to orignal command line item used for errors
 #[derive(Debug, Clone, Eq, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub(crate) enum Arg {
     /// short flag: `-f`
     ///
