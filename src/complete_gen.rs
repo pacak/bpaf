@@ -201,7 +201,7 @@ impl Complete {
         self.comps.extend(comps);
     }
 
-    pub(crate) fn drain_comps(&mut self) -> std::vec::Drain<Comp> {
+    pub(crate) fn drain_comps(&mut self) -> std::vec::Drain<'_, Comp> {
         self.comps.drain(0..)
     }
 
@@ -510,7 +510,7 @@ impl Complete {
         pos_only: bool,
         is_named: bool,
         prefix: Prefix,
-    ) -> (Vec<ShowComp>, Vec<ShellComp>) {
+    ) -> (Vec<ShowComp<'_>>, Vec<ShellComp>) {
         let mut items: Vec<ShowComp> = Vec::new();
         let mut shell = Vec::new();
         let max_depth = self.comps.iter().map(Comp::depth).max().unwrap_or(0);
