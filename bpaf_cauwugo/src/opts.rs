@@ -61,7 +61,7 @@ where
             .filter_map(|av| {
                 if complete.contains(av) {
                     None
-                } else if active.map_or(true, |ac| av.starts_with(ac.as_ref())) {
+                } else if active.is_none_or(|ac| av.starts_with(ac.as_ref())) {
                     Some((av.to_owned(), None))
                 } else {
                     None
