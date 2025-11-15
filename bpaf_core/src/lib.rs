@@ -29,22 +29,25 @@ impl<T> JoinHandle<T> {
 }
 
 mod traits {
-    use std::{pin::Pin, rc::Rc};
+    //! [`Parser`] trait and related private helper traits
 
     use crate::{Ctx, Error};
+    use std::{pin::Pin, rc::Rc};
 
     pub trait Parser<T: 'static> {
         fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>>;
 
-        fn into_rc(self) -> Rc<dyn DynParser<T>>
+        /// Convert the parser into a boxed, reference counted version
+        fn into_rc(self) -> RcParser<T>
         where
-            Self: Sized + DynParser<T> + 'static,
+            Self: Sized + Parser<T> + 'static,
         {
-            Rc::new(self)
+            RcParser(Rc::new(self))
         }
     }
 
-    pub trait DynParser<T: 'static> {
+    /// Helper trait that allows shoving non-dyn compatible trait [`Parser`] into an [`Rc`]
+    trait DynParser<T: 'static> {
         fn dyn_run(&self, ctx: Ctx) -> Pin<Box<dyn Future<Output = Result<T, Error>> + '_>>;
     }
 
@@ -54,13 +57,20 @@ mod traits {
         }
     }
 
-    impl<T: 'static> Parser<T> for Rc<dyn DynParser<T>> {
+    impl<T: 'static> Parser<T> for RcParser<T> {
         async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-            self.as_ref().dyn_run(ctx).await
+            self.0.as_ref().dyn_run(ctx).await
         }
     }
 
-    pub type RcParser<T> = Rc<dyn DynParser<T>>;
+    /// Reference counted boxed [`Parser<T>`](Parser) - it is cheap to clone
+    pub struct RcParser<T>(Rc<dyn DynParser<T>>);
+
+    impl<T> Clone for RcParser<T> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
 }
 
 pub mod __private {
@@ -152,6 +162,7 @@ macro_rules! construct {
 }
 
 pub struct Con<T> {
+    #[allow(clippy::type_complexity)]
     run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
 }
 
@@ -167,16 +178,8 @@ impl<T: 'static> Parser<T> for Con<T> {
 #[doc(inline)]
 pub use traits::*;
 
-// #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-// enum Name {
-//     Short(char),
-//     Long(Cow<'static, str>),
-// }
-
-type Act = Pin<Box<dyn Future<Output = ()>>>;
-
 struct Task {
-    act: Act,
+    act: Pin<Box<dyn Future<Output = ()>>>,
     info: TaskInfo,
 }
 
@@ -196,13 +199,11 @@ pub enum Kind {
 #[derive(Debug)]
 struct TaskInfo {
     /// Current task Id
-    ///
-    /// used as a key in tasks and serves as [`Parent`]
     id: Id,
     parent_kind: Kind,
     parent_id: Parent,
     consumed: u32,
-    // number of children this task is currently waiting for, we are going to wake them up only if
+    /// number of children this task is currently waiting for, we are going to wake them up only if
     // there's no pending children - if we can return immediately
     pending: u32,
 }
@@ -308,14 +309,15 @@ struct Id(u32);
 pub type Fragment<T> = Pin<Box<dyn Future<Output = Result<T, Error>>>>;
 
 pub struct RawCtx {
-    // current: RefCell<Option<TaskInfo>>,
+    /// Storage for to-be-spawned tasks
+    ///
+    /// Active tasks are living outside of the `RawCtx`
     new_tasks: RefCell<Vec<Task>>,
-    reactor: RefCell<Triggers>,
+    triggers: RefCell<Triggers>,
     next_free: Cell<u32>,
     args: RefCell<Vec<String>>,
     cursor: Cell<usize>,
     wakeup_reason: RefCell<Reason>,
-    // term: Cell<bool>,
     current_task: RefCell<TaskInfo>,
 }
 pub type Ctx = Rc<RawCtx>;
@@ -334,44 +336,6 @@ impl Parser<bool> for DummyFlag {
         let r = ctx.parse_flag(&names[..]).await;
         println!("{r:?} / {names:?} {:?}", ctx.current_task.borrow().id);
         r
-    }
-}
-
-fn remove_names(
-    id: Id,
-    parent: Parent,
-    names: &[Name],
-    long: &mut HashMap<Cow<'static, str>, PeckingOrder>,
-    short: &mut HashMap<char, PeckingOrder>,
-) {
-    use std::collections::hash_map::Entry;
-    for name in names {
-        match name {
-            Name::Short(c) => {
-                if let Entry::Occupied(mut e) = short.entry(*c) {
-                    if e.get_mut().remove(parent, id) {
-                        e.remove();
-                    }
-                } else {
-                    #[cfg(debug_assertions)]
-                    {
-                        panic!("Tried to remove missing {name:?}");
-                    }
-                }
-            }
-            Name::Long(s) => {
-                if let Entry::Occupied(mut e) = long.entry(s.clone()) {
-                    if e.get_mut().remove(parent, id) {
-                        e.remove();
-                    }
-                } else {
-                    #[cfg(debug_assertions)]
-                    {
-                        panic!("Tried to remove missing {name:?}");
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -397,7 +361,7 @@ type LongNamePeckingOrder = HashMap<Cow<'static, str>, PeckingOrder>;
 type ShortNamePeckingOrder = HashMap<char, PeckingOrder>;
 
 type NamedPeckingOrderSelector =
-    fn(&'_ mut Triggers) -> (&mut ShortNamePeckingOrder, &mut LongNamePeckingOrder);
+    fn(&mut Triggers) -> (&mut ShortNamePeckingOrder, &mut LongNamePeckingOrder);
 
 impl RawCtx {
     fn task_parent_and_id(&self) -> (Parent, Id) {
@@ -407,7 +371,7 @@ impl RawCtx {
 
     fn add_names(&self, names: &[Name], selector: NamedPeckingOrderSelector) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.reactor.borrow_mut(), selector);
+        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
         for name in names {
             match name {
                 Name::Short(c) => short.entry(*c).or_default().insert(parent, id),
@@ -424,7 +388,7 @@ impl RawCtx {
         selector: NamedPeckingOrderSelector,
     ) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.reactor.borrow_mut(), selector);
+        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
 
         use std::collections::hash_map::Entry;
         for name in names {
@@ -434,11 +398,8 @@ impl RawCtx {
                         if e.get_mut().remove(parent, id) {
                             e.remove();
                         }
-                    } else {
-                        #[cfg(debug_assertions)]
-                        {
-                            panic!("Tried to remove missing {name:?}");
-                        }
+                    } else if cfg!(debug_assertions) {
+                        panic!("Tried to remove missing {name:?}");
                     }
                 }
                 Name::Long(s) => {
@@ -446,11 +407,8 @@ impl RawCtx {
                         if e.get_mut().remove(parent, id) {
                             e.remove();
                         }
-                    } else {
-                        #[cfg(debug_assertions)]
-                        {
-                            panic!("Tried to remove missing {name:?}");
-                        }
+                    } else if cfg!(debug_assertions) {
+                        panic!("Tried to remove missing {name:?}");
                     }
                 }
             }
@@ -521,6 +479,10 @@ impl RawCtx {
         done
     }
 
+    fn consume(&self, cnt: u32) {
+        self.current_task.borrow_mut().consumed += cnt;
+    }
+
     /// Parse a flag by any one of the given names
     ///
     /// - `Ok(true)` when encounters a name
@@ -555,10 +517,6 @@ impl RawCtx {
         res
     }
 
-    fn consume(&self, cnt: u32) {
-        self.current_task.borrow_mut().consumed += cnt;
-    }
-
     // async fn parse_arg(self: Rc<Self>, names: &[Name]) -> Result<Error, Option<String>> {
     //     self.add_names(names, reactor_flags)?;
     //     r#yield().await;
@@ -590,6 +548,170 @@ impl RawCtx {
     // ) -> Option<Box<dyn Any>> {
     //     todo!()
     // }
+}
+
+struct Executor {
+    ctx: Ctx,
+    tasks: BTreeMap<Id, Task>,
+    to_wake: Vec<Id>,
+    to_wake2: VecDeque<(Id, u32)>,
+}
+
+impl Executor {
+    fn new(ctx: Ctx) -> Self {
+        Self {
+            ctx,
+            tasks: Default::default(),
+            to_wake: Default::default(),
+            to_wake2: Default::default(),
+        }
+    }
+
+    fn execute(&mut self) -> Result<(), Error> {
+        let mut changed = true;
+
+        // Keep running as long as we are making progress:
+        // - consuming new items
+        // -
+        let mut mixer_capacity = Mixer::default();
+        while changed {
+            changed = false;
+
+            // Spawn new tasks. They been polled once inside the `Self::add_task`
+            // so triggers should be all in place and none would exit immediately.
+            for task in self.ctx.new_tasks.borrow_mut().drain(..) {
+                let old = self.tasks.insert(task.info.id, task);
+                debug_assert!(old.is_none(), "Dupliated task id?");
+            }
+
+            let ctx = self.ctx.clone();
+            let args = ctx.args.borrow();
+            let Some(front) = args.get(self.ctx.cursor.get()) else {
+                break;
+            };
+
+            // Waking up tasks is done in two stages: during the first stage we wake up
+            // all the tasks with matching triggers, during the second stage tasks that don't
+            // consume the biggest amount from the first stage are terminated.
+            //
+            // This allows to parsing things as both flag and an argument (`--foo` | `--foo BAR`)
+            // in parallel branches. Longer should win.
+            //
+            // This can't be done in a single pass for two reasons:
+            // - to know the biggest consumer we need to check all the candidates
+            // - to release the triggers we need to release the reactor
+            let (best_size, mixer) = self.stage_1(front, mixer_capacity);
+            mixer_capacity = mixer;
+
+            let ambiguity = false;
+
+            if ambiguity {
+                // create new context, new executor? run stuff in the new context?
+            }
+
+            if best_size > 0 {
+                self.ctx.cursor.update(|c| c + best_size as usize);
+                changed = true;
+            } else {
+                todo!("Didn't consume anything, complain about {front:?} and prepare to exit?");
+            }
+            self.stage_2(best_size);
+
+            self.propagate();
+        }
+
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(true);
+        while let Some((id, mut task)) = self.tasks.pop_last() {
+            if self.tasks.is_empty() {
+                *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(false);
+            }
+            let exited = self.ctx.poll_in_context(&mut task);
+            debug_assert!(exited, "Task {id:?} {task:?} failed to exit");
+        }
+
+        println!("somehow we are done");
+
+        Ok(())
+    }
+
+    /// Run the first stage of the trigger
+    ///
+    /// Each task indicates how much it will consume if allowed to run till the end
+    fn stage_1(&mut self, front: &str, mixer_capacity: Mixer<'static>) -> (u32, Mixer<'static>) {
+        let mut mixer = mixer_capacity.reuse_capacity();
+        let reactor = self.ctx.triggers.borrow();
+        let arg = mixer.populate(front, &reactor);
+        *self.ctx.wakeup_reason.borrow_mut() = match arg {
+            Arg::Named { name, value } => Reason::Named { name, value },
+            Arg::Pos { value } => Reason::Positional { value },
+        };
+
+        let mut best_size = 0;
+        while let Some(next) = mixer.consume_next_item(&self.tasks) {
+            let task = &mut self.tasks.get_mut(&next.id).unwrap();
+            let r = self.ctx.poll_in_context(task);
+            assert!(!r);
+            if task.info.consumed > 0 {
+                self.to_wake.push(next.id);
+            } else {
+                mixer.pass();
+            }
+
+            best_size = best_size.max(task.info.consumed);
+        }
+
+        (best_size, mixer.reuse_capacity())
+    }
+
+    /// Run the second stage of the trigger
+    ///
+    /// Depending on how much a task is consuming relative to other tasks
+    /// task are either allowed to run or are being terminated
+    fn stage_2(&mut self, best_size: u32) {
+        use std::collections::btree_map::Entry;
+        for id in self.to_wake.drain(..) {
+            // TODO - I think `entry` API can be replaced with just removing
+            let Entry::Occupied(mut task) = self.tasks.entry(id) else {
+                todo!("Second stage got a task id that isn't there?");
+            };
+            let task_ref = task.get_mut();
+            let term = task_ref.info.consumed < best_size;
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(term);
+
+            if self.ctx.poll_in_context(task_ref) {
+                let task = task.remove();
+                let size = if term { 0 } else { task.info.consumed };
+                self.to_wake2.push_back((task.info.parent_id.as_id(), size))
+            } else {
+                todo!("I think this should never run");
+            }
+        }
+    }
+
+    // Propagate trigger results to parents recursively
+    fn propagate(&mut self) {
+        while let Some((id, consumed)) = self.to_wake2.pop_front() {
+            let std::collections::btree_map::Entry::Occupied(mut task) = self.tasks.entry(id)
+            else {
+                todo!("Unknown task in propagete?")
+            };
+            let task_ref = task.get_mut();
+            task_ref.info.pending -= 1;
+            task_ref.info.consumed += consumed;
+            if task_ref.info.pending > 0 {
+                continue;
+            }
+            if self.ctx.poll_in_context(task_ref) {
+                let task = task.remove();
+                if task.info.parent_id.is_root() {
+                    // the parent is root = there's no task to wake up
+                    continue;
+                }
+                self.to_wake2
+                    .push_back((task.info.parent_id.as_id(), task.info.consumed));
+            }
+        }
+    }
 }
 
 mod pecking {
@@ -912,7 +1034,7 @@ impl RawCtx {
     fn new(args: Vec<String>) -> Rc<RawCtx> {
         Rc::new(RawCtx {
             new_tasks: Default::default(),
-            reactor: Default::default(),
+            triggers: Default::default(),
             next_free: Cell::new(1),
             args: args.into(),
             wakeup_reason: RefCell::new(Reason::Term(false)),
@@ -922,157 +1044,8 @@ impl RawCtx {
         })
     }
 
-    fn execute(&self) -> Result<(), Error> {
-        let mut changed = true;
-        let mut tasks = BTreeMap::new();
-        let mut to_wake: Vec<Id> = Vec::new();
-        let mut to_wake2: VecDeque<(Id, u32)> = VecDeque::new();
-
-        // Keep running as long as we are making progress:
-        // - consuming new items
-        // -
-        let mut executor_store = Mixer::default();
-        while changed {
-            changed = false;
-
-            // Spawn new tasks. They been polled once inside the `Self::add_task`
-            // so triggers should be all in place and none would exit immediately.
-            for task in self.new_tasks.borrow_mut().drain(..) {
-                let old = tasks.insert(task.info.id, task);
-                debug_assert!(old.is_none(), "Dupliated task id?");
-            }
-
-            let args = self.args.borrow();
-            let Some(front) = args.get(self.cursor.get()) else {
-                break;
-            };
-
-            // Waking up tasks is done in two stages: during the first stage we wake up
-            // all the tasks with matching triggers, during the second stage tasks that don't
-            // consume the biggest amount from the first stage are terminated.
-            //
-            // This allows to parsing things as both flag and an argument (`--foo` | `--foo BAR`)
-            // in parallel branches. Longer should win.
-            //
-            // This can't be done in a single pass for two reasons:
-            // - to know the biggest consumer we need to check all the candidates
-            // - to release the triggers we need to release the reactor
-            let (best_size, executor) =
-                self.stage_1(front, executor_store, &mut tasks, &mut to_wake);
-            executor_store = executor;
-
-            if best_size > 0 {
-                self.cursor.update(|c| c + best_size as usize);
-                changed = true;
-            } else {
-                todo!("Didn't consume anything, complain about {front:?} and prepare to exit?");
-            }
-            self.stage_2(best_size, &mut to_wake, &mut to_wake2, &mut tasks);
-
-            self.propagate(&mut tasks, &mut to_wake2);
-        }
-
-        *self.wakeup_reason.borrow_mut() = Reason::Term(true);
-        while let Some((id, mut task)) = tasks.pop_last() {
-            if tasks.is_empty() {
-                *self.wakeup_reason.borrow_mut() = Reason::Term(false);
-            }
-            let exited = self.poll_in_context(&mut task);
-            debug_assert!(exited, "Task {id:?} {task:?} failed to exit");
-        }
-
-        println!("somehow we are done");
-
-        Ok(())
-    }
-
-    /// Run the first stage of the trigger
-    ///
-    /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(
-        &self,
-        front: &str,
-        executor_store: Mixer<'static>,
-        tasks: &mut BTreeMap<Id, Task>,
-        to_wake: &mut Vec<Id>,
-    ) -> (u32, Mixer<'static>) {
-        let mut executor = executor_store.reuse_capacity();
-        let reactor = self.reactor.borrow();
-        let arg = executor.populate(front, &reactor);
-        *self.wakeup_reason.borrow_mut() = match arg {
-            Arg::Named { name, value } => Reason::Named { name, value },
-            Arg::Pos { value } => Reason::Positional { value },
-        };
-
-        let mut best_size = 0;
-        while let Some(next) = executor.consume_next_item(tasks) {
-            let task = &mut tasks.get_mut(&next.id).unwrap();
-            let r = self.poll_in_context(task);
-            assert!(!r);
-            if task.info.consumed > 0 {
-                to_wake.push(next.id);
-            } else {
-                executor.pass();
-            }
-
-            best_size = best_size.max(task.info.consumed);
-        }
-
-        (best_size, executor.reuse_capacity())
-    }
-
-    /// Run the second stage of the trigger
-    ///
-    /// Depending on how much a task is consuming relative to other tasks
-    /// task are either allowed to run or are being terminated
-    fn stage_2(
-        &self,
-        best_size: u32,
-        to_wake: &mut Vec<Id>,
-        to_wake2: &mut VecDeque<(Id, u32)>,
-        tasks: &mut BTreeMap<Id, Task>,
-    ) {
-        use std::collections::btree_map::Entry;
-        for id in to_wake.drain(..) {
-            // TODO - I think `entry` API can be replaced with just removing
-            let Entry::Occupied(mut task) = tasks.entry(id) else {
-                todo!("Second stage got a task id that isn't there?");
-            };
-            let task_ref = task.get_mut();
-            let term = task_ref.info.consumed < best_size;
-            *self.wakeup_reason.borrow_mut() = Reason::Term(term);
-
-            if self.poll_in_context(task_ref) {
-                let task = task.remove();
-                let size = if term { 0 } else { task.info.consumed };
-                to_wake2.push_back((task.info.parent_id.as_id(), size))
-            } else {
-                todo!("I think this should never run");
-            }
-        }
-    }
-
-    // Propagate trigger results to parents recursively
-    fn propagate(&self, tasks: &mut BTreeMap<Id, Task>, to_wake2: &mut VecDeque<(Id, u32)>) {
-        while let Some((id, consumed)) = to_wake2.pop_front() {
-            let std::collections::btree_map::Entry::Occupied(mut task) = tasks.entry(id) else {
-                todo!("Unknown task in propagete?")
-            };
-            let task_ref = task.get_mut();
-            task_ref.info.pending -= 1;
-            task_ref.info.consumed += consumed;
-            if task_ref.info.pending > 0 {
-                continue;
-            }
-            if self.poll_in_context(task_ref) {
-                let task = task.remove();
-                if task.info.parent_id.is_root() {
-                    // the parent is root = there's no task to wake up
-                    continue;
-                }
-                to_wake2.push_back((task.info.parent_id.as_id(), task.info.consumed));
-            }
-        }
+    fn execute(self: &Ctx) -> Result<(), Error> {
+        Executor::new(self.clone()).execute()
     }
 }
 
