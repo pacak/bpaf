@@ -12,7 +12,7 @@ fn main() -> std::io::Result<()> {
             || first == "clean"
             || first == "run"
             || first == "test"
-            || first.to_str().map_or(false, |s| s.starts_with("--bpaf"));
+            || first.to_str().is_some_and(|s| s.starts_with("--bpaf"));
 
         if !supported {
             let mut cmd = Command::new("cargo");

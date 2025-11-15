@@ -73,10 +73,10 @@ pub fn matching_targets<'a>(
                 .filter(move |t| {
                     name.matches(&t.name)
                         && t.kind
-                            .get(0)
-                            .map_or(false, |kind| kinds.contains(&kind.as_str()))
+                            .first()
+                            .is_some_and(|kind| kinds.contains(&kind.as_str()))
                 })
-                .filter_map(|t| match t.kind.get(0)?.as_str() {
+                .filter_map(|t| match t.kind.first()?.as_str() {
                     "bin" => Some(Exec::Bin {
                         pkg: &p.name,
                         name: &t.name,
@@ -145,8 +145,8 @@ impl Exec {
             Exec::ProcMacro { pkg, name } => (pkg, name, "lib"),
         };
         name == target.name
-            && package.map_or(true, |p| p == pkg)
-            && target.kind.get(0).map(String::as_str) == Some(kind)
+            && package.is_none_or(|p| p == pkg)
+            && target.kind.first().map(String::as_str) == Some(kind)
     }
 
     pub fn name(self) -> &'static str {
