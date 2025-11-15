@@ -190,7 +190,7 @@ pub(crate) fn render_bash(
     // handling this would be ignoring the shell machinery and handling masks on the
     // Rust side... But for now try this
     //
-    fn bashmask(i: &str) -> Cow<str> {
+    fn bashmask(i: &str) -> Cow<'_, str> {
         let i = i.strip_prefix("*.").unwrap_or(i);
 
         if i.starts_with('(') {
