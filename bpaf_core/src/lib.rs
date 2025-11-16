@@ -1,7 +1,17 @@
+mod arg;
+mod args;
+mod os_str;
+mod utils {}
+
+use crate::{
+    arg::{Adjacency, Arg, OwnedName, lex_os_arg},
+    args::Items,
+};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    ffi::{OsStr, OsString},
     pin::Pin,
     rc::Rc,
     task::Poll,
@@ -315,7 +325,7 @@ pub struct RawCtx {
     new_tasks: RefCell<Vec<Task>>,
     triggers: RefCell<Triggers>,
     next_free: Cell<u32>,
-    args: RefCell<Vec<String>>,
+    args: RefCell<Vec<OsString>>,
     cursor: Cell<usize>,
     wakeup_reason: RefCell<Reason>,
     current_task: RefCell<TaskInfo>,
@@ -324,8 +334,13 @@ pub type Ctx = Rc<RawCtx>;
 
 enum Reason {
     Term(bool),
-    Positional { value: String },
-    Named { name: Name, value: Option<String> },
+    Positional {
+        value: OsString,
+    },
+    Named {
+        name: OwnedName,
+        value: Option<(Adjacency, OsString)>,
+    },
 }
 
 struct DummyFlag(char);
@@ -600,7 +615,7 @@ impl Executor {
             // This can't be done in a single pass for two reasons:
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
-            let (best_size, mixer) = self.stage_1(front, mixer_capacity);
+            let (best_size, mixer) = self.stage_1(front.clone(), mixer_capacity);
             mixer_capacity = mixer;
 
             let ambiguity = false;
@@ -637,7 +652,11 @@ impl Executor {
     /// Run the first stage of the trigger
     ///
     /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(&mut self, front: &str, mixer_capacity: Mixer<'static>) -> (u32, Mixer<'static>) {
+    fn stage_1(
+        &mut self,
+        front: OsString,
+        mixer_capacity: Mixer<'static>,
+    ) -> (u32, Mixer<'static>) {
         let mut mixer = mixer_capacity.reuse_capacity();
         let reactor = self.ctx.triggers.borrow();
         let arg = mixer.populate(front, &reactor);
@@ -1031,7 +1050,7 @@ impl RCache {
 }
 
 impl RawCtx {
-    fn new(args: Vec<String>) -> Rc<RawCtx> {
+    fn new(args: Vec<OsString>) -> Rc<RawCtx> {
         Rc::new(RawCtx {
             new_tasks: Default::default(),
             triggers: Default::default(),
@@ -1059,23 +1078,23 @@ struct Mixer<'a> {
 }
 
 impl<'a> Mixer<'a> {
-    fn populate(&mut self, front: &str, triggers: &'a Triggers) -> Arg {
+    fn populate(&mut self, front: OsString, triggers: &'a Triggers) -> Arg {
         self.pecking_push(&triggers.any);
-        let parsed = split(front);
+        let parsed = lex_os_arg(front);
         match &parsed {
             Arg::Named {
-                name: Name::Long(name),
+                name: OwnedName::Long(name),
                 value: _,
             } => {
-                if let Some(order) = triggers.long_args.get(name) {
+                if let Some(order) = triggers.long_args.get(name.as_str()) {
                     self.pecking_push(order);
                 }
-                if let Some(order) = triggers.long_flags.get(name) {
+                if let Some(order) = triggers.long_flags.get(name.as_str()) {
                     self.pecking_push(order);
                 }
             }
             Arg::Named {
-                name: Name::Short(name),
+                name: OwnedName::Short(name),
                 value: _,
             } => {
                 if let Some(order) = triggers.short_args.get(name) {
@@ -1105,49 +1124,6 @@ impl<'a> Mixer<'a> {
         }
         res
     }
-
-    // fn next_item(&self, prev: pecking::Item) -> Option<pecking::Item> {
-    //     // TODO - apply filtering and throw out peckings we can't possibly match
-    //     let mut res = None;
-    //     for order in self
-    //         .pecking
-    //         .iter()
-    //         .filter_map(|v| v.po_next_item(prev))
-    //         .copied()
-    //     {
-    //         res = Some(res.map_or(order, |old| order.min(old)));
-    //     }
-    //     res
-    // }
-    //
-    // fn next_family(
-    //     &mut self,
-    //     tasks: &BTreeMap<Id, Task>,
-    //     mut prev: pecking::Item,
-    // ) -> Option<pecking::Item> {
-    //     println!("Checking next family to {prev:?}");
-    //     loop {
-    //         let min = self
-    //             .pecking
-    //             .iter()
-    //             .filter_map(|v| v.po_next_family(prev))
-    //             .copied()
-    //             .min()?;
-    //
-    //         // In most cases we expect to have just a single trigger for an item so we can skip all this
-    //         // walking business and do it only when we actually need to decide if two parsers can run
-    //         // concurrently. This is just an optimization.
-    //         if self.tracker.is_empty() {
-    //             self.tracker.walk_tasks_up(prev.id, tasks);
-    //         }
-    //         if self.tracker.walk_tasks_up(min.id, tasks) {
-    //             println!("Got {min:?}");
-    //             return Some(min);
-    //         } else {
-    //             prev = min.next_family_item();
-    //         }
-    //     }
-    // }
 }
 
 impl<'a> Mixer<'a> {
@@ -1245,7 +1221,13 @@ impl<'a> Mixer<'a> {
     // }
 }
 
-fn reuse_vec<'a, 'b, T>(mut v: Vec<&'a T>) -> Vec<&'b T> {
+/// Clean the vector and decouple the lifetime reuse the capacity
+fn reuse_vec<U, V>(mut v: Vec<U>) -> Vec<V> {
+    use core::mem::size_of;
+    const {
+        assert!(size_of::<U>() == size_of::<V>());
+        assert!(align_of::<U>() == align_of::<V>());
+    }
     v.clear();
     v.into_iter().map(|_| unreachable!()).collect()
 }
@@ -1274,55 +1256,8 @@ impl From<String> for Name {
     }
 }
 
-#[derive(Debug)]
-enum Arg {
-    Named { name: Name, value: Option<String> },
-    Pos { value: String },
-}
-
-fn split(val: &str) -> Arg {
-    if let Some(name) = val.strip_prefix("--") {
-        match name.split_once('=') {
-            Some((name, val)) => {
-                let name = name.to_owned().into();
-                let value = Some(val.to_owned());
-                Arg::Named { name, value }
-            }
-            None => {
-                let name = name.to_owned().into();
-                let value = None;
-                Arg::Named { name, value }
-            }
-        }
-    } else if let Some(name) = val.strip_prefix("-") {
-        match name.split_once('=') {
-            Some((name, val)) => {
-                let name = name.chars().next().unwrap().into();
-                let value = Some(val.to_owned());
-                Arg::Named { name, value }
-            }
-            None => {
-                let name = name.chars().next().unwrap().into();
-                let value = None;
-                Arg::Named { name, value }
-            }
-        }
-    } else {
-        Arg::Pos {
-            value: val.to_owned(),
-        }
-    }
-}
-
-pub struct Args(pub(crate) Vec<String>);
-impl<const N: usize> From<[&'static str; N]> for Args {
-    fn from(value: [&'static str; N]) -> Self {
-        Args(value.into_iter().map(String::from).collect())
-    }
-}
-
 fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
-    let args = args.iter().copied().map(|a| a.to_owned()).collect();
+    let args = Items::from(args).items;
     let ctx = RawCtx::new(args);
 
     let (handle, act) = ctx.make_raw_task(parser.into_rc());
