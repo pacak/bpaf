@@ -4,14 +4,14 @@ mod os_str;
 mod utils {}
 
 use crate::{
-    arg::{Adjacency, Arg, OwnedName, lex_os_arg},
+    arg::{Arg, lex_os_arg},
     args::Items,
 };
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
-    ffi::{OsStr, OsString},
+    ffi::OsString,
     pin::Pin,
     rc::Rc,
     task::Poll,
@@ -332,15 +332,12 @@ pub struct RawCtx {
 }
 pub type Ctx = Rc<RawCtx>;
 
+#[derive(Debug)]
 enum Reason {
-    Term(bool),
-    Positional {
-        value: OsString,
-    },
-    Named {
-        name: OwnedName,
-        value: Option<(Adjacency, OsString)>,
-    },
+    NoMatchingInput,
+    NotConsumedEnough,
+    Pass,
+    Arg(Arg<'static>),
 }
 
 struct DummyFlag(char);
@@ -384,7 +381,11 @@ impl RawCtx {
         (cur.parent_id, cur.id)
     }
 
-    fn add_names(&self, names: &[Name], selector: NamedPeckingOrderSelector) -> Result<(), Error> {
+    fn add_names(
+        &self,
+        names: &[Name<'static>],
+        selector: NamedPeckingOrderSelector,
+    ) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
         let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
         for name in names {
@@ -399,7 +400,7 @@ impl RawCtx {
 
     fn remove_names(
         &self,
-        names: &[Name],
+        names: &[Name<'static>],
         selector: NamedPeckingOrderSelector,
     ) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
@@ -503,21 +504,22 @@ impl RawCtx {
     /// - `Ok(true)` when encounters a name
     /// - `Ok(false)` when it gets terminated by optional logic
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
-    async fn parse_flag(&self, names: &[Name]) -> Result<bool, Error> {
+    async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
         self.add_names(names, view_reactor_flags)?;
         r#yield().await; // ------------------------------------------
         let mut term = false;
         let mut res = match *self.wakeup_reason.borrow() {
-            Reason::Term(true) => {
+            Reason::NoMatchingInput => {
                 term = true;
                 Ok(false)
             }
-            Reason::Term(false) => unreachable!(),
-            Reason::Named {
+            Reason::NotConsumedEnough => unreachable!(),
+            Reason::Pass => unreachable!(),
+            Reason::Arg(Arg::Named {
                 name: _,
                 value: None,
-            } => Ok(true),
-            Reason::Named { .. } | Reason::Positional { .. } => unreachable!(),
+            }) => Ok(true),
+            Reason::Arg(_) => unreachable!(),
         };
         if term {
             self.remove_names(names, view_reactor_flags)?;
@@ -526,7 +528,7 @@ impl RawCtx {
         self.consume(1);
         r#yield().await; // ------------------------------------------
         self.remove_names(names, view_reactor_flags)?;
-        if matches!(*self.wakeup_reason.borrow(), Reason::Term(true)) {
+        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
             res = Err(Error::Killed);
         }
         res
@@ -635,10 +637,11 @@ impl Executor {
             self.propagate();
         }
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(true);
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
         while let Some((id, mut task)) = self.tasks.pop_last() {
             if self.tasks.is_empty() {
-                *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(false);
+                // this is a root task that holds
+                *self.ctx.wakeup_reason.borrow_mut() = Reason::Pass;
             }
             let exited = self.ctx.poll_in_context(&mut task);
             debug_assert!(exited, "Task {id:?} {task:?} failed to exit");
@@ -659,11 +662,10 @@ impl Executor {
     ) -> (u32, Mixer<'static>) {
         let mut mixer = mixer_capacity.reuse_capacity();
         let reactor = self.ctx.triggers.borrow();
-        let arg = mixer.populate(front, &reactor);
-        *self.ctx.wakeup_reason.borrow_mut() = match arg {
-            Arg::Named { name, value } => Reason::Named { name, value },
-            Arg::Pos { value } => Reason::Positional { value },
-        };
+        let arg = lex_os_arg(&front);
+        mixer.populate(arg.clone(), &reactor);
+
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
 
         let mut best_size = 0;
         while let Some(next) = mixer.consume_next_item(&self.tasks) {
@@ -695,7 +697,11 @@ impl Executor {
             };
             let task_ref = task.get_mut();
             let term = task_ref.info.consumed < best_size;
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Term(term);
+            *self.ctx.wakeup_reason.borrow_mut() = if term {
+                Reason::NotConsumedEnough
+            } else {
+                Reason::Pass
+            };
 
             if self.ctx.poll_in_context(task_ref) {
                 let task = task.remove();
@@ -1056,7 +1062,7 @@ impl RawCtx {
             triggers: Default::default(),
             next_free: Cell::new(1),
             args: args.into(),
-            wakeup_reason: RefCell::new(Reason::Term(false)),
+            wakeup_reason: RefCell::new(Reason::NoMatchingInput),
             current_task: Default::default(),
             cursor: Cell::new(0),
             // term: Default::default(),
@@ -1078,23 +1084,23 @@ struct Mixer<'a> {
 }
 
 impl<'a> Mixer<'a> {
-    fn populate(&mut self, front: OsString, triggers: &'a Triggers) -> Arg {
+    fn populate(&mut self, arg: Arg<'a>, triggers: &'a Triggers) {
         self.pecking_push(&triggers.any);
-        let parsed = lex_os_arg(front);
-        match &parsed {
+
+        match &arg {
             Arg::Named {
-                name: OwnedName::Long(name),
+                name: Name::Long(name),
                 value: _,
             } => {
-                if let Some(order) = triggers.long_args.get(name.as_str()) {
+                if let Some(order) = triggers.long_args.get(name) {
                     self.pecking_push(order);
                 }
-                if let Some(order) = triggers.long_flags.get(name.as_str()) {
+                if let Some(order) = triggers.long_flags.get(name) {
                     self.pecking_push(order);
                 }
             }
             Arg::Named {
-                name: OwnedName::Short(name),
+                name: Name::Short(name),
                 value: _,
             } => {
                 if let Some(order) = triggers.short_args.get(name) {
@@ -1108,9 +1114,11 @@ impl<'a> Mixer<'a> {
                 self.pecking_push(&triggers.pos);
             }
         }
-        parsed
     }
 
+    /// Add a non-empty pecking order to the mix
+    ///
+    /// We'll often have empty pecking orders
     fn pecking_push(&mut self, order: &'a PeckingOrder) {
         if !order.is_empty() {
             self.pecking.push(order);
@@ -1233,24 +1241,33 @@ fn reuse_vec<U, V>(mut v: Vec<U>) -> Vec<V> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
-pub(crate) enum Name {
+pub(crate) enum Name<'a> {
     Short(char),
-    Long(Cow<'static, str>),
+    Long(Cow<'a, str>),
 }
 
-impl From<char> for Name {
+impl Name<'_> {
+    pub(crate) fn into_owned(self) -> Name<'static> {
+        match self {
+            Name::Short(s) => Name::Short(s),
+            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
+        }
+    }
+}
+
+impl From<char> for Name<'static> {
     fn from(value: char) -> Self {
         Name::Short(value)
     }
 }
 
-impl From<&'static str> for Name {
-    fn from(value: &'static str) -> Self {
+impl<'a> From<&'a str> for Name<'a> {
+    fn from(value: &'a str) -> Self {
         Name::Long(Cow::Borrowed(value))
     }
 }
 
-impl From<String> for Name {
+impl From<String> for Name<'static> {
     fn from(value: String) -> Self {
         Name::Long(Cow::Owned(value))
     }
