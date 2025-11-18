@@ -11,7 +11,7 @@ use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     pin::Pin,
     rc::Rc,
     task::Poll,
@@ -351,6 +351,27 @@ impl Parser<bool> for DummyFlag {
     }
 }
 
+struct DummyArg(char);
+impl Parser<Option<OsString>> for DummyArg {
+    async fn run(&self, ctx: Ctx) -> Result<Option<OsString>, Error> {
+        let names = [Name::Short(self.0)];
+        let r = ctx.parse_arg(&names[..]).await;
+        println!("{r:?} / {names:?} {:?}", ctx.current_task.borrow().id);
+        r
+    }
+}
+
+struct DummyPos;
+impl Parser<Option<OsString>> for DummyPos {
+    async fn run(&self, ctx: Ctx) -> Result<Option<OsString>, Error> {
+        let r = ctx.parse_pos().await;
+        println!("{r:?} / {:?}", ctx.current_task.borrow().id);
+        r
+    }
+}
+
+struct DummyAnyOs<T>(Box<dyn Fn(&OsStr) -> Option<T>>);
+
 fn view_reactor_flags(
     reactor: &mut Triggers,
 ) -> (
@@ -381,6 +402,7 @@ impl RawCtx {
         (cur.parent_id, cur.id)
     }
 
+    #[inline(never)]
     fn add_names(
         &self,
         names: &[Name<'static>],
@@ -398,6 +420,7 @@ impl RawCtx {
         //
     }
 
+    #[inline(never)]
     fn remove_names(
         &self,
         names: &[Name<'static>],
@@ -507,25 +530,21 @@ impl RawCtx {
     async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
         self.add_names(names, view_reactor_flags)?;
         r#yield().await; // ------------------------------------------
-        let mut term = false;
         let mut res = match *self.wakeup_reason.borrow() {
             Reason::NoMatchingInput => {
-                term = true;
-                Ok(false)
+                self.remove_names(names, view_reactor_flags)?;
+                return Ok(false);
             }
-            Reason::NotConsumedEnough => unreachable!(),
-            Reason::Pass => unreachable!(),
+            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
             Reason::Arg(Arg::Named {
                 name: _,
                 value: None,
-            }) => Ok(true),
+            }) => {
+                self.consume(1);
+                Ok(true)
+            }
             Reason::Arg(_) => unreachable!(),
         };
-        if term {
-            self.remove_names(names, view_reactor_flags)?;
-            return res;
-        }
-        self.consume(1);
         r#yield().await; // ------------------------------------------
         self.remove_names(names, view_reactor_flags)?;
         if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
@@ -534,22 +553,107 @@ impl RawCtx {
         res
     }
 
-    // async fn parse_arg(self: Rc<Self>, names: &[Name]) -> Result<Error, Option<String>> {
-    //     self.add_names(names, reactor_flags)?;
-    //     r#yield().await;
-    //     let res = match *self.wakeup_reason.borrow() {
-    //         Reason::Term => Ok(None),
-    //         Reason::Named {
-    //             name: _,
-    //             value: None,
-    //         } => Ok(true),
-    //         Reason::Named { .. } | Reason::Positional { .. } => unreachable!(),
-    //     };
-    //     self.remove_names(names, reactor_flags)?;
-    //     r#yield().await;
-    //     res
-    //
-    // }
+    async fn parse_arg(&self, names: &[Name<'static>]) -> Result<Option<OsString>, Error> {
+        self.add_names(names, view_reactor_args)?;
+        r#yield().await; // ------------------------------------------
+        let mut res = match *self.wakeup_reason.borrow() {
+            Reason::NoMatchingInput => {
+                self.remove_names(names, view_reactor_flags)?;
+                return Ok(None);
+            }
+            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+            Reason::Arg(Arg::Pos { .. }) => unreachable!(),
+            Reason::Arg(Arg::Named {
+                ref name,
+                value: None,
+            }) => {
+                let cursor = self.cursor.get() + 1;
+                let args = self.args.borrow();
+                let Some(arg) = args.get(cursor) else {
+                    todo!("{name:?} expects a value");
+                };
+                match lex_os_arg(arg) {
+                    Arg::Named { .. } => {
+                        todo!("{name:?} got {arg:?}, try {name:?}={arg:?}")
+                    }
+                    Arg::Pos { value } => {
+                        self.consume(2);
+                        Ok(Some(value.clone().into_owned()))
+                    }
+                }
+            }
+            Reason::Arg(Arg::Named {
+                name: _,
+                value: Some((_adj, ref val)),
+            }) => {
+                self.consume(1);
+                Ok(Some(val.clone().into_owned()))
+            }
+        };
+        r#yield().await; // ------------------------------------------
+        self.remove_names(names, view_reactor_args)?;
+        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
+            res = Err(Error::Killed);
+        }
+        res
+    }
+
+    async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
+        let (parent, id) = self.task_parent_and_id();
+        self.triggers.borrow_mut().pos.insert(parent, id);
+        r#yield().await; // ------------------------------------------
+        let mut res = match *self.wakeup_reason.borrow() {
+            Reason::NoMatchingInput => {
+                self.triggers.borrow_mut().pos.remove(parent, id);
+                return Ok(None);
+            }
+            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+            Reason::Arg(Arg::Pos { ref value }) => {
+                self.consume(1);
+                Ok(Some(value.clone().into_owned()))
+            }
+            Reason::Arg(Arg::Named { .. }) => unreachable!(),
+        };
+        r#yield().await; // ------------------------------------------
+        self.triggers.borrow_mut().pos.remove(parent, id);
+        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
+            res = Err(Error::Killed);
+        }
+        res
+    }
+
+    async fn parse_any(
+        &self,
+        check: Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>,
+    ) -> Result<Option<Box<dyn std::any::Any>>, Error> {
+        let (parent, id) = self.task_parent_and_id();
+        self.triggers.borrow_mut().any.insert(parent, id);
+        r#yield().await; // ------------------------------------------
+        let mut res = loop {
+            match *self.wakeup_reason.borrow_mut() {
+                Reason::NoMatchingInput => {
+                    self.triggers.borrow_mut().any.remove(parent, id);
+                    return Ok(None);
+                }
+                Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+                Reason::Arg(_) => {
+                    let cursor = self.cursor.get();
+                    let args = self.args.borrow();
+                    match check(&args[cursor]) {
+                        None => continue,
+                        val => break Ok(val),
+                    }
+                }
+            }
+        };
+        r#yield().await; // ------------------------------------------
+        self.triggers.borrow_mut().any.remove(parent, id);
+        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
+            res = Err(Error::Killed);
+        }
+        res
+    }
+
     //
     // async fn wake_on_literal(self: Rc<Self>, value: &str) -> bool {
     //     todo!()
@@ -708,7 +812,7 @@ impl Executor {
                 let size = if term { 0 } else { task.info.consumed };
                 self.to_wake2.push_back((task.info.parent_id.as_id(), size))
             } else {
-                todo!("I think this should never run");
+                unreachable!("Task failed to exit during the second stage?");
             }
         }
     }
@@ -1286,7 +1390,7 @@ fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T,
 }
 
 #[test]
-fn parse_simple_works_1() {
+fn parse_simple_flag_works_1() {
     let a = DummyFlag('a');
     let b = DummyFlag('b');
     let parser = construct!(a, b);
@@ -1295,12 +1399,22 @@ fn parse_simple_works_1() {
 }
 
 #[test]
-fn parse_simple_works_2() {
+fn parse_simple_flag_works_2() {
     let a = DummyFlag('a');
     let b = DummyFlag('a');
     let parser = construct!(a, b);
     let r = run(parser, &["-a", "-a"]).unwrap();
     assert_eq!(r, (true, true));
+}
+
+#[test]
+fn parse_simpel_arg_works_1() {
+    let a = DummyArg('a');
+    let b = DummyArg('b');
+    let parser = construct!(a, b);
+    let (ra, rb) = run(parser, &["-a=10", "-b", "20"]).unwrap();
+    assert_eq!(ra.unwrap(), "10");
+    assert_eq!(rb.unwrap(), "20");
 }
 
 #[cfg(test)]
