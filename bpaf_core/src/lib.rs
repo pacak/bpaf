@@ -38,21 +38,64 @@ impl<T> JoinHandle<T> {
     }
 }
 
+#[repr(transparent)]
+#[derive(Clone)]
+pub struct Bp<I>(I);
+
+impl<T: 'static, P: Parser<T>> Parser<T> for Bp<P> {
+    #[inline(always)]
+    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>> {
+        self.0.run(ctx)
+    }
+}
+
+mod structs {
+    use crate::Parser;
+    use std::marker::PhantomData;
+
+    pub struct Map<P, F, T, R> {
+        pub(crate) inner: P,
+        pub(crate) map: F,
+        pub(crate) ctx: PhantomData<(T, R)>,
+    }
+
+    impl<T: 'static, P: Parser<T>, R: 'static, F: Fn(T) -> R> Parser<R> for Map<P, F, T, R> {
+        async fn run(&self, ctx: crate::Ctx) -> Result<R, crate::Error> {
+            let t = self.inner.run(ctx).await?;
+            Ok((self.map)(t))
+        }
+    }
+}
+
 mod traits {
     //! [`Parser`] trait and related private helper traits
 
-    use crate::{Ctx, Error};
-    use std::{pin::Pin, rc::Rc};
+    use crate::{Bp, Ctx, Error};
+    use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
+    use crate::structs::*;
     pub trait Parser<T: 'static> {
         fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>>;
 
         /// Convert the parser into a boxed, reference counted version
-        fn into_rc(self) -> RcParser<T>
+        fn into_rc(self) -> Bp<RcParser<T>>
         where
             Self: Sized + Parser<T> + 'static,
         {
-            RcParser(Rc::new(self))
+            Bp(RcParser(Rc::new(self)))
+        }
+
+        fn map<F, R>(self, map: F) -> impl Parser<R>
+        where
+            Self: Sized + Parser<T>,
+            F: Fn(T) -> R + 'static,
+            R: 'static,
+        {
+            Map {
+                inner: self,
+                ctx: PhantomData,
+                map,
+            }
         }
     }
 
@@ -370,7 +413,27 @@ impl Parser<Option<OsString>> for DummyPos {
     }
 }
 
-struct DummyAnyOs<T>(Box<dyn Fn(&OsStr) -> Option<T>>);
+struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
+struct DummyAny<T>(Rc<dyn Fn(&str) -> Option<T>>);
+
+fn any<T: 'static>(check: impl Fn(&str) -> Option<T> + 'static) -> impl Parser<T> {
+    DummyAny(Rc::new(check))
+}
+
+impl<T: 'static> Parser<T> for DummyAny<T> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let parser = self.0.clone();
+        let check = Box::new(move |os: &OsStr| -> Option<Box<dyn std::any::Any>> {
+            Some(Box::new(parser(os.to_str()?)?))
+        });
+        Ok(*ctx
+            .parse_any(check)
+            .await?
+            .unwrap()
+            .downcast()
+            .expect("It should match"))
+    }
+}
 
 fn view_reactor_flags(
     reactor: &mut Triggers,
@@ -459,7 +522,7 @@ impl RawCtx {
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
     fn make_raw_task<T: 'static>(
         self: &Rc<Self>,
-        parser: RcParser<T>,
+        parser: Bp<RcParser<T>>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
         let ctx = self.clone();
         let result_out = Rc::new(Cell::new(None));
@@ -468,7 +531,7 @@ impl RawCtx {
         (JoinHandle { result }, action)
     }
 
-    fn spawn<T: 'static>(self: &Rc<Self>, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
+    fn spawn<T: 'static>(self: &Rc<Self>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -622,6 +685,7 @@ impl RawCtx {
         res
     }
 
+    #[expect(clippy::type_complexity)]
     async fn parse_any(
         &self,
         check: Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>,
@@ -630,7 +694,7 @@ impl RawCtx {
         self.triggers.borrow_mut().any.insert(parent, id);
         r#yield().await; // ------------------------------------------
         let mut res = loop {
-            match *self.wakeup_reason.borrow_mut() {
+            let attempt = match *self.wakeup_reason.borrow() {
                 Reason::NoMatchingInput => {
                     self.triggers.borrow_mut().any.remove(parent, id);
                     return Ok(None);
@@ -639,11 +703,15 @@ impl RawCtx {
                 Reason::Arg(_) => {
                     let cursor = self.cursor.get();
                     let args = self.args.borrow();
-                    match check(&args[cursor]) {
-                        None => continue,
-                        val => break Ok(val),
-                    }
+                    check(&args[cursor])
                 }
+            };
+            if attempt.is_none() {
+                r#yield().await;
+                continue;
+            } else {
+                self.consume(1);
+                break Ok(attempt);
             }
         };
         r#yield().await; // ------------------------------------------
@@ -653,22 +721,6 @@ impl RawCtx {
         }
         res
     }
-
-    //
-    // async fn wake_on_literal(self: Rc<Self>, value: &str) -> bool {
-    //     todo!()
-    // }
-    //
-    // async fn wake_on_positional(self: Rc<Self>) -> Result<Error, String> {
-    //     todo!()
-    // }
-    //
-    // async fn wake_on_any(
-    //     self: Rc<Self>,
-    //     check: Box<dyn Fn(&str) -> Box<dyn Any>>,
-    // ) -> Option<Box<dyn Any>> {
-    //     todo!()
-    // }
 }
 
 struct Executor {
@@ -810,6 +862,9 @@ impl Executor {
             if self.ctx.poll_in_context(task_ref) {
                 let task = task.remove();
                 let size = if term { 0 } else { task.info.consumed };
+                if task.info.parent_id.is_root() {
+                    continue;
+                }
                 self.to_wake2.push_back((task.info.parent_id.as_id(), size))
             } else {
                 unreachable!("Task failed to exit during the second stage?");
@@ -822,7 +877,7 @@ impl Executor {
         while let Some((id, consumed)) = self.to_wake2.pop_front() {
             let std::collections::btree_map::Entry::Occupied(mut task) = self.tasks.entry(id)
             else {
-                todo!("Unknown task in propagete?")
+                todo!("Unknown task {id:?} in propagete?")
             };
             let task_ref = task.get_mut();
             task_ref.info.pending -= 1;
@@ -1257,7 +1312,6 @@ impl<'a> Mixer<'a> {
     }
 
     fn consume_next_item(&mut self, tasks: &BTreeMap<Id, Task>) -> Option<pecking::Item> {
-        println!("Prev: {:?}", self.prev);
         loop {
             if let Some(prev) = self.prev {
                 let prev = if self.same_family || self.tracker.is_empty() {
@@ -1282,9 +1336,7 @@ impl<'a> Mixer<'a> {
                     }
                 });
                 let best_candidate = best_candidate?;
-                println!("Prev is {prev:?}, next best item is {best_candidate:?}");
-
-                if self.tracker.is_empty() {
+                if self.tracker.is_empty() && !self.same_family {
                     self.tracker.walk_tasks_up(prev.id, tasks);
                 }
                 self.prev = Some(best_candidate);
@@ -1390,6 +1442,14 @@ fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T,
 }
 
 #[test]
+fn parse_simple_flag_works_0() {
+    let a = DummyFlag('a');
+
+    let r = run(a, &["-a"]).unwrap();
+    assert!(r);
+}
+
+#[test]
 fn parse_simple_flag_works_1() {
     let a = DummyFlag('a');
     let b = DummyFlag('b');
@@ -1415,6 +1475,27 @@ fn parse_simpel_arg_works_1() {
     let (ra, rb) = run(parser, &["-a=10", "-b", "20"]).unwrap();
     assert_eq!(ra.unwrap(), "10");
     assert_eq!(rb.unwrap(), "20");
+}
+
+#[test]
+fn simple_parse_any_works() {
+    let a = any(|s| s.parse::<i32>().ok());
+    let r = run(a, &["-10"]).unwrap();
+    assert_eq!(r, -10);
+}
+#[test]
+fn with_flag_parse_any_works() {
+    // let a = any(|s| s.parse::<i32>().ok());
+    // let b = DummyFlag('b');
+    // let parser = construct!(a, b);
+    // let r = run(parser, &["-10", "-b"]).unwrap();
+    // assert_eq!(r, (-10, true));
+
+    let a = any(|s| s.parse::<i32>().ok());
+    let b = DummyFlag('b');
+    let parser = construct!(a, b);
+    let r = run(parser, &["-b", "-10"]).unwrap();
+    assert_eq!(r, (-10, true));
 }
 
 #[cfg(test)]
@@ -1484,7 +1565,7 @@ mod wake_tests {
     }
 
     fn arrange<T: 'static>(
-        ps: [RcParser<T>; 4],
+        ps: [Bp<RcParser<T>>; 4],
         kind_1234: Kind,
         kind_12: Kind,
         kind_34: Kind,
