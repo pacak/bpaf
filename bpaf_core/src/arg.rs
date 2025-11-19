@@ -73,7 +73,7 @@ impl Arg<'_> {
     }
 }
 
-pub(crate) fn lex_os_arg(value: &OsStr) -> Arg {
+pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
     use crate::os_str::OsStrExt as _;
     if let Some(long) = value.strip_prefix("--") {
         match long.split_by_ascii(b'=') {

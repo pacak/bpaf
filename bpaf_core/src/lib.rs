@@ -290,48 +290,98 @@ impl Default for TaskInfo {
         }
     }
 }
+#[derive(Debug, Copy, Clone)]
+pub struct Metavar(&'static str);
+mod error {
+    use std::borrow::Cow;
 
-#[derive(Debug)]
-pub enum Error {
-    MissingItem(&'static str),
-    ParseError,
-    Killed,
-    Internal,
-}
-impl Error {
-    fn combine(self, e2: Error) -> Error {
-        match (self, e2) {
-            (Error::Internal, _e) | (_e, Error::Internal) => Error::Internal,
-            (Error::Killed, e) | (e, Error::Killed) => e,
-            (Error::MissingItem(_), Error::MissingItem(_)) => todo!(),
-            (Error::MissingItem(_), Error::ParseError) => todo!(),
-            (Error::ParseError, Error::MissingItem(_)) => todo!(),
-            (Error::ParseError, Error::ParseError) => todo!(),
+    use crate::{Metavar, Name};
+
+    #[derive(Debug)]
+    pub enum Error {
+        MissingItem(Missing),
+        ParseError,
+        Killed,
+        Internal,
+    }
+
+    #[derive(Debug, Clone)]
+    pub enum Missing {
+        Single(MissingItem),
+        Items(Vec<MissingItem>),
+    }
+    impl Missing {
+        fn combine(self, m: Missing) -> Self {
+            match (self, m) {
+                (Missing::Single(m1), Missing::Single(m2)) => Self::Items(vec![m1, m2]),
+                (Missing::Single(m), Missing::Items(mut ms))
+                | (Missing::Items(mut ms), Missing::Single(m)) => {
+                    ms.push(m);
+                    Self::Items(ms)
+                }
+                (Missing::Items(mut ms), Missing::Items(mut ms2)) => {
+                    ms.append(&mut ms2);
+                    Self::Items(ms)
+                }
+            }
         }
     }
+    #[derive(Debug, Clone)]
+    pub enum MissingItem {
+        Named {
+            name: Name<'static>,
+            meta: Option<Metavar>,
+        },
+        Pos {
+            meta: Metavar,
+        },
+        Lit {
+            value: Cow<'static, str>,
+        },
+        Command,
+    }
 
-    fn can_catch(&self) -> bool {
-        match self {
-            Error::MissingItem(_) => true,
-            Error::ParseError => false,
-            Error::Killed => true,
-            Error::Internal => false,
+    impl Error {
+        fn combine(self, e2: Error) -> Error {
+            match (self, e2) {
+                (Error::Internal, _e) | (_e, Error::Internal) => Error::Internal,
+                (Error::Killed, e) | (e, Error::Killed) => e,
+                (Error::MissingItem(i1), Error::MissingItem(i2)) => {
+                    Error::MissingItem(i1.combine(i2))
+                }
+                (Error::MissingItem(_), Error::ParseError) => todo!(),
+                (Error::ParseError, Error::MissingItem(_)) => todo!(),
+                (Error::ParseError, Error::ParseError) => todo!(),
+            }
+        }
+
+        pub(crate) fn can_catch(&self) -> bool {
+            match self {
+                Error::MissingItem(_) => true,
+                Error::ParseError => false,
+                Error::Killed => true,
+                Error::Internal => false,
+            }
+        }
+        pub(crate) fn missing(item: MissingItem) -> Self {
+            Self::MissingItem(Missing::Single(item))
+        }
+
+        /// Consume current error and append it to a growing collection in dst
+        ///
+        /// It exists to collect errors from multiple handles and designed to work with
+        /// [`Result::map_err`]. We aggregate the best possible error inside an Option
+        /// and fail with that if it is present
+        pub(crate) fn append_to(self, dst: &mut Option<Error>) -> Self {
+            *dst = Some(match dst.take() {
+                Some(e) => e.combine(self),
+                None => self,
+            });
+            Error::Killed
         }
     }
-
-    /// Consume current error and append it to a growing collection in dst
-    ///
-    /// It exists to collect errors from multiple handles and designed to work with
-    /// [`Result::map_err`]. We aggregate the best possible error inside an Option
-    /// and fail with that if it is present
-    fn append_to(self, dst: &mut Option<Error>) -> Self {
-        *dst = Some(match dst {
-            Some(e) => todo!("{e:?} {self:?}"),
-            None => self,
-        });
-        Error::Killed
-    }
 }
+pub use error::*;
 
 struct Yield(bool);
 
@@ -551,7 +601,6 @@ impl RawCtx {
     }
 
     fn spawn<T: 'static>(self: &Rc<Self>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
-        println!("Spawning child");
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -794,6 +843,11 @@ impl Executor {
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
             let (best_size, mixer) = self.stage_1(front.clone(), mixer_capacity);
+
+            if best_size == 0 {
+                todo!();
+            }
+
             mixer_capacity = mixer;
 
             let ambiguity = false;
@@ -1410,6 +1464,12 @@ pub(crate) enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
 }
+#[derive(Debug, Clone)]
+pub(crate) enum ShortLong {
+    Short(char),
+    Long(Cow<'static, str>),
+    Both(char, Cow<'static, str>),
+}
 
 impl Name<'_> {
     pub(crate) fn into_owned(self) -> Name<'static> {
@@ -1438,16 +1498,14 @@ impl From<String> for Name<'static> {
     }
 }
 
-fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
+pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
     let args = Items::from(args).items;
     let ctx = RawCtx::new(args);
 
     let (handle, act) = ctx.make_raw_task(parser.into_rc());
     let info = ctx.make_child_info(Kind::Prod);
     let task = Task { act, info };
-    println!("Adding task?");
     ctx.add_task(task);
-    println!("adding done");
     ctx.execute()?;
     handle.take()
 }
@@ -1481,11 +1539,11 @@ fn parse_simple_flag_works_2() {
 
 #[test]
 fn optional_tuple_works() {
-    let a = DummyFlag('a');
-    let b = DummyFlag('b');
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
     let parser = construct!(a, b).optional();
-    let r = run(parser, &[]).unwrap();
-    todo!("{r:?}");
+    let r = run(parser, &["-a", "-b"]).unwrap();
+    assert_eq!(r, Some(('a', 'b')));
 }
 
 #[test]

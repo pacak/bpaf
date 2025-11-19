@@ -8,7 +8,7 @@ pub(crate) struct Named {
 }
 
 impl Named {
-    fn get_shortlong(&self) -> (Option<char>, Option<&str>) {
+    fn get_short_and_long(&self) -> (Option<char>, Option<Cow<'static, str>>) {
         let mut short = None;
         let mut long = None;
 
@@ -21,13 +21,31 @@ impl Named {
                 }
                 Name::Long(cow) => {
                     if long.is_none() {
-                        long = Some(cow.as_ref())
+                        long = Some(cow.clone())
                     }
                 }
             }
         }
 
         (short, long)
+    }
+
+    /// Get [`Name`] with a preference to short
+    fn name_short_or_long(&self) -> Option<Name<'static>> {
+        match self.get_short_and_long() {
+            (None, None) => None,
+            (None, Some(l)) => Some(Name::Long(l.clone())),
+            (Some(s), _) => Some(Name::Short(s)),
+        }
+    }
+
+    /// Get [`Name`] with a preference to long
+    fn name_long_or_short(&self) -> Option<Name<'static>> {
+        match self.get_short_and_long() {
+            (None, None) => None,
+            (_, Some(l)) => Some(Name::Long(l.clone())),
+            (Some(s), None) => Some(Name::Short(s)),
+        }
     }
 }
 
@@ -109,7 +127,11 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
         } else if let Some(absent) = &self.0.absent {
             Ok(absent.clone())
         } else {
-            Err(Error::MissingItem("flag"))
+            let item = MissingItem::Named {
+                name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
+                meta: None,
+            };
+            Err(Error::missing(item))
         }
     }
 }
