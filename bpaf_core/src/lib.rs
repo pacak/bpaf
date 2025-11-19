@@ -1,12 +1,16 @@
 mod arg;
 mod args;
+mod consumers;
 mod os_str;
-mod utils {}
+mod utils;
 
 use crate::{
     arg::{Arg, lex_os_arg},
     args::Items,
+    utils::reuse_vec,
 };
+#[doc(inline)]
+pub use consumers::*;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
@@ -16,24 +20,15 @@ use std::{
     rc::Rc,
     task::Poll,
 };
+#[doc(inline)]
+pub use traits::*;
 
-pub struct JoinHandle<T> {
+pub(crate) struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 
-impl<T> Future for JoinHandle<T> {
-    type Output = Result<T, Error>;
-
-    fn poll(self: Pin<&mut Self>, _cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        match self.result.take() {
-            Some(r) => Poll::Ready(r),
-            None => Poll::Pending,
-        }
-    }
-}
-
 impl<T> JoinHandle<T> {
-    fn take(self) -> Result<T, Error> {
+    pub(crate) fn take(self) -> Result<T, Error> {
         self.result.take().unwrap_or(Err(Error::Killed))
     }
 }
@@ -42,18 +37,13 @@ impl<T> JoinHandle<T> {
 #[derive(Clone)]
 pub struct Bp<I>(I);
 
-impl<T: 'static, P: Parser<T>> Parser<T> for Bp<P> {
-    #[inline(always)]
-    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>> {
-        self.0.run(ctx)
-    }
-}
+mod adapters {
+    //! Adapters that implement functionality used by the [`Parser`] trait
 
-mod structs {
     use crate::Parser;
     use std::marker::PhantomData;
 
-    pub struct Map<P, F, T, R> {
+    pub(crate) struct Map<P, F, T, R> {
         pub(crate) inner: P,
         pub(crate) map: F,
         pub(crate) ctx: PhantomData<(T, R)>,
@@ -65,6 +55,29 @@ mod structs {
             Ok((self.map)(t))
         }
     }
+
+    pub(crate) struct Optional<P> {
+        pub(crate) inner: P,
+    }
+
+    impl<T: 'static, P: Parser<T>> Parser<Option<T>> for Optional<P> {
+        async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, crate::Error> {
+            let id = ctx.current_task.borrow().id;
+            ctx.early_exit.borrow_mut().insert(id);
+            let res = self.inner.run(ctx.clone()).await;
+            ctx.early_exit.borrow_mut().remove(&id);
+            match res {
+                Ok(v) => Ok(Some(v)),
+                Err(err) => {
+                    if err.can_catch() && ctx.current_task.borrow().consumed == 0 {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                }
+            }
+        }
+    }
 }
 
 mod traits {
@@ -73,7 +86,7 @@ mod traits {
     use crate::{Bp, Ctx, Error};
     use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
-    use crate::structs::*;
+    use crate::adapters::*;
     pub trait Parser<T: 'static> {
         fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>>;
 
@@ -87,7 +100,7 @@ mod traits {
 
         fn map<F, R>(self, map: F) -> impl Parser<R>
         where
-            Self: Sized + Parser<T>,
+            Self: Sized,
             F: Fn(T) -> R + 'static,
             R: 'static,
         {
@@ -96,6 +109,13 @@ mod traits {
                 ctx: PhantomData,
                 map,
             }
+        }
+
+        fn optional(self) -> impl Parser<Option<T>>
+        where
+            Self: Sized,
+        {
+            Optional { inner: self }
         }
     }
 
@@ -117,6 +137,7 @@ mod traits {
     }
 
     /// Reference counted boxed [`Parser<T>`](Parser) - it is cheap to clone
+    #[repr(transparent)]
     pub struct RcParser<T>(Rc<dyn DynParser<T>>);
 
     impl<T> Clone for RcParser<T> {
@@ -227,9 +248,6 @@ impl<T: 'static> Parser<T> for Con<T> {
         closure()
     }
 }
-
-#[doc(inline)]
-pub use traits::*;
 
 struct Task {
     act: Pin<Box<dyn Future<Output = ()>>>,
@@ -367,6 +385,7 @@ pub struct RawCtx {
     /// Active tasks are living outside of the `RawCtx`
     new_tasks: RefCell<Vec<Task>>,
     triggers: RefCell<Triggers>,
+    early_exit: RefCell<BTreeSet<Id>>,
     next_free: Cell<u32>,
     args: RefCell<Vec<OsString>>,
     cursor: Cell<usize>,
@@ -527,11 +546,12 @@ impl RawCtx {
         let ctx = self.clone();
         let result_out = Rc::new(Cell::new(None));
         let result = result_out.clone();
-        let action = Box::pin(async move { result_out.set(Some(parser.run(ctx).await)) });
+        let action = Box::pin(async move { result_out.set(Some(parser.0.run(ctx).await)) });
         (JoinHandle { result }, action)
     }
 
     fn spawn<T: 'static>(self: &Rc<Self>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
+        println!("Spawning child");
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -1217,14 +1237,14 @@ impl RCache {
 impl RawCtx {
     fn new(args: Vec<OsString>) -> Rc<RawCtx> {
         Rc::new(RawCtx {
-            new_tasks: Default::default(),
-            triggers: Default::default(),
-            next_free: Cell::new(1),
             args: args.into(),
-            wakeup_reason: RefCell::new(Reason::NoMatchingInput),
             current_task: Default::default(),
             cursor: Cell::new(0),
-            // term: Default::default(),
+            early_exit: Default::default(),
+            new_tasks: Default::default(),
+            next_free: Cell::new(1),
+            triggers: Default::default(),
+            wakeup_reason: RefCell::new(Reason::NoMatchingInput),
         })
     }
 
@@ -1385,17 +1405,6 @@ impl<'a> Mixer<'a> {
     // }
 }
 
-/// Clean the vector and decouple the lifetime reuse the capacity
-fn reuse_vec<U, V>(mut v: Vec<U>) -> Vec<V> {
-    use core::mem::size_of;
-    const {
-        assert!(size_of::<U>() == size_of::<V>());
-        assert!(align_of::<U>() == align_of::<V>());
-    }
-    v.clear();
-    v.into_iter().map(|_| unreachable!()).collect()
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
 pub(crate) enum Name<'a> {
     Short(char),
@@ -1436,7 +1445,9 @@ fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T,
     let (handle, act) = ctx.make_raw_task(parser.into_rc());
     let info = ctx.make_child_info(Kind::Prod);
     let task = Task { act, info };
+    println!("Adding task?");
     ctx.add_task(task);
+    println!("adding done");
     ctx.execute()?;
     handle.take()
 }
@@ -1451,11 +1462,12 @@ fn parse_simple_flag_works_0() {
 
 #[test]
 fn parse_simple_flag_works_1() {
-    let a = DummyFlag('a');
-    let b = DummyFlag('b');
-    let parser = construct!(a, b);
-    let r = run(parser, &["-a", "-b"]).unwrap();
-    assert_eq!(r, (true, true));
+    let a = short('a').switch();
+    let b = short('b').flag(1, 2);
+    let c = short('c').req_flag(());
+    let parser = construct!(a, b, c);
+    let r = run(parser, &["-a", "-b", "-c"]).unwrap();
+    assert_eq!(r, (true, 1, ()));
 }
 
 #[test]
@@ -1465,6 +1477,15 @@ fn parse_simple_flag_works_2() {
     let parser = construct!(a, b);
     let r = run(parser, &["-a", "-a"]).unwrap();
     assert_eq!(r, (true, true));
+}
+
+#[test]
+fn optional_tuple_works() {
+    let a = DummyFlag('a');
+    let b = DummyFlag('b');
+    let parser = construct!(a, b).optional();
+    let r = run(parser, &[]).unwrap();
+    todo!("{r:?}");
 }
 
 #[test]
