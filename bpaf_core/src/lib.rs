@@ -6,7 +6,7 @@ mod utils;
 
 use crate::{
     arg::{Arg, lex_os_arg},
-    args::Items,
+    args::Args,
     utils::reuse_vec,
 };
 #[doc(inline)]
@@ -40,7 +40,7 @@ pub struct Bp<I>(I);
 mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
-    use crate::Parser;
+    use crate::{Bp, Error, Kind, Parser, RawCtx, RcParser, Task, args::Args};
     use std::marker::PhantomData;
 
     pub(crate) struct Map<P, F, T, R> {
@@ -76,6 +76,35 @@ mod adapters {
                     }
                 }
             }
+        }
+    }
+
+    pub struct OptionParser<T> {
+        pub(crate) inner: RcParser<T>,
+    }
+
+    impl<T: 'static> Bp<OptionParser<T>> {
+        pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, Error> {
+            let items = args.into().items;
+
+            let ctx = RawCtx::new(items);
+
+            let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
+            let info = ctx.make_child_info(Kind::Prod);
+            let task = Task { act, info };
+            ctx.add_task(task);
+            ctx.execute()?;
+            handle.take()
+        }
+    }
+
+    pub struct Many<T> {
+        pub(crate) inner: RcParser<T>,
+    }
+
+    impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
+        async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
+            todo!()
         }
     }
 }
@@ -116,6 +145,15 @@ mod traits {
             Self: Sized,
         {
             Optional { inner: self }
+        }
+
+        fn to_options(self) -> Bp<OptionParser<T>>
+        where
+            Self: Sized + 'static,
+        {
+            Bp(OptionParser {
+                inner: self.into_rc().0,
+            })
         }
     }
 
@@ -589,6 +627,8 @@ impl RawCtx {
     }
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
+    //
+    // TODO - Do I really need Bp wrapper here?
     fn make_raw_task<T: 'static>(
         self: &Rc<Self>,
         parser: Bp<RcParser<T>>,
@@ -1499,7 +1539,7 @@ impl From<String> for Name<'static> {
 }
 
 pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
-    let args = Items::from(args).items;
+    let args = Args::from(args).items;
     let ctx = RawCtx::new(args);
 
     let (handle, act) = ctx.make_raw_task(parser.into_rc());
@@ -1558,22 +1598,23 @@ fn parse_simpel_arg_works_1() {
 
 #[test]
 fn simple_parse_any_works() {
-    let a = any(|s| s.parse::<i32>().ok());
-    let r = run(a, &["-10"]).unwrap();
-    assert_eq!(r, -10);
+    let parser = any(|s| s.parse::<i32>().ok()).to_options();
+
+    let r = parser.run_inner("-42").unwrap();
+    assert_eq!(r, -42);
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
 }
+
 #[test]
 fn with_flag_parse_any_works() {
-    // let a = any(|s| s.parse::<i32>().ok());
-    // let b = DummyFlag('b');
-    // let parser = construct!(a, b);
-    // let r = run(parser, &["-10", "-b"]).unwrap();
-    // assert_eq!(r, (-10, true));
-
     let a = any(|s| s.parse::<i32>().ok());
-    let b = DummyFlag('b');
-    let parser = construct!(a, b);
-    let r = run(parser, &["-b", "-10"]).unwrap();
+    let b = short('b').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-b -10").unwrap();
+    assert_eq!(r, (-10, true));
+    let r = parser.run_inner("-10 -b").unwrap();
     assert_eq!(r, (-10, true));
 }
 

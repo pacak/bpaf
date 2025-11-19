@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug, Clone)]
-pub(crate) struct Named {
+pub struct Named {
     names: Vec<Name<'static>>,
     env: Vec<String>,
     help: Option<String>,
@@ -90,14 +90,14 @@ impl Bp<Named> {
         self
     }
 
-    pub fn switch(mut self) -> Bp<Flag<bool>> {
+    pub fn switch(self) -> Bp<Flag<bool>> {
         Bp(Flag {
             present: true,
             absent: Some(false),
             named: self.0,
         })
     }
-    pub fn flag<T>(mut self, present: T, absent: T) -> Bp<Flag<T>> {
+    pub fn flag<T>(self, present: T, absent: T) -> Bp<Flag<T>> {
         Bp(Flag {
             present,
             absent: Some(absent),
@@ -105,7 +105,7 @@ impl Bp<Named> {
         })
     }
 
-    pub fn req_flag<T>(mut self, present: T) -> Bp<Flag<T>> {
+    pub fn req_flag<T>(self, present: T) -> Bp<Flag<T>> {
         Bp(Flag {
             present,
             absent: None,
