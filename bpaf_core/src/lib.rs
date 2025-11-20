@@ -40,7 +40,7 @@ pub struct Bp<I>(I);
 mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
-    use crate::{Bp, Error, Id, Kind, Parser, RawCtx, RcParser, Task, args::Args, r#yield};
+    use crate::{Bp, Error, Id, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield};
     use std::marker::PhantomData;
 
     pub(crate) struct Map<P, F, T, R> {
@@ -83,12 +83,9 @@ mod adapters {
     }
     impl<T: 'static> Parser<Option<T>> for Optional2<T> {
         async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
-            let start = Id(ctx.next_free.get());
-            let h = ctx.spawn(Kind::Prod, Bp(self.inner.clone()));
-            let end = Id(ctx.next_free.get());
-            ctx.early_exit.borrow_mut().insert((start, end));
+            let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
             r#yield().await;
-            ctx.early_exit.borrow_mut().remove(&(start, end));
+            ctx.remove_early_exit(pair);
             match h.take() {
                 Ok(v) => Ok(Some(v)),
                 Err(err) => {
@@ -127,7 +124,36 @@ mod adapters {
 
     impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
         async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-            todo!()
+            let mut res = Vec::new();
+            let start = ctx.next_free.get();
+            let mut consumed_before = 0;
+            while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass) {
+                ctx.next_free.set(start);
+                let (h, pair) = ctx.spawn_with_early_exit(self.0.inner.clone());
+
+                r#yield().await;
+                ctx.remove_early_exit(pair);
+
+                let consumed_after = ctx.current_task.borrow().consumed;
+                let advanced = consumed_after > consumed_before;
+                consumed_before = consumed_after;
+
+                let val = h.take();
+
+                match (advanced, val) {
+                    (true, Ok(v)) => res.push(v),
+                    (true, Err(e)) => return Err(e),
+                    (false, Ok(v)) => {
+                        if res.is_empty() {
+                            res.push(v);
+                        }
+                        break;
+                    }
+                    (false, Err(e)) if e.can_catch() => break,
+                    (false, Err(e)) => return Err(e),
+                }
+            }
+            Ok(res)
         }
     }
 }
@@ -163,6 +189,7 @@ mod traits {
             }
         }
 
+        // TODO - yeet
         fn optional(self) -> impl Parser<Option<T>>
         where
             Self: Sized,
@@ -177,6 +204,15 @@ mod traits {
             Optional2 {
                 inner: self.into_rc().0,
             }
+        }
+
+        fn many(self) -> Bp<Many<T>>
+        where
+            Self: Sized + 'static,
+        {
+            Bp(Many {
+                inner: self.into_rc().0,
+            })
         }
 
         fn to_options(self) -> Bp<OptionParser<T>>
@@ -671,12 +707,28 @@ impl RawCtx {
         (JoinHandle { result }, action)
     }
 
-    fn spawn<T: 'static>(self: &Rc<Self>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
+    fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
         self.add_task(task);
         handle
+    }
+    fn spawn_with_early_exit<T: 'static>(
+        self: &Rc<RawCtx>,
+        parser: RcParser<T>,
+    ) -> (JoinHandle<T>, (Id, Id)) {
+        let start = Id(self.next_free.get());
+        let h = self.spawn(Kind::Prod, Bp(parser));
+        let end = Id(self.next_free.get());
+        let pair = (start, end);
+        self.early_exit.borrow_mut().insert(pair);
+        (h, pair)
+    }
+
+    fn remove_early_exit(&self, pair: (Id, Id)) {
+        let removed = self.early_exit.borrow_mut().remove(&pair);
+        assert!(removed);
     }
 
     #[inline(never)]
@@ -913,7 +965,7 @@ impl Executor {
             // This can't be done in a single pass for two reasons:
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
-            let (best_size, mixer) = self.stage_1(front.clone(), mixer_capacity);
+            let (best_size, mixer) = self.stage_1(front, mixer_capacity);
             mixer_capacity = mixer;
 
             if best_size == 0 {
@@ -924,20 +976,15 @@ impl Executor {
                         .tasks
                         .extract_if(start..end, |_, t| t.info.pending == 0)
                     {
+                        println!("Going to terminate {task:?}");
                         let done = ctx.poll_in_context(&mut task);
                         assert!(done);
                         self.to_wake2
                             .push_back((task.info.parent_id.as_id(), task.info.consumed));
                     }
-                    self.propagate();
+                    self.propagate(Reason::NoMatchingInput);
                     continue;
                 }
-            }
-
-            let ambiguity = false;
-
-            if ambiguity {
-                // create new context, new executor? run stuff in the new context?
             }
 
             if best_size > 0 {
@@ -948,20 +995,22 @@ impl Executor {
             }
             self.stage_2(best_size);
 
-            self.propagate();
+            self.propagate(Reason::Pass);
         }
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
-        while let Some((id, mut task)) = self.tasks.pop_last() {
-            if self.tasks.is_empty() {
-                // this is a root task that holds
-                *self.ctx.wakeup_reason.borrow_mut() = Reason::Pass;
-            }
+
+        for (id, mut task) in self.tasks.extract_if(.., |_, t| t.info.pending == 0) {
             let exited = self.ctx.poll_in_context(&mut task);
             debug_assert!(exited, "Task {id:?} {task:?} failed to exit");
+            self.to_wake2
+                .push_back((task.info.parent_id.as_id(), task.info.consumed));
         }
 
-        println!("somehow we are done");
+        self.propagate(Reason::NoMatchingInput);
+
+        println!("somehow we are done, {:?}", self.tasks);
+        assert!(self.tasks.is_empty());
 
         Ok(())
     }
@@ -969,14 +1018,10 @@ impl Executor {
     /// Run the first stage of the trigger
     ///
     /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(
-        &mut self,
-        front: OsString,
-        mixer_capacity: Mixer<'static>,
-    ) -> (u32, Mixer<'static>) {
+    fn stage_1(&mut self, front: &OsStr, mixer_capacity: Mixer<'static>) -> (u32, Mixer<'static>) {
         let mut mixer = mixer_capacity.reuse_capacity();
         let reactor = self.ctx.triggers.borrow();
-        let arg = lex_os_arg(&front);
+        let arg = lex_os_arg(front);
         mixer.populate(arg.clone(), &reactor);
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
@@ -1031,20 +1076,21 @@ impl Executor {
     }
 
     // Propagate trigger results to parents recursively
-    fn propagate(&mut self) {
+    fn propagate(&mut self, reason: Reason) {
+        *self.ctx.wakeup_reason.borrow_mut() = reason;
         while let Some((id, consumed)) = self.to_wake2.pop_front() {
-            let std::collections::btree_map::Entry::Occupied(mut task) = self.tasks.entry(id)
+            let std::collections::btree_map::Entry::Occupied(mut occ_task) = self.tasks.entry(id)
             else {
                 todo!("Unknown task {id:?} in propagete?")
             };
-            let task_ref = task.get_mut();
-            task_ref.info.pending -= 1;
-            task_ref.info.consumed += consumed;
-            if task_ref.info.pending > 0 {
+            let task = occ_task.get_mut();
+            task.info.pending -= 1;
+            task.info.consumed += consumed;
+            if task.info.pending > 0 {
                 continue;
             }
-            if self.ctx.poll_in_context(task_ref) {
-                let task = task.remove();
+            if self.ctx.poll_in_context(task) {
+                let task = occ_task.remove();
                 if task.info.parent_id.is_root() {
                     // the parent is root = there's no task to wake up
                     continue;
@@ -1383,7 +1429,7 @@ impl RawCtx {
             new_tasks: Default::default(),
             next_free: Cell::new(1),
             triggers: Default::default(),
-            wakeup_reason: RefCell::new(Reason::NoMatchingInput),
+            wakeup_reason: RefCell::new(Reason::Pass),
         })
     }
 
@@ -1515,8 +1561,6 @@ impl<'a> Mixer<'a> {
                 break;
             }
         }
-
-        println!("Produced a parser to run => {:?}\n", self.prev);
         self.prev
     }
 }
@@ -1606,7 +1650,6 @@ fn optional_tuple_works() {
     let parser = construct!(a, b).optional2();
     let r = run(parser, &["-a", "-b"]).unwrap();
     assert_eq!(r, Some(('a', 'b')));
-    todo!();
 }
 
 #[test]
@@ -1652,6 +1695,27 @@ fn parse_optional_temp() {
 
     let r = parser.run_inner("-b4").unwrap();
     assert_eq!(r, (None, 4));
+}
+
+#[test]
+fn many_works() {
+    let parser = short('a').req_flag(()).many().to_options();
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn many_with_optional() {
+    let a = short('a').req_flag(()).optional2();
+    let b = short('b').argument::<u32>("B");
+    let parser = construct!(a, b).many().to_options();
+
+    let r = parser.run_inner("-b30").unwrap();
+    assert_eq!(r, &[(None, 30)]);
+
+    let r = parser.run_inner("-a -b=10 -b20 -a -b 30").unwrap();
+
+    assert_eq!(r, &[(Some(()), 10), (Some(()), 20), (None, 30)]);
 }
 
 #[cfg(test)]
