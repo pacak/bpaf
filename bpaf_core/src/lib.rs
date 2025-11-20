@@ -40,7 +40,7 @@ pub struct Bp<I>(I);
 mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
-    use crate::{Bp, Error, Kind, Parser, RawCtx, RcParser, Task, args::Args};
+    use crate::{Bp, Error, Id, Kind, Parser, RawCtx, RcParser, Task, args::Args, r#yield};
     use std::marker::PhantomData;
 
     pub(crate) struct Map<P, F, T, R> {
@@ -63,10 +63,33 @@ mod adapters {
     impl<T: 'static, P: Parser<T>> Parser<Option<T>> for Optional<P> {
         async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, crate::Error> {
             let id = ctx.current_task.borrow().id;
-            ctx.early_exit.borrow_mut().insert(id);
+            // ctx.early_exit.borrow_mut().insert(id);
             let res = self.inner.run(ctx.clone()).await;
-            ctx.early_exit.borrow_mut().remove(&id);
+            // ctx.early_exit.borrow_mut().remove(&id);
             match res {
+                Ok(v) => Ok(Some(v)),
+                Err(err) => {
+                    if err.can_catch() && ctx.current_task.borrow().consumed == 0 {
+                        Ok(None)
+                    } else {
+                        Err(err)
+                    }
+                }
+            }
+        }
+    }
+    pub(crate) struct Optional2<T> {
+        pub(crate) inner: RcParser<T>,
+    }
+    impl<T: 'static> Parser<Option<T>> for Optional2<T> {
+        async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
+            let start = Id(ctx.next_free.get());
+            let h = ctx.spawn(Kind::Prod, Bp(self.inner.clone()));
+            let end = Id(ctx.next_free.get());
+            ctx.early_exit.borrow_mut().insert((start, end));
+            r#yield().await;
+            ctx.early_exit.borrow_mut().remove(&(start, end));
+            match h.take() {
                 Ok(v) => Ok(Some(v)),
                 Err(err) => {
                     if err.can_catch() && ctx.current_task.borrow().consumed == 0 {
@@ -145,6 +168,15 @@ mod traits {
             Self: Sized,
         {
             Optional { inner: self }
+        }
+
+        fn optional2(self) -> impl Parser<Option<T>>
+        where
+            Self: Sized + 'static,
+        {
+            Optional2 {
+                inner: self.into_rc().0,
+            }
         }
 
         fn to_options(self) -> Bp<OptionParser<T>>
@@ -473,7 +505,7 @@ pub struct RawCtx {
     /// Active tasks are living outside of the `RawCtx`
     new_tasks: RefCell<Vec<Task>>,
     triggers: RefCell<Triggers>,
-    early_exit: RefCell<BTreeSet<Id>>,
+    early_exit: RefCell<BTreeSet<(Id, Id)>>,
     next_free: Cell<u32>,
     args: RefCell<Vec<OsString>>,
     cursor: Cell<usize>,
@@ -622,7 +654,6 @@ impl RawCtx {
                 }
             }
         }
-
         Ok(())
     }
 
@@ -730,7 +761,7 @@ impl RawCtx {
         r#yield().await; // ------------------------------------------
         let mut res = match *self.wakeup_reason.borrow() {
             Reason::NoMatchingInput => {
-                self.remove_names(names, view_reactor_flags)?;
+                self.remove_names(names, view_reactor_args)?;
                 return Ok(None);
             }
             Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
@@ -883,12 +914,25 @@ impl Executor {
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
             let (best_size, mixer) = self.stage_1(front.clone(), mixer_capacity);
+            mixer_capacity = mixer;
 
             if best_size == 0 {
-                todo!();
+                let maybe_candidate = self.ctx.early_exit.borrow_mut().pop_last();
+                if let Some((start, end)) = maybe_candidate {
+                    *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
+                    for (_, mut task) in self
+                        .tasks
+                        .extract_if(start..end, |_, t| t.info.pending == 0)
+                    {
+                        let done = ctx.poll_in_context(&mut task);
+                        assert!(done);
+                        self.to_wake2
+                            .push_back((task.info.parent_id.as_id(), task.info.consumed));
+                    }
+                    self.propagate();
+                    continue;
+                }
             }
-
-            mixer_capacity = mixer;
 
             let ambiguity = false;
 
@@ -1112,6 +1156,7 @@ mod pecking {
             }
         }
 
+        /// Remove an item from the pecking order, returns `false` if PO is now empty
         pub(crate) fn remove(&mut self, parent: Parent, id: Id) -> bool {
             let to_remove = Item { parent, id };
             let ok = match &mut self.0 {
@@ -1471,32 +1516,9 @@ impl<'a> Mixer<'a> {
             }
         }
 
-        println!("Produced => {:?}\n", self.prev);
+        println!("Produced a parser to run => {:?}\n", self.prev);
         self.prev
     }
-
-    // fn consume_next(
-    //     &mut self,
-    //     tasks: &BTreeMap<Id, Task>,
-    //     prev: &mut Option<(pecking::Item, Kind)>,
-    //     same_family: bool,
-    // ) -> Option<pecking::Item> {
-    //     println!("Need to consume next to {prev:?} with same family {same_family:?}");
-    //     match prev {
-    //         Some((prev, kind)) => {
-    //             if same_family
-    //             /* || *kind == Kind::Sum  */
-    //             {
-    //                 println!("Looking at next item");
-    //                 self.next_item(*prev)
-    //             } else {
-    //                 println!("Looking at next family");
-    //                 self.next_family(tasks, *prev)
-    //             }
-    //         }
-    //         None => self.first(),
-    //     }
-    // }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
@@ -1581,9 +1603,10 @@ fn parse_simple_flag_works_2() {
 fn optional_tuple_works() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
-    let parser = construct!(a, b).optional();
+    let parser = construct!(a, b).optional2();
     let r = run(parser, &["-a", "-b"]).unwrap();
     assert_eq!(r, Some(('a', 'b')));
+    todo!();
 }
 
 #[test]
@@ -1616,6 +1639,19 @@ fn with_flag_parse_any_works() {
     assert_eq!(r, (-10, true));
     let r = parser.run_inner("-10 -b").unwrap();
     assert_eq!(r, (-10, true));
+}
+
+#[test]
+fn parse_optional_temp() {
+    let a = short('a').argument::<usize>("ARG").optional2();
+    let b = short('b').argument::<usize>("ARG2");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-b10 -a 12").unwrap();
+    assert_eq!(r, (Some(12), 10));
+
+    let r = parser.run_inner("-b4").unwrap();
+    assert_eq!(r, (None, 4));
 }
 
 #[cfg(test)]

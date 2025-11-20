@@ -1,3 +1,7 @@
+use std::{marker::PhantomData, str::FromStr};
+
+use crate::os_str::parse_os_str;
+
 use super::*;
 
 #[derive(Debug, Clone)]
@@ -73,7 +77,6 @@ pub fn long_string(name: String) -> Bp<Named> {
     })
 }
 
-/// # asf
 impl Bp<Named> {
     pub fn short(mut self, name: char) -> Self {
         self.0.names.push(name.into());
@@ -112,6 +115,14 @@ impl Bp<Named> {
             named: self.0,
         })
     }
+
+    pub fn argument<T>(self, metavar: &'static str) -> Bp<Argument<T>> {
+        Bp(Argument {
+            named: self.0,
+            metavar: Metavar(metavar),
+            ctx: PhantomData,
+        })
+    }
 }
 
 pub(crate) struct Flag<T> {
@@ -132,6 +143,32 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
                 meta: None,
             };
             Err(Error::missing(item))
+        }
+    }
+}
+
+pub struct Argument<T> {
+    named: Named,
+    metavar: Metavar,
+    ctx: PhantomData<T>,
+}
+
+impl<T> Parser<T> for Bp<Argument<T>>
+where
+    T: FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        match ctx.parse_arg(&self.0.named.names).await?.map(parse_os_str) {
+            Some(Ok(t)) => Ok(t),
+            Some(Err(err)) => todo!("{err:?}"),
+            None => {
+                let item = MissingItem::Named {
+                    name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
+                    meta: Some(self.0.metavar),
+                };
+                Err(Error::missing(item))
+            }
         }
     }
 }
