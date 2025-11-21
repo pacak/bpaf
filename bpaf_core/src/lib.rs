@@ -5,7 +5,7 @@ mod os_str;
 mod utils;
 
 use crate::{
-    arg::{Arg, lex_os_arg},
+    arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     utils::reuse_vec,
 };
@@ -139,6 +139,7 @@ mod adapters {
                 consumed_before = consumed_after;
 
                 let val = h.take();
+                println!("Parsed something, ok? {:?}", val.is_ok());
 
                 match (advanced, val) {
                     (true, Ok(v)) => res.push(v),
@@ -354,6 +355,47 @@ impl<T: 'static> Parser<T> for Con<T> {
         closure()
     }
 }
+pub struct Branch<T> {
+    branches: Vec<RcParser<T>>,
+}
+
+impl std::ops::Add for Error {
+    type Output = Error;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        self.combine(rhs)
+    }
+}
+
+enum Op {
+    Spawn(Task),
+    RegisterBranch { id: Id, pair: (Id, Id) },
+}
+
+impl<T: 'static> Parser<T> for Branch<T> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let mut handles = Vec::with_capacity(self.branches.len());
+        let id = ctx.current_task.borrow().id;
+        for parser in self.branches.iter().cloned() {
+            let (h, scope) = ctx.scoped_spawn(parser, Kind::Sum);
+            handles.push(h);
+        }
+
+        r#yield().await;
+
+        #[expect(clippy::manual_try_fold)] // this is not a try_fold
+        handles
+            .into_iter()
+            .fold(Err(Error::Killed), |res, h| match (h.take(), res) {
+                (v @ Ok(_), _) | (Err(_), v @ Ok(_)) => v,
+                (Err(e1), Err(e2)) => Err(e1 + e2),
+            })
+    }
+}
+
+struct Scopes {
+    items: BTreeMap<(Id, Id), Rc<Id>>,
+}
 
 struct Task {
     act: Pin<Box<dyn Future<Output = ()>>>,
@@ -448,7 +490,7 @@ mod error {
     }
 
     impl Error {
-        fn combine(self, e2: Error) -> Error {
+        pub(crate) fn combine(self, e2: Error) -> Error {
             match (self, e2) {
                 (Error::Internal, _e) | (_e, Error::Internal) => Error::Internal,
                 (Error::Killed, e) | (e, Error::Killed) => e,
@@ -538,9 +580,15 @@ pub type Fragment<T> = Pin<Box<dyn Future<Output = Result<T, Error>>>>;
 pub struct RawCtx {
     /// Storage for to-be-spawned tasks
     ///
-    /// Active tasks are living outside of the `RawCtx`
+    /// Active tasks are living outside of the `RawCtx`: we need to borrow them to poll
+    /// anyway but also need to borrow to spawn new tasks from polled tasks. Having them
+    /// outside makes the code a bit cleaner
     new_tasks: RefCell<Vec<Task>>,
     triggers: RefCell<Triggers>,
+    /// Early exit ranges
+    ///
+    /// When there's no matching triggers executor will try to terminate anything inside of
+    /// the each pair. This allows is necessary for things like `.optional()` and `.many()` to work
     early_exit: RefCell<BTreeSet<(Id, Id)>>,
     next_free: Cell<u32>,
     args: RefCell<Vec<OsString>>,
@@ -714,6 +762,19 @@ impl RawCtx {
         self.add_task(task);
         handle
     }
+
+    /// Spawn a parser and collect the range it occupies
+    fn scoped_spawn<T: 'static>(
+        self: &Rc<RawCtx>,
+        parser: RcParser<T>,
+        kind: Kind,
+    ) -> (JoinHandle<T>, (Id, Id)) {
+        let start = self.next_free.get();
+        let h = self.spawn(kind, Bp(parser));
+        let end = self.next_free.get();
+        (h, (Id(start), Id(end)))
+    }
+
     fn spawn_with_early_exit<T: 'static>(
         self: &Rc<RawCtx>,
         parser: RcParser<T>,
@@ -932,6 +993,56 @@ impl Executor {
         }
     }
 
+    // try to parse a set of short flags `-vvv` as separate flags `-v -v -v`
+    fn execute_group(&mut self, group: Group) -> Result<(), Error> {
+        match self.execute_group_inner(&group.0) {
+            Ok(()) => {
+                self.ctx.cursor.update(|c| c + 1);
+                Ok(())
+            }
+            Err(_) => todo!("Can't parse {group:?}"),
+        }
+    }
+
+    fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
+        let mut mixer_capacity = Mixer::default();
+        for name in names {
+            // set a wakeup reason, just in case
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
+                name: (*name).into(),
+                value: None,
+            });
+
+            let mut mixer = mixer_capacity.reuse_capacity();
+            let triggers = self.ctx.triggers.borrow();
+            mixer.populate_short_flag(name, &triggers);
+            while let Some(next) = mixer.consume_next_item(&self.tasks) {
+                let task = &mut self.tasks.get_mut(&next.id).unwrap();
+                let r = self.ctx.poll_in_context(task);
+                assert!(!r); // this breaks the API
+                if task.info.consumed != 1 {
+                    // but this is a problem, should generate an error message that we can't parse
+                    // current argument...
+                    todo!("should have consumed a single item")
+                }
+                self.to_wake.push(task.info.id);
+            }
+            mixer_capacity = mixer.reuse_capacity();
+            drop(triggers);
+            self.stage_2(1);
+            self.propagate(Reason::Pass);
+
+            // Spawn new tasks. They been polled once inside the `Self::add_task`
+            // so triggers should be all in place and none would exit immediately.
+            for task in self.ctx.new_tasks.borrow_mut().drain(..) {
+                let old = self.tasks.insert(task.info.id, task);
+                debug_assert!(old.is_none(), "Dupliated task id?");
+            }
+        }
+
+        Ok(())
+    }
+
     fn execute(&mut self) -> Result<(), Error> {
         let mut changed = true;
 
@@ -965,8 +1076,16 @@ impl Executor {
             // This can't be done in a single pass for two reasons:
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
-            let (best_size, mixer) = self.stage_1(front, mixer_capacity);
+            let (best_size, mixer, mgroup) = self.stage_1(front, mixer_capacity);
             mixer_capacity = mixer;
+
+            if let Some(group) = mgroup
+                && best_size == 0
+            {
+                self.execute_group(group)?;
+                self.propagate(Reason::Pass);
+                continue;
+            }
 
             if best_size == 0 {
                 let maybe_candidate = self.ctx.early_exit.borrow_mut().pop_last();
@@ -1018,11 +1137,15 @@ impl Executor {
     /// Run the first stage of the trigger
     ///
     /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(&mut self, front: &OsStr, mixer_capacity: Mixer<'static>) -> (u32, Mixer<'static>) {
+    fn stage_1(
+        &mut self,
+        front: &OsStr,
+        mixer_capacity: Mixer<'static>,
+    ) -> (u32, Mixer<'static>, Option<Group>) {
         let mut mixer = mixer_capacity.reuse_capacity();
         let reactor = self.ctx.triggers.borrow();
         let arg = lex_os_arg(front);
-        mixer.populate(arg.clone(), &reactor);
+        let mgroup = mixer.populate(&arg, &reactor);
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
 
@@ -1040,7 +1163,7 @@ impl Executor {
             best_size = best_size.max(task.info.consumed);
         }
 
-        (best_size, mixer.reuse_capacity())
+        (best_size, mixer.reuse_capacity(), mgroup)
     }
 
     /// Run the second stage of the trigger
@@ -1446,45 +1569,66 @@ struct Mixer<'a> {
     same_family: bool,
     prev: Option<pecking::Item>,
 }
+#[must_use]
+#[derive(Debug)]
+struct Group(Vec<char>);
 
 impl<'a> Mixer<'a> {
-    fn populate(&mut self, arg: Arg<'a>, triggers: &'a Triggers) {
-        self.pecking_push(&triggers.any);
-
-        match &arg {
+    fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
+        self.pecking_push(triggers.short_flags.get(name));
+    }
+    fn populate(&mut self, arg: &Arg<'a>, triggers: &'a Triggers) -> Option<Group> {
+        self.pecking_push(Some(&triggers.any));
+        match arg {
             Arg::Named {
                 name: Name::Long(name),
                 value: _,
             } => {
-                if let Some(order) = triggers.long_args.get(name) {
-                    self.pecking_push(order);
-                }
-                if let Some(order) = triggers.long_flags.get(name) {
-                    self.pecking_push(order);
-                }
+                self.pecking_push(triggers.long_args.get(name));
+                self.pecking_push(triggers.long_flags.get(name));
             }
             Arg::Named {
                 name: Name::Short(name),
-                value: _,
+                value: None | Some((Adjacency::WithEq, _)),
             } => {
-                if let Some(order) = triggers.short_args.get(name) {
-                    self.pecking_push(order);
-                }
-                if let Some(order) = triggers.short_flags.get(name) {
-                    self.pecking_push(order);
+                self.pecking_push(triggers.short_args.get(name));
+                self.pecking_push(triggers.short_flags.get(name));
+            }
+            Arg::Named {
+                name: Name::Short(name),
+                value: Some((Adjacency::Immediate, val)),
+            } => {
+                let prev_len = self.pecking.len();
+                self.pecking_push(triggers.short_args.get(name));
+                if let Some(_) = triggers.short_flags.get(name)
+                    && self.pecking.len() == prev_len
+                    && let Some(chars) = val.to_str()
+                    && chars.chars().all(|k| triggers.short_flags.contains_key(&k))
+                {
+                    // There's no way to parse it as a single argument, but it might work
+                    // if we treat it as a merged group of single letter flags
+
+                    let mut group = vec![*name];
+                    group.extend(chars.chars());
+                    return Some(Group(group));
+                } else {
+                    self.pecking_push(triggers.short_flags.get(name));
                 }
             }
             Arg::Pos { value: _ } => {
-                self.pecking_push(&triggers.pos);
+                self.pecking_push(Some(&triggers.pos));
             }
         }
+        None
     }
 
     /// Add a non-empty pecking order to the mix
     ///
     /// We'll often have empty pecking orders
-    fn pecking_push(&mut self, order: &'a PeckingOrder) {
-        if !order.is_empty() {
+    fn pecking_push(&mut self, order: Option<&'a PeckingOrder>) {
+        if let Some(order) = order
+            && !order.is_empty()
+        {
             self.pecking.push(order);
         }
     }
@@ -1702,6 +1846,27 @@ fn many_works() {
     let parser = short('a').req_flag(()).many().to_options();
     let r = parser.run_inner("-a -a -a").unwrap();
     assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn flag_group_works_reqflag() {
+    let parser = short('a').req_flag(()).many().to_options();
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn flag_group_works_switch() {
+    let parser = short('a').switch().many().to_options();
+
+    let r = parser.run_inner("-aaa").unwrap();
+    assert_eq!(r, &[true, true, true]);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, &[false]);
+
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[true, true, true]);
 }
 
 #[test]
