@@ -40,7 +40,7 @@ pub struct Bp<I>(I);
 mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
-    use crate::{Bp, Error, Id, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield};
+    use crate::{Bp, Error, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield};
     use std::marker::PhantomData;
 
     pub(crate) struct Map<P, F, T, R> {
@@ -56,33 +56,12 @@ mod adapters {
         }
     }
 
-    pub(crate) struct Optional<P> {
-        pub(crate) inner: P,
-    }
-
-    impl<T: 'static, P: Parser<T>> Parser<Option<T>> for Optional<P> {
-        async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, crate::Error> {
-            let id = ctx.current_task.borrow().id;
-            // ctx.early_exit.borrow_mut().insert(id);
-            let res = self.inner.run(ctx.clone()).await;
-            // ctx.early_exit.borrow_mut().remove(&id);
-            match res {
-                Ok(v) => Ok(Some(v)),
-                Err(err) => {
-                    if err.can_catch() && ctx.current_task.borrow().consumed == 0 {
-                        Ok(None)
-                    } else {
-                        Err(err)
-                    }
-                }
-            }
-        }
-    }
-    pub(crate) struct Optional2<T> {
+    pub(crate) struct Optional<T> {
         pub(crate) inner: RcParser<T>,
     }
-    impl<T: 'static> Parser<Option<T>> for Optional2<T> {
+    impl<T: 'static> Parser<Option<T>> for Optional<T> {
         async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
+            // TODO - use scoped spawn, Scope and get rid of spawn_with_early_exit
             let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
             r#yield().await;
             ctx.remove_early_exit(pair);
@@ -190,19 +169,11 @@ mod traits {
             }
         }
 
-        // TODO - yeet
         fn optional(self) -> impl Parser<Option<T>>
-        where
-            Self: Sized,
-        {
-            Optional { inner: self }
-        }
-
-        fn optional2(self) -> impl Parser<Option<T>>
         where
             Self: Sized + 'static,
         {
-            Optional2 {
+            Optional {
                 inner: self.into_rc().0,
             }
         }
@@ -255,7 +226,7 @@ mod traits {
 }
 
 pub mod __private {
-    pub use crate::{Con, Ctx, Error, Kind};
+    pub use crate::{Alt, Con, Ctx, Error, Kind};
 }
 
 #[macro_export]
@@ -355,8 +326,8 @@ impl<T: 'static> Parser<T> for Con<T> {
         closure()
     }
 }
-pub struct Branch<T> {
-    branches: Vec<RcParser<T>>,
+pub struct Alt<T> {
+    items: Vec<Bp<RcParser<T>>>,
 }
 
 impl std::ops::Add for Error {
@@ -367,21 +338,65 @@ impl std::ops::Add for Error {
     }
 }
 
-enum Op {
-    Spawn(Task),
-    RegisterBranch { id: Id, pair: (Id, Id) },
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+struct Scope {
+    start: Id,
+    end: Id,
 }
 
-impl<T: 'static> Parser<T> for Branch<T> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let mut handles = Vec::with_capacity(self.branches.len());
-        let id = ctx.current_task.borrow().id;
-        for parser in self.branches.iter().cloned() {
-            let (h, scope) = ctx.scoped_spawn(parser, Kind::Sum);
-            handles.push(h);
-        }
+impl Scope {
+    const ALL: Scope = Scope {
+        start: Id(0),
+        end: Id(u32::MAX),
+    };
+    fn contains(&self, id: Id) -> bool {
+        self.start <= id && id < self.end
+    }
+}
 
+#[derive(Debug)]
+enum Op {
+    Spawn(Task),
+    RegisterSum { id: Id, scope: Scope },
+    DeregisterSum { id: Id },
+    KillScope { scope: Scope },
+}
+
+impl<T: 'static> Parser<T> for Alt<T> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let id = ctx.current_task.borrow().id;
+        let mut scopes = Vec::new();
+        let handles = self
+            .items
+            .iter()
+            .map(|parser| {
+                let (h, scope) = ctx.scoped_spawn(parser.clone().0, Kind::Sum);
+                scopes.push(scope);
+                h
+            })
+            .collect::<Vec<_>>();
+        ctx.pending_ops.borrow_mut().push(Op::RegisterSum {
+            id,
+            scope: Scope {
+                start: id,
+                end: scopes.last().unwrap().end,
+            },
+        });
         r#yield().await;
+        ctx.trim_children(scopes).await;
+
+        // // TODO for what
+        // let task = {
+        //     let ctx = ctx.clone();
+        //     let info = ctx.make_child_info(Kind::Prod);
+        //     let act = Box::pin(async move {
+        //         ctx.trim_children(scopes).await;
+        //     });
+        //     Task { act, info }
+        // };
+        //
+        // ctx.add_task(task);
+        // r#yield().await;
 
         #[expect(clippy::manual_try_fold)] // this is not a try_fold
         handles
@@ -393,8 +408,15 @@ impl<T: 'static> Parser<T> for Branch<T> {
     }
 }
 
+#[derive(Debug, Default)]
 struct Scopes {
-    items: BTreeMap<(Id, Id), Rc<Id>>,
+    items: BTreeMap<Scope, Id>,
+}
+
+impl Scopes {
+    fn insert(&mut self, key: Scope, val: Id) {
+        self.items.insert(key, val);
+    }
 }
 
 struct Task {
@@ -578,18 +600,20 @@ struct Id(u32);
 pub type Fragment<T> = Pin<Box<dyn Future<Output = Result<T, Error>>>>;
 
 pub struct RawCtx {
-    /// Storage for to-be-spawned tasks
+    /// Scheduled ops
     ///
     /// Active tasks are living outside of the `RawCtx`: we need to borrow them to poll
     /// anyway but also need to borrow to spawn new tasks from polled tasks. Having them
     /// outside makes the code a bit cleaner
-    new_tasks: RefCell<Vec<Task>>,
+    ///
+    /// Holds other operations that might need access to tasks or other internal structures
+    pending_ops: RefCell<Vec<Op>>,
     triggers: RefCell<Triggers>,
     /// Early exit ranges
     ///
     /// When there's no matching triggers executor will try to terminate anything inside of
     /// the each pair. This allows is necessary for things like `.optional()` and `.many()` to work
-    early_exit: RefCell<BTreeSet<(Id, Id)>>,
+    early_exit: RefCell<BTreeSet<Scope>>,
     next_free: Cell<u32>,
     args: RefCell<Vec<OsString>>,
     cursor: Cell<usize>,
@@ -603,7 +627,38 @@ enum Reason {
     NoMatchingInput,
     NotConsumedEnough,
     Pass,
+
     Arg(Arg<'static>),
+    ChildProgress(Vec1<Id>),
+}
+
+/// A small vector that can hold 1 item without heap allocation
+#[derive(Debug, Clone)]
+enum Vec1<T> {
+    Small(Option<T>),
+    Big(Vec<T>),
+}
+
+impl<T> Default for Vec1<T> {
+    fn default() -> Self {
+        Vec1::Small(None)
+    }
+}
+
+impl<T: Copy> Vec1<T> {
+    fn push(&mut self, val: T) {
+        match self {
+            Vec1::Small(None) => *self = Vec1::Small(Some(val)),
+            Vec1::Small(Some(prev)) => *self = Vec1::Big(vec![*prev, val]),
+            Vec1::Big(items) => items.push(val),
+        }
+    }
+    fn as_slice(&self) -> &[T] {
+        match self {
+            Vec1::Small(x) => x.as_slice(),
+            Vec1::Big(items) => items.as_slice(),
+        }
+    }
 }
 
 struct DummyFlag(char);
@@ -768,27 +823,33 @@ impl RawCtx {
         self: &Rc<RawCtx>,
         parser: RcParser<T>,
         kind: Kind,
-    ) -> (JoinHandle<T>, (Id, Id)) {
+    ) -> (JoinHandle<T>, Scope) {
         let start = self.next_free.get();
         let h = self.spawn(kind, Bp(parser));
         let end = self.next_free.get();
-        (h, (Id(start), Id(end)))
+        (
+            h,
+            Scope {
+                start: Id(start),
+                end: Id(end),
+            },
+        )
     }
 
     fn spawn_with_early_exit<T: 'static>(
         self: &Rc<RawCtx>,
         parser: RcParser<T>,
-    ) -> (JoinHandle<T>, (Id, Id)) {
+    ) -> (JoinHandle<T>, Scope) {
         let start = Id(self.next_free.get());
         let h = self.spawn(Kind::Prod, Bp(parser));
         let end = Id(self.next_free.get());
-        let pair = (start, end);
-        self.early_exit.borrow_mut().insert(pair);
-        (h, pair)
+        let scope = Scope { start, end };
+        self.early_exit.borrow_mut().insert(scope);
+        (h, scope)
     }
 
-    fn remove_early_exit(&self, pair: (Id, Id)) {
-        let removed = self.early_exit.borrow_mut().remove(&pair);
+    fn remove_early_exit(&self, scope: Scope) {
+        let removed = self.early_exit.borrow_mut().remove(&scope);
         assert!(removed);
     }
 
@@ -809,12 +870,13 @@ impl RawCtx {
 
     #[inline(never)]
     fn add_task(&self, mut task: Task) {
+        *self.wakeup_reason.borrow_mut() = Reason::Pass;
         if self.poll_in_context(&mut task) {
             let mut cur = self.current_task.borrow_mut();
             cur.pending -= 1;
             debug_assert_eq!(task.info.consumed, 0);
         } else {
-            self.new_tasks.borrow_mut().push(task);
+            self.pending_ops.borrow_mut().push(Op::Spawn(task));
         }
     }
 
@@ -851,7 +913,10 @@ impl RawCtx {
                 self.remove_names(names, view_reactor_flags)?;
                 return Ok(false);
             }
-            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                unreachable!()
+            }
+
             Reason::Arg(Arg::Named {
                 name: _,
                 value: None,
@@ -869,6 +934,37 @@ impl RawCtx {
         res
     }
 
+    async fn trim_children(&self, mut scopes: Vec<Scope>) {
+        loop {
+            println!("Trim children, got {:?} / {scopes:?}", self.wakeup_reason);
+            match *self.wakeup_reason.borrow() {
+                Reason::ChildProgress(ref ids) => {
+                    scopes.retain(|scope| {
+                        let lives = ids.as_slice().iter().any(|id| scope.contains(*id));
+                        if !lives {
+                            let op = Op::KillScope { scope: *scope };
+                            self.pending_ops.borrow_mut().push(op);
+                        }
+                        lives
+                    });
+                    if scopes.len() == 1 {
+                        self.pending_ops.borrow_mut().push(Op::DeregisterSum {
+                            id: self.current_task.borrow().id,
+                        });
+                    }
+                }
+                Reason::Pass => {
+                    if self.current_task.borrow().pending == 0 {
+                        break;
+                    }
+                }
+
+                _ => break,
+            }
+            r#yield().await;
+        }
+    }
+
     async fn parse_arg(&self, names: &[Name<'static>]) -> Result<Option<OsString>, Error> {
         self.add_names(names, view_reactor_args)?;
         r#yield().await; // ------------------------------------------
@@ -877,7 +973,9 @@ impl RawCtx {
                 self.remove_names(names, view_reactor_args)?;
                 return Ok(None);
             }
-            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                unreachable!()
+            }
             Reason::Arg(Arg::Pos { .. }) => unreachable!(),
             Reason::Arg(Arg::Named {
                 ref name,
@@ -923,7 +1021,9 @@ impl RawCtx {
                 self.triggers.borrow_mut().pos.remove(parent, id);
                 return Ok(None);
             }
-            Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                unreachable!()
+            }
             Reason::Arg(Arg::Pos { ref value }) => {
                 self.consume(1);
                 Ok(Some(value.clone().into_owned()))
@@ -952,7 +1052,9 @@ impl RawCtx {
                     self.triggers.borrow_mut().any.remove(parent, id);
                     return Ok(None);
                 }
-                Reason::NotConsumedEnough | Reason::Pass => unreachable!(),
+                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                    unreachable!()
+                }
                 Reason::Arg(_) => {
                     let cursor = self.cursor.get();
                     let args = self.args.borrow();
@@ -980,16 +1082,18 @@ struct Executor {
     ctx: Ctx,
     tasks: BTreeMap<Id, Task>,
     to_wake: Vec<Id>,
-    to_wake2: VecDeque<(Id, u32)>,
+    to_propagate: VecDeque<(Id, Parent, u32)>,
+    sums: BTreeMap<Id, Scope>,
 }
 
 impl Executor {
     fn new(ctx: Ctx) -> Self {
         Self {
             ctx,
-            tasks: Default::default(),
-            to_wake: Default::default(),
-            to_wake2: Default::default(),
+            tasks: BTreeMap::new(),
+            to_wake: Vec::new(),
+            to_propagate: VecDeque::new(),
+            sums: BTreeMap::new(),
         }
     }
 
@@ -1031,16 +1135,41 @@ impl Executor {
             drop(triggers);
             self.stage_2(1);
             self.propagate(Reason::Pass);
-
-            // Spawn new tasks. They been polled once inside the `Self::add_task`
-            // so triggers should be all in place and none would exit immediately.
-            for task in self.ctx.new_tasks.borrow_mut().drain(..) {
-                let old = self.tasks.insert(task.info.id, task);
-                debug_assert!(old.is_none(), "Dupliated task id?");
-            }
+            self.process_scheduled();
         }
 
         Ok(())
+    }
+
+    /// Process scheduled operations
+    fn process_scheduled(&mut self) {
+        for op in self.ctx.pending_ops.borrow_mut().drain(..) {
+            match op {
+                Op::Spawn(task) => {
+                    let old = self.tasks.insert(task.info.id, task);
+                    debug_assert!(old.is_none(), "Duplicated task id?");
+                }
+                Op::RegisterSum { id, scope } => {
+                    self.sums.insert(id, scope);
+                }
+                Op::KillScope { scope } => {
+                    *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
+                    for (id, mut task) in self
+                        .tasks
+                        .extract_if(scope.start..scope.end, |_, task| task.info.pending == 0)
+                    {
+                        let r = self.ctx.poll_in_context(&mut task);
+                        assert_eq!(task.info.consumed, 0);
+                        self.to_propagate
+                            .push_back((id, task.info.parent_id, task.info.consumed));
+                        assert!(r);
+                    }
+                }
+                Op::DeregisterSum { id } => {
+                    self.sums.remove(&id);
+                }
+            }
+        }
     }
 
     fn execute(&mut self) -> Result<(), Error> {
@@ -1052,13 +1181,7 @@ impl Executor {
         let mut mixer_capacity = Mixer::default();
         while changed {
             changed = false;
-
-            // Spawn new tasks. They been polled once inside the `Self::add_task`
-            // so triggers should be all in place and none would exit immediately.
-            for task in self.ctx.new_tasks.borrow_mut().drain(..) {
-                let old = self.tasks.insert(task.info.id, task);
-                debug_assert!(old.is_none(), "Dupliated task id?");
-            }
+            self.process_scheduled();
 
             let ctx = self.ctx.clone();
             let args = ctx.args.borrow();
@@ -1088,20 +1211,9 @@ impl Executor {
             }
 
             if best_size == 0 {
-                let maybe_candidate = self.ctx.early_exit.borrow_mut().pop_last();
-                if let Some((start, end)) = maybe_candidate {
-                    *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
-                    for (_, mut task) in self
-                        .tasks
-                        .extract_if(start..end, |_, t| t.info.pending == 0)
-                    {
-                        println!("Going to terminate {task:?}");
-                        let done = ctx.poll_in_context(&mut task);
-                        assert!(done);
-                        self.to_wake2
-                            .push_back((task.info.parent_id.as_id(), task.info.consumed));
-                    }
-                    self.propagate(Reason::NoMatchingInput);
+                let maybe_scope = self.ctx.early_exit.borrow_mut().pop_last();
+                if let Some(scope) = maybe_scope {
+                    self.kill_in_scope(scope);
                     continue;
                 }
             }
@@ -1112,26 +1224,51 @@ impl Executor {
             } else {
                 todo!("Didn't consume anything, complain about {front:?} and prepare to exit?");
             }
+            self.cleanup_siblings(best_size);
             self.stage_2(best_size);
 
             self.propagate(Reason::Pass);
         }
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
-
-        for (id, mut task) in self.tasks.extract_if(.., |_, t| t.info.pending == 0) {
-            let exited = self.ctx.poll_in_context(&mut task);
-            debug_assert!(exited, "Task {id:?} {task:?} failed to exit");
-            self.to_wake2
-                .push_back((task.info.parent_id.as_id(), task.info.consumed));
+        println!("There's nothing to do");
+        for t in self.tasks.values() {
+            println!("{t:?}");
         }
+        println!();
 
-        self.propagate(Reason::NoMatchingInput);
+        self.kill_in_scope(Scope::ALL);
 
         println!("somehow we are done, {:?}", self.tasks);
-        assert!(self.tasks.is_empty());
+        assert!(
+            self.tasks.is_empty(),
+            "All tasks should be terminated when exiting execution"
+        );
+        assert!(self.ctx.pending_ops.borrow().is_empty());
+        // assert!(
+        //     self.sums.is_empty(),
+        //     "All sums should be removed, {:?}",
+        //     self.sums
+        // );
 
         Ok(())
+    }
+
+    fn kill_in_scope(&mut self, scope: Scope) {
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
+        for (_, mut task) in self
+            .tasks
+            .extract_if(scope.start..scope.end, |_, t| t.info.pending == 0)
+        {
+            println!("Going to terminate {task:?}");
+            let done = self.ctx.poll_in_context(&mut task);
+            assert!(done);
+            self.to_propagate
+                .push_back((task.info.id, task.info.parent_id, task.info.consumed));
+        }
+        for p in self.to_propagate.iter() {
+            println!("{p:?}");
+        }
+        self.propagate(Reason::NoMatchingInput);
     }
 
     /// Run the first stage of the trigger
@@ -1166,32 +1303,33 @@ impl Executor {
         (best_size, mixer.reuse_capacity(), mgroup)
     }
 
+    fn cleanup_siblings(&mut self, best_size: u32) {
+        for id in self.to_wake.iter() {}
+    }
+
     /// Run the second stage of the trigger
     ///
     /// Depending on how much a task is consuming relative to other tasks
     /// task are either allowed to run or are being terminated
     fn stage_2(&mut self, best_size: u32) {
-        use std::collections::btree_map::Entry;
         for id in self.to_wake.drain(..) {
-            // TODO - I think `entry` API can be replaced with just removing
-            let Entry::Occupied(mut task) = self.tasks.entry(id) else {
+            let Some(mut task) = self.tasks.remove(&id) else {
                 todo!("Second stage got a task id that isn't there?");
             };
-            let task_ref = task.get_mut();
-            let term = task_ref.info.consumed < best_size;
+            let term = task.info.consumed < best_size;
             *self.ctx.wakeup_reason.borrow_mut() = if term {
                 Reason::NotConsumedEnough
             } else {
                 Reason::Pass
             };
 
-            if self.ctx.poll_in_context(task_ref) {
-                let task = task.remove();
+            if self.ctx.poll_in_context(&mut task) {
                 let size = if term { 0 } else { task.info.consumed };
                 if task.info.parent_id.is_root() {
                     continue;
                 }
-                self.to_wake2.push_back((task.info.parent_id.as_id(), size))
+                self.to_propagate
+                    .push_back((task.info.id, task.info.parent_id, size));
             } else {
                 unreachable!("Task failed to exit during the second stage?");
             }
@@ -1200,8 +1338,46 @@ impl Executor {
 
     // Propagate trigger results to parents recursively
     fn propagate(&mut self, reason: Reason) {
+        // part 1, letting sums upstream know what branches are advancing so they can terminate
+        // those that don't.
+        // not reusing capacity, in most cases it will be exactly one branch advancing
+        let mut advancing = Vec1::default();
+        for (id, _parent, consumed) in self.to_propagate.iter().copied() {
+            if consumed > 0 {
+                advancing.push(id)
+            }
+        }
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
+        // This should be cheap. `advancing` should have just one item, notifying
+        // iterates through all the sums in the current level - should be small and we
+        // are not even checking all of them
+        for id in advancing.as_slice().iter().copied() {
+            for (sid, range) in self.sums.iter() {
+                if range.contains(id) {
+                    // println!("Waking up {sid:?}, tasks we have {:?}", self.tasks);
+                    let task = self.tasks.get_mut(sid).unwrap();
+                    let r = self.ctx.poll_in_context(task);
+                    assert!(!r);
+                }
+                // TODO - we don't have to go though the whole sums set, once
+                // sum ids start after current id - they can't possibly contain the item.
+
+                // if *sid > id {
+                //     todo!(
+                //         "skipping the rest {id:?} of {:?}, sums: {:?}",
+                //         advancing,
+                //         self.sums
+                //     );
+                //     break;
+                // }
+            }
+        }
+        println!("{advancing:?}\n",);
+
+        // part 2, pushing parsed results up
         *self.ctx.wakeup_reason.borrow_mut() = reason;
-        while let Some((id, consumed)) = self.to_wake2.pop_front() {
+        while let Some((_id, parent, consumed)) = self.to_propagate.pop_front() {
+            let id = parent.as_id();
             let std::collections::btree_map::Entry::Occupied(mut occ_task) = self.tasks.entry(id)
             else {
                 todo!("Unknown task {id:?} in propagete?")
@@ -1209,6 +1385,7 @@ impl Executor {
             let task = occ_task.get_mut();
             task.info.pending -= 1;
             task.info.consumed += consumed;
+            println!("After {parent:?} {consumed:?} task is niow {task:?}");
             if task.info.pending > 0 {
                 continue;
             }
@@ -1218,8 +1395,16 @@ impl Executor {
                     // the parent is root = there's no task to wake up
                     continue;
                 }
-                self.to_wake2
-                    .push_back((task.info.parent_id.as_id(), task.info.consumed));
+                self.to_propagate.push_back((
+                    task.info.id,
+                    task.info.parent_id,
+                    task.info.consumed,
+                ));
+            } else {
+                assert!(
+                    task.info.pending > 0,
+                    "{task:?} didn't exit and didn't spawn children"
+                );
             }
         }
     }
@@ -1549,7 +1734,7 @@ impl RawCtx {
             current_task: Default::default(),
             cursor: Cell::new(0),
             early_exit: Default::default(),
-            new_tasks: Default::default(),
+            pending_ops: Default::default(),
             next_free: Cell::new(1),
             triggers: Default::default(),
             wakeup_reason: RefCell::new(Reason::Pass),
@@ -1791,7 +1976,7 @@ fn parse_simple_flag_works_2() {
 fn optional_tuple_works() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
-    let parser = construct!(a, b).optional2();
+    let parser = construct!(a, b).optional();
     let r = run(parser, &["-a", "-b"]).unwrap();
     assert_eq!(r, Some(('a', 'b')));
 }
@@ -1830,7 +2015,7 @@ fn with_flag_parse_any_works() {
 
 #[test]
 fn parse_optional_temp() {
-    let a = short('a').argument::<usize>("ARG").optional2();
+    let a = short('a').argument::<usize>("ARG").optional();
     let b = short('b').argument::<usize>("ARG2");
     let parser = construct!(a, b).to_options();
 
@@ -1871,7 +2056,7 @@ fn flag_group_works_switch() {
 
 #[test]
 fn many_with_optional() {
-    let a = short('a').req_flag(()).optional2();
+    let a = short('a').req_flag(()).optional();
     let b = short('b').argument::<u32>("B");
     let parser = construct!(a, b).many().to_options();
 
@@ -1881,6 +2066,86 @@ fn many_with_optional() {
     let r = parser.run_inner("-a -b=10 -b20 -a -b 30").unwrap();
 
     assert_eq!(r, &[(Some(()), 10), (Some(()), 20), (None, 30)]);
+}
+
+#[test]
+fn simple_alt_with_one_flag() {
+    let a = short('a').req_flag('a');
+    let a1 = short('A').switch();
+    let a = construct!(a, a1);
+    let b = short('b').req_flag('b');
+    let b1 = short('B').switch();
+    let b = construct!(b, b1);
+    let parser = construct!([a, b]).to_options();
+    let r = parser.run_inner("-a -A").unwrap();
+    assert_eq!(r, ('a', true));
+}
+
+#[test]
+fn simple_alt_with_flags() {
+    let a = short('a').req_flag('a');
+    let a1 = short('A').switch();
+    let a2 = short('A').switch();
+    let a3 = short('A').switch();
+    let a4 = short('A').switch();
+    let a = construct!(a, a1, a2, a3, a4);
+    let b = short('b').req_flag('b');
+    let b1 = short('B').switch();
+    let b2 = short('B').switch();
+    let b3 = short('B').switch();
+    let b4 = short('B').switch();
+    let b = construct!(b, b1, b2, b3, b4);
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-a -AAAA").unwrap();
+    assert_eq!(r, ('a', true, true, true, true));
+}
+
+#[test]
+fn nested_alt_works() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let d = short('d').req_flag('d');
+    let ab = construct!([a, b]);
+    let cd = construct!([c, d]);
+    let parser = construct!([ab, cd]).to_options();
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn bare_parser() {
+    let parser = short('b').req_flag('b').to_options();
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn very_very_simple_alt() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).to_options();
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 'a');
+}
+
+#[test]
+fn simple_alt_with_option() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).optional().to_options();
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, None);
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, Some('b'));
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, Some('a'));
 }
 
 #[cfg(test)]
