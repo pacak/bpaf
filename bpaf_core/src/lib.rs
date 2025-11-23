@@ -1153,6 +1153,7 @@ impl Executor {
                     self.sums.insert(id, scope);
                 }
                 Op::KillScope { scope } => {
+                    // self.kill_in_scope(scope); // TODO <- want this!
                     *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
                     for (id, mut task) in self
                         .tasks
@@ -1259,14 +1260,10 @@ impl Executor {
             .tasks
             .extract_if(scope.start..scope.end, |_, t| t.info.pending == 0)
         {
-            println!("Going to terminate {task:?}");
             let done = self.ctx.poll_in_context(&mut task);
             assert!(done);
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
-        }
-        for p in self.to_propagate.iter() {
-            println!("{p:?}");
         }
         self.propagate(Reason::NoMatchingInput);
     }
@@ -1359,17 +1356,11 @@ impl Executor {
                     let r = self.ctx.poll_in_context(task);
                     assert!(!r);
                 }
-                // TODO - we don't have to go though the whole sums set, once
+                // we don't have to go though the whole sums set, once
                 // sum ids start after current id - they can't possibly contain the item.
-
-                // if *sid > id {
-                //     todo!(
-                //         "skipping the rest {id:?} of {:?}, sums: {:?}",
-                //         advancing,
-                //         self.sums
-                //     );
-                //     break;
-                // }
+                if *sid > id {
+                    break;
+                }
             }
         }
         println!("{advancing:?}\n",);
