@@ -3,6 +3,64 @@ mod args;
 mod consumers;
 mod os_str;
 mod utils;
+mod raw_consumers {
+    use crate::*;
+
+    impl RawCtx {
+        #[inline(never)]
+        pub(crate) fn add_names(
+            &self,
+            names: &[Name<'static>],
+            selector: NamedPeckingOrderSelector,
+        ) -> Result<(), Error> {
+            let (parent, id) = self.task_parent_and_id();
+            let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
+            for name in names {
+                match name {
+                    Name::Short(c) => short.entry(*c).or_default().insert(parent, id),
+                    Name::Long(s) => long.entry(s.clone()).or_default().insert(parent, id),
+                }
+            }
+            Ok(())
+            //
+        }
+
+        #[inline(never)]
+        pub(crate) fn remove_names(
+            &self,
+            names: &[Name<'static>],
+            selector: NamedPeckingOrderSelector,
+        ) -> Result<(), Error> {
+            let (parent, id) = self.task_parent_and_id();
+            let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
+
+            use std::collections::hash_map::Entry;
+            for name in names {
+                match name {
+                    Name::Short(c) => {
+                        if let Entry::Occupied(mut e) = short.entry(*c) {
+                            if e.get_mut().remove(parent, id) {
+                                e.remove();
+                            }
+                        } else if cfg!(debug_assertions) {
+                            panic!("Tried to remove missing {name:?}");
+                        }
+                    }
+                    Name::Long(s) => {
+                        if let Entry::Occupied(mut e) = long.entry(s.clone()) {
+                            if e.get_mut().remove(parent, id) {
+                                e.remove();
+                            }
+                        } else if cfg!(debug_assertions) {
+                            panic!("Tried to remove missing {name:?}");
+                        }
+                    }
+                }
+            }
+            Ok(())
+        }
+    }
+}
 
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
@@ -40,8 +98,10 @@ pub struct Bp<I>(I);
 mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
-    use crate::{Bp, Error, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield};
-    use std::marker::PhantomData;
+    use crate::{
+        Bp, Error, Kind, Name, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield,
+    };
+    use std::{borrow::Cow, marker::PhantomData};
 
     pub(crate) struct Map<P, F, T, R> {
         pub(crate) inner: P,
@@ -95,6 +155,19 @@ mod adapters {
             ctx.execute()?;
             handle.take()
         }
+
+        pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
+            Bp(Command {
+                names: vec![Name::Long(name.into())],
+                inner: self.0,
+            })
+        }
+    }
+
+    impl<T: 'static> Parser<T> for Bp<Command<T>> {
+        async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+            todo!();
+        }
     }
 
     pub struct Many<T> {
@@ -135,6 +208,11 @@ mod adapters {
             }
             Ok(res)
         }
+    }
+
+    pub struct Command<T> {
+        names: Vec<Name<'static>>,
+        inner: OptionParser<T>,
     }
 }
 
@@ -624,11 +702,9 @@ pub type Ctx = Rc<RawCtx>;
 
 #[derive(Debug)]
 enum Reason {
-    NoMatchingInput,
     NotConsumedEnough,
     Pass,
-
-    Arg(Arg<'static>),
+    Arg(Option<Arg<'static>>),
     ChildProgress(Vec1<Id>),
 }
 
@@ -743,59 +819,6 @@ impl RawCtx {
         (cur.parent_id, cur.id)
     }
 
-    #[inline(never)]
-    fn add_names(
-        &self,
-        names: &[Name<'static>],
-        selector: NamedPeckingOrderSelector,
-    ) -> Result<(), Error> {
-        let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
-        for name in names {
-            match name {
-                Name::Short(c) => short.entry(*c).or_default().insert(parent, id),
-                Name::Long(s) => long.entry(s.clone()).or_default().insert(parent, id),
-            }
-        }
-        Ok(())
-        //
-    }
-
-    #[inline(never)]
-    fn remove_names(
-        &self,
-        names: &[Name<'static>],
-        selector: NamedPeckingOrderSelector,
-    ) -> Result<(), Error> {
-        let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
-
-        use std::collections::hash_map::Entry;
-        for name in names {
-            match name {
-                Name::Short(c) => {
-                    if let Entry::Occupied(mut e) = short.entry(*c) {
-                        if e.get_mut().remove(parent, id) {
-                            e.remove();
-                        }
-                    } else if cfg!(debug_assertions) {
-                        panic!("Tried to remove missing {name:?}");
-                    }
-                }
-                Name::Long(s) => {
-                    if let Entry::Occupied(mut e) = long.entry(s.clone()) {
-                        if e.get_mut().remove(parent, id) {
-                            e.remove();
-                        }
-                    } else if cfg!(debug_assertions) {
-                        panic!("Tried to remove missing {name:?}");
-                    }
-                }
-            }
-        }
-        Ok(())
-    }
-
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
     //
     // TODO - Do I really need Bp wrapper here?
@@ -903,35 +926,59 @@ impl RawCtx {
     /// Parse a flag by any one of the given names
     ///
     /// - `Ok(true)` when encounters a name
-    /// - `Ok(false)` when it gets terminated by optional logic
+    /// - `Ok(false)` when it gets terminated by "no such item"
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
     async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
         self.add_names(names, view_reactor_flags)?;
-        r#yield().await; // ------------------------------------------
-        let mut res = match *self.wakeup_reason.borrow() {
-            Reason::NoMatchingInput => {
-                self.remove_names(names, view_reactor_flags)?;
-                return Ok(false);
-            }
-            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                unreachable!()
-            }
-
-            Reason::Arg(Arg::Named {
-                name: _,
-                value: None,
-            }) => {
-                self.consume(1);
-                Ok(true)
-            }
-            Reason::Arg(_) => unreachable!(),
-        };
-        r#yield().await; // ------------------------------------------
+        let res = self.parse_flag_body().await;
         self.remove_names(names, view_reactor_flags)?;
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            res = Err(Error::Killed);
-        }
+        self.managed_to_survive()?;
         res
+    }
+
+    pub(self) async fn parse_flag_body(&self) -> Result<bool, Error> {
+        r#yield().await;
+        let res = {
+            let Some(arg) = self.woke_to_parse_arg() else {
+                return Err(Error::Killed);
+            };
+            let Some(arg_ref) = arg.as_ref() else {
+                return Ok(false);
+            };
+            self.parse_flag_consume(arg_ref)
+        };
+        r#yield().await;
+        res
+    }
+
+    fn woke_to_parse_arg(&self) -> Option<std::cell::Ref<'_, Option<Arg<'_>>>> {
+        std::cell::Ref::filter_map(self.wakeup_reason.borrow(), |reason| match reason {
+            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => None,
+            Reason::Arg(arg) => Some(arg),
+        })
+        .ok()
+    }
+
+    fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
+        match arg {
+            Arg::Named { name, value } => match value {
+                Some(val) => {
+                    todo!("Expected flag {name:?}, got value {val:?}");
+                }
+                None => {
+                    self.consume(1);
+                    Ok(true)
+                }
+            },
+            Arg::Pos { value: _ } => unreachable!(),
+        }
+    }
+    fn managed_to_survive(&self) -> Result<(), Error> {
+        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
+            Err(Error::Killed)
+        } else {
+            Ok(())
+        }
     }
 
     async fn trim_children(&self, mut scopes: Vec<Scope>) {
@@ -969,18 +1016,18 @@ impl RawCtx {
         self.add_names(names, view_reactor_args)?;
         r#yield().await; // ------------------------------------------
         let mut res = match *self.wakeup_reason.borrow() {
-            Reason::NoMatchingInput => {
+            Reason::Arg(None) => {
                 self.remove_names(names, view_reactor_args)?;
                 return Ok(None);
             }
             Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
                 unreachable!()
             }
-            Reason::Arg(Arg::Pos { .. }) => unreachable!(),
-            Reason::Arg(Arg::Named {
+            Reason::Arg(Some(Arg::Pos { .. })) => unreachable!(),
+            Reason::Arg(Some(Arg::Named {
                 ref name,
                 value: None,
-            }) => {
+            })) => {
                 let cursor = self.cursor.get() + 1;
                 let args = self.args.borrow();
                 let Some(arg) = args.get(cursor) else {
@@ -996,10 +1043,10 @@ impl RawCtx {
                     }
                 }
             }
-            Reason::Arg(Arg::Named {
+            Reason::Arg(Some(Arg::Named {
                 name: _,
                 value: Some((_adj, ref val)),
-            }) => {
+            })) => {
                 self.consume(1);
                 Ok(Some(val.clone().into_owned()))
             }
@@ -1017,18 +1064,18 @@ impl RawCtx {
         self.triggers.borrow_mut().pos.insert(parent, id);
         r#yield().await; // ------------------------------------------
         let mut res = match *self.wakeup_reason.borrow() {
-            Reason::NoMatchingInput => {
+            Reason::Arg(None) => {
                 self.triggers.borrow_mut().pos.remove(parent, id);
                 return Ok(None);
             }
             Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
                 unreachable!()
             }
-            Reason::Arg(Arg::Pos { ref value }) => {
+            Reason::Arg(Some(Arg::Pos { ref value })) => {
                 self.consume(1);
                 Ok(Some(value.clone().into_owned()))
             }
-            Reason::Arg(Arg::Named { .. }) => unreachable!(),
+            Reason::Arg(Some(Arg::Named { .. })) => unreachable!(),
         };
         r#yield().await; // ------------------------------------------
         self.triggers.borrow_mut().pos.remove(parent, id);
@@ -1048,14 +1095,14 @@ impl RawCtx {
         r#yield().await; // ------------------------------------------
         let mut res = loop {
             let attempt = match *self.wakeup_reason.borrow() {
-                Reason::NoMatchingInput => {
+                Reason::Arg(None) => {
                     self.triggers.borrow_mut().any.remove(parent, id);
                     return Ok(None);
                 }
                 Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
                     unreachable!()
                 }
-                Reason::Arg(_) => {
+                Reason::Arg(Some(_)) => {
                     let cursor = self.cursor.get();
                     let args = self.args.borrow();
                     check(&args[cursor])
@@ -1112,10 +1159,10 @@ impl Executor {
         let mut mixer_capacity = Mixer::default();
         for name in names {
             // set a wakeup reason, just in case
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(Arg::Named {
                 name: (*name).into(),
                 value: None,
-            });
+            }));
 
             let mut mixer = mixer_capacity.reuse_capacity();
             let triggers = self.ctx.triggers.borrow();
@@ -1154,7 +1201,7 @@ impl Executor {
                 }
                 Op::KillScope { scope } => {
                     // self.kill_in_scope(scope); // TODO <- want this!
-                    *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
+                    *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(None);
                     for (id, mut task) in self
                         .tasks
                         .extract_if(scope.start..scope.end, |_, task| task.info.pending == 0)
@@ -1255,7 +1302,7 @@ impl Executor {
     }
 
     fn kill_in_scope(&mut self, scope: Scope) {
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::NoMatchingInput;
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(None);
         for (_, mut task) in self
             .tasks
             .extract_if(scope.start..scope.end, |_, t| t.info.pending == 0)
@@ -1265,7 +1312,7 @@ impl Executor {
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
         }
-        self.propagate(Reason::NoMatchingInput);
+        self.propagate(Reason::Arg(None));
     }
 
     /// Run the first stage of the trigger
@@ -1281,7 +1328,7 @@ impl Executor {
         let arg = lex_os_arg(front);
         let mgroup = mixer.populate(&arg, &reactor);
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(arg.into_owned()));
 
         let mut best_size = 0;
         while let Some(next) = mixer.consume_next_item(&self.tasks) {

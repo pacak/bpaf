@@ -125,7 +125,7 @@ impl Bp<Named> {
     }
 }
 
-pub(crate) struct Flag<T> {
+pub struct Flag<T> {
     present: T,
     absent: Option<T>,
     named: Named,
@@ -166,6 +166,37 @@ where
                 let item = MissingItem::Named {
                     name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
                     meta: Some(self.0.metavar),
+                };
+                Err(Error::missing(item))
+            }
+        }
+    }
+}
+
+pub struct Positional<T> {
+    metavar: Metavar,
+    ctx: PhantomData<T>,
+}
+
+pub fn positional<T: 'static>(metavar: &'static str) -> Bp<Positional<T>> {
+    Bp(Positional {
+        metavar: Metavar(metavar),
+        ctx: PhantomData,
+    })
+}
+
+impl<T> Parser<T> for Bp<Positional<T>>
+where
+    T: FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        match ctx.parse_pos().await?.map(parse_os_str) {
+            Some(Ok(t)) => Ok(t),
+            Some(Err(err)) => todo!("{err:?}"),
+            None => {
+                let item = MissingItem::Pos {
+                    meta: self.0.metavar,
                 };
                 Err(Error::missing(item))
             }
