@@ -3,7 +3,11 @@ mod args;
 mod consumers;
 mod os_str;
 mod utils;
-mod raw_consumers {
+mod core_consumers {
+    //! This module contains the basic consumers for the arguments
+    //!
+    //! They know how to interact with executor, deal with early exit when necessary, etc.
+    //! Anything else gets built on top of those consumers
     use crate::*;
 
     impl RawCtx {
@@ -58,6 +62,71 @@ mod raw_consumers {
                 }
             }
             Ok(())
+        }
+
+        pub(crate) fn consume(&self, cnt: u32) {
+            self.current_task.borrow_mut().consumed += cnt;
+        }
+
+        /// Parse a flag by any one of the given names
+        ///
+        /// - `Ok(true)` when encounters a name
+        /// - `Ok(false)` when it gets terminated by "no such item"
+        /// - `Err(Error::Killed)` when it gets out-consumed by something else
+        pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
+            self.add_names(names, view_reactor_flags)?;
+            let res = self.parse_flag_early_exit().await;
+            self.remove_names(names, view_reactor_flags)?;
+            self.managed_to_survive()?;
+            res
+        }
+
+        /// Handle parse_flag early exit conditions
+        pub(self) async fn parse_flag_early_exit(&self) -> Result<bool, Error> {
+            r#yield().await;
+            let res = {
+                let Some(arg) = self.woke_to_parse_arg() else {
+                    return Err(Error::Killed);
+                };
+                let Some(arg_ref) = arg.as_ref() else {
+                    return Ok(false);
+                };
+                self.parse_flag_consume(arg_ref)
+            };
+            r#yield().await;
+            res
+        }
+
+        /// Consume a present argument, advance
+        pub(self) fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
+            match arg {
+                Arg::Named { name, value } => match value {
+                    Some(val) => {
+                        todo!("Expected flag {name:?}, got value {val:?}");
+                    }
+                    None => {
+                        self.consume(1);
+                        Ok(true)
+                    }
+                },
+                Arg::Pos { value: _ } => unreachable!(),
+            }
+        }
+
+        fn woke_to_parse_arg(&self) -> Option<std::cell::Ref<'_, Option<Arg<'_>>>> {
+            std::cell::Ref::filter_map(self.wakeup_reason.borrow(), |reason| match reason {
+                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => None,
+                Reason::Arg(arg) => Some(arg),
+            })
+            .ok()
+        }
+
+        fn managed_to_survive(&self) -> Result<(), Error> {
+            if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
+                Err(Error::Killed)
+            } else {
+                Ok(())
+            }
         }
     }
 }
@@ -917,68 +986,6 @@ impl RawCtx {
         let done = task.act.as_mut().poll(&mut NOOP).is_ready();
         std::mem::swap(&mut task.info, self.current_task.borrow_mut().deref_mut());
         done
-    }
-
-    fn consume(&self, cnt: u32) {
-        self.current_task.borrow_mut().consumed += cnt;
-    }
-
-    /// Parse a flag by any one of the given names
-    ///
-    /// - `Ok(true)` when encounters a name
-    /// - `Ok(false)` when it gets terminated by "no such item"
-    /// - `Err(Error::Killed)` when it gets out-consumed by something else
-    async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
-        self.add_names(names, view_reactor_flags)?;
-        let res = self.parse_flag_body().await;
-        self.remove_names(names, view_reactor_flags)?;
-        self.managed_to_survive()?;
-        res
-    }
-
-    pub(self) async fn parse_flag_body(&self) -> Result<bool, Error> {
-        r#yield().await;
-        let res = {
-            let Some(arg) = self.woke_to_parse_arg() else {
-                return Err(Error::Killed);
-            };
-            let Some(arg_ref) = arg.as_ref() else {
-                return Ok(false);
-            };
-            self.parse_flag_consume(arg_ref)
-        };
-        r#yield().await;
-        res
-    }
-
-    fn woke_to_parse_arg(&self) -> Option<std::cell::Ref<'_, Option<Arg<'_>>>> {
-        std::cell::Ref::filter_map(self.wakeup_reason.borrow(), |reason| match reason {
-            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => None,
-            Reason::Arg(arg) => Some(arg),
-        })
-        .ok()
-    }
-
-    fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
-        match arg {
-            Arg::Named { name, value } => match value {
-                Some(val) => {
-                    todo!("Expected flag {name:?}, got value {val:?}");
-                }
-                None => {
-                    self.consume(1);
-                    Ok(true)
-                }
-            },
-            Arg::Pos { value: _ } => unreachable!(),
-        }
-    }
-    fn managed_to_survive(&self) -> Result<(), Error> {
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            Err(Error::Killed)
-        } else {
-            Ok(())
-        }
     }
 
     async fn trim_children(&self, mut scopes: Vec<Scope>) {
