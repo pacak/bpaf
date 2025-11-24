@@ -68,6 +68,30 @@ mod core_consumers {
             self.current_task.borrow_mut().consumed += cnt;
         }
 
+        pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
+            {
+                let (parent, id) = self.task_parent_and_id();
+                self.triggers.borrow_mut().pos.insert(parent, id);
+            }
+            let res = self.handle_early_exit(None, Self::parse_pos_consume).await;
+            {
+                let (parent, id) = self.task_parent_and_id();
+                self.triggers.borrow_mut().pos.remove(parent, id);
+            }
+            self.managed_to_survive()?;
+            res
+        }
+
+        pub(self) fn parse_pos_consume(&self, arg: &Arg) -> Result<Option<OsString>, Error> {
+            match arg {
+                Arg::Named { .. } => unreachable!(),
+                Arg::Pos { value } => {
+                    self.consume(1);
+                    Ok(Some(value.clone().into_owned()))
+                }
+            }
+        }
+
         pub(crate) async fn parse_arg(
             &self,
             names: &[Name<'static>],
@@ -1064,32 +1088,6 @@ impl RawCtx {
             }
             r#yield().await;
         }
-    }
-
-    async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
-        let (parent, id) = self.task_parent_and_id();
-        self.triggers.borrow_mut().pos.insert(parent, id);
-        r#yield().await; // ------------------------------------------
-        let mut res = match *self.wakeup_reason.borrow() {
-            Reason::Arg(None) => {
-                self.triggers.borrow_mut().pos.remove(parent, id);
-                return Ok(None);
-            }
-            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                unreachable!()
-            }
-            Reason::Arg(Some(Arg::Pos { ref value })) => {
-                self.consume(1);
-                Ok(Some(value.clone().into_owned()))
-            }
-            Reason::Arg(Some(Arg::Named { .. })) => unreachable!(),
-        };
-        r#yield().await; // ------------------------------------------
-        self.triggers.borrow_mut().pos.remove(parent, id);
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            res = Err(Error::Killed);
-        }
-        res
     }
 
     #[expect(clippy::type_complexity)]
