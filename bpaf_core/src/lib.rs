@@ -68,6 +68,46 @@ mod core_consumers {
             self.current_task.borrow_mut().consumed += cnt;
         }
 
+        pub(crate) async fn parse_arg(
+            &self,
+            names: &[Name<'static>],
+        ) -> Result<Option<OsString>, Error> {
+            self.add_names(names, view_reactor_args)?;
+            let res = self.handle_early_exit(None, Self::parse_arg_consume).await;
+            self.remove_names(names, view_reactor_args)?;
+            self.managed_to_survive()?;
+            res
+        }
+
+        pub(self) fn parse_arg_consume(&self, arg: &Arg) -> Result<Option<OsString>, Error> {
+            match arg {
+                Arg::Pos { .. } => unreachable!(),
+                Arg::Named { name, value: None } => {
+                    let cursor = self.cursor.get() + 1;
+                    let args = self.args.borrow();
+                    let Some(arg) = args.get(cursor) else {
+                        todo!("{name:?} expects a value");
+                    };
+                    match lex_os_arg(arg) {
+                        Arg::Named { .. } => {
+                            todo!("{name:?} got {arg:?}, try {name:?}={arg:?}")
+                        }
+                        Arg::Pos { value } => {
+                            self.consume(2);
+                            Ok(Some(value.clone().into_owned()))
+                        }
+                    }
+                }
+                Arg::Named {
+                    name: _,
+                    value: Some((_adj, val)),
+                } => {
+                    self.consume(1);
+                    Ok(Some(val.clone().into_owned()))
+                }
+            }
+        }
+
         /// Parse a flag by any one of the given names
         ///
         /// - `Ok(true)` when encounters a name
@@ -75,25 +115,11 @@ mod core_consumers {
         /// - `Err(Error::Killed)` when it gets out-consumed by something else
         pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
             self.add_names(names, view_reactor_flags)?;
-            let res = self.parse_flag_early_exit().await;
+            let res = self
+                .handle_early_exit(false, Self::parse_flag_consume)
+                .await;
             self.remove_names(names, view_reactor_flags)?;
             self.managed_to_survive()?;
-            res
-        }
-
-        /// Handle parse_flag early exit conditions
-        pub(self) async fn parse_flag_early_exit(&self) -> Result<bool, Error> {
-            r#yield().await;
-            let res = {
-                let Some(arg) = self.woke_to_parse_arg() else {
-                    return Err(Error::Killed);
-                };
-                let Some(arg_ref) = arg.as_ref() else {
-                    return Ok(false);
-                };
-                self.parse_flag_consume(arg_ref)
-            };
-            r#yield().await;
             res
         }
 
@@ -111,6 +137,27 @@ mod core_consumers {
                 },
                 Arg::Pos { value: _ } => unreachable!(),
             }
+        }
+
+        /// Handle early exit conditions
+        pub(self) async fn handle_early_exit<T>(
+            &self,
+            fallback: T,
+            act: fn(&Self, &Arg) -> Result<T, Error>,
+        ) -> Result<T, Error> {
+            r#yield().await;
+            let res = {
+                let Some(arg) = self.woke_to_parse_arg() else {
+                    return Err(Error::Killed);
+                };
+                let Some(arg_ref) = arg.as_ref() else {
+                    return Ok(fallback);
+                };
+                act(self, arg_ref)
+                // self.parse_flag_consume(arg_ref)
+            };
+            r#yield().await;
+            res
         }
 
         fn woke_to_parse_arg(&self) -> Option<std::cell::Ref<'_, Option<Arg<'_>>>> {
@@ -1017,53 +1064,6 @@ impl RawCtx {
             }
             r#yield().await;
         }
-    }
-
-    async fn parse_arg(&self, names: &[Name<'static>]) -> Result<Option<OsString>, Error> {
-        self.add_names(names, view_reactor_args)?;
-        r#yield().await; // ------------------------------------------
-        let mut res = match *self.wakeup_reason.borrow() {
-            Reason::Arg(None) => {
-                self.remove_names(names, view_reactor_args)?;
-                return Ok(None);
-            }
-            Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                unreachable!()
-            }
-            Reason::Arg(Some(Arg::Pos { .. })) => unreachable!(),
-            Reason::Arg(Some(Arg::Named {
-                ref name,
-                value: None,
-            })) => {
-                let cursor = self.cursor.get() + 1;
-                let args = self.args.borrow();
-                let Some(arg) = args.get(cursor) else {
-                    todo!("{name:?} expects a value");
-                };
-                match lex_os_arg(arg) {
-                    Arg::Named { .. } => {
-                        todo!("{name:?} got {arg:?}, try {name:?}={arg:?}")
-                    }
-                    Arg::Pos { value } => {
-                        self.consume(2);
-                        Ok(Some(value.clone().into_owned()))
-                    }
-                }
-            }
-            Reason::Arg(Some(Arg::Named {
-                name: _,
-                value: Some((_adj, ref val)),
-            })) => {
-                self.consume(1);
-                Ok(Some(val.clone().into_owned()))
-            }
-        };
-        r#yield().await; // ------------------------------------------
-        self.remove_names(names, view_reactor_args)?;
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            res = Err(Error::Killed);
-        }
-        res
     }
 
     async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
