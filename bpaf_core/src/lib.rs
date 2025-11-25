@@ -248,7 +248,6 @@ mod core_consumers {
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
-    core_consumers::{AnyCheck, AnyResult},
     utils::reuse_vec,
 };
 #[doc(inline)]
@@ -851,6 +850,7 @@ impl Parent {
 }
 
 impl Id {
+    #[cfg(test)]
     fn as_parent(&self) -> Parent {
         Parent(self.0)
     }
@@ -918,58 +918,6 @@ impl<T: Copy> Vec1<T> {
             Vec1::Small(x) => x.as_slice(),
             Vec1::Big(items) => items.as_slice(),
         }
-    }
-}
-
-struct DummyFlag(char);
-
-impl Parser<bool> for DummyFlag {
-    async fn run(&self, ctx: Ctx) -> Result<bool, Error> {
-        let names = [Name::Short(self.0)];
-        let r = ctx.parse_flag(&names[..]).await;
-        println!("{r:?} / {names:?} {:?}", ctx.current_task.borrow().id);
-        r
-    }
-}
-
-struct DummyArg(char);
-impl Parser<Option<OsString>> for DummyArg {
-    async fn run(&self, ctx: Ctx) -> Result<Option<OsString>, Error> {
-        let names = [Name::Short(self.0)];
-        let r = ctx.parse_arg(&names[..]).await;
-        println!("{r:?} / {names:?} {:?}", ctx.current_task.borrow().id);
-        r
-    }
-}
-
-struct DummyPos;
-impl Parser<Option<OsString>> for DummyPos {
-    async fn run(&self, ctx: Ctx) -> Result<Option<OsString>, Error> {
-        let r = ctx.parse_pos().await;
-        println!("{r:?} / {:?}", ctx.current_task.borrow().id);
-        r
-    }
-}
-
-struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
-struct DummyAny<T>(Rc<dyn Fn(&str) -> Option<T>>);
-
-fn any<T: 'static>(check: impl Fn(&str) -> Option<T> + 'static) -> impl Parser<T> {
-    DummyAny(Rc::new(check))
-}
-
-impl<T: 'static> Parser<T> for DummyAny<T> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let parser = self.0.clone();
-        let check = Box::new(move |os: &OsStr| -> Option<Box<dyn std::any::Any>> {
-            Some(Box::new(parser(os.to_str()?)?))
-        });
-        Ok(*ctx
-            .parse_any(check)
-            .await?
-            .unwrap()
-            .downcast()
-            .expect("It should match"))
     }
 }
 
@@ -1282,7 +1230,6 @@ impl Executor {
             } else {
                 todo!("Didn't consume anything, complain about {front:?} and prepare to exit?");
             }
-            self.cleanup_siblings(best_size);
             self.stage_2(best_size);
 
             self.propagate(Reason::Pass);
@@ -1355,10 +1302,6 @@ impl Executor {
         }
 
         (best_size, mixer.reuse_capacity(), mgroup)
-    }
-
-    fn cleanup_siblings(&mut self, best_size: u32) {
-        for id in self.to_wake.iter() {}
     }
 
     /// Run the second stage of the trigger
@@ -1578,14 +1521,6 @@ mod pecking {
             }
         }
 
-        pub(crate) fn front(&self) -> Option<&Item> {
-            match &self.0 {
-                Pecking::Empty => None,
-                Pecking::Single { item } => Some(item),
-                Pecking::Set { set } => set.first(),
-            }
-        }
-
         /// Get the next item that might or might not belong to this family
         pub(crate) fn item_after(&self, prev: Item) -> Option<&Item> {
             match &self.0 {
@@ -1761,19 +1696,6 @@ struct Triggers {
 
 // reactor - listens for readiness, notifies tasks
 // executor - runs ready tasks
-
-#[derive(Default)]
-struct RCache {
-    items: BTreeSet<(pecking::Item, PeckingOrder)>,
-    seen: BTreeSet<Parent>,
-}
-
-impl RCache {
-    fn clear(&mut self) {
-        self.items.clear();
-        self.seen.clear();
-    }
-}
 
 impl RawCtx {
     fn new(args: Vec<OsString>) -> Rc<RawCtx> {
@@ -1995,7 +1917,7 @@ pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Resul
 
 #[test]
 fn parse_simple_flag_works_0() {
-    let a = DummyFlag('a');
+    let a = short('a').switch();
 
     let r = run(a, &["-a"]).unwrap();
     assert!(r);
@@ -2013,8 +1935,8 @@ fn parse_simple_flag_works_1() {
 
 #[test]
 fn parse_simple_flag_works_2() {
-    let a = DummyFlag('a');
-    let b = DummyFlag('a');
+    let a = short('a').switch();
+    let b = short('a').switch();
     let parser = construct!(a, b);
     let r = run(parser, &["-a", "-a"]).unwrap();
     assert_eq!(r, (true, true));
@@ -2031,12 +1953,12 @@ fn optional_tuple_works() {
 
 #[test]
 fn parse_simpel_arg_works_1() {
-    let a = DummyArg('a');
-    let b = DummyArg('b');
+    let a = short('a').argument::<u32>("A");
+    let b = short('b').argument::<u32>("B");
     let parser = construct!(a, b);
     let (ra, rb) = run(parser, &["-a=10", "-b", "20"]).unwrap();
-    assert_eq!(ra.unwrap(), "10");
-    assert_eq!(rb.unwrap(), "20");
+    assert_eq!(ra, 10);
+    assert_eq!(rb, 20);
 }
 
 #[test]
@@ -2234,7 +2156,7 @@ mod wake_tests {
 
     #[test]
     fn short_flags_only() {
-        let a = DummyFlag('a').into_rc();
+        let a = short('a').switch().into_rc();
 
         assert_eq!(
             run_arranged(arranged!((a * a) * (a * a)), &["-a"]),

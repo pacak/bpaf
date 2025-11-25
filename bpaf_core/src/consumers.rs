@@ -203,3 +203,25 @@ where
         }
     }
 }
+
+struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
+struct DummyAny<T>(Rc<dyn Fn(&str) -> Option<T>>);
+
+pub fn any<T: 'static>(check: impl Fn(&str) -> Option<T> + 'static) -> impl Parser<T> {
+    DummyAny(Rc::new(check))
+}
+
+impl<T: 'static> Parser<T> for DummyAny<T> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let parser = self.0.clone();
+        let check = Box::new(move |os: &OsStr| -> Option<Box<dyn std::any::Any>> {
+            Some(Box::new(parser(os.to_str()?)?))
+        });
+        Ok(*ctx
+            .parse_any(check)
+            .await?
+            .unwrap()
+            .downcast()
+            .expect("It should match"))
+    }
+}
