@@ -12,6 +12,14 @@ impl From<&[&str]> for Args {
     }
 }
 
+impl From<&[OsString]> for Args {
+    fn from(value: &[OsString]) -> Self {
+        Self {
+            items: value.to_vec(),
+        }
+    }
+}
+
 impl<const W: usize> From<[&str; W]> for Args {
     fn from(value: [&str; W]) -> Self {
         Self {

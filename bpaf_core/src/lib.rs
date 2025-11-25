@@ -8,6 +8,9 @@ mod core_consumers {
     //!
     //! They know how to interact with executor, deal with early exit when necessary, etc.
     //! Anything else gets built on top of those consumers
+
+    pub(crate) type AnyCheck = Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>;
+    pub(crate) type AnyResult = Option<Box<dyn std::any::Any>>;
     use crate::*;
 
     impl RawCtx {
@@ -68,16 +71,25 @@ mod core_consumers {
             self.current_task.borrow_mut().consumed += cnt;
         }
 
+        // pub(crate) async fn parse_any(&self, check: check: Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>) -> Result<Option<Box<dyn std::any::Any>>, Error> {
+        //
+        // }
+
+        fn add_to_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
+            let (parent, id) = self.task_parent_and_id();
+            lens(&mut self.triggers.borrow_mut()).insert(parent, id);
+        }
+        fn remove_from_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
+            let (parent, id) = self.task_parent_and_id();
+            lens(&mut self.triggers.borrow_mut()).remove(parent, id);
+        }
+
         pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
-            {
-                let (parent, id) = self.task_parent_and_id();
-                self.triggers.borrow_mut().pos.insert(parent, id);
-            }
-            let res = self.handle_early_exit(None, Self::parse_pos_consume).await;
-            {
-                let (parent, id) = self.task_parent_and_id();
-                self.triggers.borrow_mut().pos.remove(parent, id);
-            }
+            self.add_to_po(|triggers| &mut triggers.pos);
+            let res = self
+                .handle_early_exit(None, |arg| self.parse_pos_consume(arg))
+                .await;
+            self.remove_from_po(|triggers| &mut triggers.pos);
             self.managed_to_survive()?;
             res
         }
@@ -92,12 +104,47 @@ mod core_consumers {
             }
         }
 
+        pub(crate) async fn parse_any(&self, check: AnyCheck) -> Result<AnyResult, Error> {
+            self.add_to_po(|triggers| &mut triggers.any);
+            r#yield().await;
+            let res = loop {
+                println!("Trying to run Any");
+                let res = self
+                    .handle_early_exit2(None, |_arg| self.parse_any_consume(&check))
+                    .await;
+
+                if !matches!(res, Ok(None)) {
+                    break res;
+                }
+            };
+            self.remove_from_po(|triggers| &mut triggers.any);
+            self.managed_to_survive()?;
+            res
+        }
+
+        pub(self) fn parse_any_consume(&self, check: &AnyCheck) -> Result<AnyResult, Error> {
+            let cursor = self.cursor.get();
+            let args = self.args.borrow();
+            let res = check(&args[cursor]);
+            println!(
+                "Tried to parse {:?}, got {:?} ",
+                args[cursor],
+                res.is_some()
+            );
+            if res.is_some() {
+                self.consume(1);
+            }
+            Ok(res)
+        }
+
         pub(crate) async fn parse_arg(
             &self,
             names: &[Name<'static>],
         ) -> Result<Option<OsString>, Error> {
             self.add_names(names, view_reactor_args)?;
-            let res = self.handle_early_exit(None, Self::parse_arg_consume).await;
+            let res = self
+                .handle_early_exit(None, |arg| self.parse_arg_consume(arg))
+                .await;
             self.remove_names(names, view_reactor_args)?;
             self.managed_to_survive()?;
             res
@@ -140,7 +187,7 @@ mod core_consumers {
         pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
             self.add_names(names, view_reactor_flags)?;
             let res = self
-                .handle_early_exit(false, Self::parse_flag_consume)
+                .handle_early_exit(false, |arg| self.parse_flag_consume(arg))
                 .await;
             self.remove_names(names, view_reactor_flags)?;
             self.managed_to_survive()?;
@@ -148,6 +195,7 @@ mod core_consumers {
         }
 
         /// Consume a present argument, advance
+        #[inline(always)]
         pub(self) fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
             match arg {
                 Arg::Named { name, value } => match value {
@@ -164,10 +212,31 @@ mod core_consumers {
         }
 
         /// Handle early exit conditions
+        #[inline(always)]
+        pub(self) async fn handle_early_exit2<T>(
+            &self,
+            fallback: T,
+            act: impl Fn(&Arg) -> Result<T, Error>,
+        ) -> Result<T, Error> {
+            let res = {
+                let Some(arg) = self.woke_to_parse_arg() else {
+                    return Err(Error::Killed);
+                };
+                let Some(arg_ref) = arg.as_ref() else {
+                    return Ok(fallback);
+                };
+                act(arg_ref)
+            };
+            r#yield().await;
+            res
+        }
+
+        /// Handle early exit conditions
+        #[inline(always)]
         pub(self) async fn handle_early_exit<T>(
             &self,
             fallback: T,
-            act: fn(&Self, &Arg) -> Result<T, Error>,
+            act: impl Fn(&Arg) -> Result<T, Error>,
         ) -> Result<T, Error> {
             r#yield().await;
             let res = {
@@ -177,8 +246,7 @@ mod core_consumers {
                 let Some(arg_ref) = arg.as_ref() else {
                     return Ok(fallback);
                 };
-                act(self, arg_ref)
-                // self.parse_flag_consume(arg_ref)
+                act(arg_ref)
             };
             r#yield().await;
             res
@@ -205,6 +273,7 @@ mod core_consumers {
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
+    core_consumers::{AnyCheck, AnyResult},
     utils::reuse_vec,
 };
 #[doc(inline)]
@@ -1088,45 +1157,6 @@ impl RawCtx {
             }
             r#yield().await;
         }
-    }
-
-    #[expect(clippy::type_complexity)]
-    async fn parse_any(
-        &self,
-        check: Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>,
-    ) -> Result<Option<Box<dyn std::any::Any>>, Error> {
-        let (parent, id) = self.task_parent_and_id();
-        self.triggers.borrow_mut().any.insert(parent, id);
-        r#yield().await; // ------------------------------------------
-        let mut res = loop {
-            let attempt = match *self.wakeup_reason.borrow() {
-                Reason::Arg(None) => {
-                    self.triggers.borrow_mut().any.remove(parent, id);
-                    return Ok(None);
-                }
-                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                    unreachable!()
-                }
-                Reason::Arg(Some(_)) => {
-                    let cursor = self.cursor.get();
-                    let args = self.args.borrow();
-                    check(&args[cursor])
-                }
-            };
-            if attempt.is_none() {
-                r#yield().await;
-                continue;
-            } else {
-                self.consume(1);
-                break Ok(attempt);
-            }
-        };
-        r#yield().await; // ------------------------------------------
-        self.triggers.borrow_mut().any.remove(parent, id);
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            res = Err(Error::Killed);
-        }
-        res
     }
 }
 
