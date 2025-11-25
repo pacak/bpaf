@@ -646,26 +646,14 @@ impl<T: 'static> Parser<T> for Alt<T> {
         r#yield().await;
         ctx.trim_children(scopes).await;
 
-        // // TODO for what
-        // let task = {
-        //     let ctx = ctx.clone();
-        //     let info = ctx.make_child_info(Kind::Prod);
-        //     let act = Box::pin(async move {
-        //         ctx.trim_children(scopes).await;
-        //     });
-        //     Task { act, info }
-        // };
-        //
-        // ctx.add_task(task);
-        // r#yield().await;
-
-        #[expect(clippy::manual_try_fold)] // this is not a try_fold
-        handles
-            .into_iter()
-            .fold(Err(Error::Killed), |res, h| match (h.take(), res) {
-                (v @ Ok(_), _) | (Err(_), v @ Ok(_)) => v,
-                (Err(e1), Err(e2)) => Err(e1 + e2),
-            })
+        let mut acc = Error::Killed;
+        for h in handles {
+            match h.take() {
+                Err(err) => acc = acc + err,
+                v => return v,
+            }
+        }
+        Err(acc)
     }
 }
 
