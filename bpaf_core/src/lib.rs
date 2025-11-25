@@ -282,7 +282,8 @@ mod adapters {
     //! Adapters that implement functionality used by the [`Parser`] trait
 
     use crate::{
-        Bp, Error, Kind, Name, Parser, RawCtx, RcParser, Reason, Task, args::Args, r#yield,
+        Bp, Error, Kind, Name, Parser, RawCtx, RcParser, Reason, Task, args::Args, make_handle,
+        r#yield,
     };
     use std::{borrow::Cow, marker::PhantomData};
 
@@ -858,16 +859,26 @@ pub struct RawCtx {
     ///
     /// Holds other operations that might need access to tasks or other internal structures
     pending_ops: RefCell<Vec<Op>>,
+    /// Reference to triggers used by the executor
+    ///
+    /// Not available (borrowed by executor) during the first stage
     triggers: RefCell<Triggers>,
     /// Early exit ranges
     ///
     /// When there's no matching triggers executor will try to terminate anything inside of
     /// the each pair. This allows is necessary for things like `.optional()` and `.many()` to work
     early_exit: RefCell<BTreeSet<Scope>>,
+    /// Next free Id
+    ///
+    /// Tasks can use it to allocate Ids for children tasks including overriding
     next_free: Cell<u32>,
     args: RefCell<Vec<OsString>>,
     cursor: Cell<usize>,
+    /// When task is woken up this contains a reason for it
     wakeup_reason: RefCell<Reason>,
+    /// Reference to [`TaskInfo`] for the current task
+    ///
+    /// Executor sets it to the right value when polling a task
     current_task: RefCell<TaskInfo>,
 }
 pub type Ctx = Rc<RawCtx>;
@@ -933,6 +944,11 @@ type ShortNamePeckingOrder = HashMap<char, PeckingOrder>;
 type NamedPeckingOrderSelector =
     fn(&mut Triggers) -> (&mut ShortNamePeckingOrder, &mut LongNamePeckingOrder);
 
+fn make_handle<T: 'static>() -> (Rc<Cell<Option<Result<T, Error>>>>, JoinHandle<T>) {
+    let result = Rc::new(Cell::new(None));
+    (result.clone(), JoinHandle { result })
+}
+
 impl RawCtx {
     fn task_parent_and_id(&self) -> (Parent, Id) {
         let cur = self.current_task.borrow();
@@ -947,10 +963,9 @@ impl RawCtx {
         parser: Bp<RcParser<T>>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
         let ctx = self.clone();
-        let result_out = Rc::new(Cell::new(None));
-        let result = result_out.clone();
-        let action = Box::pin(async move { result_out.set(Some(parser.0.run(ctx).await)) });
-        (JoinHandle { result }, action)
+        let (out, handle) = make_handle();
+        let action = Box::pin(async move { out.set(Some(parser.0.run(ctx).await)) });
+        (handle, action)
     }
 
     fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
