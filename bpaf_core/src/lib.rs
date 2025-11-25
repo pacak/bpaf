@@ -86,6 +86,7 @@ mod core_consumers {
 
         pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
             self.add_to_po(|triggers| &mut triggers.pos);
+            r#yield().await;
             let res = self
                 .handle_early_exit(None, |arg| self.parse_pos_consume(arg))
                 .await;
@@ -110,7 +111,7 @@ mod core_consumers {
             let res = loop {
                 println!("Trying to run Any");
                 let res = self
-                    .handle_early_exit2(None, |_arg| self.parse_any_consume(&check))
+                    .handle_early_exit(None, |_arg| self.parse_any_consume(&check))
                     .await;
 
                 if !matches!(res, Ok(None)) {
@@ -142,6 +143,7 @@ mod core_consumers {
             names: &[Name<'static>],
         ) -> Result<Option<OsString>, Error> {
             self.add_names(names, view_reactor_args)?;
+            r#yield().await;
             let res = self
                 .handle_early_exit(None, |arg| self.parse_arg_consume(arg))
                 .await;
@@ -186,6 +188,7 @@ mod core_consumers {
         /// - `Err(Error::Killed)` when it gets out-consumed by something else
         pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
             self.add_names(names, view_reactor_flags)?;
+            r#yield().await;
             let res = self
                 .handle_early_exit(false, |arg| self.parse_flag_consume(arg))
                 .await;
@@ -213,34 +216,14 @@ mod core_consumers {
 
         /// Handle early exit conditions
         #[inline(always)]
-        pub(self) async fn handle_early_exit2<T>(
-            &self,
-            fallback: T,
-            act: impl Fn(&Arg) -> Result<T, Error>,
-        ) -> Result<T, Error> {
-            let res = {
-                let Some(arg) = self.woke_to_parse_arg() else {
-                    return Err(Error::Killed);
-                };
-                let Some(arg_ref) = arg.as_ref() else {
-                    return Ok(fallback);
-                };
-                act(arg_ref)
-            };
-            r#yield().await;
-            res
-        }
-
-        /// Handle early exit conditions
-        #[inline(always)]
         pub(self) async fn handle_early_exit<T>(
             &self,
             fallback: T,
             act: impl Fn(&Arg) -> Result<T, Error>,
         ) -> Result<T, Error> {
-            r#yield().await;
             let res = {
-                let Some(arg) = self.woke_to_parse_arg() else {
+                let reason = self.wakeup_reason.borrow();
+                let Reason::Arg(arg) = &*reason else {
                     return Err(Error::Killed);
                 };
                 let Some(arg_ref) = arg.as_ref() else {
@@ -250,14 +233,6 @@ mod core_consumers {
             };
             r#yield().await;
             res
-        }
-
-        fn woke_to_parse_arg(&self) -> Option<std::cell::Ref<'_, Option<Arg<'_>>>> {
-            std::cell::Ref::filter_map(self.wakeup_reason.borrow(), |reason| match reason {
-                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => None,
-                Reason::Arg(arg) => Some(arg),
-            })
-            .ok()
         }
 
         fn managed_to_survive(&self) -> Result<(), Error> {
