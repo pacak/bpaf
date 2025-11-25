@@ -88,7 +88,7 @@ mod core_consumers {
             self.add_to_po(|triggers| &mut triggers.pos);
             r#yield().await;
             let res = self
-                .handle_early_exit(None, |arg| self.parse_pos_consume(arg))
+                .try_to_parse_arg(None, |arg| self.parse_pos_consume(arg))
                 .await;
             self.remove_from_po(|triggers| &mut triggers.pos);
             self.managed_to_survive()?;
@@ -111,7 +111,7 @@ mod core_consumers {
             let res = loop {
                 println!("Trying to run Any");
                 let res = self
-                    .handle_early_exit(None, |_arg| self.parse_any_consume(&check))
+                    .try_to_parse_arg(None, |_arg| self.parse_any_consume(&check))
                     .await;
 
                 if !matches!(res, Ok(None)) {
@@ -145,7 +145,7 @@ mod core_consumers {
             self.add_names(names, view_reactor_args)?;
             r#yield().await;
             let res = self
-                .handle_early_exit(None, |arg| self.parse_arg_consume(arg))
+                .try_to_parse_arg(None, |arg| self.parse_arg_consume(arg))
                 .await;
             self.remove_names(names, view_reactor_args)?;
             self.managed_to_survive()?;
@@ -190,7 +190,7 @@ mod core_consumers {
             self.add_names(names, view_reactor_flags)?;
             r#yield().await;
             let res = self
-                .handle_early_exit(false, |arg| self.parse_flag_consume(arg))
+                .try_to_parse_arg(false, |arg| self.parse_flag_consume(arg))
                 .await;
             self.remove_names(names, view_reactor_flags)?;
             self.managed_to_survive()?;
@@ -216,7 +216,7 @@ mod core_consumers {
 
         /// Handle early exit conditions
         #[inline(always)]
-        pub(self) async fn handle_early_exit<T>(
+        pub(self) async fn try_to_parse_arg<T>(
             &self,
             fallback: T,
             act: impl Fn(&Arg) -> Result<T, Error>,
