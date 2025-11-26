@@ -1,0 +1,223 @@
+#[test]
+fn parse_simple_flag_works_0() {
+    let a = short('a').switch();
+
+    let r = run(a, &["-a"]).unwrap();
+    assert!(r);
+}
+
+#[test]
+fn parse_simple_flag_works_1() {
+    let a = short('a').switch();
+    let b = short('b').flag(1, 2);
+    let c = short('c').req_flag(());
+    let parser = construct!(a, b, c);
+    let r = run(parser, &["-a", "-b", "-c"]).unwrap();
+    assert_eq!(r, (true, 1, ()));
+}
+
+#[test]
+fn parse_simple_flag_works_2() {
+    let a = short('a').switch();
+    let b = short('a').switch();
+    let parser = construct!(a, b);
+    let r = run(parser, &["-a", "-a"]).unwrap();
+    assert_eq!(r, (true, true));
+}
+
+#[test]
+fn optional_tuple_works() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let parser = construct!(a, b).optional();
+    let r = run(parser, &["-a", "-b"]).unwrap();
+    assert_eq!(r, Some(('a', 'b')));
+}
+
+#[test]
+fn parse_simpel_arg_works_1() {
+    let a = short('a').argument::<u32>("A");
+    let b = short('b').argument::<u32>("B");
+    let parser = construct!(a, b);
+    let (ra, rb) = run(parser, &["-a=10", "-b", "20"]).unwrap();
+    assert_eq!(ra, 10);
+    assert_eq!(rb, 20);
+}
+
+#[test]
+fn simple_parse_any_works() {
+    let parser = any(|s| s.parse::<i32>().ok()).to_options();
+
+    let r = parser.run_inner("-42").unwrap();
+    assert_eq!(r, -42);
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
+}
+
+#[test]
+fn with_flag_parse_any_works() {
+    let a = any(|s| s.parse::<i32>().ok());
+    let b = short('b').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-b -10").unwrap();
+    assert_eq!(r, (-10, true));
+    let r = parser.run_inner("-10 -b").unwrap();
+    assert_eq!(r, (-10, true));
+}
+
+#[test]
+fn parse_optional_temp() {
+    let a = short('a').argument::<usize>("ARG").optional();
+    let b = short('b').argument::<usize>("ARG2");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-b10 -a 12").unwrap();
+    assert_eq!(r, (Some(12), 10));
+
+    let r = parser.run_inner("-b4").unwrap();
+    assert_eq!(r, (None, 4));
+}
+
+#[test]
+fn many_works() {
+    let parser = short('a').req_flag(()).many().to_options();
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn flag_group_works_reqflag() {
+    let parser = short('a').req_flag(()).many().to_options();
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn flag_group_works_switch() {
+    let parser = short('a').switch().many().to_options();
+
+    let r = parser.run_inner("-aaa").unwrap();
+    assert_eq!(r, &[true, true, true]);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, &[false]);
+
+    let r = parser.run_inner("-a -a -a").unwrap();
+    assert_eq!(r, &[true, true, true]);
+}
+
+#[test]
+fn many_with_optional() {
+    let a = short('a').req_flag(()).optional();
+    let b = short('b').argument::<u32>("B");
+    let parser = construct!(a, b).many().to_options();
+
+    let r = parser.run_inner("-b30").unwrap();
+    assert_eq!(r, &[(None, 30)]);
+
+    let r = parser.run_inner("-a -b=10 -b20 -a -b 30").unwrap();
+
+    assert_eq!(r, &[(Some(()), 10), (Some(()), 20), (None, 30)]);
+}
+
+#[test]
+fn simple_alt_with_one_flag() {
+    let a = short('a').req_flag('a');
+    let a1 = short('A').switch();
+    let a = construct!(a, a1);
+    let b = short('b').req_flag('b');
+    let b1 = short('B').switch();
+    let b = construct!(b, b1);
+    let parser = construct!([a, b]).to_options();
+    let r = parser.run_inner("-a -A").unwrap();
+    assert_eq!(r, ('a', true));
+}
+
+#[test]
+fn simple_alt_with_flags() {
+    let a = short('a').req_flag('a');
+    let a1 = short('A').switch();
+    let a2 = short('A').switch();
+    let a3 = short('A').switch();
+    let a4 = short('A').switch();
+    let a = construct!(a, a1, a2, a3, a4);
+    let b = short('b').req_flag('b');
+    let b1 = short('B').switch();
+    let b2 = short('B').switch();
+    let b3 = short('B').switch();
+    let b4 = short('B').switch();
+    let b = construct!(b, b1, b2, b3, b4);
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-a -AAAA").unwrap();
+    assert_eq!(r, ('a', true, true, true, true));
+}
+
+#[test]
+fn nested_alt_works() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let d = short('d').req_flag('d');
+    let ab = construct!([a, b]);
+    let cd = construct!([c, d]);
+    let parser = construct!([ab, cd]).to_options();
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn bare_parser() {
+    let parser = short('b').req_flag('b').to_options();
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn very_very_simple_alt() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).to_options();
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 'a');
+}
+
+#[test]
+fn simple_alt_with_option() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).optional().to_options();
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, None);
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, Some('b'));
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, Some('a'));
+}
+
+#[test]
+fn simple_command() {
+    let a = short('a').req_flag('a');
+    let inner = a.to_options().command("hello");
+    let b = short('b').req_flag('b');
+    let parser = construct!([inner, b]).to_options();
+
+    let r = parser.run_inner("hello -a").unwrap();
+    assert_eq!(r, 'a');
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn simple_nested() {
+    let inner = short('a').req_flag('a');
+    let parser = short('b').nest(inner).to_options();
+    let r = parser.run_inner("-b -a").unwrap();
+    assert_eq!(r, 'a');
+}
