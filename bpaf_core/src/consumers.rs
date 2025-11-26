@@ -123,6 +123,36 @@ impl Bp<Named> {
             ctx: PhantomData,
         })
     }
+
+    pub fn nest<T: 'static, P: Parser<T> + 'static>(self, inner: P) -> Bp<Nested<T>> {
+        Bp(Nested {
+            names: self.0,
+            inner: inner.into_rc().0,
+        })
+    }
+}
+
+pub struct Nested<T> {
+    names: Named,
+    inner: RcParser<T>,
+}
+
+impl<T: 'static> Parser<T> for Bp<Nested<T>> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let (out, handle) = make_handle();
+        let inner = &self.0.inner;
+        let populate = |ctx: crate::Ctx| {
+            // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
+            // to avoid instantiating multiple copies of boring code so this closure must be Fn
+            // (and not FnOnce), meaning extra clone for out even though the closure will
+            // be executed exactly once
+            let act = ctx.make_act(out.clone(), inner.clone());
+            let info = ctx.make_child_info(Kind::Prod);
+            ctx.add_task(Task { act, info });
+        };
+        ctx.parse_flag_and(&self.0.names.names, &populate).await?;
+        handle.take()
+    }
 }
 
 pub struct Flag<T> {

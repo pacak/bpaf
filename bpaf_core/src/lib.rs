@@ -31,6 +31,31 @@ mod core_consumers {
             Ok(())
             //
         }
+        pub(crate) fn add_literals(&self, names: &[Cow<'static, str>]) {
+            let (parent, id) = self.task_parent_and_id();
+            let mut triggers = self.triggers.borrow_mut();
+            for name in names {
+                triggers
+                    .literal
+                    .entry(name.clone())
+                    .or_default()
+                    .insert(parent, id);
+            }
+        }
+        pub(crate) fn remove_literals(&self, names: &[Cow<'static, str>]) {
+            use std::collections::hash_map::Entry;
+            let (parent, id) = self.task_parent_and_id();
+            let mut triggers = self.triggers.borrow_mut();
+            for name in names {
+                if let Entry::Occupied(mut e) = triggers.literal.entry(name.clone()) {
+                    if e.get_mut().remove(parent, id) {
+                        e.remove();
+                    }
+                } else {
+                    todo!();
+                }
+            }
+        }
 
         #[inline(never)]
         pub(crate) fn remove_names(
@@ -130,6 +155,47 @@ mod core_consumers {
                 self.consume(1);
             }
             Ok(res)
+        }
+
+        pub(crate) async fn parse_flag_and(
+            &self,
+            names: &[Name<'static>],
+            populate: &dyn Fn(Ctx),
+        ) -> Result<bool, Error> {
+            self.add_names(names, view_reactor_flags)?;
+            r#yield().await;
+            let res = self
+                .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
+                .await;
+            self.remove_names(names, view_reactor_flags)?;
+            self.managed_to_survive()?;
+            res
+        }
+
+        pub(crate) async fn parse_literal_and(
+            &self,
+            names: &[Cow<'static, str>],
+            populate: &dyn Fn(Ctx),
+        ) -> Result<bool, Error> {
+            self.add_literals(names);
+            r#yield().await;
+            let res = self
+                .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
+                .await;
+            self.remove_literals(names);
+            self.managed_to_survive()?;
+            res
+        }
+
+        fn parse_nested(&self, skip: u32, populate: &dyn Fn(Ctx)) -> Result<bool, Error> {
+            self.consume(skip);
+            let ctx = self.fork();
+            ctx.cursor.update(|c| c + skip as usize);
+            (populate)(ctx.clone());
+            ctx.execute()?;
+            let consumed = ctx.cursor.get() - self.cursor.get() - 1;
+            self.consume(consumed as u32);
+            Ok(true)
         }
 
         pub(crate) async fn parse_arg(
@@ -335,7 +401,7 @@ mod adapters {
 
         pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
             Bp(Command {
-                names: vec![Name::Long(name.into())],
+                names: vec![name.into()],
                 inner: self.0,
             })
         }
@@ -343,7 +409,19 @@ mod adapters {
 
     impl<T: 'static> Parser<T> for Bp<Command<T>> {
         async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-            todo!();
+            let (out, handle) = make_handle();
+            let inner = &self.0.inner.inner;
+            let populate = |ctx: crate::Ctx| {
+                // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
+                // to avoid instantiating multiple copies of boring code so this closure must be Fn
+                // (and not FnOnce), meaning extra clone for out even though the closure will
+                // be executed exactly once
+                let act = ctx.make_act(out.clone(), inner.clone());
+                let info = ctx.make_child_info(Kind::Prod);
+                ctx.add_task(Task { act, info });
+            };
+            ctx.parse_literal_and(&self.0.names, &populate).await?;
+            handle.take()
         }
     }
 
@@ -388,7 +466,7 @@ mod adapters {
     }
 
     pub struct Command<T> {
-        names: Vec<Name<'static>>,
+        names: Vec<Cow<'static, str>>,
         inner: OptionParser<T>,
     }
 }
@@ -959,6 +1037,14 @@ impl RawCtx {
         let (out, handle) = make_handle();
         let action = Box::pin(async move { out.set(Some(parser.0.run(ctx).await)) });
         (handle, action)
+    }
+    fn make_act<T: 'static>(
+        self: &Rc<Self>,
+        out: Rc<Cell<Option<Result<T, Error>>>>,
+        parser: RcParser<T>,
+    ) -> Pin<Box<impl Future<Output = ()> + 'static>> {
+        let ctx = self.clone();
+        Box::pin(async move { out.set(Some(parser.run(ctx).await)) })
     }
 
     fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
@@ -1774,7 +1860,10 @@ impl<'a> Mixer<'a> {
                     self.pecking_push(triggers.short_flags.get(name));
                 }
             }
-            Arg::Pos { value: _ } => {
+            Arg::Pos { value } => {
+                if let Some(name) = value.to_str() {
+                    self.pecking_push(triggers.literal.get(name));
+                }
                 self.pecking_push(Some(&triggers.pos));
             }
         }
@@ -2120,6 +2209,27 @@ fn simple_alt_with_option() {
     assert_eq!(r, Some('b'));
     let r = parser.run_inner("-a").unwrap();
     assert_eq!(r, Some('a'));
+}
+
+#[test]
+fn simple_command() {
+    let a = short('a').req_flag('a');
+    let inner = a.to_options().command("hello");
+    let b = short('b').req_flag('b');
+    let parser = construct!([inner, b]).to_options();
+
+    let r = parser.run_inner("hello -a").unwrap();
+    assert_eq!(r, 'a');
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn simple_nested() {
+    let inner = short('a').req_flag('a');
+    let parser = short('b').nest(inner).to_options();
+    let r = parser.run_inner("-b -a").unwrap();
+    assert_eq!(r, 'a');
 }
 
 #[cfg(test)]
