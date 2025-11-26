@@ -1,7 +1,7 @@
-use std::ffi::OsString;
+use std::{ffi::OsString, rc::Rc};
 
 pub struct Args {
-    pub(crate) items: Vec<OsString>,
+    pub(crate) items: Rc<[OsString]>,
 }
 
 impl From<&[&str]> for Args {
@@ -15,7 +15,7 @@ impl From<&[&str]> for Args {
 impl From<&[OsString]> for Args {
     fn from(value: &[OsString]) -> Self {
         Self {
-            items: value.to_vec(),
+            items: value.into(),
         }
     }
 }

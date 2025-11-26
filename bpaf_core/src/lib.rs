@@ -125,13 +125,7 @@ mod core_consumers {
 
         pub(self) fn parse_any_consume(&self, check: &AnyCheck) -> Result<AnyResult, Error> {
             let cursor = self.cursor.get();
-            let args = self.args.borrow();
-            let res = check(&args[cursor]);
-            println!(
-                "Tried to parse {:?}, got {:?} ",
-                args[cursor],
-                res.is_some()
-            );
+            let res = check(&self.args[cursor]);
             if res.is_some() {
                 self.consume(1);
             }
@@ -157,8 +151,7 @@ mod core_consumers {
                 Arg::Pos { .. } => unreachable!(),
                 Arg::Named { name, value: None } => {
                     let cursor = self.cursor.get() + 1;
-                    let args = self.args.borrow();
-                    let Some(arg) = args.get(cursor) else {
+                    let Some(arg) = self.args.get(cursor) else {
                         todo!("{name:?} expects a value");
                     };
                     match lex_os_arg(arg) {
@@ -872,7 +865,7 @@ pub struct RawCtx {
     ///
     /// Tasks can use it to allocate Ids for children tasks including overriding
     next_free: Cell<u32>,
-    args: RefCell<Vec<OsString>>,
+    args: Rc<[OsString]>,
     cursor: Cell<usize>,
     /// When task is woken up this contains a reason for it
     wakeup_reason: RefCell<Reason>,
@@ -1193,8 +1186,7 @@ impl Executor {
             self.process_scheduled();
 
             let ctx = self.ctx.clone();
-            let args = ctx.args.borrow();
-            let Some(front) = args.get(self.ctx.cursor.get()) else {
+            let Some(front) = ctx.args.get(self.ctx.cursor.get()) else {
                 break;
             };
 
@@ -1701,11 +1693,20 @@ struct Triggers {
 // executor - runs ready tasks
 
 impl RawCtx {
-    fn new(args: Vec<OsString>) -> Rc<RawCtx> {
+    /// Create a copy of a context suitable to run an executor
+    fn fork(&self) -> Rc<RawCtx> {
+        Self::make(self.args.clone(), self.cursor.get())
+    }
+
+    fn new(args: Rc<[OsString]>) -> Ctx {
+        Self::make(args, 0)
+    }
+
+    fn make(args: Rc<[OsString]>, cursor: usize) -> Rc<RawCtx> {
         Rc::new(RawCtx {
-            args: args.into(),
+            args,
             current_task: Default::default(),
-            cursor: Cell::new(0),
+            cursor: Cell::new(cursor),
             early_exit: Default::default(),
             pending_ops: Default::default(),
             next_free: Cell::new(1),
