@@ -142,6 +142,7 @@ fn lexer_doesnt_throw_away_data() {
         "--foo=bar",
         "-ffoo",
         "-f=foo",
+        "-f=",
         "-f",
         "foo",
     ] {
