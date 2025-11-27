@@ -161,9 +161,43 @@ pub struct Flag<T> {
     named: Named,
 }
 
+impl Named {
+    fn complete_name(&self, err: Error, meta: Option<Metavar>) -> Error {
+        let Error::Complete(ref comp) = err else {
+            return err;
+        };
+        let [Complete::ReqName { prefix }] = comp.as_slice() else {
+            return err;
+        };
+        let help = self.help.clone();
+        for name in self.names.iter() {
+            match (name, prefix.as_deref()) {
+                (n @ Name::Short(_), None) => {
+                    return Error::Complete(Vec1::new(Complete::Item {
+                        name: n.clone(),
+                        meta,
+                        help,
+                    }));
+                }
+                (n @ Name::Long(cow), Some(s)) if cow.starts_with(s) => {
+                    return Error::Complete(Vec1::new(Complete::Item {
+                        name: n.clone(),
+                        meta,
+                        help,
+                    }));
+                }
+                _ => {}
+            }
+        }
+        Error::Internal
+    }
+}
+
 impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        if ctx.parse_flag(&self.0.named.names).await? {
+        let res = ctx.parse_flag(&self.0.named.names).await;
+        let res = res.map_err(|err| self.0.named.complete_name(err, None));
+        if res? {
             Ok(self.0.present.clone())
         } else if let Some(absent) = &self.0.absent {
             Ok(absent.clone())

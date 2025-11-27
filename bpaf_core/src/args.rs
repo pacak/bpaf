@@ -1,13 +1,35 @@
-use std::{ffi::OsString, rc::Rc};
+use std::{
+    ffi::{OsStr, OsString},
+    rc::Rc,
+};
 
+#[derive(Debug, Clone)]
 pub struct Args {
     pub(crate) items: Rc<[OsString]>,
+    pub(crate) complete: bool,
+}
+impl Args {
+    pub(crate) fn get(&self, ix: usize) -> Option<&OsString> {
+        self.items.get(ix)
+    }
+    pub(crate) fn len(&self) -> usize {
+        self.items.len()
+    }
+}
+
+impl std::ops::Index<usize> for Args {
+    type Output = OsString;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.items[index]
+    }
 }
 
 impl From<&[&str]> for Args {
     fn from(value: &[&str]) -> Self {
         Self {
             items: value.iter().map(OsString::from).collect(),
+            complete: false,
         }
     }
 }
@@ -16,6 +38,7 @@ impl From<&[OsString]> for Args {
     fn from(value: &[OsString]) -> Self {
         Self {
             items: value.into(),
+            complete: false,
         }
     }
 }
@@ -24,6 +47,7 @@ impl<const W: usize> From<[&str; W]> for Args {
     fn from(value: [&str; W]) -> Self {
         Self {
             items: value.iter().map(OsString::from).collect(),
+            complete: false,
         }
     }
 }
@@ -32,6 +56,7 @@ impl From<std::env::ArgsOs> for Args {
     fn from(value: std::env::ArgsOs) -> Self {
         Self {
             items: value.collect(),
+            complete: false, // TODO
         }
     }
 }
@@ -44,6 +69,22 @@ impl From<&str> for Args {
                 .into_iter()
                 .map(OsString::from)
                 .collect(),
+            complete: false,
+        }
+    }
+}
+
+impl From<(&str, &str)> for Args {
+    fn from(value: (&str, &str)) -> Self {
+        let mut items = split(value.0)
+            .unwrap()
+            .into_iter()
+            .map(OsString::from)
+            .collect::<Vec<_>>();
+        items.push(OsString::from(value.1));
+        Self {
+            items: items.into(),
+            complete: true,
         }
     }
 }

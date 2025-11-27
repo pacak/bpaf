@@ -276,8 +276,14 @@ impl RawCtx {
     ) -> Result<T, Error> {
         let res = {
             let reason = self.wakeup_reason.borrow();
-            let Reason::Arg(arg) = &*reason else {
-                return Err(Error::Killed);
+            let arg = match &*reason {
+                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                    return Err(Error::Killed);
+                }
+                Reason::Arg(arg) => arg,
+                Reason::Complete(complete) => {
+                    return Err(Error::Complete(Vec1::new(complete.clone())));
+                }
             };
             let Some(arg_ref) = arg.as_ref() else {
                 return Ok(fallback);

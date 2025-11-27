@@ -8,7 +8,7 @@ mod utils;
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
-    utils::reuse_vec,
+    utils::{Vec1, reuse_vec},
 };
 #[doc(inline)]
 pub use consumers::*;
@@ -259,37 +259,17 @@ pub struct Metavar(&'static str);
 mod error {
     use std::borrow::Cow;
 
-    use crate::{Metavar, Name};
+    use crate::{Complete, Metavar, Name, utils::Vec1};
 
     #[derive(Debug)]
     pub enum Error {
-        MissingItem(Missing),
+        MissingItem(Vec1<MissingItem>),
+        Complete(Vec1<Complete>),
         ParseError,
         Killed,
         Internal,
     }
 
-    #[derive(Debug, Clone)]
-    pub enum Missing {
-        Single(MissingItem),
-        Items(Vec<MissingItem>),
-    }
-    impl Missing {
-        fn combine(self, m: Missing) -> Self {
-            match (self, m) {
-                (Missing::Single(m1), Missing::Single(m2)) => Self::Items(vec![m1, m2]),
-                (Missing::Single(m), Missing::Items(mut ms))
-                | (Missing::Items(mut ms), Missing::Single(m)) => {
-                    ms.push(m);
-                    Self::Items(ms)
-                }
-                (Missing::Items(mut ms), Missing::Items(mut ms2)) => {
-                    ms.append(&mut ms2);
-                    Self::Items(ms)
-                }
-            }
-        }
-    }
     #[derive(Debug, Clone)]
     pub enum MissingItem {
         Named {
@@ -308,11 +288,11 @@ mod error {
     impl Error {
         pub(crate) fn combine(self, e2: Error) -> Error {
             match (self, e2) {
-                (Error::Internal, _e) | (_e, Error::Internal) => Error::Internal,
+                (Error::Internal, _) | (_, Error::Internal) => Error::Internal,
                 (Error::Killed, e) | (e, Error::Killed) => e,
-                (Error::MissingItem(i1), Error::MissingItem(i2)) => {
-                    Error::MissingItem(i1.combine(i2))
-                }
+                (Error::Complete(c1), Error::Complete(c2)) => Error::Complete(c1 + c2),
+                (e @ Error::Complete(_), _) | (_, e @ Error::Complete(_)) => e,
+                (Error::MissingItem(i1), Error::MissingItem(i2)) => Error::MissingItem(i1 + i2),
                 (Error::MissingItem(_), Error::ParseError) => todo!(),
                 (Error::ParseError, Error::MissingItem(_)) => todo!(),
                 (Error::ParseError, Error::ParseError) => todo!(),
@@ -325,10 +305,11 @@ mod error {
                 Error::ParseError => false,
                 Error::Killed => true,
                 Error::Internal => false,
+                Error::Complete(_) => false,
             }
         }
         pub(crate) fn missing(item: MissingItem) -> Self {
-            Self::MissingItem(Missing::Single(item))
+            Self::MissingItem(Vec1::new(item))
         }
 
         /// Consume current error and append it to a growing collection in dst
@@ -416,7 +397,7 @@ pub struct RawCtx {
     ///
     /// Tasks can use it to allocate Ids for children tasks including overriding
     next_free: Cell<u32>,
-    args: Rc<[OsString]>,
+    args: Args,
     cursor: Cell<usize>,
     /// When task is woken up this contains a reason for it
     wakeup_reason: RefCell<Reason>,
@@ -433,35 +414,26 @@ enum Reason {
     Pass,
     Arg(Option<Arg<'static>>),
     ChildProgress(Vec1<Id>),
+    Complete(Complete),
 }
 
-/// A small vector that can hold 1 item without heap allocation
 #[derive(Debug, Clone)]
-enum Vec1<T> {
-    Small(Option<T>),
-    Big(Vec<T>),
-}
-
-impl<T> Default for Vec1<T> {
-    fn default() -> Self {
-        Vec1::Small(None)
-    }
-}
-
-impl<T: Copy> Vec1<T> {
-    fn push(&mut self, val: T) {
-        match self {
-            Vec1::Small(None) => *self = Vec1::Small(Some(val)),
-            Vec1::Small(Some(prev)) => *self = Vec1::Big(vec![*prev, val]),
-            Vec1::Big(items) => items.push(val),
-        }
-    }
-    fn as_slice(&self) -> &[T] {
-        match self {
-            Vec1::Small(x) => x.as_slice(),
-            Vec1::Big(items) => items.as_slice(),
-        }
-    }
+enum Complete {
+    /// We are trying to complete a name, Some indicates a long name, None - a short name
+    /// where user typed just `-`
+    ReqName {
+        prefix: Option<String>,
+    },
+    ReqLiteral {
+        prefix: String,
+    },
+    ReqValue(OsString),
+    FillValue(OsString),
+    Item {
+        name: Name<'static>,
+        meta: Option<Metavar>,
+        help: Option<String>,
+    },
 }
 
 fn view_reactor_flags(
@@ -733,6 +705,35 @@ impl Executor {
         }
     }
 
+    fn check_autocomplete(&mut self, arg: &OsStr) -> bool {
+        if !self.ctx.args.complete || self.ctx.cursor.get() + 1 != self.ctx.args.len() {
+            return false;
+        }
+
+        let mut mixer = Mixer::default();
+        let arg = lex_os_arg(arg);
+
+        {
+            let triggers = self.ctx.triggers.borrow();
+            let (reason, mgroup) = mixer.populate_prefix(&arg, &triggers);
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
+            while let Some(item) = mixer.consume_next_item(&self.tasks) {
+                self.to_wake.push(item.id)
+            }
+        }
+
+        while let Some(id) = self.to_wake.pop() {
+            let mut task = self.tasks.remove(&id).unwrap();
+            let r = self.ctx.poll_in_context(&mut task);
+            self.to_propagate
+                .push_back((task.info.id, task.info.parent_id, task.info.consumed));
+            assert!(r);
+        }
+        self.kill_in_scope(Scope::ALL);
+        self.propagate(Reason::Pass);
+        true
+    }
+
     fn execute(&mut self) -> Result<(), Error> {
         let mut changed = true;
 
@@ -748,6 +749,10 @@ impl Executor {
             let Some(front) = ctx.args.get(self.ctx.cursor.get()) else {
                 break;
             };
+
+            if self.check_autocomplete(front) {
+                return Ok(());
+            }
 
             // Waking up tasks is done in two stages: during the first stage we wake up
             // all the tasks with matching triggers, during the second stage tasks that don't
@@ -1257,11 +1262,11 @@ impl RawCtx {
         Self::make(self.args.clone(), self.cursor.get())
     }
 
-    fn new(args: Rc<[OsString]>) -> Ctx {
+    fn new(args: Args) -> Ctx {
         Self::make(args, 0)
     }
 
-    fn make(args: Rc<[OsString]>, cursor: usize) -> Rc<RawCtx> {
+    fn make(args: Args, cursor: usize) -> Rc<RawCtx> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -1294,6 +1299,41 @@ struct Group(Vec<char>);
 impl<'a> Mixer<'a> {
     fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
         self.pecking_push(triggers.short_flags.get(name));
+    }
+    fn populate_prefix(
+        &mut self,
+        arg: &Arg<'a>,
+        triggers: &'a Triggers,
+    ) -> (Complete, Option<Group>) {
+        self.pecking_push(Some(&triggers.any));
+        match arg {
+            Arg::Named {
+                name: nn @ Name::Long(name),
+                value: None,
+            } => {
+                for (n, po) in triggers.long_args.iter() {
+                    if n.starts_with(name.as_ref()) {
+                        self.pecking_push(Some(po));
+                    }
+                }
+                for (n, po) in triggers.long_flags.iter() {
+                    if n.starts_with(name.as_ref()) {
+                        self.pecking_push(Some(po));
+                    }
+                }
+                let prefix = Some(name.as_ref().to_owned());
+                (Complete::ReqName { prefix }, None)
+            }
+            Arg::Named {
+                name: Name::Short(_),
+                value: None,
+            } => todo!(),
+            Arg::Named {
+                name,
+                value: Some(_),
+            } => todo!(),
+            Arg::Pos { value } => todo!(),
+        }
     }
     fn populate(&mut self, arg: &Arg<'a>, triggers: &'a Triggers) -> Option<Group> {
         self.pecking_push(Some(&triggers.any));
@@ -1470,7 +1510,7 @@ impl From<String> for Name<'static> {
 }
 
 pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
-    let args = Args::from(args).items;
+    let args = Args::from(args);
     let ctx = RawCtx::new(args);
 
     let (handle, act) = ctx.make_raw_task(parser.into_rc());
@@ -1703,6 +1743,19 @@ fn simple_nested() {
     let parser = short('b').nest(inner).to_options();
     let r = parser.run_inner("-b -a").unwrap();
     assert_eq!(r, 'a');
+}
+
+#[test]
+fn simple_complete_name() {
+    let a = long("missy").req_flag('a');
+    let b = long("missle-launcher").req_flag('b');
+    let c = short('m').req_flag('c');
+    let abc = construct!([a, b, c]);
+    let name = long("name").argument::<String>("NAME");
+    let parser = construct!(abc, name).to_options();
+
+    let r = parser.run_inner(("--name=Bob", "--miss"));
+    todo!("{r:?}");
 }
 
 #[cfg(test)]

@@ -46,9 +46,7 @@ pub struct OptionParser<T> {
 
 impl<T: 'static> Bp<OptionParser<T>> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, Error> {
-        let items = args.into().items;
-
-        let ctx = RawCtx::new(items);
+        let ctx = RawCtx::new(args.into());
 
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
         let info = ctx.make_child_info(Kind::Prod);
