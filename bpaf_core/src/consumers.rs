@@ -6,9 +6,9 @@ use super::*;
 
 #[derive(Debug, Clone)]
 pub struct Named {
-    names: Vec<Name<'static>>,
-    env: Vec<String>,
-    help: Option<String>,
+    pub(crate) names: Vec<Name<'static>>,
+    pub(crate) env: Vec<String>,
+    pub(crate) help: Option<String>,
 }
 
 impl Named {
@@ -161,38 +161,6 @@ pub struct Flag<T> {
     named: Named,
 }
 
-impl Named {
-    fn complete_name(&self, err: Error, meta: Option<Metavar>) -> Error {
-        let Error::Complete(ref comp) = err else {
-            return err;
-        };
-        let [Complete::ReqName { prefix }] = comp.as_slice() else {
-            return err;
-        };
-        let help = self.help.clone();
-        for name in self.names.iter() {
-            match (name, prefix.as_deref()) {
-                (n @ Name::Short(_), None) => {
-                    return Error::Complete(Vec1::new(Complete::Item {
-                        name: n.clone(),
-                        meta,
-                        help,
-                    }));
-                }
-                (n @ Name::Long(cow), Some(s)) if cow.starts_with(s) => {
-                    return Error::Complete(Vec1::new(Complete::Item {
-                        name: n.clone(),
-                        meta,
-                        help,
-                    }));
-                }
-                _ => {}
-            }
-        }
-        Error::Internal
-    }
-}
-
 impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_flag(&self.0.named.names).await;
@@ -223,7 +191,10 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        match ctx.parse_arg(&self.0.named.names).await?.map(parse_os_str) {
+        let res = ctx.parse_arg(&self.0.named.names).await;
+        let res = res.map_err(|err| self.0.named.complete_name(err, Some(self.0.metavar)));
+
+        match res?.map(parse_os_str) {
             Some(Ok(t)) => Ok(t),
             Some(Err(err)) => todo!("{err:?}"),
             None => {

@@ -1,5 +1,6 @@
 mod arg;
 mod args;
+mod complete;
 mod consumers;
 mod core_consumers;
 mod os_str;
@@ -8,6 +9,7 @@ mod utils;
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
+    complete::{CompleteReply, CompleteReq},
     utils::{Vec1, reuse_vec},
 };
 #[doc(inline)]
@@ -254,17 +256,22 @@ impl Default for TaskInfo {
         }
     }
 }
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Metavar(&'static str);
 mod error {
     use std::borrow::Cow;
 
-    use crate::{Complete, Metavar, Name, utils::Vec1};
+    use crate::{
+        Metavar, Name,
+        complete::{CompleteReply, CompleteReq, render_completions},
+        utils::Vec1,
+    };
 
     #[derive(Debug)]
     pub enum Error {
         MissingItem(Vec1<MissingItem>),
-        Complete(Vec1<Complete>),
+        CompleteReply(Vec1<CompleteReply>),
+        CompleteRequest(CompleteReq),
         ParseError,
         Killed,
         Internal,
@@ -290,8 +297,11 @@ mod error {
             match (self, e2) {
                 (Error::Internal, _) | (_, Error::Internal) => Error::Internal,
                 (Error::Killed, e) | (e, Error::Killed) => e,
-                (Error::Complete(c1), Error::Complete(c2)) => Error::Complete(c1 + c2),
-                (e @ Error::Complete(_), _) | (_, e @ Error::Complete(_)) => e,
+                (Error::CompleteReply(c1), Error::CompleteReply(c2)) => {
+                    Error::CompleteReply(c1 + c2)
+                }
+                (e @ Error::CompleteReply(_), _) | (_, e @ Error::CompleteReply(_)) => e,
+                (Error::CompleteRequest(_), _) | (_, Error::CompleteRequest(_)) => todo!(),
                 (Error::MissingItem(i1), Error::MissingItem(i2)) => Error::MissingItem(i1 + i2),
                 (Error::MissingItem(_), Error::ParseError) => todo!(),
                 (Error::ParseError, Error::MissingItem(_)) => todo!(),
@@ -305,7 +315,8 @@ mod error {
                 Error::ParseError => false,
                 Error::Killed => true,
                 Error::Internal => false,
-                Error::Complete(_) => false,
+                Error::CompleteRequest(_) => false,
+                Error::CompleteReply(_) => false,
             }
         }
         pub(crate) fn missing(item: MissingItem) -> Self {
@@ -324,6 +335,21 @@ mod error {
             });
             Error::Killed
         }
+
+        fn render(self) -> ParseFailure {
+            match self {
+                Error::MissingItem(vec1) => todo!(),
+                Error::CompleteReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
+                Error::CompleteRequest(_) => todo!(),
+                Error::ParseError => todo!(),
+                Error::Killed => todo!(),
+                Error::Internal => todo!(),
+            }
+        }
+    }
+    pub enum ParseFailure {
+        Stdout(String),
+        Stderr(String),
     }
 }
 pub use error::*;
@@ -414,26 +440,7 @@ enum Reason {
     Pass,
     Arg(Option<Arg<'static>>),
     ChildProgress(Vec1<Id>),
-    Complete(Complete),
-}
-
-#[derive(Debug, Clone)]
-enum Complete {
-    /// We are trying to complete a name, Some indicates a long name, None - a short name
-    /// where user typed just `-`
-    ReqName {
-        prefix: Option<String>,
-    },
-    ReqLiteral {
-        prefix: String,
-    },
-    ReqValue(OsString),
-    FillValue(OsString),
-    Item {
-        name: Name<'static>,
-        meta: Option<Metavar>,
-        help: Option<String>,
-    },
+    Complete(CompleteReq),
 }
 
 fn view_reactor_flags(
@@ -580,7 +587,6 @@ impl RawCtx {
 
     async fn trim_children(&self, mut scopes: Vec<Scope>) {
         loop {
-            println!("Trim children, got {:?} / {scopes:?}", self.wakeup_reason);
             match *self.wakeup_reason.borrow() {
                 Reason::ChildProgress(ref ids) => {
                     scopes.retain(|scope| {
@@ -794,12 +800,6 @@ impl Executor {
             self.propagate(Reason::Pass);
         }
 
-        println!("There's nothing to do");
-        for t in self.tasks.values() {
-            println!("{t:?}");
-        }
-        println!();
-
         self.kill_in_scope(Scope::ALL);
 
         println!("somehow we are done, {:?}", self.tasks);
@@ -922,7 +922,6 @@ impl Executor {
                 }
             }
         }
-        println!("{advancing:?}\n",);
 
         // part 2, pushing parsed results up
         *self.ctx.wakeup_reason.borrow_mut() = reason;
@@ -935,7 +934,6 @@ impl Executor {
             let task = occ_task.get_mut();
             task.info.pending -= 1;
             task.info.consumed += consumed;
-            println!("After {parent:?} {consumed:?} task is niow {task:?}");
             if task.info.pending > 0 {
                 continue;
             }
@@ -1300,11 +1298,12 @@ impl<'a> Mixer<'a> {
     fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
         self.pecking_push(triggers.short_flags.get(name));
     }
+
     fn populate_prefix(
         &mut self,
         arg: &Arg<'a>,
         triggers: &'a Triggers,
-    ) -> (Complete, Option<Group>) {
+    ) -> (CompleteReq, Option<Group>) {
         self.pecking_push(Some(&triggers.any));
         match arg {
             Arg::Named {
@@ -1321,8 +1320,8 @@ impl<'a> Mixer<'a> {
                         self.pecking_push(Some(po));
                     }
                 }
-                let prefix = Some(name.as_ref().to_owned());
-                (Complete::ReqName { prefix }, None)
+                let prefix = Some(name.as_ref().into());
+                (CompleteReq::Name { prefix }, None)
             }
             Arg::Named {
                 name: Name::Short(_),
@@ -1332,7 +1331,56 @@ impl<'a> Mixer<'a> {
                 name,
                 value: Some(_),
             } => todo!(),
-            Arg::Pos { value } => todo!(),
+            Arg::Pos { value } => {
+                let Some(value) = value.to_str() else {
+                    todo!("Completing non-utf?");
+                };
+                let (short, long, lit);
+                let request;
+                if value.is_empty() {
+                    (short, long, lit) = (true, true, true);
+                    request = CompleteReq::Anything;
+                } else if value == "-" {
+                    (short, long, lit) = (true, true, false);
+                    request = CompleteReq::Anything;
+                } else if value == "--" {
+                    (short, long, lit) = (false, true, false);
+                    request = CompleteReq::Name {
+                        prefix: Some(Default::default()),
+                    };
+                } else {
+                    (short, long, lit) = (false, false, true);
+                    request = CompleteReq::Literal {
+                        prefix: value.into(),
+                    }
+                }
+                if short {
+                    for f in triggers.short_args.values() {
+                        self.pecking_push(Some(f));
+                    }
+                    for f in triggers.short_flags.values() {
+                        self.pecking_push(Some(f));
+                    }
+                }
+                if long {
+                    for f in triggers.long_args.values() {
+                        self.pecking_push(Some(f));
+                    }
+                    for f in triggers.long_flags.values() {
+                        self.pecking_push(Some(f));
+                    }
+                }
+                if lit {
+                    for (name, f) in triggers.literal.iter() {
+                        if name.starts_with(value) {
+                            self.pecking_push(Some(f));
+                        }
+                    }
+                }
+                self.pecking_push(Some(&triggers.pos));
+
+                (request, None)
+            }
         }
     }
     fn populate(&mut self, arg: &Arg<'a>, triggers: &'a Triggers) -> Option<Group> {
@@ -1475,6 +1523,16 @@ pub(crate) enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
 }
+
+impl std::fmt::Display for Name<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Name::Short(s) => write!(f, "-{s}"),
+            Name::Long(l) => write!(f, "--{l}"),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub(crate) enum ShortLong {
     Short(char),
@@ -1746,7 +1804,16 @@ fn simple_nested() {
 }
 
 #[test]
-fn simple_complete_name() {
+fn simple_complete_command() {
+    let a = short('a').req_flag('a').to_options().command("alpha");
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err();
+    todo!("{r:?}");
+}
+#[test]
+fn simple_complete_named() {
     let a = long("missy").req_flag('a');
     let b = long("missle-launcher").req_flag('b');
     let c = short('m').req_flag('c');
@@ -1754,8 +1821,14 @@ fn simple_complete_name() {
     let name = long("name").argument::<String>("NAME");
     let parser = construct!(abc, name).to_options();
 
-    let r = parser.run_inner(("--name=Bob", "--miss"));
+    let r = parser.run_inner(("--name=bob", "--missy")).unwrap_err();
     todo!("{r:?}");
+
+    // let Error::Complete(c) = parser.run_inner(("--name=Bob", "--miss")).unwrap_err() else {
+    //     panic!();
+    // };
+    // let expected = "[Item { name: Long(\"missy\"), meta: None, help: None }, Item { name: Long(\"missle-launcher\"), meta: None, help: None }]";
+    // assert_eq!(format!("{:?}", c.as_slice()), expected);
 }
 
 #[cfg(test)]

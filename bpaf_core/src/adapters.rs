@@ -1,7 +1,8 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args, make_handle, r#yield,
+    Bp, Error, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args,
+    complete::complete_command, make_handle, r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -70,14 +71,16 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
         let inner = &self.0.inner.inner;
         let populate = |ctx: crate::Ctx| {
             // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
-            // to avoid instantiating multiple copies of boring code so this closure must be Fn
-            // (and not FnOnce), meaning extra clone for out even though the closure will
+            // to avoid instantiating multiple copies of boring code so this closure must be `Fn`
+            // (and not `FnOnce`), meaning extra clone for out even though the closure will
             // be executed exactly once
             let act = ctx.make_act(out.clone(), inner.clone());
             let info = ctx.make_child_info(Kind::Prod);
             ctx.add_task(Task { act, info });
         };
-        ctx.parse_literal_and(&self.0.names, &populate).await?;
+        let res = ctx.parse_literal_and(&self.0.names, &populate).await;
+        let res = res.map_err(|err| complete_command(&self.0.names, err));
+        res?;
         handle.take()
     }
 }

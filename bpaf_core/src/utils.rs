@@ -17,7 +17,7 @@ pub(crate) struct Vec1<T>(Vec1Int<T>);
 
 impl<T: std::fmt::Debug> std::fmt::Debug for Vec1<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("Vec1").field(&self.as_slice()).finish()
+        self.as_slice().fmt(f)
     }
 }
 
@@ -61,6 +61,13 @@ impl<T> Vec1<T> {
         match &self.0 {
             Vec1Int::One(x) => std::slice::from_ref(x),
             Vec1Int::Vec(items) => items.as_slice(),
+        }
+    }
+}
+impl<T: Ord> Vec1<T> {
+    pub(crate) fn sort(&mut self) {
+        if let Vec1Int::Vec(items) = &mut self.0 {
+            items.sort()
         }
     }
 }

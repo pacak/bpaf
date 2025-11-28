@@ -90,14 +90,11 @@ impl RawCtx {
         self.current_task.borrow_mut().consumed += cnt;
     }
 
-    // pub(crate) async fn parse_any(&self, check: check: Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>) -> Result<Option<Box<dyn std::any::Any>>, Error> {
-    //
-    // }
-
     fn add_to_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
         let (parent, id) = self.task_parent_and_id();
         lens(&mut self.triggers.borrow_mut()).insert(parent, id);
     }
+
     fn remove_from_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
         let (parent, id) = self.task_parent_and_id();
         lens(&mut self.triggers.borrow_mut()).remove(parent, id);
@@ -166,6 +163,9 @@ impl RawCtx {
         res
     }
 
+    /// Run a nested parser prefixed by a literal
+    ///
+    /// Returns true if parser executed and false otherwise
     pub(crate) async fn parse_literal_and(
         &self,
         names: &[Cow<'static, str>],
@@ -282,7 +282,7 @@ impl RawCtx {
                 }
                 Reason::Arg(arg) => arg,
                 Reason::Complete(complete) => {
-                    return Err(Error::Complete(Vec1::new(complete.clone())));
+                    return Err(Error::CompleteRequest(complete.clone()));
                 }
             };
             let Some(arg_ref) = arg.as_ref() else {
