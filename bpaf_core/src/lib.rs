@@ -1810,7 +1810,11 @@ fn simple_complete_command() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err();
-    todo!("{r:?}");
+    let r = format!("{r:?}");
+    assert_eq!(
+        r,
+        "CompleteReply([Command { name: \"alpha\", help: None }, Named { name: Short('b'), meta: None, help: None }])"
+    );
 }
 #[test]
 fn simple_complete_named() {
@@ -1822,7 +1826,11 @@ fn simple_complete_named() {
     let parser = construct!(abc, name).to_options();
 
     let r = parser.run_inner(("--name=bob", "--missy")).unwrap_err();
-    todo!("{r:?}");
+    let r = format!("{r:?}");
+    assert_eq!(
+        r,
+        "CompleteReply([Named { name: Long(\"missy\"), meta: None, help: None }])"
+    );
 
     // let Error::Complete(c) = parser.run_inner(("--name=Bob", "--miss")).unwrap_err() else {
     //     panic!();

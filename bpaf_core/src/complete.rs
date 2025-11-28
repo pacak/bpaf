@@ -78,14 +78,14 @@ impl Named {
 
 #[derive(Debug, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub(crate) enum CompleteReply {
+    Command {
+        name: Cow<'static, str>,
+        help: Option<String>,
+    },
     Value(OsString),
     Named {
         name: Name<'static>,
         meta: Option<Metavar>,
-        help: Option<String>,
-    },
-    Command {
-        name: Cow<'static, str>,
         help: Option<String>,
     },
 }
