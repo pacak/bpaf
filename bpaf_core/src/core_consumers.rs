@@ -220,6 +220,15 @@ impl RawCtx {
                     }
                     Arg::Pos { value } => {
                         self.consume(2);
+                        if self.args.complete && cursor + 1 == self.args.len() {
+                            let req = match value.to_str() {
+                                Some(prefix) => CompleteReq::Literal {
+                                    prefix: prefix.into(),
+                                },
+                                None => CompleteReq::Value(value.into_owned()),
+                            };
+                            return Err(Error::CompleteRequest(req));
+                        }
                         Ok(Some(value.clone().into_owned()))
                     }
                 }

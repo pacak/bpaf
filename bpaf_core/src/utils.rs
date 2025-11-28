@@ -27,6 +27,12 @@ enum Vec1Int<T> {
     Vec(Vec<T>),
 }
 
+impl<T> From<Vec<T>> for Vec1<T> {
+    fn from(value: Vec<T>) -> Self {
+        Vec1(Vec1Int::Vec(value))
+    }
+}
+
 impl<T> Default for Vec1<T> {
     fn default() -> Self {
         Self(Vec1Int::Vec(Vec::new()))

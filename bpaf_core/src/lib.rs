@@ -1329,8 +1329,19 @@ impl<'a> Mixer<'a> {
             } => todo!(),
             Arg::Named {
                 name,
-                value: Some(_),
-            } => todo!(),
+                value: Some((adj, val)),
+            } => {
+                self.pecking.clear(); // wipe triggers.any since they can't fire
+                self.pecking_push(match name {
+                    Name::Short(s) => triggers.short_args.get(s),
+                    Name::Long(l) => triggers.long_args.get(l.as_ref()),
+                });
+                let req = match val.to_str() {
+                    Some(p) => CompleteReq::Literal { prefix: p.into() },
+                    None => todo!(),
+                };
+                (req, None)
+            }
             Arg::Pos { value } => {
                 let Some(value) = value.to_str() else {
                     todo!("Completing non-utf?");
@@ -1837,6 +1848,24 @@ fn simple_complete_named() {
     // };
     // let expected = "[Item { name: Long(\"missy\"), meta: None, help: None }, Item { name: Long(\"missle-launcher\"), meta: None, help: None }]";
     // assert_eq!(format!("{:?}", c.as_slice()), expected);
+}
+
+#[test]
+fn simple_complete_for_value() {
+    let a = short('a').req_flag(());
+    let b = short('b')
+        .argument::<u32>("B")
+        .complete(|_s| vec![("42".into(), None)]);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner(("-b", "")).unwrap_err();
+    // let r = parser.run_inner(("-b=", "")).unwrap_err();
+    let r = parser.run_inner(("", "-b=")).unwrap_err();
+    let r = format!("{r:?}");
+    assert_eq!(
+        r,
+        r#"CompleteReply([Value { group: None, value: "42", hint: None }])"#
+    );
 }
 
 #[cfg(test)]

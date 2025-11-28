@@ -18,7 +18,7 @@ pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error
         CompleteReq::Name { .. } | CompleteReq::Value(..) => return err,
     };
     for name in names {
-        if prefix.map_or(true, |p| name.starts_with(p)) {
+        if prefix.is_none_or(|p| name.starts_with(p)) {
             return CompleteReply::Command {
                 name: name.clone(),
                 help: None,
@@ -27,6 +27,31 @@ pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error
         }
     }
     Error::Killed
+}
+
+pub(crate) fn complete_value(
+    err: Error,
+    group: Option<&str>,
+    completer: &Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
+) -> Error {
+    let Error::CompleteRequest(ref comp) = err else {
+        return err;
+    };
+    let key = match comp {
+        CompleteReq::Anything => "",
+        CompleteReq::Literal { prefix } => prefix.as_ref(),
+        CompleteReq::Value(..) | CompleteReq::Name { .. } => return err,
+    };
+
+    let group = group.map(|s| s.into());
+    let values = completer(key)
+        .into_iter()
+        .map(|(value, hint)| {
+            let group = group.clone();
+            CompleteReply::Value { group, value, hint }
+        })
+        .collect::<Vec<_>>();
+    Error::CompleteReply(values.into())
 }
 
 impl Named {
@@ -65,7 +90,8 @@ impl Named {
                     }
                 }
             }
-            CompleteReq::Literal { .. } | CompleteReq::Value(..) => return Error::Internal,
+
+            CompleteReq::Literal { .. } | CompleteReq::Value(..) => return err,
         };
         if let Some(name) = name.cloned() {
             let help = self.help.clone();
@@ -82,11 +108,15 @@ pub(crate) enum CompleteReply {
         name: Cow<'static, str>,
         help: Option<String>,
     },
-    Value(OsString),
     Named {
         name: Name<'static>,
         meta: Option<Metavar>,
         help: Option<String>,
+    },
+    Value {
+        group: Option<Rc<str>>,
+        value: String,
+        hint: Option<String>,
     },
 }
 
@@ -117,9 +147,12 @@ pub(crate) fn render_completions_int(
     let mut out = String::new();
     for item in items.as_slice() {
         match item {
-            CompleteReply::Named { name, meta, help } => write!(&mut out, "{name}")?,
-            CompleteReply::Value(os_string) => todo!(),
-            CompleteReply::Command { name, help } => write!(&mut out, "{name}")?,
+            CompleteReply::Named { name, meta, help } => match meta {
+                Some(m) => write!(&mut out, "{name} {m:?} ({help:?})")?,
+                None => write!(&mut out, "{name} ({help:?})")?,
+            },
+            CompleteReply::Value { value, group, hint } => write!(&mut out, "{value} ({hint:?}")?,
+            CompleteReply::Command { name, help } => write!(&mut out, "{name} ({help:?})")?,
         }
     }
     Ok(out)

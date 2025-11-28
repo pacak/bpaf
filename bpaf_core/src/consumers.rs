@@ -1,6 +1,6 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::os_str::parse_os_str;
+use crate::{complete::complete_value, os_str::parse_os_str};
 
 use super::*;
 
@@ -205,6 +205,62 @@ where
                 Err(Error::missing(item))
             }
         }
+    }
+}
+
+/// # complete for argument
+impl<T: 'static> Bp<Argument<T>> {
+    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<Argument<T>>>
+    where
+        Self: Sized,
+        F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
+    {
+        Bp(WithComplete {
+            inner: self,
+            completer: Box::new(completer),
+            group: None,
+        })
+    }
+}
+/// # complete for positional
+impl<T: 'static> Bp<Positional<T>> {
+    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<Positional<T>>>
+    where
+        Self: Sized,
+        F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
+    {
+        Bp(WithComplete {
+            inner: self,
+            completer: Box::new(completer),
+            group: None,
+        })
+    }
+}
+
+pub struct WithComplete<P> {
+    inner: Bp<P>,
+    group: Option<String>,
+    completer: Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
+}
+
+impl<I> Bp<WithComplete<I>> {
+    pub fn group(mut self, group: impl Into<String>) -> Self {
+        self.0.group = Some(group.into());
+        self
+    }
+}
+
+impl<P, T> Parser<T> for Bp<WithComplete<P>>
+where
+    T: 'static,
+    Bp<P>: Parser<T>,
+{
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        self.0
+            .inner
+            .run(ctx)
+            .await
+            .map_err(|err| complete_value(err, self.0.group.as_deref(), &self.0.completer))
     }
 }
 
