@@ -9,7 +9,7 @@ mod utils;
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
-    complete::{CompleteReply, CompleteReq},
+    complete::CompleteReq,
     utils::{Vec1, reuse_vec},
 };
 #[doc(inline)]
