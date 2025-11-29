@@ -358,7 +358,7 @@ mod error {
         fn from(value: Error) -> Self {
             match value {
                 Error::Missing(vec1) => todo!(),
-                Error::CompReply(vec1) => todo!(),
+                Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)),
                 Error::CompReq(complete_req) => todo!(),
                 Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),
                 Error::Final(parse_failure) => parse_failure,
@@ -1385,14 +1385,18 @@ impl<'a> Mixer<'a> {
                 (CompleteReq::Name { prefix }, None)
             }
             Arg::Named {
-                name: Name::Short(_),
+                name: Name::Short(s),
                 value: None,
-            } => todo!(),
+            } => {
+                self.pecking_push(triggers.short_args.get(s));
+                self.pecking_push(triggers.short_flags.get(s));
+                (CompleteReq::Name { prefix: None }, None)
+            }
             Arg::Named {
                 name,
                 value: Some((adj, val)),
             } => {
-                self.pecking.clear(); // wipe triggers.any since they can't fire
+                self.pecking.clear(); // wipe triggers.any since they can't fire // TODO - why?
                 self.pecking_push(match name {
                     Name::Short(s) => triggers.short_args.get(s),
                     Name::Long(l) => triggers.long_args.get(l.as_ref()),
@@ -1639,20 +1643,9 @@ impl From<String> for Name<'static> {
     }
 }
 
-pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Result<T, Error> {
-    let args = Args::from(args);
-    let ctx = RawCtx::new(args);
-
-    let (handle, act) = ctx.make_raw_task(parser.into_rc());
-    let info = ctx.make_child_info(Kind::Prod);
-    let task = Task { act, info };
-    ctx.add_task(task);
-    ctx.execute()?;
-    handle.take()
-}
-
 #[cfg(test)]
 mod tests {
+    mod complete;
     mod osstring;
     mod unsorted;
     mod wake;

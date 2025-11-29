@@ -148,11 +148,11 @@ pub(crate) fn render_completions_int(
     for item in items.as_slice() {
         match item {
             CompleteReply::Named { name, meta, help } => match meta {
-                Some(m) => write!(&mut out, "{name} {m:?} ({help:?})")?,
-                None => write!(&mut out, "{name} ({help:?})")?,
+                Some(m) => writeln!(&mut out, "{name} {m:?} ({help:?})")?,
+                None => writeln!(&mut out, "{name} ({help:?})")?,
             },
-            CompleteReply::Value { value, group, hint } => write!(&mut out, "{value} ({hint:?}")?,
-            CompleteReply::Command { name, help } => write!(&mut out, "{name} ({help:?})")?,
+            CompleteReply::Value { value, group, hint } => writeln!(&mut out, "{value} ({hint:?}")?,
+            CompleteReply::Command { name, help } => writeln!(&mut out, "{name} ({help:?})")?,
         }
     }
     Ok(out)

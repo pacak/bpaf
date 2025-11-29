@@ -24,7 +24,8 @@ fn run_arranged(
     parser: impl Parser<[Result<bool, Error>; 4]> + 'static,
     input: &[&str],
 ) -> [bool; 4] {
-    let r = run(parser, input).unwrap();
+    let r = parser.to_options().run_inner(input).unwrap();
+
     let v = r
         .into_iter()
         .map(|v| v.unwrap_or(false))
