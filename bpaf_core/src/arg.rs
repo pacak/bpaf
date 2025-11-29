@@ -37,7 +37,7 @@ impl Arg<'_> {
             },
         }
     }
-    fn encode(&self) -> OsString {
+    pub(crate) fn encode(&self) -> OsString {
         match self {
             Arg::Named { name, value } => {
                 let mut res = OsString::new();
@@ -129,25 +129,5 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
         Arg::Pos {
             value: Cow::Borrowed(value),
         }
-    }
-}
-
-#[test]
-fn lexer_doesnt_throw_away_data() {
-    for val in [
-        "--",
-        "-",
-        "--=",
-        "--foo",
-        "--foo=bar",
-        "-ffoo",
-        "-f=foo",
-        "-f=",
-        "-f",
-        "foo",
-    ] {
-        let os_value: &OsStr = val.as_ref();
-        let lexed = lex_os_arg(os_value);
-        assert_eq!(val, lexed.encode());
     }
 }

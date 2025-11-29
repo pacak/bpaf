@@ -1652,6 +1652,9 @@ pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Resul
 }
 
 #[cfg(test)]
-mod tests;
+mod tests {
+    mod osstring;
+    mod unsorted;
+}
 #[cfg(test)]
 mod wake_tests;
