@@ -32,7 +32,7 @@ pub(crate) struct JoinHandle<T> {
 
 impl<T> JoinHandle<T> {
     pub(crate) fn take(self) -> Result<T, Error> {
-        self.result.take().unwrap_or(Err(Error::Killed))
+        self.result.take().unwrap_or(Err(Error::Silent))
     }
 }
 
@@ -204,7 +204,7 @@ impl<T: 'static> Parser<T> for Alt<T> {
         r#yield().await;
         ctx.trim_children(scopes).await;
 
-        let mut acc = Error::Killed;
+        let mut acc = Error::Silent;
         for h in handles {
             match h.take() {
                 Err(err) => acc = acc + err,
@@ -268,13 +268,43 @@ mod error {
     };
 
     #[derive(Debug)]
+    pub enum Problem {
+        Parse {
+            value: Option<String>,
+            error: String,
+        },
+    }
+
+    impl std::fmt::Display for Problem {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Problem::Parse { value: None, error } => {
+                    write!(f, "couldn't parse: {error}")
+                }
+                Problem::Parse {
+                    value: Some(value),
+                    error,
+                } => {
+                    write!(f, "couldn't parse `{value}`: {error}")
+                }
+            }
+        }
+    }
+
+    impl From<Problem> for Error {
+        fn from(value: Problem) -> Self {
+            Self::Problem(value)
+        }
+    }
+
+    #[derive(Debug)]
     pub enum Error {
-        MissingItem(Vec1<MissingItem>),
-        CompleteReply(Vec1<CompleteReply>),
-        CompleteRequest(CompleteReq),
-        ParseError,
-        Killed,
-        Internal,
+        Missing(Vec1<MissingItem>),
+        CompReply(Vec1<CompleteReply>),
+        CompReq(CompleteReq),
+        Problem(Problem),
+        Final(ParseFailure),
+        Silent,
     }
 
     #[derive(Debug, Clone)]
@@ -292,35 +322,70 @@ mod error {
         Command,
     }
 
+    #[derive(Debug)]
+    pub enum ParseFailure {
+        Stdout(String),
+        Stderr(String),
+    }
+
+    #[inline(never)]
+    #[cold]
+    #[track_caller]
+    fn unwrap_failed(msg: &str, error: &str) -> ! {
+        panic!("{msg}: {error:?}");
+    }
+    impl ParseFailure {
+        pub fn unwrap_stdout(self) -> String {
+            match self {
+                ParseFailure::Stdout(s) => s,
+                ParseFailure::Stderr(e) => {
+                    unwrap_failed("Called `ParseFailure::unwrap_stdout()` on Stderr", &e)
+                }
+            }
+        }
+
+        pub fn unwrap_stderr(self) -> String {
+            match self {
+                ParseFailure::Stderr(s) => s,
+                ParseFailure::Stdout(e) => {
+                    unwrap_failed("Called `ParseFailure::unwrap_stderr()` on Stdout", &e)
+                }
+            }
+        }
+    }
+
+    impl From<Error> for ParseFailure {
+        fn from(value: Error) -> Self {
+            match value {
+                Error::Missing(vec1) => todo!(),
+                Error::CompReply(vec1) => todo!(),
+                Error::CompReq(complete_req) => todo!(),
+                Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),
+                Error::Final(parse_failure) => parse_failure,
+                Error::Silent => todo!(),
+            }
+        }
+    }
+
     impl Error {
         pub(crate) fn combine(self, e2: Error) -> Error {
             match (self, e2) {
-                (Error::Internal, _) | (_, Error::Internal) => Error::Internal,
-                (Error::Killed, e) | (e, Error::Killed) => e,
-                (Error::CompleteReply(c1), Error::CompleteReply(c2)) => {
-                    Error::CompleteReply(c1 + c2)
-                }
-                (e @ Error::CompleteReply(_), _) | (_, e @ Error::CompleteReply(_)) => e,
-                (Error::CompleteRequest(_), _) | (_, Error::CompleteRequest(_)) => todo!(),
-                (Error::MissingItem(i1), Error::MissingItem(i2)) => Error::MissingItem(i1 + i2),
-                (Error::MissingItem(_), Error::ParseError) => todo!(),
-                (Error::ParseError, Error::MissingItem(_)) => todo!(),
-                (Error::ParseError, Error::ParseError) => todo!(),
+                (e @ Error::Final(_), _) | (_, e @ Error::Final(_)) => e,
+                (Error::Silent, e) | (e, Error::Silent) => e,
+                (Error::CompReply(c1), Error::CompReply(c2)) => Error::CompReply(c1 + c2),
+                (e @ Error::CompReply(_), _) | (_, e @ Error::CompReply(_)) => e,
+                (Error::CompReq(_), _) | (_, Error::CompReq(_)) => todo!(),
+                (Error::Missing(i1), Error::Missing(i2)) => Error::Missing(i1 + i2),
+                (e @ Error::Problem(_), _) | (_, e @ Error::Problem(_)) => e,
             }
         }
 
         pub(crate) fn can_catch(&self) -> bool {
-            match self {
-                Error::MissingItem(_) => true,
-                Error::ParseError => false,
-                Error::Killed => true,
-                Error::Internal => false,
-                Error::CompleteRequest(_) => false,
-                Error::CompleteReply(_) => false,
-            }
+            matches!(self, Error::Missing(_))
         }
+
         pub(crate) fn missing(item: MissingItem) -> Self {
-            Self::MissingItem(Vec1::new(item))
+            Self::Missing(Vec1::new(item))
         }
 
         /// Consume current error and append it to a growing collection in dst
@@ -333,23 +398,19 @@ mod error {
                 Some(e) => e.combine(self),
                 None => self,
             });
-            Error::Killed
+            Error::Silent
         }
 
         fn render(self) -> ParseFailure {
             match self {
-                Error::MissingItem(vec1) => todo!(),
-                Error::CompleteReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
-                Error::CompleteRequest(_) => todo!(),
-                Error::ParseError => todo!(),
-                Error::Killed => todo!(),
-                Error::Internal => todo!(),
+                Error::Missing(vec1) => todo!(),
+                Error::CompReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
+                Error::CompReq(_) => todo!(),
+                Error::Problem(_) => todo!(),
+                Error::Silent => todo!(),
+                Error::Final(_) => todo!(),
             }
         }
-    }
-    pub enum ParseFailure {
-        Stdout(String),
-        Stderr(String),
     }
 }
 pub use error::*;
@@ -1530,7 +1591,7 @@ impl<'a> Mixer<'a> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
-pub(crate) enum Name<'a> {
+pub enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
 }
@@ -1588,6 +1649,20 @@ pub fn run<T: 'static>(parser: impl Parser<T> + 'static, args: &[&str]) -> Resul
     ctx.add_task(task);
     ctx.execute()?;
     handle.take()
+}
+
+#[test]
+fn parse_failed_msg() {
+    let parser = short('a').argument::<usize>("A").to_options();
+
+    let r = parser.run_inner("-a 34x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
+
+    let r = parser.run_inner("-a=34x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
+
+    let r = parser.run_inner("-a34x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
 }
 
 #[test]
@@ -1824,7 +1899,7 @@ fn simple_complete_command() {
     let r = format!("{r:?}");
     assert_eq!(
         r,
-        "CompleteReply([Command { name: \"alpha\", help: None }, Named { name: Short('b'), meta: None, help: None }])"
+        "CompReply([Command { name: \"alpha\", help: None }, Named { name: Short('b'), meta: None, help: None }])"
     );
 }
 #[test]
@@ -1840,7 +1915,7 @@ fn simple_complete_named() {
     let r = format!("{r:?}");
     assert_eq!(
         r,
-        "CompleteReply([Named { name: Long(\"missy\"), meta: None, help: None }])"
+        "CompReply([Named { name: Long(\"missy\"), meta: None, help: None }])"
     );
 
     // let Error::Complete(c) = parser.run_inner(("--name=Bob", "--miss")).unwrap_err() else {
@@ -1864,7 +1939,7 @@ fn simple_complete_for_value() {
     let r = format!("{r:?}");
     assert_eq!(
         r,
-        r#"CompleteReply([Value { group: None, value: "42", hint: None }])"#
+        r#"CompReply([Value { group: None, value: "42", hint: None }])"#
     );
 }
 

@@ -1,7 +1,4 @@
-use std::{
-    ffi::{OsStr, OsString},
-    rc::Rc,
-};
+use std::{ffi::OsString, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct Args {

@@ -3,13 +3,13 @@ use std::{borrow::Cow, ffi::OsString, rc::Rc};
 use crate::{Error, Metavar, Name, Named, utils::Vec1};
 impl From<CompleteReply> for Error {
     fn from(value: CompleteReply) -> Self {
-        Error::CompleteReply(Vec1::new(value))
+        Error::CompReply(Vec1::new(value))
     }
 }
 
 // this could be a method on `Command<T>`, but will it monomorphise?
 pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error {
-    let Error::CompleteRequest(ref comp) = err else {
+    let Error::CompReq(ref comp) = err else {
         return err;
     };
     let prefix = match comp {
@@ -26,7 +26,7 @@ pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error
             .into();
         }
     }
-    Error::Killed
+    Error::Silent
 }
 
 pub(crate) fn complete_value(
@@ -34,7 +34,7 @@ pub(crate) fn complete_value(
     group: Option<&str>,
     completer: &Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
 ) -> Error {
-    let Error::CompleteRequest(ref comp) = err else {
+    let Error::CompReq(ref comp) = err else {
         return err;
     };
     let key = match comp {
@@ -51,12 +51,12 @@ pub(crate) fn complete_value(
             CompleteReply::Value { group, value, hint }
         })
         .collect::<Vec<_>>();
-    Error::CompleteReply(values.into())
+    Error::CompReply(values.into())
 }
 
 impl Named {
     pub(crate) fn complete_name(&self, err: Error, meta: Option<Metavar>) -> Error {
-        let Error::CompleteRequest(ref comp) = err else {
+        let Error::CompReq(ref comp) = err else {
             return err;
         };
         let mut name = None;
@@ -97,7 +97,7 @@ impl Named {
             let help = self.help.clone();
             CompleteReply::Named { name, meta, help }.into()
         } else {
-            Error::Killed
+            Error::Silent
         }
     }
 }

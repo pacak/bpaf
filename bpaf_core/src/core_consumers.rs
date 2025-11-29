@@ -227,7 +227,7 @@ impl RawCtx {
                                 },
                                 None => CompleteReq::Value(value.into_owned()),
                             };
-                            return Err(Error::CompleteRequest(req));
+                            return Err(Error::CompReq(req));
                         }
                         Ok(Some(value.clone().into_owned()))
                     }
@@ -287,11 +287,11 @@ impl RawCtx {
             let reason = self.wakeup_reason.borrow();
             let arg = match &*reason {
                 Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                    return Err(Error::Killed);
+                    return Err(Error::Silent);
                 }
                 Reason::Arg(arg) => arg,
                 Reason::Complete(complete) => {
-                    return Err(Error::CompleteRequest(complete.clone()));
+                    return Err(Error::CompReq(complete.clone()));
                 }
             };
             let Some(arg_ref) = arg.as_ref() else {
@@ -305,7 +305,7 @@ impl RawCtx {
 
     fn managed_to_survive(&self) -> Result<(), Error> {
         if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            Err(Error::Killed)
+            Err(Error::Silent)
         } else {
             Ok(())
         }

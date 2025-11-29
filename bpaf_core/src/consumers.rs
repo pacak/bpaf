@@ -194,16 +194,14 @@ where
         let res = ctx.parse_arg(&self.0.named.names).await;
         let res = res.map_err(|err| self.0.named.complete_name(err, Some(self.0.metavar)));
 
-        match res?.map(parse_os_str) {
-            Some(Ok(t)) => Ok(t),
-            Some(Err(err)) => todo!("{err:?}"),
-            None => {
-                let item = MissingItem::Named {
-                    name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
-                    meta: Some(self.0.metavar),
-                };
-                Err(Error::missing(item))
-            }
+        if let Some(os) = res? {
+            Ok(parse_os_str(os)?)
+        } else {
+            let item = MissingItem::Named {
+                name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
+                meta: Some(self.0.metavar),
+            };
+            Err(Error::missing(item))
         }
     }
 }

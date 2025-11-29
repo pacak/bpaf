@@ -5,6 +5,8 @@ use std::{
     str::FromStr,
 };
 
+use crate::Problem;
+
 trait Sealed {}
 impl Sealed for OsStr {}
 
@@ -74,21 +76,42 @@ impl OsStrExt for OsStr {
     }
 }
 
-pub(crate) fn parse_os_str<T>(os: OsString) -> Result<T, String>
+pub(crate) fn parse_os_str<T>(os: OsString) -> Result<T, Problem>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     if TypeId::of::<T>() == TypeId::of::<OsString>() {
-        let anybox: Box<dyn Any> = Box::new(os);
-        Ok(*(anybox.downcast::<T>().unwrap()))
+        let mut tmp = Some(os);
+        Ok((&mut tmp as &mut dyn Any)
+            .downcast_mut::<Option<T>>()
+            .unwrap()
+            .take()
+            .unwrap())
     } else if TypeId::of::<T>() == TypeId::of::<PathBuf>() {
-        let anybox: Box<dyn Any> = Box::new(PathBuf::from(os));
-        Ok(*(anybox.downcast::<T>().unwrap()))
+        let mut tmp = Some(PathBuf::from(os));
+        Ok((&mut tmp as &mut dyn Any)
+            .downcast_mut::<Option<T>>()
+            .unwrap()
+            .take()
+            .unwrap())
     } else {
+        #[cold]
+        #[inline(never)]
+        fn not_utf8(os: OsString) -> Problem {
+            let error = format!(
+                "{} is not a valid utf8, so it can't be parsed",
+                os.to_string_lossy()
+            );
+            Problem::Parse { value: None, error }
+        }
+
         match os.to_str() {
-            Some(s) => T::from_str(s).map_err(|e| e.to_string()),
-            None => Err(format!("{} is not a valid utf8", os.to_string_lossy())),
+            Some(s) => T::from_str(s).map_err(|e| Problem::Parse {
+                value: Some(s.to_owned()),
+                error: e.to_string(),
+            }),
+            None => Err(not_utf8(os)),
         }
     }
 }

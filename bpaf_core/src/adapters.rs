@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Kind, Parser, RawCtx, RcParser, Reason, Task, args::Args,
+    Bp, Error, Kind, ParseFailure, Parser, RawCtx, RcParser, Reason, Task, args::Args,
     complete::complete_command, make_handle, r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
@@ -46,7 +46,7 @@ pub struct OptionParser<T> {
 }
 
 impl<T: 'static> Bp<OptionParser<T>> {
-    pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, Error> {
+    pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
         let ctx = RawCtx::new(args.into());
 
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
@@ -54,7 +54,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let task = Task { act, info };
         ctx.add_task(task);
         ctx.execute()?;
-        handle.take()
+        Ok(handle.take()?)
     }
 
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
