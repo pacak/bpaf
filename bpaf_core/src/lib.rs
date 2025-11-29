@@ -1346,7 +1346,6 @@ impl RawCtx {
 #[derive(Default, Debug)]
 struct Mixer<'a> {
     pecking: Vec<&'a PeckingOrder>,
-    to_wake: Vec<Id>,
     tracker: Tracker,
     same_family: bool,
     prev: Option<pecking::Item>,
@@ -1530,11 +1529,9 @@ impl<'a> Mixer<'a> {
 impl<'a> Mixer<'a> {
     /// Reuse the capacity inside the executor while decoupling the lifetimes
     fn reuse_capacity<'b>(mut self) -> Mixer<'b> {
-        self.to_wake.clear();
         self.tracker.clear();
         Mixer {
             pecking: reuse_vec(self.pecking),
-            to_wake: self.to_wake,
             tracker: self.tracker,
             same_family: false,
             prev: None,
