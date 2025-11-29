@@ -1,7 +1,7 @@
 //! This module contains tests for scenarios when we want to wake up multiple parsers on the same
 //! trigger, potentially from several different pecking sets.
 
-use super::*;
+use crate::*;
 
 macro_rules! arranged {
     (($a:ident $ab:tt $b:ident) $abcd:tt ($c:ident $cd:tt $d:ident)) => {
