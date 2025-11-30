@@ -314,3 +314,17 @@ impl<T: 'static> Parser<T> for DummyAny<T> {
             .expect("It should match"))
     }
 }
+
+pub fn pure<T: Clone + 'static>(value: T) -> Bp<Pure<T>> {
+    Bp(Pure { value })
+}
+
+pub struct Pure<T> {
+    value: T,
+}
+
+impl<T: 'static + Clone> Parser<T> for Bp<Pure<T>> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        Ok(self.0.value.clone())
+    }
+}

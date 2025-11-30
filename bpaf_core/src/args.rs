@@ -40,6 +40,15 @@ impl From<&[OsString]> for Args {
     }
 }
 
+impl<const W: usize> From<&[&str; W]> for Args {
+    fn from(value: &[&str; W]) -> Self {
+        Self {
+            items: value.iter().map(OsString::from).collect(),
+            complete: false,
+        }
+    }
+}
+
 impl<const W: usize> From<[&str; W]> for Args {
     fn from(value: [&str; W]) -> Self {
         Self {
