@@ -382,11 +382,11 @@ mod error {
             match (self, e2) {
                 (e @ Error::Final(_), _) | (_, e @ Error::Final(_)) => e,
                 (Error::Silent(_), e) | (e, Error::Silent(_)) => e,
+                (e @ Error::Problem(_), _) | (_, e @ Error::Problem(_)) => e,
                 (Error::CompReply(c1), Error::CompReply(c2)) => Error::CompReply(c1 + c2),
                 (e @ Error::CompReply(_), _) | (_, e @ Error::CompReply(_)) => e,
                 (Error::CompReq(_), _) | (_, Error::CompReq(_)) => todo!(),
                 (Error::Missing(i1), Error::Missing(i2)) => Error::Missing(i1 + i2),
-                (e @ Error::Problem(_), _) | (_, e @ Error::Problem(_)) => e,
             }
         }
 
