@@ -8,18 +8,27 @@ fn simple_complete_command() {
     let ab = construct!([a, b]);
     let parser = construct!(ab, c).to_options();
 
-    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    let expected = "alpha (None)\n\
-                    -b (None)\n";
+    let r = parser.run_inner(("", "-b")).unwrap_err().unwrap_stdout();
+    let expected = "-b (None)\n";
     assert_eq!(r, expected);
 
-    // let r = parser.run_inner(("", "-b")).unwrap_err().unwrap_stdout();
-    // let expected = "-b (None)\n";
-    // assert_eq!(r, expected);
-    //
-    // let r = parser.run_inner(("-b", "")).unwrap_err().unwrap_stdout();
-    // let expected = "-b (None)\n";
-    // assert_eq!(r, expected);
+    let r = parser.run_inner(("-b -c", "")).unwrap_err().unwrap_stdout();
+    let expected = "";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("alpha", "")).unwrap_err().unwrap_stdout();
+    let expected = "-a (None)\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    let expected = "alpha (None)\n\
+                    -b (None)\n\
+                    -c (None)\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("-b", "")).unwrap_err().unwrap_stdout();
+    let expected = "-c (None)\n";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -31,18 +40,19 @@ fn simple_complete_named() {
     let name = long("name").argument::<String>("NAME");
     let parser = construct!(abc, name).to_options();
 
-    let r = parser.run_inner(("--name=bob", "--missy")).unwrap_err();
-    let r = format!("{r:?}");
-    assert_eq!(
-        r,
-        "CompReply([Named { name: Long(\"missy\"), meta: None, help: None }])"
-    );
+    let r = parser
+        .run_inner(("--name=bob", "--missy"))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "--missy (None)\n";
+    assert_eq!(r, expected);
 
-    // let Error::Complete(c) = parser.run_inner(("--name=Bob", "--miss")).unwrap_err() else {
-    //     panic!();
-    // };
-    // let expected = "[Item { name: Long(\"missy\"), meta: None, help: None }, Item { name: Long(\"missle-launcher\"), meta: None, help: None }]";
-    // assert_eq!(format!("{:?}", c.as_slice()), expected);
+    let r = parser
+        .run_inner(("--name=bob", "--miss"))
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "--missle-launcher (None)\n--missy (None)\n";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -53,12 +63,12 @@ fn simple_complete_for_value() {
         .complete(|_s| vec![("42".into(), None)]);
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(("-b", "")).unwrap_err();
-    // let r = parser.run_inner(("-b=", "")).unwrap_err();
-    let r = parser.run_inner(("", "-b=")).unwrap_err();
-    let r = format!("{r:?}");
-    assert_eq!(
-        r,
-        r#"CompReply([Value { group: None, value: "42", hint: None }])"#
-    );
+    let r = parser.run_inner(("-b", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "42 (None)\n");
+
+    let r = parser.run_inner(("-b=", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a (None)\n"); // TODO - this probably should fail...
+
+    let r = parser.run_inner(("", "-b=")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "42 (None)\n");
 }

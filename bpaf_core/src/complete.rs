@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ffi::OsString, rc::Rc};
 
-use crate::{Error, Metavar, Name, Named, utils::Vec1};
+use crate::{Error, Metavar, Name, Named, ParseFailure, utils::Vec1};
 impl From<CompleteReply> for Error {
     fn from(value: CompleteReply) -> Self {
         Error::CompReply(Vec1::new(value))
@@ -26,7 +26,7 @@ pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error
             .into();
         }
     }
-    Error::Silent
+    Error::CompReply(Vec1::default())
 }
 
 pub(crate) fn complete_value(
@@ -97,7 +97,7 @@ impl Named {
             let help = self.help.clone();
             CompleteReply::Named { name, meta, help }.into()
         } else {
-            Error::Silent
+            Error::Silent("Tried to complete name, no matches")
         }
     }
 }
@@ -136,6 +136,18 @@ pub(crate) enum CompleteReq {
     Value(OsString),
 }
 
+pub(crate) fn handle_subparser_complete(err: Error) -> Error {
+    println!("Handle subparser complete?");
+    match err {
+        Error::Missing(vec1) => todo!(),
+        Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)).into(),
+        Error::CompReq(complete_req) => todo!(),
+        Error::Problem(problem) => todo!(),
+        Error::Final(parse_failure) => todo!(),
+        Error::Silent(_) => Error::CompReply(Default::default()),
+    }
+}
+
 pub(crate) fn render_completions(items: Vec1<CompleteReply>) -> String {
     render_completions_int(items).unwrap()
 }
@@ -151,7 +163,9 @@ pub(crate) fn render_completions_int(
                 Some(m) => writeln!(&mut out, "{name} {m:?} ({help:?})")?,
                 None => writeln!(&mut out, "{name} ({help:?})")?,
             },
-            CompleteReply::Value { value, group, hint } => writeln!(&mut out, "{value} ({hint:?}")?,
+            CompleteReply::Value { value, group, hint } => {
+                writeln!(&mut out, "{value} ({hint:?})")?
+            }
             CompleteReply::Command { name, help } => writeln!(&mut out, "{name} ({help:?})")?,
         }
     }

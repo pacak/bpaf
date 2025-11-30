@@ -1,8 +1,10 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Kind, ParseFailure, Parser, RawCtx, RcParser, Reason, Task, args::Args,
-    complete::complete_command, make_handle, r#yield,
+    Bp, Error, Kind, ParseFailure, Parser, RawCtx, RcParser, Reason, Task,
+    args::Args,
+    complete::{complete_command, handle_subparser_complete},
+    make_handle, r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -81,7 +83,7 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
         let res = ctx.parse_literal_and(&self.0.names, &populate).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
         res?;
-        handle.take()
+        handle.take().map_err(handle_subparser_complete)
     }
 }
 

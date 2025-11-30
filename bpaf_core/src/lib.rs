@@ -32,7 +32,9 @@ pub(crate) struct JoinHandle<T> {
 
 impl<T> JoinHandle<T> {
     pub(crate) fn take(self) -> Result<T, Error> {
-        self.result.take().unwrap_or(Err(Error::Silent))
+        self.result
+            .take()
+            .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
     }
 }
 
@@ -204,7 +206,7 @@ impl<T: 'static> Parser<T> for Alt<T> {
         r#yield().await;
         ctx.trim_children(scopes).await;
 
-        let mut acc = Error::Silent;
+        let mut acc = Error::Silent("Empty Alt?");
         for h in handles {
             match h.take() {
                 Err(err) => acc = acc + err,
@@ -304,7 +306,7 @@ mod error {
         CompReq(CompleteReq),
         Problem(Problem),
         Final(ParseFailure),
-        Silent,
+        Silent(&'static str),
     }
 
     #[derive(Debug, Clone)]
@@ -326,6 +328,12 @@ mod error {
     pub enum ParseFailure {
         Stdout(String),
         Stderr(String),
+    }
+
+    impl From<ParseFailure> for Error {
+        fn from(value: ParseFailure) -> Self {
+            Error::Final(value)
+        }
     }
 
     #[inline(never)]
@@ -362,7 +370,9 @@ mod error {
                 Error::CompReq(complete_req) => todo!(),
                 Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),
                 Error::Final(parse_failure) => parse_failure,
-                Error::Silent => todo!(),
+                Error::Silent(reason) => {
+                    ParseFailure::Stderr(format!("Internal error, got unexpected silent {reason}"))
+                }
             }
         }
     }
@@ -371,7 +381,7 @@ mod error {
         pub(crate) fn combine(self, e2: Error) -> Error {
             match (self, e2) {
                 (e @ Error::Final(_), _) | (_, e @ Error::Final(_)) => e,
-                (Error::Silent, e) | (e, Error::Silent) => e,
+                (Error::Silent(_), e) | (e, Error::Silent(_)) => e,
                 (Error::CompReply(c1), Error::CompReply(c2)) => Error::CompReply(c1 + c2),
                 (e @ Error::CompReply(_), _) | (_, e @ Error::CompReply(_)) => e,
                 (Error::CompReq(_), _) | (_, Error::CompReq(_)) => todo!(),
@@ -398,7 +408,7 @@ mod error {
                 Some(e) => e.combine(self),
                 None => self,
             });
-            Error::Silent
+            Error::Silent("swapped by append_to")
         }
 
         fn render(self) -> ParseFailure {
@@ -407,7 +417,7 @@ mod error {
                 Error::CompReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
                 Error::CompReq(_) => todo!(),
                 Error::Problem(_) => todo!(),
-                Error::Silent => todo!(),
+                Error::Silent(reason) => todo!("Got silent {reason}"),
                 Error::Final(_) => todo!(),
             }
         }
@@ -772,33 +782,52 @@ impl Executor {
         }
     }
 
-    fn check_autocomplete(&mut self, arg: &OsStr) -> bool {
+    fn check_autocomplete(&mut self, arg: &OsStr) -> Option<Result<(), Error>> {
         if !self.ctx.args.complete || self.ctx.cursor.get() + 1 != self.ctx.args.len() {
-            return false;
+            return None;
         }
 
         let mut mixer = Mixer::default();
         let arg = lex_os_arg(arg);
 
-        {
-            let triggers = self.ctx.triggers.borrow();
-            let (reason, mgroup) = mixer.populate_prefix(&arg, &triggers);
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
+        let triggers = self.ctx.triggers.borrow();
+        // TODO - populate_prefix doesn't really have to be a method on Mixer
+        // it can be a standalone method
+        let (reason, mgroup) = mixer.populate_prefix(&arg, &triggers);
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
+
+        // Normally we traverse each pecking order at once since only sum items can run
+        // in parallel, but for autocomplete any item from a prod can run so we'll run
+        // orders independent from each other
+        let orders = std::mem::take(&mut mixer.pecking);
+        for po in orders {
+            mixer.pecking.push(po);
             while let Some(item) = mixer.consume_next_item(&self.tasks) {
-                self.to_wake.push(item.id)
+                self.to_wake.push(item.id);
             }
+            mixer.clear();
         }
+        drop(triggers);
+
+        if self.to_wake.is_empty() {
+            return Some(Err(Error::CompReply(Vec1::default())));
+        }
+        self.to_wake.sort();
+        self.to_wake.dedup();
 
         while let Some(id) = self.to_wake.pop() {
             let mut task = self.tasks.remove(&id).unwrap();
             let r = self.ctx.poll_in_context(&mut task);
+            if task.info.parent_id == Parent(0) {
+                continue;
+            }
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
             assert!(r);
         }
         self.kill_in_scope(Scope::ALL);
         self.propagate(Reason::Pass);
-        true
+        Some(Ok(()))
     }
 
     fn execute(&mut self) -> Result<(), Error> {
@@ -817,8 +846,8 @@ impl Executor {
                 break;
             };
 
-            if self.check_autocomplete(front) {
-                return Ok(());
+            if let Some(out) = self.check_autocomplete(front) {
+                return out;
             }
 
             // Waking up tasks is done in two stages: during the first stage we wake up
@@ -886,6 +915,9 @@ impl Executor {
         {
             let done = self.ctx.poll_in_context(&mut task);
             assert!(done);
+            if task.info.parent_id == Parent(0) {
+                continue;
+            }
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
         }
@@ -971,7 +1003,6 @@ impl Executor {
         for id in advancing.as_slice().iter().copied() {
             for (sid, range) in self.sums.iter() {
                 if range.contains(id) {
-                    // println!("Waking up {sid:?}, tasks we have {:?}", self.tasks);
                     let task = self.tasks.get_mut(sid).unwrap();
                     let r = self.ctx.poll_in_context(task);
                     assert!(!r);
@@ -1357,6 +1388,13 @@ struct Group(Vec<char>);
 impl<'a> Mixer<'a> {
     fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
         self.pecking_push(triggers.short_flags.get(name));
+    }
+
+    fn clear(&mut self) {
+        self.tracker.clear();
+        self.prev = None;
+        self.pecking.clear();
+        self.tracker.clear();
     }
 
     fn populate_prefix(

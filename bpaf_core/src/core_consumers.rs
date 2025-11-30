@@ -287,7 +287,7 @@ impl RawCtx {
             let reason = self.wakeup_reason.borrow();
             let arg = match &*reason {
                 Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
-                    return Err(Error::Silent);
+                    return Err(Error::Silent("Unexpected reason in try_to_parse_arg"));
                 }
                 Reason::Arg(arg) => arg,
                 Reason::Complete(complete) => {
@@ -305,7 +305,7 @@ impl RawCtx {
 
     fn managed_to_survive(&self) -> Result<(), Error> {
         if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            Err(Error::Silent)
+            Err(Error::Silent("Other branches consumed more"))
         } else {
             Ok(())
         }
