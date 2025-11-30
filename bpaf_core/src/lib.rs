@@ -3,6 +3,7 @@ mod args;
 mod complete;
 mod consumers;
 mod core_consumers;
+mod error;
 mod os_str;
 mod utils;
 
@@ -13,7 +14,7 @@ use crate::{
     utils::{Vec1, reuse_vec},
 };
 #[doc(inline)]
-pub use consumers::*;
+pub use crate::{consumers::*, error::*, traits::*};
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell, RefMut},
@@ -23,8 +24,6 @@ use std::{
     rc::Rc,
     task::Poll,
 };
-#[doc(inline)]
-pub use traits::*;
 
 pub(crate) struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
@@ -260,170 +259,6 @@ impl Default for TaskInfo {
 }
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Metavar(&'static str);
-mod error {
-    use std::borrow::Cow;
-
-    use crate::{
-        Metavar, Name,
-        complete::{CompleteReply, CompleteReq, render_completions},
-        utils::Vec1,
-    };
-
-    #[derive(Debug)]
-    pub enum Problem {
-        Parse {
-            value: Option<String>,
-            error: String,
-        },
-    }
-
-    impl std::fmt::Display for Problem {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            match self {
-                Problem::Parse { value: None, error } => {
-                    write!(f, "couldn't parse: {error}")
-                }
-                Problem::Parse {
-                    value: Some(value),
-                    error,
-                } => {
-                    write!(f, "couldn't parse `{value}`: {error}")
-                }
-            }
-        }
-    }
-
-    impl From<Problem> for Error {
-        fn from(value: Problem) -> Self {
-            Self::Problem(value)
-        }
-    }
-
-    #[derive(Debug)]
-    pub enum Error {
-        Missing(Vec1<MissingItem>),
-        CompReply(Vec1<CompleteReply>),
-        CompReq(CompleteReq),
-        Problem(Problem),
-        Final(ParseFailure),
-        Silent(&'static str),
-    }
-
-    #[derive(Debug, Clone)]
-    pub enum MissingItem {
-        Named {
-            name: Name<'static>,
-            meta: Option<Metavar>,
-        },
-        Pos {
-            meta: Metavar,
-        },
-        Lit {
-            value: Cow<'static, str>,
-        },
-        Command,
-    }
-
-    #[derive(Debug)]
-    pub enum ParseFailure {
-        Stdout(String),
-        Stderr(String),
-    }
-
-    impl From<ParseFailure> for Error {
-        fn from(value: ParseFailure) -> Self {
-            Error::Final(value)
-        }
-    }
-
-    #[inline(never)]
-    #[cold]
-    #[track_caller]
-    fn unwrap_failed(msg: &str, error: &str) -> ! {
-        panic!("{msg}: {error:?}");
-    }
-    impl ParseFailure {
-        pub fn unwrap_stdout(self) -> String {
-            match self {
-                ParseFailure::Stdout(s) => s,
-                ParseFailure::Stderr(e) => {
-                    unwrap_failed("Called `ParseFailure::unwrap_stdout()` on Stderr", &e)
-                }
-            }
-        }
-
-        pub fn unwrap_stderr(self) -> String {
-            match self {
-                ParseFailure::Stderr(s) => s,
-                ParseFailure::Stdout(e) => {
-                    unwrap_failed("Called `ParseFailure::unwrap_stderr()` on Stdout", &e)
-                }
-            }
-        }
-    }
-
-    impl From<Error> for ParseFailure {
-        fn from(value: Error) -> Self {
-            match value {
-                Error::Missing(vec1) => todo!(),
-                Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)),
-                Error::CompReq(complete_req) => todo!(),
-                Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),
-                Error::Final(parse_failure) => parse_failure,
-                Error::Silent(reason) => {
-                    ParseFailure::Stderr(format!("Internal error, got unexpected silent {reason}"))
-                }
-            }
-        }
-    }
-
-    impl Error {
-        pub(crate) fn combine(self, e2: Error) -> Error {
-            match (self, e2) {
-                (e @ Error::Final(_), _) | (_, e @ Error::Final(_)) => e,
-                (Error::Silent(_), e) | (e, Error::Silent(_)) => e,
-                (e @ Error::Problem(_), _) | (_, e @ Error::Problem(_)) => e,
-                (Error::CompReply(c1), Error::CompReply(c2)) => Error::CompReply(c1 + c2),
-                (e @ Error::CompReply(_), _) | (_, e @ Error::CompReply(_)) => e,
-                (Error::CompReq(_), _) | (_, Error::CompReq(_)) => todo!(),
-                (Error::Missing(i1), Error::Missing(i2)) => Error::Missing(i1 + i2),
-            }
-        }
-
-        pub(crate) fn can_catch(&self) -> bool {
-            matches!(self, Error::Missing(_))
-        }
-
-        pub(crate) fn missing(item: MissingItem) -> Self {
-            Self::Missing(Vec1::new(item))
-        }
-
-        /// Consume current error and append it to a growing collection in dst
-        ///
-        /// It exists to collect errors from multiple handles and designed to work with
-        /// [`Result::map_err`]. We aggregate the best possible error inside an Option
-        /// and fail with that if it is present
-        pub(crate) fn append_to(self, dst: &mut Option<Error>) -> Self {
-            *dst = Some(match dst.take() {
-                Some(e) => e.combine(self),
-                None => self,
-            });
-            Error::Silent("swapped by append_to")
-        }
-
-        fn render(self) -> ParseFailure {
-            match self {
-                Error::Missing(vec1) => todo!(),
-                Error::CompReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
-                Error::CompReq(_) => todo!(),
-                Error::Problem(_) => todo!(),
-                Error::Silent(reason) => todo!("Got silent {reason}"),
-                Error::Final(_) => todo!(),
-            }
-        }
-    }
-}
-pub use error::*;
 
 struct Yield(bool);
 
