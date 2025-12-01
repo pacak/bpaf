@@ -674,6 +674,7 @@ impl Executor {
         let mut mixer_capacity = Mixer::default();
         while changed {
             changed = false;
+            assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
             let ctx = self.ctx.clone();

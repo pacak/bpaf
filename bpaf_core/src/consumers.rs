@@ -315,6 +315,9 @@ impl<T: 'static> Parser<T> for DummyAny<T> {
     }
 }
 
+/// In case of conflicts it is excluded from "earlier running parser" wins
+/// and it's position in the selection takes a priority. Including it in conflict resolution will
+/// make it so any branch containing `pure` anywhere automatically advances.
 pub fn pure<T: Clone + 'static>(value: T) -> Bp<Pure<T>> {
     Bp(Pure { value })
 }
