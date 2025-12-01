@@ -719,7 +719,7 @@ impl Executor {
                 self.ctx.cursor.update(|c| c + best_size as usize);
                 changed = true;
             } else {
-                return Err(self.complain_about(front));
+                return Err(self.complain_about(front).into());
             }
             self.stage_2(best_size);
 
@@ -743,13 +743,15 @@ impl Executor {
         Ok(())
     }
 
-    fn complain_about(&self, unexpected: &OsString) -> Error {
+    fn complain_about(&self, unexpected: &OsString) -> Problem {
         // 1. check conflicts
         // 2. can be passed only once
         // 3. look for typos
         // 4. otherwise - totally unexpected
 
-        todo!("{unexpected:?}");
+        Problem::Unconsumed {
+            value: unexpected.clone(),
+        }
     }
 
     fn kill_in_scope(&mut self, scope: Scope) {

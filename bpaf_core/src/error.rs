@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ffi::OsString};
 
 use crate::{
     Metavar, Name,
@@ -11,6 +11,9 @@ pub enum Problem {
     Parse {
         value: Option<String>,
         error: String,
+    },
+    Unconsumed {
+        value: OsString,
     },
 }
 
@@ -25,6 +28,13 @@ impl std::fmt::Display for Problem {
                 error,
             } => {
                 write!(f, "couldn't parse `{value}`: {error}")
+            }
+            Problem::Unconsumed { value } => {
+                write!(
+                    f,
+                    "`{}` is not expected in this context",
+                    value.to_string_lossy()
+                )
             }
         }
     }
