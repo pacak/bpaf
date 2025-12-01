@@ -719,7 +719,7 @@ impl Executor {
                 self.ctx.cursor.update(|c| c + best_size as usize);
                 changed = true;
             } else {
-                todo!("Didn't consume anything, complain about {front:?} and prepare to exit?");
+                return Err(self.complain_about(front));
             }
             self.stage_2(best_size);
 
@@ -741,6 +741,15 @@ impl Executor {
         // );
 
         Ok(())
+    }
+
+    fn complain_about(&self, unexpected: &OsString) -> Error {
+        // 1. check conflicts
+        // 2. can be passed only once
+        // 3. look for typos
+        // 4. otherwise - totally unexpected
+
+        todo!("{unexpected:?}");
     }
 
     fn kill_in_scope(&mut self, scope: Scope) {
@@ -1517,6 +1526,7 @@ impl From<String> for Name<'static> {
 #[cfg(test)]
 mod tests {
     mod complete;
+    mod errors;
     mod osstring;
     mod unsorted;
     mod wake;
