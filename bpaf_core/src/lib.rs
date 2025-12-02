@@ -570,17 +570,19 @@ impl Executor {
 
     fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
         let mut mixer_capacity = Mixer::default();
-        for name in names {
+        for (ix, name) in names.iter().copied().enumerate() {
             // set a wakeup reason, just in case
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(Arg::Named {
-                name: (*name).into(),
+                name: Name::Short(name),
                 value: None,
             }));
 
             let mut mixer = mixer_capacity.reuse_capacity();
             let triggers = self.ctx.triggers.borrow();
-            mixer.populate_short_flag(name, &triggers);
+            mixer.populate_short_flag(&name, &triggers);
+            let mut cnt = 0;
             while let Some(next) = mixer.consume_next_item(&self.tasks) {
+                cnt += 1;
                 let task = &mut self.tasks.get_mut(&next.id).unwrap();
                 let r = self.ctx.poll_in_context(task);
                 assert!(!r); // this breaks the API
@@ -590,6 +592,9 @@ impl Executor {
                     todo!("should have consumed a single item")
                 }
                 self.to_wake.push(task.info.id);
+            }
+            if cnt == 0 {
+                todo!("Couldn't parse {name:?} from {names:?} ({ix})");
             }
             mixer_capacity = mixer.reuse_capacity();
             drop(triggers);
