@@ -195,7 +195,7 @@ impl<T: 'static> Parser<T> for Alt<T> {
                 h
             })
             .collect::<Vec<_>>();
-        ctx.pending_ops.borrow_mut().push(Op::RegisterSum {
+        ctx.pending_ops.borrow_mut().push_back(Op::RegisterSum {
             id,
             scope: Scope {
                 start: id,
@@ -315,7 +315,7 @@ pub struct RawCtx {
     /// outside makes the code a bit cleaner
     ///
     /// Holds other operations that might need access to tasks or other internal structures
-    pending_ops: RefCell<Vec<Op>>,
+    pending_ops: RefCell<VecDeque<Op>>,
     /// Reference to triggers used by the executor
     ///
     /// Not available (borrowed by executor) during the first stage
@@ -484,7 +484,7 @@ impl RawCtx {
             cur.pending -= 1;
             debug_assert_eq!(task.info.consumed, 0);
         } else {
-            self.pending_ops.borrow_mut().push(Op::Spawn(task));
+            self.pending_ops.borrow_mut().push_back(Op::Spawn(task));
         }
     }
 
@@ -512,12 +512,12 @@ impl RawCtx {
                         let lives = ids.as_slice().iter().any(|id| scope.contains(*id));
                         if !lives {
                             let op = Op::KillScope { scope: *scope };
-                            self.pending_ops.borrow_mut().push(op);
+                            self.pending_ops.borrow_mut().push_back(op);
                         }
                         lives
                     });
                     if scopes.len() == 1 {
-                        self.pending_ops.borrow_mut().push(Op::DeregisterSum {
+                        self.pending_ops.borrow_mut().push_back(Op::DeregisterSum {
                             id: self.current_task.borrow().id,
                         });
                     }
@@ -600,7 +600,7 @@ impl Executor {
 
     /// Process scheduled operations
     fn process_scheduled(&mut self) {
-        for op in self.ctx.pending_ops.borrow_mut().drain(..) {
+        while let Some(op) = { self.ctx.pending_ops.borrow_mut().pop_front() } {
             match op {
                 Op::Spawn(task) => {
                     let old = self.tasks.insert(task.info.id, task);
@@ -610,18 +610,7 @@ impl Executor {
                     self.sums.insert(id, scope);
                 }
                 Op::KillScope { scope } => {
-                    // self.kill_in_scope(scope); // TODO <- want this!
-                    *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(None);
-                    for (id, mut task) in self
-                        .tasks
-                        .extract_if(scope.start..scope.end, |_, task| task.info.pending == 0)
-                    {
-                        let r = self.ctx.poll_in_context(&mut task);
-                        assert_eq!(task.info.consumed, 0);
-                        self.to_propagate
-                            .push_back((id, task.info.parent_id, task.info.consumed));
-                        assert!(r);
-                    }
+                    self.kill_in_scope(scope);
                 }
                 Op::DeregisterSum { id } => {
                     self.sums.remove(&id);
