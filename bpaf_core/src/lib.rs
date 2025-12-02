@@ -179,7 +179,7 @@ enum Op {
     Spawn(Task),
     RegisterSum { id: Id, scope: Scope },
     DeregisterSum { id: Id },
-    KillScope { scope: Scope },
+    KillScope { cursor: u32, scope: Scope },
 }
 
 impl<T: 'static> Parser<T> for Alt<T> {
@@ -511,7 +511,10 @@ impl RawCtx {
                     scopes.retain(|scope| {
                         let lives = ids.as_slice().iter().any(|id| scope.contains(*id));
                         if !lives {
-                            let op = Op::KillScope { scope: *scope };
+                            let op = Op::KillScope {
+                                scope: *scope,
+                                cursor: self.cursor.get() as u32,
+                            };
                             self.pending_ops.borrow_mut().push_back(op);
                         }
                         lives
@@ -609,8 +612,10 @@ impl Executor {
                 Op::RegisterSum { id, scope } => {
                     self.sums.insert(id, scope);
                 }
-                Op::KillScope { scope } => {
+                Op::KillScope { scope, cursor } => {
+                    let old = self.ctx.cursor.replace(cursor as usize);
                     self.kill_in_scope(scope);
+                    self.ctx.cursor.set(old);
                 }
                 Op::DeregisterSum { id } => {
                     self.sums.remove(&id);
@@ -720,13 +725,6 @@ impl Executor {
 
             self.stage_2(best_size);
 
-            self.propagate(Reason::Pass);
-
-            // Those two statements are here to avoid late execution of "wipe children" action
-            // that records conflicts. It is important that cursor gets updated _after_ this
-            // record. Can we do better?
-            // We could try stashing the cursor position inside of `Op::KillScope`
-            self.process_scheduled();
             self.propagate(Reason::Pass);
 
             self.ctx.cursor.update(|c| c + best_size as usize);
