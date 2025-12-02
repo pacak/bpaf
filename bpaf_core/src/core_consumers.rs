@@ -107,8 +107,13 @@ impl RawCtx {
             .try_to_parse_arg(None, |arg| self.parse_pos_consume(arg))
             .await;
         self.remove_from_po(|triggers| &mut triggers.pos);
-        self.managed_to_survive()?;
-        res
+        if self.is_task_terminated() {
+            let pos = self.cursor.get() as u32;
+            self.conflicts.borrow_mut().push(Conflict::Pos { pos });
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     pub(self) fn parse_pos_consume(&self, arg: &Arg) -> Result<Option<OsString>, Error> {
@@ -135,8 +140,13 @@ impl RawCtx {
             }
         };
         self.remove_from_po(|triggers| &mut triggers.any);
-        self.managed_to_survive()?;
-        res
+        if self.is_task_terminated() {
+            let pos = self.cursor.get() as u32;
+            self.conflicts.borrow_mut().push(Conflict::Pos { pos });
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     pub(self) fn parse_any_consume(&self, check: &AnyCheck) -> Result<AnyResult, Error> {
@@ -159,8 +169,12 @@ impl RawCtx {
             .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
             .await;
         self.remove_names(names, view_reactor_flags)?;
-        self.managed_to_survive()?;
-        res
+        if self.is_task_terminated() {
+            self.record_conflict_with_names(names);
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     /// Run a nested parser prefixed by a literal
@@ -177,8 +191,11 @@ impl RawCtx {
             .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
             .await;
         self.remove_literals(names);
-        self.managed_to_survive()?;
-        res
+        if self.is_task_terminated() {
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     fn parse_nested(&self, skip: u32, populate: &dyn Fn(Ctx)) -> Result<bool, Error> {
@@ -202,8 +219,12 @@ impl RawCtx {
             .try_to_parse_arg(None, |arg| self.parse_arg_consume(arg))
             .await;
         self.remove_names(names, view_reactor_args)?;
-        self.managed_to_survive()?;
-        res
+        if self.is_task_terminated() {
+            self.record_conflict_with_names(names);
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     pub(self) fn parse_arg_consume(&self, arg: &Arg) -> Result<Option<OsString>, Error> {
@@ -243,6 +264,16 @@ impl RawCtx {
         }
     }
 
+    fn record_conflict_with_names(&self, names: &[Name<'static>]) {
+        let pos = self.cursor.get() as u32;
+        self.conflicts.borrow_mut().extend(
+            names
+                .iter()
+                .cloned()
+                .map(|name| Conflict::Named { pos, name }),
+        );
+    }
+
     /// Parse a flag by any one of the given names
     ///
     /// - `Ok(true)` when encounters a name
@@ -255,8 +286,16 @@ impl RawCtx {
             .try_to_parse_arg(false, |arg| self.parse_flag_consume(arg))
             .await;
         self.remove_names(names, view_reactor_flags)?;
-        self.managed_to_survive()?;
-        res
+
+        if self.is_task_in_conflict() {
+            self.record_conflict_with_names(names);
+        }
+
+        if self.is_task_terminated() {
+            Err(Error::OUTCONSUMED)
+        } else {
+            res
+        }
     }
 
     /// Consume a present argument, advance
@@ -303,11 +342,16 @@ impl RawCtx {
         res
     }
 
-    fn managed_to_survive(&self) -> Result<(), Error> {
-        if matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough) {
-            Err(Error::Silent("Other branches consumed more"))
-        } else {
-            Ok(())
-        }
+    fn is_task_terminated(&self) -> bool {
+        matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough)
+    }
+
+    // conflict can happen in two different ways - task gets out-consumed (rarely)
+    // or some other branch makes progress so current one gets terminated
+    fn is_task_in_conflict(&self) -> bool {
+        matches!(
+            *self.wakeup_reason.borrow(),
+            Reason::Arg(_) | Reason::NotConsumedEnough
+        )
     }
 }

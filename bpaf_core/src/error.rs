@@ -15,6 +15,10 @@ pub enum Problem {
     Unconsumed {
         value: OsString,
     },
+    Conflict {
+        accepted: OsString,
+        unexpected: Name<'static>,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -36,6 +40,16 @@ impl std::fmt::Display for Problem {
                     value.to_string_lossy()
                 )
             }
+            Problem::Conflict {
+                accepted,
+                unexpected,
+            } => {
+                write!(
+                    f,
+                    "`{unexpected}` cannot be used at the same time as `{}`",
+                    accepted.to_string_lossy(),
+                )
+            }
         }
     }
 }
@@ -54,6 +68,11 @@ pub enum Error {
     Problem(Problem),
     Final(ParseFailure),
     Silent(&'static str),
+}
+
+impl Error {
+    pub(crate) const OUTCONSUMED: Self =
+        Error::Silent("Task was terminated because alternative branch consumed more");
 }
 
 #[derive(Debug, Clone)]

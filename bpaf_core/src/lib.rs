@@ -337,8 +337,21 @@ pub struct RawCtx {
     ///
     /// Executor sets it to the right value when polling a task
     current_task: RefCell<TaskInfo>,
+    /// We keep track of all the early terminated branches, saving each termination along with
+    /// the position - from that we'll deduce conflict info
+    conflicts: RefCell<Vec<Conflict>>,
 }
 pub type Ctx = Rc<RawCtx>;
+
+#[derive(Debug)]
+enum Conflict {
+    /// Named item - flag, argument
+    Named { pos: u32, name: Name<'static> },
+    /// Literal - command
+    Lit { pos: u32, name: Cow<'static, str> },
+    /// Positional item
+    Pos { pos: u32 },
+}
 
 #[derive(Debug)]
 enum Reason {
@@ -666,14 +679,11 @@ impl Executor {
     }
 
     fn execute(&mut self) -> Result<(), Error> {
-        let mut changed = true;
-
         // Keep running as long as we are making progress:
         // - consuming new items
         // -
         let mut mixer_capacity = Mixer::default();
-        while changed {
-            changed = false;
+        loop {
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
@@ -715,15 +725,22 @@ impl Executor {
                 }
             }
 
-            if best_size > 0 {
-                self.ctx.cursor.update(|c| c + best_size as usize);
-                changed = true;
-            } else {
+            if best_size == 0 {
                 return Err(self.complain_about(front).into());
             }
+
             self.stage_2(best_size);
 
             self.propagate(Reason::Pass);
+
+            // Those two statements are here to avoid late execution of "wipe children" action
+            // that records conflicts. It is important that cursor gets updated _after_ this
+            // record. Can we do better?
+            // We could try stashing the cursor position inside of `Op::KillScope`
+            self.process_scheduled();
+            self.propagate(Reason::Pass);
+
+            self.ctx.cursor.update(|c| c + best_size as usize);
         }
 
         self.kill_in_scope(Scope::ALL);
@@ -744,6 +761,29 @@ impl Executor {
     }
 
     fn complain_about(&self, unexpected: &OsString) -> Problem {
+        match lex_os_arg(unexpected) {
+            Arg::Named {
+                name: unexpected,
+                value: _,
+            } => {
+                for c in self.ctx.conflicts.borrow().iter() {
+                    if let Conflict::Named { pos, name: dropped } = c
+                        && &unexpected == dropped
+                    {
+                        let pos = *pos as usize;
+                        let accepted = self.ctx.args[pos].clone();
+                        let unexpected = unexpected.into_owned();
+                        return Problem::Conflict {
+                            accepted,
+                            unexpected,
+                        };
+                    }
+                    println!("{c:?}");
+                }
+                println!("conflicts: {:?}", self.ctx.conflicts);
+            }
+            Arg::Pos { value } => todo!(),
+        }
         // 1. check conflicts
         // 2. can be passed only once
         // 3. look for typos
@@ -1213,6 +1253,7 @@ impl RawCtx {
             next_free: Cell::new(1),
             triggers: Default::default(),
             wakeup_reason: RefCell::new(Reason::Pass),
+            conflicts: Default::default(),
         })
     }
 
