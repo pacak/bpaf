@@ -12,6 +12,11 @@ pub enum Problem {
         value: Option<String>,
         error: String,
     },
+    // TODO - pass Metavar?
+    WrongArgument {
+        name: Name<'static>,
+        value: Option<OsString>,
+    },
     Unconsumed {
         value: OsString,
     },
@@ -48,6 +53,19 @@ impl std::fmt::Display for Problem {
                     f,
                     "`{unexpected}` cannot be used at the same time as `{}`",
                     accepted.to_string_lossy(),
+                )
+            }
+            Problem::WrongArgument { name, value: None } => {
+                write!(f, "`{name}` expects a value")
+            }
+            Problem::WrongArgument {
+                name,
+                value: Some(value),
+            } => {
+                let s = value.to_string_lossy();
+                write!(
+                    f,
+                    "`{name}` requires an argument TODO, got a flag {s}, try {name}={s}"
                 )
             }
         }

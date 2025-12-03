@@ -232,13 +232,17 @@ impl RawCtx {
             Arg::Pos { .. } => unreachable!(),
             Arg::Named { name, value: None } => {
                 let cursor = self.cursor.get() + 1;
-                let Some(arg) = self.args.get(cursor) else {
-                    todo!("{name:?} expects a value");
+                let Some(next) = self.args.get(cursor) else {
+                    return Err(Error::Problem(Problem::WrongArgument {
+                        name: name.clone().into_owned(),
+                        value: None,
+                    }));
                 };
-                match lex_os_arg(arg) {
-                    Arg::Named { .. } => {
-                        todo!("{name:?} got {arg:?}, try {name:?}={arg:?}")
-                    }
+                match lex_os_arg(next) {
+                    Arg::Named { .. } => Err(Error::Problem(Problem::WrongArgument {
+                        name: name.clone().into_owned(),
+                        value: Some(next.clone()),
+                    })),
                     Arg::Pos { value } => {
                         self.consume(2);
                         if self.args.complete && cursor + 1 == self.args.len() {

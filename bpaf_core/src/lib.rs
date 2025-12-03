@@ -725,6 +725,7 @@ impl Executor {
             }
 
             if best_size == 0 {
+                self.kill_in_scope(Scope::ALL);
                 return Err(self.complain_about(front).into());
             }
 

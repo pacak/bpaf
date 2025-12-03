@@ -55,8 +55,12 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        ctx.execute()?;
-        Ok(handle.take()?)
+        let executor_res = ctx.execute();
+        let res = handle.take();
+        if res.is_ok() {
+            executor_res?;
+        }
+        Ok(res?)
     }
 
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
