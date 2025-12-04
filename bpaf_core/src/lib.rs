@@ -784,21 +784,17 @@ impl Executor {
                 name: unexpected,
                 value: _,
             } => {
-                for c in self.ctx.conflicts.borrow().iter() {
-                    if let Conflict::Named { pos, name: dropped } = c
+                // is it a conflict?
+                for conflict in self.ctx.conflicts.borrow().iter() {
+                    if let Conflict::Named { pos, name: dropped } = conflict
                         && &unexpected == dropped
                     {
-                        let pos = *pos as usize;
-                        let accepted = self.ctx.args[pos].clone();
-                        let unexpected = unexpected.into_owned();
                         return Problem::Conflict {
-                            accepted,
-                            unexpected,
+                            accepted: self.ctx.args[*pos as usize].clone(),
+                            unexpected: unexpected.into_owned(),
                         };
                     }
-                    println!("{c:?}");
                 }
-                println!("conflicts: {:?}", self.ctx.conflicts);
             }
             Arg::Pos { value } => todo!(),
         }
