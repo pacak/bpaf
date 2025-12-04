@@ -329,7 +329,7 @@ impl RawCtx {
         let res = {
             let reason = self.wakeup_reason.borrow();
             let arg = match &*reason {
-                Reason::NotConsumedEnough | Reason::Pass | Reason::ChildProgress(_) => {
+                Reason::NoPass | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
                     return Err(Error::Silent("Unexpected reason in try_to_parse_arg"));
                 }
                 Reason::Arg(arg) => arg,
@@ -347,7 +347,7 @@ impl RawCtx {
     }
 
     fn is_task_terminated(&self) -> bool {
-        matches!(*self.wakeup_reason.borrow(), Reason::NotConsumedEnough)
+        matches!(*self.wakeup_reason.borrow(), Reason::NoPass)
     }
 
     // conflict can happen in two different ways - task gets out-consumed (rarely)
@@ -355,7 +355,7 @@ impl RawCtx {
     fn is_task_in_conflict(&self) -> bool {
         matches!(
             *self.wakeup_reason.borrow(),
-            Reason::Arg(_) | Reason::NotConsumedEnough
+            Reason::Arg(_) | Reason::NoPass
         )
     }
 }

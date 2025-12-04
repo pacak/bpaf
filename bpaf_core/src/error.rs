@@ -24,6 +24,10 @@ pub enum Problem {
         accepted: OsString,
         unexpected: Name<'static>,
     },
+    GuardFailed {
+        message: &'static str,
+        range: Option<OsString>,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -68,6 +72,10 @@ impl std::fmt::Display for Problem {
                     "`{name}` requires an argument TODO, got a flag {s}, try {name}={s}"
                 )
             }
+            Problem::GuardFailed { message, range } => match range {
+                Some(r) => write!(f, "`{}`: {message}", r.to_string_lossy()),
+                None => f.write_str(message),
+            },
         }
     }
 }

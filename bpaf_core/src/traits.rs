@@ -54,6 +54,18 @@ pub trait Parser<T: 'static> {
             inner: self.into_rc().0,
         })
     }
+
+    fn guard<F>(self, check: F, message: &'static str) -> Bp<Guard<Self, F>>
+    where
+        Self: Sized,
+        F: Fn(&T) -> bool,
+    {
+        Bp(Guard {
+            inner: self,
+            check,
+            message,
+        })
+    }
 }
 
 /// Helper trait that allows shoving non-dyn compatible trait [`Parser`] into an [`Rc`]

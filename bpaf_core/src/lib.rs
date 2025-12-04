@@ -355,9 +355,10 @@ enum Conflict {
 
 #[derive(Debug)]
 enum Reason {
-    NotConsumedEnough,
-    Pass,
     Arg(Option<Arg<'static>>),
+    Pass,
+    NoPass,
+    Push,
     ChildProgress(Vec1<Id>),
     Complete(CompleteReq),
 }
@@ -395,6 +396,30 @@ impl RawCtx {
     fn task_parent_and_id(&self) -> (Parent, Id) {
         let cur = self.current_task.borrow();
         (cur.parent_id, cur.id)
+    }
+
+    /// After consumption when called from a leaf node returns what was consumed
+    pub(crate) fn leaf_range(&self) -> Option<(u32, u32)> {
+        if !matches!(&*self.wakeup_reason.borrow(), Reason::Pass) {
+            return None;
+        }
+        let start = self.cursor.get() as u32;
+        let end = start + self.current_task.borrow().consumed;
+        (end > start).then_some((start, end))
+    }
+
+    /// After consumption, when called from a leaf node returns what was consumed
+    /// as a string
+    pub(crate) fn leaf_consumed(&self) -> Option<OsString> {
+        let (start, end) = self.leaf_range()?;
+        let mut out = OsString::new();
+        for (ix, i) in (start..end).enumerate() {
+            if ix > 0 {
+                out.push(" ");
+            }
+            out.push(&self.args.items[i as usize]);
+        }
+        Some(out)
     }
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
@@ -504,6 +529,8 @@ impl RawCtx {
         done
     }
 
+    /// When called from an Alt node it keeps track of children progress and trims
+    /// under-consuming children
     async fn trim_children(&self, mut scopes: Vec<Scope>) {
         loop {
             match *self.wakeup_reason.borrow() {
@@ -525,12 +552,11 @@ impl RawCtx {
                         });
                     }
                 }
-                Reason::Pass => {
+                Reason::Push => {
                     if self.current_task.borrow().pending == 0 {
                         break;
                     }
                 }
-
                 _ => break,
             }
             r#yield().await;
@@ -599,7 +625,7 @@ impl Executor {
             mixer_capacity = mixer.reuse_capacity();
             drop(triggers);
             self.stage_2(1);
-            self.propagate(Reason::Pass);
+            self.propagate(Reason::Push);
             self.process_scheduled();
         }
 
@@ -673,7 +699,7 @@ impl Executor {
             assert!(r);
         }
         self.kill_in_scope(Scope::ALL);
-        self.propagate(Reason::Pass);
+        self.propagate(Reason::Push);
         Some(Ok(()))
     }
 
@@ -712,7 +738,7 @@ impl Executor {
                 && best_size == 0
             {
                 self.execute_group(group)?;
-                self.propagate(Reason::Pass);
+                self.propagate(Reason::Push);
                 continue;
             }
 
@@ -731,7 +757,7 @@ impl Executor {
 
             self.stage_2(best_size);
 
-            self.propagate(Reason::Pass);
+            self.propagate(Reason::Push);
 
             self.ctx.cursor.update(|c| c + best_size as usize);
         }
@@ -846,11 +872,7 @@ impl Executor {
                 todo!("Second stage got a task id that isn't there?");
             };
             let term = task.info.consumed < best_size;
-            *self.ctx.wakeup_reason.borrow_mut() = if term {
-                Reason::NotConsumedEnough
-            } else {
-                Reason::Pass
-            };
+            *self.ctx.wakeup_reason.borrow_mut() = if term { Reason::NoPass } else { Reason::Pass };
 
             if self.ctx.poll_in_context(&mut task) {
                 let size = if term { 0 } else { task.info.consumed };

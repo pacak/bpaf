@@ -1,12 +1,12 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Kind, ParseFailure, Parser, RawCtx, RcParser, Reason, Task,
+    Bp, Error, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     make_handle, r#yield,
 };
-use std::{borrow::Cow, marker::PhantomData};
+use std::{borrow::Cow, ffi::OsString, marker::PhantomData};
 
 pub(crate) struct Map<P, F, T, R> {
     pub(crate) inner: P,
@@ -100,7 +100,7 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
         let mut res = Vec::new();
         let start = ctx.next_free.get();
         let mut consumed_before = 0;
-        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass) {
+        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
             ctx.next_free.set(start);
             let (h, pair) = ctx.spawn_with_early_exit(self.0.inner.clone());
 
@@ -112,7 +112,6 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
             consumed_before = consumed_after;
 
             let val = h.take();
-            println!("Parsed something, ok? {:?}", val.is_ok());
 
             match (advanced, val) {
                 (true, Ok(v)) => res.push(v),
@@ -134,4 +133,25 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
 pub struct Command<T> {
     names: Vec<Cow<'static, str>>,
     inner: OptionParser<T>,
+}
+
+pub struct Guard<P, F> {
+    pub(crate) inner: P,
+    pub(crate) check: F,
+    pub(crate) message: &'static str,
+}
+
+impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Bp<Guard<P, F>> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+        let r = self.0.inner.run(ctx.clone()).await?;
+
+        if (self.0.check)(&r) {
+            Ok(r)
+        } else {
+            Err(Error::Problem(Problem::GuardFailed {
+                message: self.0.message,
+                range: ctx.leaf_consumed(),
+            }))
+        }
+    }
 }
