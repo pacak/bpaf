@@ -742,12 +742,11 @@ impl Executor {
                 continue;
             }
 
-            if best_size == 0 {
-                let maybe_scope = self.ctx.early_exit.borrow_mut().pop_last();
-                if let Some(scope) = maybe_scope {
-                    self.kill_in_scope(scope);
-                    continue;
-                }
+            if best_size == 0
+                && let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
+            {
+                self.kill_in_scope(scope);
+                continue;
             }
 
             if best_size == 0 {
