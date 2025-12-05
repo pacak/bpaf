@@ -28,6 +28,14 @@ pub enum Problem {
         message: &'static str,
         range: Option<OsString>,
     },
+    OnlyOnce {
+        name: Name<'static>,
+    },
+    OnlyOnceInGroup {
+        group: String,
+        name: char,
+        ix: u32,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -76,6 +84,18 @@ impl std::fmt::Display for Problem {
                 Some(r) => write!(f, "`{}`: {message}", r.to_string_lossy()),
                 None => f.write_str(message),
             },
+            Problem::OnlyOnce { name } => {
+                write!(
+                    f,
+                    "argument `{name}` cannot be used multiple times in this context"
+                )
+            }
+            Problem::OnlyOnceInGroup { group, name, ix } => {
+                write!(
+                    f,
+                    "can't parse `{name}` (item {ix}) while parsing `{group}` as a set of short flags"
+                )
+            }
         }
     }
 }

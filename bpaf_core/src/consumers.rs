@@ -150,8 +150,20 @@ impl<T: 'static> Parser<T> for Bp<Nested<T>> {
             let info = ctx.make_child_info(Kind::Prod);
             ctx.add_task(Task { act, info });
         };
-        ctx.parse_flag_and(&self.0.names.names, &populate).await?;
+        ctx.parse_flag_and(&self.0.names.names, &populate, inner)
+            .await?;
         handle.take()
+    }
+}
+
+impl<T: 'static> Visited for Bp<Nested<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        let item = Item::Nested {
+            names: &self.0.names.names,
+            help: self.0.names.help.as_deref(),
+            inner: &self.0.inner,
+        };
+        visitor.item(item);
     }
 }
 
@@ -176,6 +188,15 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
             };
             Err(Error::missing(item))
         }
+    }
+}
+impl<T> Visited for Bp<Flag<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        let item = Item::Flag {
+            names: &self.0.named.names,
+            help: self.0.named.help.as_deref(),
+        };
+        visitor.item(item);
     }
 }
 
@@ -206,9 +227,20 @@ where
     }
 }
 
+impl<T> Visited for Bp<Argument<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        let item = Item::Arg {
+            names: &self.0.named.names,
+            meta: self.0.metavar,
+            help: self.0.named.help.as_deref(),
+        };
+        visitor.item(item);
+    }
+}
+
 /// # complete for argument
 impl<T: 'static> Bp<Argument<T>> {
-    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<Argument<T>>>
+    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<T, Argument<T>>>
     where
         Self: Sized,
         F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
@@ -217,12 +249,13 @@ impl<T: 'static> Bp<Argument<T>> {
             inner: self,
             completer: Box::new(completer),
             group: None,
+            ctx: PhantomData,
         })
     }
 }
 /// # complete for positional
 impl<T: 'static> Bp<Positional<T>> {
-    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<Positional<T>>>
+    pub fn complete<F>(self, completer: F) -> Bp<WithComplete<T, Positional<T>>>
     where
         Self: Sized,
         F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
@@ -231,24 +264,26 @@ impl<T: 'static> Bp<Positional<T>> {
             inner: self,
             completer: Box::new(completer),
             group: None,
+            ctx: PhantomData,
         })
     }
 }
 
-pub struct WithComplete<P> {
+pub struct WithComplete<T, P> {
+    ctx: PhantomData<T>,
     inner: Bp<P>,
     group: Option<String>,
     completer: Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
 }
 
-impl<I> Bp<WithComplete<I>> {
+impl<T, I> Bp<WithComplete<T, I>> {
     pub fn group(mut self, group: impl Into<String>) -> Self {
         self.0.group = Some(group.into());
         self
     }
 }
 
-impl<P, T> Parser<T> for Bp<WithComplete<P>>
+impl<P, T> Parser<T> for Bp<WithComplete<T, P>>
 where
     T: 'static,
     Bp<P>: Parser<T>,
@@ -262,8 +297,19 @@ where
     }
 }
 
+impl<P, T> Visited for Bp<WithComplete<T, P>>
+where
+    T: 'static,
+    Bp<P>: Parser<T>,
+{
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.0.inner.visit(visitor)
+    }
+}
+
 pub struct Positional<T> {
-    metavar: Metavar,
+    pub(crate) metavar: Metavar,
+    pub(crate) help: Option<String>,
     ctx: PhantomData<T>,
 }
 
@@ -271,6 +317,7 @@ pub fn positional<T: 'static>(metavar: &'static str) -> Bp<Positional<T>> {
     Bp(Positional {
         metavar: Metavar(metavar),
         ctx: PhantomData,
+        help: None,
     })
 }
 
@@ -292,12 +339,27 @@ where
         }
     }
 }
+impl<T> Visited for Bp<Positional<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        let item = Item::Positional {
+            meta: self.0.metavar,
+            help: self.0.help.as_deref(),
+        };
+        visitor.item(item);
+    }
+}
 
 struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
 struct DummyAny<T>(Rc<dyn Fn(&str) -> Option<T>>);
 
 pub fn any<T: 'static>(check: impl Fn(&str) -> Option<T> + 'static) -> impl Parser<T> {
     DummyAny(Rc::new(check))
+}
+
+impl<T> Visited for DummyAny<T> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        todo!()
+    }
 }
 
 impl<T: 'static> Parser<T> for DummyAny<T> {
@@ -327,7 +389,11 @@ pub struct Pure<T> {
 }
 
 impl<T: 'static + Clone> Parser<T> for Bp<Pure<T>> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn run(&self, _ctx: Ctx) -> Result<T, Error> {
         Ok(self.0.value.clone())
     }
+}
+
+impl<T> Visited for Bp<Pure<T>> {
+    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }

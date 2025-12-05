@@ -162,11 +162,12 @@ impl RawCtx {
         &self,
         names: &[Name<'static>],
         populate: &dyn Fn(Ctx),
+        parser: &dyn Visited,
     ) -> Result<bool, Error> {
         self.add_names(names, view_reactor_flags)?;
         r#yield().await;
         let res = self
-            .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
+            .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate, parser))
             .await;
         self.remove_names(names, view_reactor_flags)?;
         if self.is_task_terminated() {
@@ -184,11 +185,12 @@ impl RawCtx {
         &self,
         names: &[Cow<'static, str>],
         populate: &dyn Fn(Ctx),
+        parser: &dyn Visited,
     ) -> Result<bool, Error> {
         self.add_literals(names);
         r#yield().await;
         let res = self
-            .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate))
+            .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate, parser))
             .await;
         self.remove_literals(names);
         if self.is_task_terminated() {
@@ -198,12 +200,17 @@ impl RawCtx {
         }
     }
 
-    fn parse_nested(&self, skip: u32, populate: &dyn Fn(Ctx)) -> Result<bool, Error> {
+    fn parse_nested(
+        &self,
+        skip: u32,
+        populate: &dyn Fn(Ctx),
+        parser: &dyn Visited,
+    ) -> Result<bool, Error> {
         self.consume(skip);
         let ctx = self.fork();
         ctx.cursor.update(|c| c + skip as usize);
         (populate)(ctx.clone());
-        ctx.execute()?;
+        ctx.execute(parser)?;
         let consumed = ctx.cursor.get() - self.cursor.get() - 1;
         self.consume(consumed as u32);
         Ok(true)
@@ -219,8 +226,10 @@ impl RawCtx {
             .try_to_parse_arg(None, |arg| self.parse_arg_consume(arg))
             .await;
         self.remove_names(names, view_reactor_args)?;
-        if self.is_task_terminated() {
+        if self.is_task_in_conflict() {
             self.record_conflict_with_names(names);
+        }
+        if self.is_task_terminated() {
             Err(Error::OUTCONSUMED)
         } else {
             res
@@ -290,11 +299,9 @@ impl RawCtx {
             .try_to_parse_arg(false, |arg| self.parse_flag_consume(arg))
             .await;
         self.remove_names(names, view_reactor_flags)?;
-
         if self.is_task_in_conflict() {
             self.record_conflict_with_names(names);
         }
-
         if self.is_task_terminated() {
             Err(Error::OUTCONSUMED)
         } else {
@@ -355,7 +362,7 @@ impl RawCtx {
     fn is_task_in_conflict(&self) -> bool {
         matches!(
             *self.wakeup_reason.borrow(),
-            Reason::Arg(_) | Reason::NoPass
+            Reason::Arg(None) | Reason::NoPass
         )
     }
 }

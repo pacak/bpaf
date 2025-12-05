@@ -6,12 +6,14 @@ mod core_consumers;
 mod error;
 mod os_str;
 mod utils;
+mod visitors;
 
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
+    visitors::IsKnownName,
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -103,6 +105,9 @@ macro_rules! construct {
     (@fin $ty:tt [$($fields:ident)*]) => {{
         $( let $fields = $fields.into_rc(); )*
 
+        // This allocates...
+        let visits = vec![ $($crate::Visited::into_box($fields.clone()) ),* ];
+
         let run:  ::std::boxed::Box<dyn ::std::ops::Fn($crate::__private::Ctx) ->
         ::std::boxed::Box<dyn ::std::ops::FnOnce() -> ::std::result::Result<_, $crate::__private::Error>>> =
             ::std::boxed::Box::new(move |ctx: $crate::__private::Ctx| {
@@ -120,7 +125,7 @@ macro_rules! construct {
                 })
             });
 
-        $crate::__private::Con { run }
+        $crate::__private::Con { run, visits }
 
     }};
 
@@ -136,6 +141,10 @@ macro_rules! construct {
 pub struct Con<T> {
     #[allow(clippy::type_complexity)]
     run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
+    // TODO - this is a whole lot of allocations, we can achieve the same results
+    // by adding a Visited implementation for (A, B, ...) then recursively folding $fields
+    // into (A, (B, (... )))
+    visits: Vec<Box<dyn Visited>>,
 }
 
 impl<T: 'static> Parser<T> for Con<T> {
@@ -146,6 +155,17 @@ impl<T: 'static> Parser<T> for Con<T> {
         closure()
     }
 }
+
+impl<T: 'static> Visited for Con<T> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(traits::Group::Prod);
+        for item in &self.visits {
+            item.visit(visitor);
+        }
+        visitor.pop_group();
+    }
+}
+
 pub struct Alt<T> {
     items: Vec<Bp<RcParser<T>>>,
 }
@@ -180,6 +200,16 @@ enum Op {
     RegisterSum { id: Id, scope: Scope },
     DeregisterSum { id: Id },
     KillScope { cursor: u32, scope: Scope },
+}
+
+impl<T: 'static> Visited for Alt<T> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        visitor.push_group(traits::Group::Sum);
+        for i in &self.items {
+            i.0.visit(visitor);
+        }
+        visitor.pop_group();
+    }
 }
 
 impl<T: 'static> Parser<T> for Alt<T> {
@@ -585,13 +615,13 @@ impl Executor {
 
     // try to parse a set of short flags `-vvv` as separate flags `-v -v -v`
     fn execute_group(&mut self, group: Group) -> Result<(), Error> {
-        match self.execute_group_inner(&group.0) {
-            Ok(()) => {
-                self.ctx.cursor.update(|c| c + 1);
-                Ok(())
-            }
-            Err(_) => todo!("Can't parse {group:?}"),
+        let res = self.execute_group_inner(&group.0);
+        if res.is_ok() {
+            self.ctx.cursor.update(|c| c + 1);
+        } else {
+            self.kill_in_scope(Scope::ALL);
         }
+        res
     }
 
     fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
@@ -620,7 +650,13 @@ impl Executor {
                 self.to_wake.push(task.info.id);
             }
             if cnt == 0 {
-                todo!("Couldn't parse {name:?} from {names:?} ({ix})");
+                let mut group = String::with_capacity(names.len() + 1);
+                group.push('-');
+                group.extend(names.iter());
+
+                let ix = ix as u32 + 1;
+                let problem = Problem::OnlyOnceInGroup { group, name, ix };
+                return Err(Error::Problem(problem));
             }
             mixer_capacity = mixer.reuse_capacity();
             drop(triggers);
@@ -703,7 +739,7 @@ impl Executor {
         Some(Ok(()))
     }
 
-    fn execute(&mut self) -> Result<(), Error> {
+    fn execute(&mut self, parser: &dyn Visited) -> Result<(), Error> {
         // Keep running as long as we are making progress:
         // - consuming new items
         // -
@@ -751,7 +787,7 @@ impl Executor {
 
             if best_size == 0 {
                 self.kill_in_scope(Scope::ALL);
-                return Err(self.complain_about(front).into());
+                return Err(self.complain_about(front, parser).into());
             }
 
             self.stage_2(best_size);
@@ -778,7 +814,7 @@ impl Executor {
         Ok(())
     }
 
-    fn complain_about(&self, unexpected: &OsString) -> Problem {
+    fn complain_about(&self, unexpected: &OsString, parser: &dyn Visited) -> Problem {
         match lex_os_arg(unexpected) {
             Arg::Named {
                 name: unexpected,
@@ -794,6 +830,19 @@ impl Executor {
                             unexpected: unexpected.into_owned(),
                         };
                     }
+                }
+
+                // is this an only once name?
+                let mut visitor = IsKnownName::new(&unexpected);
+                parser.visit(&mut visitor);
+                match visitor.known {
+                    visitors::KnownName::No => {}
+                    visitors::KnownName::Single => {
+                        return Problem::OnlyOnce {
+                            name: unexpected.clone().into_owned(),
+                        };
+                    }
+                    visitors::KnownName::Many => {}
                 }
             }
             Arg::Pos { value } => todo!(),
@@ -1267,8 +1316,8 @@ impl RawCtx {
         })
     }
 
-    fn execute(self: &Ctx) -> Result<(), Error> {
-        Executor::new(self.clone()).execute()
+    fn execute(self: &Ctx, parser: &dyn Visited) -> Result<(), Error> {
+        Executor::new(self.clone()).execute(parser)
     }
 }
 

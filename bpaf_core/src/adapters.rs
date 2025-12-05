@@ -1,12 +1,14 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task,
+    Bp, Error, Item, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
-    make_handle, r#yield,
+    make_handle,
+    traits::Group,
+    r#yield,
 };
-use std::{borrow::Cow, ffi::OsString, marker::PhantomData};
+use std::{borrow::Cow, marker::PhantomData};
 
 pub(crate) struct Map<P, F, T, R> {
     pub(crate) inner: P,
@@ -18,6 +20,12 @@ impl<T: 'static, P: Parser<T>, R: 'static, F: Fn(T) -> R> Parser<R> for Map<P, F
     async fn run(&self, ctx: crate::Ctx) -> Result<R, crate::Error> {
         let t = self.inner.run(ctx).await?;
         Ok((self.map)(t))
+    }
+}
+
+impl<T: 'static, P: Parser<T>, F, R> Visited for Map<P, F, T, R> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor);
     }
 }
 
@@ -43,8 +51,17 @@ impl<T: 'static> Parser<Option<T>> for Optional<T> {
     }
 }
 
+impl<T: 'static> Visited for Optional<T> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}
+
 pub struct OptionParser<T> {
     pub(crate) inner: RcParser<T>,
+    pub(crate) help: Option<String>,
 }
 
 impl<T: 'static> Bp<OptionParser<T>> {
@@ -55,7 +72,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        let executor_res = ctx.execute();
+        let executor_res = ctx.execute(&self.0.inner);
         let res = handle.take();
         if res.is_ok() {
             executor_res?;
@@ -84,10 +101,21 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
             let info = ctx.make_child_info(Kind::Prod);
             ctx.add_task(Task { act, info });
         };
-        let res = ctx.parse_literal_and(&self.0.names, &populate).await;
+        let res = ctx.parse_literal_and(&self.0.names, &populate, inner).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
         res?;
         handle.take().map_err(handle_subparser_complete)
+    }
+}
+
+impl<T: 'static> Visited for Bp<Command<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        let item = Item::Command {
+            names: &self.0.names,
+            help: self.0.inner.help.as_deref(),
+            inner: &self.0.inner.inner,
+        };
+        visitor.item(item);
     }
 }
 
@@ -129,19 +157,27 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
         Ok(res)
     }
 }
+impl<T: 'static> Visited for Bp<Many<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Many);
+        self.0.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}
 
 pub struct Command<T> {
     names: Vec<Cow<'static, str>>,
     inner: OptionParser<T>,
 }
 
-pub struct Guard<P, F> {
+pub struct Guard<T, P, F> {
+    pub(crate) ctx: PhantomData<T>,
     pub(crate) inner: P,
     pub(crate) check: F,
     pub(crate) message: &'static str,
 }
 
-impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Bp<Guard<P, F>> {
+impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Bp<Guard<T, P, F>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         let r = self.0.inner.run(ctx.clone()).await?;
 
@@ -153,5 +189,11 @@ impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Bp<Guard<P, F>> 
                 range: ctx.leaf_consumed(),
             }))
         }
+    }
+}
+
+impl<F, T: 'static, P: Parser<T>> Visited for Bp<Guard<T, P, F>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.0.inner.visit(visitor);
     }
 }

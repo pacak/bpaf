@@ -127,5 +127,8 @@ fn arrange<T: 'static>(
 
             Box::new(|| Ok([ha.take(), hb.take(), hc.take(), hd.take()]))
         });
-    Con { run }
+    Con {
+        run,
+        visits: Vec::new(),
+    }
 }
