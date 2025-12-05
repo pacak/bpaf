@@ -2,6 +2,7 @@ use std::{borrow::Cow, ffi::OsString};
 
 use crate::{
     Metavar, Name,
+    arg::Adjacency,
     complete::{CompleteReply, CompleteReq, render_completions},
     utils::Vec1,
 };
@@ -35,6 +36,19 @@ pub enum Problem {
         group: String,
         name: char,
         ix: u32,
+    },
+    DidYouMean {
+        target: Name<'static>,
+        best: Name<'static>,
+    },
+    DidYouMeanCmd {
+        target: String,
+        best: String,
+    },
+    ExpectedFlag {
+        name: Name<'static>,
+        adj: Adjacency,
+        value: OsString,
     },
 }
 
@@ -94,6 +108,19 @@ impl std::fmt::Display for Problem {
                 write!(
                     f,
                     "can't parse `{name}` (item {ix}) while parsing `{group}` as a set of short flags"
+                )
+            }
+            Problem::DidYouMean { target, best } => {
+                write!(f, "no such flag: `{target}`, did you mean `{best}`")
+            }
+            Problem::DidYouMeanCmd { target, best } => {
+                write!(f, "no such command: `{target}`, did you mean `{best}`")
+            }
+            Problem::ExpectedFlag { name, adj, value } => {
+                write!(
+                    f,
+                    "the app can accept `{name}` as a flag, but got `{name}{adj}{}`",
+                    value.to_string_lossy()
                 )
             }
         }

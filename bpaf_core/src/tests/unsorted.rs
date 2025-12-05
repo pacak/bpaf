@@ -290,3 +290,42 @@ fn simple_complete_for_value() {
         r#"CompReply([Value { group: None, value: "42", hint: None }])"#
     );
 }
+
+#[test]
+fn flag_or_arg() {
+    let a = short('a').req_flag(0);
+    let b = short('a').argument::<usize>("A");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-a4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 0);
+
+    let r = parser.run_inner("-a=4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a 4").unwrap();
+    assert_eq!(r, 4);
+}
+
+#[test]
+fn arg_or_flag() {
+    // behavior should be identical to `flag_or_arg`
+    let a = short('a').req_flag(0);
+    let b = short('a').argument::<usize>("A");
+    let parser = construct!([b, a]).to_options();
+
+    let r = parser.run_inner("-a4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 0);
+
+    let r = parser.run_inner("-a=4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a 4").unwrap();
+    assert_eq!(r, 4);
+}

@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    ffi::{OsStr, OsString},
-};
+use std::{borrow::Cow, ffi::OsStr};
 
 use crate::Name;
 
@@ -11,6 +8,14 @@ pub enum Adjacency {
     Immediate,
     // `-f=output`, `--foo=output`
     WithEq,
+}
+impl std::fmt::Display for Adjacency {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Adjacency::Immediate => Ok(()),
+            Adjacency::WithEq => f.write_str("="),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -37,10 +42,11 @@ impl Arg<'_> {
             },
         }
     }
-    pub(crate) fn encode(&self) -> OsString {
+    #[cfg(test)]
+    pub(crate) fn encode(&self) -> std::ffi::OsString {
         match self {
             Arg::Named { name, value } => {
-                let mut res = OsString::new();
+                let mut res = std::ffi::OsString::new();
                 match name {
                     Name::Long(name) => {
                         res.push("--");

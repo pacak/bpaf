@@ -314,8 +314,13 @@ impl RawCtx {
     pub(self) fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
         match arg {
             Arg::Named { name, value } => match value {
-                Some(val) => {
-                    todo!("Expected flag {name:?}, got value {val:?}");
+                Some((adj, val)) => {
+                    let problem = Problem::ExpectedFlag {
+                        name: name.clone().into_owned(),
+                        adj: *adj,
+                        value: val.clone().into_owned(),
+                    };
+                    Err(Error::Problem(problem))
                 }
                 None => {
                     self.consume(1);

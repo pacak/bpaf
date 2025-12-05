@@ -100,3 +100,42 @@ impl<T> std::ops::Add for Vec1<T> {
         })
     }
 }
+
+/// Damerau-Levenshtein distance function
+pub(crate) fn damerau_levenshtein(a: &str, b: &str) -> f32 {
+    #![allow(clippy::many_single_char_names)]
+    // working with bytes should give results that is close enough while avoiding bloat
+    // from utf8 parsing machinery
+    let (a, b) = (a.as_bytes(), b.as_bytes());
+    let (a_len, b_len) = (a.len(), b.len());
+
+    let mut d = vec![0; (a_len + 1) * (b_len + 1)];
+
+    let ix = |ib, ia| a_len * ia + ib;
+
+    for i in 0..=a_len {
+        d[ix(i, 0)] = i;
+    }
+
+    for j in 0..=b_len {
+        d[ix(0, j)] = j;
+    }
+
+    let mut pa = 0;
+    let mut pb = 0;
+    for (i, ca) in a.iter().copied().enumerate() {
+        for (j, cb) in b.iter().copied().enumerate() {
+            let cost = usize::from(ca != cb);
+            d[ix(i + 1, j + 1)] = (d[ix(i, j + 1)] + 1)
+                .min(d[ix(i + 1, j)] + 1)
+                .min(d[ix(i, j + 1 - 1)] + cost);
+            if i > 0 && j > 0 && ca == pb && cb == pa {
+                d[ix(i + 1, j + 1)] = d[ix(i + 1, j + 1)].min(d[ix(i - 1, j - 1)] + 1);
+            }
+            pb = cb;
+        }
+        pa = ca;
+    }
+
+    d[ix(a_len, b_len)] as f32 / a_len.max(b_len) as f32
+}

@@ -13,7 +13,7 @@ use crate::{
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
-    visitors::IsKnownName,
+    visitors::{BetterName, IsAcceptedOnce, ValidCommand},
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -832,26 +832,31 @@ impl Executor {
                     }
                 }
 
-                // is this an only once name?
-                let mut visitor = IsKnownName::new(&unexpected);
-                parser.visit(&mut visitor);
-                match visitor.known {
-                    visitors::KnownName::No => {}
-                    visitors::KnownName::Single => {
-                        return Problem::OnlyOnce {
-                            name: unexpected.clone().into_owned(),
-                        };
-                    }
-                    visitors::KnownName::Many => {}
+                // is this an only once name or a typo?
+                let once = IsAcceptedOnce::new(&unexpected);
+                let better = match &unexpected {
+                    Name::Short(_) => None,
+                    Name::Long(cow) => Some(BetterName::new(cow)),
+                };
+                let mut visitors = (once, better);
+                parser.visit(&mut visitors);
+                if let Some(problem) = visitors.0.into_problem() {
+                    return problem;
+                }
+                if let Some(problem) = visitors.1.and_then(|v| v.into_problem()) {
+                    return problem;
                 }
             }
-            Arg::Pos { value } => todo!(),
+            Arg::Pos { value } => {
+                if let Some(target) = value.to_str() {
+                    let mut is_command = ValidCommand::new(target);
+                    parser.visit(&mut is_command);
+                    if let Some(problem) = is_command.into_problem() {
+                        return problem;
+                    }
+                }
+            }
         }
-        // 1. check conflicts
-        // 2. can be passed only once
-        // 3. look for typos
-        // 4. otherwise - totally unexpected
-
         Problem::Unconsumed {
             value: unexpected.clone(),
         }
