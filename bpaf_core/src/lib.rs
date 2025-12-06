@@ -222,7 +222,7 @@ enum TChange {
     Remove,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum TTarget {
     Arg(Name<'static>),
     Flag(Name<'static>),
@@ -399,13 +399,12 @@ pub struct RawCtx {
 pub type Ctx = Rc<RawCtx>;
 
 #[derive(Debug)]
+/// "we could have been consume `name`, but we consumed whatever was at `pos` instead
 enum Conflict {
     /// Named item - flag, argument
     Named { pos: u32, name: Name<'static> },
     /// Literal - command
     Lit { pos: u32, name: Cow<'static, str> },
-    /// Positional item
-    Pos { pos: u32 },
 }
 
 #[derive(Debug)]
@@ -429,9 +428,28 @@ impl RawCtx {
         (cur.parent_id, cur.id)
     }
 
+    #[inline(never)]
+    pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
+        // The only possible scenario for a consuming leaf
+        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
+            return false;
+        }
+        // if parser fails to produce a result due to validation or `FromStr`
+        // we reset `consumed` back to zero so more conservative parallel branches
+        // that did managed to produce a result can succeed
+        if !success {
+            self.current_task.borrow_mut().consumed = 0;
+        }
+
+        r#yield().await;
+        // surviving gets Pass, out-consumed - NoPass, but we want to preserve the
+        // error message so return true only when there's an OK result we don't want.
+        matches!(&*self.wakeup_reason.borrow(), Reason::NoPass) && success
+    }
+
     /// After consumption when called from a leaf node returns what was consumed
     pub(crate) fn leaf_range(&self) -> Option<(u32, u32)> {
-        if !matches!(&*self.wakeup_reason.borrow(), Reason::Pass) {
+        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
             return None;
         }
         let start = self.cursor.get() as u32;
@@ -460,10 +478,8 @@ impl RawCtx {
         self: &Rc<Self>,
         parser: Bp<RcParser<T>>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
-        let ctx = self.clone();
         let (out, handle) = make_handle();
-        let action = Box::pin(async move { out.set(Some(parser.0.run(ctx).await)) });
-        (handle, action)
+        (handle, self.make_act(out, parser.0))
     }
     fn make_act<T: 'static>(
         self: &Rc<Self>,
@@ -471,7 +487,13 @@ impl RawCtx {
         parser: RcParser<T>,
     ) -> Pin<Box<impl Future<Output = ()> + 'static>> {
         let ctx = self.clone();
-        Box::pin(async move { out.set(Some(parser.run(ctx).await)) })
+        Box::pin(async move {
+            let mut res = parser.run(ctx.clone()).await;
+            if ctx.is_outconsumed_leaf(res.is_ok()).await {
+                res = Err(Error::OUTCONSUMED);
+            }
+            out.set(Some(res))
+        })
     }
 
     fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
@@ -548,15 +570,12 @@ impl RawCtx {
     ///
     /// Polls a [`Task`] with shared [`TaskInfo`] set to the right value
     fn poll_in_context(&self, task: &mut Task) -> bool {
-        use std::{
-            ops::DerefMut,
-            task::{Context, Waker},
-        };
+        use std::task::{Context, Waker};
         const NOOP: Context<'static> = Context::from_waker(Waker::noop());
-        std::mem::swap(&mut task.info, self.current_task.borrow_mut().deref_mut());
+        std::mem::swap(&mut task.info, &mut self.current_task.borrow_mut());
         #[expect(const_item_mutation)]
         let done = task.act.as_mut().poll(&mut NOOP).is_ready();
-        std::mem::swap(&mut task.info, self.current_task.borrow_mut().deref_mut());
+        std::mem::swap(&mut task.info, &mut self.current_task.borrow_mut());
         done
     }
 
