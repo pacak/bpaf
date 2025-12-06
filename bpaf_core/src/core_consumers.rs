@@ -7,6 +7,16 @@ pub(crate) type AnyCheck = Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>
 pub(crate) type AnyResult = Option<Box<dyn std::any::Any>>;
 use crate::*;
 
+fn view_reactor_flags(reactor: &mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder> {
+    &mut reactor.flags
+}
+
+fn view_reactor_args(reactor: &mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder> {
+    &mut reactor.args
+}
+
+type NamedPeckingOrderSelector = fn(&mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder>;
+
 impl RawCtx {
     #[inline(never)]
     pub(crate) fn add_names(
@@ -15,12 +25,10 @@ impl RawCtx {
         selector: NamedPeckingOrderSelector,
     ) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
+        let mut triggers = self.triggers.borrow_mut();
+        let named = selector(&mut triggers);
         for name in names {
-            match name {
-                Name::Short(c) => short.entry(*c).or_default().insert(parent, id),
-                Name::Long(s) => long.entry(s.clone()).or_default().insert(parent, id),
-            }
+            named.entry(name.clone()).or_default().insert(parent, id);
         }
         Ok(())
         //
@@ -58,29 +66,18 @@ impl RawCtx {
         selector: NamedPeckingOrderSelector,
     ) -> Result<(), Error> {
         let (parent, id) = self.task_parent_and_id();
-        let (mut short, mut long) = RefMut::map_split(self.triggers.borrow_mut(), selector);
+
+        let mut triggers = self.triggers.borrow_mut();
+        let named = selector(&mut triggers);
 
         use std::collections::hash_map::Entry;
         for name in names {
-            match name {
-                Name::Short(c) => {
-                    if let Entry::Occupied(mut e) = short.entry(*c) {
-                        if e.get_mut().remove(parent, id) {
-                            e.remove();
-                        }
-                    } else if cfg!(debug_assertions) {
-                        panic!("Tried to remove missing {name:?}");
-                    }
+            if let Entry::Occupied(mut e) = named.entry(name.clone()) {
+                if e.get_mut().remove(parent, id) {
+                    e.remove();
                 }
-                Name::Long(s) => {
-                    if let Entry::Occupied(mut e) = long.entry(s.clone()) {
-                        if e.get_mut().remove(parent, id) {
-                            e.remove();
-                        }
-                    } else if cfg!(debug_assertions) {
-                        panic!("Tried to remove missing {name:?}");
-                    }
-                }
+            } else if cfg!(debug_assertions) {
+                panic!("Tried to remove missing {name:?}");
             }
         }
         Ok(())

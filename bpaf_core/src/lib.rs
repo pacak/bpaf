@@ -19,7 +19,7 @@ use crate::{
 pub use crate::{consumers::*, error::*, traits::*};
 use std::{
     borrow::Cow,
-    cell::{Cell, RefCell, RefMut},
+    cell::{Cell, RefCell},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ffi::{OsStr, OsString},
     pin::Pin,
@@ -392,30 +392,6 @@ enum Reason {
     ChildProgress(Vec1<Id>),
     Complete(CompleteReq),
 }
-
-fn view_reactor_flags(
-    reactor: &mut Triggers,
-) -> (
-    &mut HashMap<char, PeckingOrder>,
-    &mut HashMap<Cow<'static, str>, PeckingOrder>,
-) {
-    (&mut reactor.short_flags, &mut reactor.long_flags)
-}
-
-fn view_reactor_args(
-    reactor: &mut Triggers,
-) -> (
-    &mut HashMap<char, PeckingOrder>,
-    &mut HashMap<Cow<'static, str>, PeckingOrder>,
-) {
-    (&mut reactor.short_args, &mut reactor.long_args)
-}
-
-type LongNamePeckingOrder = HashMap<Cow<'static, str>, PeckingOrder>;
-type ShortNamePeckingOrder = HashMap<char, PeckingOrder>;
-
-type NamedPeckingOrderSelector =
-    fn(&mut Triggers) -> (&mut ShortNamePeckingOrder, &mut LongNamePeckingOrder);
 
 fn make_handle<T: 'static>() -> (Rc<Cell<Option<Result<T, Error>>>>, JoinHandle<T>) {
     let result = Rc::new(Cell::new(None));
@@ -1278,14 +1254,10 @@ use pecking::PeckingOrder;
 
 #[derive(Default, Debug)]
 struct Triggers {
-    // -f
-    short_flags: HashMap<char, PeckingOrder>,
-    // --foo
-    long_flags: HashMap<Cow<'static, str>, PeckingOrder>,
-    // -f=bar
-    short_args: HashMap<char, PeckingOrder>,
-    // `--foo=bar`
-    long_args: HashMap<Cow<'static, str>, PeckingOrder>,
+    // `-f`, `--foo`
+    flags: HashMap<Name<'static>, PeckingOrder>,
+    // `-f=bar` `--foo=bar`, `-fbar`
+    args: HashMap<Name<'static>, PeckingOrder>,
     // `foo`
     pos: PeckingOrder,
     // `-1`
@@ -1339,7 +1311,7 @@ struct Group(Vec<char>);
 
 impl<'a> Mixer<'a> {
     fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
-        self.pecking_push(triggers.short_flags.get(name));
+        self.pecking_push(triggers.flags.get(&Name::Short(*name)));
     }
 
     fn clear(&mut self) {
@@ -1357,15 +1329,21 @@ impl<'a> Mixer<'a> {
         self.pecking_push(Some(&triggers.any));
         match arg {
             Arg::Named {
-                name: nn @ Name::Long(name),
+                name: Name::Long(name),
                 value: None,
             } => {
-                for (n, po) in triggers.long_args.iter() {
+                for (n, po) in triggers.args.iter() {
+                    let Name::Long(n) = n else {
+                        continue;
+                    };
                     if n.starts_with(name.as_ref()) {
                         self.pecking_push(Some(po));
                     }
                 }
-                for (n, po) in triggers.long_flags.iter() {
+                for (n, po) in triggers.flags.iter() {
+                    let Name::Long(n) = n else {
+                        continue;
+                    };
                     if n.starts_with(name.as_ref()) {
                         self.pecking_push(Some(po));
                     }
@@ -1374,11 +1352,11 @@ impl<'a> Mixer<'a> {
                 (CompleteReq::Name { prefix }, None)
             }
             Arg::Named {
-                name: Name::Short(s),
+                name: name @ Name::Short(_),
                 value: None,
             } => {
-                self.pecking_push(triggers.short_args.get(s));
-                self.pecking_push(triggers.short_flags.get(s));
+                self.pecking_push(triggers.args.get(name));
+                self.pecking_push(triggers.flags.get(name));
                 (CompleteReq::Name { prefix: None }, None)
             }
             Arg::Named {
@@ -1386,10 +1364,7 @@ impl<'a> Mixer<'a> {
                 value: Some((adj, val)),
             } => {
                 self.pecking.clear(); // wipe triggers.any since they can't fire // TODO - why?
-                self.pecking_push(match name {
-                    Name::Short(s) => triggers.short_args.get(s),
-                    Name::Long(l) => triggers.long_args.get(l.as_ref()),
-                });
+                self.pecking_push(triggers.args.get(name));
                 let req = match val.to_str() {
                     Some(p) => CompleteReq::Literal { prefix: p.into() },
                     None => todo!(),
@@ -1420,19 +1395,28 @@ impl<'a> Mixer<'a> {
                     }
                 }
                 if short {
-                    for f in triggers.short_args.values() {
-                        self.pecking_push(Some(f));
+                    for (n, f) in triggers.args.iter() {
+                        if matches!(n, Name::Short(_)) {
+                            self.pecking_push(Some(f));
+                        }
                     }
-                    for f in triggers.short_flags.values() {
-                        self.pecking_push(Some(f));
+                    for (n, f) in triggers.flags.iter() {
+                        if matches!(n, Name::Short(_)) {
+                            self.pecking_push(Some(f));
+                        }
                     }
                 }
+                // TODO - can avoid iterating twice here
                 if long {
-                    for f in triggers.long_args.values() {
-                        self.pecking_push(Some(f));
+                    for (n, f) in triggers.args.iter() {
+                        if matches!(n, Name::Long(_)) {
+                            self.pecking_push(Some(f));
+                        }
                     }
-                    for f in triggers.long_flags.values() {
-                        self.pecking_push(Some(f));
+                    for (n, f) in triggers.flags.iter() {
+                        if matches!(n, Name::Long(_)) {
+                            self.pecking_push(Some(f));
+                        }
                     }
                 }
                 if lit {
@@ -1452,38 +1436,40 @@ impl<'a> Mixer<'a> {
         self.pecking_push(Some(&triggers.any));
         match arg {
             Arg::Named {
-                name: Name::Long(name),
+                name: name @ Name::Long(_),
                 value: _,
             } => {
-                self.pecking_push(triggers.long_args.get(name));
-                self.pecking_push(triggers.long_flags.get(name));
+                self.pecking_push(triggers.args.get(name));
+                self.pecking_push(triggers.flags.get(name));
             }
             Arg::Named {
-                name: Name::Short(name),
+                name: name @ Name::Short(_),
                 value: None | Some((Adjacency::WithEq, _)),
             } => {
-                self.pecking_push(triggers.short_args.get(name));
-                self.pecking_push(triggers.short_flags.get(name));
+                self.pecking_push(triggers.args.get(name));
+                self.pecking_push(triggers.flags.get(name));
             }
             Arg::Named {
-                name: Name::Short(name),
+                name: name @ Name::Short(short_name),
                 value: Some((Adjacency::Immediate, val)),
             } => {
                 let prev_len = self.pecking.len();
-                self.pecking_push(triggers.short_args.get(name));
-                if let Some(_) = triggers.short_flags.get(name)
+                self.pecking_push(triggers.args.get(name));
+                if triggers.flags.contains_key(name)
                     && self.pecking.len() == prev_len
                     && let Some(chars) = val.to_str()
-                    && chars.chars().all(|k| triggers.short_flags.contains_key(&k))
+                    && chars
+                        .chars()
+                        .all(|k| triggers.flags.contains_key(&Name::Short(k)))
                 {
                     // There's no way to parse it as a single argument, but it might work
                     // if we treat it as a merged group of single letter flags
 
-                    let mut group = vec![*name];
+                    let mut group = vec![*short_name];
                     group.extend(chars.chars());
                     return Some(Group(group));
                 } else {
-                    self.pecking_push(triggers.short_flags.get(name));
+                    self.pecking_push(triggers.flags.get(name));
                 }
             }
             Arg::Pos { value } => {
@@ -1581,7 +1567,7 @@ impl<'a> Mixer<'a> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
