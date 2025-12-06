@@ -1,6 +1,9 @@
 use std::{marker::PhantomData, str::FromStr};
 
-use crate::{complete::complete_value, os_str::parse_os_str};
+use crate::{
+    complete::{CompleteReply, complete_value},
+    os_str::parse_os_str,
+};
 
 use super::*;
 
@@ -321,21 +324,32 @@ pub fn positional<T: 'static>(metavar: &'static str) -> Bp<Positional<T>> {
     })
 }
 
+fn complete_pos(err: Error, meta: Metavar) -> Error {
+    let Error::CompReq(ref comp) = err else {
+        return err;
+    };
+    match comp {
+        CompleteReq::Anything => Error::CompReply(Vec1::new(CompleteReply::Pos { meta })),
+        CompleteReq::Name { .. } | CompleteReq::Literal { .. } | CompleteReq::Value(..) => err,
+    }
+}
+
 impl<T> Parser<T> for Bp<Positional<T>>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        match ctx.parse_pos().await?.map(parse_os_str) {
-            Some(Ok(t)) => Ok(t),
-            Some(Err(err)) => todo!("{err:?}"),
-            None => {
-                let item = MissingItem::Pos {
-                    meta: self.0.metavar,
-                };
-                Err(Error::missing(item))
-            }
+        let res = ctx.parse_pos().await;
+        let res = res.map_err(|err| complete_pos(err, self.0.metavar));
+
+        if let Some(os) = res? {
+            Ok(parse_os_str(os)?)
+        } else {
+            let item = MissingItem::Pos {
+                meta: self.0.metavar,
+            };
+            Err(Error::missing(item))
         }
     }
 }

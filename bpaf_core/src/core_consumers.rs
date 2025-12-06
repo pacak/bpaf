@@ -70,6 +70,7 @@ impl RawCtx {
             if !matches!(res, Ok(None)) {
                 break res;
             } else {
+                self.pass.set(true);
                 r#yield().await;
             }
         };

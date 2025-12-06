@@ -118,6 +118,9 @@ pub(crate) enum CompleteReply {
         value: String,
         hint: Option<String>,
     },
+    Pos {
+        meta: Metavar,
+    },
 }
 
 #[derive(Debug, Clone, Ord, Eq, PartialEq, PartialOrd)]
@@ -167,6 +170,7 @@ pub(crate) fn render_completions_int(
                 writeln!(&mut out, "{value} ({hint:?})")?
             }
             CompleteReply::Command { name, help } => writeln!(&mut out, "{name} ({help:?})")?,
+            CompleteReply::Pos { meta } => write!(&mut out, "{meta:?}")?, // TODO
         }
     }
     Ok(out)

@@ -395,6 +395,10 @@ pub struct RawCtx {
     /// We keep track of all the early terminated branches, saving each termination along with
     /// the position - from that we'll deduce conflict info
     conflicts: RefCell<Vec<Conflict>>,
+
+    /// During stage 1 task can indicate if mixer should skip this task
+    /// and proceed to the next task in the same product
+    pass: Cell<bool>,
 }
 pub type Ctx = Rc<RawCtx>;
 
@@ -975,10 +979,10 @@ impl Executor {
             let task = &mut self.tasks.get_mut(&next.id).unwrap();
             let r = self.ctx.poll_in_context(task);
             assert!(!r);
-            if task.info.consumed > 0 {
-                self.to_wake.push(next.id);
-            } else {
+            if self.ctx.pass.replace(false) {
                 mixer.pass();
+            } else {
+                self.to_wake.push(next.id);
             }
 
             best_size = best_size.max(task.info.consumed);
@@ -1389,6 +1393,7 @@ impl RawCtx {
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
+            pass: Cell::new(false),
         })
     }
 
