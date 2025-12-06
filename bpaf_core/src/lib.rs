@@ -375,10 +375,6 @@ pub struct RawCtx {
     ///
     /// Holds other operations that might need access to tasks or other internal structures
     pending_ops: RefCell<VecDeque<Op>>,
-    /// Reference to triggers used by the executor
-    ///
-    /// Not available (borrowed by executor) during the first stage
-    triggers: RefCell<Triggers>,
     /// Early exit ranges
     ///
     /// When there's no matching triggers executor will try to terminate anything inside of
@@ -605,6 +601,7 @@ struct Executor {
     to_wake: Vec<Id>,
     to_propagate: VecDeque<(Id, Parent, u32)>,
     sums: BTreeMap<Id, Scope>,
+    triggers: Triggers,
 }
 
 impl Executor {
@@ -615,6 +612,7 @@ impl Executor {
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
             sums: BTreeMap::new(),
+            triggers: Default::default(),
         }
     }
 
@@ -639,8 +637,7 @@ impl Executor {
             }));
 
             let mut mixer = mixer_capacity.reuse_capacity();
-            let triggers = self.ctx.triggers.borrow();
-            mixer.populate_short_flag(&name, &triggers);
+            mixer.populate_short_flag(&name, &self.triggers);
             let mut cnt = 0;
             while let Some(next) = mixer.consume_next_item(&self.tasks) {
                 cnt += 1;
@@ -664,7 +661,6 @@ impl Executor {
                 return Err(Error::Problem(problem));
             }
             mixer_capacity = mixer.reuse_capacity();
-            drop(triggers);
             self.stage_2(1);
             self.propagate(Reason::Push);
             self.process_scheduled();
@@ -698,7 +694,7 @@ impl Executor {
                     parent,
                     id,
                 } => {
-                    let triggers = &mut self.ctx.triggers.borrow_mut();
+                    let triggers = &mut self.triggers;
 
                     fn remove_from<K: Eq + std::hash::Hash>(
                         map: &mut HashMap<K, PeckingOrder>,
@@ -756,10 +752,9 @@ impl Executor {
         let mut mixer = Mixer::default();
         let arg = lex_os_arg(arg);
 
-        let triggers = self.ctx.triggers.borrow();
         // TODO - populate_prefix doesn't really have to be a method on Mixer
         // it can be a standalone method
-        let (reason, mgroup) = mixer.populate_prefix(&arg, &triggers);
+        let (reason, mgroup) = mixer.populate_prefix(&arg, &self.triggers);
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
 
         // Normally we traverse each pecking order at once since only sum items can run
@@ -773,7 +768,6 @@ impl Executor {
             }
             mixer.clear();
         }
-        drop(triggers);
 
         if self.to_wake.is_empty() {
             return Some(Err(Error::CompReply(Vec1::default())));
@@ -952,9 +946,8 @@ impl Executor {
         mixer_capacity: Mixer<'static>,
     ) -> (u32, Mixer<'static>, Option<Group>) {
         let mut mixer = mixer_capacity.reuse_capacity();
-        let reactor = self.ctx.triggers.borrow();
         let arg = lex_os_arg(front);
-        let mgroup = mixer.populate(&arg, &reactor);
+        let mgroup = mixer.populate(&arg, &self.triggers);
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(arg.into_owned()));
 
@@ -1375,7 +1368,6 @@ impl RawCtx {
             early_exit: Default::default(),
             pending_ops: Default::default(),
             next_free: Cell::new(1),
-            triggers: Default::default(),
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
         })
