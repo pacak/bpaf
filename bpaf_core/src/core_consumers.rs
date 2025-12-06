@@ -7,103 +7,31 @@ pub(crate) type AnyCheck = Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>
 pub(crate) type AnyResult = Option<Box<dyn std::any::Any>>;
 use crate::*;
 
-fn view_reactor_flags(reactor: &mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder> {
-    &mut reactor.flags
-}
-
-fn view_reactor_args(reactor: &mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder> {
-    &mut reactor.args
-}
-
-type NamedPeckingOrderSelector = fn(&mut Triggers) -> &mut HashMap<Name<'static>, PeckingOrder>;
-
 impl RawCtx {
-    #[inline(never)]
-    pub(crate) fn add_names(
-        &self,
-        names: &[Name<'static>],
-        selector: NamedPeckingOrderSelector,
-    ) -> Result<(), Error> {
+    fn with_trigger(&self, change: TChange, items: impl IntoIterator<Item = TTarget>) {
         let (parent, id) = self.task_parent_and_id();
-        let mut triggers = self.triggers.borrow_mut();
-        let named = selector(&mut triggers);
-        for name in names {
-            named.entry(name.clone()).or_default().insert(parent, id);
+        let mut pending = self.pending_ops.borrow_mut();
+        for target in items {
+            pending.push_back(Op::Trigger {
+                change,
+                target,
+                parent,
+                id,
+            });
         }
-        Ok(())
-        //
-    }
-    pub(crate) fn add_literals(&self, names: &[Cow<'static, str>]) {
-        let (parent, id) = self.task_parent_and_id();
-        let mut triggers = self.triggers.borrow_mut();
-        for name in names {
-            triggers
-                .literal
-                .entry(name.clone())
-                .or_default()
-                .insert(parent, id);
-        }
-    }
-    pub(crate) fn remove_literals(&self, names: &[Cow<'static, str>]) {
-        use std::collections::hash_map::Entry;
-        let (parent, id) = self.task_parent_and_id();
-        let mut triggers = self.triggers.borrow_mut();
-        for name in names {
-            if let Entry::Occupied(mut e) = triggers.literal.entry(name.clone()) {
-                if e.get_mut().remove(parent, id) {
-                    e.remove();
-                }
-            } else {
-                todo!();
-            }
-        }
-    }
-
-    #[inline(never)]
-    pub(crate) fn remove_names(
-        &self,
-        names: &[Name<'static>],
-        selector: NamedPeckingOrderSelector,
-    ) -> Result<(), Error> {
-        let (parent, id) = self.task_parent_and_id();
-
-        let mut triggers = self.triggers.borrow_mut();
-        let named = selector(&mut triggers);
-
-        use std::collections::hash_map::Entry;
-        for name in names {
-            if let Entry::Occupied(mut e) = named.entry(name.clone()) {
-                if e.get_mut().remove(parent, id) {
-                    e.remove();
-                }
-            } else if cfg!(debug_assertions) {
-                panic!("Tried to remove missing {name:?}");
-            }
-        }
-        Ok(())
     }
 
     pub(crate) fn consume(&self, cnt: u32) {
         self.current_task.borrow_mut().consumed += cnt;
     }
 
-    fn add_to_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
-        let (parent, id) = self.task_parent_and_id();
-        lens(&mut self.triggers.borrow_mut()).insert(parent, id);
-    }
-
-    fn remove_from_po(&self, lens: fn(&mut Triggers) -> &mut PeckingOrder) {
-        let (parent, id) = self.task_parent_and_id();
-        lens(&mut self.triggers.borrow_mut()).remove(parent, id);
-    }
-
     pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
-        self.add_to_po(|triggers| &mut triggers.pos);
+        self.with_trigger(TChange::Add, [TTarget::Pos]);
         r#yield().await;
         let res = self
             .try_to_parse_arg(None, |arg| self.parse_pos_consume(arg))
             .await;
-        self.remove_from_po(|triggers| &mut triggers.pos);
+        self.with_trigger(TChange::Remove, [TTarget::Pos]);
         if self.is_task_terminated() {
             let pos = self.cursor.get() as u32;
             self.conflicts.borrow_mut().push(Conflict::Pos { pos });
@@ -124,7 +52,7 @@ impl RawCtx {
     }
 
     pub(crate) async fn parse_any(&self, check: AnyCheck) -> Result<AnyResult, Error> {
-        self.add_to_po(|triggers| &mut triggers.any);
+        self.with_trigger(TChange::Add, [TTarget::Any]);
         r#yield().await;
         let res = loop {
             println!("Trying to run Any");
@@ -136,7 +64,7 @@ impl RawCtx {
                 break res;
             }
         };
-        self.remove_from_po(|triggers| &mut triggers.any);
+        self.with_trigger(TChange::Remove, [TTarget::Any]);
         if self.is_task_terminated() {
             let pos = self.cursor.get() as u32;
             self.conflicts.borrow_mut().push(Conflict::Pos { pos });
@@ -161,12 +89,12 @@ impl RawCtx {
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
     ) -> Result<bool, Error> {
-        self.add_names(names, view_reactor_flags)?;
+        self.with_trigger(TChange::Add, names.iter().cloned().map(TTarget::Flag));
         r#yield().await;
         let res = self
             .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate, parser))
             .await;
-        self.remove_names(names, view_reactor_flags)?;
+        self.with_trigger(TChange::Remove, names.iter().cloned().map(TTarget::Flag));
         if self.is_task_terminated() {
             self.record_conflict_with_names(names);
             Err(Error::OUTCONSUMED)
@@ -184,12 +112,12 @@ impl RawCtx {
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
     ) -> Result<bool, Error> {
-        self.add_literals(names);
+        self.with_trigger(TChange::Add, names.iter().cloned().map(TTarget::Literal));
         r#yield().await;
         let res = self
             .try_to_parse_arg(false, |_arg| self.parse_nested(1, populate, parser))
             .await;
-        self.remove_literals(names);
+        self.with_trigger(TChange::Remove, names.iter().cloned().map(TTarget::Literal));
         if self.is_task_terminated() {
             Err(Error::OUTCONSUMED)
         } else {
@@ -217,12 +145,12 @@ impl RawCtx {
         &self,
         names: &[Name<'static>],
     ) -> Result<Option<OsString>, Error> {
-        self.add_names(names, view_reactor_args)?;
+        self.with_trigger(TChange::Add, names.iter().cloned().map(TTarget::Arg));
         r#yield().await;
         let res = self
             .try_to_parse_arg(None, |arg| self.parse_arg_consume(arg))
             .await;
-        self.remove_names(names, view_reactor_args)?;
+        self.with_trigger(TChange::Remove, names.iter().cloned().map(TTarget::Arg));
         if self.is_task_in_conflict() {
             self.record_conflict_with_names(names);
         }
@@ -290,12 +218,12 @@ impl RawCtx {
     /// - `Ok(false)` when it gets terminated by "no such item"
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
     pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
-        self.add_names(names, view_reactor_flags)?;
+        self.with_trigger(TChange::Add, names.iter().cloned().map(TTarget::Flag));
         r#yield().await;
         let res = self
             .try_to_parse_arg(false, |arg| self.parse_flag_consume(arg))
             .await;
-        self.remove_names(names, view_reactor_flags)?;
+        self.with_trigger(TChange::Remove, names.iter().cloned().map(TTarget::Flag));
         if self.is_task_in_conflict() {
             self.record_conflict_with_names(names);
         }

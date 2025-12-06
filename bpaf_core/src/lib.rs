@@ -197,9 +197,38 @@ impl Scope {
 #[derive(Debug)]
 enum Op {
     Spawn(Task),
-    RegisterSum { id: Id, scope: Scope },
-    DeregisterSum { id: Id },
-    KillScope { cursor: u32, scope: Scope },
+    RegisterSum {
+        id: Id,
+        scope: Scope,
+    },
+    DeregisterSum {
+        id: Id,
+    },
+    KillScope {
+        cursor: u32,
+        scope: Scope,
+    },
+    Trigger {
+        change: TChange,
+        target: TTarget,
+        parent: Parent,
+        id: Id,
+    },
+}
+
+#[derive(Debug, Copy, Clone)]
+enum TChange {
+    Add,
+    Remove,
+}
+
+#[derive(Debug)]
+enum TTarget {
+    Arg(Name<'static>),
+    Flag(Name<'static>),
+    Pos,
+    Any,
+    Literal(Cow<'static, str>),
 }
 
 impl<T: 'static> Visited for Alt<T> {
@@ -663,6 +692,58 @@ impl Executor {
                 Op::DeregisterSum { id } => {
                     self.sums.remove(&id);
                 }
+                Op::Trigger {
+                    change,
+                    target,
+                    parent,
+                    id,
+                } => {
+                    let triggers = &mut self.ctx.triggers.borrow_mut();
+
+                    fn remove_from<K: Eq + std::hash::Hash>(
+                        map: &mut HashMap<K, PeckingOrder>,
+                        name: K,
+                        parent: Parent,
+                        id: Id,
+                    ) {
+                        use std::collections::hash_map::Entry;
+                        if let Entry::Occupied(mut e) = map.entry(name) {
+                            if e.get_mut().remove(parent, id) {
+                                e.remove();
+                            }
+                        } else {
+                            todo!("Trying to remove something that isn't there?");
+                        }
+                    }
+                    match (change, target) {
+                        (TChange::Add, TTarget::Arg(name)) => {
+                            triggers.args.entry(name).or_default().insert(parent, id);
+                        }
+                        (TChange::Add, TTarget::Flag(name)) => {
+                            triggers.flags.entry(name).or_default().insert(parent, id);
+                        }
+                        (TChange::Add, TTarget::Pos) => triggers.pos.insert(parent, id),
+                        (TChange::Add, TTarget::Any) => triggers.any.insert(parent, id),
+                        (TChange::Add, TTarget::Literal(name)) => {
+                            triggers.literal.entry(name).or_default().insert(parent, id);
+                        }
+                        (TChange::Remove, TTarget::Arg(name)) => {
+                            remove_from(&mut triggers.args, name, parent, id);
+                        }
+                        (TChange::Remove, TTarget::Flag(name)) => {
+                            remove_from(&mut triggers.flags, name, parent, id);
+                        }
+                        (TChange::Remove, TTarget::Pos) => {
+                            triggers.pos.remove(parent, id);
+                        }
+                        (TChange::Remove, TTarget::Any) => {
+                            triggers.any.remove(parent, id);
+                        }
+                        (TChange::Remove, TTarget::Literal(name)) => {
+                            remove_from(&mut triggers.literal, name, parent, id);
+                        }
+                    }
+                }
             }
         }
     }
@@ -780,7 +861,14 @@ impl Executor {
             self.tasks.is_empty(),
             "All tasks should be terminated when exiting execution"
         );
-        assert!(self.ctx.pending_ops.borrow().is_empty());
+        // assert!(self.ctx.pending_ops.borrow().is_empty());
+        assert!(
+            self.ctx
+                .pending_ops
+                .borrow()
+                .iter()
+                .all(|po| matches!(po, Op::Trigger { .. }))
+        );
         // assert!(
         //     self.sums.is_empty(),
         //     "All sums should be removed, {:?}",
