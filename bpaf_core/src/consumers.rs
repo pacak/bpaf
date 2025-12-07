@@ -219,7 +219,7 @@ where
         let res = res.map_err(|err| self.0.named.complete_name(err, Some(self.0.metavar)));
 
         if let Some(os) = res? {
-            Ok(parse_os_str(os)?)
+            at_pos(&ctx, parse_os_str(os))
         } else {
             let item = MissingItem::Named {
                 name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
@@ -334,6 +334,9 @@ fn complete_pos(err: Error, meta: Metavar) -> Error {
     }
 }
 
+fn at_pos<T>(ctx: &Ctx, res: Result<T, Problem>) -> Result<T, Error> {
+    res.map_err(|p| Error::Problem(ctx.cursor.get() as u32, p))
+}
 impl<T> Parser<T> for Bp<Positional<T>>
 where
     T: FromStr + 'static,
@@ -344,7 +347,7 @@ where
         let res = res.map_err(|err| complete_pos(err, self.0.metavar));
 
         if let Some(os) = res? {
-            Ok(parse_os_str(os)?)
+            at_pos(&ctx, parse_os_str(os))
         } else {
             let item = MissingItem::Pos {
                 meta: self.0.metavar,

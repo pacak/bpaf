@@ -129,18 +129,14 @@ impl std::fmt::Display for Problem {
     }
 }
 
-impl From<Problem> for Error {
-    fn from(value: Problem) -> Self {
-        Self::Problem(value)
-    }
-}
-
 #[derive(Debug)]
 pub enum Error {
     Missing(Vec1<MissingItem>),
     CompReply(Vec1<CompleteReply>),
     CompReq(CompleteReq),
-    Problem(Problem),
+    /// u32 describes the index where problem occurs - we want to try to report
+    /// earliest possible issue
+    Problem(u32, Problem),
     Final(ParseFailure),
     Silent(&'static str),
 }
@@ -197,6 +193,7 @@ fn unwrap_failed(msg: &str, error: &str) -> ! {
     panic!("{msg}: {error:?}");
 }
 impl ParseFailure {
+    #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
             ParseFailure::Stdout(s) => s,
@@ -206,6 +203,7 @@ impl ParseFailure {
         }
     }
 
+    #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
             ParseFailure::Stderr(s) => s,
@@ -225,7 +223,7 @@ impl From<Error> for ParseFailure {
             }
             Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)),
             Error::CompReq(complete_req) => todo!(),
-            Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),
+            Error::Problem(_, problem) => ParseFailure::Stderr(problem.to_string()),
             Error::Final(parse_failure) => parse_failure,
             Error::Silent(reason) => {
                 ParseFailure::Stderr(format!("Internal error, got unexpected silent {reason}"))
@@ -239,9 +237,16 @@ impl Error {
         match (self, e2) {
             (e @ Error::Final(_), _) | (_, e @ Error::Final(_)) => e,
             (Error::Silent(_), e) | (e, Error::Silent(_)) => e,
-            (e @ Error::Problem(_), _) | (_, e @ Error::Problem(_)) => e,
             (Error::CompReply(c1), Error::CompReply(c2)) => Error::CompReply(c1 + c2),
             (e @ Error::CompReply(_), _) | (_, e @ Error::CompReply(_)) => e,
+            (e1 @ Error::Problem(o1, _), e2 @ Error::Problem(o2, _)) => {
+                if o1 > o2 {
+                    e2
+                } else {
+                    e1
+                }
+            }
+            (e @ Error::Problem(..), _) | (_, e @ Error::Problem(..)) => e,
             (Error::CompReq(_), _) | (_, Error::CompReq(_)) => todo!(),
             (Error::Missing(i1), Error::Missing(i2)) => Error::Missing(i1 + i2),
         }
@@ -273,7 +278,7 @@ impl Error {
             Error::Missing(vec1) => todo!(),
             Error::CompReply(vec1) => ParseFailure::Stdout(render_completions(vec1)),
             Error::CompReq(_) => todo!(),
-            Error::Problem(_) => todo!(),
+            Error::Problem(_, _) => todo!(),
             Error::Silent(reason) => todo!("Got silent {reason}"),
             Error::Final(_) => todo!(),
         }

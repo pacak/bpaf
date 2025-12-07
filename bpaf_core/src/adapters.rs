@@ -75,11 +75,13 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let task = Task { act, info };
         ctx.add_task(task);
         let executor_res = ctx.execute(&self.0.inner);
+
         let res = handle.take();
-        if res.is_ok() {
-            executor_res?;
+        match (res, executor_res) {
+            (res @ Ok(_), Ok(_)) => Ok(res?),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e.into()),
+            (Err(e1), Err(e2)) => Err((e1 + e2).into()),
         }
-        Ok(res?)
     }
 
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
@@ -187,7 +189,7 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many1<T>> {
         .run(ctx)
         .await?;
         if res.is_empty() {
-            Err(Error::Problem(Problem::Static(self.0.message)))
+            Err(Error::Problem(u32::MAX, Problem::Static(self.0.message)))
         } else {
             Ok(res)
         }
@@ -220,10 +222,13 @@ impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Bp<Guard<T, P, F
         if (self.0.check)(&r) {
             Ok(r)
         } else {
-            Err(Error::Problem(Problem::GuardFailed {
-                message: self.0.message,
-                range: ctx.leaf_consumed(),
-            }))
+            Err(Error::Problem(
+                ctx.leaf_cursor(),
+                Problem::GuardFailed {
+                    message: self.0.message,
+                    range: ctx.leaf_consumed(),
+                },
+            ))
         }
     }
 }

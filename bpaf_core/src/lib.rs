@@ -476,6 +476,14 @@ impl RawCtx {
         (end > start).then_some((start, end))
     }
 
+    pub(crate) fn leaf_cursor(&self) -> u32 {
+        if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
+            self.cursor.get() as u32
+        } else {
+            u32::MAX
+        }
+    }
+
     /// After consumption, when called from a leaf node returns what was consumed
     /// as a string
     pub(crate) fn leaf_consumed(&self) -> Option<OsString> {
@@ -696,7 +704,7 @@ impl Executor {
 
                 let ix = ix as u32 + 1;
                 let problem = Problem::OnlyOnceInGroup { group, name, ix };
-                return Err(Error::Problem(problem));
+                return Err(Error::Problem(self.ctx.cursor.get() as u32, problem));
             }
             mixer_capacity = mixer.reuse_capacity();
             self.stage_2(1);
@@ -876,7 +884,8 @@ impl Executor {
 
             if best_size == 0 {
                 self.kill_in_scope(Scope::ALL);
-                return Err(self.complain_about(front, parser).into());
+                let pos = self.ctx.cursor.get() as u32;
+                return Err(Error::Problem(pos, self.complain_about(front, parser)));
             }
 
             self.stage_2(best_size);

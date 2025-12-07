@@ -153,16 +153,23 @@ impl RawCtx {
             Arg::Named { name, value: None } => {
                 let cursor = self.cursor.get() + 1;
                 let Some(next) = self.args.get(cursor) else {
-                    return Err(Error::Problem(Problem::WrongArgument {
-                        name: name.into_owned(),
-                        value: None,
-                    }));
+                    return Err(Error::Problem(
+                        cursor as u32 - 1,
+                        Problem::WrongArgument {
+                            name: name.into_owned(),
+                            value: None,
+                        },
+                    ));
                 };
+                let pos = self.cursor.get() as u32;
                 match lex_os_arg(next) {
-                    Arg::Named { .. } => Err(Error::Problem(Problem::WrongArgument {
-                        name: name.into_owned(),
-                        value: Some(next.clone()),
-                    })),
+                    Arg::Named { .. } => Err(Error::Problem(
+                        pos,
+                        Problem::WrongArgument {
+                            name: name.into_owned(),
+                            value: Some(next.clone()),
+                        },
+                    )),
                     Arg::Pos { value } => {
                         self.consume(2);
                         if self.args.complete && cursor + 1 == self.args.len() {
@@ -213,7 +220,8 @@ impl RawCtx {
                         adj,
                         value: val.into_owned(),
                     };
-                    Err(Error::Problem(problem))
+                    let pos = self.cursor.get() as u32;
+                    Err(Error::Problem(pos, problem))
                 }
                 None => {
                     self.consume(1);
