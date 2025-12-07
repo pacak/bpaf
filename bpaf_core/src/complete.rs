@@ -147,7 +147,7 @@ pub(crate) fn handle_subparser_complete(err: Error) -> Error {
         Error::CompReq(complete_req) => todo!(),
         Error::Problem(problem) => todo!(),
         Error::Final(parse_failure) => todo!(),
-        Error::Silent(_) => Error::CompReply(Default::default()),
+        Error::Silent(_) => err,
     }
 }
 

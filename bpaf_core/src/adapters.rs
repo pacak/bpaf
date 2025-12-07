@@ -1,11 +1,13 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 
 use crate::{
-    Bp, Error, Item, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task, Visited,
+    Bp, Error, Item, Kind, MissingItem, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason,
+    Task, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     make_handle,
     traits::Group,
+    utils::Vec1,
     r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
@@ -103,8 +105,14 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
         };
         let res = ctx.parse_literal_and(&self.0.names, &populate, inner).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
-        res?;
-        handle.take().map_err(handle_subparser_complete)
+        if res? {
+            handle.take().map_err(handle_subparser_complete)
+        } else {
+            let missing = MissingItem::Lit {
+                value: self.0.names[0].clone(),
+            };
+            Err(Error::Missing(Vec1::new(missing)))
+        }
     }
 }
 
