@@ -115,10 +115,10 @@ impl std::fmt::Display for Problem {
                 )
             }
             Problem::DidYouMean { target, best } => {
-                write!(f, "no such flag: `{target}`, did you mean `{best}`")
+                write!(f, "no such flag: `{target}`, did you mean `{best}`?")
             }
             Problem::DidYouMeanCmd { target, best } => {
-                write!(f, "no such command: `{target}`, did you mean `{best}`")
+                write!(f, "no such command: `{target}`, did you mean `{best}`?")
             }
             Problem::ExpectedFlag { name, adj, value } => {
                 write!(

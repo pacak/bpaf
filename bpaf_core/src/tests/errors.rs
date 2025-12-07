@@ -430,7 +430,7 @@ fn short_cmd() {
         .to_options();
 
     let r = parser.run_inner("bet").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "no such command: `bet`, did you mean `beta`");
+    assert_eq!(r, "no such command: `bet`, did you mean `beta`?");
 
     let r = parser.run_inner("c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "`c` is not expected in this context");
@@ -502,19 +502,6 @@ fn double_dash_with_optional_positional() {
 //     );
 // }
 //
-// #[test]
-// fn flag_specified_twice() {
-//     let parser = long("flag").switch().to_options();
-//
-//     let r = parser
-//         .run_inner(&["--flag", "--flag"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(
-//         r,
-//         "argument `--flag` cannot be used multiple times in this context"
-//     );
-// }
 //
 // #[test]
 // fn ux_discussion() {
@@ -564,28 +551,28 @@ fn double_dash_with_optional_positional() {
 //     );
 // }
 //
-// #[test]
-// fn suggest_typo_fix() {
-//     let p = long("flag").switch().to_options();
-//
-//     let r = p.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
-//     assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
-//
-//     let r = p
-//         .run_inner(&["--fla", "--fla"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
-//
-//     let r = p
-//         .run_inner(&["--flag", "--flag"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(
-//         r,
-//         "argument `--flag` cannot be used multiple times in this context"
-//     );
-// }
+#[test]
+fn suggest_typo_fix() {
+    let p = long("flag").switch().to_options();
+
+    let r = p.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
+
+    let r = p
+        .run_inner(&["--fla", "--fla"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
+
+    let r = p
+        .run_inner(&["--flag", "--flag"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "argument `--flag` cannot be used multiple times in this context"
+    );
+}
 //
 // #[test]
 // fn better_error_message_with_typos() {
