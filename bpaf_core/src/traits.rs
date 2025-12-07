@@ -78,6 +78,16 @@ pub trait Parser<T: 'static>: Visited {
             ctx: PhantomData,
         })
     }
+
+    fn hide(self) -> Bp<Hide<T, Self>>
+    where
+        Self: Sized,
+    {
+        Bp(Hide {
+            inner: self,
+            ctx: PhantomData,
+        })
+    }
 }
 
 impl<A: Visited, B: Visited> Visited for (A, B) {

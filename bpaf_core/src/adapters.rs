@@ -238,3 +238,18 @@ impl<F, T: 'static, P: Parser<T>> Visited for Bp<Guard<T, P, F>> {
         self.0.inner.visit(visitor);
     }
 }
+
+pub struct Hide<T, P> {
+    pub(crate) ctx: PhantomData<T>,
+    pub(crate) inner: P,
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for Bp<Hide<T, P>> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+        self.0.inner.run(ctx).await
+    }
+}
+
+impl<T: 'static, P: Parser<T>> Visited for Bp<Hide<T, P>> {
+    fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
+}
