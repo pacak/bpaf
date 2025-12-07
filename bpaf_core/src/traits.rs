@@ -46,6 +46,16 @@ pub trait Parser<T: 'static>: Visited {
         })
     }
 
+    fn some(self, message: &'static str) -> Bp<Many1<T>>
+    where
+        Self: Sized + 'static,
+    {
+        Bp(Many1 {
+            inner: self.into_rc().0,
+            message,
+        })
+    }
+
     fn to_options(self) -> Bp<OptionParser<T>>
     where
         Self: Sized + 'static,

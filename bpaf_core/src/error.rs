@@ -50,6 +50,7 @@ pub enum Problem {
         adj: Adjacency,
         value: OsString,
     },
+    Static(&'static str),
 }
 
 impl std::fmt::Display for Problem {
@@ -123,6 +124,7 @@ impl std::fmt::Display for Problem {
                     value.to_string_lossy()
                 )
             }
+            Problem::Static(msg) => write!(f, "{msg}"),
         }
     }
 }
@@ -160,7 +162,20 @@ pub enum MissingItem {
     Lit {
         value: Cow<'static, str>,
     },
-    Command,
+}
+
+impl std::fmt::Display for MissingItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MissingItem::Named { name, meta: None } => write!(f, "missing `{name}`"),
+            MissingItem::Named {
+                name,
+                meta: Some(meta),
+            } => write!(f, "missing `{name} {meta}`"),
+            MissingItem::Pos { meta } => write!(f, "missing `{meta}`"),
+            MissingItem::Lit { value } => write!(f, "missing `{value}`"),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -204,7 +219,10 @@ impl ParseFailure {
 impl From<Error> for ParseFailure {
     fn from(value: Error) -> Self {
         match value {
-            Error::Missing(vec1) => todo!(),
+            Error::Missing(vec1) => {
+                let m = &vec1.as_slice()[0];
+                ParseFailure::Stderr(m.to_string())
+            }
             Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)),
             Error::CompReq(complete_req) => todo!(),
             Error::Problem(problem) => ParseFailure::Stderr(problem.to_string()),

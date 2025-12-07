@@ -160,6 +160,34 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
 impl<T: 'static> Visited for Bp<Many<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(Group::Many);
+        visitor.push_group(Group::Optional);
+        self.0.inner.visit(visitor);
+        visitor.pop_group();
+        visitor.pop_group();
+    }
+}
+
+pub struct Many1<T> {
+    pub(crate) inner: RcParser<T>,
+    pub(crate) message: &'static str,
+}
+impl<T: 'static> Parser<Vec<T>> for Bp<Many1<T>> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
+        let res = Bp(Many {
+            inner: self.0.inner.clone(),
+        })
+        .run(ctx)
+        .await?;
+        if res.is_empty() {
+            Err(Error::Problem(Problem::Static(self.0.message)))
+        } else {
+            Ok(res)
+        }
+    }
+}
+impl<T: 'static> Visited for Bp<Many1<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Many);
         self.0.inner.visit(visitor);
         visitor.pop_group();
     }

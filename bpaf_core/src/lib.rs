@@ -319,6 +319,21 @@ impl Default for TaskInfo {
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Metavar(&'static str);
 
+impl std::fmt::Display for Metavar {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self
+            .0
+            .as_bytes()
+            .iter()
+            .all(|c| c.is_ascii_digit() || c.is_ascii_uppercase() || *c == b'-' || *c == b'_')
+        {
+            write!(f, "{}", self.0)
+        } else {
+            write!(f, "<{}>", self.0)
+        }
+    }
+}
+
 struct Yield(bool);
 
 fn r#yield() -> Yield {
