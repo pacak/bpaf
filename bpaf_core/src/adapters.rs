@@ -253,3 +253,25 @@ impl<T: 'static, P: Parser<T>> Parser<T> for Bp<Hide<T, P>> {
 impl<T: 'static, P: Parser<T>> Visited for Bp<Hide<T, P>> {
     fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
 }
+
+pub struct Fallback<T, P> {
+    pub(crate) inner: P,
+    pub(crate) value: T,
+}
+
+impl<T: 'static + Clone, P: Parser<T>> Parser<T> for Bp<Fallback<T, P>> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+        match self.0.inner.run(ctx).await {
+            Err(Error::Missing(_)) => Ok(self.0.value.clone()),
+            otherwise => otherwise,
+        }
+    }
+}
+
+impl<T: 'static, P: Parser<T>> Visited for Bp<Fallback<T, P>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(Group::Optional);
+        self.0.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}

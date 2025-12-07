@@ -88,6 +88,13 @@ pub trait Parser<T: 'static>: Visited {
             ctx: PhantomData,
         })
     }
+
+    fn fallback(self, value: T) -> Bp<Fallback<T, Self>>
+    where
+        Self: Sized,
+    {
+        Bp(Fallback { inner: self, value })
+    }
 }
 
 impl<A: Visited, B: Visited> Visited for (A, B) {
