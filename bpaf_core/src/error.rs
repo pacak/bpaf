@@ -54,6 +54,9 @@ pub enum Problem {
     TryDDash {
         name: String,
     },
+    Dynamic {
+        err: String,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -134,6 +137,7 @@ impl std::fmt::Display for Problem {
                     "no such flag: `-{name}` (with one dash), did you mean `--{name}`?"
                 )
             }
+            Problem::Dynamic { err } => write!(f, "{err}"),
         }
     }
 }

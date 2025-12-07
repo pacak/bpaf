@@ -275,3 +275,24 @@ impl<T: 'static, P: Parser<T>> Visited for Bp<Fallback<T, P>> {
         visitor.pop_group();
     }
 }
+
+pub struct PureWith<F> {
+    pub(crate) act: F,
+}
+
+impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser<T> for Bp<PureWith<F>> {
+    async fn run(&self, _ctx: crate::Ctx) -> Result<T, Error> {
+        (self.0.act)().map_err(|err| {
+            Error::Problem(
+                u32::MAX,
+                Problem::Dynamic {
+                    err: err.to_string(),
+                },
+            )
+        })
+    }
+}
+
+impl<F> Visited for Bp<PureWith<F>> {
+    fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
+}

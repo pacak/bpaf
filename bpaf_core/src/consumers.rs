@@ -1,6 +1,7 @@
 use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
+    adapters::PureWith,
     complete::{CompleteReply, complete_value},
     os_str::parse_os_str,
 };
@@ -413,4 +414,12 @@ impl<T: 'static + Clone> Parser<T> for Bp<Pure<T>> {
 
 impl<T> Visited for Bp<Pure<T>> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
+}
+
+pub fn pure_with<T, F, E>(act: F) -> Bp<PureWith<F>>
+where
+    F: Fn() -> Result<T, E>,
+    E: ToString,
+{
+    Bp(PureWith { act })
 }

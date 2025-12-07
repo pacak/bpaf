@@ -88,7 +88,7 @@ macro_rules! construct {
 
     // All the logic for sum parser sits inside of Alt datatype
     (@prepare [alt] [ $($field:ident)*]) => {
-        $crate::__private::Alt { items: ::std::vec![ $($field.into_rc()),*] }
+        $crate::__private::Alt { items: ::std::vec![ $($crate::Parser::into_rc($field)),*] }
     };
 
     // For product type the logic is a bit more complicated - do one more step
@@ -1753,6 +1753,7 @@ mod tests {
     mod complete;
     mod errors;
     mod osstring;
+    mod pure_with;
     mod unsorted;
     mod wake;
 }
