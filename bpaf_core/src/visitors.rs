@@ -1,6 +1,9 @@
 use core::f32;
+use std::{borrow::Cow, ffi::OsStr};
 
-use crate::{Item, Name, Problem, Visitor, traits::Group, utils::damerau_levenshtein};
+use crate::{
+    Item, Name, Problem, Visitor, arg::Adjacency, traits::Group, utils::damerau_levenshtein,
+};
 
 macro_rules! visit_tuple  {
     ($( $class:ident $field:tt );+) => {
@@ -12,7 +15,7 @@ macro_rules! visit_tuple  {
     }
 }
 
-visit_tuple!(A 0 ;  B 1  );
+visit_tuple!(A 0 ;  B 1 ; C 2 );
 
 impl<'a, A: Visitor<'a>> Visitor<'a> for Option<A> {
     fn item(&mut self, item: Item<'a>) {
@@ -196,4 +199,58 @@ impl<'a> ValidCommand<'a> {
             None
         }
     }
+}
+
+pub(crate) struct IsDDash {
+    name: String,
+    exists: bool,
+}
+
+impl IsDDash {
+    pub(crate) fn attempt(
+        unexpected: &Name<'_>,
+        value: Option<&(Adjacency, Cow<'_, OsStr>)>,
+    ) -> Option<Self> {
+        let (adj, value) = value?;
+        let (Name::Short(prefix), Adjacency::Immediate) = (unexpected, adj) else {
+            return None;
+        };
+        let suffix = value.to_str()?;
+        let mut name = String::with_capacity(suffix.len() + 4);
+        name.push(*prefix);
+        name.push_str(suffix);
+
+        Some(Self {
+            name,
+            exists: false,
+        })
+    }
+    pub(crate) fn into_problem(self) -> Option<Problem> {
+        self.exists.then_some(Problem::TryDDash { name: self.name })
+    }
+}
+
+impl Visitor<'_> for IsDDash {
+    fn item(&mut self, item: Item<'_>) {
+        if self.exists {
+            return;
+        }
+        let (Item::Flag { names, .. } | Item::Arg { names, .. } | Item::Nested { names, .. }) =
+            item
+        else {
+            return;
+        };
+
+        for name in names {
+            if let Name::Long(actual) = name {
+                if actual == &self.name {
+                    self.exists = true;
+                }
+            }
+        }
+    }
+
+    fn push_group(&mut self, group: Group) {}
+
+    fn pop_group(&mut self) {}
 }

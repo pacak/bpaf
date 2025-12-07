@@ -51,6 +51,9 @@ pub enum Problem {
         value: OsString,
     },
     Static(&'static str),
+    TryDDash {
+        name: String,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -125,6 +128,12 @@ impl std::fmt::Display for Problem {
                 )
             }
             Problem::Static(msg) => write!(f, "{msg}"),
+            Problem::TryDDash { name } => {
+                write!(
+                    f,
+                    "no such flag: `-{name}` (with one dash), did you mean `--{name}`?"
+                )
+            }
         }
     }
 }

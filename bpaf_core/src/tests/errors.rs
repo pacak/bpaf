@@ -433,73 +433,48 @@ fn short_cmd() {
     assert_eq!(r, "no such command: `bet`, did you mean `beta`");
 
     let r = parser.run_inner("c").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`c` is not expected in this context");
+}
+
+#[test]
+fn double_dashes_fallback() {
+    let a = long("llvm").req_flag(()).optional();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-llvm").unwrap_err().unwrap_stderr();
+
     assert_eq!(
         r,
-        "expected `COMMAND ...`, got `c`. Pass `--help` for usage information"
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
     );
 }
-//
-// #[test]
-// fn double_dashes_no_fallback() {
-//     #[derive(Debug, Clone, Bpaf)]
-//     #[bpaf(options)]
-//     enum Opts {
-//         Llvm,
-//         Att,
-//         #[bpaf(hide)]
-//         Dummy,
-//     }
-//
-//     let r = opts().run_inner(&["-llvm"]).unwrap_err().unwrap_stderr();
-//
-//     assert_eq!(
-//         r,
-//         "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
-//     );
-// }
-//
-// #[test]
-// fn double_dashes_fallback() {
-//     #[derive(Debug, Clone, Bpaf)]
-//     #[bpaf(options, fallback(Opts::Dummy))]
-//     enum Opts {
-//         Llvm,
-//         Att,
-//         Dummy,
-//     }
-//
-//     let r = opts().run_inner(&["-llvm"]).unwrap_err().unwrap_stderr();
-//
-//     assert_eq!(
-//         r,
-//         "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
-//     );
-// }
-//
-// #[test]
-// fn double_dash_with_optional_positional() {
-//     #[derive(Debug, Clone, Bpaf)]
-//     #[bpaf(fallback(Opts::Dummy))]
-//     enum Opts {
-//         Llvm,
-//         Att,
-//         Dummy,
-//     }
-//
-//     let pos = positional::<String>("FILE").optional();
-//     let parser = construct!(opts(), pos).to_options();
-//
-//     let r = parser
-//         .run_inner(&["make", "-llvm"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//
-//     assert_eq!(
-//         r,
-//         "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
-//     );
-// }
-//
+
+#[test]
+fn double_dashes_no_fallback() {
+    let a = long("llvm").req_flag(());
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-llvm").unwrap_err().unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
+    );
+}
+
+#[test]
+fn double_dash_with_optional_positional() {
+    let a = long("llvm").req_flag(());
+    let pos = positional::<String>("FILE").optional();
+    let parser = construct!(pos, a).to_options();
+
+    let r = parser.run_inner("make -llvm").unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?"
+    );
+}
+
 // #[test]
 // fn inside_out_command_parser() {
 //     #[derive(Debug, Bpaf, Clone, PartialEq)]

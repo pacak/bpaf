@@ -13,7 +13,7 @@ use crate::{
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
-    visitors::{BetterName, IsAcceptedOnce, ValidCommand},
+    visitors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -923,7 +923,7 @@ impl Executor {
         match lex_os_arg(unexpected) {
             Arg::Named {
                 name: unexpected,
-                value: _,
+                value,
             } => {
                 // is it a conflict?
                 for conflict in self.ctx.conflicts.borrow().iter() {
@@ -943,12 +943,16 @@ impl Executor {
                     Name::Short(_) => None,
                     Name::Long(cow) => Some(BetterName::new(cow)),
                 };
-                let mut visitors = (once, better);
+                let is_ddash = IsDDash::attempt(&unexpected, value.as_ref());
+                let mut visitors = (once, better, is_ddash);
                 parser.visit(&mut visitors);
                 if let Some(problem) = visitors.0.into_problem() {
                     return problem;
                 }
                 if let Some(problem) = visitors.1.and_then(|v| v.into_problem()) {
+                    return problem;
+                }
+                if let Some(problem) = visitors.2.and_then(|v| v.into_problem()) {
                     return problem;
                 }
             }
