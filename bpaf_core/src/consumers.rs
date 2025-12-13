@@ -11,7 +11,7 @@ use super::*;
 #[derive(Debug, Clone)]
 pub struct Named {
     pub(crate) names: Vec<Name<'static>>,
-    pub(crate) env: Vec<String>,
+    pub(crate) env: Vec<&'static str>,
     pub(crate) help: Option<String>,
 }
 
@@ -55,6 +55,10 @@ impl Named {
             (Some(s), None) => Some(Name::Short(s)),
         }
     }
+
+    fn get_env(&self) -> Option<OsString> {
+        self.env.iter().find_map(std::env::var_os)
+    }
 }
 
 pub fn short(name: char) -> Bp<Named> {
@@ -80,6 +84,13 @@ pub fn long_string(name: String) -> Bp<Named> {
         help: None,
     })
 }
+pub fn env(name: &'static str) -> Bp<Named> {
+    Bp(Named {
+        names: Vec::new(),
+        env: vec![name],
+        help: None,
+    })
+}
 
 impl Bp<Named> {
     pub fn short(mut self, name: char) -> Self {
@@ -94,6 +105,11 @@ impl Bp<Named> {
 
     pub fn long_string(mut self, name: String) -> Self {
         self.0.names.push(name.into());
+        self
+    }
+
+    pub fn env(mut self, name: &'static str) -> Self {
+        self.0.env.push(name);
         self
     }
 
@@ -185,6 +201,8 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
             Ok(self.0.present.clone())
         } else if let Some(absent) = &self.0.absent {
             Ok(absent.clone())
+        } else if let Some(_) = &self.0.named.get_env() {
+            Ok(self.0.present.clone())
         } else {
             let item = MissingItem::Named {
                 name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
@@ -220,7 +238,9 @@ where
         let res = res.map_err(|err| self.0.named.complete_name(err, Some(self.0.metavar)));
 
         if let Some(os) = res? {
-            at_pos(&ctx, parse_os_str(os))
+            parse_os_str(os).map_err(|e| problem_at_pos(&ctx, e))
+        } else if let Some(os) = self.0.named.get_env() {
+            parse_os_str(os).map_err(|p| Error::Problem(u32::MAX, p))
         } else {
             let item = MissingItem::Named {
                 name: self.0.named.name_long_or_short().unwrap(), // TODO - handle env
@@ -335,9 +355,10 @@ fn complete_pos(err: Error, meta: Metavar) -> Error {
     }
 }
 
-fn at_pos<T>(ctx: &Ctx, res: Result<T, Problem>) -> Result<T, Error> {
-    res.map_err(|p| Error::Problem(ctx.cursor.get() as u32, p))
+fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
+    Error::Problem(ctx.cursor.get() as u32, p)
 }
+
 impl<T> Parser<T> for Bp<Positional<T>>
 where
     T: FromStr + 'static,
@@ -348,7 +369,7 @@ where
         let res = res.map_err(|err| complete_pos(err, self.0.metavar));
 
         if let Some(os) = res? {
-            at_pos(&ctx, parse_os_str(os))
+            parse_os_str(os).map_err(|p| problem_at_pos(&ctx, p))
         } else {
             let item = MissingItem::Pos {
                 meta: self.0.metavar,
