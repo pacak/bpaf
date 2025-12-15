@@ -384,10 +384,6 @@ pub type Fragment<T> = Pin<Box<dyn Future<Output = Result<T, Error>>>>;
 pub struct RawCtx {
     /// Scheduled ops
     ///
-    /// Active tasks are living outside of the `RawCtx`: we need to borrow them to poll
-    /// anyway but also need to borrow to spawn new tasks from polled tasks. Having them
-    /// outside makes the code a bit cleaner
-    ///
     /// Holds other operations that might need access to tasks or other internal structures
     pending_ops: RefCell<VecDeque<Op>>,
     /// Early exit ranges
@@ -397,7 +393,7 @@ pub struct RawCtx {
     early_exit: RefCell<BTreeSet<Scope>>,
     /// Next free Id
     ///
-    /// Tasks can use it to allocate Ids for children tasks including overriding
+    /// Tasks can use it to allocate `Id`s for children tasks including overriding
     next_free: Cell<u32>,
     args: Args,
     cursor: Cell<usize>,
@@ -418,7 +414,7 @@ pub struct RawCtx {
 pub type Ctx = Rc<RawCtx>;
 
 #[derive(Debug)]
-/// "we could have been consume `name`, but we consumed whatever was at `pos` instead
+/// "we could have been consume `name`, but we consumed whatever was at `pos` instead"
 enum Conflict {
     /// Named item - flag, argument
     Named { pos: u32, name: Name<'static> },
@@ -428,6 +424,9 @@ enum Conflict {
 
 #[derive(Debug)]
 enum Reason {
+    /// Task is waken up so core consumer gets a chance to consume anything.
+    /// - `Some` corresponds to a value requested by a trigger
+    /// - `None` - leaf task is being told that there is no more matching arguments left and it should produce what it can or fail.
     Arg(Option<Arg<'static>>),
     Pass,
     NoPass,
@@ -500,7 +499,7 @@ impl RawCtx {
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
     //
-    // TODO - Do I really need Bp wrapper here?
+    // TODO - Do I really need `Bp` wrapper here?
     fn make_raw_task<T: 'static>(
         self: &Rc<Self>,
         parser: Bp<RcParser<T>>,
@@ -1614,7 +1613,7 @@ impl<'a> Mixer<'a> {
         None
     }
 
-    /// Add a non-empty pecking order to the mix
+    /// Add a nonempty pecking order to the mix
     ///
     /// We'll often have empty pecking orders
     fn pecking_push(&mut self, order: Option<&'a PeckingOrder>) {
