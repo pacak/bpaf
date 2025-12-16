@@ -111,7 +111,7 @@ pub(crate) enum CompleteReply {
     Named {
         name: Name<'static>,
         meta: Option<Metavar>,
-        help: Option<String>,
+        help: Option<&'static str>,
     },
     Value {
         group: Option<Rc<str>>,

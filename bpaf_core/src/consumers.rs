@@ -12,7 +12,7 @@ use super::*;
 pub struct Named {
     pub(crate) names: Vec<Name<'static>>,
     pub(crate) env: Vec<&'static str>,
-    pub(crate) help: Option<String>,
+    pub(crate) help: Option<&'static str>,
 }
 
 impl Named {
@@ -100,6 +100,11 @@ impl Bp<Named> {
 
     pub fn env(mut self, name: &'static str) -> Self {
         self.0.env.push(name);
+        self
+    }
+
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.0.help = Some(help);
         self
     }
 
