@@ -857,7 +857,7 @@ impl Executor {
             // all the tasks with matching triggers, during the second stage tasks that don't
             // consume the biggest amount from the first stage are terminated.
             //
-            // This allows to parsing things as both flag and an argument (`--foo` | `--foo BAR`)
+            // This allows us to parse things as both flag and an argument (`--foo` | `--foo BAR`)
             // in parallel branches. Longer should win.
             //
             // This can't be done in a single pass for two reasons:
