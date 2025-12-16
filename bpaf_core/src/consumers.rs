@@ -174,8 +174,7 @@ impl<T: 'static> Parser<T> for Bp<Nested<T>> {
 impl<T: 'static> Visited for Bp<Nested<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Nested {
-            names: &self.0.names.names,
-            help: self.0.names.help.as_deref(),
+            named: &self.0.names,
             inner: &self.0.inner,
         };
         visitor.item(item);
@@ -210,8 +209,7 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
 impl<T> Visited for Bp<Flag<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Flag {
-            names: &self.0.named.names,
-            help: self.0.named.help.as_deref(),
+            named: &self.0.named,
         };
         visitor.item(item);
     }
@@ -249,9 +247,8 @@ where
 impl<T> Visited for Bp<Argument<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Arg {
-            names: &self.0.named.names,
+            named: &self.0.named,
             meta: self.0.metavar,
-            help: self.0.named.help.as_deref(),
         };
         visitor.item(item);
     }

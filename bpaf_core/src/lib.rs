@@ -13,7 +13,7 @@ use crate::{
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
-    visitors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
+    visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -1400,6 +1400,14 @@ struct Triggers {
 // reactor - listens for readiness, notifies tasks
 // executor - runs ready tasks
 
+fn help_parser() -> Bp<RcParser<()>> {
+    short('h')
+        .long("help")
+        .help("Display help message")
+        .req_flag(())
+        .into_rc()
+}
+
 impl RawCtx {
     /// Create a copy of a context suitable to run an executor
     fn fork(&self) -> Rc<RawCtx> {
@@ -1425,7 +1433,29 @@ impl RawCtx {
     }
 
     fn execute(self: &Ctx, parser: &dyn Visited) -> Result<(), Error> {
-        Executor::new(self.clone()).execute(parser)
+        let r = Executor::new(self.clone()).execute(parser);
+        if let Err(Error::Problem(_, Problem::Unconsumed { .. })) = &r {
+            let ctx = self.fork();
+            let help = help_parser();
+            let (handle, act) = ctx.make_raw_task(help.clone());
+            let info = ctx.make_child_info(Kind::Prod);
+            let task = Task { act, info };
+            ctx.add_task(task);
+            if Executor::new(ctx).execute(&help).is_ok() {
+                match handle.take() {
+                    Ok(_) => {
+                        let mut h = crate::visitors::help::Help::new("footer", "header");
+                        parser.visit(&mut h);
+                        help.visit(&mut h);
+                        return Err(Error::Final(ParseFailure::Stdout(h.render())));
+                    }
+                    Err(e @ Error::Final(_)) => return Err(e),
+                    _ => {}
+                }
+            }
+        }
+
+        r
     }
 }
 
@@ -1713,13 +1743,6 @@ impl std::fmt::Display for Name<'_> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub(crate) enum ShortLong {
-    Short(char),
-    Long(Cow<'static, str>),
-    Both(char, Cow<'static, str>),
-}
-
 impl Name<'_> {
     pub(crate) fn into_owned(self) -> Name<'static> {
         match self {
@@ -1751,6 +1774,7 @@ impl From<String> for Name<'static> {
 mod tests {
     mod complete;
     mod errors;
+    mod help;
     mod osstring;
     mod pure_with;
     mod unsorted;

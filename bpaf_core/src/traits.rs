@@ -1,6 +1,6 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Bp, Ctx, Error, Metavar, Name};
+use crate::{Bp, Ctx, Error, Metavar, Named};
 use std::{borrow::Cow, marker::PhantomData, pin::Pin, rc::Rc};
 
 use crate::adapters::*;
@@ -123,13 +123,11 @@ pub trait Visitor<'a> {
 #[derive(Copy, Clone)]
 pub enum Item<'a> {
     Flag {
-        names: &'a [Name<'static>],
-        help: Option<&'a str>,
+        named: &'a Named,
     },
     Arg {
-        names: &'a [Name<'static>],
+        named: &'a Named,
         meta: Metavar,
-        help: Option<&'a str>,
     },
     Positional {
         meta: Metavar,
@@ -141,8 +139,7 @@ pub enum Item<'a> {
         inner: &'a dyn Visited,
     },
     Nested {
-        names: &'a [Name<'static>],
-        help: Option<&'a str>,
+        named: &'a Named,
         inner: &'a dyn Visited,
     },
 }
