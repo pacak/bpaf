@@ -16,30 +16,20 @@ pub struct Named {
 }
 
 impl Named {
-    fn get_short_and_long(&self) -> (Option<char>, Option<Cow<'static, str>>) {
+    pub(crate) fn get_short_and_long(&self) -> (Option<char>, Option<&Cow<'static, str>>) {
         let mut short = None;
         let mut long = None;
-
-        for n in &self.names {
-            match n {
-                Name::Short(s) => {
-                    if short.is_none() {
-                        short = Some(*s)
-                    }
-                }
-                Name::Long(cow) => {
-                    if long.is_none() {
-                        long = Some(cow.clone())
-                    }
-                }
+        for name in &self.names {
+            match name {
+                Name::Short(s) => short = short.or(Some(*s)),
+                Name::Long(l) => long = long.or(Some(l)),
             }
         }
-
         (short, long)
     }
 
     /// Get [`Name`] with a preference to short
-    fn name_short_or_long(&self) -> Option<Name<'static>> {
+    pub(crate) fn name_short_or_long(&self) -> Option<Name<'static>> {
         match self.get_short_and_long() {
             (None, None) => None,
             (None, Some(l)) => Some(Name::Long(l.clone())),
@@ -48,7 +38,7 @@ impl Named {
     }
 
     /// Get [`Name`] with a preference to long
-    fn name_long_or_short(&self) -> Option<Name<'static>> {
+    pub(crate) fn name_long_or_short(&self) -> Option<Name<'static>> {
         match self.get_short_and_long() {
             (None, None) => None,
             (_, Some(l)) => Some(Name::Long(l.clone())),
