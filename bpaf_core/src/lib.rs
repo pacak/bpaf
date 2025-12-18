@@ -158,7 +158,7 @@ impl<T: 'static> Parser<T> for Con<T> {
 
 impl<T: 'static> Visited for Con<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        visitor.push_group(traits::Group::Prod);
+        visitor.push_group(traits::VisitGroup::Prod);
         for item in &self.visits {
             item.visit(visitor);
         }
@@ -233,7 +233,7 @@ enum TTarget {
 
 impl<T: 'static> Visited for Alt<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        visitor.push_group(traits::Group::Sum);
+        visitor.push_group(traits::VisitGroup::Sum);
         for i in &self.items {
             i.0.visit(visitor);
         }
@@ -318,6 +318,20 @@ impl Default for TaskInfo {
 }
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub struct Metavar(&'static str);
+impl Metavar {
+    #[inline(never)]
+    pub fn width(&self) -> usize {
+        let mut chars = 0;
+        let mut angle = 0;
+        for c in self.0.chars() {
+            chars += 1;
+            if !(c.is_ascii_digit() || c.is_ascii_uppercase() || c == '-' || c == '_') {
+                angle = 2;
+            }
+        }
+        chars + angle
+    }
+}
 
 impl std::fmt::Display for Metavar {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1444,9 +1458,10 @@ impl RawCtx {
             if Executor::new(ctx).execute(&help).is_ok() {
                 match handle.take() {
                     Ok(_) => {
-                        let mut h = crate::visitors::help::Help::new("footer", "header");
+                        let mut h = crate::visitors::help::Help::default();
                         parser.visit(&mut h);
                         help.visit(&mut h);
+                        // TODO - WIDTH? Style?
                         return Err(Error::Final(ParseFailure::Stdout(h.render())));
                     }
                     Err(e @ Error::Final(_)) => return Err(e),

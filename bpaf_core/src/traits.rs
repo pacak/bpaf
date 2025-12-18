@@ -62,7 +62,7 @@ pub trait Parser<T: 'static>: Visited {
     {
         Bp(OptionParser {
             inner: self.into_rc().0,
-            help: None,
+            info: Default::default(),
         })
     }
 
@@ -95,6 +95,18 @@ pub trait Parser<T: 'static>: Visited {
     {
         Bp(Fallback { inner: self, value })
     }
+
+    fn group_help(self, help: &'static str) -> Bp<Group<T, Self>>
+    where
+        Self: Sized,
+    {
+        Bp(Group {
+            inner: self,
+            title: help,
+            ctx: PhantomData,
+            descr: None,
+        })
+    }
 }
 
 impl<A: Visited, B: Visited> Visited for (A, B) {
@@ -116,7 +128,7 @@ pub trait Visited {
 
 pub trait Visitor<'a> {
     fn item(&mut self, item: Item<'a>);
-    fn push_group(&mut self, group: Group);
+    fn push_group(&mut self, group: VisitGroup);
     fn pop_group(&mut self);
 }
 
@@ -135,17 +147,39 @@ pub enum Item<'a> {
     },
     Command {
         names: &'a [Cow<'static, str>],
-        help: Option<&'a str>,
+        info: &'a Info,
         inner: &'a dyn Visited,
     },
+
+    /// Items in this group belong to a single adjacent group and must succeed all
+    /// at once or fail. For `--help` purposes this usually means that this is a parser
+    /// that takes one named item followed by multiple positional items and should
+    /// be rendered as a block
+    ///
+    /// --name <A> <B> <C> ... help for name part
+    ///   <A> ... help for A
+    ///   <B> ... help for B
+    ///   <C> ... help for C
+    /// <- blank line
+    ///
+    /// All the inner parsers go under "named" parsers unless [`Item::Section`] moves it elsewhere
     Nested {
         named: &'a Named,
+        inner: &'a dyn Visited,
+    },
+    OptionParser {
+        info: &'a Info,
+        inner: &'a dyn Visited,
+    },
+    Section {
+        title: &'a str,
+        descr: Option<&'a str>,
         inner: &'a dyn Visited,
     },
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub enum Group {
+pub enum VisitGroup {
     /// inner parser can succeed multiple times, required unless made optional
     Many,
     /// inner parser can succeed with no input
@@ -154,11 +188,6 @@ pub enum Group {
     Prod,
     /// sum group, exactly one member must succeed
     Sum,
-    /// All nested items should go into a custom section
-    HelpSection(&'static str),
-    /// Items in this group belong to a sub-parser such as subcommand or
-    /// a parser adjacent to a name
-    Subparser,
 }
 
 /// Helper trait that allows shoving non-dyn compatible trait [`Parser`] into an [`Rc`]

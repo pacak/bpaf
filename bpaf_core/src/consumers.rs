@@ -215,6 +215,13 @@ impl<T> Visited for Bp<Flag<T>> {
     }
 }
 
+impl<T> Bp<Flag<T>> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.0.named.help = Some(help);
+        self
+    }
+}
+
 pub struct Argument<T> {
     named: Named,
     metavar: Metavar,
@@ -254,6 +261,13 @@ impl<T> Visited for Bp<Argument<T>> {
     }
 }
 
+impl<T> Bp<Argument<T>> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.0.named.help = Some(help);
+        self
+    }
+}
+
 /// # complete for argument
 impl<T: 'static> Bp<Argument<T>> {
     pub fn complete<F>(self, completer: F) -> Bp<WithComplete<T, Argument<T>>>
@@ -282,6 +296,13 @@ impl<T: 'static> Bp<Positional<T>> {
             group: None,
             ctx: PhantomData,
         })
+    }
+}
+
+impl<T> Bp<Positional<T>> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.0.help = Some(help);
+        self
     }
 }
 
@@ -325,7 +346,7 @@ where
 
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,
-    pub(crate) help: Option<String>,
+    pub(crate) help: Option<&'static str>,
     ctx: PhantomData<T>,
 }
 

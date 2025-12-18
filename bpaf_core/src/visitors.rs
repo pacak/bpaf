@@ -2,7 +2,8 @@ pub(crate) mod errors;
 pub(crate) mod help;
 
 use crate::{
-    Item, Name, Named, Problem, Visitor, arg::Adjacency, traits::Group, utils::damerau_levenshtein,
+    Item, Name, Named, Problem, Visitor, arg::Adjacency, traits::VisitGroup,
+    utils::damerau_levenshtein,
 };
 use std::{borrow::Cow, ffi::OsStr};
 
@@ -10,7 +11,7 @@ macro_rules! visit_tuple  {
     ($( $class:ident $field:tt );+) => {
         impl <'a, $( $class: Visitor<'a>),+ > Visitor<'a> for ($($class),+) {
             fn item(&mut self, item: Item<'a>) { $( self.$field.item(item); )+ }
-            fn push_group(&mut self, group: Group) { $( self.$field.push_group(group); )+ }
+            fn push_group(&mut self, group: VisitGroup) { $( self.$field.push_group(group); )+ }
             fn pop_group(&mut self) { $( self.$field .pop_group(); )+}
         }
     }
@@ -26,7 +27,7 @@ impl<'a, A: Visitor<'a>> Visitor<'a> for Option<A> {
         inner.item(item);
     }
 
-    fn push_group(&mut self, group: Group) {
+    fn push_group(&mut self, group: VisitGroup) {
         let Some(inner) = self else {
             return;
         };
@@ -41,7 +42,7 @@ impl<'a, A: Visitor<'a>> Visitor<'a> for Option<A> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) enum ShortLong<'a> {
     Short(char),
     Long(&'a str),

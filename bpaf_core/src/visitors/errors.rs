@@ -4,7 +4,7 @@ use super::*;
 pub(crate) struct IsAcceptedOnce<'a> {
     name: &'a Name<'a>,
     known: KnownName,
-    stack: Vec<Group>,
+    stack: Vec<VisitGroup>,
     in_many: usize,
 }
 
@@ -51,16 +51,16 @@ impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
         }
     }
 
-    fn push_group(&mut self, group: Group) {
+    fn push_group(&mut self, group: VisitGroup) {
         self.stack.push(group);
-        if matches!(group, Group::Many) {
+        if matches!(group, VisitGroup::Many) {
             self.in_many += 1;
         }
     }
 
     fn pop_group(&mut self) {
         let group = self.stack.pop().unwrap();
-        if matches!(group, Group::Many) {
+        if matches!(group, VisitGroup::Many) {
             self.in_many -= 1;
         }
     }
@@ -111,7 +111,7 @@ impl<'a> Visitor<'a> for BetterName<'a> {
         }
     }
 
-    fn push_group(&mut self, _group: Group) {}
+    fn push_group(&mut self, _group: VisitGroup) {}
     fn pop_group(&mut self) {}
 }
 
@@ -135,7 +135,7 @@ impl<'a> Visitor<'a> for ValidCommand<'a> {
         }
     }
 
-    fn push_group(&mut self, _group: Group) {}
+    fn push_group(&mut self, _group: VisitGroup) {}
     fn pop_group(&mut self) {}
 }
 
@@ -208,7 +208,7 @@ impl Visitor<'_> for IsDDash {
         }
     }
 
-    fn push_group(&mut self, group: Group) {}
+    fn push_group(&mut self, group: VisitGroup) {}
 
     fn pop_group(&mut self) {}
 }

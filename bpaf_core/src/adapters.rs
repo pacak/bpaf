@@ -6,7 +6,7 @@ use crate::{
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     make_handle,
-    traits::Group,
+    traits::VisitGroup,
     utils::Vec1,
     r#yield,
 };
@@ -55,7 +55,7 @@ impl<T: 'static> Parser<Option<T>> for Optional<T> {
 
 impl<T: 'static> Visited for Optional<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Optional);
+        visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
         visitor.pop_group();
     }
@@ -63,7 +63,14 @@ impl<T: 'static> Visited for Optional<T> {
 
 pub struct OptionParser<T> {
     pub(crate) inner: RcParser<T>,
-    pub(crate) help: Option<String>,
+    pub(crate) info: Info,
+}
+
+#[derive(Debug, Default)]
+pub struct Info {
+    pub header: Option<&'static str>,
+    pub descr: Option<&'static str>,
+    pub footer: Option<&'static str>,
 }
 
 impl<T: 'static> Bp<OptionParser<T>> {
@@ -74,7 +81,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        let executor_res = ctx.execute(&self.0.inner);
+        let executor_res = ctx.execute(self);
 
         let res = handle.take();
         match (res, executor_res) {
@@ -89,6 +96,31 @@ impl<T: 'static> Bp<OptionParser<T>> {
             names: vec![name.into()],
             inner: self.0,
         })
+    }
+
+    pub fn header(mut self, text: &'static str) -> Self {
+        self.0.info.header = Some(text);
+        self
+    }
+    pub fn descr(mut self, text: &'static str) -> Self {
+        self.0.info.descr = Some(text);
+        self
+    }
+
+    pub fn footer(mut self, text: &'static str) -> Self {
+        self.0.info.footer = Some(text);
+        self
+    }
+}
+
+impl<T: 'static> Visited for Bp<OptionParser<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.item(Item::OptionParser {
+            info: &self.0.info,
+            inner: &self.0.inner,
+        });
+
+        self.0.inner.visit(visitor)
     }
 }
 
@@ -122,7 +154,7 @@ impl<T: 'static> Visited for Bp<Command<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let item = Item::Command {
             names: &self.0.names,
-            help: self.0.inner.help.as_deref(),
+            info: &self.0.inner.info,
             inner: &self.0.inner.inner,
         };
         visitor.item(item);
@@ -169,8 +201,8 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
 }
 impl<T: 'static> Visited for Bp<Many<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Many);
-        visitor.push_group(Group::Optional);
+        visitor.push_group(VisitGroup::Many);
+        visitor.push_group(VisitGroup::Optional);
         self.0.inner.visit(visitor);
         visitor.pop_group();
         visitor.pop_group();
@@ -197,7 +229,7 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many1<T>> {
 }
 impl<T: 'static> Visited for Bp<Many1<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Many);
+        visitor.push_group(VisitGroup::Many);
         self.0.inner.visit(visitor);
         visitor.pop_group();
     }
@@ -270,7 +302,7 @@ impl<T: 'static + Clone, P: Parser<T>> Parser<T> for Bp<Fallback<T, P>> {
 
 impl<T: 'static, P: Parser<T>> Visited for Bp<Fallback<T, P>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(Group::Optional);
+        visitor.push_group(VisitGroup::Optional);
         self.0.inner.visit(visitor);
         visitor.pop_group();
     }
@@ -295,4 +327,30 @@ impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser<T> for Bp<PureWith
 
 impl<F> Visited for Bp<PureWith<F>> {
     fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
+}
+
+pub struct Group<T, P> {
+    pub(crate) ctx: PhantomData<T>,
+    pub(crate) inner: P,
+    pub(crate) title: &'static str,
+    pub(crate) descr: Option<&'static str>,
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for Bp<Group<T, P>> {
+    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<T, Error>> {
+        self.0.inner.run(ctx)
+    }
+}
+
+impl<T, P> Visited for Bp<Group<T, P>>
+where
+    P: Visited,
+{
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.item(Item::Section {
+            title: self.0.title,
+            descr: self.0.descr,
+            inner: &self.0.inner,
+        });
+    }
 }
