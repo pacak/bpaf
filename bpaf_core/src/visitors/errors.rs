@@ -1,3 +1,5 @@
+use crate::VKind;
+
 use super::*;
 /// Check if parser accepts a certain named item only once
 #[derive(Debug)]
@@ -64,6 +66,10 @@ impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
             self.in_many -= 1;
         }
     }
+
+    fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
 }
 
 pub(crate) struct BetterName<'a> {
@@ -113,6 +119,10 @@ impl<'a> Visitor<'a> for BetterName<'a> {
 
     fn push_group(&mut self, _group: VisitGroup) {}
     fn pop_group(&mut self) {}
+
+    fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
 }
 
 pub(crate) struct ValidCommand<'a> {
@@ -137,6 +147,10 @@ impl<'a> Visitor<'a> for ValidCommand<'a> {
 
     fn push_group(&mut self, _group: VisitGroup) {}
     fn pop_group(&mut self) {}
+
+    fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
 }
 
 impl<'a> ValidCommand<'a> {
@@ -211,4 +225,8 @@ impl Visitor<'_> for IsDDash {
     fn push_group(&mut self, group: VisitGroup) {}
 
     fn pop_group(&mut self) {}
+
+    fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
 }

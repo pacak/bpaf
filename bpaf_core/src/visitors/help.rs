@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use super::ShortLong;
 use crate::{
-    Con, Item, Metavar, Named,
+    Con, Item, Metavar, Named, VKind,
     adapters::Info,
     visitors::{VisitGroup, Visitor},
 };
@@ -163,7 +163,6 @@ impl<'a> Visitor<'a> for Help<'a> {
                 };
                 todo!()
             }
-
             Item::Nested { named, inner } => {
                 let place = if self.in_section {
                     &mut self.current
@@ -189,6 +188,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     items: std::mem::take(&mut self.current),
                 });
             }
+            Item::Rendered { text } => todo!(),
         }
     }
 
@@ -198,6 +198,10 @@ impl<'a> Visitor<'a> for Help<'a> {
 
     fn pop_group(&mut self) {
         todo!()
+    }
+
+    fn identify(&self) -> VKind {
+        VKind::Help
     }
 }
 
@@ -402,7 +406,7 @@ impl std::fmt::Display for Style {
 
 impl Style {
     /// Placeholder ANSI values
-    const fn ansi(&self) -> &'static str {
+    pub const fn ansi(&self) -> &'static str {
         // https://en.wikipedia.org/wiki/ANSI_escape_code?useskin=vector#SGR
         match self {
             Style::Text => "\u{1B}[0m",     // reset/normal
@@ -448,7 +452,7 @@ pub enum Style {
 }
 
 #[derive(Debug, Copy, Clone)]
-struct Colorscheme {
+pub struct Colorscheme {
     emphasis: &'static str,
     literal: &'static str,
     metavar: &'static str,
@@ -458,7 +462,7 @@ struct Colorscheme {
 }
 
 impl Colorscheme {
-    const DULL: Self = Self {
+    pub const DULL: Self = Self {
         emphasis: "\x1b[4m\x1b1m", // underline + bold
         literal: "\x1b4m",         // bold
         metavar: "\x1b[1m",        // underline
@@ -466,7 +470,7 @@ impl Colorscheme {
         invalid: "\x1b[31m",       // red
         valid: "\x1b[32m",         // green
     };
-    const BRIGHT: Self = Self {
+    pub const BRIGHT: Self = Self {
         emphasis: "\x1b[1m\x1b[33m", // bold yellow
         literal: "\x1b[1m\x1b[32m",  // bold green
         metavar: "\x1b[1m\x1b[34m",  // bold blue
@@ -651,70 +655,74 @@ impl ConsoleWriter {
             }
         }
     }
-
-    /// Apply final style to the rendering
     fn done(&self) -> String {
-        let mut output = Vec::with_capacity(self.output.len() * 2);
-        // TODO - perform postprocessing to insert ` or apply color scheme where appropriate
+        apply_style(&self.output, self.scheme, self.mono)
+    }
+}
 
-        #[derive(Copy, Clone)]
-        enum Goal {
-            Esc,
-            Bracket,
-            Digit,
-            M,
-        }
-        let mut goal = Goal::Esc;
-        let mut cur_style = b' ';
-        let mut tick = false;
-        let mut style = "";
-        for c in self.output.as_bytes().iter() {
-            goal = match (*c, goal) {
-                (b'\x1b', Goal::Esc) => Goal::Bracket,
-                (b'[', Goal::Bracket) => Goal::Digit,
-                (d, Goal::Digit) => {
-                    // if mono then on those transitions insert `
-                    // - text -> valid/invalid
-                    // - valid/invalid -> text
-                    style = match d {
-                        Style::TEXT => "\x1b[0m",
-                        Style::EMPHASIS => &self.scheme.emphasis,
-                        Style::LITERAL => &self.scheme.literal,
-                        Style::METAVAR => &self.scheme.metavar,
-                        Style::HEADER => &self.scheme.header,
-                        Style::VALID => &self.scheme.valid,
-                        Style::INVALID => &self.scheme.invalid,
-                        _ => {
-                            goal = Goal::Esc;
-                            continue;
-                        }
-                    };
-                    tick = cur_style == Style::VALID
-                        || d == Style::VALID
-                        || cur_style == Style::INVALID
-                        || d == Style::INVALID;
+/// Apply final style to the rendering
+pub fn apply_style(unstyled: &str, scheme: &Colorscheme, mono: bool) -> String {
+    let mut output = Vec::with_capacity(unstyled.len() * 2);
+    // TODO - perform postprocessing to insert ` or apply color scheme where appropriate
 
-                    cur_style = d;
-                    Goal::M
-                }
-                (b'm', Goal::M) => {
-                    if self.mono {
-                        if tick {
-                            output.push(b'`');
-                        }
-                    } else {
-                        output.extend(style.as_bytes());
+    #[derive(Copy, Clone)]
+    enum Goal {
+        Esc,
+        Bracket,
+        Digit,
+        M,
+    }
+    let mut goal = Goal::Esc;
+    let mut cur_style = b' ';
+    let mut tick = false;
+    let mut style = "";
+    for c in unstyled.as_bytes().iter() {
+        goal = match (*c, goal) {
+            (b'\x1b', Goal::Esc) => Goal::Bracket,
+            (b'[', Goal::Bracket) => Goal::Digit,
+            (d, Goal::Digit) => {
+                style = match d {
+                    Style::TEXT => "\x1b[0m",
+                    Style::EMPHASIS => scheme.emphasis,
+                    Style::LITERAL => scheme.literal,
+                    Style::METAVAR => scheme.metavar,
+                    Style::HEADER => scheme.header,
+                    Style::VALID => scheme.valid,
+                    Style::INVALID => scheme.invalid,
+                    _ => {
+                        goal = Goal::Esc;
+                        continue;
                     }
-                    Goal::Esc
+                };
+
+                // if mono then on those transitions insert `
+                // - text -> valid/invalid
+                // - valid/invalid -> text
+                tick = cur_style == Style::VALID
+                    || d == Style::VALID
+                    || cur_style == Style::INVALID
+                    || d == Style::INVALID;
+
+                cur_style = d;
+                Goal::M
+            }
+            (b'm', Goal::M) => {
+                if mono {
+                    if tick {
+                        output.push(b'`');
+                    }
+                } else {
+                    output.extend(style.as_bytes());
                 }
-                (d, _) => {
-                    output.push(d);
-                    Goal::Esc
-                }
+                Goal::Esc
+            }
+            (d, _) => {
+                output.push(d);
+                Goal::Esc
             }
         }
-        String::from_utf8(output).expect("Should be valid by construction")
     }
+    String::from_utf8(output).expect("Should be valid by construction")
 }
 
 #[inline(never)]

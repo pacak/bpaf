@@ -211,7 +211,13 @@ impl<T> Visited for Bp<Flag<T>> {
         let item = Item::Flag {
             named: &self.0.named,
         };
-        visitor.item(item);
+        if self.0.absent.is_some() {
+            visitor.push_group(VisitGroup::Optional);
+            visitor.item(item);
+            visitor.pop_group();
+        } else {
+            visitor.item(item);
+        }
     }
 }
 
