@@ -1417,7 +1417,7 @@ struct Triggers {
 fn help_parser() -> Bp<RcParser<()>> {
     short('h')
         .long("help")
-        .help("Display help message")
+        .help("Prints help information")
         .req_flag(())
         .into_rc()
 }

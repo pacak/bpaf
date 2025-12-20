@@ -171,8 +171,11 @@ impl<'a> Visitor<'a> for Help<'a> {
                 };
                 todo!()
             }
-            Item::OptionParser { info, inner: _ } => {
-                // TODO - grab usage line here
+            Item::OptionParser { info, inner } => {
+                // use crate::traits::Visitor;
+                let mut usage = crate::visitors::usage::Usage::default();
+                inner.visit(&mut usage);
+                self.usage = usage.render();
                 self.info = Some(info);
             }
             Item::Section {
@@ -192,13 +195,9 @@ impl<'a> Visitor<'a> for Help<'a> {
         }
     }
 
-    fn push_group(&mut self, group: VisitGroup) {
-        todo!()
-    }
+    fn push_group(&mut self, _group: VisitGroup) {}
 
-    fn pop_group(&mut self) {
-        todo!()
-    }
+    fn pop_group(&mut self) {}
 
     fn identify(&self) -> VKind {
         VKind::Help
@@ -232,7 +231,10 @@ impl<'a> Help<'a> {
         }
 
         // TODO
-        w.write_text("USAGE");
+        w.write_text("Usage: ");
+        w.write_text(&self.usage);
+        w.newline();
+        w.newline();
         if let Some(descr) = self.info.and_then(|i| i.descr) {
             w.write_text(descr);
             w.newline();

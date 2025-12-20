@@ -10,8 +10,18 @@ fn simple_flag() {
         .footer("And this is a footer");
 
     let r = parser.run_inner("-a --help").unwrap_err().unwrap_stdout();
-    println!("{r}");
-    assert_eq!(r, "");
+    let expected = "\
+This is a header
+Usage: -a
+
+This is a description
+Available options:
+    -a          A simple flag
+    -h, --help  Prints help information
+And this is a footer
+";
+
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -30,7 +40,13 @@ fn complex_header() {
 fn help_after_switch() {
     let parser = short('a').switch().help("this is help").to_options();
     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-    let expected = "Usage: [-a]\n\nAvailable options:\n    -a          this is help\n    -h, --help  Prints help information\n";
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a          this is help
+    -h, --help  Prints help information
+";
     assert_eq!(r, expected);
 }
 

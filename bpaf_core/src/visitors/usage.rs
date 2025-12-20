@@ -17,19 +17,21 @@ impl Usage<'_> {
         // separator goes in front of group opening tags and in front of items, unless
         // this is a first group/item in a group or a line
         let mut first = true;
-        let mut stack = Vec::new();
+        let mut stack = Vec::<Group>::new();
         let mut sep = " ";
         let mut out = String::new();
         // Don't draw parens around top a top level product
         let events = match self.events.first() {
-            Some(Event::Group {
+            Some(Event::Group(Group {
                 group: VisitGroup::Prod,
                 optional: false,
                 ..
-            }) => &self.events[1..self.events.len() - 1],
+            })) => &self.events[1..self.events.len() - 1],
             _ => &self.events,
         };
+
         for event in events.iter() {
+            println!("Stack: {stack:?}\nprinting {event:?}\n");
             match event {
                 Event::Put(put) => {
                     if !first {
@@ -55,11 +57,14 @@ impl Usage<'_> {
                         Put::Text { text } => todo!(),
                     }
                 }
-                Event::Group {
-                    group,
-                    children,
-                    optional,
-                } => {
+                Event::Group(
+                    g @ Group {
+                        group,
+                        children,
+                        optional,
+                        visible,
+                    },
+                ) => {
                     match group {
                         VisitGroup::Many => {
                             // TODO - this is not possible, many will be always sitting in a
@@ -79,50 +84,71 @@ impl Usage<'_> {
                             }
                         }
                         VisitGroup::Prod => {
-                            sep = " ";
                             if !first {
                                 out.push_str(sep);
                             }
-                            out.push(if *optional { '[' } else { '(' });
+                            if *visible {
+                                out.push(if *optional { '[' } else { '(' });
+                            }
                             first = true;
                         }
                         VisitGroup::Sum => {
-                            sep = " | ";
-                            out.push(if *optional { '[' } else { '(' });
-                        }
-                    }
-                    stack.push((*group, *children, *optional));
-                }
-                Event::Pop => {
-                    // let optional = matches!(stack.last(), Some((VisitGroup::Optional, _)));
-                    match stack.pop().unwrap() {
-                        (VisitGroup::Many, children, optional) => {
-                            if children > 1 {
-                                out.push(')');
-                            }
-                            out.push_str("...");
-                        }
-                        (VisitGroup::Optional, _, optional) => {
-                            if !optional {
-                                out.push(']');
+                            if *visible {
+                                out.push(if *optional { '[' } else { '(' });
                             }
                         }
-                        (VisitGroup::Prod, children, optional) => {
-                            out.push(if optional { ']' } else { ')' });
-                        }
-                        (VisitGroup::Sum, children, optional) => {
-                            out.push(if optional { ']' } else { ')' });
-                        }
                     }
+                    stack.push(*g);
+
                     sep = stack
                         .iter()
                         .rev()
-                        .find_map(|(s, _, _)| match s {
+                        .find_map(|g| match g.group {
                             VisitGroup::Many | VisitGroup::Optional => None,
                             VisitGroup::Prod => Some(" "),
                             VisitGroup::Sum => Some(" | "),
                         })
                         .unwrap_or(" ");
+                }
+                Event::Pop => {
+                    use VisitGroup as VG;
+
+                    let g = stack.pop().unwrap();
+
+                    match g.group {
+                        VG::Many => {
+                            if g.children > 1 {
+                                out.push(')');
+                            }
+                            out.push_str("...");
+                        }
+                        VG::Optional => {
+                            if !g.optional {
+                                out.push(']');
+                            }
+                        }
+                        VG::Prod => {
+                            if g.visible {
+                                out.push(if g.optional { ']' } else { ')' });
+                            }
+                        }
+                        VG::Sum => {
+                            if g.visible {
+                                out.push(if g.optional { ']' } else { ')' });
+                            }
+                        }
+                    }
+                    sep = stack
+                        .iter()
+                        .rev()
+                        .find_map(|g| match g.group {
+                            VisitGroup::Many | VisitGroup::Optional => None,
+                            VisitGroup::Prod => Some(" "),
+                            VisitGroup::Sum => Some(" | "),
+                        })
+                        .unwrap_or(" ");
+                    println!("Choosing a new sep after writing {:?}", out);
+                    println!("Stack was {stack:?}, sep = {sep}");
                 }
             }
         }
@@ -132,7 +158,7 @@ impl Usage<'_> {
     fn siblings_mut(&mut self) -> Option<&mut usize> {
         let offset = *self.group_start.last()?;
         match self.events.get_mut(offset)? {
-            Event::Group { children, .. } => Some(children),
+            Event::Group(g) => Some(&mut g.children),
             _ => None,
         }
     }
@@ -180,11 +206,12 @@ impl<'a> Visitor<'a> for Usage<'a> {
             *siblings += 1;
         }
         self.group_start.push(self.events.len());
-        self.events.push(Event::Group {
+        self.events.push(Event::Group(Group {
             group,
             children: 0,
             optional: false,
-        });
+            visible: true,
+        }));
     }
 
     // rules:
@@ -199,21 +226,18 @@ impl<'a> Visitor<'a> for Usage<'a> {
     // Many and Optional can have only one child
 
     fn pop_group(&mut self) {
+        use VisitGroup as VG;
         let open = self.group_start.pop().expect("Unbalanced groups!");
-        let Event::Group {
-            group,
-            mut children,
-            optional: is_opt,
-        } = self.events[open]
-        else {
-            panic!("Unbalanced groups");
-        };
 
-        if group == VisitGroup::Sum {
+        // remove all but the first command from a SUM - otherwise
+        // they will be displayed as "COMMAND | COMMAND | COMMAND ... " which is not helpful
+        if let Some(group) = self.events[open].as_group()
+            && group.group == VisitGroup::Sum
+        {
             let mut commands = 0;
             let removed = self
                 .events
-                .extract_if(open.., |e| {
+                .extract_if(open + 1.., |e| {
                     if matches!(e, Event::Put(Put::Command)) {
                         commands += 1;
                         commands > 1
@@ -222,49 +246,64 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     }
                 })
                 .count();
-            children -= removed;
-            self.events[open] = Event::Group {
-                group,
-                children,
-                optional: is_opt,
-            };
+            if removed > 0 {
+                self.events[open].as_group().unwrap().children -= removed;
+            }
         }
 
-        let parent = self
-            .group_start
-            .last()
-            .and_then(|p| self.events[*p].as_group());
+        if let Some(parent) = self.group_start.last() {
+            let [parent, child] = self
+                .events
+                .get_disjoint_mut([*parent, open])
+                .unwrap()
+                .map(|i| i.as_group().unwrap());
 
-        let prod_or_sum = group == VisitGroup::Sum || group == VisitGroup::Prod;
-
-        if group == VisitGroup::Optional
-            && let Some((VisitGroup::Sum, _, optional)) = parent
-        {
-            *optional = true;
-            self.events.remove(open);
-        } else if prod_or_sum && let Some((VisitGroup::Optional, _, optional)) = parent {
-            *optional = true;
-            self.events[open] = Event::Group {
-                group,
-                children,
-                optional: true,
+            let keep = match (parent.group, child.group) {
+                _ if child.children == 0 => {
+                    parent.children -= 1;
+                    false
+                }
+                (VG::Sum, VG::Optional) => {
+                    // rule 1
+                    parent.optional = true;
+                    false
+                }
+                (VG::Prod, VG::Prod) | (VG::Sum, VG::Sum) => {
+                    parent.children += child.children - 1;
+                    false
+                }
+                (VG::Many, VG::Many) => true,         // XXX
+                (VG::Many, VG::Optional) => true,     // XXX
+                (VG::Many, VG::Prod) => true,         // XXX
+                (VG::Many, VG::Sum) => true,          // XXX
+                (VG::Optional, VG::Many) => true,     // XXX
+                (VG::Optional, VG::Optional) => true, // XXX
+                (VG::Optional, VG::Prod | VG::Sum) => {
+                    child.optional = true;
+                    parent.optional = true; // TODO use hidden
+                    true
+                }
+                (VG::Prod, VG::Many) => true,     // XXX
+                (VG::Prod, VG::Optional) => true, // XXX
+                (VG::Prod, VG::Sum) => true,      // XXX
+                (VG::Sum, VG::Many) => true,      // XXX
+                (VG::Sum, VG::Prod) => {
+                    child.visible = false;
+                    true // XXX
+                }
             };
-            self.events.push(Event::Pop);
-        } else if children == 0 {
-            if let Some((_, children, _)) = parent {
-                *children -= 1;
+            if keep {
+                self.events.push(Event::Pop)
+            } else {
+                self.events.remove(open);
             }
-            self.events.remove(open);
-        } else if children == 1 && prod_or_sum {
-            self.events.remove(open);
-        } else if prod_or_sum
-            && let Some((p, c, _)) = parent
-            && p == group
-        {
-            *c += children - 1;
-            self.events.remove(open);
         } else {
-            self.events.push(Event::Pop);
+            let g = self.events[open].as_group().unwrap();
+            if (g.group == VG::Sum || g.group == VG::Prod) && g.children == 1 {
+                self.events.remove(open);
+            } else {
+                self.events.push(Event::Pop);
+            }
         }
     }
 }
@@ -302,24 +341,24 @@ enum Put<'a> {
 }
 
 #[derive(Debug, Copy, Clone)]
+struct Group {
+    group: VisitGroup,
+    children: usize,
+    visible: bool,
+    optional: bool,
+}
+
+#[derive(Debug, Copy, Clone)]
 enum Event<'a> {
     Put(Put<'a>),
-    Group {
-        group: VisitGroup,
-        children: usize,
-        optional: bool,
-    },
+    Group(Group),
     Pop,
 }
 
 impl Event<'_> {
-    fn as_group(&mut self) -> Option<(VisitGroup, &mut usize, &mut bool)> {
+    fn as_group(&mut self) -> Option<&mut Group> {
         match self {
-            Event::Group {
-                group,
-                children,
-                optional,
-            } => Some((*group, children, optional)),
+            Event::Group(g) => Some(g),
             _ => None,
         }
     }
@@ -532,7 +571,29 @@ mod tests {
         let c = short('c').switch();
         let ab = construct!(a, b);
         let parser = construct!(ab, c).many().to_options();
-        let r = usage(&parser);
-        assert_eq!(r, "[[-a] -b [-c]]...");
+        assert_eq!(usage(&parser), "[[-a] -b [-c]]...");
+    }
+
+    #[test]
+    fn flatten_sum_of_prods_1() {
+        let a = construct!(ra(),);
+        let b = construct!(rb(),);
+        let parser = construct!([a, b]).to_options();
+        assert_eq!(usage(&parser), "(-a | -b)");
+    }
+
+    #[test]
+    fn flatten_sum_of_prods_3() {
+        let a = construct!(ra(), oa()).map(|_| true);
+        let parser = construct!([a, rb()]).to_options();
+        assert_eq!(usage(&parser), "(-a [-a] | -b)");
+    }
+
+    #[test]
+    fn flatten_prod_of_prods() {
+        let a = construct!(ra(), oa());
+        let b = construct!(rb(), ob());
+        let parser = construct!(a, b).to_options();
+        assert_eq!(usage(&parser), "-a [-a] -b [-b]");
     }
 }
