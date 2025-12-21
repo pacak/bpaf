@@ -71,6 +71,8 @@ pub struct Info {
     pub header: Option<&'static str>,
     pub descr: Option<&'static str>,
     pub footer: Option<&'static str>,
+    pub usage: Option<&'static str>,
+    pub version: Option<&'static str>,
 }
 
 impl<T: 'static> Bp<OptionParser<T>> {
@@ -109,6 +111,16 @@ impl<T: 'static> Bp<OptionParser<T>> {
 
     pub fn footer(mut self, text: &'static str) -> Self {
         self.0.info.footer = Some(text);
+        self
+    }
+
+    pub fn version(mut self, text: &'static str) -> Self {
+        self.0.info.version = Some(text);
+        self
+    }
+
+    pub fn usage(mut self, text: &'static str) -> Self {
+        self.0.info.usage = Some(text);
         self
     }
 }

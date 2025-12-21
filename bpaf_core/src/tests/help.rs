@@ -96,41 +96,44 @@ Available options:
     assert_eq!(r, expected);
 }
 
-// #[test]
-// fn decorations() {
-//     let p = short('p')
-//         .long("parser")
-//         .env("BPAF_VARIABLE")
-//         .argument::<String>("ARG")
-//         .to_options()
-//         .descr("descr\n descr")
-//         .header("header\n header")
-//         .footer("footer\n footer")
-//         .version("version")
-//         .usage("custom usage");
-//
-//     let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// descr
-// descr
-//
-// custom usage
-//
-// header
-// header
-//
-// Available options:
-//     -p, --parser=ARG  [env:BPAF_VARIABLE: N/A]
-//     -h, --help        Prints help information
-//     -V, --version     Prints version information
-//
-// footer
-// footer
-// ";
-//
-//     assert_eq!(r, expected);
-// }
+#[test]
+fn decorations() {
+    let p = short('p')
+        .long("parser")
+        .help("help")
+        .env("BPAF_VARIABLE")
+        .argument::<String>("ARG")
+        .to_options()
+        .descr("descr\n descr")
+        .header("header\n header")
+        .footer("footer\n footer")
+        .version("version")
+        .usage("custom usage");
+
+    let r = p.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    println!("{r}");
+    let expected = "\
+descr
+descr
+
+custom usage
+
+header
+header
+
+Available options:
+    -p, --parser=ARG
+                      [env:BPAF_VARIABLE: N/A]
+    -h, --help        Prints help information
+    -V, --version     Prints version information
+
+footer
+footer
+";
+
+    assert_eq!(r, expected);
+}
 
 #[test]
 fn very_long_switch() {

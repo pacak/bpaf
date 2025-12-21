@@ -83,13 +83,14 @@ impl Named {
 }
 
 impl Help<'_> {
-    fn track_length(&mut self, name: ShortLong<'_>) {
+    fn track_length(&mut self, name: ShortLong<'_>, meta: Option<Metavar>) {
+        let meta = meta.map_or(0, |m| m.width() + 1);
         match name {
             ShortLong::Short(_) => {
-                self.max_word = self.max_word.max(2); // `-a`
+                self.max_word = self.max_word.max(2 + meta); // `-a`
             }
             ShortLong::Long(l) | ShortLong::Both(_, l) => {
-                self.max_word = self.max_word.max(width(l) + 6);
+                self.max_word = self.max_word.max(width(l) + 6 + meta);
             }
         }
     }
@@ -103,7 +104,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     // pure env item, let's keep them a secret
                     return;
                 };
-                self.track_length(name);
+                self.track_length(name, None);
                 let place = if self.in_section {
                     &mut self.current
                 } else {
@@ -114,13 +115,13 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 let text = Cow::Owned(match std::env::var_os(env) {
-                    Some(_) => format!("{env} is set"),
-                    None => format!("{env} is not set"),
+                    Some(_) => format!("\t[{env} is set]"),
+                    None => format!("\t[{env} is not set]"),
                 });
                 place.push(HelpItem::Text {
                     text,
-                    lpad: 0,
-                    tabstop: 0,
+                    lpad: 0,    // TODO
+                    tabstop: 0, // TODO
                 });
             }
             Item::Arg { named, meta } => {
@@ -128,6 +129,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     // pure env item, let's keep them a secret
                     return;
                 };
+                self.track_length(name, Some(meta));
                 let place = if self.in_section {
                     &mut self.current
                 } else {
@@ -138,13 +140,13 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 let text = Cow::Owned(match std::env::var_os(env) {
-                    Some(v) => format!("[{env} = {}]", v.to_string_lossy()),
-                    None => format!("[{env} N/A]"),
+                    Some(v) => format!("\t[{env} = {}]", v.to_string_lossy()),
+                    None => format!("\t[{env} N/A]"),
                 });
                 place.push(HelpItem::Text {
                     text,
-                    lpad: 0,
-                    tabstop: 0,
+                    lpad: 0,    // TODO
+                    tabstop: 0, // TODO
                 });
             }
             Item::Positional { meta, help } => {
@@ -172,10 +174,13 @@ impl<'a> Visitor<'a> for Help<'a> {
                 todo!()
             }
             Item::OptionParser { info, inner } => {
-                // use crate::traits::Visitor;
-                let mut usage = crate::visitors::usage::Usage::default();
-                inner.visit(&mut usage);
-                self.usage = usage.render();
+                if let Some(usage) = info.usage {
+                    self.usage = usage.to_owned();
+                } else {
+                    let mut usage = crate::visitors::usage::Usage::default();
+                    inner.visit(&mut usage);
+                    self.usage = usage.render();
+                }
                 self.info = Some(info);
             }
             Item::Section {
@@ -225,8 +230,8 @@ impl<'a> Help<'a> {
     pub(crate) fn render(mut self) -> String {
         let mut w = ConsoleWriter::new(None, self.max_word + 6);
 
-        if let Some(header) = self.info.and_then(|i| i.header) {
-            w.write_text(header);
+        if let Some(text) = self.info.and_then(|i| i.descr) {
+            w.write_text(text);
             w.newline();
         }
 
@@ -235,8 +240,8 @@ impl<'a> Help<'a> {
         w.write_text(&self.usage);
         w.newline();
         w.newline();
-        if let Some(descr) = self.info.and_then(|i| i.descr) {
-            w.write_text(descr);
+        if let Some(text) = self.info.and_then(|i| i.header) {
+            w.write_text(text);
             w.newline();
         }
 
@@ -265,8 +270,8 @@ impl<'a> Help<'a> {
         w.write_section(cmds);
         w.write_section(named);
 
-        if let Some(footer) = self.info.and_then(|i| i.footer) {
-            w.write_text(footer);
+        if let Some(text) = self.info.and_then(|i| i.footer) {
+            w.write_text(text);
             w.newline();
         }
 
@@ -300,10 +305,7 @@ enum Chunk<'a> {
 /// 4. `"\n    "` - code block - must start with 4 spaces, must not contain empty lines
 /// 5. take next word
 fn split(input: &str, mono: bool) -> Splitter<'_> {
-    Splitter {
-        input: input.trim(),
-        mono,
-    }
+    Splitter { input, mono }
 }
 
 #[derive(Debug)]
@@ -576,7 +578,10 @@ impl ConsoleWriter {
                 text,
                 lpad,
                 tabstop,
-            } => todo!(),
+            } => {
+                self.write_text(&text);
+                // todo!("{text:?} {lpad:?} {tabstop:?}")
+            }
             HelpItem::Header { text } => {
                 self.pending_paragraph = !self.output.is_empty();
                 self.output.push_str(Style::Header.ansi());
