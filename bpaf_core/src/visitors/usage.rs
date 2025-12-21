@@ -104,16 +104,7 @@ impl Usage<'_> {
                         }
                     }
                     stack.push(*g);
-
-                    sep = stack
-                        .iter()
-                        .rev()
-                        .find_map(|g| match g.group {
-                            VisitGroup::Many | VisitGroup::Optional => None,
-                            VisitGroup::Prod => Some(" "),
-                            VisitGroup::Sum => Some(" | "),
-                        })
-                        .unwrap_or(" ");
+                    sep = get_sep(&stack);
                 }
                 Event::Pop => {
                     use VisitGroup as VG;
@@ -143,15 +134,7 @@ impl Usage<'_> {
                             }
                         }
                     }
-                    sep = stack
-                        .iter()
-                        .rev()
-                        .find_map(|g| match g.group {
-                            VisitGroup::Many | VisitGroup::Optional => None,
-                            VisitGroup::Prod => Some(" "),
-                            VisitGroup::Sum => Some(" | "),
-                        })
-                        .unwrap_or(" ");
+                    sep = get_sep(&stack);
                 }
             }
         }
@@ -164,6 +147,18 @@ impl Usage<'_> {
             _ => None,
         }
     }
+}
+
+fn get_sep(stack: &[Group]) -> &'static str {
+    stack
+        .iter()
+        .rev()
+        .find_map(|g| match g.group {
+            VisitGroup::Many | VisitGroup::Optional => None,
+            VisitGroup::Prod => Some(" "),
+            VisitGroup::Sum => Some(" | "),
+        })
+        .unwrap_or(" ")
 }
 
 impl<'a> Visitor<'a> for Usage<'a> {
