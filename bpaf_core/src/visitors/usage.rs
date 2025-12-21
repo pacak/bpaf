@@ -36,7 +36,6 @@ impl Usage<'_> {
         };
 
         for event in events.iter() {
-            println!("Stack: {stack:?}\nprinting {event:?}\n");
             match event {
                 Event::Put(put) => {
                     if !first {
