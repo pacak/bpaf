@@ -152,8 +152,6 @@ impl Usage<'_> {
                             VisitGroup::Sum => Some(" | "),
                         })
                         .unwrap_or(" ");
-                    println!("Choosing a new sep after writing {:?}", out);
-                    println!("Stack was {stack:?}, sep = {sep}");
                 }
             }
         }
