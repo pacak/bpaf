@@ -25,7 +25,6 @@ impl Usage<'_> {
         let mut first = true;
         let mut stack = Vec::<Group>::new();
         let mut sep = " ";
-        let mut out = String::new();
         // Don't draw parens around top a top level product
         let events = match self.events.first() {
             Some(Event::Group(Group {
