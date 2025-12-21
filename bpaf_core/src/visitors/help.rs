@@ -296,69 +296,96 @@ enum Chunk<'a> {
     Paragraph,
 }
 
-/// Split the string into components that can be filled back in into a fixed width
-///
-/// Output doesn't contain spaces between words
-/// 1. `"\n\n"` - Paragraph
-/// 2. `"\n "` - LineBreak
-/// 3. `"\n"` - separates words
-/// 4. `"\n    "` - code block - must start with 4 spaces, must not contain empty lines
-/// 5. take next word
-fn split(input: &str, mono: bool) -> Splitter<'_> {
-    Splitter { input, mono }
-}
+/// 1. consider one line at a time
+/// 2. empty line = paragraph
+/// 3. one leading space LineBreak
+/// 4. four leading spaces - indented block
+/// 5. first tab in a line - TabStop, otherwise - it's a space
+/// 6. multiple adjacent spaces are chomped
+/// 7. output contains no spaces
 
 #[derive(Debug)]
-struct Splitter<'a> {
-    input: &'a str,
+struct LineSplit<'a> {
+    cur_line: &'a str,
+    mode: Mode,
+    rest: &'a str,
     mono: bool,
 }
 
-impl<'a> Iterator for Splitter<'a> {
+#[derive(Debug)]
+enum Mode {
+    NextLine,
+    Newline,
+    TakeRest,
+    Parse,
+}
+
+fn linesplit<'a>(input: &'a str, mono: bool) -> LineSplit<'a> {
+    LineSplit {
+        cur_line: "",
+        mode: Mode::NextLine,
+        rest: input,
+        mono,
+    }
+}
+
+impl<'a> Iterator for LineSplit<'a> {
     type Item = Chunk<'a>;
 
-    #[inline(never)]
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(tail) = self.input.strip_prefix('\n') {
-            if let Some(code) = tail.strip_prefix("    ") {
-                // `_rest` doesn't contain leading '\n' - not useful for iteration purposes
-                if let Some((code, _rest)) = code.split_once('\n') {
-                    self.input = &tail[code.len()..];
-                    Some(word(code, self.mono))
-                } else {
-                    self.input = "";
-                    Some(word(tail, self.mono))
+        loop {
+            match &self.mode {
+                Mode::NextLine => {
+                    (self.cur_line, self.rest) = match self.rest.split_once('\n') {
+                        Some(split) => split,
+                        None if self.rest.is_empty() => return None,
+                        None => (self.rest, ""),
+                    };
+                    self.mode = Mode::Newline;
                 }
-            } else if let Some(tail) = tail.strip_prefix(' ') {
-                self.input = tail;
-                Some(Chunk::LineBreak)
-            } else {
-                match tail.split_once(' ') {
-                    Some((this, rest)) => {
-                        self.input = rest;
-                        Some(word(this, self.mono))
+                Mode::Newline => {
+                    if self.cur_line.starts_with("    ") {
+                        self.mode = Mode::TakeRest;
+                        return Some(Chunk::LineBreak);
+                    } else if self.cur_line.is_empty() {
+                        self.mode = Mode::NextLine;
+                        return Some(Chunk::Paragraph);
+                    } else if let Some(tail) = self.cur_line.strip_prefix(' ') {
+                        self.mode = Mode::Parse;
+                        self.cur_line = tail;
+                        return Some(Chunk::LineBreak);
+                    } else {
+                        self.mode = Mode::Parse;
                     }
-                    None => {
-                        self.input = "";
-                        Some(word(tail, self.mono))
+                }
+                Mode::TakeRest => {
+                    self.mode = Mode::NextLine;
+                    return Some(word(self.cur_line, self.mono));
+                }
+                Mode::Parse => {
+                    if let Some(rest) = self.cur_line.strip_prefix('\t') {
+                        self.cur_line = rest;
+                        return Some(Chunk::Tab);
+                    } else if let Some(rest) = self.cur_line.strip_prefix(' ') {
+                        self.cur_line = rest;
+                    } else {
+                        match self
+                            .cur_line
+                            .as_bytes()
+                            .iter()
+                            .position(|u| u.is_ascii_whitespace())
+                        {
+                            Some(mid) => {
+                                let (this, rest) = self.cur_line.split_at(mid);
+                                self.cur_line = rest;
+                                return Some(word(this, self.mono));
+                            }
+                            None => {
+                                self.mode = Mode::NextLine;
+                                return Some(word(self.cur_line, self.mono));
+                            }
+                        }
                     }
-                }
-            }
-        } else if self.input.is_empty() {
-            None
-        } else if let Some(tail) = self.input.strip_prefix('\t') {
-            self.input = tail;
-            Some(Chunk::Tab)
-        } else {
-            match self.input.split_once(' ') {
-                Some((this, rest)) => {
-                    self.input = rest;
-                    Some(word(this, self.mono))
-                }
-                None => {
-                    let input = self.input;
-                    self.input = "";
-                    Some(word(input, self.mono))
                 }
             }
         }
@@ -620,7 +647,7 @@ impl ConsoleWriter {
     }
 
     fn write_text(&mut self, text: &str) {
-        for chunk in split(text, self.mono) {
+        for chunk in linesplit(text, self.mono) {
             match chunk {
                 Chunk::Word { width, text } => {
                     if self.pending_paragraph {
@@ -756,6 +783,40 @@ mod tests {
     }
 
     #[test]
+    fn text_with_explicit_linebreak() {
+        let mut w = ConsoleWriter::new(None, 60);
+        w.write_text("hello\n world");
+        assert_eq!(w.done(), "hello\nworld");
+    }
+
+    #[test]
+    fn text_with_space() {
+        let mut w = ConsoleWriter::new(None, 60);
+        w.write_text("hello world");
+        assert_eq!(w.done(), "hello world");
+    }
+
+    #[test]
+    fn text_with_tabstop() {
+        let mut w = ConsoleWriter::new(None, 10);
+        w.write_text("a\tb");
+        assert_eq!(w.done(), "a         b");
+    }
+
+    #[test]
+    fn indented_block() {
+        let mut w = ConsoleWriter::new(None, 60);
+        w.write_text("    hello world");
+    }
+
+    #[test]
+    fn text_with_indented_block() {
+        let mut w = ConsoleWriter::new(None, 60);
+        w.write_text("hello\n\n    world");
+        assert_eq!(w.done(), "hello\n\n    world");
+    }
+
+    #[test]
     fn named_items() {
         let mut w = ConsoleWriter::new(None, 20);
         let help = Some(
@@ -794,7 +855,6 @@ mod tests {
                     name?
 "#;
         let r = w.done();
-        println!("{r}");
         assert_eq!(w.done(), expected);
     }
 }
