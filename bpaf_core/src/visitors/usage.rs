@@ -8,6 +8,12 @@ pub struct Usage<'a> {
 
 impl Usage<'_> {
     pub(crate) fn render(&self) -> String {
+        let mut out = String::new();
+        self.render_to(&mut out);
+        out
+    }
+
+    pub(crate) fn render_to(&self, mut out: &mut String) {
         use std::fmt::Write as _;
 
         use crate::visitors::help::Style;
