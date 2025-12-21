@@ -155,7 +155,6 @@ impl Usage<'_> {
                 }
             }
         }
-        out
     }
 
     fn siblings_mut(&mut self) -> Option<&mut usize> {
