@@ -250,7 +250,7 @@ impl<'a> Help<'a> {
         }
 
         let positional = Section {
-            header: "Positional items:",
+            header: "Available positional items:",
             descr: None,
             items: std::mem::take(&mut self.pos),
         };
@@ -590,12 +590,11 @@ impl ConsoleWriter {
     }
     fn write_item(&mut self, item: &HelpItem) {
         use std::fmt::Write as _;
+        const L: &str = Style::Literal.ansi();
+        const T: &str = Style::Text.ansi();
+        const M: &str = Style::Metavar.ansi();
         match item {
             HelpItem::Named { name, meta, help } => {
-                const L: &str = Style::Literal.ansi();
-                const T: &str = Style::Text.ansi();
-                const M: &str = Style::Metavar.ansi();
-
                 self.pending = self.pending.max(Pending::Newline);
                 self.handle_pending();
                 _ = match name {
@@ -624,7 +623,16 @@ impl ConsoleWriter {
                     self.write_text(help);
                 }
             }
-            HelpItem::Pos { meta, help } => todo!(),
+            HelpItem::Pos { meta, help } => {
+                self.handle_pending();
+
+                self.cursor += 4 + meta.width();
+                _ = write!(&mut self.output, "    {M}{meta}{T}");
+                if let Some(help) = help {
+                    self.tabstop();
+                    self.write_text(help);
+                }
+            }
             HelpItem::Cmd { name, help } => todo!(),
             HelpItem::Text {
                 text,
