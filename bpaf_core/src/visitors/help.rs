@@ -8,11 +8,12 @@ use crate::{
 };
 
 const MAX_WIDTH: usize = 100;
+const MAX_TAB: usize = 24;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 struct Lit<'a>(ShortLong<'a>);
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 /// No text should include a closing newline, each item gets placed on a separate line
 enum HelpItem<'a> {
     /// An argument or a flag
@@ -90,7 +91,10 @@ impl Help<'_> {
                 self.max_word = self.max_word.max(2 + meta); // `-a`
             }
             ShortLong::Long(l) | ShortLong::Both(_, l) => {
-                self.max_word = self.max_word.max(width(l) + 6 + meta);
+                let this = width(l) + 6 + meta;
+                if this <= MAX_TAB {
+                    self.max_word = self.max_word.max(this);
+                }
             }
         }
     }
@@ -115,8 +119,8 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 let text = Cow::Owned(match std::env::var_os(env) {
-                    Some(_) => format!("\t[{env} is set]"),
-                    None => format!("\t[{env} is not set]"),
+                    Some(_) => format!("\t[env:{env} is set]"),
+                    None => format!("\t[env:{env} is not set]"),
                 });
                 place.push(HelpItem::Text {
                     text,
@@ -140,8 +144,8 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 let text = Cow::Owned(match std::env::var_os(env) {
-                    Some(v) => format!("\t[{env} = {}]", v.to_string_lossy()),
-                    None => format!("\t[{env} N/A]"),
+                    Some(v) => format!("\t[env:{env}: {}]", v.to_string_lossy()),
+                    None => format!("\t[env:{env}: N/A]"),
                 });
                 place.push(HelpItem::Text {
                     text,
@@ -179,7 +183,8 @@ impl<'a> Visitor<'a> for Help<'a> {
                 } else {
                     let mut usage = crate::visitors::usage::Usage::default();
                     inner.visit(&mut usage);
-                    self.usage = usage.render();
+                    self.usage = "Usage: ".to_owned();
+                    usage.render_to(&mut self.usage);
                 }
                 self.info = Some(info);
             }
@@ -232,17 +237,16 @@ impl<'a> Help<'a> {
 
         if let Some(text) = self.info.and_then(|i| i.descr) {
             w.write_text(text);
-            w.newline();
+            w.paragraph();
         }
 
         // TODO
-        w.write_text("Usage: ");
         w.write_text(&self.usage);
-        w.newline();
-        w.newline();
+        w.paragraph();
+
         if let Some(text) = self.info.and_then(|i| i.header) {
             w.write_text(text);
-            w.newline();
+            w.paragraph();
         }
 
         let positional = Section {
@@ -271,6 +275,7 @@ impl<'a> Help<'a> {
         w.write_section(named);
 
         if let Some(text) = self.info.and_then(|i| i.footer) {
+            w.paragraph();
             w.write_text(text);
             w.newline();
         }
@@ -279,7 +284,7 @@ impl<'a> Help<'a> {
     }
 }
 
-const BLANK: &'static str = "                                                    ";
+const BLANK: &'static str = "                                                                     ";
 
 #[derive(Debug, Copy, Clone)]
 enum Chunk<'a> {
@@ -482,7 +487,7 @@ pub enum Style {
     Invalid,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Copy, Clone)]
 pub struct Colorscheme {
     emphasis: &'static str,
     literal: &'static str,
@@ -490,6 +495,11 @@ pub struct Colorscheme {
     header: &'static str,
     valid: &'static str,
     invalid: &'static str,
+}
+impl std::fmt::Debug for Colorscheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Colorscheme {..}").finish()
+    }
 }
 
 impl Colorscheme {
@@ -511,6 +521,15 @@ impl Colorscheme {
     };
 }
 
+#[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Debug, Default)]
+enum Pending {
+    #[default]
+    Nothing,
+    Space,
+    Newline,
+    Paragraph,
+}
+
 #[derive(Debug)]
 struct ConsoleWriter {
     scheme: &'static Colorscheme,
@@ -522,8 +541,8 @@ struct ConsoleWriter {
     /// Fixed for all the items
     tabstop: usize,
     output: String,
-    pending_paragraph: bool,
-    pending_space: bool,
+    pending: Pending,
+
     /// Are we before
     after_tab: bool,
     nobreak: bool,
@@ -538,8 +557,7 @@ impl ConsoleWriter {
             output: String::new(),
             lpad: 0,
             tabstop,
-            pending_paragraph: false,
-            pending_space: false,
+            pending: Pending::Nothing,
             after_tab: false,
             nobreak: false,
         }
@@ -552,28 +570,34 @@ impl ConsoleWriter {
         use std::fmt::Write as _;
         const H: &str = Style::Header.ansi();
         const T: &str = Style::Text.ansi();
+        self.pending = Pending::Paragraph;
+        self.handle_pending();
         _ = write!(&mut self.output, "{H}{}{T}", section.header);
-        self.newline();
+        self.cursor = width(&section.header);
+        self.pending = Pending::Newline;
         if let Some(descr) = section.descr {
             self.write_text(descr);
-            self.newline();
+            self.pending = self.pending.max(Pending::Newline);
         }
+        self.pending = Pending::Newline;
 
-        for item in section.items {
-            self.write_item(item);
+        let mut set = std::collections::HashSet::new();
+        for item in section.items.iter() {
+            if set.insert(item) {
+                self.write_item(&item);
+            }
         }
     }
-    fn write_item(&mut self, item: HelpItem) {
+    fn write_item(&mut self, item: &HelpItem) {
         use std::fmt::Write as _;
-        if self.pending_paragraph {
-            self.pending_paragraph = false;
-            self.output.push('\n');
-        }
         match item {
             HelpItem::Named { name, meta, help } => {
                 const L: &str = Style::Literal.ansi();
                 const T: &str = Style::Text.ansi();
                 const M: &str = Style::Metavar.ansi();
+
+                self.pending = self.pending.max(Pending::Newline);
+                self.handle_pending();
                 _ = match name {
                     ShortLong::Short(s) => {
                         self.cursor += 6;
@@ -593,9 +617,10 @@ impl ConsoleWriter {
                     self.cursor += 1 + meta.width();
                     _ = write!(&mut self.output, "={M}{meta}{T}");
                 }
+                self.after_tab = false;
                 if let Some(help) = help {
                     self.nobreak = true;
-                    self.tabstop();
+                    self.pending = self.tabstop();
                     self.write_text(help);
                 }
             }
@@ -606,90 +631,109 @@ impl ConsoleWriter {
                 lpad,
                 tabstop,
             } => {
+                self.handle_pending();
                 self.write_text(&text);
                 // todo!("{text:?} {lpad:?} {tabstop:?}")
             }
             HelpItem::Header { text } => {
-                self.pending_paragraph = !self.output.is_empty();
+                self.pending = Pending::Paragraph;
+                self.handle_pending();
+                self.pending = Pending::Nothing;
+
                 self.output.push_str(Style::Header.ansi());
+
                 self.write_text(text);
                 self.output.push_str(Style::Text.ansi());
+                self.pending = Pending::Newline;
             }
         }
         self.after_tab = false;
-        self.cursor = 0;
-        self.output.push('\n');
-        self.pending_space = false;
+        self.pending = Pending::Newline;
     }
 
     fn newline(&mut self) {
-        self.pending_space = false;
-        self.cursor = 0;
-        self.pending_space = false;
-        self.output.push('\n');
+        self.pending = Pending::Newline;
     }
 
-    fn tabstop(&mut self) {
+    fn paragraph(&mut self) {
+        self.pending = Pending::Paragraph;
+    }
+
+    fn tabstop(&mut self) -> Pending {
         if self.after_tab {
-            return;
+            return Pending::Space;
         }
         self.after_tab = true;
+        self.nobreak = true;
         if let Some(diff) = self.tabstop.checked_sub(self.cursor) {
             self.output.push_str(&BLANK[..diff]);
-            self.pending_space = false;
             self.cursor = self.tabstop;
+            Pending::Nothing
         } else {
-            self.pending_space = true;
             self.cursor += 1;
             self.output.push(' ');
+            Pending::Space
         }
-        self.nobreak = true;
+    }
+
+    fn handle_pending(&mut self) {
+        match self.pending {
+            Pending::Nothing => {}
+            Pending::Space => {
+                self.output.push(' ');
+                self.cursor += 1;
+            }
+            Pending::Newline => {
+                if self.cursor > 0 {
+                    self.output.push('\n');
+                    self.cursor = 0;
+                }
+            }
+            Pending::Paragraph => {
+                if !self.output.is_empty() {
+                    self.output.push_str("\n\n");
+                    self.cursor = 0;
+                }
+            }
+        }
+        self.pending = Pending::Nothing;
     }
 
     fn write_text(&mut self, text: &str) {
         for chunk in linesplit(text, self.mono) {
-            match chunk {
+            self.pending = match chunk {
                 Chunk::Word { width, text } => {
-                    if self.pending_paragraph {
-                        self.pending_paragraph = false;
-                        self.output.push('\n');
-                        self.cursor = 0;
+                    if width + 1 + self.cursor > MAX_WIDTH
+                        && !self.nobreak
+                        && self.pending == Pending::Space
+                    {
+                        self.pending = Pending::Newline;
                     }
-                    if width + 1 + self.cursor > MAX_WIDTH && !self.nobreak {
+                    self.handle_pending();
+                    if self.cursor == 0 {
                         let pad = if self.after_tab {
                             self.tabstop
                         } else {
                             self.lpad
                         };
-                        self.output.push('\n');
-                        self.output.push_str(&BLANK[..pad]);
                         self.cursor = pad;
-                        self.pending_space = false;
-                    }
-                    if self.pending_space {
-                        self.output.push(' ');
-                        self.pending_space = false;
+                        self.output.push_str(&BLANK[..pad]);
                     }
                     self.output.push_str(text);
-                    self.pending_space = true;
                     self.cursor += width;
                     self.nobreak = false;
+                    Pending::Space
                 }
                 Chunk::Tab => self.tabstop(),
-                Chunk::LineBreak => {
-                    self.cursor = 0;
-                    self.output.push('\n');
-                    self.pending_space = false;
-                }
-                Chunk::Paragraph => {
-                    self.cursor = 0;
-                    self.output.push('\n');
-                    self.pending_paragraph = true;
-                }
+                Chunk::LineBreak => self.pending.max(Pending::Newline),
+                Chunk::Paragraph => self.pending.max(Pending::Paragraph),
             }
         }
     }
-    fn done(&self) -> String {
+    fn done(mut self) -> String {
+        if self.pending >= Pending::Newline {
+            self.output.push('\n');
+        }
         apply_style(&self.output, self.scheme, self.mono)
     }
 }
@@ -770,15 +814,15 @@ mod tests {
     #[test]
     fn a_pair_of_headers() {
         let mut w = ConsoleWriter::new(None, 60);
-        w.write_item(HelpItem::Header { text: "Hello" });
-        w.write_item(HelpItem::Header { text: "Cat news" });
+        w.write_item(&HelpItem::Header { text: "Hello" });
+        w.write_item(&HelpItem::Header { text: "Cat news" });
         let expected = "Hello\n\nCat news\n";
         assert_eq!(w.done(), expected);
 
         let mut w = ConsoleWriter::new(Some(&Colorscheme::DULL), 60);
-        w.write_item(HelpItem::Header { text: "Hello" });
-        w.write_item(HelpItem::Header { text: "Cat news" });
-        let expected = "\u{1b}[4m\u{1b}1mHello\u{1b}[0m\n\u{1b}[4m\u{1b}1m\nCat news\u{1b}[0m\n";
+        w.write_item(&HelpItem::Header { text: "Hello" });
+        w.write_item(&HelpItem::Header { text: "Cat news" });
+        let expected = "\u{1b}[4m\u{1b}1mHello\u{1b}[0m\n\n\u{1b}[4m\u{1b}1mCat news\u{1b}[0m\n";
         assert_eq!(w.done(), expected);
     }
 
@@ -795,6 +839,25 @@ mod tests {
         w.write_text("hello world");
         assert_eq!(w.done(), "hello world");
     }
+    #[test]
+    fn obeys_text_max_width() {
+        let mut w = ConsoleWriter::new(None, 60);
+        w.tabstop();
+        for _ in 0..100 {
+            w.write_text("a");
+        }
+        w.write_text("12456789");
+        w.write_text("12456789");
+        w.write_text("12456789");
+        w.write_text("12456789");
+        w.write_text("12456789");
+        w.write_text("12456789");
+        w.write_text("12456789");
+
+        for line in w.done().lines() {
+            assert!(line.len() <= MAX_WIDTH, "{line:?} ({}", line.len());
+        }
+    }
 
     #[test]
     fn text_with_tabstop() {
@@ -805,8 +868,10 @@ mod tests {
 
     #[test]
     fn indented_block() {
-        let mut w = ConsoleWriter::new(None, 60);
-        w.write_text("    hello world");
+        let mut w = ConsoleWriter::new(None, 6);
+        let t = "    hello world! this is long!";
+        w.write_text(t);
+        assert_eq!(w.done(), t);
     }
 
     #[test]
@@ -814,6 +879,17 @@ mod tests {
         let mut w = ConsoleWriter::new(None, 60);
         w.write_text("hello\n\n    world");
         assert_eq!(w.done(), "hello\n\n    world");
+    }
+
+    #[test]
+    fn simple_named_items() {
+        let mut w = ConsoleWriter::new(None, 20);
+        w.write_item(&HelpItem::Named {
+            name: ShortLong::Both('k', "ket"),
+            meta: None,
+            help: Some("help"),
+        });
+        assert_eq!(w.done(), "    -k, --ket       help\n");
     }
 
     #[test]
@@ -826,35 +902,37 @@ mod tests {
         bunch of them. Will use this twice, with different argument name?",
         );
 
-        w.write_item(HelpItem::Named {
+        w.write_item(&HelpItem::Named {
             name: ShortLong::Both('c', "cat"),
             meta: Some(Metavar("NAME")),
             help,
         });
 
-        w.write_item(HelpItem::Named {
+        w.write_item(&HelpItem::Named {
             name: ShortLong::Both('k', "ket"),
             meta: Some(Metavar("Ket")),
             help,
         });
 
-        w.write_item(HelpItem::Named {
+        w.write_item(&HelpItem::Named {
             name: ShortLong::Long("quetzalcoatl-the-feathered-serpent"),
             meta: None,
             help: help,
         });
-        let expected = r#"    -c, --cat=NAME  Animal's name to use this time, and a long long help to use long enough so it can't fit all on a
-                    single line and must be wrapped into several lines. Probably even more than several lines - I
-                    want a bunch of them. Will use this twice, with different argument name?
-    -k, --ket=<Ket> Animal's name to use this time, and a long long help to use long enough so it can't fit all on a
-                    single line and must be wrapped into several lines. Probably even more than several lines - I
-                    want a bunch of them. Will use this twice, with different argument name?
-        --quetzalcoatl-the-feathered-serpent  Animal's name to use this time, and a long long help to use long
-                    enough so it can't fit all on a single line and must be wrapped into several lines. Probably even
-                    more than several lines - I want a bunch of them. Will use this twice, with different argument
-                    name?
-"#;
-        let r = w.done();
+        let expected = "    \
+    -c, --cat=NAME  Animal's name to use this time, and a long long help to use long enough so it
+                    can't fit all on a single line and must be wrapped into several lines. Probably
+                    even more than several lines - I want a bunch of them. Will use this twice, with
+                    different argument name?
+    -k, --ket=<Ket> Animal's name to use this time, and a long long help to use long enough so it
+                    can't fit all on a single line and must be wrapped into several lines. Probably
+                    even more than several lines - I want a bunch of them. Will use this twice, with
+                    different argument name?
+        --quetzalcoatl-the-feathered-serpent  Animal's name to use this time, and a long long help
+                    to use long enough so it can't fit all on a single line and must be wrapped into
+                    several lines. Probably even more than several lines - I want a bunch of them.
+                    Will use this twice, with different argument name?
+";
         assert_eq!(w.done(), expected);
     }
 }

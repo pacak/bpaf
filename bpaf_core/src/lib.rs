@@ -316,7 +316,7 @@ impl Default for TaskInfo {
         }
     }
 }
-#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd)]
+#[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
 pub struct Metavar(&'static str);
 impl Metavar {
     #[inline(never)]

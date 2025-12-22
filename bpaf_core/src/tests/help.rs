@@ -11,13 +11,16 @@ fn simple_flag() {
 
     let r = parser.run_inner("-a --help").unwrap_err().unwrap_stdout();
     let expected = "\
-This is a header
+This is a description
+
 Usage: -a
 
-This is a description
+This is a header
+
 Available options:
     -a          A simple flag
     -h, --help  Prints help information
+
 And this is a footer
 ";
 
@@ -25,15 +28,35 @@ And this is a footer
 }
 
 #[test]
-fn complex_header() {
-    // TODO - check this. Will it preserve the block?
-    //
-    // fooo
-    //     bar
-    //     bar
-    //     bar
-    // baz
-    todo!()
+fn complex_descr() {
+    let descr = "\
+fooo
+
+    bar1
+    bar2
+    bar3
+
+baz";
+    let a = short('a').switch();
+    let parser = a.to_options().descr(descr);
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+fooo
+
+    bar1
+    bar2
+    bar3
+
+baz
+
+Usage: [-a]
+
+Available options:
+    -a
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -123,7 +146,7 @@ header
 header
 
 Available options:
-    -p, --parser=ARG
+    -p, --parser=ARG  help
                       [env:BPAF_VARIABLE: N/A]
     -h, --help        Prints help information
     -V, --version     Prints version information

@@ -51,7 +51,7 @@ impl<'a, A: Visitor<'a>> Visitor<'a> for Option<A> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub(crate) enum ShortLong<'a> {
     Short(char),
     Long(&'a str),
