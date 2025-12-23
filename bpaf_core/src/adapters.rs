@@ -8,6 +8,7 @@ use crate::{
     make_handle,
     traits::VisitGroup,
     utils::Vec1,
+    visitors::help::render_help_for,
     r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
@@ -110,13 +111,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let res = handle.take();
         if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
             let help = self.0.info.help_parser();
-
-            let mut h = crate::visitors::help::Help::default();
-            h.app_name = ctx.args.app.as_deref();
-            self.visit(&mut h);
-            help.visit(&mut h);
-            // TODO - WIDTH? Style
-            return Err(ParseFailure::Stdout(h.render()));
+            return Err(render_help_for(ctx.args.app.as_deref(), help, self));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),

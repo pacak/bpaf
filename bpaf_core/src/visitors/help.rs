@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use super::ShortLong;
 use crate::{
-    Con, Item, Metavar, Named, VKind,
+    Bp, Extra, Item, Metavar, Named, ParseFailure, RcParser, VKind, Visited,
     adapters::Info,
     visitors::{VisitGroup, Visitor},
 };
@@ -12,6 +12,19 @@ const MAX_TAB: usize = 24;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct Lit<'a>(ShortLong<'a>);
+
+pub(crate) fn render_help_for(
+    app: Option<&str>,
+    help: Bp<RcParser<Extra>>,
+    parser: &dyn Visited,
+) -> ParseFailure {
+    let mut h = crate::visitors::help::Help::default();
+    h.app_name = app;
+    parser.visit(&mut h);
+    help.visit(&mut h);
+    // TODO - WIDTH, Colorscheme, custom style
+    ParseFailure::Stdout(h.render())
+}
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// No text should include a closing newline, each item gets placed on a separate line
@@ -188,7 +201,6 @@ impl<'a> Visitor<'a> for Help<'a> {
                         Some(name) => format!("Usage: {name} "),
                         None => "Usage: ".to_owned(),
                     };
-
                     usage.render_to(&mut self.usage);
                 }
                 self.info = Some(info);

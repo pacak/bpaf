@@ -14,7 +14,10 @@ use crate::{
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
-    visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
+    visitors::{
+        errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
+        help::render_help_for,
+    },
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -1462,12 +1465,7 @@ impl RawCtx {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
                             Extra::Help | Extra::LongHelp => {
-                                let mut h = crate::visitors::help::Help::default();
-                                h.app_name = ctx.args.app.as_deref();
-                                parser.visit(&mut h);
-                                help.visit(&mut h);
-                                // TODO - WIDTH? Style?
-                                ParseFailure::Stdout(h.render())
+                                render_help_for(ctx.args.app.as_deref(), help, parser)
                             }
                             Extra::Version(v) => {
                                 // Run it twice? Add a restriction to the position
