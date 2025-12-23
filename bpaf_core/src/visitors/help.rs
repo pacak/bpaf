@@ -75,7 +75,7 @@ pub(crate) struct Help<'a> {
     usage: String,
     info: Option<&'a Info>,
     sections: Vec<Section<'a>>,
-    in_section: bool,
+    in_section: u32,
     max_word: usize,
 
     current: Vec<HelpItem<'a>>,
@@ -150,13 +150,13 @@ impl Help<'_> {
 impl<'a> Visitor<'a> for Help<'a> {
     fn item(&mut self, item: Item<'a>) {
         self.place = match &item {
-            _ if self.in_section => Place::Section,
+            _ if self.in_section > 0 => Place::Section,
             Item::Flag { .. } | Item::Arg { .. } => Place::Named,
             Item::Positional { .. } => Place::Pos,
             Item::Command { .. } => Place::Command,
             _ => self.place,
         };
-        let mut place = self.place;
+        let place = self.place;
         match item {
             Item::Flag { named } => {
                 let Some((name, item)) = named.help_item(None) else {
@@ -226,14 +226,17 @@ impl<'a> Visitor<'a> for Help<'a> {
                 descr,
                 inner,
             } => {
-                self.in_section = true;
+                self.in_section += 1;
                 inner.visit(self);
-                self.in_section = false;
-                self.sections.push(Section {
-                    header: title,
-                    descr,
-                    items: std::mem::take(&mut self.current),
-                });
+                self.in_section -= 1;
+                // throw away inner nested sections
+                if self.in_section == 0 {
+                    self.sections.push(Section {
+                        header: title,
+                        descr,
+                        items: std::mem::take(&mut self.current),
+                    });
+                }
             }
             Item::Rendered { text } => self[place].push(HelpItem::Text {
                 text: text.into(),

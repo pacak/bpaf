@@ -184,10 +184,13 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 return;
             }
             Item::Section {
-                title,
-                descr,
+                title: _,
+                descr: _,
                 inner,
-            } => todo!(),
+            } => {
+                inner.visit(self);
+                return;
+            }
             Item::Rendered { text } => Put::Text { text },
         };
         self.events.push(Event::Put(put))
