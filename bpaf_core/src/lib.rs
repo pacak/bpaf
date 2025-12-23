@@ -9,6 +9,7 @@ mod utils;
 mod visitors;
 
 use crate::{
+    adapters::Info,
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CompleteReq,
@@ -1414,12 +1415,29 @@ struct Triggers {
 // reactor - listens for readiness, notifies tasks
 // executor - runs ready tasks
 
-fn help_parser() -> Bp<RcParser<()>> {
-    short('h')
+#[derive(Debug, Clone)]
+enum Extra {
+    Help,
+    LongHelp,
+    Version(&'static str),
+}
+
+fn help_parser(version: Option<&'static str>) -> Bp<RcParser<Extra>> {
+    let help = short('h')
         .long("help")
         .help("Prints help information")
-        .req_flag(())
-        .into_rc()
+        .req_flag(Extra::Help)
+        .into_rc();
+    let mut alt = Alt { items: vec![help] };
+    if let Some(v) = version {
+        let version = short('V')
+            .long("version")
+            .help("Prints version information")
+            .req_flag(Extra::Version(v))
+            .into_rc();
+        alt.items.push(version);
+    }
+    alt.into_rc()
 }
 
 impl RawCtx {
@@ -1446,23 +1464,28 @@ impl RawCtx {
         })
     }
 
-    fn execute(self: &Ctx, parser: &dyn Visited) -> Result<(), Error> {
+    fn execute(self: &Ctx, parser: &dyn Visited, info: Option<&Info>) -> Result<(), Error> {
         let r = Executor::new(self.clone()).execute(parser);
         if let Err(Error::Problem(_, Problem::Unconsumed { .. })) = &r {
             let ctx = self.fork();
-            let help = help_parser();
+            let help = help_parser(info.and_then(|i| i.version));
             let (handle, act) = ctx.make_raw_task(help.clone());
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
             if Executor::new(ctx).execute(&help).is_ok() {
                 match handle.take() {
-                    Ok(_) => {
-                        let mut h = crate::visitors::help::Help::default();
-                        parser.visit(&mut h);
-                        help.visit(&mut h);
-                        // TODO - WIDTH? Style?
-                        return Err(Error::Final(ParseFailure::Stdout(h.render())));
+                    Ok(xtra) => {
+                        return Err(Error::Final(match xtra {
+                            Extra::Help | Extra::LongHelp => {
+                                let mut h = crate::visitors::help::Help::default();
+                                parser.visit(&mut h);
+                                help.visit(&mut h);
+                                // TODO - WIDTH? Style?
+                                ParseFailure::Stdout(h.render())
+                            }
+                            Extra::Version(v) => ParseFailure::Stdout(format!("Version: {v}\n")),
+                        }));
                     }
                     Err(e @ Error::Final(_)) => return Err(e),
                     _ => {}

@@ -130,7 +130,7 @@ impl RawCtx {
         let ctx = self.fork();
         ctx.cursor.update(|c| c + skip as usize);
         (populate)(ctx.clone());
-        ctx.execute(parser)?;
+        ctx.execute(parser, None)?;
         let consumed = ctx.cursor.get() - self.cursor.get() - 1;
         self.consume(consumed as u32);
         Ok(true)

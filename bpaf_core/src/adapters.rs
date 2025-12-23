@@ -83,7 +83,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        let executor_res = ctx.execute(self);
+        let executor_res = ctx.execute(self, Some(&self.0.info));
 
         let res = handle.take();
         match (res, executor_res) {
