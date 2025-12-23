@@ -69,6 +69,7 @@ pub(crate) struct Help<'a> {
     named: Vec<HelpItem<'a>>,
     pos: Vec<HelpItem<'a>>,
     command: Vec<HelpItem<'a>>,
+    pub(crate) app_name: Option<&'a str>,
 }
 
 impl Named {
@@ -183,7 +184,11 @@ impl<'a> Visitor<'a> for Help<'a> {
                 } else {
                     let mut usage = crate::visitors::usage::Usage::default();
                     inner.visit(&mut usage);
-                    self.usage = "Usage: ".to_owned();
+                    self.usage = match self.app_name {
+                        Some(name) => format!("Usage: {name} "),
+                        None => "Usage: ".to_owned(),
+                    };
+
                     usage.render_to(&mut self.usage);
                 }
                 self.info = Some(info);

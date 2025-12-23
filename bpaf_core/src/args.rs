@@ -2,6 +2,7 @@ use std::{ffi::OsString, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct Args {
+    pub(crate) app: Option<String>,
     pub(crate) items: Rc<[OsString]>,
     pub(crate) complete: bool,
 }
@@ -25,6 +26,7 @@ impl std::ops::Index<usize> for Args {
 impl From<&[&str]> for Args {
     fn from(value: &[&str]) -> Self {
         Self {
+            app: None,
             items: value.iter().map(OsString::from).collect(),
             complete: false,
         }
@@ -34,6 +36,7 @@ impl From<&[&str]> for Args {
 impl From<&[OsString]> for Args {
     fn from(value: &[OsString]) -> Self {
         Self {
+            app: None,
             items: value.into(),
             complete: false,
         }
@@ -43,6 +46,7 @@ impl From<&[OsString]> for Args {
 impl<const W: usize> From<&[&str; W]> for Args {
     fn from(value: &[&str; W]) -> Self {
         Self {
+            app: None,
             items: value.iter().map(OsString::from).collect(),
             complete: false,
         }
@@ -52,15 +56,35 @@ impl<const W: usize> From<&[&str; W]> for Args {
 impl<const W: usize> From<[&str; W]> for Args {
     fn from(value: [&str; W]) -> Self {
         Self {
+            app: None,
             items: value.iter().map(OsString::from).collect(),
             complete: false,
         }
     }
 }
 
-impl From<std::env::ArgsOs> for Args {
-    fn from(value: std::env::ArgsOs) -> Self {
+impl From<std::env::Args> for Args {
+    fn from(mut value: std::env::Args) -> Self {
+        let app = Some(value.next().expect("Empty args?"));
         Self {
+            app,
+            items: value.map(OsString::from).collect(),
+            complete: false, // TODO
+        }
+    }
+}
+
+impl From<std::env::ArgsOs> for Args {
+    fn from(mut value: std::env::ArgsOs) -> Self {
+        let app = Some(
+            value
+                .next()
+                .expect("Empty args?")
+                .to_string_lossy()
+                .into_owned(),
+        );
+        Self {
+            app,
             items: value.collect(),
             complete: false, // TODO
         }
@@ -70,6 +94,7 @@ impl From<std::env::ArgsOs> for Args {
 impl From<&str> for Args {
     fn from(value: &str) -> Self {
         Self {
+            app: None,
             items: split(value)
                 .unwrap()
                 .into_iter()
@@ -89,6 +114,7 @@ impl From<(&str, &str)> for Args {
             .collect::<Vec<_>>();
         items.push(OsString::from(value.1));
         Self {
+            app: None,
             items: items.into(),
             complete: true,
         }

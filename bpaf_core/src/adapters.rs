@@ -73,12 +73,34 @@ pub struct Info {
     pub footer: Option<&'static str>,
     pub usage: Option<&'static str>,
     pub version: Option<&'static str>,
+    pub fallback_to_usage: bool,
+}
+
+impl Info {
+    pub(crate) fn help_parser(&self) -> Bp<RcParser<crate::Extra>> {
+        use crate::{Alt, Extra, short};
+        let help = short('h')
+            .long("help")
+            .help("Prints help information")
+            .req_flag(Extra::Help)
+            .into_rc();
+        let mut alt = Alt { items: vec![help] };
+        if let Some(v) = self.version {
+            let version = short('V')
+                .long("version")
+                .help("Prints version information")
+                .req_flag(Extra::Version(v))
+                .into_rc();
+            alt.items.push(version);
+        }
+        alt.into_rc()
+    }
 }
 
 impl<T: 'static> Bp<OptionParser<T>> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
         let ctx = RawCtx::new(args.into());
-
+        let no_input = ctx.args.len() == 0;
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
@@ -86,6 +108,16 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let executor_res = ctx.execute(self, Some(&self.0.info));
 
         let res = handle.take();
+        if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
+            let help = self.0.info.help_parser();
+
+            let mut h = crate::visitors::help::Help::default();
+            h.app_name = ctx.args.app.as_deref();
+            self.visit(&mut h);
+            help.visit(&mut h);
+            // TODO - WIDTH? Style
+            return Err(ParseFailure::Stdout(h.render()));
+        }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e.into()),
@@ -121,6 +153,11 @@ impl<T: 'static> Bp<OptionParser<T>> {
 
     pub fn usage(mut self, text: &'static str) -> Self {
         self.0.info.usage = Some(text);
+        self
+    }
+
+    pub fn fallback_to_usage(mut self) -> Self {
+        self.0.info.fallback_to_usage = true;
         self
     }
 }
