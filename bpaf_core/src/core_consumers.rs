@@ -92,13 +92,13 @@ impl RawCtx {
         names: &[Name<'static>],
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
-    ) -> Result<bool, Error> {
+    ) -> Result<Option<u32>, Error> {
         self.wait_for(names.iter().cloned().map(TTarget::Flag))
             .await;
         if self.arg_to_parse()?.is_some() {
             self.parse_nested(1, populate, parser)
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
@@ -110,13 +110,13 @@ impl RawCtx {
         names: &[Cow<'static, str>],
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
-    ) -> Result<bool, Error> {
+    ) -> Result<Option<u32>, Error> {
         self.wait_for(names.iter().cloned().map(TTarget::Literal))
             .await;
         if self.arg_to_parse()?.is_some() {
             self.parse_nested(1, populate, parser)
         } else {
-            Ok(false)
+            Ok(None)
         }
     }
 
@@ -125,15 +125,16 @@ impl RawCtx {
         skip: u32,
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
-    ) -> Result<bool, Error> {
+    ) -> Result<Option<u32>, Error> {
         self.consume(skip);
         let ctx = self.fork();
         ctx.cursor.update(|c| c + skip as usize);
+        let to_parse = ctx.args.len() - ctx.cursor.get();
         (populate)(ctx.clone());
         ctx.execute(parser, None)?;
         let consumed = ctx.cursor.get() - self.cursor.get() - 1;
         self.consume(consumed as u32);
-        Ok(true)
+        Ok(Some(to_parse as u32))
     }
 
     pub(crate) async fn parse_arg(

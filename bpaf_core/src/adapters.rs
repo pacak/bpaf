@@ -111,7 +111,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let res = handle.take();
         if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
             let help = self.0.info.help_parser();
-            return Err(render_help_for(ctx.args.app.as_deref(), help, self));
+            return Err(render_help_for(ctx.args.app.as_deref(), &help, self));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
@@ -123,7 +123,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
         Bp(Command {
             names: vec![name.into()],
-            inner: self.0,
+            inner: self,
         })
     }
 
@@ -171,7 +171,7 @@ impl<T: 'static> Visited for Bp<OptionParser<T>> {
 impl<T: 'static> Parser<T> for Bp<Command<T>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         let (out, handle) = make_handle();
-        let inner = &self.0.inner.inner;
+        let inner = &self.0.inner.0.inner;
         let populate = |ctx: crate::Ctx| {
             // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
             // to avoid instantiating multiple copies of boring code so this closure must be `Fn`
@@ -183,8 +183,20 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
         };
         let res = ctx.parse_literal_and(&self.0.names, &populate, inner).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
-        if res? {
-            handle.take().map_err(handle_subparser_complete)
+        if let Some(to_parse) = res? {
+            let r = handle.take();
+            if matches!(r, Err(Error::Missing(_))) && to_parse == 0 {
+                let help = self.0.inner.0.info.help_parser();
+                let name = &self.0.names[0];
+                let app = match ctx.args.app.as_deref() {
+                    Some(app) => format!("{app} .. {name}"),
+                    None => format!("... {name}"),
+                };
+                let r = render_help_for(Some(&app), &help, &self.0.inner);
+                return Err(r.into());
+            } else {
+                r.map_err(handle_subparser_complete)
+            }
         } else {
             let missing = MissingItem::Lit {
                 value: self.0.names[0].clone(),
@@ -198,8 +210,8 @@ impl<T: 'static> Visited for Bp<Command<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let item = Item::Command {
             names: &self.0.names,
-            info: &self.0.inner.info,
-            inner: &self.0.inner.inner,
+            info: &self.0.inner.0.info,
+            inner: &self.0.inner.0.inner,
         };
         visitor.item(item);
     }
@@ -281,7 +293,7 @@ impl<T: 'static> Visited for Bp<Many1<T>> {
 
 pub struct Command<T> {
     names: Vec<Cow<'static, str>>,
-    inner: OptionParser<T>,
+    inner: Bp<OptionParser<T>>,
 }
 
 pub struct Guard<T, P, F> {

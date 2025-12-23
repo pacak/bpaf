@@ -15,7 +15,7 @@ struct Lit<'a>(ShortLong<'a>);
 
 pub(crate) fn render_help_for(
     app: Option<&str>,
-    help: Bp<RcParser<Extra>>,
+    help: &dyn Visited,
     parser: &dyn Visited,
 ) -> ParseFailure {
     let mut h = crate::visitors::help::Help::default();

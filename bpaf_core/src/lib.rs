@@ -1450,7 +1450,6 @@ impl RawCtx {
     }
 
     fn execute(self: &Ctx, parser: &dyn Visited, info: Option<&Info>) -> Result<(), Error> {
-        let no_args = self.args.len() == self.cursor.get();
         let r = Executor::new(self.clone()).execute(parser);
         let Some(info) = info else { return r };
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
@@ -1465,7 +1464,7 @@ impl RawCtx {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
                             Extra::Help | Extra::LongHelp => {
-                                render_help_for(ctx.args.app.as_deref(), help, parser)
+                                render_help_for(ctx.args.app.as_deref(), &help, parser)
                             }
                             Extra::Version(v) => {
                                 // Run it twice? Add a restriction to the position

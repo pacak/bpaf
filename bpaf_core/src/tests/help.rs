@@ -86,19 +86,19 @@ fn fallback_to_usage() {
     assert_eq!(r, expected);
 }
 
-// #[test]
-// fn fallback_to_usage_nested() {
-//     let a = short('a')
-//         .argument::<usize>("A")
-//         .to_options()
-//         .fallback_to_usage()
-//         .command("cmd")
-//         .to_options();
-//
-//     let r = a.run_inner(&["cmd"]).unwrap_err().unwrap_stdout();
-//     let expected = "Usage: cmd -a=A\n\nAvailable options:\n    -a=A\n    -h, --help  Prints help information\n";
-//     assert_eq!(r, expected);
-// }
+#[test]
+fn fallback_to_usage_nested() {
+    let a = short('a')
+        .argument::<usize>("A")
+        .to_options()
+        .fallback_to_usage()
+        .command("cmd")
+        .to_options();
+
+    let r = a.run_inner("cmd").unwrap_err().unwrap_stdout();
+    let expected = "Usage: ... cmd -a=A\n\nAvailable options:\n    -a=A\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
+}
 
 #[test]
 fn fancy_meta() {
