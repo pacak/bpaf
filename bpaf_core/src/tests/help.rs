@@ -414,156 +414,156 @@ Available options:
 //     assert_eq!(r, expected);
 // }
 
-// #[test]
-// fn fallback_display_simple_arg() {
-//     let parser = long("a")
-//         .help("help for a")
-//         .argument("NUM")
-//         .fallback(42)
-//         .display_fallback()
-//         .to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//     let expected = "\
-// Usage: [--a=NUM]
-//
-// Available options:
-//         --a=NUM  help for a
-//                  [default: 42]
-//     -h, --help   Prints help information
-// ";
-//
-//     assert_eq!(r, expected);
-// }
+#[test]
+fn fallback_display_simple_arg() {
+    let parser = long("a")
+        .help("help for a")
+        .argument("NUM")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
 
-// #[test]
-// fn fallback_display_simple_pos() {
-//     let parser = positional("NUM")
-//         .help("help for pos")
-//         .fallback(42)
-//         .display_fallback()
-//         .to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [NUM]
-//
-// Available positional items:
-//     NUM         help for pos
-//                 [default: 42]
-//
-// Available options:
-//     -h, --help  Prints help information
-// ";
-//
-//     assert_eq!(r, expected);
-// }
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--a=NUM]
 
-// #[test]
-// fn fallback_display_tuple() {
-//     #[derive(Copy, Clone, Debug)]
-//     struct Pair(u32, u32);
-//     impl std::fmt::Display for Pair {
-//         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//             write!(f, "Pair {}, {}", self.0, self.1)
-//         }
-//     }
-//
-//     let a = long("a").help("help for a").argument("NUM");
-//     let b = long("b").help("help for b").argument("NUM");
-//     let parser = construct!(a, b)
-//         .map(|(a, b)| Pair(a, b))
-//         .fallback(Pair(42, 333))
-//         .display_fallback()
-//         .to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [--a=NUM --b=NUM]
-//
-// Available options:
-//         --a=NUM  help for a
-//         --b=NUM  help for b
-//                  [default: Pair 42, 333]
-//     -h, --help   Prints help information
-// ";
-//
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn fallback_display_no_help() {
-//     let parser = long("a")
-//         .argument("NUM")
-//         .fallback(42)
-//         .display_fallback()
-//         .to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//     let expected = "\
-// Usage: [--a=NUM]
-//
-// Available options:
-//         --a=NUM
-//                  [default: 42]
-//     -h, --help   Prints help information
-// ";
-//
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn env_fallback_visible() {
-//     let fonts_dir = long("fonts")
-//         .env("OIKOS_FONTS")
-//         .help("Load fonts from this directory")
-//         .argument::<String>("DIR")
-//         .optional();
-//
-//     let system_fonts = long("system-fonts")
-//         .env("OIKOS_SYSTEM_FONTS")
-//         .help("Search for additional fonts in system directories")
-//         .switch();
-//     let parser = construct!(fonts_dir, system_fonts).to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [--fonts=DIR] [--system-fonts]
-//
-// Available options:
-//         --fonts=DIR     Load fonts from this directory
-//                         [env:OIKOS_FONTS: N/A]
-//         --system-fonts  Search for additional fonts in system directories
-//                         [env:OIKOS_SYSTEM_FONTS: not set]
-//     -h, --help          Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn fallback_format_simple_arg() {
-//     let parser = long("a")
-//         .help("help for a")
-//         .argument("NUM")
-//         .fallback(42)
-//         .format_fallback(|i, f| write!(f, "**{i}**"))
-//         .to_options();
-//
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//     let expected = "\
-// Usage: [--a=NUM]
-//
-// Available options:
-//         --a=NUM  help for a
-//                  [default: **42**]
-//     -h, --help   Prints help information
-// ";
-//
-//     assert_eq!(r, expected);
-// }
+Available options:
+        --a=NUM  help for a
+                 [default: 42]
+    -h, --help   Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_simple_pos() {
+    let parser = positional("NUM")
+        .help("help for pos")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [NUM]
+
+Available positional items:
+    NUM         help for pos
+                [default: 42]
+
+Available options:
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_tuple() {
+    #[derive(Copy, Clone, Debug)]
+    struct Pair(u32, u32);
+    impl std::fmt::Display for Pair {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "Pair {}, {}", self.0, self.1)
+        }
+    }
+
+    let a = long("a").help("help for a").argument("NUM");
+    let b = long("b").help("help for b").argument("NUM");
+    let parser = construct!(a, b)
+        .map(|(a, b)| Pair(a, b))
+        .fallback(Pair(42, 333))
+        .display_fallback()
+        .to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [--a=NUM --b=NUM]
+
+Available options:
+        --a=NUM  help for a
+        --b=NUM  help for b
+                 [default: Pair 42, 333]
+    -h, --help   Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_display_no_help() {
+    let parser = long("a")
+        .argument("NUM")
+        .fallback(42)
+        .display_fallback()
+        .to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--a=NUM]
+
+Available options:
+        --a=NUM
+                 [default: 42]
+    -h, --help   Prints help information
+";
+
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn env_fallback_visible() {
+    let fonts_dir = long("fonts")
+        .env("OIKOS_FONTS")
+        .help("Load fonts from this directory")
+        .argument::<String>("DIR")
+        .optional();
+
+    let system_fonts = long("system-fonts")
+        .env("OIKOS_SYSTEM_FONTS")
+        .help("Search for additional fonts in system directories")
+        .switch();
+    let parser = construct!(fonts_dir, system_fonts).to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [--fonts=DIR] [--system-fonts]
+
+Available options:
+        --fonts=DIR     Load fonts from this directory
+                        [env:OIKOS_FONTS: N/A]
+        --system-fonts  Search for additional fonts in system directories
+                        [env:OIKOS_SYSTEM_FONTS is not set]
+    -h, --help          Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn fallback_format_simple_arg() {
+    let parser = long("a")
+        .help("help for a")
+        .argument("NUM")
+        .fallback(42)
+        .format_fallback(|i, f| write!(f, "**{i}**"))
+        .to_options();
+
+    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: [--a=NUM]
+
+Available options:
+        --a=NUM  help for a
+                 [default: **42**]
+    -h, --help   Prints help information
+";
+
+    assert_eq!(r, expected);
+}
 //
 // #[test]
 // fn nested_group_help() {

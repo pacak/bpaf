@@ -93,7 +93,11 @@ pub trait Parser<T: 'static>: Visited {
     where
         Self: Sized,
     {
-        Bp(Fallback { inner: self, value })
+        Bp(Fallback {
+            inner: self,
+            value,
+            value_str: None,
+        })
     }
 
     fn group_help(self, help: &'static str) -> Bp<Group<T, Self>>

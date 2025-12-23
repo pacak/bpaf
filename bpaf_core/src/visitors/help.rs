@@ -83,6 +83,39 @@ pub(crate) struct Help<'a> {
     pos: Vec<HelpItem<'a>>,
     command: Vec<HelpItem<'a>>,
     pub(crate) app_name: Option<&'a str>,
+    place: Place,
+}
+
+#[derive(Default, Debug, Clone, Copy)]
+enum Place {
+    #[default]
+    Named,
+    Pos,
+    Command,
+    Section,
+}
+
+impl<'a> std::ops::Index<Place> for Help<'a> {
+    type Output = Vec<HelpItem<'a>>;
+
+    fn index(&self, index: Place) -> &Self::Output {
+        match index {
+            Place::Named => &self.named,
+            Place::Pos => &self.pos,
+            Place::Command => &self.command,
+            Place::Section => &self.current,
+        }
+    }
+}
+impl<'a> std::ops::IndexMut<Place> for Help<'a> {
+    fn index_mut(&mut self, index: Place) -> &mut Self::Output {
+        match index {
+            Place::Named => &mut self.named,
+            Place::Pos => &mut self.pos,
+            Place::Command => &mut self.command,
+            Place::Section => &mut self.current,
+        }
+    }
 }
 
 impl Named {
@@ -116,6 +149,14 @@ impl Help<'_> {
 
 impl<'a> Visitor<'a> for Help<'a> {
     fn item(&mut self, item: Item<'a>) {
+        self.place = match &item {
+            _ if self.in_section => Place::Section,
+            Item::Flag { .. } | Item::Arg { .. } => Place::Named,
+            Item::Positional { .. } => Place::Pos,
+            Item::Command { .. } => Place::Command,
+            _ => self.place,
+        };
+        let mut place = self.place;
         match item {
             Item::Flag { named } => {
                 let Some((name, item)) = named.help_item(None) else {
@@ -123,12 +164,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 self.track_length(name, None);
-                let place = if self.in_section {
-                    &mut self.current
-                } else {
-                    &mut self.named
-                };
-                place.push(item);
+                self[place].push(item);
                 let Some(env) = named.env.first() else {
                     return;
                 };
@@ -136,7 +172,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     Some(_) => format!("\t[env:{env} is set]"),
                     None => format!("\t[env:{env} is not set]"),
                 });
-                place.push(HelpItem::Text {
+                self[place].push(HelpItem::Text {
                     text,
                     lpad: 0,    // TODO
                     tabstop: 0, // TODO
@@ -148,12 +184,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     return;
                 };
                 self.track_length(name, Some(meta));
-                let place = if self.in_section {
-                    &mut self.current
-                } else {
-                    &mut self.named
-                };
-                place.push(item);
+                self[place].push(item);
                 let Some(env) = named.env.first() else {
                     return;
                 };
@@ -161,34 +192,19 @@ impl<'a> Visitor<'a> for Help<'a> {
                     Some(v) => format!("\t[env:{env}: {}]", v.to_string_lossy()),
                     None => format!("\t[env:{env}: N/A]"),
                 });
-                place.push(HelpItem::Text {
+                self[place].push(HelpItem::Text {
                     text,
                     lpad: 0,    // TODO
                     tabstop: 0, // TODO
                 });
             }
             Item::Positional { meta, help } => {
-                let place = if self.in_section {
-                    &mut self.current
-                } else {
-                    &mut self.pos
-                };
-                place.push(HelpItem::Pos { meta, help });
+                self[place].push(HelpItem::Pos { meta, help });
             }
             Item::Command { names, info, inner } => {
-                let place = if self.in_section {
-                    &mut self.current
-                } else {
-                    &mut self.command
-                };
                 todo!()
             }
             Item::Nested { named, inner } => {
-                let place = if self.in_section {
-                    &mut self.current
-                } else {
-                    &mut self.named
-                };
                 todo!()
             }
             Item::OptionParser { info, inner } => {
@@ -212,13 +228,18 @@ impl<'a> Visitor<'a> for Help<'a> {
             } => {
                 self.in_section = true;
                 inner.visit(self);
+                self.in_section = false;
                 self.sections.push(Section {
                     header: title,
                     descr,
                     items: std::mem::take(&mut self.current),
                 });
             }
-            Item::Rendered { text } => todo!(),
+            Item::Rendered { text } => self[place].push(HelpItem::Text {
+                text: text.into(),
+                lpad: 0,
+                tabstop: 0,
+            }),
         }
     }
 

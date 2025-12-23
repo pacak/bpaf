@@ -345,6 +345,7 @@ impl<T: 'static, P: Parser<T>> Visited for Bp<Hide<T, P>> {
 pub struct Fallback<T, P> {
     pub(crate) inner: P,
     pub(crate) value: T,
+    pub(crate) value_str: Option<String>,
 }
 
 impl<T: 'static + Clone, P: Parser<T>> Parser<T> for Bp<Fallback<T, P>> {
@@ -360,7 +361,51 @@ impl<T: 'static, P: Parser<T>> Visited for Bp<Fallback<T, P>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Optional);
         self.0.inner.visit(visitor);
+        if let Some(text) = self.0.value_str.as_deref()
+            && matches!(visitor.identify(), crate::VKind::Help)
+        {
+            visitor.item(Item::Rendered { text });
+        }
         visitor.pop_group();
+    }
+}
+
+impl<T: 'static + std::fmt::Debug, P> Bp<Fallback<T, P>> {
+    pub fn debug_fallback(mut self) -> Self {
+        self.0.value_str = Some(format!("\t[default: {:?}]", self.0.value));
+        self
+    }
+}
+
+impl<T: 'static + std::fmt::Display, P> Bp<Fallback<T, P>> {
+    pub fn display_fallback(mut self) -> Self {
+        self.0.value_str = Some(format!("\t[default: {}]", self.0.value));
+        self
+    }
+}
+
+impl<T, P> Bp<Fallback<T, P>> {
+    pub fn format_fallback(
+        mut self,
+        format: impl Fn(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
+    ) -> Self {
+        self.0.value_str = Some(format!(
+            "\t[default: {}]",
+            DisplayWith(&self.0.value, format)
+        ));
+        self
+    }
+}
+
+struct DisplayWith<'a, T, F>(&'a T, F);
+
+impl<'a, T, F: Fn(&'a T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result> std::fmt::Display
+    for DisplayWith<'a, T, F>
+{
+    #[inline(always)]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let Self(value, display) = self;
+        display(value, f)
     }
 }
 
