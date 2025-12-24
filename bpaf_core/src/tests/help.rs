@@ -586,7 +586,7 @@ Available options:
 ";
     assert_eq!(r, expected);
 }
-//
+
 // #[test]
 // fn with_group_help() {
 //     let a = short('a').help("option a").switch();
@@ -635,119 +635,112 @@ Available options:
 //     assert_eq!(r, expected);
 // }
 //
-// #[test]
-// fn various_name_lengths_under() {
-//     let parser = short('a')
-//         .long("123456789012345")
-//         .help("A")
-//         .switch()
-//         .to_options();
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [-a]
-//
-// Available options:
-//     -a, --123456789012345  A
-//     -h, --help             Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn various_name_lengths_at() {
-//     let parser = short('a')
-//         .long("1234567890123456")
-//         .help("A")
-//         .switch()
-//         .to_options();
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [-a]
-//
-// Available options:
-//     -a, --1234567890123456  A
-//     -h, --help              Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn various_name_lengths_over1() {
-//     let parser = short('a')
-//         .long("12345678901234567")
-//         .help("A")
-//         .switch()
-//         .to_options();
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [-a]
-//
-// Available options:
-//     -a, --12345678901234567  A
-//     -h, --help               Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
-//
-// #[test]
-// fn various_name_lengths_over2() {
-//     let parser = short('a')
-//         .long("1234567890123456789")
-//         .help("A")
-//         .switch()
-//         .to_options();
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-//
-//     let expected = "\
-// Usage: [-a]
-//
-// Available options:
-//     -a, --1234567890123456789  A
-//     -h, --help  Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
-//
-// // #[test]
-// // fn help_and_version_newline() {
-// //     let parser = short('a').switch().to_options().version("1");
-// //
-// //     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-// //     assert_eq!(
-// //         r,
-// //         "Usage: [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n"
-// //     );
-// //
-// //     let r = parser
-// //         .run_inner(&["--version"])
-// //         .unwrap_err()
-// //         .unwrap_stdout();
-// //     assert_eq!(r, "Version: 1\n");
-// // }
-//
-//
-// #[test]
-// fn fallback_to_usage_and_commands() {
-//     let parser = pure(())
-//         .to_options()
-//         .descr("inner")
-//         .command("cmd")
-//         .to_options()
-//         .descr("outer")
-//         .fallback_to_usage();
-//
-//     let r = parser
-//         .run_inner(&["cmd", "--help"])
-//         .unwrap_err()
-//         .unwrap_stdout();
-//     let expected =
-//         "inner\n\nUsage: cmd \n\nAvailable options:\n    -h, --help  Prints help information\n";
-//     assert_eq!(r, expected);
-//
-//     let r = parser.run_inner(&[]).unwrap_err().unwrap_stdout();
-//     let expected = "outer\n\nUsage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    cmd         inner\n";
-//     assert_eq!(r, expected);
-// }
+#[test]
+fn various_name_lengths_under() {
+    let parser = short('a')
+        .long("123456789012345")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --123456789012345  A
+    -h, --help             Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_at() {
+    let parser = short('a')
+        .long("1234567890123456")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --1234567890123456  A
+    -h, --help              Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_over1() {
+    let parser = short('a')
+        .long("12345678901234567")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --12345678901234567  A
+    -h, --help               Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn various_name_lengths_over2() {
+    let parser = short('a')
+        .long("1234567890123456789")
+        .help("A")
+        .switch()
+        .to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: [-a]
+
+Available options:
+    -a, --1234567890123456789  A
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn help_and_version_newline() {
+    let parser = short('a').switch().to_options().version("1");
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n"
+    );
+
+    let r = parser.run_inner("--version").unwrap_err().unwrap_stdout();
+    assert_eq!(r, "Version: 1\n");
+}
+
+#[test]
+fn fallback_to_usage_and_commands() {
+    let parser = pure(())
+        .to_options()
+        .descr("inner")
+        .command("cmd")
+        .to_options()
+        .descr("outer")
+        .fallback_to_usage();
+
+    let r = parser.run_inner("cmd --help").unwrap_err().unwrap_stdout();
+    let expected =
+        "inner\n\nUsage: ... cmd \n\nAvailable options:\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(&[]).unwrap_err().unwrap_stdout();
+    let expected = "outer\n\nUsage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    cmd         inner\n";
+    assert_eq!(r, expected);
+}

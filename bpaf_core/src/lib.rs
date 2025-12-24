@@ -14,10 +14,7 @@ use crate::{
     args::Args,
     complete::CompleteReq,
     utils::{Vec1, reuse_vec},
-    visitors::{
-        errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
-        help::render_help_for,
-    },
+    visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
 #[doc(inline)]
 pub use crate::{consumers::*, error::*, traits::*};
@@ -1426,9 +1423,46 @@ enum Extra {
 }
 
 impl RawCtx {
+    fn render_help_for(&self, parser: &dyn Visited, help: &dyn Visited) -> ParseFailure {
+        let mut h = crate::visitors::help::Help::default();
+
+        let place;
+        let app = &self.args.path[0]; // always have it, but sometimes it's empty
+        match (
+            !app.is_empty(),
+            (self.args.path.len() > 1)
+                .then_some(self.args.path.last())
+                .flatten(),
+        ) {
+            (true, Some(last)) => {
+                place = format!("{app} ... {last}");
+                h.app_name = Some(&place);
+            }
+            (true, None) => {
+                h.app_name = Some(&app);
+            }
+            (false, Some(last)) => {
+                place = format!("... {last}");
+                h.app_name = Some(&place);
+            }
+            (false, None) => {}
+        }
+
+        parser.visit(&mut h);
+        help.visit(&mut h);
+        // TODO - WIDTH, Colorscheme, custom style
+        ParseFailure::Stdout(h.render())
+    }
+}
+
+impl RawCtx {
     /// Create a copy of a context suitable to run an executor
-    fn fork(&self) -> Rc<RawCtx> {
-        Self::make(self.args.clone(), self.cursor.get())
+    fn fork(&self, level: Option<String>) -> Rc<RawCtx> {
+        let mut args = self.args.clone();
+        if let Some(level) = level {
+            args.path.push(level);
+        }
+        Self::make(args, self.cursor.get())
     }
 
     fn new(args: Args) -> Ctx {
@@ -1453,7 +1487,7 @@ impl RawCtx {
         let r = Executor::new(self.clone()).execute(parser);
         let Some(info) = info else { return r };
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
-            let ctx = self.fork();
+            let ctx = self.fork(None);
             let help = info.help_parser();
             let (handle, act) = ctx.make_raw_task(help.clone());
             let info = ctx.make_child_info(Kind::Prod);
@@ -1463,9 +1497,7 @@ impl RawCtx {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
-                            Extra::Help | Extra::LongHelp => {
-                                render_help_for(ctx.args.app.as_deref(), &help, parser)
-                            }
+                            Extra::Help | Extra::LongHelp => ctx.render_help_for(parser, &help),
                             Extra::Version(v) => {
                                 // Run it twice? Add a restriction to the position
                                 // or number of items?

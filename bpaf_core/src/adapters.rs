@@ -5,10 +5,8 @@ use crate::{
     Task, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
-    make_handle,
     traits::VisitGroup,
     utils::Vec1,
-    visitors::help::render_help_for,
     r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
@@ -101,8 +99,13 @@ impl Info {
 impl<T: 'static> Bp<OptionParser<T>> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
         let ctx = RawCtx::new(args.into());
-        let no_input = ctx.args.len() == 0;
+        Ok(self.run_in_ctx(None, ctx)?)
+    }
+
+    fn run_in_ctx(&self, cmd: Option<&str>, ctx: crate::Ctx) -> Result<T, Error> {
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
+
+        let no_input = ctx.args.len() == ctx.cursor.get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
@@ -111,12 +114,12 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let res = handle.take();
         if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
             let help = self.0.info.help_parser();
-            return Err(render_help_for(ctx.args.app.as_deref(), &help, self));
+            return Err(Error::Final(ctx.render_help_for(self, &help)));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
-            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e.into()),
-            (Err(e1), Err(e2)) => Err((e1 + e2).into()),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
+            (Err(e1), Err(e2)) => Err(e1 + e2),
         }
     }
 
@@ -170,33 +173,20 @@ impl<T: 'static> Visited for Bp<OptionParser<T>> {
 
 impl<T: 'static> Parser<T> for Bp<Command<T>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        let (out, handle) = make_handle();
-        let inner = &self.0.inner.0.inner;
-        let populate = |ctx: crate::Ctx| {
-            // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
-            // to avoid instantiating multiple copies of boring code so this closure must be `Fn`
-            // (and not `FnOnce`), meaning extra clone for out even though the closure will
-            // be executed exactly once
-            let act = ctx.make_act(out.clone(), inner.clone());
-            let info = ctx.make_child_info(Kind::Prod);
-            ctx.add_task(Task { act, info });
+        let out = std::rc::Rc::new(std::cell::Cell::new(None));
+        let handle = out.clone();
+
+        let p = self.0.inner.clone();
+        let name = &self.0.names[0];
+        let act = move |ctx: crate::Ctx| {
+            out.set(Some(p.run_in_ctx(Some(name.as_ref()), ctx)));
         };
-        let res = ctx.parse_literal_and(&self.0.names, &populate, inner).await;
+
+        let res = ctx.parse_literal_and(&self.0.names, &act).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
-        if let Some(to_parse) = res? {
-            let r = handle.take();
-            if matches!(r, Err(Error::Missing(_))) && to_parse == 0 {
-                let help = self.0.inner.0.info.help_parser();
-                let name = &self.0.names[0];
-                let app = match ctx.args.app.as_deref() {
-                    Some(app) => format!("{app} .. {name}"),
-                    None => format!("... {name}"),
-                };
-                let r = render_help_for(Some(&app), &help, &self.0.inner);
-                return Err(r.into());
-            } else {
-                r.map_err(handle_subparser_complete)
-            }
+        if res? {
+            let r = handle.take().unwrap();
+            r.map_err(handle_subparser_complete).into()
         } else {
             let missing = MissingItem::Lit {
                 value: self.0.names[0].clone(),

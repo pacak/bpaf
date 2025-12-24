@@ -56,7 +56,7 @@ impl Usage<'_> {
                             _ = write!(&mut out, "{M}{meta}{T}");
                         }
                         Put::Command => {
-                            _ = write!(&mut out, "{M}COMMAND{T}");
+                            _ = write!(&mut out, "{M}COMMAND{T} ...");
                         }
                         Put::Text { text } => todo!(),
                     }
@@ -536,31 +536,31 @@ mod tests {
     #[test]
     fn dedup_commands_sum_1() {
         let parser = construct!([ca(), cb()]).to_options();
-        assert_eq!(usage(&parser), "COMMAND");
+        assert_eq!(usage(&parser), "COMMAND ...");
     }
 
     #[test]
     fn dedup_commands_sum_2() {
         let parser = construct!([oa(), ca(), cb()]).to_options();
-        assert_eq!(usage(&parser), "[-a | COMMAND]");
+        assert_eq!(usage(&parser), "[-a | COMMAND ...]");
     }
 
     #[test]
     fn dedup_commands_sum_3() {
         let parser = construct!([ca(), oa(), cb()]).to_options();
-        assert_eq!(usage(&parser), "[COMMAND | -a]");
+        assert_eq!(usage(&parser), "[COMMAND ... | -a]");
     }
 
     #[test]
     fn dedup_commands_sum_4() {
         let parser = construct!([ca(), cb(), oa()]).to_options();
-        assert_eq!(usage(&parser), "[COMMAND | -a]");
+        assert_eq!(usage(&parser), "[COMMAND ... | -a]");
     }
 
     #[test]
     fn dedup_commands_prod_1() {
         let parser = construct!(ca(), cb()).to_options();
-        assert_eq!(usage(&parser), "COMMAND COMMAND");
+        assert_eq!(usage(&parser), "COMMAND ... COMMAND ...");
     }
 
     #[test]

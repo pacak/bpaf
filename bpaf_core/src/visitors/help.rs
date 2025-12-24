@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use super::ShortLong;
 use crate::{
-    Bp, Extra, Item, Metavar, Named, ParseFailure, RcParser, VKind, Visited,
+    Item, Metavar, Named, ParseFailure, VKind, Visited,
     adapters::Info,
     visitors::{VisitGroup, Visitor},
 };
@@ -13,18 +13,19 @@ const MAX_TAB: usize = 24;
 #[derive(Debug, PartialEq, Eq, Hash)]
 struct Lit<'a>(ShortLong<'a>);
 
-pub(crate) fn render_help_for(
-    app: Option<&str>,
-    help: &dyn Visited,
-    parser: &dyn Visited,
-) -> ParseFailure {
-    let mut h = crate::visitors::help::Help::default();
-    h.app_name = app;
-    parser.visit(&mut h);
-    help.visit(&mut h);
-    // TODO - WIDTH, Colorscheme, custom style
-    ParseFailure::Stdout(h.render())
-}
+// pub(crate) fn render_help_for(
+//     app: Option<&str>,
+//     help: &dyn Visited,
+//     parser: &dyn Visited,
+// ) -> ParseFailure {
+//
+//     let mut h = crate::visitors::help::Help::default();
+//     h.app_name = app;
+//     parser.visit(&mut h);
+//     help.visit(&mut h);
+//     // TODO - WIDTH, Colorscheme, custom style
+//     ParseFailure::Stdout(h.render())
+// }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// No text should include a closing newline, each item gets placed on a separate line
@@ -201,8 +202,14 @@ impl<'a> Visitor<'a> for Help<'a> {
             Item::Positional { meta, help } => {
                 self[place].push(HelpItem::Pos { meta, help });
             }
-            Item::Command { names, info, inner } => {
-                todo!()
+            Item::Command {
+                names,
+                info,
+                inner: _,
+            } => {
+                let name = Lit(ShortLong::Long(&names[0]));
+                let help = info.descr;
+                self[place].push(HelpItem::Cmd { name, help });
             }
             Item::Nested { named, inner } => {
                 todo!()
@@ -312,8 +319,8 @@ impl<'a> Help<'a> {
         for section in self.sections {
             w.write_section(section);
         }
-        w.write_section(cmds);
         w.write_section(named);
+        w.write_section(cmds);
 
         if let Some(text) = self.info.and_then(|i| i.footer) {
             w.paragraph();
@@ -670,11 +677,32 @@ impl ConsoleWriter {
                 self.cursor += 4 + meta.width();
                 _ = write!(&mut self.output, "    {M}{meta}{T}");
                 if let Some(help) = help {
-                    self.tabstop();
+                    self.pending = self.tabstop();
                     self.write_text(help);
                 }
             }
-            HelpItem::Cmd { name, help } => todo!(),
+            HelpItem::Cmd { name, help } => {
+                self.handle_pending();
+                _ = match name.0 {
+                    ShortLong::Short(s) => {
+                        self.cursor += 5;
+                        write!(&mut self.output, "    {L}{s}{T}")
+                    }
+                    ShortLong::Long(l) => {
+                        self.cursor += 4 + width(l);
+                        write!(&mut self.output, "    {L}{l}{T}")
+                    }
+                    ShortLong::Both(s, l) => {
+                        self.cursor += 6 + width(l);
+                        write!(&mut self.output, "    {L}{s}{T}, {L}{l}{T}")
+                    }
+                };
+
+                if let Some(help) = help {
+                    self.pending = self.tabstop();
+                    self.write_text(help);
+                }
+            }
             HelpItem::Text {
                 text,
                 lpad,

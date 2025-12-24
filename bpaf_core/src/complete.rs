@@ -140,14 +140,10 @@ pub(crate) enum CompleteReq {
 }
 
 pub(crate) fn handle_subparser_complete(err: Error) -> Error {
-    println!("Handle subparser complete?");
     match err {
-        Error::Missing(vec1) => todo!(),
         Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)).into(),
-        Error::CompReq(complete_req) => todo!(),
-        Error::Problem(_, problem) => todo!(),
-        Error::Final(parse_failure) => todo!(),
-        Error::Silent(_) => err,
+        Error::CompReq(_) => todo!(),
+        _ => err,
     }
 }
 

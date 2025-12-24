@@ -2,6 +2,9 @@
 //!
 //! They know how to interact with executor, deal with early exit when necessary, etc.
 //! Anything else gets built on top of those consumers
+//!
+//! only bits here know about consuming, cursor, and events.
+//! Everything here is either fixed type or (in rare cases &dyn...)
 
 pub(crate) type AnyCheck = Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>;
 pub(crate) type AnyResult = Option<Box<dyn std::any::Any>>;
@@ -108,15 +111,21 @@ impl RawCtx {
     pub(crate) async fn parse_literal_and(
         &self,
         names: &[Cow<'static, str>],
-        populate: &dyn Fn(Ctx),
-        parser: &dyn Visited,
-    ) -> Result<Option<u32>, Error> {
+        act: &dyn Fn(Ctx),
+    ) -> Result<bool, Error> {
         self.wait_for(names.iter().cloned().map(TTarget::Literal))
             .await;
-        if self.arg_to_parse()?.is_some() {
-            self.parse_nested(1, populate, parser)
+
+        if let Some(Arg::Pos { value }) = self.arg_to_parse()? {
+            self.consume(1);
+            self.cursor.update(|c| c + 1);
+            let ctx = self.fork(Some(value.to_string_lossy().into_owned()));
+            (act)(ctx.clone());
+            let consumed = ctx.cursor.get() - self.cursor.get();
+            self.consume(consumed as u32);
+            Ok(true)
         } else {
-            Ok(None)
+            Ok(false)
         }
     }
 
@@ -127,7 +136,7 @@ impl RawCtx {
         parser: &dyn Visited,
     ) -> Result<Option<u32>, Error> {
         self.consume(skip);
-        let ctx = self.fork();
+        let ctx = self.fork(None);
         ctx.cursor.update(|c| c + skip as usize);
         let to_parse = ctx.args.len() - ctx.cursor.get();
         (populate)(ctx.clone());
