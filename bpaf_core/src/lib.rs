@@ -445,7 +445,9 @@ enum Reason {
     Arg(Option<Arg<'static>>),
     Pass,
     NoPass,
+    /// Waking up trunk tasks when all the children are done
     Push,
+    /// Notification from the executor to sums about children making progress
     ChildProgress(Vec1<Id>),
     Complete(CompleteReq),
 }
@@ -1459,9 +1461,7 @@ impl RawCtx {
     /// Create a copy of a context suitable to run an executor
     fn fork(&self, level: Option<String>) -> Rc<RawCtx> {
         let mut args = self.args.clone();
-        if let Some(level) = level {
-            args.path.push(level);
-        }
+        args.path.extend(level);
         Self::make(args, self.cursor.get())
     }
 

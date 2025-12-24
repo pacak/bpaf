@@ -173,25 +173,31 @@ impl<T: 'static> Visited for Bp<OptionParser<T>> {
 
 impl<T: 'static> Parser<T> for Bp<Command<T>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        let out = std::rc::Rc::new(std::cell::Cell::new(None));
-        let handle = out.clone();
-
-        let p = self.0.inner.clone();
-        let name = &self.0.names[0];
-        let act = move |ctx: crate::Ctx| {
-            out.set(Some(p.run_in_ctx(Some(name.as_ref()), ctx)));
-        };
-
-        let res = ctx.parse_literal_and(&self.0.names, &act).await;
+        let res = ctx.parse_literal(&self.0.names).await;
         let res = res.map_err(|err| complete_command(&self.0.names, err));
-        if res? {
-            let r = handle.take().unwrap();
-            r.map_err(handle_subparser_complete).into()
-        } else {
+        let Some(name) = res? else {
             let missing = MissingItem::Lit {
                 value: self.0.names[0].clone(),
             };
-            Err(Error::Missing(Vec1::new(missing)))
+            return Err(Error::Missing(Vec1::new(missing)));
+        };
+
+        let inner = ctx.fork(Some(name.clone()));
+        inner.cursor.update(|c| c + 1);
+        let res = self.0.inner.run_in_ctx(Some(&name), inner.clone());
+        ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
+        let res = res.map_err(handle_subparser_complete);
+        res.map_err(Error::finalize_problems)
+    }
+}
+
+impl Error {
+    fn finalize_problems(self) -> Error {
+        match &self {
+            Error::Missing(..) | Error::CompReply(..) | Error::CompReq(..) | Error::Problem(..) => {
+                ParseFailure::from(self).into()
+            }
+            Error::Final(..) | Error::Silent(_) => self,
         }
     }
 }

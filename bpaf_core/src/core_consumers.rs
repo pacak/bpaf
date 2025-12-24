@@ -105,28 +105,17 @@ impl RawCtx {
         }
     }
 
-    /// Run a nested parser prefixed by a literal
-    ///
-    /// Returns true if parser executed and false otherwise
-    pub(crate) async fn parse_literal_and(
+    /// Wake up on one of the literals, return it
+    pub(crate) async fn parse_literal(
         &self,
         names: &[Cow<'static, str>],
-        act: &dyn Fn(Ctx),
-    ) -> Result<bool, Error> {
+    ) -> Result<Option<String>, Error> {
         self.wait_for(names.iter().cloned().map(TTarget::Literal))
             .await;
-
-        if let Some(Arg::Pos { value }) = self.arg_to_parse()? {
-            self.consume(1);
-            self.cursor.update(|c| c + 1);
-            let ctx = self.fork(Some(value.to_string_lossy().into_owned()));
-            (act)(ctx.clone());
-            let consumed = ctx.cursor.get() - self.cursor.get();
-            self.consume(consumed as u32);
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(match self.arg_to_parse()? {
+            Some(Arg::Pos { value }) => Some(value.to_str().unwrap().to_owned()),
+            _ => None,
+        })
     }
 
     fn parse_nested(
