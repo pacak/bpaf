@@ -120,6 +120,9 @@ impl<'a> std::ops::IndexMut<Place> for Help<'a> {
 }
 
 impl Named {
+    /// Try to represent [`Named`] as a [`HelpItem`]
+    ///
+    /// Pure env items are not shown. Also returns a name so we can track the tabstop position
     fn help_item(&self, meta: Option<Metavar>) -> Option<(ShortLong<'_>, HelpItem<'_>)> {
         let name = self.get_shortlong()?;
         let item = HelpItem::Named {
@@ -280,8 +283,8 @@ impl<'a> Help<'a> {
     /// - item description.
     /// long flag can push the description to the left but otherwise is padded
 
-    pub(crate) fn render(mut self) -> String {
-        let mut w = ConsoleWriter::new(None, self.max_word + 6);
+    pub(crate) fn render(mut self, detailed: bool) -> String {
+        let mut w = ConsoleWriter::new(None, self.max_word + 6, detailed);
 
         if let Some(text) = self.info.and_then(|i| i.descr) {
             w.write_text(text);
@@ -594,10 +597,13 @@ struct ConsoleWriter {
     /// Are we before
     after_tab: bool,
     nobreak: bool,
+
+    /// If any written text should contain everything after an empty line or just the brief version
+    detailed: bool,
 }
 
 impl ConsoleWriter {
-    fn new(scheme: Option<&'static Colorscheme>, tabstop: usize) -> Self {
+    fn new(scheme: Option<&'static Colorscheme>, tabstop: usize, detailed: bool) -> Self {
         Self {
             scheme: scheme.unwrap_or(&Colorscheme::DULL),
             mono: scheme.is_none(),
@@ -608,6 +614,7 @@ impl ConsoleWriter {
             pending: Pending::Nothing,
             after_tab: false,
             nobreak: false,
+            detailed,
         }
     }
 
@@ -776,7 +783,12 @@ impl ConsoleWriter {
         self.pending = Pending::Nothing;
     }
 
-    fn write_text(&mut self, text: &str) {
+    fn write_text(&mut self, mut text: &str) {
+        if !self.detailed
+            && let Some((prefix, _)) = text.split_once("\n\n")
+        {
+            text = prefix;
+        }
         for chunk in linesplit(text, self.mono) {
             self.pending = match chunk {
                 Chunk::Word { width, text } => {
@@ -890,13 +902,13 @@ mod tests {
     use super::*;
     #[test]
     fn a_pair_of_headers() {
-        let mut w = ConsoleWriter::new(None, 60);
+        let mut w = ConsoleWriter::new(None, 60, true);
         w.write_item(&HelpItem::Header { text: "Hello" });
         w.write_item(&HelpItem::Header { text: "Cat news" });
         let expected = "Hello\n\nCat news\n";
         assert_eq!(w.done(), expected);
 
-        let mut w = ConsoleWriter::new(Some(&Colorscheme::DULL), 60);
+        let mut w = ConsoleWriter::new(Some(&Colorscheme::DULL), 60, true);
         w.write_item(&HelpItem::Header { text: "Hello" });
         w.write_item(&HelpItem::Header { text: "Cat news" });
         let expected = "\u{1b}[4m\u{1b}1mHello\u{1b}[0m\n\n\u{1b}[4m\u{1b}1mCat news\u{1b}[0m\n";
@@ -905,20 +917,20 @@ mod tests {
 
     #[test]
     fn text_with_explicit_linebreak() {
-        let mut w = ConsoleWriter::new(None, 60);
+        let mut w = ConsoleWriter::new(None, 60, true);
         w.write_text("hello\n world");
         assert_eq!(w.done(), "hello\nworld");
     }
 
     #[test]
     fn text_with_space() {
-        let mut w = ConsoleWriter::new(None, 60);
+        let mut w = ConsoleWriter::new(None, 60, true);
         w.write_text("hello world");
         assert_eq!(w.done(), "hello world");
     }
     #[test]
     fn obeys_text_max_width() {
-        let mut w = ConsoleWriter::new(None, 60);
+        let mut w = ConsoleWriter::new(None, 60, true);
         w.tabstop();
         for _ in 0..100 {
             w.write_text("a");
@@ -938,14 +950,14 @@ mod tests {
 
     #[test]
     fn text_with_tabstop() {
-        let mut w = ConsoleWriter::new(None, 10);
+        let mut w = ConsoleWriter::new(None, 10, true);
         w.write_text("a\tb");
         assert_eq!(w.done(), "a         b");
     }
 
     #[test]
     fn indented_block() {
-        let mut w = ConsoleWriter::new(None, 6);
+        let mut w = ConsoleWriter::new(None, 6, true);
         let t = "    hello world! this is long!";
         w.write_text(t);
         assert_eq!(w.done(), t);
@@ -953,14 +965,14 @@ mod tests {
 
     #[test]
     fn text_with_indented_block() {
-        let mut w = ConsoleWriter::new(None, 60);
+        let mut w = ConsoleWriter::new(None, 60, true);
         w.write_text("hello\n\n    world");
         assert_eq!(w.done(), "hello\n\n    world");
     }
 
     #[test]
     fn simple_named_items() {
-        let mut w = ConsoleWriter::new(None, 20);
+        let mut w = ConsoleWriter::new(None, 20, true);
         w.write_item(&HelpItem::Named {
             name: ShortLong::Both('k', "ket"),
             meta: None,
@@ -971,7 +983,7 @@ mod tests {
 
     #[test]
     fn named_items() {
-        let mut w = ConsoleWriter::new(None, 20);
+        let mut w = ConsoleWriter::new(None, 20, true);
         let help = Some(
             "Animal's name to use this time, and a long long help to use \
         long enough so it can't fit all on a single line and must be wrapped \

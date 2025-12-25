@@ -2,7 +2,7 @@
 
 use crate::{
     Bp, Error, Item, Kind, MissingItem, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason,
-    Task, Visited,
+    Task, VKind, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     traits::VisitGroup,
@@ -82,6 +82,12 @@ impl Info {
             .long("help")
             .help("Prints help information")
             .req_flag(Extra::Help)
+            .count()
+            .parse(|c| match c {
+                1 => Ok(crate::Extra::Help),
+                2 => Ok(crate::Extra::LongHelp),
+                _ => Err("not help"),
+            })
             .into_rc();
         let mut alt = Alt { items: vec![help] };
         if let Some(v) = self.version {
@@ -92,7 +98,7 @@ impl Info {
                 .into_rc();
             alt.items.push(version);
         }
-        alt.into_rc()
+        alt.hide_usage().into_rc()
     }
 }
 
@@ -114,7 +120,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         let res = handle.take();
         if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
             let help = self.0.info.help_parser();
-            return Err(Error::Final(ctx.render_help_for(self, &help)));
+            return Err(Error::Final(ctx.render_help_for(self, &help, false)));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
@@ -213,6 +219,29 @@ impl<T: 'static> Visited for Bp<Command<T>> {
     }
 }
 
+pub struct Count<T> {
+    pub(crate) inner: RcParser<T>,
+}
+
+impl<T: 'static> Visited for Bp<Count<T>> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Many);
+        visitor.push_group(VisitGroup::Optional);
+        self.0.inner.visit(visitor);
+        visitor.pop_group();
+        visitor.pop_group();
+    }
+}
+
+impl<T: 'static> Parser<usize> for Bp<Count<T>> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<usize, Error> {
+        let many = Bp(Many {
+            inner: self.0.inner.clone(),
+        });
+        Ok(many.run(ctx).await?.len())
+    }
+}
+
 pub struct Many<T> {
     pub(crate) inner: RcParser<T>,
 }
@@ -292,6 +321,44 @@ pub struct Command<T> {
     inner: Bp<OptionParser<T>>,
 }
 
+pub struct Parse<T, P, F, E, R> {
+    pub(crate) ctx: PhantomData<(T, F, E, R)>,
+    pub(crate) inner: P,
+    pub(crate) f: F,
+}
+
+impl<T: 'static, P, F, E, R> Visited for Bp<Parse<T, P, F, E, R>>
+where
+    P: Parser<T>,
+{
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.0.inner.visit(visitor)
+    }
+}
+
+impl<T, P, F, E, R> Parser<R> for Bp<Parse<T, P, F, E, R>>
+where
+    T: 'static,
+    R: 'static,
+    P: Parser<T>,
+    F: Fn(T) -> Result<R, E>,
+    E: ToString,
+{
+    async fn run(&self, ctx: crate::Ctx) -> Result<R, Error> {
+        let t = self.0.inner.run(ctx.clone()).await?;
+        match (self.0.f)(t) {
+            Ok(r) => Ok(r),
+            Err(error) => Err(Error::Problem(
+                ctx.leaf_cursor(),
+                Problem::Parse {
+                    value: None,
+                    error: error.to_string(),
+                },
+            )),
+        }
+    }
+}
+
 pub struct Guard<T, P, F> {
     pub(crate) ctx: PhantomData<T>,
     pub(crate) inner: P,
@@ -326,6 +393,7 @@ impl<F, T: 'static, P: Parser<T>> Visited for Bp<Guard<T, P, F>> {
 pub struct Hide<T, P> {
     pub(crate) ctx: PhantomData<T>,
     pub(crate) inner: P,
+    pub(crate) only_usage: bool,
 }
 
 impl<T: 'static, P: Parser<T>> Parser<T> for Bp<Hide<T, P>> {
@@ -335,7 +403,11 @@ impl<T: 'static, P: Parser<T>> Parser<T> for Bp<Hide<T, P>> {
 }
 
 impl<T: 'static, P: Parser<T>> Visited for Bp<Hide<T, P>> {
-    fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        if self.0.only_usage && visitor.identify() != VKind::Usage {
+            self.0.inner.visit(visitor);
+        }
+    }
 }
 
 pub struct Fallback<T, P> {

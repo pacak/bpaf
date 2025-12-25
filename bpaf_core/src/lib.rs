@@ -864,6 +864,7 @@ impl Executor {
         // - consuming new items
         // -
         let mut mixer_capacity = Mixer::default();
+
         loop {
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
@@ -1435,7 +1436,7 @@ struct Triggers {
 // reactor - listens for readiness, notifies tasks
 // executor - runs ready tasks
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
 enum Extra {
     Help,
     LongHelp,
@@ -1443,7 +1444,12 @@ enum Extra {
 }
 
 impl RawCtx {
-    fn render_help_for(&self, parser: &dyn Visited, help: &dyn Visited) -> ParseFailure {
+    fn render_help_for(
+        &self,
+        parser: &dyn Visited,
+        help: &dyn Visited,
+        detailed: bool,
+    ) -> ParseFailure {
         let mut h = crate::visitors::help::Help::default();
 
         let place;
@@ -1471,7 +1477,7 @@ impl RawCtx {
         parser.visit(&mut h);
         help.visit(&mut h);
         // TODO - WIDTH, Colorscheme, custom style
-        ParseFailure::Stdout(h.render())
+        ParseFailure::Stdout(h.render(detailed))
     }
 }
 
@@ -1516,7 +1522,9 @@ impl RawCtx {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
-                            Extra::Help | Extra::LongHelp => ctx.render_help_for(parser, &help),
+                            Extra::Help | Extra::LongHelp => {
+                                ctx.render_help_for(parser, &help, xtra == Extra::LongHelp)
+                            }
                             Extra::Version(v) => {
                                 // Run it twice? Add a restriction to the position
                                 // or number of items?

@@ -27,6 +27,18 @@ pub trait Parser<T: 'static>: Visited {
             map,
         }
     }
+    fn parse<F, R, E>(self, f: F) -> Bp<Parse<T, Self, F, E, R>>
+    where
+        Self: Sized + Parser<T>,
+        F: Fn(T) -> Result<R, E>,
+        E: ToString,
+    {
+        Bp(Parse {
+            inner: self,
+            ctx: PhantomData,
+            f,
+        })
+    }
 
     fn optional(self) -> impl Parser<Option<T>>
     where
@@ -53,6 +65,15 @@ pub trait Parser<T: 'static>: Visited {
         Bp(Many1 {
             inner: self.into_rc().0,
             message,
+        })
+    }
+
+    fn count(self) -> Bp<Count<T>>
+    where
+        Self: Sized + 'static,
+    {
+        Bp(Count {
+            inner: self.into_rc().0,
         })
     }
 
@@ -86,6 +107,18 @@ pub trait Parser<T: 'static>: Visited {
         Bp(Hide {
             inner: self,
             ctx: PhantomData,
+            only_usage: false,
+        })
+    }
+
+    fn hide_usage(self) -> Bp<Hide<T, Self>>
+    where
+        Self: Sized,
+    {
+        Bp(Hide {
+            inner: self,
+            ctx: PhantomData,
+            only_usage: true,
         })
     }
 
@@ -130,7 +163,7 @@ pub trait Visited {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VKind {
     Error,
     Usage,

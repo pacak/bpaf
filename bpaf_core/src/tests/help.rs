@@ -39,7 +39,7 @@ fooo
 baz";
     let a = short('a').switch();
     let parser = a.to_options().descr(descr);
-    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("-hh").unwrap_err().unwrap_stdout();
     let expected = "\
 fooo
 
@@ -285,40 +285,35 @@ Available options:
     assert_eq!(r, expected);
 }
 
-// #[test]
-// fn enum_with_docs() {
-//     #[derive(Debug, Clone, Bpaf)]
-//     /// Pick mode:
-//     enum Mode {
-//         /// help
-//         ///
-//         /// absent
-//         Intel,
-//
-//         /// help
-//         ///
-//         /// Hidden
-//         Att,
-//     }
-//
-//     let r = mode()
-//         .to_options()
-//         .run_inner(&["--help"])
-//         .unwrap_err()
-//         .unwrap_stdout();
-//
-//     let expected = "\
-// Usage: (--intel | --att)
-//
-// Pick mode:
-//         --intel  help
-//         --att    help
-//
-// Available options:
-//     -h, --help   Prints help information
-// ";
-//     assert_eq!(r, expected);
-// }
+#[test]
+fn enum_with_docs() {
+    #[derive(Debug, Clone)]
+    enum Mode {
+        Intel,
+        Att,
+    }
+    let intel = long("intel").help("help\n\nabsent").req_flag(Mode::Intel);
+    let att = long("att").help("help\n\nHidden").req_flag(Mode::Att);
+    let mode = construct!([intel, att]).group_help("Pick mode:");
+
+    let r = mode
+        .to_options()
+        .run_inner(&["--help"])
+        .unwrap_err()
+        .unwrap_stdout();
+
+    let expected = "\
+Usage: (--intel | --att)
+
+Pick mode:
+        --intel  help
+        --att    help
+
+Available options:
+    -h, --help   Prints help information
+";
+    assert_eq!(r, expected);
+}
 
 // #[test]
 // fn anywhere_invariant_check() {
