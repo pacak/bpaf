@@ -247,39 +247,53 @@ pub struct Many<T> {
 }
 
 impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
-    async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-        let mut res = Vec::new();
-        let start = ctx.next_free.get();
-        let mut consumed_before = 0;
-        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
-            ctx.next_free.set(start);
-            let (h, pair) = ctx.spawn_with_early_exit(self.0.inner.clone());
-
-            r#yield().await;
-            ctx.remove_early_exit(pair);
-
-            let consumed_after = ctx.current_task.borrow().consumed;
-            let advanced = consumed_after > consumed_before;
-            consumed_before = consumed_after;
-
-            let val = h.take();
-
-            match (advanced, val) {
-                (true, Ok(v)) => res.push(v),
-                (true, Err(e)) => return Err(e),
-                (false, Ok(v)) => {
-                    if res.is_empty() {
-                        res.push(v);
-                    }
-                    break;
-                }
-                (false, Err(e)) if e.can_catch() => break,
-                (false, Err(e)) => return Err(e),
-            }
-        }
-        Ok(res)
+    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<Vec<T>, Error>> {
+        parse_many(self.0.inner.clone(), ctx, usize::MAX)
     }
+    // async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
+    // }
 }
+
+async fn parse_many<T: 'static>(
+    parser: RcParser<T>,
+    ctx: crate::Ctx,
+    max: usize,
+) -> Result<Vec<T>, Error> {
+    let mut res = Vec::new();
+    let start = ctx.next_free.get();
+    let mut consumed_before = 0;
+    while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
+        ctx.next_free.set(start);
+        let (h, pair) = ctx.spawn_with_early_exit(parser.clone());
+
+        r#yield().await;
+        ctx.remove_early_exit(pair);
+
+        let consumed_after = ctx.current_task.borrow().consumed;
+        let advanced = consumed_after > consumed_before;
+        consumed_before = consumed_after;
+
+        let val = h.take();
+
+        match (advanced, val) {
+            (true, Ok(v)) => res.push(v),
+            (true, Err(e)) => return Err(e),
+            (false, Ok(v)) => {
+                if res.is_empty() {
+                    res.push(v);
+                }
+                break;
+            }
+            (false, Err(e)) if e.can_catch() => break,
+            (false, Err(e)) => return Err(e),
+        }
+        if res.len() >= max {
+            break;
+        }
+    }
+    Ok(res)
+}
+
 impl<T: 'static> Visited for Bp<Many<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Many);
@@ -296,11 +310,7 @@ pub struct Many1<T> {
 }
 impl<T: 'static> Parser<Vec<T>> for Bp<Many1<T>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-        let res = Bp(Many {
-            inner: self.0.inner.clone(),
-        })
-        .run(ctx)
-        .await?;
+        let res = parse_many(self.0.inner.clone(), ctx, usize::MAX).await?;
         if res.is_empty() {
             Err(Error::Problem(u32::MAX, Problem::Static(self.0.message)))
         } else {
