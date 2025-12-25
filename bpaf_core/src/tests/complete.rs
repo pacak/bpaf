@@ -1,4 +1,4 @@
-use crate::{Parser, construct, long, short};
+use crate::{Parser, construct, long, positional, pure, short};
 
 #[test]
 fn simple_complete_command() {
@@ -74,4 +74,23 @@ fn simple_complete_for_value() {
 
     let r = parser.run_inner(("", "-b=")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "42 (None)\n");
+}
+
+#[test]
+fn strict_pos_works() {
+    let a = short('a').switch().help("short help");
+    let b = positional::<u32>("X").help("pos help");
+    let c = pure(()).to_options().descr("ket").command("ket");
+    let parser = construct!(a, b, c).to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    let expected = "\
+ket (None)
+-a (Some(\"short help\"))
+Metavar(\"X\")";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
+    let expected = "Metavar(\"X\")";
+    assert_eq!(r, expected);
 }

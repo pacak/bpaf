@@ -814,16 +814,14 @@ impl Executor {
         if !self.ctx.args.complete || self.ctx.cursor.get() + 1 != self.ctx.args.len() {
             return None;
         }
-        if self.ctx.strict_pos.get() {
-            todo!();
-        }
 
         let mut mixer = Mixer::default();
         let arg = lex_os_arg(arg);
 
         // TODO - populate_prefix doesn't really have to be a method on Mixer
         // it can be a standalone method
-        let (reason, mgroup) = mixer.populate_prefix(&arg, &self.triggers);
+        let (reason, mgroup) =
+            mixer.populate_prefix(&arg, &self.triggers, self.ctx.strict_pos.get());
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
 
         // Normally we traverse each pecking order at once since only sum items can run
@@ -883,6 +881,7 @@ impl Executor {
                 self.ctx.cursor.update(|c| c + 1);
                 continue;
             }
+
             // Waking up tasks is done in two stages: during the first stage we wake up
             // all the tasks with matching triggers, during the second stage tasks that don't
             // consume the biggest amount from the first stage are terminated.
@@ -1573,6 +1572,7 @@ impl<'a> Mixer<'a> {
         &mut self,
         arg: &Arg<'a>,
         triggers: &'a Triggers,
+        strict_pos: bool,
     ) -> (CompleteReq, Option<Group>) {
         self.pecking_push(Some(&triggers.any));
         match arg {
@@ -1642,7 +1642,7 @@ impl<'a> Mixer<'a> {
                         prefix: value.into(),
                     }
                 }
-                if short {
+                if short && !strict_pos {
                     for (n, f) in triggers.args.iter() {
                         if matches!(n, Name::Short(_)) {
                             self.pecking_push(Some(f));
@@ -1655,7 +1655,7 @@ impl<'a> Mixer<'a> {
                     }
                 }
                 // TODO - can avoid iterating twice here
-                if long {
+                if long && !strict_pos {
                     for (n, f) in triggers.args.iter() {
                         if matches!(n, Name::Long(_)) {
                             self.pecking_push(Some(f));
@@ -1667,7 +1667,7 @@ impl<'a> Mixer<'a> {
                         }
                     }
                 }
-                if lit {
+                if lit && !strict_pos {
                     for (name, f) in triggers.literal.iter() {
                         if name.starts_with(value) {
                             self.pecking_push(Some(f));
