@@ -9,6 +9,39 @@ mod os_str;
 mod utils;
 mod visitors;
 
+mod structs {
+
+    #[repr(transparent)]
+    #[derive(Clone)]
+    pub struct Bp<I>(pub(crate) I);
+
+    pub mod complex {
+        //! asdfsf
+
+        /// Foo!
+        pub struct Foo;
+
+        /// Foo 1
+        impl Foo {
+            pub fn xxxx(&self) {}
+        }
+
+        /// Foo 2
+        impl Foo {
+            pub fn xxxx2(&self) {}
+        }
+    }
+
+    /// fallback
+    mod fallback {}
+    /// repeat
+    mod repeat {}
+    mod functor {}
+    mod ux {}
+    mod primitives {}
+    mod algebras {}
+}
+
 use crate::{
     adapters::Info,
     arg::{Adjacency, Arg, lex_os_arg},
@@ -28,6 +61,8 @@ use std::{
     rc::Rc,
     task::Poll,
 };
+#[doc(inline)]
+pub use structs::Bp;
 
 pub(crate) struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
@@ -40,10 +75,6 @@ impl<T> JoinHandle<T> {
             .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
     }
 }
-
-#[repr(transparent)]
-#[derive(Clone)]
-pub struct Bp<I>(I);
 
 mod adapters;
 
