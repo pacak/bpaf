@@ -425,6 +425,10 @@ pub struct RawCtx {
     /// During stage 1 task can indicate if mixer should skip this task
     /// and proceed to the next task in the same product
     pass: Cell<bool>,
+
+    /// Treat the rest of the items as strictly positional - we'll set it if we ever encounter a
+    /// bare `--` during parsing
+    strict_pos: Cell<bool>,
 }
 pub type Ctx = Rc<RawCtx>;
 
@@ -810,6 +814,9 @@ impl Executor {
         if !self.ctx.args.complete || self.ctx.cursor.get() + 1 != self.ctx.args.len() {
             return None;
         }
+        if self.ctx.strict_pos.get() {
+            todo!();
+        }
 
         let mut mixer = Mixer::default();
         let arg = lex_os_arg(arg);
@@ -870,6 +877,11 @@ impl Executor {
                 return out;
             }
 
+            if !self.ctx.strict_pos.get() && front == "--" {
+                self.ctx.strict_pos.set(true);
+                self.ctx.cursor.update(|c| c + 1);
+                continue;
+            }
             // Waking up tasks is done in two stages: during the first stage we wake up
             // all the tasks with matching triggers, during the second stage tasks that don't
             // consume the biggest amount from the first stage are terminated.
@@ -1013,8 +1025,14 @@ impl Executor {
         mixer_capacity: Mixer<'static>,
     ) -> (u32, Mixer<'static>, Option<Group>) {
         let mut mixer = mixer_capacity.reuse_capacity();
-        let arg = lex_os_arg(front);
-        let mgroup = mixer.populate(&arg, &self.triggers);
+        let arg = if self.ctx.strict_pos.get() {
+            Arg::Pos {
+                value: Cow::Borrowed(front),
+            }
+        } else {
+            lex_os_arg(front)
+        };
+        let mgroup = mixer.populate(&arg, &self.triggers, self.ctx.strict_pos.get());
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(arg.into_owned()));
 
@@ -1459,17 +1477,17 @@ impl RawCtx {
 
 impl RawCtx {
     /// Create a copy of a context suitable to run an executor
-    fn fork(&self, level: Option<String>) -> Rc<RawCtx> {
+    pub(crate) fn fork(&self, level: Option<String>) -> Rc<RawCtx> {
         let mut args = self.args.clone();
         args.path.extend(level);
-        Self::make(args, self.cursor.get())
+        Self::make(args, self.cursor.get(), self.strict_pos.get())
     }
 
-    fn new(args: Args) -> Ctx {
-        Self::make(args, 0)
+    pub(crate) fn new(args: Args) -> Ctx {
+        Self::make(args, 0, false)
     }
 
-    fn make(args: Args, cursor: usize) -> Rc<RawCtx> {
+    fn make(args: Args, cursor: usize, strict_pos: bool) -> Rc<RawCtx> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -1480,6 +1498,7 @@ impl RawCtx {
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             pass: Cell::new(false),
+            strict_pos: Cell::new(strict_pos),
         })
     }
 
@@ -1653,7 +1672,12 @@ impl<'a> Mixer<'a> {
             }
         }
     }
-    fn populate(&mut self, arg: &Arg<'a>, triggers: &'a Triggers) -> Option<Group> {
+    fn populate(
+        &mut self,
+        arg: &Arg<'a>,
+        triggers: &'a Triggers,
+        strict_pos: bool,
+    ) -> Option<Group> {
         self.pecking_push(Some(&triggers.any));
         match arg {
             Arg::Named {
@@ -1694,7 +1718,9 @@ impl<'a> Mixer<'a> {
                 }
             }
             Arg::Pos { value } => {
-                if let Some(name) = value.to_str() {
+                if let Some(name) = value.to_str()
+                    && !strict_pos
+                {
                     self.pecking_push(triggers.literal.get(name));
                 }
                 self.pecking_push(Some(&triggers.pos));

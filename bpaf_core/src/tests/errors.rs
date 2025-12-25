@@ -148,18 +148,15 @@ fn guard_on_pair() {
     let res = parser.run_inner("-a 10 -b 20").unwrap_err().unwrap_stderr();
     assert_eq!(res, "too high");
 }
-//
-// #[test]
-// fn strict_positional_argument() {
-//     let a = short('a').argument::<usize>("N");
-//     let parser = a.to_options();
-//
-//     let r = parser
-//         .run_inner(&["-a", "--", "10"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(r, "`-a` requires an argument `N`");
-// }
+
+#[test]
+fn strict_positional_argument() {
+    let a = short('a').argument::<usize>("N");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -- 10").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse `--`: invalid digit found in string");
+}
 
 #[test]
 fn not_expected_at_all() {
@@ -312,18 +309,17 @@ fn pos_with_invalid_arg() {
     let r = parser.run_inner("t -c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse `t`: invalid digit found in string");
 }
-//
-// #[test]
-// fn strictly_positional_help() {
-//     let parser = long("hhhh").switch().to_options();
-//
-//     let r = parser
-//         .run_inner(&["--", "--help"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(r, "`--help` is not expected in this context");
-// }
-//
+
+#[test]
+fn strictly_positional_help() {
+    let parser = long("hhhh").switch().to_options();
+    let r = parser
+        .run_inner(&["--", "--help"])
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "`--help` is not expected in this context");
+}
+
 #[test]
 fn hidden_required_field_is_valid_but_strange() {
     // hidden stuff shows up in error messages when it is needed
