@@ -1,4 +1,4 @@
-use crate::{Parser, long, positional, pure, short};
+use crate::{Parser, construct, long, positional, pure, short};
 
 #[test]
 fn simple_complete_command() {

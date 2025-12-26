@@ -1,7 +1,7 @@
 use crate::{
     Parser, Visited,
     console_writer::{Colorscheme, apply_style},
-    long, positional, pure, short,
+    construct, long, positional, pure, short,
     visitors::usage::Usage,
 };
 
