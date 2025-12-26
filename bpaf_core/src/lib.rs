@@ -1,6 +1,7 @@
 mod arg;
 mod args;
 mod complete;
+mod console_writer;
 mod consumers;
 mod core_consumers;
 mod error;
@@ -1867,10 +1868,12 @@ impl From<String> for Name<'static> {
 #[cfg(test)]
 mod tests {
     mod complete;
+    mod console_writer;
     mod errors;
     mod help;
     mod osstring;
     mod pure_with;
     mod unsorted;
+    mod usage;
     mod wake;
 }
