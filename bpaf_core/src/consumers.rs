@@ -3,6 +3,7 @@ use std::{marker::PhantomData, str::FromStr};
 use crate::{
     adapters::PureWith,
     complete::{CompleteReply, complete_value},
+    error::MissingItem,
     os_str::parse_os_str,
 };
 

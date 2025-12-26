@@ -1,10 +1,10 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
-
 use crate::{
-    Bp, Error, Item, Kind, MissingItem, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason,
-    Task, VKind, Visited,
+    Bp, Error, Item, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task, VKind,
+    Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
+    error::MissingItem,
     traits::VisitGroup,
     utils::Vec1,
     r#yield,

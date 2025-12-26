@@ -8,30 +8,28 @@ mod error;
 mod macros;
 mod os_str;
 mod utils;
-pub mod visitors;
+mod visitors;
 
 pub mod api {
+    //! # User facing API tutorial
+    //!
+    //! <div class="warning">
+    //!
+    //! Everything under this module is available through functions exported from the
+    //! crate's top level, [`construct!`](crate::construct) macro, methods on the
+    //! [`Bp`](crate::Bp) wrapper or via [`Parser`](crate::Parser) trait. Main purpose
+    //! is to make names visible and to contain some tutorial style documentation. In
+    //! most cases you don't need to import anything from here directly.
+    //!
+    //! </div>
 
-    #[repr(transparent)]
-    #[derive(Clone)]
-    pub struct Bp<I>(pub(crate) I);
-
-    pub mod complex {
-        //! asdfsf
-
-        /// Foo!
-        pub struct Foo;
-
-        /// Foo 1
-        impl Foo {
-            pub fn xxxx(&self) {}
-        }
-
-        /// Foo 2
-        impl Foo {
-            pub fn xxxx2(&self) {}
-        }
+    pub mod wrapper {
+        #[repr(transparent)]
+        #[derive(Clone)]
+        pub struct Bp<I>(pub(crate) I);
     }
+
+    pub mod composite {}
 
     /// fallback
     pub mod fallback {}
@@ -51,15 +49,17 @@ use crate::{
     utils::{Vec1, reuse_vec},
     visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
+
 #[doc(inline)]
-pub use crate::{
-    consumers::*,
-    error::*,
-    traits::{Parser, RcParser, VisitGroup, Visited, Visitor, *},
+pub use crate::{consumers::*, traits::Parser};
+
+use crate::{
+    error::{Error, ParseFailure, Problem},
+    traits::{RcParser, VisitGroup, Visited, Visitor, *},
 };
 
 #[doc(inline)]
-pub use api::Bp;
+pub use api::wrapper::Bp;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -86,8 +86,10 @@ mod adapters;
 
 mod traits;
 
+#[doc(hidden)]
 pub mod __private {
-    pub use crate::{Alt, Con, Ctx, Error, Kind};
+    pub use crate::error::Error;
+    pub use crate::{Alt, Con, Ctx, Kind};
 }
 
 pub struct Con<T> {
