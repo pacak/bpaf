@@ -37,27 +37,37 @@ impl RawCtx {
         self.current_task.borrow_mut().consumed += cnt;
     }
 
-    async fn wait_for(&self, items: impl IntoIterator<Item = TTarget> + Clone) {
+    async fn wait_for(
+        &self,
+        items: impl IntoIterator<Item = TTarget> + Clone,
+    ) -> Result<Option<Arg<'_>>, Error> {
         self.with_trigger(TChange::Add, items.clone());
         r#yield().await;
         self.with_trigger(TChange::Remove, items.clone());
 
-        // The idea for conflict tracking is to record that we could have consumed
-        // a flag / literal, but instead consumed something else at a given cursor position
-        //
-        // We do this so when we encounter something we can't parse - we check if it was ever
-        // possible to parse it before. This gives a position we parsed instead
-        if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(None)) {
-            let pos = self.cursor.get() as u32;
-            self.conflicts
-                .borrow_mut()
-                .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
+        match &*self.wakeup_reason.borrow_mut() {
+            Reason::NoPass | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
+                Err(Error::Silent("Unexpected reason in arg_to_parse"))
+            }
+            Reason::Arg(None) => {
+                // The idea for conflict tracking is to record that we could have consumed
+                // a flag / literal, but instead consumed something else at a given cursor position
+                //
+                // We do this so when we encounter something we can't parse - we check if it was ever
+                // possible to parse it before. This gives a position we parsed instead
+                let pos = self.cursor.get() as u32;
+                self.conflicts
+                    .borrow_mut()
+                    .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
+                Ok(None)
+            }
+            Reason::Arg(Some(arg)) => Ok(Some(arg.clone())),
+            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
     }
 
     pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
-        self.wait_for([TTarget::Pos]).await;
-        Ok(self.arg_to_parse()?.map(|arg| match arg {
+        Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
             Arg::Named { .. } => unreachable!(),
             Arg::Pos { value } => {
                 self.consume(1);
@@ -97,9 +107,11 @@ impl RawCtx {
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
     ) -> Result<Option<u32>, Error> {
-        self.wait_for(names.iter().cloned().map(TTarget::Flag))
-            .await;
-        if self.arg_to_parse()?.is_some() {
+        if self
+            .wait_for(names.iter().cloned().map(TTarget::Flag))
+            .await?
+            .is_some()
+        {
             self.parse_nested(1, populate, parser)
         } else {
             Ok(None)
@@ -111,12 +123,15 @@ impl RawCtx {
         &self,
         names: &[Cow<'static, str>],
     ) -> Result<Option<String>, Error> {
-        self.wait_for(names.iter().cloned().map(TTarget::Literal))
-            .await;
-        Ok(match self.arg_to_parse()? {
-            Some(Arg::Pos { value }) => Some(value.to_str().unwrap().to_owned()),
-            _ => None,
-        })
+        Ok(
+            match self
+                .wait_for(names.iter().cloned().map(TTarget::Literal))
+                .await?
+            {
+                Some(Arg::Pos { value }) => Some(value.to_str().unwrap().to_owned()),
+                _ => None,
+            },
+        )
     }
 
     fn parse_nested(
@@ -140,8 +155,10 @@ impl RawCtx {
         &self,
         names: &[Name<'static>],
     ) -> Result<Option<OsString>, Error> {
-        self.wait_for(names.iter().cloned().map(TTarget::Arg)).await;
-        match self.arg_to_parse()? {
+        match self
+            .wait_for(names.iter().cloned().map(TTarget::Arg))
+            .await?
+        {
             Some(arg) => self.parse_arg_consume(arg),
             None => Ok(None),
         }
@@ -201,9 +218,10 @@ impl RawCtx {
     /// - `Ok(false)` when it gets terminated by "no such item"
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
     pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
-        self.wait_for(names.iter().cloned().map(TTarget::Flag))
-            .await;
-        match self.arg_to_parse()? {
+        match self
+            .wait_for(names.iter().cloned().map(TTarget::Flag))
+            .await?
+        {
             Some(arg) => self.parse_flag_consume(arg),
             None => Ok(false),
         }
@@ -245,16 +263,6 @@ impl RawCtx {
             }
             Reason::Arg(None) => Ok(fallback),
             Reason::Arg(Some(arg)) => act(arg),
-            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
-        }
-    }
-
-    fn arg_to_parse(&self) -> Result<Option<Arg<'_>>, Error> {
-        match &*self.wakeup_reason.borrow_mut() {
-            Reason::NoPass | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
-                Err(Error::Silent("Unexpected reason in arg_to_parse"))
-            }
-            Reason::Arg(arg) => Ok(arg.clone()),
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
     }
