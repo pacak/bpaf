@@ -409,30 +409,45 @@ impl<T> Visited for Bp<Positional<T>> {
 }
 
 struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
-struct DummyAny<T>(Rc<dyn Fn(&str) -> Option<T>>);
+struct DummyAny<T> {
+    meta: Metavar,
+    check: Box<dyn Fn(&str) -> Option<T>>,
+}
 
-pub fn any<T: 'static>(check: impl Fn(&str) -> Option<T> + 'static) -> impl Parser<T> {
-    DummyAny(Rc::new(check))
+pub fn any<T: 'static>(
+    meta: &'static str,
+    check: impl Fn(&str) -> Option<T> + 'static,
+) -> impl Parser<T> {
+    DummyAny {
+        meta: Metavar(meta),
+        check: Box::new(check),
+    }
 }
 
 impl<T> Visited for DummyAny<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        todo!()
+        let item = Item::Positional {
+            meta: self.meta,
+            help: None,
+        };
+        visitor.item(item)
     }
 }
 
 impl<T: 'static> Parser<T> for DummyAny<T> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let parser = self.0.clone();
-        let check = Box::new(move |os: &OsStr| -> Option<Box<dyn std::any::Any>> {
-            Some(Box::new(parser(os.to_str()?)?))
-        });
-        Ok(*ctx
-            .parse_any(check)
-            .await?
-            .unwrap()
-            .downcast()
-            .expect("It should match"))
+        while let Some(v) = ctx.await_any().await? {
+            if let Some(v) = v.to_str().and_then(&self.check) {
+                ctx.consume(1);
+                return Ok(v);
+            }
+            ctx.pass.set(true);
+        }
+
+        let item = MissingItem::Pos {
+            meta: Metavar("XXX"),
+        };
+        Err(Error::missing(item))
     }
 }
 

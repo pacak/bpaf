@@ -6,8 +6,6 @@
 //! only bits here know about consuming, cursor, and events.
 //! Everything here is either fixed type or (in rare cases &dyn...)
 
-pub(crate) type AnyCheck = Box<dyn Fn(&OsStr) -> Option<Box<dyn std::any::Any>>>;
-pub(crate) type AnyResult = Option<Box<dyn std::any::Any>>;
 use crate::*;
 
 fn to_conflict(t: TTarget, pos: u32) -> Option<Conflict> {
@@ -44,29 +42,7 @@ impl RawCtx {
         self.with_trigger(TChange::Add, items.clone());
         r#yield().await;
         self.with_trigger(TChange::Remove, items.clone());
-
-        match &*self.wakeup_reason.borrow() {
-            Reason::Arg(arg) => Ok(Some(arg.clone())),
-            Reason::Kill(KillReason::Conflict) => {
-                // The idea for conflict tracking is to record that we could have consumed
-                // a flag / literal, but instead consumed something else at a given cursor position
-                //
-                // We do this so when we encounter something we can't parse - we check if it was ever
-                // possible to parse it before. This gives a position we parsed instead
-                let pos = self.cursor.get() as u32;
-                self.conflicts
-                    .borrow_mut()
-                    .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
-                Ok(None)
-            }
-            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
-            Reason::Kill(KillReason::TooShort)
-            | Reason::Pass
-            | Reason::Push
-            | Reason::ChildProgress(_) => todo!(),
-
-            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
-        }
+        self.reason_to_arg(items)
     }
 
     pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
@@ -79,29 +55,27 @@ impl RawCtx {
         }))
     }
 
-    pub(crate) async fn parse_any(&self, check: AnyCheck) -> Result<AnyResult, Error> {
+    pub(crate) async fn await_any(&self) -> Result<Option<&OsString>, Error> {
         self.with_trigger(TChange::Add, [TTarget::Any]);
         r#yield().await;
-        let res = loop {
-            let res = self.try_to_parse_arg(None, |_arg| self.parse_any_consume(&check));
-            if !matches!(res, Ok(None)) {
-                break res;
-            } else {
-                self.pass.set(true);
-                r#yield().await;
-            }
-        };
         self.with_trigger(TChange::Remove, [TTarget::Any]);
-        res
-    }
 
-    pub(self) fn parse_any_consume(&self, check: &AnyCheck) -> Result<AnyResult, Error> {
-        let cursor = self.cursor.get();
-        let res = check(&self.args[cursor]);
-        if res.is_some() {
-            self.consume(1);
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(_) => {
+                let ix = self.cursor.get();
+                Ok(self.args.get(ix))
+            }
+            Reason::Kill(KillReason::Conflict) => {
+                self.record_conflicts([TTarget::Any]);
+                Ok(None)
+            }
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+            Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_) => todo!(),
+            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
-        Ok(res)
     }
 
     pub(crate) async fn parse_flag_and(
@@ -253,19 +227,34 @@ impl RawCtx {
         }
     }
 
-    /// Handle early exit conditions
-    #[inline(always)]
-    pub(self) fn try_to_parse_arg<T>(
+    /// All the `items` where killed as we parsed an item at current cursor position
+    fn record_conflicts(&self, items: impl IntoIterator<Item = TTarget>) {
+        // The idea for conflict tracking is to record that we could have consumed
+        // a flag / literal, but instead consumed something else at a given cursor position
+        //
+        // We do this so when we encounter something we can't parse - we check if it was ever
+        // possible to parse it before. This gives a position we parsed instead
+        let pos = self.cursor.get() as u32;
+        self.conflicts
+            .borrow_mut()
+            .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
+    }
+    fn reason_to_arg(
         &self,
-        fallback: T,
-        act: impl Fn(&Arg) -> Result<T, Error>,
-    ) -> Result<T, Error> {
-        match &*self.wakeup_reason.borrow_mut() {
-            Reason::Kill(KillReason::NoMatchingInput) => Ok(fallback),
-            Reason::Kill(_) | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
-                Err(Error::Silent("Unexpected reason in try_to_parse_arg"))
+        items: impl IntoIterator<Item = TTarget> + Clone,
+    ) -> Result<Option<Arg<'_>>, Error> {
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(arg) => Ok(Some(arg.clone())),
+            Reason::Kill(KillReason::Conflict) => {
+                self.record_conflicts(items);
+                Ok(None)
             }
-            Reason::Arg(arg) => act(arg),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+            Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_) => todo!(),
+
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
     }
