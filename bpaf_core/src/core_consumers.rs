@@ -45,11 +45,9 @@ impl RawCtx {
         r#yield().await;
         self.with_trigger(TChange::Remove, items.clone());
 
-        match &*self.wakeup_reason.borrow_mut() {
-            Reason::NoPass | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
-                Err(Error::Silent("Unexpected reason in arg_to_parse"))
-            }
-            Reason::Arg(None) => {
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(arg) => Ok(Some(arg.clone())),
+            Reason::Kill(KillReason::Conflict) => {
                 // The idea for conflict tracking is to record that we could have consumed
                 // a flag / literal, but instead consumed something else at a given cursor position
                 //
@@ -61,7 +59,12 @@ impl RawCtx {
                     .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
                 Ok(None)
             }
-            Reason::Arg(Some(arg)) => Ok(Some(arg.clone())),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+            Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_) => todo!(),
+
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
     }
@@ -258,11 +261,11 @@ impl RawCtx {
         act: impl Fn(&Arg) -> Result<T, Error>,
     ) -> Result<T, Error> {
         match &*self.wakeup_reason.borrow_mut() {
-            Reason::NoPass | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(fallback),
+            Reason::Kill(_) | Reason::Pass | Reason::ChildProgress(_) | Reason::Push => {
                 Err(Error::Silent("Unexpected reason in try_to_parse_arg"))
             }
-            Reason::Arg(None) => Ok(fallback),
-            Reason::Arg(Some(arg)) => act(arg),
+            Reason::Arg(arg) => act(arg),
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
     }

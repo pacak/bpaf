@@ -248,6 +248,7 @@ enum Op {
     KillScope {
         cursor: u32,
         scope: Scope,
+        reason: KillReason,
     },
     Trigger {
         change: TChange,
@@ -439,15 +440,25 @@ enum Conflict {
     Pos { pos: u32 },
 }
 
+#[derive(Copy, Clone, Debug)]
+enum KillReason {
+    Conflict,
+    NoMatchingInput,
+    TooShort,
+}
+
 #[derive(Debug)]
 enum Reason {
     /// Task is waken up so core consumer gets a chance to consume anything.
     /// - `Some` corresponds to a value requested by a trigger
     /// - `None` - leaf task is being told that there is no more matching arguments
     ///   left and it should produce what it can or fail.
-    Arg(Option<Arg<'static>>),
+    Arg(Arg<'static>),
+
+    Kill(KillReason),
+
     Pass,
-    NoPass,
+
     /// Waking up trunk tasks when all the children are done
     Push,
     /// Notification from the executor to sums about children making progress
@@ -467,9 +478,10 @@ impl RawCtx {
     }
 
     #[inline(never)]
+    ///
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
-        // The only possible scenario for a consuming leaf
-        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
+        // The only possible scenario for a consuming leaf is getting an Arg
+        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             return false;
         }
         // if parser fails to produce a result due to validation or `FromStr`
@@ -482,12 +494,15 @@ impl RawCtx {
         r#yield().await;
         // surviving gets Pass, out-consumed - NoPass, but we want to preserve the
         // error message so return true only when there's an OK result we don't want.
-        matches!(&*self.wakeup_reason.borrow(), Reason::NoPass) && success
+        matches!(
+            &*self.wakeup_reason.borrow(),
+            Reason::Kill(KillReason::TooShort)
+        ) && success
     }
 
     /// After consumption when called from a leaf node returns what was consumed
     pub(crate) fn leaf_range(&self) -> Option<(u32, u32)> {
-        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
+        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             return None;
         }
         let start = self.cursor.get() as u32;
@@ -496,7 +511,7 @@ impl RawCtx {
     }
 
     pub(crate) fn leaf_cursor(&self) -> u32 {
-        if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(Some(_))) {
+        if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             self.cursor.get() as u32
         } else {
             u32::MAX
@@ -637,6 +652,7 @@ impl RawCtx {
                             let op = Op::KillScope {
                                 scope: *scope,
                                 cursor: self.cursor.get() as u32,
+                                reason: KillReason::Conflict,
                             };
                             self.pending_ops.borrow_mut().push_back(op);
                         }
@@ -649,6 +665,7 @@ impl RawCtx {
                     }
                 }
                 Reason::Push => {
+                    println!("This is break?");
                     if self.current_task.borrow().pending == 0 {
                         break;
                     }
@@ -687,7 +704,7 @@ impl Executor {
         if res.is_ok() {
             self.ctx.cursor.update(|c| c + 1);
         } else {
-            self.kill_in_scope(Scope::ALL);
+            self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
         }
         res
     }
@@ -696,10 +713,10 @@ impl Executor {
         let mut mixer_capacity = Mixer::default();
         for (ix, name) in names.iter().copied().enumerate() {
             // set a wakeup reason, just in case
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(Arg::Named {
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
                 name: Name::Short(name),
                 value: None,
-            }));
+            });
 
             let mut mixer = mixer_capacity.reuse_capacity();
             mixer.populate_short_flag(&name, &self.triggers);
@@ -745,9 +762,13 @@ impl Executor {
                 Op::RegisterSum { id, scope } => {
                     self.sums.insert(id, scope);
                 }
-                Op::KillScope { scope, cursor } => {
+                Op::KillScope {
+                    scope,
+                    cursor,
+                    reason,
+                } => {
                     let old = self.ctx.cursor.replace(cursor as usize);
-                    self.kill_in_scope(scope);
+                    self.kill_in_scope(scope, reason);
                     self.ctx.cursor.set(old);
                 }
                 Op::DeregisterSum { id } => {
@@ -851,7 +872,7 @@ impl Executor {
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
             assert!(r);
         }
-        self.kill_in_scope(Scope::ALL);
+        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
         self.propagate(Reason::Push);
         Some(Ok(()))
     }
@@ -905,12 +926,12 @@ impl Executor {
             if best_size == 0
                 && let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
             {
-                self.kill_in_scope(scope);
+                self.kill_in_scope(scope, KillReason::NoMatchingInput);
                 continue;
             }
 
             if best_size == 0 {
-                self.kill_in_scope(Scope::ALL);
+                self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor.get() as u32;
                 return Err(Error::Problem(pos, self.complain_about(front, parser)));
             }
@@ -922,7 +943,7 @@ impl Executor {
             self.ctx.cursor.update(|c| c + best_size as usize);
         }
 
-        self.kill_in_scope(Scope::ALL);
+        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
 
         println!("somehow we are done, {:?}", self.tasks);
         assert!(
@@ -1008,8 +1029,8 @@ impl Executor {
         }
     }
 
-    fn kill_in_scope(&mut self, scope: Scope) {
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(None);
+    fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) {
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
         for (_, mut task) in self
             .tasks
             .extract_if(scope.start..scope.end, |_, t| t.info.pending == 0)
@@ -1022,7 +1043,9 @@ impl Executor {
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
         }
-        self.propagate(Reason::Arg(None));
+        // I think this should be `Reason::Push` since we are propagating to children, but
+        // it doesn't work for some reason...
+        self.propagate(Reason::Kill(KillReason::NoMatchingInput)); // Why?
     }
 
     /// Run the first stage of the trigger
@@ -1043,7 +1066,7 @@ impl Executor {
         };
         let mgroup = mixer.populate(&arg, &self.triggers, self.ctx.strict_pos.get());
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Some(arg.into_owned()));
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
 
         let mut best_size = 0;
         while let Some(next) = mixer.consume_next_item(&self.tasks) {
@@ -1072,7 +1095,11 @@ impl Executor {
                 todo!("Second stage got a task id that isn't there?");
             };
             let term = task.info.consumed < best_size;
-            *self.ctx.wakeup_reason.borrow_mut() = if term { Reason::NoPass } else { Reason::Pass };
+            *self.ctx.wakeup_reason.borrow_mut() = if term {
+                Reason::Kill(KillReason::TooShort)
+            } else {
+                Reason::Pass
+            };
 
             if self.ctx.poll_in_context(&mut task) {
                 let size = if term { 0 } else { task.info.consumed };
