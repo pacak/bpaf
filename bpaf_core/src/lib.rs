@@ -36,9 +36,9 @@ pub mod api {
         //! TODO - blurb on on products and sums
 
         use crate::{
-            Bp, Ctx, Parser,
+            Bp, Ctx, Kind, Op, Parser, Scope,
             error::Error,
-            traits::{VisitGroup, Visited, Visitor},
+            traits::{RcParser, VisitGroup, Visited, Visitor},
             r#yield,
         };
 
@@ -80,6 +80,70 @@ pub mod api {
                     item.visit(visitor);
                 }
                 visitor.pop_group();
+            }
+        }
+
+        /// A categorical sum of two or more parsers
+        ///
+        /// This is a parser that is composed of two or more parsers. For `Bp<Sum<T>>` to succeed
+        /// at least one member must succeed. If there are several succeeding variants - one that
+        /// consumes more input wins. If this is equal - one that goes earlier wins.
+        ///
+        /// You can create it with [`construct!`](crate::construct)
+        ///
+        /// TODO - a few dummy examples
+        pub struct Sum<T> {
+            pub(crate) items: Vec<Bp<RcParser<T>>>,
+        }
+
+        impl<T: 'static> Bp<Sum<T>> {
+            pub fn or_else(&mut self, other: impl Parser<T> + 'static) {
+                self.0.items.push(other.into_rc());
+            }
+        }
+
+        impl<T: 'static> Visited for Bp<Sum<T>> {
+            fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+                visitor.push_group(VisitGroup::Sum);
+                for i in &self.0.items {
+                    i.0.visit(visitor);
+                }
+                visitor.pop_group();
+            }
+        }
+
+        impl<T: 'static> Parser<T> for Bp<Sum<T>> {
+            async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+                let id = ctx.current_task.borrow().id;
+                let mut scopes = Vec::new();
+                let handles = self
+                    .0
+                    .items
+                    .iter()
+                    .map(|parser| {
+                        let (h, scope) = ctx.scoped_spawn(parser.clone().0, Kind::Sum);
+                        scopes.push(scope);
+                        h
+                    })
+                    .collect::<Vec<_>>();
+                ctx.pending_ops.borrow_mut().push_back(Op::RegisterSum {
+                    id,
+                    scope: Scope {
+                        start: id,
+                        end: scopes.last().unwrap().end,
+                    },
+                });
+                r#yield().await;
+                ctx.trim_children(scopes).await;
+
+                let mut acc = Error::Silent("Empty Alt?");
+                for h in handles {
+                    match h.take() {
+                        Err(err) => acc = acc + err,
+                        v => return v,
+                    }
+                }
+                Err(acc)
             }
         }
     }
@@ -141,14 +205,10 @@ mod traits;
 
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::api::composite::Prod;
+    pub use crate::api::composite::{Prod, Sum};
     pub use crate::api::wrapper::Bp;
     pub use crate::error::Error;
-    pub use crate::{Alt, Ctx, Kind};
-}
-
-pub struct Alt<T> {
-    items: Vec<Bp<RcParser<T>>>,
+    pub use crate::{Ctx, Kind};
 }
 
 impl std::ops::Add for Error {
@@ -210,50 +270,6 @@ enum TTarget {
     Pos,
     Any,
     Literal(Cow<'static, str>),
-}
-
-impl<T: 'static> Visited for Alt<T> {
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        visitor.push_group(traits::VisitGroup::Sum);
-        for i in &self.items {
-            i.0.visit(visitor);
-        }
-        visitor.pop_group();
-    }
-}
-
-impl<T: 'static> Parser<T> for Alt<T> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let id = ctx.current_task.borrow().id;
-        let mut scopes = Vec::new();
-        let handles = self
-            .items
-            .iter()
-            .map(|parser| {
-                let (h, scope) = ctx.scoped_spawn(parser.clone().0, Kind::Sum);
-                scopes.push(scope);
-                h
-            })
-            .collect::<Vec<_>>();
-        ctx.pending_ops.borrow_mut().push_back(Op::RegisterSum {
-            id,
-            scope: Scope {
-                start: id,
-                end: scopes.last().unwrap().end,
-            },
-        });
-        r#yield().await;
-        ctx.trim_children(scopes).await;
-
-        let mut acc = Error::Silent("Empty Alt?");
-        for h in handles {
-            match h.take() {
-                Err(err) => acc = acc + err,
-                v => return v,
-            }
-        }
-        Err(acc)
-    }
 }
 
 struct Task {

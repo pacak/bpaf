@@ -33,9 +33,9 @@ macro_rules! construct {
 
     // === fields are done (no 4th argument), can start constructing parsers
 
-    // All the logic for sum parser sits inside of Alt datatype
+    // All the logic for sum parser sits inside of Sum datatype
     (@prepare [alt] [ $($field:ident)*]) => {
-        $crate::__private::Alt { items: ::std::vec![ $($crate::Parser::into_rc($field)),*] }
+        $crate::__private::Bp($crate::__private::Sum{ items: ::std::vec![ $($crate::Parser::into_rc($field)),*] })
     };
 
     // For product type the logic is a bit more complicated - do one more step

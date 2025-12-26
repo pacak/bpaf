@@ -4,6 +4,7 @@ use crate::{
     Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
+    construct,
     error::MissingItem,
     traits::VisitGroup,
     utils::Vec1,
@@ -77,7 +78,7 @@ pub struct Info {
 
 impl Info {
     pub(crate) fn help_parser(&self) -> Bp<RcParser<crate::Extra>> {
-        use crate::{Alt, Extra, short};
+        use crate::{Extra, short};
         let help = short('h')
             .long("help")
             .help("Prints help information")
@@ -87,16 +88,16 @@ impl Info {
                 1 => Ok(crate::Extra::Help),
                 2 => Ok(crate::Extra::LongHelp),
                 _ => Err("not help"),
-            })
-            .into_rc();
-        let mut alt = Alt { items: vec![help] };
+            });
+
+        let mut alt = construct!([help]);
         if let Some(v) = self.version {
             let version = short('V')
                 .long("version")
                 .help("Prints version information")
-                .req_flag(Extra::Version(v))
-                .into_rc();
-            alt.items.push(version);
+                .req_flag(Extra::Version(v));
+
+            alt.push(version);
         }
         alt.hide_usage().into_rc()
     }
