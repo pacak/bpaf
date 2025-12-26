@@ -97,7 +97,7 @@ impl Info {
                 .help("Prints version information")
                 .req_flag(Extra::Version(v));
 
-            alt.push(version);
+            alt.0.items.push(version.into_rc());
         }
         alt.hide_usage().into_rc()
     }
