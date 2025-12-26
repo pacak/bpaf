@@ -11,15 +11,17 @@ mod utils;
 mod visitors;
 
 pub mod api {
-    //! # User facing API tutorial
+    //! # Tutorial for User facing API
     //!
     //! <div class="warning">
     //!
     //! Everything under this module is available through functions exported from the
     //! crate's top level, [`construct!`](crate::construct) macro, methods on the
     //! [`Bp`](crate::Bp) wrapper or via [`Parser`](crate::Parser) trait. Main purpose
-    //! is to make names visible and to contain some tutorial style documentation. In
-    //! most cases you don't need to import anything from here directly.
+    //! is to make names visible and to contain some tutorial style documentation.
+    //!
+    //! You can't interact with types listed here directly other than using them to name
+    //! intermediate values, but even then using `impl Parser<T>` usually gives cleaner API
     //!
     //! </div>
 
@@ -29,7 +31,58 @@ pub mod api {
         pub struct Bp<I>(pub(crate) I);
     }
 
-    pub mod composite {}
+    pub mod composite {
+
+        //! TODO - blurb on on products and sums
+
+        use crate::{
+            Bp, Ctx, Parser,
+            error::Error,
+            traits::{VisitGroup, Visited, Visitor},
+            r#yield,
+        };
+
+        /// A categorical product of two or more parsers
+        ///
+        /// This is a parser that is composed of two or more parsers. For `Bp<Con<T>>` to succeed
+        /// each member must succeed as well.
+        ///
+        /// You can create it with [`construct!`](crate::construct)
+        ///
+        /// TODO - a few dummy examples
+        pub struct Prod<T> {
+            #[allow(clippy::type_complexity)]
+            pub(crate) run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
+
+            // TODO - this is a whole lot of allocations, we can achieve the same results
+            // by adding a Visited implementation for (A, B, ...) then recursively folding $fields
+            // into (A, (B, (... )))
+
+            // I would love to make it a closure that takes `Visitor`, but in current design
+            // `Visited` lends values to the visitor instead of cloning and lending closures are
+            // not a thing, at least at the moment
+            pub(crate) visits: Vec<Box<dyn Visited>>,
+        }
+
+        impl<T: 'static> Parser<T> for Bp<Prod<T>> {
+            async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+                // TODO - explain
+                let closure = (*self.0.run)(ctx);
+                r#yield().await;
+                closure()
+            }
+        }
+
+        impl<T: 'static> Visited for Bp<Prod<T>> {
+            fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+                visitor.push_group(VisitGroup::Prod);
+                for item in &self.0.visits {
+                    item.visit(visitor);
+                }
+                visitor.pop_group();
+            }
+        }
+    }
 
     /// fallback
     pub mod fallback {}
@@ -88,36 +141,10 @@ mod traits;
 
 #[doc(hidden)]
 pub mod __private {
+    pub use crate::api::composite::Prod;
+    pub use crate::api::wrapper::Bp;
     pub use crate::error::Error;
-    pub use crate::{Alt, Con, Ctx, Kind};
-}
-
-pub struct Con<T> {
-    #[allow(clippy::type_complexity)]
-    run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
-    // TODO - this is a whole lot of allocations, we can achieve the same results
-    // by adding a Visited implementation for (A, B, ...) then recursively folding $fields
-    // into (A, (B, (... )))
-    visits: Vec<Box<dyn Visited>>,
-}
-
-impl<T: 'static> Parser<T> for Con<T> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        // TODO - explain
-        let closure = (*self.run)(ctx);
-        r#yield().await;
-        closure()
-    }
-}
-
-impl<T: 'static> Visited for Con<T> {
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        visitor.push_group(traits::VisitGroup::Prod);
-        for item in &self.visits {
-            item.visit(visitor);
-        }
-        visitor.pop_group();
-    }
+    pub use crate::{Alt, Ctx, Kind};
 }
 
 pub struct Alt<T> {

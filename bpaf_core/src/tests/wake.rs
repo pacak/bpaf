@@ -1,7 +1,7 @@
 //! This module contains tests for scenarios when we want to wake up multiple parsers on the same
 //! trigger, potentially from several different pecking sets.
 
-use crate::*;
+use crate::{__private::Prod, *};
 
 macro_rules! arranged {
     (($a:ident $ab:tt $b:ident) $abcd:tt ($c:ident $cd:tt $d:ident)) => {
@@ -127,8 +127,8 @@ fn arrange<T: 'static>(
 
             Box::new(|| Ok([ha.take(), hb.take(), hc.take(), hd.take()]))
         });
-    Con {
+    Bp(Prod {
         run,
         visits: Vec::new(),
-    }
+    })
 }

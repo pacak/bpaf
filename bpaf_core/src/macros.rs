@@ -72,7 +72,7 @@ macro_rules! construct {
                 })
             });
 
-        $crate::__private::Con { run, visits }
+        $crate::__private::Bp($crate::__private::Prod { run, visits })
 
     }};
 
