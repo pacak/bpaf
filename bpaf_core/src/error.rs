@@ -25,6 +25,11 @@ pub enum Problem {
         accepted: OsString,
         unexpected: Name<'static>,
     },
+
+    ConflictPos {
+        accepted: OsString,
+        unexpected: OsString,
+    },
     GuardFailed {
         message: &'static str,
         range: Option<OsString>,
@@ -85,6 +90,18 @@ impl std::fmt::Display for Problem {
                 write!(
                     f,
                     "`{unexpected}` cannot be used at the same time as `{}`",
+                    accepted.to_string_lossy(),
+                )
+            }
+
+            Problem::ConflictPos {
+                accepted,
+                unexpected,
+            } => {
+                write!(
+                    f,
+                    "`{}` cannot be used at the same time as `{}`",
+                    unexpected.to_string_lossy(),
                     accepted.to_string_lossy(),
                 )
             }

@@ -435,13 +435,16 @@ enum Conflict {
     Named { pos: u32, name: Name<'static> },
     /// Literal - command
     Lit { pos: u32, name: Cow<'static, str> },
+    /// Positional item
+    Pos { pos: u32 },
 }
 
 #[derive(Debug)]
 enum Reason {
     /// Task is waken up so core consumer gets a chance to consume anything.
     /// - `Some` corresponds to a value requested by a trigger
-    /// - `None` - leaf task is being told that there is no more matching arguments left and it should produce what it can or fail.
+    /// - `None` - leaf task is being told that there is no more matching arguments
+    ///   left and it should produce what it can or fail.
     Arg(Option<Arg<'static>>),
     Pass,
     NoPass,
@@ -981,6 +984,16 @@ impl Executor {
                 }
             }
             Arg::Pos { value } => {
+                // is it a conflict?
+                for conflict in self.ctx.conflicts.borrow().iter() {
+                    if let Conflict::Pos { pos } = conflict {
+                        return Problem::ConflictPos {
+                            accepted: self.ctx.args[*pos as usize].clone(),
+                            unexpected: value.into_owned(),
+                        };
+                    }
+                }
+
                 if let Some(target) = value.to_str() {
                     let mut is_command = ValidCommand::new(target);
                     parser.visit(&mut is_command);

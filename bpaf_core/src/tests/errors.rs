@@ -654,6 +654,21 @@ fn big_conflict() {
     assert_eq!(r, expected);
 }
 
+#[test]
+fn conflict_flag_and_pos() {
+    let a = short('a').flag(1, 0);
+    let b = positional::<usize>("B");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("23 -a").unwrap_err().unwrap_stderr();
+    let expected = "`-a` cannot be used at the same time as `23`";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a 23").unwrap_err().unwrap_stderr();
+    let expected = "`23` cannot be used at the same time as `-a`";
+    assert_eq!(r, expected);
+}
+
 #[should_panic] // TODO - not really, but need a better error message
 #[test]
 fn this_shouldnt_pass() {

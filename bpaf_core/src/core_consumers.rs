@@ -13,7 +13,8 @@ use crate::*;
 fn to_conflict(t: TTarget, pos: u32) -> Option<Conflict> {
     match t {
         TTarget::Arg(name) | TTarget::Flag(name) => Some(Conflict::Named { pos, name }),
-        TTarget::Pos | TTarget::Any => None,
+        TTarget::Pos => Some(Conflict::Pos { pos }),
+        TTarget::Any => None,
         TTarget::Literal(name) => Some(Conflict::Lit { pos, name }),
     }
 }
