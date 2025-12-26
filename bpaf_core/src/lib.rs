@@ -8,9 +8,9 @@ mod error;
 mod macros;
 mod os_str;
 mod utils;
-mod visitors;
+pub mod visitors;
 
-mod structs {
+pub mod api {
 
     #[repr(transparent)]
     #[derive(Clone)]
@@ -34,13 +34,13 @@ mod structs {
     }
 
     /// fallback
-    mod fallback {}
+    pub mod fallback {}
     /// repeat
-    mod repeat {}
-    mod functor {}
-    mod ux {}
-    mod primitives {}
-    mod algebras {}
+    pub mod repeat {}
+    pub mod functor {}
+    pub mod ux {}
+    pub mod primitives {}
+    pub mod algebras {}
 }
 
 use crate::{
@@ -52,7 +52,14 @@ use crate::{
     visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
 #[doc(inline)]
-pub use crate::{consumers::*, error::*, traits::*};
+pub use crate::{
+    consumers::*,
+    error::*,
+    traits::{Parser, RcParser, VisitGroup, Visited, Visitor, *},
+};
+
+#[doc(inline)]
+pub use api::Bp;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -62,8 +69,6 @@ use std::{
     rc::Rc,
     task::Poll,
 };
-#[doc(inline)]
-pub use structs::Bp;
 
 pub(crate) struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,

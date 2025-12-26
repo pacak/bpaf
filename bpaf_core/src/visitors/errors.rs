@@ -1,4 +1,4 @@
-use crate::VKind;
+use crate::visitors::VKind;
 
 use super::*;
 /// Check if parser accepts a certain named item only once
