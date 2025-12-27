@@ -12,7 +12,8 @@ fn to_conflict(t: TTarget, pos: u32) -> Option<Conflict> {
     match t {
         TTarget::Arg(name) | TTarget::Flag(name) => Some(Conflict::Named { pos, name }),
         TTarget::Pos => Some(Conflict::Pos { pos }),
-        TTarget::Any => None,
+        TTarget::Check(_) => None, // TODO ... technically I can store check inside of here and
+        // invoke it later..
         TTarget::Literal(name) => Some(Conflict::Lit { pos, name }),
     }
 }
@@ -55,27 +56,15 @@ impl RawCtx {
         }))
     }
 
-    pub(crate) async fn await_any(&self) -> Result<Option<&OsString>, Error> {
-        self.with_trigger(TChange::Add, [TTarget::Any]);
-        r#yield().await;
-        self.with_trigger(TChange::Remove, [TTarget::Any]);
-
-        match &*self.wakeup_reason.borrow() {
-            Reason::Arg(_) => {
-                let ix = self.cursor.get();
-                Ok(self.args.get(ix))
-            }
-            Reason::Kill(KillReason::Conflict) => {
-                self.record_conflicts([TTarget::Any]);
-                Ok(None)
-            }
-            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
-            Reason::Kill(KillReason::TooShort)
-            | Reason::Pass
-            | Reason::Push
-            | Reason::ChildProgress(_) => todo!(),
-            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
+    pub(crate) async fn await_passing_check(
+        &self,
+        check: Rc<dyn Fn(&OsStr) -> bool>,
+    ) -> Result<bool, Error> {
+        let ok = self.wait_for([TTarget::Check(check)]).await?.is_some();
+        if ok {
+            self.consume(1);
         }
+        Ok(ok)
     }
 
     pub(crate) async fn parse_flag_and(

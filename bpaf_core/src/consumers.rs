@@ -411,7 +411,7 @@ impl<T> Visited for Bp<Positional<T>> {
 struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
 struct DummyAny<T> {
     meta: Metavar,
-    check: Box<dyn Fn(&str) -> Option<T>>,
+    check: Rc<dyn Fn(&str) -> Option<T>>,
 }
 
 pub fn any<T: 'static>(
@@ -420,7 +420,7 @@ pub fn any<T: 'static>(
 ) -> impl Parser<T> {
     DummyAny {
         meta: Metavar(meta),
-        check: Box::new(check),
+        check: Rc::new(check),
     }
 }
 
@@ -436,17 +436,28 @@ impl<T> Visited for DummyAny<T> {
 
 impl<T: 'static> Parser<T> for DummyAny<T> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        while let Some(v) = ctx.await_any().await? {
-            if let Some(v) = v.to_str().and_then(&self.check) {
-                ctx.consume(1);
-                return Ok(v);
+        let h = Rc::new(Cell::new(None));
+        let out = h.clone();
+        let c = self.check.clone();
+        let check = Rc::new(move |os: &OsStr| -> bool {
+            let r = os.to_str().and_then(|v| c(v));
+            match r {
+                Some(v) => {
+                    h.set(Some(v));
+                    true
+                }
+                None => false,
             }
-            ctx.pass.set(true);
+        });
+
+        if ctx.await_passing_check(check).await? {
+            Ok(out.take().unwrap())
+        } else {
+            let item = MissingItem::Pos {
+                meta: Metavar("XXX"), // TODO
+            };
+            Err(Error::missing(item))
         }
-        let item = MissingItem::Pos {
-            meta: Metavar("XXX"), // TODO
-        };
-        Err(Error::missing(item))
     }
 }
 

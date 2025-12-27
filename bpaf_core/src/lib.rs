@@ -262,13 +262,25 @@ enum TChange {
     Remove,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 enum TTarget {
     Arg(Name<'static>),
     Flag(Name<'static>),
     Pos,
-    Any,
+    Check(Rc<dyn Fn(&OsStr) -> bool>),
     Literal(Cow<'static, str>),
+}
+
+impl std::fmt::Debug for TTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Arg(arg0) => f.debug_tuple("Arg").field(arg0).finish(),
+            Self::Flag(arg0) => f.debug_tuple("Flag").field(arg0).finish(),
+            Self::Pos => write!(f, "Pos"),
+            Self::Check(_) => f.debug_tuple("Any").field(&"...").finish(),
+            Self::Literal(arg0) => f.debug_tuple("Literal").field(arg0).finish(),
+        }
+    }
 }
 
 struct Task {
@@ -416,10 +428,6 @@ pub struct RawCtx {
     /// We keep track of all the early terminated branches, saving each termination along with
     /// the position - from that we'll deduce conflict info
     conflicts: RefCell<Vec<Conflict>>,
-
-    /// During stage 1 task can indicate if mixer should skip this task
-    /// and proceed to the next task in the same product
-    pass: Cell<bool>,
 
     /// Treat the rest of the items as strictly positional - we'll set it if we ever encounter a
     /// bare `--` during parsing
@@ -803,7 +811,9 @@ impl Executor {
                             triggers.flags.entry(name).or_default().insert(parent, id);
                         }
                         (TChange::Add, TTarget::Pos) => triggers.pos.insert(parent, id),
-                        (TChange::Add, TTarget::Any) => triggers.any.insert(parent, id),
+                        (TChange::Add, TTarget::Check(check)) => {
+                            triggers.checks.insert(id, (parent, check));
+                        }
                         (TChange::Add, TTarget::Literal(name)) => {
                             triggers.literal.entry(name).or_default().insert(parent, id);
                         }
@@ -816,8 +826,8 @@ impl Executor {
                         (TChange::Remove, TTarget::Pos) => {
                             triggers.pos.remove(parent, id);
                         }
-                        (TChange::Remove, TTarget::Any) => {
-                            triggers.any.remove(parent, id);
+                        (TChange::Remove, TTarget::Check(_)) => {
+                            triggers.checks.remove(&id);
                         }
                         (TChange::Remove, TTarget::Literal(name)) => {
                             remove_from(&mut triggers.literal, name, parent, id);
@@ -1062,6 +1072,15 @@ impl Executor {
         } else {
             lex_os_arg(front)
         };
+
+        // pre-populate pecking order with any check wakeups that can match
+        self.triggers.active_checks = PeckingOrder::default();
+        for (id, (parent, check)) in self.triggers.checks.iter() {
+            if check(front) {
+                self.triggers.active_checks.insert(*parent, *id);
+            }
+        }
+
         let mgroup = mixer.populate(&arg, &self.triggers, self.ctx.strict_pos.get());
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
@@ -1071,11 +1090,7 @@ impl Executor {
             let task = &mut self.tasks.get_mut(&next.id).unwrap();
             let r = self.ctx.poll_in_context(task);
             assert!(!r);
-            if self.ctx.pass.replace(false) {
-                mixer.pass();
-            } else {
-                self.to_wake.push(next.id);
-            }
+            self.to_wake.push(next.id);
 
             best_size = best_size.max(task.info.consumed);
         }
@@ -1207,9 +1222,8 @@ impl Tracker {
             };
             if !self.seen.insert(task.info.parent_id) {
                 return match (blank, task.info.parent_kind) {
-                    (true, Kind::Sum) => WalkResult::PickAndSame,
+                    (_, Kind::Sum) => WalkResult::PickAndSame,
                     (true, Kind::Prod) => WalkResult::PickAndNext,
-                    (false, Kind::Sum) => WalkResult::PickAndSame,
                     (false, Kind::Prod) => {
                         for item in self.stack.drain(..) {
                             self.seen.remove(&item);
@@ -1321,7 +1335,7 @@ mod tracker_tests {
 
 use pecking::PeckingOrder;
 
-#[derive(Default, Debug)]
+#[derive(Default)]
 struct Triggers {
     // `-f`, `--foo`
     flags: HashMap<Name<'static>, PeckingOrder>,
@@ -1330,7 +1344,8 @@ struct Triggers {
     // `foo`
     pos: PeckingOrder,
     // `-1`
-    any: PeckingOrder,
+    checks: BTreeMap<Id, (Parent, Rc<dyn Fn(&OsStr) -> bool>)>,
+    active_checks: PeckingOrder,
     // `a`, `alpha`
     literal: HashMap<Cow<'static, str>, PeckingOrder>,
 }
@@ -1405,7 +1420,6 @@ impl RawCtx {
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
-            pass: Cell::new(false),
             strict_pos: Cell::new(strict_pos),
         })
     }
@@ -1452,6 +1466,8 @@ impl RawCtx {
 struct Mixer<'a> {
     pecking: Vec<&'a PeckingOrder>,
     tracker: Tracker,
+    /// We can run multiple parsers concurrently that belong to the same parent
+    /// for Sum types, but not for Prod types. same_family gets set based on the parent
     same_family: bool,
     prev: Option<pecking::Item>,
 }
@@ -1477,7 +1493,8 @@ impl<'a> Mixer<'a> {
         triggers: &'a Triggers,
         strict_pos: bool,
     ) -> (CompleteReq, Option<Group>) {
-        self.pecking_push(Some(&triggers.any));
+        // TODO - want to include all the "any" parsers here
+        // self.pecking_push(Some(&triggers.any));
         match arg {
             Arg::Named {
                 name: Name::Long(name),
@@ -1583,13 +1600,14 @@ impl<'a> Mixer<'a> {
             }
         }
     }
+
     fn populate(
         &mut self,
         arg: &Arg<'a>,
         triggers: &'a Triggers,
         strict_pos: bool,
     ) -> Option<Group> {
-        self.pecking_push(Some(&triggers.any));
+        self.pecking_push(Some(&triggers.active_checks));
         match arg {
             Arg::Named {
                 name: name @ Name::Long(_),
@@ -1670,10 +1688,6 @@ impl<'a> Mixer<'a> {
             same_family: false,
             prev: None,
         }
-    }
-
-    fn pass(&mut self) {
-        self.same_family = true;
     }
 
     fn consume_next_item(&mut self, tasks: &BTreeMap<Id, Task>) -> Option<pecking::Item> {

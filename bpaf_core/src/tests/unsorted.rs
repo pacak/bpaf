@@ -329,3 +329,22 @@ fn arg_or_flag() {
     let r = parser.run_inner("-a 4").unwrap();
     assert_eq!(r, 4);
 }
+
+#[test]
+fn multiple_any_parsers() {
+    let a = any("A", |s| s.parse::<i32>().ok().filter(|v| *v < -100));
+    let b = any("B", |s| {
+        s.parse::<i32>().ok().filter(|v| (-100..100).contains(v))
+    });
+    let c = any("C", |s| s.parse::<i32>().ok().filter(|v| *v > 100));
+    let parser = construct!(a, b, c).to_options();
+
+    let r = parser.run_inner("-1000 1000 0").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+
+    let r = parser.run_inner("1000 -1000 0").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+
+    let r = parser.run_inner("0 -1000 1000").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+}
