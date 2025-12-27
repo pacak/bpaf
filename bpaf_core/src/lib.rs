@@ -499,7 +499,6 @@ impl RawCtx {
     }
 
     #[inline(never)]
-    ///
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
         // The only possible scenario for a consuming leaf is getting an Arg
         if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
@@ -765,7 +764,7 @@ impl Executor {
             }
             mixer_capacity = mixer.reuse_capacity();
             self.stage_2(1);
-            self.propagate(Reason::Push);
+            self.propagate();
             self.process_scheduled();
         }
 
@@ -896,7 +895,7 @@ impl Executor {
             assert!(r);
         }
         self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
-        self.propagate(Reason::Push);
+        self.propagate();
         Some(Ok(()))
     }
 
@@ -942,7 +941,7 @@ impl Executor {
                 && best_size == 0
             {
                 self.execute_group(group)?;
-                self.propagate(Reason::Push);
+                self.propagate();
                 continue;
             }
 
@@ -960,20 +959,29 @@ impl Executor {
             }
 
             self.stage_2(best_size);
-
-            self.propagate(Reason::Push);
+            self.propagate();
 
             self.ctx.cursor.update(|c| c + best_size as usize);
         }
 
+        // terminate all the currently active tasks
         self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+        self.process_scheduled();
 
-        println!("somehow we are done, {:?}", self.tasks);
+        // then do it one more time...
+        // If there's no tasks active - this is a very fast no-op,
+        // but we could have some tasks spawned by variants of .many
+        // Killing them again will ensure `many` sees that parser is
+        // not advancing and it will exit, producing the result as expected
+        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+        self.process_scheduled();
+
         assert!(
             self.tasks.is_empty(),
             "All tasks should be terminated when exiting execution"
         );
-        // assert!(self.ctx.pending_ops.borrow().is_empty());
+
+        assert!(self.ctx.pending_ops.borrow().is_empty());
         assert!(
             self.ctx
                 .pending_ops
@@ -1066,9 +1074,7 @@ impl Executor {
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
         }
-        // I think this should be `Reason::Push` since we are propagating to children, but
-        // it doesn't work for some reason...
-        self.propagate(Reason::Kill(KillReason::NoMatchingInput)); // Why?
+        self.propagate();
     }
 
     /// Run the first stage of the trigger
@@ -1143,7 +1149,7 @@ impl Executor {
     }
 
     // Propagate trigger results to parents recursively
-    fn propagate(&mut self, reason: Reason) {
+    fn propagate(&mut self) {
         // part 1, letting sums upstream know what branches are advancing so they can terminate
         // those that don't.
         // not reusing capacity, in most cases it will be exactly one branch advancing
@@ -1173,7 +1179,7 @@ impl Executor {
         }
 
         // part 2, pushing parsed results up
-        *self.ctx.wakeup_reason.borrow_mut() = reason;
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
         while let Some((_id, parent, consumed)) = self.to_propagate.pop_front() {
             let id = parent.as_id();
             let std::collections::btree_map::Entry::Occupied(mut occ_task) = self.tasks.entry(id)
