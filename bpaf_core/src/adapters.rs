@@ -106,17 +106,17 @@ impl Info {
 impl<T: 'static> Bp<OptionParser<T>> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
         let ctx = RawCtx::new(args.into());
-        Ok(self.run_in_ctx(None, ctx)?)
+        Ok(self.run_in_ctx(false, None, ctx)?)
     }
 
-    fn run_in_ctx(&self, cmd: Option<&str>, ctx: crate::Ctx) -> Result<T, Error> {
+    fn run_in_ctx(&self, lazy: bool, cmd: Option<&str>, ctx: crate::Ctx) -> Result<T, Error> {
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
 
         let no_input = ctx.args.len() == ctx.cursor.get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        let executor_res = ctx.execute(self, Some(&self.0.info));
+        let executor_res = ctx.execute(lazy, self, Some(&self.0.info));
 
         let res = handle.take();
         if self.0.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
@@ -134,6 +134,7 @@ impl<T: 'static> Bp<OptionParser<T>> {
         Bp(Command {
             names: vec![name.into()],
             inner: self,
+            lazy: false,
         })
     }
 
@@ -178,6 +179,13 @@ impl<T: 'static> Visited for Bp<OptionParser<T>> {
     }
 }
 
+impl<T: 'static> Bp<Command<T>> {
+    pub fn lazy(mut self) -> Self {
+        self.0.lazy = true;
+        self
+    }
+}
+
 impl<T: 'static> Parser<T> for Bp<Command<T>> {
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.0.names).await;
@@ -191,7 +199,10 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
 
         let inner = ctx.fork(Some(name.clone()));
         inner.cursor.update(|c| c + 1);
-        let res = self.0.inner.run_in_ctx(Some(&name), inner.clone());
+        let res = self
+            .0
+            .inner
+            .run_in_ctx(self.0.lazy, Some(&name), inner.clone());
         ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
@@ -330,6 +341,7 @@ impl<T: 'static> Visited for Bp<Many1<T>> {
 pub struct Command<T> {
     names: Vec<Cow<'static, str>>,
     inner: Bp<OptionParser<T>>,
+    lazy: bool,
 }
 
 pub struct Parse<T, P, F, E, R> {

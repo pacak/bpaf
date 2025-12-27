@@ -69,6 +69,7 @@ impl RawCtx {
 
     pub(crate) async fn parse_flag_and(
         &self,
+        lazy: bool,
         names: &[Name<'static>],
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
@@ -78,7 +79,7 @@ impl RawCtx {
             .await?
             .is_some()
         {
-            self.parse_nested(1, populate, parser)
+            self.parse_nested(lazy, 1, populate, parser)
         } else {
             Ok(None)
         }
@@ -102,6 +103,7 @@ impl RawCtx {
 
     fn parse_nested(
         &self,
+        lazy: bool,
         skip: u32,
         populate: &dyn Fn(Ctx),
         parser: &dyn Visited,
@@ -111,7 +113,7 @@ impl RawCtx {
         ctx.cursor.update(|c| c + skip as usize);
         let to_parse = ctx.args.len() - ctx.cursor.get();
         (populate)(ctx.clone());
-        ctx.execute(parser, None)?;
+        ctx.execute(lazy, parser, None)?;
         let consumed = ctx.cursor.get() - self.cursor.get() - 1;
         self.consume(consumed as u32);
         Ok(Some(to_parse as u32))

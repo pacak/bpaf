@@ -166,7 +166,8 @@ impl<T: 'static> Parser<T> for Bp<Nested<T>> {
             let info = ctx.make_child_info(Kind::Prod);
             ctx.add_task(Task { act, info });
         };
-        ctx.parse_flag_and(&self.0.names.names, &populate, inner)
+        let lazy = false;
+        ctx.parse_flag_and(lazy, &self.0.names.names, &populate, inner)
             .await?;
         handle.take()
     }

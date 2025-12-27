@@ -1436,8 +1436,14 @@ impl RawCtx {
         })
     }
 
-    fn execute(self: &Ctx, parser: &dyn Visited, info: Option<&Info>) -> Result<(), Error> {
+    fn execute(
+        self: &Ctx,
+        lazy: bool,
+        parser: &dyn Visited,
+        info: Option<&Info>,
+    ) -> Result<(), Error> {
         let r = Executor::new(self.clone()).execute(parser);
+
         let Some(info) = info else { return r };
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
             let ctx = self.fork(None);
@@ -1470,7 +1476,7 @@ impl RawCtx {
             }
         }
 
-        r
+        if lazy { Ok(()) } else { r }
     }
 }
 
