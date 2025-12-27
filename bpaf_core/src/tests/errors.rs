@@ -674,7 +674,6 @@ fn conflict_flag_pos_and_command() {
     assert_eq!(r, expected);
 }
 
-#[should_panic] // TODO - not really, but need a better error message
 #[test]
 fn this_shouldnt_pass() {
     let a = short('a').switch();
@@ -685,7 +684,9 @@ fn this_shouldnt_pass() {
     let cd = construct!(c, d);
     let parser = construct!([ab, cd]).to_options();
     let r = parser.run_inner("-abcd").unwrap_err().unwrap_stderr();
-    let expected = "`-c` cannot be used at the same time as `-a`";
+
+    // TODO: Can I make it "`-c` cannot be used at the same time as `-a`"?
+    let expected = "can't parse `c` (item 3) while parsing `-abcd` as a set of short flags";
     assert_eq!(r, expected);
 }
 
