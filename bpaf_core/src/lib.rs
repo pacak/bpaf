@@ -1397,7 +1397,7 @@ impl RawCtx {
                 h.app_name = Some(&place);
             }
             (true, None) => {
-                h.app_name = Some(&app);
+                h.app_name = Some(app);
             }
             (false, Some(last)) => {
                 place = format!("... {last}");
