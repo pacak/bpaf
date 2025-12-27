@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ffi::OsString, rc::Rc};
 
-use crate::{Error, Metavar, Name, Named, ParseFailure, utils::Vec1};
+use crate::{Error, Lit, Metavar, Name, Named, ParseFailure, utils::Vec1};
 impl From<CompleteReply> for Error {
     fn from(value: CompleteReply) -> Self {
         Error::CompReply(Vec1::new(value))
@@ -8,7 +8,7 @@ impl From<CompleteReply> for Error {
 }
 
 // this could be a method on `Command<T>`, but will it monomorphise?
-pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error {
+pub(crate) fn complete_command(names: &[Lit], err: Error) -> Error {
     let Error::CompReq(ref comp) = err else {
         return err;
     };
@@ -20,7 +20,7 @@ pub(crate) fn complete_command(names: &[Cow<'static, str>], err: Error) -> Error
     for name in names {
         if prefix.is_none_or(|p| name.starts_with(p)) {
             return CompleteReply::Command {
-                name: name.clone(),
+                name: name.clone().into_owned(),
                 help: None,
             }
             .into();
@@ -105,7 +105,7 @@ impl Named {
 #[derive(Debug, Clone, Ord, Eq, PartialEq, PartialOrd)]
 pub(crate) enum CompleteReply {
     Command {
-        name: Cow<'static, str>,
+        name: Lit<'static>,
         help: Option<String>,
     },
     Named {

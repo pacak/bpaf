@@ -1,6 +1,6 @@
 use std::{borrow::Cow, ffi::OsStr};
 
-use crate::Name;
+use crate::{Lit, Name};
 
 #[derive(Debug, Copy, Clone)]
 pub enum Adjacency {
@@ -27,7 +27,29 @@ pub enum Arg<'a> {
         value: Option<(Adjacency, Cow<'a, OsStr>)>,
     },
     /// Positional item
-    Pos { value: Cow<'a, OsStr> },
+    Pos {
+        name: Option<Lit<'a>>,
+        value: Cow<'a, OsStr>,
+    },
+}
+
+pub(crate) fn as_name<'a>(val: &'a OsStr) -> Option<Lit<'a>> {
+    let s = val.to_str()?;
+    let first = s.chars().next()?;
+    Some(Lit(if s.len() > first.len_utf8() {
+        Name::Long(Cow::Borrowed(s))
+    } else {
+        Name::Short(first)
+    }))
+}
+
+impl<'a> Arg<'a> {
+    fn pos(value: &'a OsStr) -> Self {
+        Arg::Pos {
+            name: as_name(value),
+            value: Cow::Borrowed(value),
+        }
+    }
 }
 
 impl Arg<'_> {
@@ -37,7 +59,8 @@ impl Arg<'_> {
                 name: name.into_owned(),
                 value: value.map(|(adj, val)| (adj, Cow::Owned(val.into_owned()))),
             },
-            Arg::Pos { value } => Arg::Pos {
+            Arg::Pos { name, value } => Arg::Pos {
+                name: name.map(|n| n.into_owned()),
                 value: Cow::Owned(value.into_owned()),
             },
         }
@@ -71,7 +94,7 @@ impl Arg<'_> {
                     None => res,
                 }
             }
-            Arg::Pos { value } => {
+            Arg::Pos { name: _, value } => {
                 let os: &OsStr = value.as_ref();
                 os.to_owned()
             }
@@ -84,9 +107,7 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
     if let Some(long) = value.strip_prefix("--") {
         match long.split_by_ascii(b'=') {
             // it's just `--` - a positional item
-            _ if long.is_empty() => Arg::Pos {
-                value: Cow::Borrowed(value),
-            },
+            _ if long.is_empty() => Arg::pos(value),
             // `--foo=bar`?
             Some((osname, rest)) => match osname.to_str() {
                 // yes, foo is a valid name - this is a long argument with a value
@@ -95,9 +116,7 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
                     value: Some((Adjacency::WithEq, Cow::Borrowed(rest))),
                 },
                 // no, `foo` is not a valid name, treat the whole thing as positional
-                None => Arg::Pos {
-                    value: Cow::Borrowed(value),
-                },
+                None => Arg::pos(value),
             },
             // `--foo` ?
             None => match long.to_str() {
@@ -107,17 +126,13 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
                     value: None,
                 },
                 // no, "foo" is not a valid name, treat the whole thing as positional
-                _ => Arg::Pos {
-                    value: Cow::Borrowed(value),
-                },
+                _ => Arg::pos(value),
             },
         }
     } else if let Some(short) = value.strip_prefix("-") {
         let Some((name, suffix)) = short.next_char() else {
             // It's just `-` - a positional item;
-            return Arg::Pos {
-                value: Cow::Borrowed(value),
-            };
+            return Arg::pos(value);
         };
         let name = Name::Short(name);
         let value = match suffix.next_char() {
@@ -132,8 +147,6 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
         };
         Arg::Named { name, value }
     } else {
-        Arg::Pos {
-            value: Cow::Borrowed(value),
-        }
+        Arg::pos(value)
     }
 }

@@ -199,6 +199,7 @@ use std::{
     cell::{Cell, RefCell},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ffi::{OsStr, OsString},
+    fmt::Write,
     pin::Pin,
     rc::Rc,
     task::Poll,
@@ -283,7 +284,7 @@ enum TTarget {
     Flag(Name<'static>),
     Pos,
     Check(Rc<dyn Fn(&OsStr) -> bool>),
-    Literal(Cow<'static, str>),
+    Literal(Lit<'static>),
 }
 
 impl std::fmt::Debug for TTarget {
@@ -456,7 +457,7 @@ enum Conflict {
     /// Named item - flag, argument
     Named { pos: u32, name: Name<'static> },
     /// Literal - command
-    Lit { pos: u32, name: Cow<'static, str> },
+    Lit { pos: u32, name: Lit<'static> },
     /// Positional item
     Pos { pos: u32 },
 }
@@ -1035,7 +1036,7 @@ impl Executor {
                     return problem;
                 }
             }
-            Arg::Pos { value } => {
+            Arg::Pos { value, name } => {
                 // is it a conflict?
                 for conflict in self.ctx.conflicts.borrow().iter() {
                     if let Conflict::Pos { pos } = conflict {
@@ -1089,6 +1090,7 @@ impl Executor {
         let arg = if self.ctx.strict_pos.get() {
             Arg::Pos {
                 value: Cow::Borrowed(front),
+                name: None,
             }
         } else {
             lex_os_arg(front)
@@ -1368,7 +1370,7 @@ struct Triggers {
     checks: BTreeMap<Id, (Parent, Rc<dyn Fn(&OsStr) -> bool>)>,
     active_checks: PeckingOrder,
     // `a`, `alpha`
-    literal: HashMap<Cow<'static, str>, PeckingOrder>,
+    literal: HashMap<Lit<'static>, PeckingOrder>,
 }
 
 // reactor - listens for readiness, notifies tasks
@@ -1566,7 +1568,7 @@ impl<'a> Mixer<'a> {
                 };
                 (req, None)
             }
-            Arg::Pos { value } => {
+            Arg::Pos { value, name } => {
                 let Some(value) = value.to_str() else {
                     todo!("Completing non-utf?");
                 };
@@ -1673,8 +1675,8 @@ impl<'a> Mixer<'a> {
                     self.pecking_push(triggers.flags.get(name));
                 }
             }
-            Arg::Pos { value } => {
-                if let Some(name) = value.to_str()
+            Arg::Pos { value: _, name } => {
+                if let Some(name) = name
                     && !strict_pos
                 {
                     self.pecking_push(triggers.literal.get(name));
@@ -1767,7 +1769,7 @@ impl<'a> Mixer<'a> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub enum Name<'a> {
+enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
 }
@@ -1806,6 +1808,43 @@ impl From<String> for Name<'static> {
     fn from(value: String) -> Self {
         Name::Long(Cow::Owned(value))
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+struct Lit<'a>(Name<'a>);
+impl Lit<'_> {
+    fn into_owned(self) -> Lit<'static> {
+        Lit(match self.0 {
+            Name::Short(s) => Name::Short(s),
+            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
+        })
+    }
+
+    fn starts_with(&self, value: &str) -> bool {
+        let mut b = [0; 4];
+        match &self.0 {
+            Name::Short(c) => c.encode_utf8(&mut b).starts_with(value),
+            Name::Long(cow) => cow.starts_with(value),
+        }
+    }
+}
+
+impl std::fmt::Display for Lit<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Name::Short(s) => f.write_char(*s),
+            Name::Long(l) => f.write_str(l),
+        }
+    }
+}
+
+fn to_lit(name: &str) -> Lit<'_> {
+    let mut i = name.chars();
+
+    Lit(match (i.next(), i.next()) {
+        (Some(s), None) => Name::Short(s),
+        _ => Name::Long(Cow::Borrowed(name)),
+    })
 }
 
 #[cfg(test)]

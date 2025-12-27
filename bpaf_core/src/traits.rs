@@ -1,7 +1,7 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Bp, Ctx, Error, Metavar, Named};
-use std::{borrow::Cow, marker::PhantomData, pin::Pin, rc::Rc};
+use crate::{Bp, Ctx, Error, Lit, Metavar, Named};
+use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 use crate::adapters::*;
 pub trait Parser<T: 'static>: Visited {
@@ -191,7 +191,7 @@ pub enum Item<'a> {
         help: Option<&'a str>,
     },
     Command {
-        names: &'a [Cow<'static, str>],
+        names: &'a [Lit<'static>],
         info: &'a Info,
         inner: &'a dyn Visited,
     },

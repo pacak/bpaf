@@ -49,7 +49,7 @@ impl RawCtx {
     pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
         Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
             Arg::Named { .. } => unreachable!(),
-            Arg::Pos { value } => {
+            Arg::Pos { value, name: _ } => {
                 self.consume(1);
                 value.into_owned()
             }
@@ -88,17 +88,19 @@ impl RawCtx {
     /// Wake up on one of the literals, return it
     pub(crate) async fn parse_literal(
         &self,
-        names: &[Cow<'static, str>],
-    ) -> Result<Option<String>, Error> {
-        Ok(
-            match self
-                .wait_for(names.iter().cloned().map(TTarget::Literal))
-                .await?
-            {
-                Some(Arg::Pos { value }) => Some(value.to_str().unwrap().to_owned()),
-                _ => None,
-            },
-        )
+        names: &[Lit<'static>],
+    ) -> Result<Option<Lit<'static>>, Error> {
+        let res = self
+            .wait_for(names.iter().cloned().map(TTarget::Literal))
+            .await?;
+
+        Ok(match res {
+            Some(Arg::Pos {
+                value: _,
+                name: Some(name),
+            }) => Some(name.clone().into_owned()),
+            _ => None,
+        })
     }
 
     fn parse_nested(
@@ -155,7 +157,7 @@ impl RawCtx {
                             value: Some(next.clone()),
                         },
                     )),
-                    Arg::Pos { value } => {
+                    Arg::Pos { value, name: _ } => {
                         self.consume(2);
                         if self.args.complete && cursor + 1 == self.args.len() {
                             let req = match value.to_str() {
@@ -214,7 +216,7 @@ impl RawCtx {
                     Ok(true)
                 }
             },
-            Arg::Pos { value: _ } => unreachable!(),
+            Arg::Pos { name: _, value: _ } => unreachable!(),
         }
     }
 

@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Bp, Error, Item, Kind, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task, VKind,
-    Visited,
+    Bp, Error, Item, Kind, Lit, Name, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason,
+    Task, VKind, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     construct,
@@ -106,10 +106,10 @@ impl Info {
 impl<T: 'static> Bp<OptionParser<T>> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
         let ctx = RawCtx::new(args.into());
-        Ok(self.run_in_ctx(false, None, ctx)?)
+        Ok(self.run_in_ctx(false, ctx)?)
     }
 
-    fn run_in_ctx(&self, lazy: bool, cmd: Option<&str>, ctx: crate::Ctx) -> Result<T, Error> {
+    fn run_in_ctx(&self, lazy: bool, ctx: crate::Ctx) -> Result<T, Error> {
         let (handle, act) = ctx.make_raw_task(Bp(self.0.inner.clone()));
 
         let no_input = ctx.args.len() == ctx.cursor.get();
@@ -131,8 +131,9 @@ impl<T: 'static> Bp<OptionParser<T>> {
     }
 
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Bp<Command<T>> {
+        let name = Lit(Name::Long(name.into()));
         Bp(Command {
-            names: vec![name.into()],
+            names: vec![name],
             inner: self,
             lazy: false,
         })
@@ -184,6 +185,18 @@ impl<T: 'static> Bp<Command<T>> {
         self.0.lazy = true;
         self
     }
+
+    pub fn long(mut self, name: impl Into<Cow<'static, str>>) -> Self {
+        let lit = Lit(Name::Long(name.into()));
+        self.0.names.push(lit);
+        self
+    }
+
+    pub fn short(mut self, name: char) -> Self {
+        let lit = Lit(Name::Short(name));
+        self.0.names.push(lit);
+        self
+    }
 }
 
 impl<T: 'static> Parser<T> for Bp<Command<T>> {
@@ -197,12 +210,9 @@ impl<T: 'static> Parser<T> for Bp<Command<T>> {
             return Err(Error::Missing(Vec1::new(missing)));
         };
 
-        let inner = ctx.fork(Some(name.clone()));
+        let inner = ctx.fork(Some(name.to_string()));
         inner.cursor.update(|c| c + 1);
-        let res = self
-            .0
-            .inner
-            .run_in_ctx(self.0.lazy, Some(&name), inner.clone());
+        let res = self.0.inner.run_in_ctx(self.0.lazy, inner.clone());
         ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
@@ -339,7 +349,7 @@ impl<T: 'static> Visited for Bp<Many1<T>> {
 }
 
 pub struct Command<T> {
-    names: Vec<Cow<'static, str>>,
+    names: Vec<Lit<'static>>,
     inner: Bp<OptionParser<T>>,
     lazy: bool,
 }

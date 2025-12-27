@@ -11,6 +11,24 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Lit<'a>(pub(crate) ShortLong<'a>);
 
+// TODO - dedup
+fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
+    let mut short = None;
+    let mut long = None;
+    for n in names {
+        match &n.0 {
+            crate::Name::Short(s) => short = short.or(Some(s)),
+            crate::Name::Long(l) => long = long.or(Some(&*l)),
+        }
+    }
+    Lit(match (short, long) {
+        (None, None) => panic!("must have a single name"),
+        (None, Some(l)) => ShortLong::Long(l),
+        (Some(s), None) => ShortLong::Short(*s),
+        (Some(s), Some(l)) => ShortLong::Both(*s, l),
+    })
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 /// No text should include a closing newline, each item gets placed on a separate line
 pub(crate) enum HelpItem<'a> {
@@ -194,7 +212,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 info,
                 inner: _,
             } => {
-                let name = Lit(ShortLong::Long(&names[0]));
+                let name = lit_name(names);
                 let help = info.descr;
                 self[place].push(HelpItem::Cmd { name, help });
             }

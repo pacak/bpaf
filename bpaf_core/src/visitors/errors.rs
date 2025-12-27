@@ -137,6 +137,9 @@ impl<'a> Visitor<'a> for ValidCommand<'a> {
             return;
         };
         for name in names {
+            let Name::Long(name) = &name.0 else {
+                continue;
+            };
             let dist = damerau_levenshtein(self.target, name);
             if self.distance > dist {
                 self.distance = dist;

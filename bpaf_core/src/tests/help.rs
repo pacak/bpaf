@@ -92,11 +92,33 @@ fn fallback_to_usage_nested() {
         .argument::<usize>("A")
         .to_options()
         .fallback_to_usage()
+        .descr("help for cmd")
         .command("cmd")
+        .short('c')
         .to_options();
 
+    let r = a.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    c, cmd       help for cmd
+";
+    assert_eq!(r, expected);
+
     let r = a.run_inner("cmd").unwrap_err().unwrap_stdout();
-    let expected = "Usage: ... cmd -a=A\n\nAvailable options:\n    -a=A\n    -h, --help  Prints help information\n";
+    let expected = "\
+help for cmd
+
+Usage: ... cmd -a=A
+
+Available options:
+    -a=A
+    -h, --help  Prints help information
+";
     assert_eq!(r, expected);
 }
 

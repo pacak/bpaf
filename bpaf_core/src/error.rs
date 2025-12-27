@@ -2,7 +2,7 @@
 use std::{borrow::Cow, ffi::OsString};
 
 use crate::{
-    Metavar, Name,
+    Lit, Metavar, Name,
     arg::Adjacency,
     complete::{CompleteReply, CompleteReq, render_completions},
     utils::Vec1,
@@ -188,7 +188,7 @@ pub enum MissingItem {
         meta: Metavar,
     },
     Lit {
-        value: Cow<'static, str>,
+        value: Lit<'static>,
     },
 }
 

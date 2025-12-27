@@ -730,11 +730,11 @@ fn pair_of_pos() {
     let b = positional::<f32>("B");
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner("3.14 33").unwrap_err().unwrap_stderr();
+    let r = parser.run_inner("4.0 33").unwrap_err().unwrap_stderr();
 
-    let expected = "couldn't parse `3.14`: invalid digit found in string";
+    let expected = "couldn't parse `4.0`: invalid digit found in string";
     assert_eq!(r, expected);
 
-    let r = parser.run_inner("33 3.14").unwrap();
-    assert_eq!(r, (33, 3.14));
+    let r = parser.run_inner("33 4.0").unwrap();
+    assert_eq!(r, (33, 4.0));
 }
