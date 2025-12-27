@@ -201,11 +201,11 @@ pub enum Item<'a> {
     /// that takes one named item followed by multiple positional items and should
     /// be rendered as a block
     ///
-    /// --name <A> <B> <C> ... help for name part
-    ///   <A> ... help for A
-    ///   <B> ... help for B
-    ///   <C> ... help for C
-    /// <- blank line
+    ///     --name <A> <B> <C> ... help for name part
+    ///       <A> ... help for A
+    ///       <B> ... help for B
+    ///       <C> ... help for C
+    ///     <- blank line
     ///
     /// All the inner parsers go under "named" parsers unless [`Item::Section`] moves it elsewhere
     Nested {

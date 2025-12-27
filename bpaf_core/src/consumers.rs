@@ -443,9 +443,8 @@ impl<T: 'static> Parser<T> for DummyAny<T> {
             }
             ctx.pass.set(true);
         }
-
         let item = MissingItem::Pos {
-            meta: Metavar("XXX"),
+            meta: Metavar("XXX"), // TODO
         };
         Err(Error::missing(item))
     }

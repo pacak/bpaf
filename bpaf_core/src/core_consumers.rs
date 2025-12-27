@@ -239,6 +239,7 @@ impl RawCtx {
             .borrow_mut()
             .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
     }
+
     fn reason_to_arg(
         &self,
         items: impl IntoIterator<Item = TTarget> + Clone,
