@@ -140,11 +140,14 @@ pub mod api {
 
                 let mut acc = Error::Silent("Empty Alt?");
 
+                let consumed = ctx.current_task.borrow().consumed > 0;
+
                 // prefer final error if present or the earliest result
                 let mut val = None;
                 for h in handles {
                     match h.take() {
                         Err(err) => acc = acc + err,
+                        Ok(v) if consumed => return Ok(v),
                         Ok(v) => val = val.or(Some(v)),
                     }
                 }
