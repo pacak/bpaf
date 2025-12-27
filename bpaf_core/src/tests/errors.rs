@@ -655,10 +655,15 @@ fn big_conflict() {
 }
 
 #[test]
-fn conflict_flag_and_pos() {
+fn conflict_flag_pos_and_command() {
     let a = short('a').flag(1, 0);
     let b = positional::<usize>("B");
-    let parser = construct!([a, b]).to_options();
+    let c = pure(42).to_options().command("second"); // TODO - Needs an "adjacent" command
+    let parser = construct!([a, b, c]).to_options();
+
+    let r = parser.run_inner("second -a").unwrap_err().unwrap_stderr();
+    let expected = "`-a` is not expected in this context";
+    assert_eq!(r, expected);
 
     let r = parser.run_inner("23 -a").unwrap_err().unwrap_stderr();
     let expected = "`-a` cannot be used at the same time as `23`";

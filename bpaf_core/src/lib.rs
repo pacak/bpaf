@@ -139,13 +139,25 @@ pub mod api {
                 ctx.trim_children(scopes).await;
 
                 let mut acc = Error::Silent("Empty Alt?");
+
+                // prefer final error if present or the earliest result
+                let mut val = None;
                 for h in handles {
                     match h.take() {
                         Err(err) => acc = acc + err,
-                        v => return v,
+                        Ok(v) => val = val.or(Some(v)),
                     }
                 }
-                Err(acc)
+                if matches!(&acc, Error::Final(_)) {
+                    // this handles a scenario for a sum parser,
+                    // where one branch is a command and the other branch succeeds
+                    // without consumption. Whole parser succeeds, but we end up
+                    // with unconsumed input and executor looks for suggestions and finds
+                    // the command parser resulting in "no such parser `foo`, did you mean `foo`?"
+                    Err(acc)
+                } else {
+                    val.ok_or(acc)
+                }
             }
         }
     }
