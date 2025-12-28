@@ -197,7 +197,7 @@ impl<T: Clone + 'static> Parser<T> for Bp<Flag<T>> {
             Ok(self.0.present.clone())
         } else if let Some(absent) = &self.0.absent {
             Ok(absent.clone())
-        } else if let Some(_) = &self.0.named.get_env() {
+        } else if self.0.named.get_env().is_some() {
             Ok(self.0.present.clone())
         } else {
             let item = MissingItem::Named {
