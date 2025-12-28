@@ -1853,6 +1853,7 @@ mod tests {
     mod console_writer;
     mod errors;
     mod help;
+    mod nested;
     mod osstring;
     mod pure_with;
     mod unsorted;

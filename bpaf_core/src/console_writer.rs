@@ -126,7 +126,7 @@ impl<'a> Iterator for LineSplit<'a> {
 
 /// Calculate width in visible characters, ignores `"\{1b}[Dm"` where D is a single digit
 #[inline(never)]
-fn word_width(text: &str, mono: bool) -> usize {
+pub(crate) fn word_width(text: &str, mono: bool) -> usize {
     let fixup = if mono { 2 } else { 0 };
     #[derive(Copy, Clone)]
     enum Goal {
@@ -266,6 +266,7 @@ pub(crate) enum Atom<'a> {
         text: Cow<'a, str>,
         split: bool,
     },
+    Space,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Debug, Default)]
@@ -328,7 +329,7 @@ impl ConsoleWriter {
         self.pending = Pending::Paragraph;
         self.handle_pending();
         _ = write!(&mut self.output, "{H}{}{T}", section.header);
-        self.cursor = char_width(&section.header);
+        self.cursor = char_width(section.header);
         self.pending = Pending::Newline;
         if let Some(descr) = section.descr {
             self.write_text(descr);
@@ -339,35 +340,37 @@ impl ConsoleWriter {
         let mut set = std::collections::HashSet::new();
         for item in section.items.iter() {
             if set.insert(item) {
-                self.write_item(&item);
+                self.write_item(item);
             }
         }
     }
 
     pub(crate) fn write_atom(&mut self, atom: &Atom) {
         use std::fmt::Write as _;
-        const L: &str = Style::Literal.ansi();
-        const T: &str = Style::Text.ansi();
-        const M: &str = Style::Metavar.ansi();
+        println!("{:?}", self.tabstop);
         match atom {
             Atom::NextHelpItem => {
                 self.pending = self.pending.max(Pending::Newline);
-                self.handle_pending();
-                self.cursor = 4;
             }
             Atom::Name(name) => {
                 self.handle_pending();
-                _ = write!(&mut self.output, "{name}");
-                self.cursor += name.width();
+                _ = write!(&mut self.output, "{name:#}");
+                self.cursor += name.width() + 4;
             }
             Atom::Meta(meta) => {
                 self.handle_pending();
                 _ = write!(&mut self.output, "{meta}");
                 self.cursor += meta.width();
             }
-            Atom::TabState(x) => {
-                self.after_tab = *x;
-            }
+            Atom::Space => self.pending = Pending::Space,
+            Atom::TabState(new) => match (self.after_tab, new) {
+                (true, true) => todo!(),
+                (true, false) => todo!(),
+                (false, true) => {
+                    self.pending = self.tabstop();
+                }
+                (false, false) => todo!(),
+            },
             Atom::Text { text, split } => {
                 self.handle_pending();
                 if *split {
@@ -378,7 +381,6 @@ impl ConsoleWriter {
                 }
             }
         }
-        self.pending = self.pending.max(Pending::Space);
     }
 
     pub(crate) fn write_item(&mut self, item: &HelpItem) {
@@ -440,6 +442,7 @@ impl ConsoleWriter {
                 text,
                 lpad,
                 tabstop,
+                after_tab,
             } => {
                 self.handle_pending();
                 self.write_text(&text);
@@ -455,6 +458,15 @@ impl ConsoleWriter {
                 self.write_text(text);
                 self.output.push_str(Style::Text.ansi());
                 self.pending = Pending::Newline;
+            }
+            HelpItem::Blank => {
+                self.pending = Pending::Paragraph;
+                self.after_tab = false;
+            }
+            HelpItem::Atom(atoms) => {
+                for atom in atoms {
+                    self.write_atom(atom);
+                }
             }
         }
         self.after_tab = false;

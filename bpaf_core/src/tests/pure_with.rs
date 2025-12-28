@@ -39,7 +39,7 @@ fn default_value_using_pure_with_ok_for_some() {
     let r = seeds.run_inner(&["23", "59"]);
     assert_eq!(vec![23, 59], r.unwrap());
 
-    let r = seeds.run_inner(&[]);
+    let r = seeds.run_inner("");
     assert_eq!(vec![3, 5, 7, 11], r.unwrap());
 }
 

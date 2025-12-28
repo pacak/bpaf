@@ -4,8 +4,8 @@ use super::ShortLong;
 use crate::{
     Item, Metavar, Named, VKind,
     adapters::Info,
-    console_writer::{ConsoleWriter, MAX_TAB, Style, char_width},
-    visitors::{VisitGroup, Visitor},
+    console_writer::{Atom, ConsoleWriter, MAX_TAB, Style, char_width, word_width},
+    visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -79,11 +79,18 @@ pub(crate) enum HelpItem<'a> {
         text: Cow<'a, str>,
         lpad: usize,
         tabstop: usize,
+        /// Should the text be to the left or to the right of the tabstop
+        after_tab: bool,
     },
+    /// A single blank line
+    Blank,
     /// Section header, a specialized text
     /// - start a new paragraph
     /// - wrap it into [`Style::Header`] / [`Style::Text`]
-    Header { text: &'a str },
+    Header {
+        text: &'a str,
+    },
+    Atom(Vec<Atom<'a>>),
 }
 
 #[derive(Debug)]
@@ -158,17 +165,9 @@ impl Named {
 
 impl Help<'_> {
     fn track_length(&mut self, name: ShortLong<'_>, meta: Option<Metavar>) {
-        let meta = meta.map_or(0, |m| m.width() + 1);
-        match name {
-            ShortLong::Short(_) => {
-                self.max_word = self.max_word.max(2 + meta); // `-a`
-            }
-            ShortLong::Long(l) | ShortLong::Both(_, l) => {
-                let this = char_width(l) + 6 + meta;
-                if this <= MAX_TAB {
-                    self.max_word = self.max_word.max(this);
-                }
-            }
+        let this = name.width() + meta.map_or(0, |m| m.width() + 1);
+        if this <= MAX_TAB {
+            self.max_word = self.max_word.max(this);
         }
     }
 }
@@ -200,8 +199,9 @@ impl<'a> Visitor<'a> for Help<'a> {
                 });
                 self[place].push(HelpItem::Text {
                     text,
-                    lpad: 0,    // TODO
-                    tabstop: 0, // TODO
+                    lpad: 0, // TODO
+                    tabstop: 0,
+                    after_tab: true,
                 });
             }
             Item::Arg { named, meta } => {
@@ -220,8 +220,9 @@ impl<'a> Visitor<'a> for Help<'a> {
                 });
                 self[place].push(HelpItem::Text {
                     text,
-                    lpad: 0,    // TODO
-                    tabstop: 0, // TODO
+                    lpad: 0, // TODO
+                    tabstop: 0,
+                    after_tab: true,
                 });
             }
             Item::Positional { meta, help } => {
@@ -237,7 +238,50 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self[place].push(HelpItem::Cmd { name, help });
             }
             Item::Nested { named, inner } => {
-                todo!()
+                let Some((name, item)) = named.help_item(None) else {
+                    // pure env nested parser, makes little sense.
+                    return;
+                };
+
+                let mut u = Usage::default();
+                inner.visit(&mut u);
+                let mut usage = String::new();
+                u.render_to(&mut usage);
+
+                let mut a = Vec::with_capacity(8);
+                a.push(Atom::NextHelpItem);
+
+                let this = name.width() + 1 + word_width(&usage, false);
+                if this <= MAX_TAB {
+                    self.max_word = self.max_word.max(this);
+                }
+                assert_ne!(&usage, "");
+
+                a.push(Atom::Name(name));
+                a.push(Atom::Space);
+                a.push(Atom::Text {
+                    text: Cow::Owned(usage),
+                    split: false,
+                });
+
+                if let Some(h) = named.help {
+                    a.push(Atom::TabState(true));
+                    a.push(Atom::Text {
+                        text: Cow::Borrowed(h),
+                        split: true,
+                    });
+                }
+                self[place].push(HelpItem::Atom(a));
+
+                self.in_section += 1;
+                inner.visit(self);
+                self.in_section -= 1;
+                if self.in_section == 0 {
+                    let mut tmp = std::mem::take(&mut self.current);
+                    self[place].append(&mut tmp);
+                    std::mem::swap(&mut tmp, &mut self.current);
+                }
+                self[place].push(HelpItem::Blank);
             }
             Item::OptionParser { info, inner } => {
                 if let Some(usage) = info.usage {
@@ -274,6 +318,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 text: text.into(),
                 lpad: 0,
                 tabstop: 0,
+                after_tab: true,
             }),
         }
     }
@@ -304,7 +349,6 @@ impl<'a> Help<'a> {
     /// - long flag
     /// - item description.
     /// long flag can push the description to the left but otherwise is padded
-
     pub(crate) fn render(mut self, detailed: bool) -> String {
         let mut w = ConsoleWriter::new(None, self.max_word + 6, detailed);
 

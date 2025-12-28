@@ -148,6 +148,13 @@ impl Bp<Named> {
     }
 }
 
+impl<T: 'static> Bp<Nested<T>> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.0.names.help = Some(help);
+        self
+    }
+}
+
 pub struct Nested<T> {
     names: Named,
     inner: RcParser<T>,
@@ -201,14 +208,12 @@ pub struct Literal<T> {
 }
 
 pub struct LNamed {
-    pub(crate) help: Option<&'static str>,
     pub(crate) info: Info,
     pub(crate) names: Vec<Lit<'static>>,
 }
 
 pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> LNamed {
     LNamed {
-        help: None,
         names: vec![Lit(Name::Long(name.into()))],
         info: Info::default(),
     }

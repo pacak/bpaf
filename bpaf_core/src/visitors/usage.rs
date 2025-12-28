@@ -54,7 +54,9 @@ impl Usage<'_> {
                         Put::Command => {
                             _ = write!(&mut out, "{M}COMMAND{T} ...");
                         }
-                        Put::Text { text } => todo!(),
+                        Put::Text { text } => {
+                            out.push_str(text);
+                        }
                     }
                 }
                 Event::Group(
@@ -175,7 +177,27 @@ impl<'a> Visitor<'a> for Usage<'a> {
             },
             Item::Positional { meta, help: _ } => Put::Pos { meta },
             Item::Command { .. } => Put::Command,
-            Item::Nested { named, inner } => todo!(),
+            Item::Nested { named, inner } => {
+                let Some(name) = ShortOrLong::from_named(named) else {
+                    return;
+                };
+                let named = Put::Named { name, meta: None };
+                self.events.push(Event::Put(named));
+                self.events.push(Event::Put(Put::Text {
+                    text: Cow::Borrowed("{"),
+                }));
+                let mut u = Usage::default();
+                inner.visit(&mut u);
+                let mut inner_usage = String::new();
+                u.render_to(&mut inner_usage);
+                self.events.push(Event::Put(Put::Text {
+                    text: Cow::Owned(inner_usage),
+                }));
+                self.events.push(Event::Put(Put::Text {
+                    text: Cow::Borrowed("}"),
+                }));
+                return;
+            }
             Item::OptionParser { .. } => {
                 return;
             }
