@@ -155,21 +155,32 @@ pub struct Nested<T> {
 
 impl<T: 'static> Parser<T> for Bp<Nested<T>> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let res = ctx.parse_flag(&self.0.names.names).await;
+        let res = res.map_err(|err| self.0.names.complete_name(err, None)); // TODO - can we do better?
+
+        if !res? {
+            let item = MissingItem::Named {
+                name: self.0.names.names[0].clone().into_owned(),
+                meta: None,
+            };
+            return Err(Error::missing(item));
+        }
+        let inner = ctx.fork(None);
+        inner.cursor.update(|c| c + 1);
+
         let (out, handle) = make_handle();
-        let inner = &self.0.inner;
-        let populate = |ctx: crate::Ctx| {
-            // out.clone() is slightly cursed. `parse_literal_and` takes a reference to a closure
-            // to avoid instantiating multiple copies of boring code so this closure must be Fn
-            // (and not FnOnce), meaning extra clone for out even though the closure will
-            // be executed exactly once
-            let act = ctx.make_act(out.clone(), inner.clone());
-            let info = ctx.make_child_info(Kind::Prod);
-            ctx.add_task(Task { act, info });
-        };
-        let lazy = false;
-        ctx.parse_flag_and(lazy, &self.0.names.names, &populate, inner)
-            .await?;
-        handle.take()
+        let act = inner.make_act(out, self.0.inner.clone());
+        let info = inner.make_child_info(Kind::Prod);
+        inner.add_task(Task { act, info });
+        let executor_res = inner.execute(true, &self.0.inner, None);
+        let res = handle.take();
+        ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
+
+        match (res, executor_res) {
+            (res @ Ok(_), Ok(_)) => Ok(res?),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
+            (Err(e1), Err(e2)) => Err(e1 + e2),
+        }
     }
 }
 

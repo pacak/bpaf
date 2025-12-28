@@ -67,24 +67,6 @@ impl RawCtx {
         Ok(ok)
     }
 
-    pub(crate) async fn parse_flag_and(
-        &self,
-        lazy: bool,
-        names: &[Name<'static>],
-        populate: &dyn Fn(Ctx),
-        parser: &dyn Visited,
-    ) -> Result<Option<u32>, Error> {
-        if self
-            .wait_for(names.iter().cloned().map(TTarget::Flag))
-            .await?
-            .is_some()
-        {
-            self.parse_nested(lazy, 1, populate, parser)
-        } else {
-            Ok(None)
-        }
-    }
-
     /// Wake up on one of the literals, return it
     pub(crate) async fn parse_literal(
         &self,
@@ -101,24 +83,6 @@ impl RawCtx {
             }) => Some(name.clone().into_owned()),
             _ => None,
         })
-    }
-
-    fn parse_nested(
-        &self,
-        lazy: bool,
-        skip: u32,
-        populate: &dyn Fn(Ctx),
-        parser: &dyn Visited,
-    ) -> Result<Option<u32>, Error> {
-        self.consume(skip);
-        let ctx = self.fork(None);
-        ctx.cursor.update(|c| c + skip as usize);
-        let to_parse = ctx.args.len() - ctx.cursor.get();
-        (populate)(ctx.clone());
-        ctx.execute(lazy, parser, None)?;
-        let consumed = ctx.cursor.get() - self.cursor.get() - 1;
-        self.consume(consumed as u32);
-        Ok(Some(to_parse as u32))
     }
 
     pub(crate) async fn parse_arg(
