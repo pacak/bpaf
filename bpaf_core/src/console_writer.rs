@@ -1,9 +1,14 @@
-use crate::visitors::{
-    ShortLong,
-    help::{HelpItem, Section},
+use std::borrow::Cow;
+
+use crate::{
+    Metavar,
+    visitors::{
+        ShortLong,
+        help::{HelpItem, Section},
+    },
 };
 
-const BLANK: &'static str = "                                                                     ";
+const BLANK: &str = "                                                                     ";
 
 pub(crate) const MAX_WIDTH: usize = 100;
 pub(crate) const MAX_TAB: usize = 24;
@@ -250,6 +255,19 @@ impl Colorscheme {
     };
 }
 
+#[derive(Debug, PartialEq, Eq, Hash)] // TODO - don't need PartialEq, Eq, Hash
+pub(crate) enum Atom<'a> {
+    /// Starts a newline, inserts required padding (4 bytes)
+    NextHelpItem,
+    Name(ShortLong<'a>),
+    Meta(Metavar),
+    TabState(bool),
+    Text {
+        text: Cow<'a, str>,
+        split: bool,
+    },
+}
+
 #[derive(Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Debug, Default)]
 pub(crate) enum Pending {
     #[default]
@@ -325,6 +343,44 @@ impl ConsoleWriter {
             }
         }
     }
+
+    pub(crate) fn write_atom(&mut self, atom: &Atom) {
+        use std::fmt::Write as _;
+        const L: &str = Style::Literal.ansi();
+        const T: &str = Style::Text.ansi();
+        const M: &str = Style::Metavar.ansi();
+        match atom {
+            Atom::NextHelpItem => {
+                self.pending = self.pending.max(Pending::Newline);
+                self.handle_pending();
+                self.cursor = 4;
+            }
+            Atom::Name(name) => {
+                self.handle_pending();
+                _ = write!(&mut self.output, "{name}");
+                self.cursor += name.width();
+            }
+            Atom::Meta(meta) => {
+                self.handle_pending();
+                _ = write!(&mut self.output, "{meta}");
+                self.cursor += meta.width();
+            }
+            Atom::TabState(x) => {
+                self.after_tab = *x;
+            }
+            Atom::Text { text, split } => {
+                self.handle_pending();
+                if *split {
+                    self.write_text(text);
+                } else {
+                    self.output.push_str(text);
+                    self.cursor += word_width(text, self.mono);
+                }
+            }
+        }
+        self.pending = self.pending.max(Pending::Space);
+    }
+
     pub(crate) fn write_item(&mut self, item: &HelpItem) {
         use std::fmt::Write as _;
         const L: &str = Style::Literal.ansi();
