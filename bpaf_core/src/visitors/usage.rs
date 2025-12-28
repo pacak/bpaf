@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{Item, Metavar, Named, VKind, VisitGroup, Visitor};
 
 #[derive(Debug, Default)]
@@ -185,7 +187,9 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 inner.visit(self);
                 return;
             }
-            Item::Rendered { text } => Put::Text { text },
+            Item::Rendered { text } => Put::Text {
+                text: Cow::Borrowed(text),
+            },
         };
         self.events.push(Event::Put(put))
     }
@@ -317,7 +321,7 @@ impl<'a> ShortOrLong<'a> {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 enum Put<'a> {
     Named {
         name: ShortOrLong<'a>,
@@ -329,7 +333,7 @@ enum Put<'a> {
 
     Command,
     Text {
-        text: &'a str,
+        text: Cow<'a, str>,
     },
 }
 
@@ -341,7 +345,7 @@ struct Group {
     optional: bool,
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 enum Event<'a> {
     Put(Put<'a>),
     Group(Group),
