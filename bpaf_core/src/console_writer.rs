@@ -121,7 +121,7 @@ impl<'a> Iterator for LineSplit<'a> {
 
 /// Calculate width in visible characters, ignores `"\{1b}[Dm"` where D is a single digit
 #[inline(never)]
-fn word(text: &str, mono: bool) -> Chunk<'_> {
+fn word_width(text: &str, mono: bool) -> usize {
     let fixup = if mono { 2 } else { 0 };
     #[derive(Copy, Clone)]
     enum Goal {
@@ -153,7 +153,14 @@ fn word(text: &str, mono: bool) -> Chunk<'_> {
             _ => Goal::Esc,
         }
     }
-    Chunk::Word { width, text }
+    width
+}
+
+fn word(text: &str, mono: bool) -> Chunk<'_> {
+    Chunk::Word {
+        width: word_width(text, mono),
+        text,
+    }
 }
 
 impl std::fmt::Display for Style {
