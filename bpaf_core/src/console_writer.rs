@@ -334,18 +334,16 @@ impl ConsoleWriter {
             HelpItem::Named { name, meta, help } => {
                 self.pending = self.pending.max(Pending::Newline);
                 self.handle_pending();
-                _ = match name {
+                _ = write!(&mut self.output, "{name:#}");
+                match name {
                     ShortLong::Short(s) => {
                         self.cursor += 6;
-                        write!(&mut self.output, "    {L}-{s}{T}")
                     }
                     ShortLong::Long(l) => {
                         self.cursor += 6 + 2 + 2 + width(l);
-                        write!(&mut self.output, "        {L}--{l}{T}")
                     }
                     ShortLong::Both(s, l) => {
                         self.cursor += 6 + 2 + 2 + width(l);
-                        write!(&mut self.output, "    {L}-{s}{T}, {L}--{l}{T}")
                     }
                 };
 

@@ -4,12 +4,32 @@ use super::ShortLong;
 use crate::{
     Item, Metavar, Named, VKind,
     adapters::Info,
-    console_writer::{ConsoleWriter, MAX_TAB, width},
+    console_writer::{ConsoleWriter, MAX_TAB, Style, width},
     visitors::{VisitGroup, Visitor},
 };
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub(crate) struct Lit<'a>(pub(crate) ShortLong<'a>);
+
+impl std::fmt::Display for ShortLong<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        const L: &str = Style::Literal.ansi();
+        const T: &str = Style::Text.ansi();
+        if f.alternate() {
+            match self {
+                ShortLong::Short(s) => write!(f, "    {L}-{s}{T}"),
+                ShortLong::Long(l) => write!(f, "        {L}--{l}{T}"),
+                ShortLong::Both(s, l) => write!(f, "    {L}-{s}{T}, {L}--{l}{T}"),
+            }
+        } else {
+            match self {
+                ShortLong::Short(s) => write!(f, "{L}-{s}{T}"),
+                ShortLong::Long(l) => write!(f, "{L}--{l}{T}"),
+                ShortLong::Both(s, l) => write!(f, "{L}-{s}{T}, {L}--{l}{T}"),
+            }
+        }
+    }
+}
 
 // TODO - dedup
 fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
