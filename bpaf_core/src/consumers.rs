@@ -2,7 +2,7 @@ use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
     adapters::PureWith,
-    complete::{CompleteReply, complete_value},
+    complete::{CompleteReply, complete_command, complete_value},
     error::MissingItem,
     os_str::parse_os_str,
 };
@@ -180,6 +180,98 @@ impl<T: 'static> Visited for Bp<Nested<T>> {
             inner: &self.0.inner,
         };
         visitor.item(item);
+    }
+}
+
+pub struct Literal<T> {
+    pub(crate) present: T,
+    pub(crate) absent: Option<T>,
+    pub(crate) named: LNamed,
+}
+
+pub struct LNamed {
+    pub(crate) help: Option<&'static str>,
+    pub(crate) info: Info,
+    pub(crate) names: Vec<Lit<'static>>,
+}
+
+pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> LNamed {
+    LNamed {
+        help: None,
+        names: vec![Lit(Name::Long(name.into()))],
+        info: Info::default(),
+    }
+}
+
+impl LNamed {
+    pub fn short(mut self, name: char) -> Self {
+        self.names.push(Lit(Name::Short(name)));
+        self
+    }
+    pub fn long<N: Into<Cow<'static, str>>>(mut self, name: N) -> Self {
+        self.names.push(Lit(Name::Long(name.into())));
+        self
+    }
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.info.descr = Some(help);
+        self
+    }
+}
+
+impl LNamed {
+    pub fn switch(self) -> Literal<bool> {
+        Literal {
+            named: self,
+            present: true,
+            absent: Some(false),
+        }
+    }
+    pub fn req_flag<T: 'static>(self, value: T) -> Literal<T> {
+        Literal {
+            named: self,
+            present: value,
+            absent: None,
+        }
+    }
+    pub fn flag<T: 'static>(self, present: T, absent: T) -> Literal<T> {
+        Literal {
+            named: self,
+            present,
+            absent: Some(absent),
+        }
+    }
+}
+
+impl Visited for () {
+    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
+}
+
+impl<T: 'static> Visited for Literal<T> {
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        let item = Item::Command {
+            names: &self.named.names,
+            info: &self.named.info,
+            inner: &(),
+        };
+        visitor.item(item);
+    }
+}
+
+impl<T: Clone + 'static> Parser<T> for Literal<T> {
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        let res = ctx.parse_literal(&self.named.names).await;
+        let res = res.map_err(|e| complete_command(&self.named.names, e));
+        let value = res?
+            .map(|_| {
+                ctx.consume(1);
+                self.present.clone()
+            })
+            .or_else(|| self.absent.clone());
+        value.ok_or_else(|| {
+            Error::missing(MissingItem::Lit {
+                value: self.named.names[0].clone(),
+            })
+        })
     }
 }
 

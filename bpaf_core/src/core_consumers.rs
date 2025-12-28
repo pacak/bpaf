@@ -241,7 +241,7 @@ impl RawCtx {
             Reason::Arg(arg) => Ok(Some(arg.clone())),
             Reason::Kill(KillReason::Conflict) => {
                 self.record_conflicts(items);
-                Ok(None)
+                Err(Error::Silent("Killed by conflict"))
             }
             Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
             Reason::Kill(KillReason::TooShort)

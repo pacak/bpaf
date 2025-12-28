@@ -348,3 +348,22 @@ fn multiple_any_parsers() {
     let r = parser.run_inner("0 -1000 1000").unwrap();
     assert_eq!(r, (-1000, 0, 1000));
 }
+
+fn simple_literal() {
+    let a = literal("hello")
+        .help("This is sample command")
+        .flag("lit", "no lit");
+    let b = long("hello")
+        .help("This is a switch")
+        .flag("switch", "no switch");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("--hello").unwrap();
+    assert_eq!(r, "switch");
+
+    let r = parser.run_inner("hello").unwrap();
+    assert_eq!(r, "lit");
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, "no lit");
+}
