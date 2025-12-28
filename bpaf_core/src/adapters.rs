@@ -272,8 +272,6 @@ impl<T: 'static> Parser<Vec<T>> for Bp<Many<T>> {
     fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<Vec<T>, Error>> {
         parse_many(self.0.inner.clone(), ctx, usize::MAX)
     }
-    // async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-    // }
 }
 
 async fn parse_many<T: 'static>(

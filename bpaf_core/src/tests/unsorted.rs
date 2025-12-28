@@ -367,3 +367,15 @@ fn simple_literal() {
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, "no lit");
 }
+
+#[test]
+fn from_any_str_works() {
+    let a = any_from_str::<i32>("I");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
+
+    let r = parser.run_inner("-42").unwrap();
+    assert_eq!(r, -42);
+}

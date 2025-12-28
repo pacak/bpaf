@@ -517,6 +517,13 @@ pub fn any<T: 'static>(
     }
 }
 
+pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> impl Parser<T> {
+    DummyAny {
+        meta: Metavar(meta),
+        check: Rc::new(|s: &str| T::from_str(s).ok()),
+    }
+}
+
 impl<T> Visited for DummyAny<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Positional {
