@@ -310,7 +310,7 @@ impl ConsoleWriter {
         self.pending = Pending::Paragraph;
         self.handle_pending();
         _ = write!(&mut self.output, "{H}{}{T}", section.header);
-        self.cursor = width(&section.header);
+        self.cursor = char_width(&section.header);
         self.pending = Pending::Newline;
         if let Some(descr) = section.descr {
             self.write_text(descr);
@@ -335,17 +335,7 @@ impl ConsoleWriter {
                 self.pending = self.pending.max(Pending::Newline);
                 self.handle_pending();
                 _ = write!(&mut self.output, "{name:#}");
-                match name {
-                    ShortLong::Short(s) => {
-                        self.cursor += 6;
-                    }
-                    ShortLong::Long(l) => {
-                        self.cursor += 6 + 2 + 2 + width(l);
-                    }
-                    ShortLong::Both(s, l) => {
-                        self.cursor += 6 + 2 + 2 + width(l);
-                    }
-                };
+                self.cursor = 4 + name.width();
 
                 if let Some(meta) = meta {
                     self.cursor += 1 + meta.width();
@@ -376,11 +366,11 @@ impl ConsoleWriter {
                         write!(&mut self.output, "    {L}{s}{T}")
                     }
                     ShortLong::Long(l) => {
-                        self.cursor += 4 + width(l);
+                        self.cursor += 4 + char_width(l);
                         write!(&mut self.output, "    {L}{l}{T}")
                     }
                     ShortLong::Both(s, l) => {
-                        self.cursor += 6 + width(l);
+                        self.cursor += 6 + char_width(l);
                         write!(&mut self.output, "    {L}{s}{T}, {L}{l}{T}")
                     }
                 };
@@ -573,6 +563,6 @@ pub fn apply_style(unstyled: &str, scheme: &Colorscheme, mono: bool) -> String {
 }
 
 #[inline(never)]
-pub(crate) fn width(s: &str) -> usize {
+pub(crate) fn char_width(s: &str) -> usize {
     s.chars().count()
 }

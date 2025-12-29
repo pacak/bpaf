@@ -4,7 +4,7 @@ use super::ShortLong;
 use crate::{
     Item, Metavar, Named, VKind,
     adapters::Info,
-    console_writer::{ConsoleWriter, MAX_TAB, Style, width},
+    console_writer::{ConsoleWriter, MAX_TAB, Style, char_width},
     visitors::{VisitGroup, Visitor},
 };
 
@@ -164,7 +164,7 @@ impl Help<'_> {
                 self.max_word = self.max_word.max(2 + meta); // `-a`
             }
             ShortLong::Long(l) | ShortLong::Both(_, l) => {
-                let this = width(l) + 6 + meta;
+                let this = char_width(l) + 6 + meta;
                 if this <= MAX_TAB {
                     self.max_word = self.max_word.max(this);
                 }

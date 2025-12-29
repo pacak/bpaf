@@ -58,6 +58,17 @@ pub(crate) enum ShortLong<'a> {
     Both(char, &'a str),
 }
 
+impl ShortLong<'_> {
+    pub(crate) fn width(&self) -> usize {
+        match self {
+            // `-f`
+            ShortLong::Short(_) => 2,
+            // `-f, --foo` or `    --foo`
+            ShortLong::Both(_, l) | ShortLong::Long(l) => 6 + crate::console_writer::char_width(l),
+        }
+    }
+}
+
 impl Named {
     fn get_shortlong<'a>(&'a self) -> Option<ShortLong<'a>> {
         match self.get_short_and_long() {
