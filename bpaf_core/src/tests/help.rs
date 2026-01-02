@@ -1,6 +1,14 @@
 use crate::*;
 
 #[test]
+fn smallest() {
+    let a = short('a').help("A simple flag").req_flag(());
+    let parser = a.to_options();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    todo!("{r:?}");
+}
+
+#[test]
 fn simple_flag() {
     let a = short('a').help("A simple flag").req_flag(());
     let parser = a
@@ -162,7 +170,7 @@ fn decorations() {
 descr
 descr
 
-custom usage
+Usage: custom usage
 
 header
 header

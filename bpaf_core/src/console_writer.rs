@@ -8,13 +8,65 @@ use crate::{
     },
 };
 
+#[derive(Debug)]
+pub(crate) struct ConWriter {
+    output: String,
+    buffer: String,
+    scheme: Colorscheme,
+    cursor: usize,
+    tabs: [usize; 2],
+    pending: Pending,
+    tab: usize,
+    no_wrap: bool,
+}
+
+impl ConWriter {
+    pub(crate) fn new(scheme: Colorscheme, tabstop: usize) -> Self {
+        Self {
+            output: String::new(),
+            buffer: String::new(),
+            scheme,
+            cursor: 0,
+            tabs: [0, tabstop],
+            pending: Pending::Nothing,
+            tab: 0,
+            no_wrap: false,
+        }
+    }
+
+    fn pend(&mut self, new: Pending) {
+        self.pending = self.pending.max(new);
+    }
+
+    pub(crate) fn newline(&mut self) {
+        self.pend(Pending::Newline);
+    }
+
+    pub(crate) fn paragraph(&mut self) {
+        self.pend(Pending::Paragraph);
+    }
+
+    pub(crate) fn word(&mut self, word: &str, width: Option<usize>) {
+        let width = width.unwrap_or_else(|| word_width(word, true));
+        self.cursor += width;
+        if !self.no_wrap && self.cursor > MAX_WIDTH {
+            self.cursor = 0;
+            self.output.push('\n');
+        };
+        if let Some(missing) = self.tabs[self.tab].checked_sub(self.cursor) {
+            self.cursor += missing;
+            self.output.extend(std::iter::repeat_n(' ', missing));
+        }
+    }
+}
+
 const BLANK: &str = "                                                                     ";
 
 pub(crate) const MAX_WIDTH: usize = 100;
 pub(crate) const MAX_TAB: usize = 24;
 
 #[derive(Debug, Copy, Clone)]
-enum Chunk<'a> {
+pub(crate) enum Chunk<'a> {
     /// A single word along with ANSI decorations
     Word {
         /// Word width in characters (ignores ANSI decoration)
@@ -37,7 +89,7 @@ enum Chunk<'a> {
 /// 7. output contains no spaces
 
 #[derive(Debug)]
-struct LineSplit<'a> {
+pub(crate) struct LineSplit<'a> {
     cur_line: &'a str,
     mode: Mode,
     rest: &'a str,
@@ -52,7 +104,7 @@ enum Mode {
     Parse,
 }
 
-fn linesplit<'a>(input: &'a str, mono: bool) -> LineSplit<'a> {
+pub(crate) fn linesplit<'a>(input: &'a str, mono: bool) -> LineSplit<'a> {
     LineSplit {
         cur_line: "",
         mode: Mode::NextLine,
@@ -274,6 +326,7 @@ pub(crate) enum Pending {
     #[default]
     Nothing,
     Space,
+    TabSep,
     Newline,
     Paragraph,
 }
@@ -516,6 +569,10 @@ impl ConsoleWriter {
                     self.output.push_str("\n\n");
                     self.cursor = 0;
                 }
+            }
+            Pending::TabSep => {
+                self.output.push_str("  ");
+                self.cursor += 2;
             }
         }
         self.pending = Pending::Nothing;

@@ -1,10 +1,39 @@
+//! Overall rendering takes 2 stages:
+//! 1. collect info from the visitor. At this point we don't know what the tabstop is
+//!    so can't really render it into the final version. Info is collected into several
+//!    strings: one per predefined section, one for current section, one for accumulated sections.
+//!    Plus descr/header/footer.
+//! 2. convert it to final version with tabs expanded into spaces and colors applied
+//!
+//!
+//! Text is separated with tab symbols into 3 virtual columns, 2 tabs.
+//! 1st column - description and header text. Can grow up to MAX_WIDTH, obeys newline separation
+//! 2nd column - flags with metavars. on rows with them 1st column must be empty (insert an \n if
+//! it isn't) and contents are padded with 4 spaces, it's width, as long as it is under MAX_TAB
+//! sets the tabstop, does not obey newline separation rules
+//! 3rd column - starts after the tabstop
+
+//! Second pass renders text to ANSI. All it needs to do is to
+//! 1. expand tabs into spaces
+//! 2. split
+//! - for ANSI it expands tabs and applies
+//! - for roff/
+
+const T: &str = Style::Text.ansi();
+const M: &str = Style::Metavar.ansi();
+const L: &str = Style::Literal.ansi();
+const H: &str = Style::Header.ansi();
+
 use std::borrow::Cow;
 
 use super::ShortLong;
 use crate::{
     Item, Metavar, Named, VKind,
     adapters::Info,
-    console_writer::{Atom, ConsoleWriter, MAX_TAB, Style, char_width, word_width},
+    console_writer::{
+        Atom, Colorscheme, ConsoleWriter, MAX_TAB, MAX_WIDTH, Pending, Style, char_width,
+        linesplit, word_width,
+    },
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
@@ -116,6 +145,7 @@ pub(crate) struct Help<'a> {
     place: Place,
 }
 
+#[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Default, Debug, Clone, Copy)]
 enum Place {
     #[default]
@@ -123,6 +153,7 @@ enum Place {
     Pos,
     Command,
     Section,
+    Body,
 }
 
 impl<'a> std::ops::Index<Place> for Help<'a> {
@@ -134,6 +165,7 @@ impl<'a> std::ops::Index<Place> for Help<'a> {
             Place::Pos => &self.pos,
             Place::Command => &self.command,
             Place::Section => &self.current,
+            Place::Body => todo!(),
         }
     }
 }
@@ -144,6 +176,7 @@ impl<'a> std::ops::IndexMut<Place> for Help<'a> {
             Place::Pos => &mut self.pos,
             Place::Command => &mut self.command,
             Place::Section => &mut self.current,
+            Place::Body => todo!(),
         }
     }
 }
@@ -314,7 +347,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     });
                 }
             }
-            Item::Rendered { text } => self[place].push(HelpItem::Text {
+            Item::Rendered { text, gr } => self[place].push(HelpItem::Text {
                 text: text.into(),
                 lpad: 0,
                 tabstop: 0,
@@ -399,4 +432,400 @@ impl<'a> Help<'a> {
 
         w.done()
     }
+}
+
+#[cfg_attr(test, derive(Eq, PartialEq))]
+#[derive(Debug, Default)]
+pub struct Help2<'a> {
+    pub(crate) app_name: Option<&'a str>,
+    place: Place,
+    footer: Option<&'a str>,
+    in_section: usize,
+
+    /// current section, if in one, empty otherwise
+    current: String,
+    /// All the nonstandard sections, can be empty
+    sections: String,
+
+    /// Default sections
+    named: String,
+    pos: String,
+    commands: String,
+    /// Width of the current tab slice
+    width: usize,
+    /// Maximum seen tab slice (under the limit)
+    max_tab: usize,
+
+    detailed: bool,
+
+    output: String,
+    pending: Pending,
+
+    column: Column,
+    column_dirty: bool,
+}
+
+#[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
+pub enum Column {
+    #[default]
+    Text,
+    Item,
+    Help,
+}
+impl Column {
+    fn inc(&self) -> Column {
+        match self {
+            Column::Text => Column::Item,
+            Column::Item => Column::Help,
+            Column::Help => Column::Text,
+        }
+    }
+}
+
+impl std::ops::Index<Place> for Help2<'_> {
+    type Output = String;
+    fn index(&self, index: Place) -> &Self::Output {
+        match index {
+            Place::Named => &self.named,
+            Place::Pos => &self.pos,
+            Place::Command => &self.commands,
+            Place::Section => &self.current,
+            Place::Body => &self.output,
+        }
+    }
+}
+
+impl std::ops::IndexMut<Place> for Help2<'_> {
+    fn index_mut(&mut self, index: Place) -> &mut Self::Output {
+        match index {
+            Place::Named => &mut self.named,
+            Place::Pos => &mut self.pos,
+            Place::Command => &mut self.commands,
+            Place::Section => &mut self.current,
+            Place::Body => &mut self.output,
+        }
+    }
+}
+
+// Columns are separated by '\t', `\n' preserves
+
+impl<'a> Visitor<'a> for Help2<'a> {
+    fn item(&mut self, item: Item<'a>) {
+        use std::fmt::Write as _;
+
+        let place = self.place_for(&item);
+        match item {
+            Item::OptionParser { info, inner } => {
+                if let Some(descr) = info.descr {
+                    // shouldn't contain tabs, but you never know...
+                    self.write_text(Place::Body, descr);
+                    self.output.push_str("\n\n");
+                    self.column = Column::Text;
+                }
+
+                _ = match self.app_name {
+                    Some(name) => write!(&mut self.output, "Usage: {name} "),
+                    None => write!(&mut self.output, "Usage: "),
+                };
+                if let Some(usage) = info.usage {
+                    self.output.push_str(usage);
+                } else {
+                    let mut usage = crate::visitors::usage::Usage::default();
+                    inner.visit(&mut usage);
+                    usage.render_to(&mut self.output);
+                }
+                self.output.push_str("\n\n");
+
+                if let Some(header) = info.header {
+                    self.output.push('\n');
+                    self.write_text(Place::Body, header);
+                    self.column = Column::Text;
+                    self.output.push('\n');
+                    self.output.push('\n');
+                }
+
+                self.footer = info.footer;
+            }
+            Item::Flag { named } => {
+                let Some(sl) = named.get_shortlong() else {
+                    return;
+                };
+                self.change_column(place, Column::Item);
+                _ = write!(&mut self[place], "{L}{sl}{T}");
+                self.width = sl.width();
+                self.help(place, named.help);
+            }
+            Item::Arg { named, meta } => {
+                let Some(sl) = named.get_shortlong() else {
+                    return;
+                };
+                self.change_column(place, Column::Item);
+                _ = write!(&mut self[place], "{L}{sl}{T}={M}{meta}{T}");
+                self.width = sl.width() + 1 + meta.width();
+                self.help(place, named.help);
+            }
+            Item::Positional { meta, help } => {
+                self.change_column(place, Column::Item);
+                _ = write!(&mut self[place], "{M}{meta}{T}");
+                self.help(place, help);
+            }
+            Item::Command { names, info, inner } => todo!(),
+            Item::Nested { named, inner } => todo!(),
+            Item::Section {
+                title,
+                descr,
+                inner,
+            } => todo!(),
+            Item::Rendered { text, gr: place } => {
+                // TODO - I need to know which group to put things into
+                todo!();
+            }
+        }
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+
+    fn pop_group(&mut self) {}
+
+    fn identify(&self) -> VKind {
+        VKind::Help
+    }
+}
+
+impl Help2<'_> {
+    fn place_for(&mut self, item: &Item) -> Place {
+        self.place = match &item {
+            _ if self.in_section > 0 => Place::Section,
+            Item::Flag { .. } | Item::Arg { .. } => Place::Named,
+            Item::Positional { .. } => Place::Pos,
+            Item::Command { .. } => Place::Command,
+            _ => self.place,
+        };
+        self.place
+    }
+
+    fn change_column(&mut self, place: Place, column: Column) {
+        if column == self.column {
+            return;
+        }
+        if self.column == Column::Item && column != Column::Item {
+            if self.width < MAX_TAB {
+                self.max_tab = self.width;
+            }
+            self.width = 0;
+        }
+        let missing = (3 + column as usize - self.column as usize) % 3;
+        self.column = column;
+        self[place].extend(std::iter::repeat_n('\t', missing));
+    }
+
+    fn handle_pending(&mut self) {
+        match self.pending {
+            Pending::Nothing => {}
+            Pending::Space => {
+                self.output.push(' ');
+                self.width += 1;
+            }
+            Pending::TabSep => {
+                self.output.push_str("  ");
+                self.width = 0;
+            }
+            Pending::Newline => {
+                self.output.push('\n');
+                self.width = 0;
+            }
+            Pending::Paragraph => {
+                self.output.push_str("\n\n");
+                self.width = 0;
+            }
+        }
+    }
+
+    /// During the first pass
+    /// - don't expand tabs
+    /// - don't break long lines
+    /// - preserve linesplits
+    fn write_text(&mut self, place: Place, mut text: &str) {
+        if !self.detailed
+            && let Some((prefix, _)) = text.split_once("\n\n")
+        {
+            text = prefix;
+        }
+        for chunk in minisplit(text) {
+            match chunk {
+                Chunk::Newline => {
+                    self.width = 0;
+                    self[place].push('\n');
+                }
+                Chunk::Tab => {
+                    self.width = 0;
+                    self[place].push('\t');
+                    self.change_column(self.place, self.column.inc());
+                }
+                Chunk::Text(text) => {
+                    self[place].push_str(text);
+                    if self.column == Column::Item {
+                        self.width += word_width(text, false);
+                    }
+                }
+            }
+        }
+    }
+
+    fn help(&mut self, place: Place, help: Option<&str>) {
+        if let Some(help) = help {
+            self.change_column(place, Column::Help);
+            self[place].push_str(help);
+        }
+    }
+
+    pub(crate) fn render(mut self) -> String {
+        use std::fmt::Write as _;
+        if !self.pos.is_empty() {
+            _ = write!(&mut self.output, "{H}Available positional items:{T}\n ");
+            self.output.push_str(&self.pos);
+        }
+        if !self.sections.is_empty() {
+            self.output.push('\n');
+            self.output.push_str(&self.sections);
+            self.output.push('\n');
+        }
+
+        if !self.named.is_empty() {
+            _ = write!(&mut self.output, "{H}Available options:{T}\n ");
+            self.output.push_str(&self.named);
+        }
+
+        if !self.commands.is_empty() {
+            _ = write!(&mut self.output, "{H}Available commands:{T}\n ");
+            self.output.push_str(&self.commands);
+        }
+
+        if let Some(footer) = self.footer {
+            self.output.push('\n');
+            self.output.push_str(footer);
+        }
+
+        self.pending = Pending::Nothing;
+        self.column = Column::Text;
+
+        println!("{:?}", self.output);
+
+        let mut pen = None;
+        for c in linesplit(&std::mem::take(&mut self.output), false) {
+            println!("col: {:?}; {c:?}", self.column);
+            match c {
+                crate::console_writer::Chunk::Word { width, text } => {
+                    self.width += width;
+                    if self.width > MAX_WIDTH {
+                        self.pending = Pending::Newline;
+                    }
+                    if let Some(pad) = pen.take() {
+                        println!("{pad:?} before {text:?}");
+                        self.output.extend(std::iter::repeat_n(' ', pad));
+                    } else {
+                        self.handle_pending();
+                    }
+                    self.output.push_str(text);
+                    self.pending = Pending::Space;
+                }
+                crate::console_writer::Chunk::Tab => {
+                    self.column = self.column.inc();
+                    match self.column {
+                        Column::Text => self.pending = Pending::Newline,
+                        Column::Item => {
+                            pen = Some(4);
+                            self.pending = Pending::Space;
+                        }
+                        Column::Help => {
+                            pen = Some(self.max_tab);
+                            self.pending = Pending::Space;
+                        }
+                    }
+                }
+                crate::console_writer::Chunk::LineBreak => {
+                    self.pending = Pending::Newline;
+                }
+                crate::console_writer::Chunk::Paragraph => {
+                    self.pending = Pending::Paragraph;
+                }
+            }
+        }
+
+        crate::console_writer2::apply_style(&self.output, self.max_tab, None)
+    }
+}
+
+#[test]
+fn changing_column_works() {
+    let mut h = Help2::default();
+    h.change_column(Place::Named, Column::Item);
+    h.width = 12;
+    assert_eq!(h.named, "\t");
+    h.change_column(Place::Named, Column::Help);
+    assert_eq!(h.width, 0);
+    assert_eq!(h.max_tab, 12);
+    assert_eq!(h.named, "\t\t");
+    h.change_column(Place::Named, Column::Text);
+    assert_eq!(h.named, "\t\t\t");
+    h.change_column(Place::Named, Column::Help);
+    assert_eq!(h.named, "\t\t\t\t\t");
+}
+
+#[test]
+fn flag_equivalence() {
+    use crate::*;
+    let parser = short('a').switch().help("help");
+    let mut h1 = Help2::default();
+
+    parser.visit(&mut h1);
+
+    let mut h2 = Help2::default();
+    let t = format!("{L}-a{T}\thelp");
+    h2.item(Item::Rendered {
+        text: &t,
+        gr: Some(Gr::Named),
+    });
+    assert_eq!(h1, h2);
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum Chunk<'a> {
+    Newline,
+    Tab,
+    Text(&'a str),
+}
+
+fn minisplit(input: &str) -> impl Iterator<Item = Chunk<'_>> {
+    let mut input = input;
+
+    std::iter::from_fn(move || {
+        if input.is_empty() {
+            return None;
+        }
+
+        match input.char_indices().find(|&(_, c)| c == '\n' || c == '\t') {
+            Some((i, sep)) => {
+                if i > 0 {
+                    let text = &input[..i];
+                    input = &input[i..];
+                    Some(Chunk::Text(text))
+                } else {
+                    input = &input[1..];
+                    match sep {
+                        '\n' => Some(Chunk::Newline),
+                        '\t' => Some(Chunk::Tab),
+                        _ => unreachable!(),
+                    }
+                }
+            }
+            None => {
+                if input.is_empty() {
+                    None
+                } else {
+                    Some(Chunk::Text(std::mem::take(&mut input)))
+                }
+            }
+        }
+    })
 }

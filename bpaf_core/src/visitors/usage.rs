@@ -209,7 +209,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 inner.visit(self);
                 return;
             }
-            Item::Rendered { text } => Put::Text {
+            Item::Rendered { text, gr: _ } => Put::Text {
                 text: Cow::Borrowed(text),
             },
         };

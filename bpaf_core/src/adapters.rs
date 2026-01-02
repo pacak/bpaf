@@ -463,7 +463,7 @@ impl<T: 'static, P: Parser<T>> Visited for Bp<Fallback<T, P>> {
         if let Some(text) = self.0.value_str.as_deref()
             && matches!(visitor.identify(), crate::VKind::Help)
         {
-            visitor.item(Item::Rendered { text });
+            visitor.item(Item::Rendered { text, gr: None });
         }
         visitor.pop_group();
     }

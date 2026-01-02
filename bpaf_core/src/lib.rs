@@ -2,10 +2,12 @@ mod arg;
 mod args;
 mod complete;
 mod console_writer;
+mod console_writer2;
 mod consumers;
 mod core_consumers;
 mod error;
 mod macros;
+mod miniansi;
 mod os_str;
 mod pecking;
 mod traits;
@@ -1391,6 +1393,7 @@ impl RawCtx {
         detailed: bool,
     ) -> ParseFailure {
         let mut h = crate::visitors::help::Help::default();
+        let mut h2 = crate::visitors::help::Help2::default();
 
         let place;
         let app = &self.args.path[0]; // always have it, but sometimes it's empty
@@ -1403,21 +1406,35 @@ impl RawCtx {
             (true, Some(last)) => {
                 place = format!("{app} ... {last}");
                 h.app_name = Some(&place);
+                h2.app_name = Some(&place);
             }
             (true, None) => {
                 h.app_name = Some(app);
+                h2.app_name = Some(app);
             }
             (false, Some(last)) => {
                 place = format!("... {last}");
                 h.app_name = Some(&place);
+                h2.app_name = Some(&place);
             }
             (false, None) => {}
         }
 
         parser.visit(&mut h);
         help.visit(&mut h);
+
+        parser.visit(&mut h2);
+        help.visit(&mut h2);
+
+        let h1 = h.render(detailed);
+        let h2 = h2.render();
+        #[cfg(test)]
+        {
+            pretty_assertions::assert_eq!(h1, h2);
+        }
+
         // TODO - WIDTH, Colorscheme, custom style
-        ParseFailure::Stdout(h.render(detailed))
+        ParseFailure::Stdout(h1)
     }
 }
 

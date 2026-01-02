@@ -179,6 +179,13 @@ pub trait Visitor<'a> {
 
 #[derive(Clone, Copy)]
 pub enum Item<'a> {
+    /// Top level of the parser, should be visited just once, at the beginning of the evaluation
+    OptionParser {
+        /// Parser information - header, description, footer
+        info: &'a Info,
+        /// A way to visit the inner parser - [`Help`] visitor uses it to extract usage information
+        inner: &'a dyn Visited,
+    },
     Flag {
         named: &'a Named,
     },
@@ -214,13 +221,6 @@ pub enum Item<'a> {
         named: &'a Named,
         inner: &'a dyn Visited,
     },
-    /// Top level of the parser, should be visited just once, at the beginning of the evaluation
-    OptionParser {
-        /// Parser information - header, description, footer
-        info: &'a Info,
-        /// A way to visit the inner parser - [`Help`] visitor uses it to extract usage information
-        inner: &'a dyn Visited,
-    },
     Section {
         title: &'a str,
         descr: Option<&'a str>,
@@ -228,8 +228,16 @@ pub enum Item<'a> {
     },
     /// Already rendered fragment to be used by Usage and Help visitors and ignored by all others
     Rendered {
+        gr: Option<Gr>,
         text: &'a str,
     },
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Gr {
+    Named,
+    Pos,
+    Cmd,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
