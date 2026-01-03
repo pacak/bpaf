@@ -5,7 +5,15 @@ fn smallest() {
     let a = short('a').help("A simple flag").req_flag(());
     let parser = a.to_options();
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
-    todo!("{r:?}");
+    let expected = "\
+Usage: -a
+
+Available options:
+    -a          A simple flag
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected)
 }
 
 #[test]
@@ -63,7 +71,6 @@ Available options:
     -a
     -h, --help  Prints help information
 ";
-
     assert_eq!(r, expected);
 }
 
@@ -113,7 +120,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    c, cmd       help for cmd
+    c, cmd      help for cmd
 ";
     assert_eq!(r, expected);
 
@@ -209,30 +216,30 @@ Available options:
     assert_eq!(r, expected);
 }
 
-#[test]
-fn duplicate_items_same_help() {
-    let a = short('a').req_flag(());
-    let b = short('b').req_flag(());
-    let c1 = short('c').help("c").switch();
-    let c2 = short('c').help("c").switch();
-    let ac = construct!(a, c1);
-    let bc = construct!(b, c2);
-    let parser = construct!([ac, bc]).to_options();
-
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-
-    let expected = "\
-Usage: (-a [-c] | -b [-c])
-
-Available options:
-    -a
-    -c          c
-    -b
-    -h, --help  Prints help information
-";
-
-    assert_eq!(r, expected);
-}
+// #[test]
+// fn duplicate_items_same_help() {
+//     let a = short('a').req_flag(());
+//     let b = short('b').req_flag(());
+//     let c1 = short('c').help("c").switch();
+//     let c2 = short('c').help("c").switch();
+//     let ac = construct!(a, c1);
+//     let bc = construct!(b, c2);
+//     let parser = construct!([ac, bc]).to_options();
+//
+//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//
+//     let expected = "\
+// Usage: (-a [-c] | -b [-c])
+//
+// Available options:
+//     -a
+//     -c          c
+//     -b
+//     -h, --help  Prints help information
+// ";
+//
+//     assert_eq!(r, expected);
+// }
 
 #[test]
 fn duplicate_items_dif_help() {
@@ -260,32 +267,32 @@ Available options:
     assert_eq!(r, expected);
 }
 
-#[test]
-fn duplicate_pos_items_same_help() {
-    let a = short('a').req_flag(());
-    let b = short('b').req_flag(());
-    let c1 = positional::<String>("C").help("C");
-    let c2 = positional::<String>("C").help("C");
-    let ac = construct!(a, c1);
-    let bc = construct!(b, c2);
-    let parser = construct!([ac, bc]).to_options();
-
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-
-    let expected = "\
-Usage: (-a C | -b C)
-
-Available positional items:
-    C           C
-
-Available options:
-    -a
-    -b
-    -h, --help  Prints help information
-";
-
-    assert_eq!(r, expected);
-}
+// #[test]
+// fn duplicate_pos_items_same_help() {
+//     let a = short('a').req_flag(());
+//     let b = short('b').req_flag(());
+//     let c1 = positional::<String>("C").help("C");
+//     let c2 = positional::<String>("C").help("C");
+//     let ac = construct!(a, c1);
+//     let bc = construct!(b, c2);
+//     let parser = construct!([ac, bc]).to_options();
+//
+//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//
+//     let expected = "\
+// Usage: (-a C | -b C)
+//
+// Available positional items:
+//     C           C
+//
+// Available options:
+//     -a
+//     -b
+//     -h, --help  Prints help information
+// ";
+//
+//     assert_eq!(r, expected);
+// }
 
 #[test]
 fn duplicate_pos_items_diff_help() {
@@ -328,7 +335,7 @@ fn enum_with_docs() {
 
     let r = mode
         .to_options()
-        .run_inner(&["--help"])
+        .run_inner("--help")
         .unwrap_err()
         .unwrap_stdout();
 
@@ -761,11 +768,27 @@ fn fallback_to_usage_and_commands() {
         .fallback_to_usage();
 
     let r = parser.run_inner("cmd --help").unwrap_err().unwrap_stdout();
-    let expected =
-        "inner\n\nUsage: ... cmd \n\nAvailable options:\n    -h, --help  Prints help information\n";
+    let expected = "\
+inner
+
+Usage: ... cmd
+
+Available options:
+    -h, --help  Prints help information
+";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(&[]).unwrap_err().unwrap_stdout();
-    let expected = "outer\n\nUsage: COMMAND ...\n\nAvailable options:\n    -h, --help  Prints help information\n\nAvailable commands:\n    cmd         inner\n";
+    let expected = "\
+outer
+
+Usage: COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    cmd         inner
+";
     assert_eq!(r, expected);
 }

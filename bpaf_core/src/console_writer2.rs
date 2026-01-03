@@ -1,31 +1,32 @@
 use crate::console_writer::{MAX_WIDTH, char_width};
 
+/// Apply color scheme, split long lines and layout tab column
+/// - lines must have at most one tab
+/// - lines that start with 2 or more spaces are not wrapped
+/// - all line breaks are preserved
 pub(crate) fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String {
+    let tab = tab + 4;
     let mut out = String::new();
     for line in input.lines() {
         let mut cursor = 0;
-        if line.starts_with("  ") {
-            write_styled(0, usize::MAX, line, scheme, &mut cursor, &mut out, false);
-            out.push('\n');
-            continue;
-        }
         match line.split_once('\t') {
             Some((key, help)) => {
-                for (ix, word) in key.split_ascii_whitespace().enumerate() {
-                    write_styled(4, usize::MAX, word, scheme, &mut cursor, &mut out, ix > 0);
-                }
-                if cursor > tab {
+                write_styled(0, usize::MAX, key, scheme, &mut cursor, &mut out, false);
+                if cursor > tab && !help.is_empty() {
                     out.push_str("  ");
                 }
-
                 for (ix, word) in help.split_ascii_whitespace().enumerate() {
                     write_styled(tab, MAX_WIDTH, word, scheme, &mut cursor, &mut out, ix > 0);
                 }
             }
 
             None => {
-                for (ix, word) in line.split_ascii_whitespace().enumerate() {
-                    write_styled(0, MAX_WIDTH, word, scheme, &mut cursor, &mut out, ix > 0);
+                if line.starts_with("  ") {
+                    write_styled(0, usize::MAX, line, scheme, &mut cursor, &mut out, false);
+                } else {
+                    for (ix, word) in line.split_ascii_whitespace().enumerate() {
+                        write_styled(0, MAX_WIDTH, word, scheme, &mut cursor, &mut out, ix > 0);
+                    }
                 }
             }
         }
@@ -42,23 +43,19 @@ pub fn write_styled(
     scheme: Option<&Colorscheme>,
     cursor: &mut usize,
     output: &mut String,
-    pending_sep: bool,
+    mut pending_sep: bool,
 ) {
     use crate::miniansi::Frag;
 
-    println!("Start with {cursor}");
     if let Some(missing) = start.checked_sub(*cursor) {
         output.extend(std::iter::repeat_n(' ', missing));
         *cursor = start;
     }
 
     for item in crate::miniansi::split(from) {
-        match dbg!(item) {
+        match item {
             Frag::Str(s) => {
-                if pending_sep {
-                    *cursor += 1;
-                }
-                *cursor += char_width(s);
+                *cursor += char_width(s) + pending_sep as usize;
                 if *cursor > end {
                     output.push('\n');
                     *cursor = start;
@@ -68,6 +65,7 @@ pub fn write_styled(
                 } else if pending_sep {
                     output.push(' ');
                 }
+                pending_sep = false;
                 output.push_str(s);
             }
 
@@ -202,10 +200,10 @@ pub enum Style {
 #[test]
 fn render_simple() {
     let r = apply_style("a\tb", 10, None);
-    assert_eq!(r, "    a     b\n");
+    assert_eq!(r, "a             b\n");
 
     let r = apply_style("a\n\tb", 6, None);
-    assert_eq!(r, "a\n      b\n");
+    assert_eq!(r, "a\n          b\n");
 
     let r = apply_style("a b c d", 3, None);
     assert_eq!(r, "a b c d\n");

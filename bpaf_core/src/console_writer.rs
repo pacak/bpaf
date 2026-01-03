@@ -1,12 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{
-    Metavar,
-    visitors::{
-        ShortLong,
-        help::{HelpItem, Section},
-    },
-};
+use crate::{Metavar, visitors::ShortLong};
 
 #[derive(Debug)]
 pub(crate) struct ConWriter {
@@ -47,7 +41,7 @@ impl ConWriter {
     }
 
     pub(crate) fn word(&mut self, word: &str, width: Option<usize>) {
-        let width = width.unwrap_or_else(|| word_width(word, true));
+        let width = width.unwrap_or_else(|| word_width(word));
         self.cursor += width;
         if !self.no_wrap && self.cursor > MAX_WIDTH {
             self.cursor = 0;
@@ -93,7 +87,6 @@ pub(crate) struct LineSplit<'a> {
     cur_line: &'a str,
     mode: Mode,
     rest: &'a str,
-    mono: bool,
 }
 
 #[derive(Debug)]
@@ -104,12 +97,11 @@ enum Mode {
     Parse,
 }
 
-pub(crate) fn linesplit<'a>(input: &'a str, mono: bool) -> LineSplit<'a> {
+pub(crate) fn linesplit<'a>(input: &'a str) -> LineSplit<'a> {
     LineSplit {
         cur_line: "",
         mode: Mode::NextLine,
         rest: input,
-        mono,
     }
 }
 
@@ -144,7 +136,7 @@ impl<'a> Iterator for LineSplit<'a> {
                 }
                 Mode::TakeRest => {
                     self.mode = Mode::NextLine;
-                    return Some(word(self.cur_line, self.mono));
+                    return Some(word(self.cur_line));
                 }
                 Mode::Parse => {
                     if let Some(rest) = self.cur_line.strip_prefix('\t') {
@@ -162,11 +154,11 @@ impl<'a> Iterator for LineSplit<'a> {
                             Some(mid) => {
                                 let (this, rest) = self.cur_line.split_at(mid);
                                 self.cur_line = rest;
-                                return Some(word(this, self.mono));
+                                return Some(word(this));
                             }
                             None => {
                                 self.mode = Mode::NextLine;
-                                return Some(word(self.cur_line, self.mono));
+                                return Some(word(self.cur_line));
                             }
                         }
                     }
@@ -178,8 +170,7 @@ impl<'a> Iterator for LineSplit<'a> {
 
 /// Calculate width in visible characters, ignores `"\{1b}[Dm"` where D is a single digit
 #[inline(never)]
-pub(crate) fn word_width(text: &str, mono: bool) -> usize {
-    let fixup = if mono { 2 } else { 0 };
+pub(crate) fn word_width(text: &str) -> usize {
     #[derive(Copy, Clone)]
     enum Goal {
         Esc,
@@ -195,14 +186,7 @@ pub(crate) fn word_width(text: &str, mono: bool) -> usize {
         looking_for = match (c, looking_for) {
             ('\u{1B}', Goal::Esc) => Goal::Bracket,
             ('[', Goal::Bracket) => Goal::Digit,
-            (d, Goal::Digit) if d.is_ascii_digit() => {
-                // account for wrapping valid and invalid inputs in `` in monochrome mode
-                // Assumption: fragment contains both - opening and closing valid/invalid tags
-                if d == '6' || d == '9' {
-                    width += fixup;
-                }
-                Goal::M
-            }
+            (d, Goal::Digit) if d.is_ascii_digit() => Goal::M,
             ('m', Goal::M) => {
                 width -= 4;
                 Goal::Esc
@@ -213,9 +197,9 @@ pub(crate) fn word_width(text: &str, mono: bool) -> usize {
     width
 }
 
-fn word(text: &str, mono: bool) -> Chunk<'_> {
+fn word(text: &str) -> Chunk<'_> {
     Chunk::Word {
-        width: word_width(text, mono),
+        width: word_width(text),
         text,
     }
 }
@@ -372,160 +356,6 @@ impl ConsoleWriter {
         }
     }
 
-    pub(crate) fn write_section(&mut self, section: Section) {
-        if section.items.is_empty() {
-            return;
-        }
-        use std::fmt::Write as _;
-        const H: &str = Style::Header.ansi();
-        const T: &str = Style::Text.ansi();
-        self.pending = Pending::Paragraph;
-        self.handle_pending();
-        _ = write!(&mut self.output, "{H}{}{T}", section.header);
-        self.cursor = char_width(section.header);
-        self.pending = Pending::Newline;
-        if let Some(descr) = section.descr {
-            self.write_text(descr);
-            self.pending = self.pending.max(Pending::Newline);
-        }
-        self.pending = Pending::Newline;
-
-        let mut set = std::collections::HashSet::new();
-        for item in section.items.iter() {
-            if set.insert(item) {
-                self.write_item(item);
-            }
-        }
-    }
-
-    pub(crate) fn write_atom(&mut self, atom: &Atom) {
-        use std::fmt::Write as _;
-        println!("{:?}", self.tabstop);
-        match atom {
-            Atom::NextHelpItem => {
-                self.pending = self.pending.max(Pending::Newline);
-            }
-            Atom::Name(name) => {
-                self.handle_pending();
-                _ = write!(&mut self.output, "{name:#}");
-                self.cursor += name.width() + 4;
-            }
-            Atom::Meta(meta) => {
-                self.handle_pending();
-                _ = write!(&mut self.output, "{meta}");
-                self.cursor += meta.width();
-            }
-            Atom::Space => self.pending = Pending::Space,
-            Atom::TabState(new) => match (self.after_tab, new) {
-                (true, true) => todo!(),
-                (true, false) => todo!(),
-                (false, true) => {
-                    self.pending = self.tabstop();
-                }
-                (false, false) => todo!(),
-            },
-            Atom::Text { text, split } => {
-                self.handle_pending();
-                if *split {
-                    self.write_text(text);
-                } else {
-                    self.output.push_str(text);
-                    self.cursor += word_width(text, self.mono);
-                }
-            }
-        }
-    }
-
-    pub(crate) fn write_item(&mut self, item: &HelpItem) {
-        use std::fmt::Write as _;
-        const L: &str = Style::Literal.ansi();
-        const T: &str = Style::Text.ansi();
-        const M: &str = Style::Metavar.ansi();
-        match item {
-            HelpItem::Named { name, meta, help } => {
-                self.pending = self.pending.max(Pending::Newline);
-                self.handle_pending();
-                _ = write!(&mut self.output, "{name:#}");
-                self.cursor = 4 + name.width();
-
-                if let Some(meta) = meta {
-                    self.cursor += 1 + meta.width();
-                    _ = write!(&mut self.output, "={M}{meta}{T}");
-                }
-                self.after_tab = false;
-                if let Some(help) = help {
-                    self.nobreak = true;
-                    self.pending = self.tabstop();
-                    self.write_text(help);
-                }
-            }
-            HelpItem::Pos { meta, help } => {
-                self.handle_pending();
-
-                self.cursor += 4 + meta.width();
-                _ = write!(&mut self.output, "    {M}{meta}{T}");
-                if let Some(help) = help {
-                    self.pending = self.tabstop();
-                    self.write_text(help);
-                }
-            }
-            HelpItem::Cmd { name, help } => {
-                self.handle_pending();
-                _ = match name.0 {
-                    ShortLong::Short(s) => {
-                        self.cursor += 5;
-                        write!(&mut self.output, "    {L}{s}{T}")
-                    }
-                    ShortLong::Long(l) => {
-                        self.cursor += 4 + char_width(l);
-                        write!(&mut self.output, "    {L}{l}{T}")
-                    }
-                    ShortLong::Both(s, l) => {
-                        self.cursor += 6 + char_width(l);
-                        write!(&mut self.output, "    {L}{s}{T}, {L}{l}{T}")
-                    }
-                };
-
-                if let Some(help) = help {
-                    self.pending = self.tabstop();
-                    self.write_text(help);
-                }
-            }
-            HelpItem::Text {
-                text,
-                lpad,
-                tabstop,
-                after_tab,
-            } => {
-                self.handle_pending();
-                self.write_text(&text);
-                // todo!("{text:?} {lpad:?} {tabstop:?}")
-            }
-            HelpItem::Header { text } => {
-                self.pending = Pending::Paragraph;
-                self.handle_pending();
-                self.pending = Pending::Nothing;
-
-                self.output.push_str(Style::Header.ansi());
-
-                self.write_text(text);
-                self.output.push_str(Style::Text.ansi());
-                self.pending = Pending::Newline;
-            }
-            HelpItem::Blank => {
-                self.pending = Pending::Paragraph;
-                self.after_tab = false;
-            }
-            HelpItem::Atom(atoms) => {
-                for atom in atoms {
-                    self.write_atom(atom);
-                }
-            }
-        }
-        self.after_tab = false;
-        self.pending = Pending::Newline;
-    }
-
     pub(crate) fn newline(&mut self) {
         self.pending = Pending::Newline;
     }
@@ -584,7 +414,7 @@ impl ConsoleWriter {
         {
             text = prefix;
         }
-        for chunk in linesplit(text, self.mono) {
+        for chunk in linesplit(text) {
             self.pending = match chunk {
                 Chunk::Word { width, text } => {
                     if width + 1 + self.cursor > MAX_WIDTH
