@@ -1841,15 +1841,6 @@ impl std::fmt::Display for Lit<'_> {
     }
 }
 
-fn to_lit(name: &str) -> Lit<'_> {
-    let mut i = name.chars();
-
-    Lit(match (i.next(), i.next()) {
-        (Some(s), None) => Name::Short(s),
-        _ => Name::Long(Cow::Borrowed(name)),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     mod complete;

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ffi::OsString, rc::Rc};
+use std::{ffi::OsString, rc::Rc};
 
 use crate::{Error, Lit, Metavar, Name, Named, ParseFailure, utils::Vec1};
 impl From<CompleteReply> for Error {
@@ -29,10 +29,12 @@ pub(crate) fn complete_command(names: &[Lit], err: Error) -> Error {
     Error::CompReply(Vec1::default())
 }
 
+pub(crate) type StringCompleter = Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>;
+
 pub(crate) fn complete_value(
     err: Error,
     group: Option<&str>,
-    completer: &Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
+    completer: &StringCompleter,
 ) -> Error {
     let Error::CompReq(ref comp) = err else {
         return err;
@@ -94,8 +96,12 @@ impl Named {
             CompleteReq::Literal { .. } | CompleteReq::Value(..) => return err,
         };
         if let Some(name) = name.cloned() {
-            let help = self.help.clone();
-            CompleteReply::Named { name, meta, help }.into()
+            CompleteReply::Named {
+                name,
+                meta,
+                help: self.help,
+            }
+            .into()
         } else {
             Error::Silent("Tried to complete name, no matches")
         }
@@ -162,9 +168,11 @@ pub(crate) fn render_completions_int(
                 Some(m) => writeln!(&mut out, "{name} {m:?} ({help:?})")?,
                 None => writeln!(&mut out, "{name} ({help:?})")?,
             },
-            CompleteReply::Value { value, group, hint } => {
-                writeln!(&mut out, "{value} ({hint:?})")?
-            }
+            CompleteReply::Value {
+                value,
+                group: _,
+                hint,
+            } => writeln!(&mut out, "{value} ({hint:?})")?,
             CompleteReply::Command { name, help } => writeln!(&mut out, "{name} ({help:?})")?,
             CompleteReply::Pos { meta } => write!(&mut out, "{meta:?}")?, // TODO
         }

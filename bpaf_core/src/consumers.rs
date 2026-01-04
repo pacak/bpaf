@@ -2,7 +2,7 @@ use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
     adapters::PureWith,
-    complete::{CompleteReply, complete_command, complete_value},
+    complete::{CompleteReply, StringCompleter, complete_command, complete_value},
     error::MissingItem,
     os_str::parse_os_str,
 };
@@ -27,15 +27,6 @@ impl Named {
             }
         }
         (short, long)
-    }
-
-    /// Get [`Name`] with a preference to short
-    pub(crate) fn name_short_or_long(&self) -> Option<Name<'static>> {
-        match self.get_short_and_long() {
-            (None, None) => None,
-            (None, Some(l)) => Some(Name::Long(l.clone())),
-            (Some(s), _) => Some(Name::Short(s)),
-        }
     }
 
     /// Get [`Name`] with a preference to long
@@ -426,7 +417,7 @@ pub struct WithComplete<T, P> {
     ctx: PhantomData<T>,
     inner: Bp<P>,
     group: Option<String>,
-    completer: Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>,
+    completer: StringCompleter,
 }
 
 impl<T, I> Bp<WithComplete<T, I>> {
@@ -511,7 +502,7 @@ impl<T> Visited for Bp<Positional<T>> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Positional {
             meta: self.0.metavar,
-            help: self.0.help.as_deref(),
+            help: self.0.help,
         };
         visitor.item(item);
     }
