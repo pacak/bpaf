@@ -5,6 +5,7 @@ mod complete;
 mod console_writer;
 mod consumers;
 mod core_consumers;
+mod ctx;
 mod error;
 mod macros;
 mod miniansi;
@@ -235,45 +236,6 @@ impl std::ops::Add for Error {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-struct Scope {
-    start: Id,
-    end: Id,
-}
-
-impl Scope {
-    const ALL: Scope = Scope {
-        start: Id(0),
-        end: Id(u32::MAX),
-    };
-    fn contains(&self, id: Id) -> bool {
-        self.start <= id && id < self.end
-    }
-}
-
-#[derive(Debug)]
-enum Op {
-    Spawn(Task),
-    RegisterSum {
-        id: Id,
-        scope: Scope,
-    },
-    DeregisterSum {
-        id: Id,
-    },
-    KillScope {
-        cursor: u32,
-        scope: Scope,
-        reason: KillReason,
-    },
-    Trigger {
-        change: TChange,
-        target: TTarget,
-        parent: Parent,
-        id: Id,
-    },
-}
-
 #[derive(Debug, Copy, Clone)]
 enum TChange {
     Add,
@@ -419,40 +381,7 @@ impl Id {
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Id(u32);
 
-pub type Fragment<T> = Pin<Box<dyn Future<Output = Result<T, Error>>>>;
-
-pub struct RawCtx {
-    /// Scheduled ops
-    ///
-    /// Holds other operations that might need access to tasks or other internal structures
-    pending_ops: RefCell<VecDeque<Op>>,
-    /// Early exit ranges
-    ///
-    /// When there's no matching triggers executor will try to terminate anything inside of
-    /// the each pair. This allows is necessary for things like `.optional()` and `.many()` to work
-    early_exit: RefCell<BTreeSet<Scope>>,
-    /// Next free Id
-    ///
-    /// Tasks can use it to allocate `Id`s for children tasks including overriding
-    next_free: Cell<u32>,
-    args: Args,
-    cursor: Cell<usize>,
-    /// When task is woken up this contains a reason for it
-    wakeup_reason: RefCell<Reason>,
-    /// Reference to [`TaskInfo`] for the current task
-    ///
-    /// Executor sets it to the right value when polling a task
-    current_task: RefCell<TaskInfo>,
-    /// We keep track of all the early terminated branches, saving each termination along with
-    /// the position - from that we'll deduce conflict info
-    conflicts: RefCell<Vec<Conflict>>,
-
-    /// Treat the rest of the items as strictly positional - we'll set it if we ever encounter a
-    /// bare `--` during parsing
-    strict_pos: Cell<bool>,
-}
-pub type Ctx = Rc<RawCtx>;
-
+pub use ctx::*;
 #[derive(Debug)]
 /// "we could have been consume `name`, but we consumed whatever was at `pos` instead"
 enum Conflict {
