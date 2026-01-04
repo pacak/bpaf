@@ -69,9 +69,9 @@ impl Usage<'_> {
                 ) => {
                     match group {
                         VisitGroup::Many => {
-                            // TODO - this is not possible, many will be always sitting in a
+                            // - this is not possible, many will be always sitting in a
                             // product...
-                            debug_assert!(*children <= 1);
+                            debug_assert!(*children <= 1, "Many should be a product");
                         }
                         VisitGroup::Optional => {
                             if !optional {
