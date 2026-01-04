@@ -1,5 +1,5 @@
-#![allow(private_interfaces)]
-use std::{borrow::Cow, ffi::OsString};
+#![allow(private_interfaces)] // Name is private at the moment
+use std::ffi::OsString;
 
 use crate::{
     Lit, Metavar, Name,

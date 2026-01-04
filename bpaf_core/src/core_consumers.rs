@@ -51,7 +51,10 @@ impl RawCtx {
     pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
         Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
             Arg::Named { .. } => unreachable!(),
-            Arg::Pos { value, name: _ } => {
+            Arg::Pos {
+                value,
+                value_as_name: _,
+            } => {
                 self.consume(1);
                 value.into_owned()
             }
@@ -81,7 +84,7 @@ impl RawCtx {
         Ok(match res {
             Some(Arg::Pos {
                 value: _,
-                name: Some(name),
+                value_as_name: Some(name),
             }) => Some(name.clone().into_owned()),
             _ => None,
         })
@@ -123,7 +126,10 @@ impl RawCtx {
                             value: Some(next.clone()),
                         },
                     )),
-                    Arg::Pos { value, name: _ } => {
+                    Arg::Pos {
+                        value,
+                        value_as_name: _,
+                    } => {
                         self.consume(2);
                         if self.args.complete && cursor + 1 == self.args.len() {
                             let req = match value.to_str() {
@@ -182,7 +188,10 @@ impl RawCtx {
                     Ok(true)
                 }
             },
-            Arg::Pos { name: _, value: _ } => unreachable!(),
+            Arg::Pos {
+                value_as_name: _,
+                value: _,
+            } => unreachable!(),
         }
     }
 

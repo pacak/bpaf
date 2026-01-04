@@ -217,15 +217,15 @@ impl Visitor<'_> for IsDDash {
         };
 
         for name in &named.names {
-            if let Name::Long(actual) = name {
-                if actual == &self.name {
-                    self.exists = true;
-                }
+            if let Name::Long(actual) = name
+                && actual == &self.name
+            {
+                self.exists = true;
             }
         }
     }
 
-    fn push_group(&mut self, group: VisitGroup) {}
+    fn push_group(&mut self, _: VisitGroup) {}
 
     fn pop_group(&mut self) {}
 

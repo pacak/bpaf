@@ -28,7 +28,7 @@ pub enum Arg<'a> {
     },
     /// Positional item
     Pos {
-        name: Option<Lit<'a>>,
+        value_as_name: Option<Lit<'a>>,
         value: Cow<'a, OsStr>,
     },
 }
@@ -46,7 +46,7 @@ pub(crate) fn as_name<'a>(val: &'a OsStr) -> Option<Lit<'a>> {
 impl<'a> Arg<'a> {
     fn pos(value: &'a OsStr) -> Self {
         Arg::Pos {
-            name: as_name(value),
+            value_as_name: as_name(value),
             value: Cow::Borrowed(value),
         }
     }
@@ -59,8 +59,11 @@ impl Arg<'_> {
                 name: name.into_owned(),
                 value: value.map(|(adj, val)| (adj, Cow::Owned(val.into_owned()))),
             },
-            Arg::Pos { name, value } => Arg::Pos {
-                name: name.map(|n| n.into_owned()),
+            Arg::Pos {
+                value_as_name: name,
+                value,
+            } => Arg::Pos {
+                value_as_name: name.map(|n| n.into_owned()),
                 value: Cow::Owned(value.into_owned()),
             },
         }
@@ -94,7 +97,10 @@ impl Arg<'_> {
                     None => res,
                 }
             }
-            Arg::Pos { name: _, value } => {
+            Arg::Pos {
+                value_as_name: _,
+                value,
+            } => {
                 let os: &OsStr = value.as_ref();
                 os.to_owned()
             }

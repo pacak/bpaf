@@ -1039,7 +1039,7 @@ impl Executor {
             }
             Arg::Pos {
                 value,
-                name: unexpected_name,
+                value_as_name: unexpected_name,
             } => {
                 // is it a conflict?
                 for conflict in self.ctx.conflicts.borrow().iter() {
@@ -1113,7 +1113,7 @@ impl Executor {
         let arg = if self.ctx.strict_pos.get() {
             Arg::Pos {
                 value: Cow::Borrowed(front),
-                name: None,
+                value_as_name: None,
             }
         } else {
             lex_os_arg(front)
@@ -1381,6 +1381,7 @@ mod tracker_tests {
 
 use pecking::PeckingOrder;
 
+type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
 #[derive(Default)]
 struct Triggers {
     // `-f`, `--foo`
@@ -1390,7 +1391,7 @@ struct Triggers {
     // `foo`
     pos: PeckingOrder,
     // `-1`
-    checks: BTreeMap<Id, (Parent, Rc<dyn Fn(&OsStr) -> bool>)>,
+    checks: BTreeMap<Id, (Parent, DynamicOsStrCheck)>,
     active_checks: PeckingOrder,
     // `a`, `alpha`
     literal: HashMap<Lit<'static>, PeckingOrder>,
@@ -1593,7 +1594,10 @@ impl<'a> Mixer<'a> {
                 };
                 (req, None)
             }
-            Arg::Pos { value, name } => {
+            Arg::Pos {
+                value,
+                value_as_name: _,
+            } => {
                 let Some(value) = value.to_str() else {
                     todo!("Completing non-utf?");
                 };
@@ -1700,7 +1704,10 @@ impl<'a> Mixer<'a> {
                     self.pecking_push(triggers.flags.get(name));
                 }
             }
-            Arg::Pos { value: _, name } => {
+            Arg::Pos {
+                value: _,
+                value_as_name: name,
+            } => {
                 if let Some(name) = name
                     && !strict_pos
                 {
@@ -1836,7 +1843,7 @@ impl From<String> for Name<'static> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-struct Lit<'a>(Name<'a>);
+pub struct Lit<'a>(Name<'a>);
 impl Lit<'_> {
     fn into_owned(self) -> Lit<'static> {
         Lit(match self.0 {

@@ -73,9 +73,9 @@ impl Named {
     fn get_shortlong<'a>(&'a self) -> Option<ShortLong<'a>> {
         match self.get_short_and_long() {
             (None, None) => None,
-            (None, Some(l)) => Some(ShortLong::Long(&l)),
+            (None, Some(l)) => Some(ShortLong::Long(l)),
             (Some(s), None) => Some(ShortLong::Short(s)),
-            (Some(s), Some(l)) => Some(ShortLong::Both(s, &l)),
+            (Some(s), Some(l)) => Some(ShortLong::Both(s, l)),
         }
     }
 }
