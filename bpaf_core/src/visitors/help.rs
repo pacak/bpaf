@@ -108,7 +108,7 @@ enum Place {
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Debug, Default)]
-pub struct Help2<'a> {
+pub struct Help<'a> {
     pub(crate) app_name: Option<&'a str>,
     place: Place,
     footer: Option<&'a str>,
@@ -126,12 +126,12 @@ pub struct Help2<'a> {
     /// Maximum seen tab slice (under the limit)
     max_tab: usize,
 
-    detailed: bool,
+    pub(crate) detailed: bool,
 
     output: String,
 }
 
-impl std::ops::Index<Place> for Help2<'_> {
+impl std::ops::Index<Place> for Help<'_> {
     type Output = String;
     fn index(&self, index: Place) -> &Self::Output {
         match index {
@@ -144,7 +144,7 @@ impl std::ops::Index<Place> for Help2<'_> {
     }
 }
 
-impl std::ops::IndexMut<Place> for Help2<'_> {
+impl std::ops::IndexMut<Place> for Help<'_> {
     fn index_mut(&mut self, index: Place) -> &mut Self::Output {
         match index {
             Place::Named => &mut self.named,
@@ -186,7 +186,7 @@ fn splitta(input: &str) -> impl Iterator<Item = Chunkk<'_>> {
     })
 }
 
-impl<'a> Visitor<'a> for Help2<'a> {
+impl<'a> Visitor<'a> for Help<'a> {
     fn item(&mut self, item: Item<'a>) {
         use std::fmt::Write as _;
 
@@ -350,7 +350,7 @@ impl From<Gr> for Place {
     }
 }
 
-impl Help2<'_> {
+impl Help<'_> {
     /// Check if tab width needs to be updated to account for `width`
     ///
     /// Width must be of the name/meta itself with no outer padding added.
@@ -456,11 +456,11 @@ impl Help2<'_> {
 fn flag_equivalence() {
     use crate::*;
     let parser = short('a').switch().help("help");
-    let mut h1 = Help2::default();
+    let mut h1 = Help::default();
 
     parser.visit(&mut h1);
 
-    let mut h2 = Help2::default();
+    let mut h2 = Help::default();
     let t = format!("    {L}-a{T}\thelp");
     h2.item(Item::Rendered {
         text: &t,
