@@ -284,10 +284,10 @@ fn some_pos_with_invalid_flag() {
     let b = positional::<usize>("B").some("Want B");
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(&["-c", "12"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner("-c 12").unwrap_err().unwrap_stderr();
     assert_eq!(r, "`-c` is not expected in this context");
 
-    let r = parser.run_inner(&["12", "-c"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner("12 -c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "`-c` is not expected in this context");
 }
 
@@ -313,10 +313,7 @@ fn pos_with_invalid_arg() {
 #[test]
 fn strictly_positional_help() {
     let parser = long("hhhh").switch().to_options();
-    let r = parser
-        .run_inner(&["--", "--help"])
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = parser.run_inner("-- --help").unwrap_err().unwrap_stderr();
     assert_eq!(r, "`--help` is not expected in this context");
 }
 
@@ -336,7 +333,7 @@ fn guard_on_fallback() {
         .fallback(10)
         .guard(|a| *a < 10, "too big")
         .to_options();
-    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "too big");
 }
 
@@ -388,10 +385,10 @@ fn ambiguity() {
     let parser = construct!([a0, a1]).to_options();
 
     // argument parser wins since it consumes everything at once
-    let r = parser.run_inner(&["-aaaaaa"]).unwrap();
+    let r = parser.run_inner("-aaaaaa").unwrap();
     assert_eq!(r, A::W("aaaaa".into()));
 
-    let r = parser.run_inner(&["-b"]).unwrap_err().unwrap_stderr();
+    let r = parser.run_inner("-b").unwrap_err().unwrap_stderr();
     // single char typos are too random
     assert_eq!(r, "`-b` is not expected in this context");
 }
@@ -551,19 +548,13 @@ fn double_dash_with_optional_positional() {
 fn suggest_typo_fix() {
     let p = long("flag").switch().to_options();
 
-    let r = p.run_inner(&["--fla"]).unwrap_err().unwrap_stderr();
+    let r = p.run_inner("--fla").unwrap_err().unwrap_stderr();
     assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
-    let r = p
-        .run_inner(&["--fla", "--fla"])
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = p.run_inner("--fla --fla").unwrap_err().unwrap_stderr();
     assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?");
 
-    let r = p
-        .run_inner(&["--flag", "--flag"])
-        .unwrap_err()
-        .unwrap_stderr();
+    let r = p.run_inner("--flag --flag").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
         "argument `--flag` cannot be used multiple times in this context"
@@ -655,23 +646,43 @@ fn big_conflict() {
 }
 
 #[test]
-fn conflict_flag_pos_and_command() {
+fn conflict_flag_pos() {
     let a = short('a').flag(1, 0);
     let b = positional::<usize>("B");
-    let c = pure(42).to_options().command("second").lazy();
-    let parser = construct!([a, b, c]).to_options();
+    let parser = construct!([a, b]).to_options();
 
-    let r = parser.run_inner("second -a").unwrap_err().unwrap_stderr();
-    let expected = "`-a` cannot be used at the same time as `second`";
-    assert_eq!(r, expected);
+    let r = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`42` cannot be used at the same time as `-a`");
 
-    let r = parser.run_inner("23 -a").unwrap_err().unwrap_stderr();
-    let expected = "`-a` cannot be used at the same time as `23`";
-    assert_eq!(r, expected);
+    let r = parser.run_inner("42 -a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-a` cannot be used at the same time as `42`");
+}
 
-    let r = parser.run_inner("-a 23").unwrap_err().unwrap_stderr();
-    let expected = "`23` cannot be used at the same time as `-a`";
-    assert_eq!(r, expected);
+#[test]
+fn conflict_flag_command() {
+    let a = short('a').flag(1, 0);
+    let b = pure(42).to_options().command("42").lazy();
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("42 -a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`-a` cannot be used at the same time as `42`");
+
+    let r = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`42` cannot be used at the same time as `-a`");
+}
+
+#[test]
+fn conflict_pos_command() {
+    let a = pure(42).to_options().command("42").lazy();
+    let b = positional::<usize>("B");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("32 42").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`42` cannot be used at the same time as `32`");
+
+    // 42 is both a valid positional and a valid command name, so both succeed
+    let r = parser.run_inner("42 32").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`32` is not expected in this context");
 }
 
 #[test]

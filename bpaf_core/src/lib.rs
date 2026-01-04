@@ -1037,14 +1037,36 @@ impl Executor {
                     return problem;
                 }
             }
-            Arg::Pos { value, name: _ } => {
+            Arg::Pos {
+                value,
+                name: unexpected_name,
+            } => {
                 // is it a conflict?
                 for conflict in self.ctx.conflicts.borrow().iter() {
-                    if let Conflict::Pos { pos } = conflict {
-                        return Problem::ConflictPos {
-                            accepted: self.ctx.args[*pos as usize].clone(),
-                            unexpected: value.into_owned(),
-                        };
+                    match conflict {
+                        Conflict::Named { .. } => {}
+                        Conflict::Lit {
+                            pos,
+                            name: conflicted_name,
+                        } => {
+                            if unexpected_name.is_some_and(|n| &n == conflicted_name) {
+                                return Problem::ConflictPos {
+                                    accepted: self.ctx.args[*pos as usize].clone(),
+                                    unexpected: value.into_owned(),
+                                };
+                            }
+
+                            return Problem::ConflictPos {
+                                accepted: self.ctx.args[*pos as usize].clone(),
+                                unexpected: value.into_owned(),
+                            };
+                        }
+                        Conflict::Pos { pos } => {
+                            return Problem::ConflictPos {
+                                accepted: self.ctx.args[*pos as usize].clone(),
+                                unexpected: value.into_owned(),
+                            };
+                        }
                     }
                 }
 

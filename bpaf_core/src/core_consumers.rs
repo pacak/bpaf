@@ -8,13 +8,15 @@
 
 use crate::*;
 
-fn to_conflict(t: TTarget, pos: u32) -> Option<Conflict> {
-    match t {
-        TTarget::Arg(name) | TTarget::Flag(name) => Some(Conflict::Named { pos, name }),
-        TTarget::Pos => Some(Conflict::Pos { pos }),
-        TTarget::Check(_) => None, // TODO ... technically I can store check inside of here and
-        // invoke it later..
-        TTarget::Literal(name) => Some(Conflict::Lit { pos, name }),
+impl TTarget {
+    fn into_conflict(self, pos: u32) -> Option<Conflict> {
+        match self {
+            TTarget::Arg(name) | TTarget::Flag(name) => Some(Conflict::Named { pos, name }),
+            TTarget::Pos => Some(Conflict::Pos { pos }),
+            TTarget::Check(_) => None, // TODO ... technically I can store check inside of here and
+            // invoke it later..
+            TTarget::Literal(name) => Some(Conflict::Lit { pos, name }),
+        }
     }
 }
 
@@ -194,7 +196,7 @@ impl RawCtx {
         let pos = self.cursor.get() as u32;
         self.conflicts
             .borrow_mut()
-            .extend(items.into_iter().filter_map(|t| to_conflict(t, pos)));
+            .extend(items.into_iter().filter_map(|t| t.into_conflict(pos)));
     }
 
     fn reason_to_arg(
