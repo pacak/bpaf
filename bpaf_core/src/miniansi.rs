@@ -1,4 +1,4 @@
-use crate::console_writer2::Style;
+use crate::console_writer::Style;
 
 pub(crate) fn split(input: &str) -> impl Iterator<Item = Frag<'_>> {
     SplitByCode { input }

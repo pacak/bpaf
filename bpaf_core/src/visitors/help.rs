@@ -20,19 +20,13 @@
 //! - for roff/
 
 const T: &str = Style::Text.ansi();
-const M: &str = Style::Metavar.ansi();
 const L: &str = Style::Literal.ansi();
 const H: &str = Style::Header.ansi();
 
-use std::borrow::Cow;
-
 use super::ShortLong;
 use crate::{
-    Item, Metavar, Named, VKind,
-    adapters::Info,
-    console_writer::{
-        Atom, Colorscheme, ConsoleWriter, MAX_TAB, Pending, Style, char_width, word_width,
-    },
+    Item, VKind,
+    console_writer::{MAX_TAB, Style, char_width},
     traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
@@ -129,17 +123,12 @@ pub struct Help2<'a> {
     named: String,
     pos: String,
     commands: String,
-    /// Width of the current tab slice
-    width: usize,
     /// Maximum seen tab slice (under the limit)
     max_tab: usize,
 
     detailed: bool,
 
     output: String,
-    pending: Pending,
-
-    column_dirty: bool,
 }
 
 impl std::ops::Index<Place> for Help2<'_> {
@@ -267,7 +256,11 @@ impl<'a> Visitor<'a> for Help2<'a> {
                 self.track_tab(meta.width());
                 self.help(place, help);
             }
-            Item::Command { names, info, inner } => {
+            Item::Command {
+                names,
+                info,
+                inner: _,
+            } => {
                 let name = lit_name(names);
                 let help = info.descr;
                 _ = write!(&mut self[place], "{name:#}");
@@ -363,7 +356,6 @@ impl Help2<'_> {
     /// Width must be of the name/meta itself with no outer padding added.
     /// It can include inner spaces for nested usage, etc.
     fn track_tab(&mut self, width: usize) {
-        let prev = self.max_tab;
         if width <= MAX_TAB {
             self.max_tab = self.max_tab.max(width);
         }
@@ -428,7 +420,6 @@ impl Help2<'_> {
     }
 
     pub(crate) fn render(mut self) -> String {
-        println!("{:?}", self.output);
         use std::fmt::Write as _;
         if !self.pos.is_empty() {
             self.output.push('\n');
@@ -457,9 +448,7 @@ impl Help2<'_> {
             self.output.push_str(footer);
         }
 
-        self.pending = Pending::Nothing;
-
-        crate::console_writer2::apply_style(&self.output, self.max_tab + 2, None)
+        crate::console_writer::apply_style(&self.output, self.max_tab + 2, None)
     }
 }
 

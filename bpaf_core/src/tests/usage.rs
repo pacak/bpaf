@@ -1,7 +1,5 @@
 use crate::{
-    Parser, Visited,
-    console_writer::{Colorscheme, apply_style},
-    construct, long, positional, pure, short,
+    Parser, Visited, console_writer::apply_style, construct, long, positional, pure, short,
     visitors::usage::Usage,
 };
 
@@ -11,7 +9,9 @@ fn usage(visited: &impl Visited) -> String {
     let mut out = String::new();
     u.render_to(&mut out);
 
-    apply_style(&out, &Colorscheme::DULL, true)
+    let mut s = apply_style(&out, 100, None);
+    s.pop();
+    s
 }
 
 #[test]

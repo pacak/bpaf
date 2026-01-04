@@ -1,8 +1,8 @@
+mod adapters;
 mod arg;
 mod args;
 mod complete;
 mod console_writer;
-mod console_writer2;
 mod consumers;
 mod core_consumers;
 mod error;
@@ -1866,7 +1866,6 @@ fn to_lit(name: &str) -> Lit<'_> {
 #[cfg(test)]
 mod tests {
     mod complete;
-    // mod console_writer;
     mod errors;
     mod help;
     mod nested;
