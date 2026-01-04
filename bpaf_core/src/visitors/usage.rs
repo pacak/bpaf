@@ -71,10 +71,7 @@ impl Usage<'_> {
                         VisitGroup::Many => {
                             // TODO - this is not possible, many will be always sitting in a
                             // product...
-                            if *children > 1 {
-                                todo!();
-                                out.push('(');
-                            }
+                            debug_assert!(*children <= 1);
                         }
                         VisitGroup::Optional => {
                             if !optional {
