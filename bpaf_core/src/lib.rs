@@ -21,8 +21,8 @@ pub mod api {
     //! <div class="warning">
     //!
     //! Everything under this module is available through functions exported from the
-    //! crate's top level, [`construct!`](crate::construct) macro, methods on the
-    //! [`Bp`](crate::Bp) wrapper or via [`Parser`](crate::Parser) trait. Main purpose
+    //! crate's top level, [`construct!`](crate::construct) macro, methods on
+    //! the structures or via [`Parser`](crate::Parser) trait. Main purpose
     //! is to make names visible and to contain some tutorial style documentation.
     //!
     //! You can't interact with types listed here directly other than using them to name
@@ -30,18 +30,12 @@ pub mod api {
     //!
     //! </div>
 
-    pub mod wrapper {
-        #[repr(transparent)]
-        #[derive(Clone)]
-        pub struct Bp<I>(pub(crate) I);
-    }
-
     pub mod composite {
 
-        //! TODO - blurb on on products and sums
+        //! TODO - blurb on products and sums
 
         use crate::{
-            Bp, Ctx, Kind, Op, Parser, Scope,
+            Ctx, Kind, Op, Parser, Scope,
             error::Error,
             traits::{RcParser, VisitGroup, Visited, Visitor},
             r#yield,
@@ -69,19 +63,19 @@ pub mod api {
             pub(crate) visits: Vec<Box<dyn Visited>>,
         }
 
-        impl<T: 'static> Parser<T> for Bp<Prod<T>> {
+        impl<T: 'static> Parser<T> for Prod<T> {
             async fn run(&self, ctx: Ctx) -> Result<T, Error> {
                 // TODO - explain
-                let closure = (*self.0.run)(ctx);
+                let closure = (*self.run)(ctx);
                 r#yield().await;
                 closure()
             }
         }
 
-        impl<T: 'static> Visited for Bp<Prod<T>> {
+        impl<T: 'static> Visited for Prod<T> {
             fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
                 visitor.push_group(VisitGroup::Prod);
-                for item in &self.0.visits {
+                for item in &self.visits {
                     item.visit(visitor);
                 }
                 visitor.pop_group();
@@ -98,35 +92,34 @@ pub mod api {
         ///
         /// TODO - a few dummy examples
         pub struct Sum<T> {
-            pub(crate) items: Vec<Bp<RcParser<T>>>,
+            pub(crate) items: Vec<RcParser<T>>,
         }
 
-        impl<T: 'static> Bp<Sum<T>> {
+        impl<T: 'static> Sum<T> {
             pub fn or_else(&mut self, other: impl Parser<T> + 'static) {
-                self.0.items.push(other.into_rc());
+                self.items.push(other.into_rc());
             }
         }
 
-        impl<T: 'static> Visited for Bp<Sum<T>> {
+        impl<T: 'static> Visited for Sum<T> {
             fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
                 visitor.push_group(VisitGroup::Sum);
-                for i in &self.0.items {
-                    i.0.visit(visitor);
+                for i in &self.items {
+                    i.visit(visitor);
                 }
                 visitor.pop_group();
             }
         }
 
-        impl<T: 'static> Parser<T> for Bp<Sum<T>> {
+        impl<T: 'static> Parser<T> for Sum<T> {
             async fn run(&self, ctx: Ctx) -> Result<T, Error> {
                 let id = ctx.current_task.borrow().id;
                 let mut scopes = Vec::new();
                 let handles = self
-                    .0
                     .items
                     .iter()
                     .map(|parser| {
-                        let (h, scope) = ctx.scoped_spawn(parser.clone().0, Kind::Sum);
+                        let (h, scope) = ctx.scoped_spawn(parser.clone(), Kind::Sum);
                         scopes.push(scope);
                         h
                     })
@@ -195,8 +188,6 @@ use crate::{
     traits::{RcParser, VisitGroup, Visited, Visitor, *},
 };
 
-#[doc(inline)]
-pub use api::wrapper::Bp;
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
@@ -223,7 +214,6 @@ impl<T> JoinHandle<T> {
 #[doc(hidden)]
 pub mod __private {
     pub use crate::api::composite::{Prod, Sum};
-    pub use crate::api::wrapper::Bp;
     pub use crate::error::Error;
     pub use crate::{Ctx, Kind};
 }
@@ -489,10 +479,10 @@ impl RawCtx {
     // TODO - Do I really need `Bp` wrapper here?
     fn make_raw_task<T: 'static>(
         self: &Rc<Self>,
-        parser: Bp<RcParser<T>>,
+        parser: RcParser<T>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
         let (out, handle) = make_handle();
-        (handle, self.make_act(out, parser.0))
+        (handle, self.make_act(out, parser))
     }
     fn make_act<T: 'static>(
         self: &Rc<Self>,
@@ -509,7 +499,7 @@ impl RawCtx {
         })
     }
 
-    fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: Bp<RcParser<T>>) -> JoinHandle<T> {
+    fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -524,7 +514,7 @@ impl RawCtx {
         kind: Kind,
     ) -> (JoinHandle<T>, Scope) {
         let start = self.next_free.get();
-        let h = self.spawn(kind, Bp(parser));
+        let h = self.spawn(kind, parser);
         let end = self.next_free.get();
         (
             h,
@@ -540,7 +530,7 @@ impl RawCtx {
         parser: RcParser<T>,
     ) -> (JoinHandle<T>, Scope) {
         let start = Id(self.next_free.get());
-        let h = self.spawn(Kind::Prod, Bp(parser));
+        let h = self.spawn(Kind::Prod, parser);
         let end = Id(self.next_free.get());
         let scope = Scope { start, end };
         self.early_exit.borrow_mut().insert(scope);

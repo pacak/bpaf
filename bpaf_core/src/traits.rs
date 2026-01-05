@@ -1,6 +1,6 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Bp, Ctx, Error, Lit, Metavar, Named};
+use crate::{Ctx, Error, Lit, Metavar, Named};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 use crate::adapters::*;
@@ -8,11 +8,11 @@ pub trait Parser<T: 'static>: Visited {
     fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>>;
 
     /// Convert the parser into a boxed, reference counted version
-    fn into_rc(self) -> Bp<RcParser<T>>
+    fn into_rc(self) -> RcParser<T>
     where
         Self: Sized + Parser<T> + 'static,
     {
-        Bp(RcParser(Rc::new(self)))
+        RcParser(Rc::new(self))
     }
 
     fn map<F, R>(self, map: F) -> impl Parser<R>
@@ -27,17 +27,17 @@ pub trait Parser<T: 'static>: Visited {
             map,
         }
     }
-    fn parse<F, R, E>(self, f: F) -> Bp<Parse<T, Self, F, E, R>>
+    fn parse<F, R, E>(self, f: F) -> Parse<T, Self, F, E, R>
     where
         Self: Sized + Parser<T>,
         F: Fn(T) -> Result<R, E>,
         E: ToString,
     {
-        Bp(Parse {
+        Parse {
             inner: self,
             ctx: PhantomData,
             f,
-        })
+        }
     }
 
     fn optional(self) -> impl Parser<Option<T>>
@@ -45,104 +45,104 @@ pub trait Parser<T: 'static>: Visited {
         Self: Sized + 'static,
     {
         Optional {
-            inner: self.into_rc().0,
+            inner: self.into_rc(),
         }
     }
 
-    fn many(self) -> Bp<Many<T>>
+    fn many(self) -> Many<T>
     where
         Self: Sized + 'static,
     {
-        Bp(Many {
-            inner: self.into_rc().0,
-        })
+        Many {
+            inner: self.into_rc(),
+        }
     }
 
-    fn some(self, message: &'static str) -> Bp<Many1<T>>
+    fn some(self, message: &'static str) -> Many1<T>
     where
         Self: Sized + 'static,
     {
-        Bp(Many1 {
-            inner: self.into_rc().0,
+        Many1 {
+            inner: self.into_rc(),
             message,
-        })
+        }
     }
 
-    fn count(self) -> Bp<Count<T>>
+    fn count(self) -> Count<T>
     where
         Self: Sized + 'static,
     {
-        Bp(Count {
-            inner: self.into_rc().0,
-        })
+        Count {
+            inner: self.into_rc(),
+        }
     }
 
-    fn to_options(self) -> Bp<OptionParser<T>>
+    fn to_options(self) -> OptionParser<T>
     where
         Self: Sized + 'static,
     {
-        Bp(OptionParser {
-            inner: self.into_rc().0,
+        OptionParser {
+            inner: self.into_rc(),
             info: Default::default(),
-        })
+        }
     }
 
-    fn guard<F>(self, check: F, message: &'static str) -> Bp<Guard<T, Self, F>>
+    fn guard<F>(self, check: F, message: &'static str) -> Guard<T, Self, F>
     where
         Self: Sized,
         F: Fn(&T) -> bool,
     {
-        Bp(Guard {
+        Guard {
             inner: self,
             check,
             message,
             ctx: PhantomData,
-        })
+        }
     }
 
-    fn hide(self) -> Bp<Hide<T, Self>>
+    fn hide(self) -> Hide<T, Self>
     where
         Self: Sized,
     {
-        Bp(Hide {
+        Hide {
             inner: self,
             ctx: PhantomData,
             only_usage: false,
-        })
+        }
     }
 
-    fn hide_usage(self) -> Bp<Hide<T, Self>>
+    fn hide_usage(self) -> Hide<T, Self>
     where
         Self: Sized,
     {
-        Bp(Hide {
+        Hide {
             inner: self,
             ctx: PhantomData,
             only_usage: true,
-        })
+        }
     }
 
-    fn fallback(self, value: T) -> Bp<Fallback<T, Self>>
+    fn fallback(self, value: T) -> Fallback<T, Self>
     where
         Self: Sized,
     {
-        Bp(Fallback {
+        Fallback {
             inner: self,
             value,
             value_str: None,
-        })
+        }
     }
 
-    fn group_help(self, help: &'static str) -> Bp<Group<T, Self>>
+    fn group_help(self, help: &'static str) -> Group<T, Self>
     where
         Self: Sized,
     {
-        Bp(Group {
+        Group {
             inner: self,
             title: help,
             ctx: PhantomData,
             descr: None,
-        })
+        }
     }
 }
 
@@ -264,12 +264,6 @@ impl<T: 'static, P: Parser<T>> DynParser<T> for P {
     }
     fn dyn_visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.visit(visitor);
-    }
-}
-
-impl<T: 'static> Visited for Bp<RcParser<T>> {
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        self.0.0.as_ref().dyn_visit(visitor)
     }
 }
 

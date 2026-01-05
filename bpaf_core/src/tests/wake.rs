@@ -64,7 +64,7 @@ fn short_flags_only() {
 }
 
 fn arrange<T: 'static>(
-    ps: [Bp<RcParser<T>>; 4],
+    ps: [RcParser<T>; 4],
     kind_1234: Kind,
     kind_12: Kind,
     kind_34: Kind,
@@ -127,8 +127,8 @@ fn arrange<T: 'static>(
 
             Box::new(|| Ok([ha.take(), hb.take(), hc.take(), hd.take()]))
         });
-    Bp(Prod {
+    Prod {
         run,
         visits: Vec::new(),
-    })
+    }
 }
