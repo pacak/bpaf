@@ -43,6 +43,7 @@ impl Named {
     }
 }
 
+/// Match a named item with a short name: `-v` or `-b name`
 pub fn short(name: char) -> Named {
     Named {
         names: vec![name.into()],
@@ -51,21 +52,18 @@ pub fn short(name: char) -> Named {
     }
 }
 
-pub fn long(name: &'static str) -> Named {
+/// Match a named item with a long name: `--verbose` or `--bin name`
+pub fn long<N>(name: N) -> Named
+where
+    N: Into<Cow<'static, str>>,
+{
     Named {
-        names: vec![name.into()],
+        names: vec![Name::Long(name.into())],
         env: Vec::new(),
         help: None,
     }
 }
 
-pub fn long_string(name: String) -> Named {
-    Named {
-        names: vec![name.into()],
-        env: Vec::new(),
-        help: None,
-    }
-}
 pub fn env(name: &'static str) -> Named {
     Named {
         names: Vec::new(),
