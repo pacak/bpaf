@@ -48,8 +48,8 @@ impl std::fmt::Display for Lit<'_> {
 }
 
 impl Lit<'_> {
-    fn width(&self) -> usize {
-        match self.0 {
+    fn col_width(&self) -> usize {
+        4 + match self.0 {
             ShortLong::Short(_) => 1,
             ShortLong::Long(l) => char_width(l),
             ShortLong::Both(_, l) => char_width(l) + 3,
@@ -223,7 +223,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 };
 
                 _ = write!(&mut self[place], "{sl:#}");
-                self.track_tab(sl.width());
+                self.track_tab(sl.col_width());
                 self.help(place, named.help);
 
                 if let Some(env) = named.env.first() {
@@ -240,7 +240,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 };
 
                 _ = write!(&mut self[place], "{sl:#}={meta}");
-                self.track_tab(sl.width() + 1 + meta.width());
+                self.track_tab(sl.col_width() + 1 + meta.width());
                 self.help(place, named.help);
                 if let Some(env) = named.env.first() {
                     _ = match std::env::var_os(env) {
@@ -264,7 +264,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 let name = lit_name(names);
                 let help = info.descr;
                 _ = write!(&mut self[place], "{name:#}");
-                self.track_tab(name.width());
+                self.track_tab(name.col_width());
                 self.help(place, help);
             }
             Item::Nested { named, inner } => {
@@ -310,9 +310,7 @@ impl<'a> Visitor<'a> for Help<'a> {
             }
             Item::Rendered { text, gr } => {
                 for line in text.lines() {
-                    if let Some((key, _)) =
-                        line.strip_prefix("    ").unwrap_or(line).split_once('\t')
-                    {
+                    if let Some((key, _)) = line.split_once('\t') {
                         self.track_tab(
                             crate::miniansi::split(key)
                                 .map(|c| match c {
@@ -398,7 +396,6 @@ impl Help<'_> {
 
     fn written_chars_since(&self, place: Place, before: usize) -> usize {
         let written = &self[place][before..];
-        let written = written.strip_prefix("    ").unwrap_or(written);
         crate::miniansi::split(written)
             .map(|c| match c {
                 crate::miniansi::Frag::Str(s) => char_width(s),

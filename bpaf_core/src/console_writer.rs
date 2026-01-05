@@ -1,12 +1,11 @@
 pub(crate) const MAX_WIDTH: usize = 100;
-pub(crate) const MAX_TAB: usize = 24;
+pub(crate) const MAX_TAB: usize = 28;
 
 /// Apply color scheme, split long lines and layout tab column
 /// - lines must have at most one tab
 /// - lines that start with 2 or more spaces are not wrapped
 /// - all line breaks are preserved
 pub(crate) fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String {
-    let tab = tab + 4;
     let mut out = String::new();
     for line in input.lines() {
         let mut cursor = 0;
@@ -201,10 +200,10 @@ pub enum Style {
 #[test]
 fn render_simple() {
     let r = apply_style("a\tb", 10, None);
-    assert_eq!(r, "a             b\n");
+    assert_eq!(r, "a         b\n");
 
     let r = apply_style("a\n\tb", 6, None);
-    assert_eq!(r, "a\n          b\n");
+    assert_eq!(r, "a\n      b\n");
 
     let r = apply_style("a b c d", 3, None);
     assert_eq!(r, "a b c d\n");

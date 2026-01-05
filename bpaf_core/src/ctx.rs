@@ -37,18 +37,24 @@ pub struct RawCtx {
 
     /// When task is woken up this contains a reason for it
     pub(crate) wakeup_reason: RefCell<Reason>,
+
     /// Reference to [`TaskInfo`] for the current task
     ///
     /// Executor sets it to the right value when polling a task
     pub(crate) current_task: RefCell<TaskInfo>,
+
     /// We keep track of all the early terminated branches, saving each termination along with
     /// the position - from that we'll deduce conflict info
     pub(crate) conflicts: RefCell<Vec<Conflict>>,
 
     /// Treat the rest of the items as strictly positional - we'll set it if we ever encounter a
     /// bare `--` during parsing
+    ///
+    /// Needs to live here so it gets shared to nested parsers that get a new executor
     pub(crate) strict_pos: Cell<bool>,
 }
+
+///
 pub type Ctx = Rc<RawCtx>;
 
 #[derive(Debug)]

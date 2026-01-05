@@ -59,8 +59,8 @@ pub(crate) enum ShortLong<'a> {
 }
 
 impl ShortLong<'_> {
-    pub(crate) fn width(&self) -> usize {
-        match self {
+    pub(crate) fn col_width(&self) -> usize {
+        4 + match self {
             // `-f`
             ShortLong::Short(_) => 2,
             // `-f, --foo` or `    --foo`
