@@ -79,14 +79,6 @@ pub fn write_styled(
 }
 
 #[derive(Copy, Clone)]
-enum Goal {
-    Esc,
-    Bracket,
-    Digit,
-    M,
-}
-
-#[derive(Copy, Clone)]
 pub struct Colorscheme {
     pub text: &'static str,
     pub emphasis: &'static str,
