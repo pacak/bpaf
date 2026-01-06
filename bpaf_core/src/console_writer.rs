@@ -36,7 +36,7 @@ pub(crate) fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>)
 }
 
 /// Apply final style to the rendering, input MUST NOT contain ANSI sequences
-pub fn write_styled(
+fn write_styled(
     start: usize,
     end: usize,
     from: &str,

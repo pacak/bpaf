@@ -156,36 +156,6 @@ impl std::ops::IndexMut<Place> for Help<'_> {
     }
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum Chunkk<'a> {
-    Str(&'a str),
-    Linebreak,
-}
-
-// 1. no tabs, forced line-breaks "\n ", forced no-wraps: "\n  ", otherwise - newlines are removed
-// 2. tabs - line-breaks are preserved
-// 3. newline at the end
-fn splitta(input: &str) -> impl Iterator<Item = Chunkk<'_>> {
-    let mut lines = input.lines().peekable();
-    let mut newline = false;
-    std::iter::from_fn(move || {
-        if std::mem::take(&mut newline) {
-            return Some(Chunkk::Linebreak);
-        }
-        let line = lines.next()?;
-        if line.is_empty() {
-            newline = true;
-            Some(Chunkk::Linebreak)
-        } else if line.contains('\t') {
-            newline = true;
-            Some(Chunkk::Str(line))
-        } else {
-            newline = lines.peek().is_none_or(|l| l.starts_with(' '));
-            Some(Chunkk::Str(line))
-        }
-    })
-}
-
 impl<'a> Visitor<'a> for Help<'a> {
     fn item(&mut self, item: Item<'a>) {
         use std::fmt::Write as _;
@@ -375,23 +345,8 @@ impl Help<'_> {
     }
 
     fn copy_text(&mut self, place: Place, text: &str) {
-        let mut needs_space = false;
-
-        for chunk in splitta(text) {
-            match chunk {
-                Chunkk::Str(s) => {
-                    if needs_space {
-                        self[place].push(' ');
-                    }
-                    self[place].push_str(s);
-                    needs_space = true;
-                }
-                Chunkk::Linebreak => {
-                    self[place].push('\n');
-                    needs_space = false;
-                }
-            }
-        }
+        self[place].push_str(text);
+        self[place].push('\n');
     }
 
     fn written_chars_since(&self, place: Place, before: usize) -> usize {
