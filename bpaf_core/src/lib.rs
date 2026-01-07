@@ -167,7 +167,108 @@ pub mod api {
     pub mod repeat {}
     pub mod functor {}
     pub mod ux {}
-    pub mod primitives {}
+    pub mod primitives {
+        //! Consuming arguments, making a simple [`Parser`]
+        //!
+        //! All parsers in *bpaf* consist of primitive parsers enhanced with `Parser` trait and glued
+        //! together with [`construct!`] macro. Primitive parsers start here. Pick how your item
+        //! looks like
+        //!
+        //! - [named items: flags, switches, arguments](#named-items-or-options-and-option-arguments)
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   $ cargo <span style="font-weight: bold">--help</span>
+        //!   $ ls <span style="font-weight: bold">-la</span>
+        //!   $ cargo build <span style="font-weight: bold">--bin demo</span>
+        //!   </pre>
+        //!   </div>
+        //!
+        //! - [positional items](#positional-items-or-operands)
+        //!
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   $ cat <span style="font-weight: bold">Cargo.toml</span>
+        //!   </pre>
+        //!   </div>
+        //!
+        //! - [subcommands and multi value parsers](#subcommands-and-composite-parsers)
+        //!
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   $ cargo <span style="font-weight: bold">build</span>
+        //!   $ app <span style="font-weight: bold">--set key value</span>
+        //!   </pre>
+        //!   </div>
+        //!
+        //! - [something else that doesn't quite fit into usual categories](#custom-lexers)
+        //!
+        //!   <div class="code-wrap">
+        //!   <pre>
+        //!   $ ghc <span style="font-weight: bold">+RTS</span>
+        //!   $ dd <span style="font-weight: bold">of=/dev/null</span>
+        //!   </pre>
+        //!   </div>
+        //!
+        //! # Named items or options and option-arguments
+        //!
+        //! Named items start with a dash (a short name) or two (a long name), followed by
+        //! a name. Can take a value - for short items it can be immediately adjacent:
+        //! `-ofile.txt`, for both separated from a name by `=` `-o=file.txt` or
+        //! `--output=file` or be next in a sequence: `-o file.txt`.
+        //!
+        //! To parse one you start with [`short`] or [`long`] to get [`Named`], add more
+        //! names using [`Named::short`], [`Named::long`] then convert this intermediate
+        //! representation into a final parser using one of [`Named::flag`],
+        //! [`Named::argument`], [`Named::switch`] or [`Named::req_flag`]. Named items can
+        //! have several names - chained with `short` or `long`. Help message will display
+        //! first short and first long names, but parser will match anything on a list
+        //!
+        //! You can also attach a help message with one of `help` methods: [`help`](Named::help),
+        //! [`help`](Flag::help) or [`help`](Argument::help).
+        //!
+        //! Overview of related functions. Actual signatures are slightly different, check their
+        //! documentation for examples
+        //!
+        //! - <code class="code-header">fn [`short`](crate::short)(char) -> [`Named`]</code>
+        //! - <code class="code-header">fn [`long`](crate::long)(&str) -> [`Named`]</code>
+        //! - <code class="code-header">fn [`Named::short`](Named::short)(self, char) -> [`Named`]</code>
+        //! - <code class="code-header">fn [`Named::long`](Named::long)(self, &str) -> [`Named`]</code>
+        //!
+        //! - <code class="code-header">fn [`Named::switch`](Named::switch)(self) -> impl [`Parser<bool>`](Parser)</code>,
+        //!   parser produces `true` if a named item is present, `false` - otherwise.
+        //! - <code class="code-header">fn [`Named::flag`](Named::flag)`<T>`(self, T, T) -> impl [`Parser<T>`](Parser)</code>,
+        //!   parser produces first `T` if a named item is present, second `T` - otherwise.
+        //! - <code class="code-header">fn [`Named::req_flag`](Named::req_flag)`<T>`(self, T) -> impl [`Parser<T>`](Parser)</code>,
+        //!   parser produces `T` if a named item is present or
+        //!   indicates a [missing item] otherwise.
+        //! - <code class="code-header">fn [`Named::argument`](Named::argument)<T: [`FromStr`]>(self, &str) -> impl [`Parser<T>`](Parser)</code>,
+        //!   parser produces `T` by consuming a value and parsing it according to `FromStr` instance if
+        //!   a named item is present or indicates a [missing item] otherwise.
+        //!
+        //! # Positional items or operands
+        //!
+        //! Positional items are pretty much anything else that doesn't start with a dash. *bpaf*
+        //! will consume them in order. To create one you simply call [`positional`] and add
+        //! [`help`](Positional::help)
+        //!
+        //! - <code class="code-header">fn [`positional`](crate::positional)(&str) -> [`Positional`]</code>
+        //! - <code class="code-header">fn [`Positional::help`](crate::Positional::help)(&str) -> [`Positional`]</code>
+        //! # Subcommands and composite parsers
+        //!
+        //! TODO: document [`OptionParser::command`], [`literal`], [`Named::nest`]
+        //!
+        //! # Custom lexers
+        //!
+        //! TODO: document [`any`], implement and document [`any_os`], implement and document
+        //! [`lexed`]
+        //!
+        //! [missing item]: crate::api::fallback
+        #![allow(rustdoc::redundant_explicit_links)]
+        #![allow(unused_imports)]
+        use crate::*;
+        use std::str::FromStr;
+    }
+
     pub mod algebras {}
 }
 
@@ -181,7 +282,7 @@ use crate::{
 };
 
 #[doc(inline)]
-pub use crate::{consumers::*, traits::Parser};
+pub use crate::{adapters::OptionParser, consumers::*, traits::Parser};
 
 use crate::{
     error::{Error, ParseFailure, Problem},
