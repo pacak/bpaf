@@ -163,10 +163,14 @@ pub mod api {
 
     /// fallback
     pub mod fallback {}
+
     /// repeat
     pub mod repeat {}
+
     pub mod functor {}
+
     pub mod ux {}
+
     pub mod primitives {
         //! Consuming arguments, making a simple [`Parser`]
         //!
@@ -1896,6 +1900,7 @@ mod tests {
     mod errors;
     mod help;
     mod nested;
+    mod offset;
     mod osstring;
     mod pure_with;
     mod unsorted;

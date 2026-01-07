@@ -15,7 +15,7 @@ pub trait Parser<T: 'static>: Visited {
         RcParser(Rc::new(self))
     }
 
-    fn map<F, R>(self, map: F) -> impl Parser<R>
+    fn map<F, R>(self, map: F) -> Map<Self, F, T, R>
     where
         Self: Sized,
         F: Fn(T) -> R + 'static,
@@ -40,7 +40,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn optional(self) -> impl Parser<Option<T>>
+    fn optional(self) -> Optional<T>
     where
         Self: Sized + 'static,
     {
@@ -142,6 +142,18 @@ pub trait Parser<T: 'static>: Visited {
             title: help,
             ctx: PhantomData,
             descr: None,
+        }
+    }
+
+    /// Return an index of an item in the argument list OR a position where parser gave up
+    /// locating...
+    fn offset(self) -> WithOffset<T, Self>
+    where
+        Self: Sized + Leaf,
+    {
+        WithOffset {
+            inner: self,
+            ctx: PhantomData,
         }
     }
 }
@@ -287,3 +299,14 @@ impl<T> Clone for RcParser<T> {
         Self(self.0.clone())
     }
 }
+
+#[diagnostic::on_unimplemented(
+    message = "Leaf is a marker trait that is only implemented for primitive parsers, not for anything composite"
+)]
+/// The idea is to have a marker trait for parsers that can either fail or succeed, but not in
+/// between. For example, `construct!(a, b)` will remain in partially succeeded state once either
+/// matches and will remain in this state until b either succeeds or fails.
+///
+/// Main problem with partially succeeding parsers is that catching errors from them can lead to
+/// data loss, but also the concept of "this parser started here" becomes blurry.
+pub trait Leaf {}

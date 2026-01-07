@@ -280,6 +280,8 @@ impl<T: Clone + 'static> Parser<T> for Literal<T> {
     }
 }
 
+impl<T> Leaf for Literal<T> {}
+
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
@@ -317,6 +319,7 @@ impl<T> Visited for Flag<T> {
         }
     }
 }
+impl<T> Leaf for Flag<T> {}
 
 impl<T> Flag<T> {
     pub fn help(mut self, help: &'static str) -> Self {
@@ -363,6 +366,7 @@ impl<T> Visited for Argument<T> {
         visitor.item(item);
     }
 }
+impl<T> Leaf for Argument<T> {}
 
 impl<T> Argument<T> {
     pub fn help(mut self, help: &'static str) -> Self {
@@ -401,6 +405,7 @@ impl<T: 'static> Positional<T> {
         }
     }
 }
+impl<T> Leaf for Positional<T> {}
 
 impl<T> Positional<T> {
     pub fn help(mut self, help: &'static str) -> Self {
@@ -445,6 +450,8 @@ where
         self.inner.visit(visitor)
     }
 }
+
+impl<T, P: Leaf> Leaf for WithComplete<T, P> {}
 
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,

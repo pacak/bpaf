@@ -6,13 +6,13 @@ use crate::{
     complete::{complete_command, handle_subparser_complete},
     construct,
     error::MissingItem,
-    traits::VisitGroup,
+    traits::{Leaf, VisitGroup},
     utils::Vec1,
     r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
-pub(crate) struct Map<P, F, T, R> {
+pub struct Map<P, F, T, R> {
     pub(crate) inner: P,
     pub(crate) map: F,
     pub(crate) ctx: PhantomData<(T, R)>,
@@ -25,18 +25,20 @@ impl<T: 'static, P: Parser<T>, R: 'static, F: Fn(T) -> R> Parser<R> for Map<P, F
     }
 }
 
+impl<P: Leaf, F, T, R> Leaf for Map<P, F, T, R> {}
+
 impl<T: 'static, P: Parser<T>, F, R> Visited for Map<P, F, T, R> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         self.inner.visit(visitor);
     }
 }
 
-pub(crate) struct Optional<T> {
+pub struct Optional<T> {
     pub(crate) inner: RcParser<T>,
 }
 impl<T: 'static> Parser<Option<T>> for Optional<T> {
     async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
-        // TODO - use scoped spawn, Scope and get rid of spawn_with_early_exit
+        // TODO - use scoped spawn, `Scope` and get rid of spawn_with_early_exit
         let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
         r#yield().await;
         ctx.remove_early_exit(pair);
@@ -433,6 +435,8 @@ impl<T: 'static, P: Parser<T>> Parser<T> for Hide<T, P> {
     }
 }
 
+impl<T, P: Leaf> Leaf for Hide<T, P> {}
+
 impl<T: 'static, P: Parser<T>> Visited for Hide<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         if self.only_usage && visitor.identify() != VKind::Usage {
@@ -549,5 +553,28 @@ where
             descr: self.descr,
             inner: &self.inner,
         });
+    }
+}
+
+pub struct WithOffset<T, P> {
+    pub(crate) ctx: PhantomData<T>,
+    pub(crate) inner: P,
+}
+
+impl<T, P> Parser<(Option<usize>, T)> for WithOffset<T, P>
+where
+    T: 'static,
+    P: Parser<T> + Leaf,
+{
+    async fn run(&self, ctx: crate::Ctx) -> Result<(Option<usize>, T), Error> {
+        let t = self.inner.run(ctx.clone()).await?;
+        let consumed = ctx.current_task.borrow().consumed > 0;
+        Ok((consumed.then_some(ctx.cursor.get()), t))
+    }
+}
+
+impl<T: 'static, P: Visited> Visited for WithOffset<T, P> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        self.inner.visit(visitor)
     }
 }
