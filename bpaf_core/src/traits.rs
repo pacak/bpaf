@@ -1,6 +1,6 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Ctx, Error, Lit, Metavar, Named};
+use crate::{Ctx, Error, Exit, Lit, Metavar, Named};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 use crate::adapters::*;
@@ -155,6 +155,20 @@ pub trait Parser<T: 'static>: Visited {
             inner: self,
             ctx: PhantomData,
         }
+    }
+
+    fn then_exit(self, exit: Exit<T>) -> ThenExit<T, Self>
+    where
+        Self: Sized,
+    {
+        ThenExit { inner: self, exit }
+    }
+
+    fn or_exit(self, exit: Exit<T>) -> OrExit<T, Self>
+    where
+        Self: Sized,
+    {
+        OrExit { inner: self, exit }
     }
 }
 

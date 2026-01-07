@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Error, Item, Kind, Lit, Name, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason, Task,
-    VKind, Visited,
+    Error, Exit, Item, Kind, Lit, Name, ParseFailure, Parser, Problem, RawCtx, RcParser, Reason,
+    Task, VKind, Visited,
     args::Args,
     complete::{complete_command, handle_subparser_complete},
     construct,
@@ -576,5 +576,48 @@ where
 impl<T: 'static, P: Visited> Visited for WithOffset<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
         self.inner.visit(visitor)
+    }
+}
+
+pub struct ThenExit<T, P> {
+    pub(crate) inner: P,
+    pub(crate) exit: Exit<T>,
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for ThenExit<T, P> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+        let a = self.inner.run(ctx.clone()).await;
+
+        if a.is_ok() {
+            self.exit.run(ctx).await
+        } else {
+            a
+        }
+    }
+}
+
+impl<T, P: Visited> Visited for ThenExit<T, P> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        self.inner.visit(visitor);
+    }
+}
+
+pub struct OrExit<T, P> {
+    pub(crate) inner: P,
+    pub(crate) exit: Exit<T>,
+}
+
+impl<T: 'static, P: Parser<T>> Parser<T> for OrExit<T, P> {
+    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+        match self.inner.run(ctx.clone()).await {
+            Err(_) => self.exit.run(ctx).await,
+            ok => ok,
+        }
+    }
+}
+
+impl<T, P: Visited> Visited for OrExit<T, P> {
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        self.inner.visit(visitor);
     }
 }

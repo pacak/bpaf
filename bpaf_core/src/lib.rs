@@ -1894,8 +1894,46 @@ impl std::fmt::Display for Lit<'_> {
     }
 }
 
+pub struct Exit<T> {
+    ctx: std::marker::PhantomData<T>,
+    code: i32,
+    msg: Cow<'static, str>,
+}
+
+impl<T: 'static> Parser<T> for Exit<T> {
+    fn run(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
+        let msg = self.msg.as_ref().to_owned();
+        std::future::ready(Err(Error::Final(if self.code == 0 {
+            ParseFailure::Stdout(msg)
+        } else {
+            ParseFailure::Stderr(msg)
+        })))
+    }
+}
+
+impl<T> Visited for Exit<T> {
+    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
+}
+
+pub fn fail<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
+    Exit {
+        ctx: std::marker::PhantomData,
+        code: 1,
+        msg: msg.into(),
+    }
+}
+
+pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
+    Exit {
+        ctx: std::marker::PhantomData,
+        code: 0,
+        msg: msg.into(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    mod algebra;
     mod complete;
     mod errors;
     mod help;

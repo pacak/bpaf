@@ -206,7 +206,7 @@ impl std::fmt::Display for MissingItem {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ParseFailure {
     Stdout(String),
     Stderr(String),

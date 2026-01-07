@@ -219,10 +219,10 @@ impl RawCtx {
                 Err(Error::Silent("Killed by conflict"))
             }
             Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
-            Reason::Kill(KillReason::TooShort)
+            r @ (Reason::Kill(KillReason::TooShort)
             | Reason::Pass
             | Reason::Push
-            | Reason::ChildProgress(_) => todo!(),
+            | Reason::ChildProgress(_)) => todo!("{r:?}"),
 
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
         }
