@@ -321,6 +321,7 @@ pub mod __private {
     pub use crate::api::composite::{Prod, Sum};
     pub use crate::error::Error;
     pub use crate::{Ctx, Kind};
+    pub use ::std::compile_error;
 }
 
 impl std::ops::Add for Error {
@@ -1935,6 +1936,7 @@ pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
 mod tests {
     mod algebra;
     mod complete;
+    mod construct;
     mod errors;
     mod help;
     mod nested;
