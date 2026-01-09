@@ -51,7 +51,7 @@ pub mod api {
         /// TODO - a few dummy examples
         pub struct Prod<T> {
             #[allow(clippy::type_complexity)]
-            pub(crate) run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
+            pub run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
 
             // TODO - this is a whole lot of allocations, we can achieve the same results
             // by adding a Visited implementation for (A, B, ...) then recursively folding $fields
@@ -60,7 +60,7 @@ pub mod api {
             // I would love to make it a closure that takes `Visitor`, but in current design
             // `Visited` lends values to the visitor instead of cloning and lending closures are
             // not a thing, at least at the moment
-            pub(crate) visits: Vec<Box<dyn Visited>>,
+            pub visits: Vec<Box<dyn Visited>>,
         }
 
         impl<T: 'static> Parser<T> for Prod<T> {
@@ -286,11 +286,15 @@ use crate::{
 };
 
 #[doc(inline)]
-pub use crate::{adapters::OptionParser, consumers::*, traits::Parser};
+pub use crate::{
+    adapters::OptionParser,
+    consumers::*,
+    traits::{Parser, Visited},
+};
 
 use crate::{
     error::{Error, ParseFailure, Problem},
-    traits::{RcParser, VisitGroup, Visited, Visitor, *},
+    traits::{RcParser, VisitGroup, Visitor, *},
 };
 
 use std::{
@@ -304,12 +308,12 @@ use std::{
     task::Poll,
 };
 
-pub(crate) struct JoinHandle<T> {
+pub struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 
 impl<T> JoinHandle<T> {
-    pub(crate) fn take(self) -> Result<T, Error> {
+    pub fn take(self) -> Result<T, Error> {
         self.result
             .take()
             .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
@@ -605,7 +609,7 @@ impl RawCtx {
         })
     }
 
-    fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
+    pub fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };

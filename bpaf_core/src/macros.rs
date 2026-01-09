@@ -15,11 +15,12 @@ macro_rules! construct {
 
     // construct!( a, b, c )
     ( $($name:tt)+) =>
-        {{ $crate::macros::prepare!([pos] [] $($name)+) }};
+        {{ $crate::prepare!([pos] [] $($name)+) }};
 
 }
 
 /// Instantiate parsers for fields given by functions
+#[macro_export]
 macro_rules! prepare {
 
     // instantiate field from a function call
@@ -29,7 +30,7 @@ macro_rules! prepare {
     }};
     // otherwise field is already a variable - we can use it as is.
     ($ty:tt [$($fields:tt)*] $field:ident $(, $($rest:tt)*)? ) => {{
-        $crate::macros::prepare!($ty [$($fields)* $field] $($($rest)* )?)
+        $crate::prepare!($ty [$($fields)* $field] $($($rest)* )?)
     }};
 
     // All the logic for sum parser sits inside of Sum datatype
@@ -39,11 +40,12 @@ macro_rules! prepare {
 
     // For product type the logic is a bit more complicated - do one more step
     ($ty:tt [$($fields:tt)*]) => {
-        $crate::macros::fin!($ty [ $($fields)* ])
+        $crate::fin!($ty [ $($fields)* ])
     };
 }
 
 // === Making a body for the product parser
+#[macro_export]
 macro_rules! fin {
 
     ($ty:tt [$($fields:ident)*]) => {{
@@ -65,7 +67,7 @@ macro_rules! fin {
                     }
 
                     ::std::result::Result::Ok::<_, $crate::__private::Error>
-                        ($crate::macros::make!($ty [$($fields)*]))
+                        ($crate::make!($ty [$($fields)*]))
                 })
             });
 
@@ -73,6 +75,8 @@ macro_rules! fin {
 
     }};
 }
+
+#[macro_export]
 macro_rules! make {
     // === Pack parsed results into a constructor
     // this gets called from a step above
@@ -84,4 +88,4 @@ macro_rules! make {
 
 }
 
-pub(crate) use {fin, make, prepare};
+pub use {fin, make, prepare};

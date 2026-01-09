@@ -297,8 +297,7 @@ impl Error {
     /// It exists to collect errors from multiple handles and designed to work with
     /// [`Result::map_err`]. We aggregate the best possible error inside an Option
     /// and fail with that if it is present
-    #[allow(unused)] // used by the construct! macro in the user code
-    pub(crate) fn append_to(self, dst: &mut Option<Error>) -> Self {
+    pub fn append_to(self, dst: &mut Option<Error>) -> Self {
         *dst = Some(match dst.take() {
             Some(e) => e.combine(self),
             None => self,
