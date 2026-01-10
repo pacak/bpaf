@@ -5,7 +5,7 @@ use crate::{
 
 fn usage(visited: &impl Visited) -> String {
     let mut u = Usage::default();
-    visited.visit(&mut u);
+    visited.vi(&mut u);
     let mut out = String::new();
     u.render_to(&mut out);
 
@@ -62,27 +62,27 @@ fn usage_choice_req() {
     assert_eq!(r, "(-a | -b)");
 }
 
-fn ra() -> impl Parser<bool> {
+fn ra() -> impl Parser<Output = bool> {
     short('a').req_flag(true)
 }
 
-fn oa() -> impl Parser<bool> {
+fn oa() -> impl Parser<Output = bool> {
     short('a').switch()
 }
 
-fn rb() -> impl Parser<bool> {
+fn rb() -> impl Parser<Output = bool> {
     short('b').req_flag(true)
 }
 
-fn ob() -> impl Parser<bool> {
+fn ob() -> impl Parser<Output = bool> {
     short('b').switch()
 }
 
-fn ca() -> impl Parser<bool> {
+fn ca() -> impl Parser<Output = bool> {
     pure(true).to_options().command("a")
 }
 
-fn cb() -> impl Parser<bool> {
+fn cb() -> impl Parser<Output = bool> {
     pure(true).to_options().command("b")
 }
 

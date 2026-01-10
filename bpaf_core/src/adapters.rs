@@ -12,31 +12,30 @@ use crate::{
 };
 use std::{borrow::Cow, marker::PhantomData};
 
-pub struct Map<P, F, T, R> {
+pub struct Map<P, F, R> {
     pub(crate) inner: P,
     pub(crate) map: F,
-    pub(crate) ctx: PhantomData<(T, R)>,
+    pub(crate) ctx: PhantomData<R>,
 }
 
-impl<T: 'static, P: Parser<T>, R: 'static, F: Fn(T) -> R> Parser<R> for Map<P, F, T, R> {
+impl<T: 'static, P: Parser<Output = T>, R: 'static, F: Fn(T) -> R> Parser for Map<P, F, R> {
+    type Output = R;
     async fn run(&self, ctx: crate::Ctx) -> Result<R, crate::Error> {
         let t = self.inner.run(ctx).await?;
         Ok((self.map)(t))
     }
-}
 
-impl<P: Leaf, F, T, R> Leaf for Map<P, F, T, R> {}
-
-impl<T: 'static, P: Parser<T>, F, R> Visited for Map<P, F, T, R> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         self.inner.visit(visitor);
     }
 }
+impl<P: Leaf, F, R> Leaf for Map<P, F, R> {}
 
 pub struct Optional<T> {
     pub(crate) inner: RcParser<T>,
 }
-impl<T: 'static> Parser<Option<T>> for Optional<T> {
+impl<T: 'static> Parser for Optional<T> {
+    type Output = Option<T>;
     async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
         // TODO - use scoped spawn, `Scope` and get rid of spawn_with_early_exit
         let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
@@ -53,9 +52,7 @@ impl<T: 'static> Parser<Option<T>> for Optional<T> {
             }
         }
     }
-}
 
-impl<T: 'static> Visited for Optional<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
@@ -172,7 +169,7 @@ impl<T: 'static> OptionParser<T> {
 }
 
 impl<T: 'static> Visited for OptionParser<T> {
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+    fn vi<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.item(Item::OptionParser {
             info: &self.info,
             inner: &self.inner,
@@ -201,7 +198,8 @@ impl<T: 'static> Command<T> {
     }
 }
 
-impl<T: 'static> Parser<T> for Command<T> {
+impl<T: 'static> Parser for Command<T> {
+    type Output = T;
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.names).await;
         let res = res.map_err(|err| complete_command(&self.names, err));
@@ -219,6 +217,15 @@ impl<T: 'static> Parser<T> for Command<T> {
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        let item = Item::Command {
+            names: &self.names,
+            info: &self.inner.info,
+            inner: &self.inner,
+        };
+        visitor.item(item);
+    }
 }
 
 impl Error {
@@ -232,22 +239,19 @@ impl Error {
     }
 }
 
-impl<T: 'static> Visited for Command<T> {
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        let item = Item::Command {
-            names: &self.names,
-            info: &self.inner.info,
-            inner: &self.inner.inner,
-        };
-        visitor.item(item);
-    }
-}
-
 pub struct Count<T> {
     pub(crate) inner: RcParser<T>,
 }
 
-impl<T: 'static> Visited for Count<T> {
+impl<T: 'static> Parser for Count<T> {
+    type Output = usize;
+    async fn run(&self, ctx: crate::Ctx) -> Result<usize, Error> {
+        let many = Many {
+            inner: self.inner.clone(),
+        };
+        Ok(many.run(ctx).await?.len())
+    }
+
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Many);
         visitor.push_group(VisitGroup::Optional);
@@ -257,22 +261,23 @@ impl<T: 'static> Visited for Count<T> {
     }
 }
 
-impl<T: 'static> Parser<usize> for Count<T> {
-    async fn run(&self, ctx: crate::Ctx) -> Result<usize, Error> {
-        let many = Many {
-            inner: self.inner.clone(),
-        };
-        Ok(many.run(ctx).await?.len())
-    }
-}
-
 pub struct Many<T> {
     pub(crate) inner: RcParser<T>,
 }
 
-impl<T: 'static> Parser<Vec<T>> for Many<T> {
+impl<T: 'static> Parser for Many<T> {
+    type Output = Vec<T>;
+
     fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<Vec<T>, Error>> {
         parse_many(self.inner.clone(), ctx, usize::MAX)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Many);
+        visitor.push_group(VisitGroup::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+        visitor.pop_group();
     }
 }
 
@@ -316,21 +321,12 @@ async fn parse_many<T: 'static>(
     Ok(res)
 }
 
-impl<T: 'static> Visited for Many<T> {
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        visitor.push_group(VisitGroup::Many);
-        visitor.push_group(VisitGroup::Optional);
-        self.inner.visit(visitor);
-        visitor.pop_group();
-        visitor.pop_group();
-    }
-}
-
 pub struct Many1<T> {
     pub(crate) inner: RcParser<T>,
     pub(crate) message: &'static str,
 }
-impl<T: 'static> Parser<Vec<T>> for Many1<T> {
+impl<T: 'static> Parser for Many1<T> {
+    type Output = Vec<T>;
     async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
         let res = parse_many(self.inner.clone(), ctx, usize::MAX).await?;
         if res.is_empty() {
@@ -339,8 +335,7 @@ impl<T: 'static> Parser<Vec<T>> for Many1<T> {
             Ok(res)
         }
     }
-}
-impl<T: 'static> Visited for Many1<T> {
+
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Many);
         self.inner.visit(visitor);
@@ -354,29 +349,20 @@ pub struct Command<T> {
     lazy: bool,
 }
 
-pub struct Parse<T, P, F, E, R> {
-    pub(crate) ctx: PhantomData<(T, F, E, R)>,
+pub struct Parse<P, F, E, R> {
+    pub(crate) ctx: PhantomData<(F, E, R)>,
     pub(crate) inner: P,
     pub(crate) f: F,
 }
 
-impl<T: 'static, P, F, E, R> Visited for Parse<T, P, F, E, R>
+impl<P, F, E, R> Parser for Parse<P, F, E, R>
 where
-    P: Parser<T>,
-{
-    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        self.inner.visit(visitor)
-    }
-}
-
-impl<T, P, F, E, R> Parser<R> for Parse<T, P, F, E, R>
-where
-    T: 'static,
     R: 'static,
-    P: Parser<T>,
-    F: Fn(T) -> Result<R, E>,
+    P: Parser,
+    F: Fn(P::Output) -> Result<R, E>,
     E: ToString,
 {
+    type Output = R;
     async fn run(&self, ctx: crate::Ctx) -> Result<R, Error> {
         let t = self.inner.run(ctx.clone()).await?;
         match (self.f)(t) {
@@ -390,17 +376,21 @@ where
             )),
         }
     }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor)
+    }
 }
 
-pub struct Guard<T, P, F> {
-    pub(crate) ctx: PhantomData<T>,
+pub struct Guard<P, F> {
     pub(crate) inner: P,
     pub(crate) check: F,
     pub(crate) message: &'static str,
 }
 
-impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Guard<T, P, F> {
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+impl<P: Parser, F: Fn(&P::Output) -> bool> Parser for Guard<P, F> {
+    type Output = P::Output;
+    async fn run(&self, ctx: crate::Ctx) -> Result<Self::Output, Error> {
         let r = self.inner.run(ctx.clone()).await?;
 
         if (self.check)(&r) {
@@ -415,29 +405,23 @@ impl<T: 'static, F: Fn(&T) -> bool, P: Parser<T>> Parser<T> for Guard<T, P, F> {
             ))
         }
     }
-}
 
-impl<F, T: 'static, P: Parser<T>> Visited for Guard<T, P, F> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         self.inner.visit(visitor);
     }
 }
 
-pub struct Hide<T, P> {
-    pub(crate) ctx: PhantomData<T>,
+pub struct Hide<P> {
     pub(crate) inner: P,
     pub(crate) only_usage: bool,
 }
 
-impl<T: 'static, P: Parser<T>> Parser<T> for Hide<T, P> {
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+impl<P: Parser> Parser for Hide<P> {
+    type Output = P::Output;
+    async fn run(&self, ctx: crate::Ctx) -> Result<P::Output, Error> {
         self.inner.run(ctx).await
     }
-}
 
-impl<T, P: Leaf> Leaf for Hide<T, P> {}
-
-impl<T: 'static, P: Parser<T>> Visited for Hide<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         if self.only_usage && visitor.identify() != VKind::Usage {
             self.inner.visit(visitor);
@@ -445,22 +429,22 @@ impl<T: 'static, P: Parser<T>> Visited for Hide<T, P> {
     }
 }
 
+impl<P: Leaf> Leaf for Hide<P> {}
 pub struct Fallback<T, P> {
     pub(crate) inner: P,
     pub(crate) value: T,
     pub(crate) value_str: Option<String>,
 }
 
-impl<T: 'static + Clone, P: Parser<T>> Parser<T> for Fallback<T, P> {
+impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
+    type Output = T;
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         match self.inner.run(ctx).await {
             Err(Error::Missing(_)) => Ok(self.value.clone()),
             otherwise => otherwise,
         }
     }
-}
 
-impl<T: 'static, P: Parser<T>> Visited for Fallback<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
@@ -513,7 +497,8 @@ pub struct PureWith<F> {
     pub(crate) act: F,
 }
 
-impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser<T> for PureWith<F> {
+impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
+    type Output = T;
     async fn run(&self, _ctx: crate::Ctx) -> Result<T, Error> {
         (self.act)().map_err(|err| {
             Error::Problem(
@@ -524,29 +509,22 @@ impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser<T> for PureWith<F>
             )
         })
     }
-}
 
-impl<F> Visited for PureWith<F> {
     fn visit<'a>(&'a self, _visitor: &mut dyn crate::Visitor<'a>) {}
 }
 
-pub struct Group<T, P> {
-    pub(crate) ctx: PhantomData<T>,
+pub struct Group<P> {
     pub(crate) inner: P,
     pub(crate) title: &'static str,
     pub(crate) descr: Option<&'static str>,
 }
 
-impl<T: 'static, P: Parser<T>> Parser<T> for Group<T, P> {
-    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<T, Error>> {
+impl<P: Parser> Parser for Group<P> {
+    type Output = P::Output;
+    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<P::Output, Error>> {
         self.inner.run(ctx)
     }
-}
 
-impl<T, P> Visited for Group<T, P>
-where
-    P: Visited,
-{
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.item(Item::Section {
             title: self.title,
@@ -556,24 +534,21 @@ where
     }
 }
 
-pub struct WithOffset<T, P> {
-    pub(crate) ctx: PhantomData<T>,
+pub struct WithOffset<P> {
     pub(crate) inner: P,
 }
 
-impl<T, P> Parser<(Option<usize>, T)> for WithOffset<T, P>
+impl<P> Parser for WithOffset<P>
 where
-    T: 'static,
-    P: Parser<T> + Leaf,
+    P: Parser + Leaf,
 {
-    async fn run(&self, ctx: crate::Ctx) -> Result<(Option<usize>, T), Error> {
+    type Output = (Option<usize>, P::Output);
+    async fn run(&self, ctx: crate::Ctx) -> Result<(Option<usize>, P::Output), Error> {
         let t = self.inner.run(ctx.clone()).await?;
         let consumed = ctx.current_task.borrow().consumed > 0;
         Ok((consumed.then_some(ctx.cursor.get()), t))
     }
-}
 
-impl<T: 'static, P: Visited> Visited for WithOffset<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
         self.inner.visit(visitor)
     }
@@ -584,7 +559,8 @@ pub struct ThenExit<T, P> {
     pub(crate) exit: Exit<T>,
 }
 
-impl<T: 'static, P: Parser<T>> Parser<T> for ThenExit<T, P> {
+impl<T: 'static, P: Parser<Output = T>> Parser for ThenExit<T, P> {
+    type Output = T;
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         let a = self.inner.run(ctx.clone()).await;
 
@@ -594,9 +570,7 @@ impl<T: 'static, P: Parser<T>> Parser<T> for ThenExit<T, P> {
             a
         }
     }
-}
 
-impl<T, P: Visited> Visited for ThenExit<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
         self.inner.visit(visitor);
     }
@@ -607,16 +581,14 @@ pub struct OrExit<T, P> {
     pub(crate) exit: Exit<T>,
 }
 
-impl<T: 'static, P: Parser<T>> Parser<T> for OrExit<T, P> {
+impl<T: 'static, P: Parser<Output = T>> Parser for OrExit<T, P> {
+    type Output = T;
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
         match self.inner.run(ctx.clone()).await {
             Err(_) => self.exit.run(ctx).await,
             ok => ok,
         }
     }
-}
-
-impl<T, P: Visited> Visited for OrExit<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
         self.inner.visit(visitor);
     }

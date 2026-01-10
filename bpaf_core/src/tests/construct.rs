@@ -10,10 +10,10 @@ fn make_tuple_var() {
 
 #[test]
 fn make_tuple_func_no_arg() {
-    fn a() -> impl Parser<bool> {
+    fn a() -> impl Parser<Output = bool> {
         short('a').switch()
     }
-    fn b() -> impl Parser<bool> {
+    fn b() -> impl Parser<Output = bool> {
         short('b').switch()
     }
     let parser = construct!(a(), b()).to_options();
@@ -37,7 +37,7 @@ fn make_struct_func_no_arg() {
     struct A {
         a: bool,
     }
-    fn a() -> impl Parser<bool> {
+    fn a() -> impl Parser<Output = bool> {
         short('a').switch()
     }
     let parser = construct!(A { a() }).to_options();
@@ -61,7 +61,7 @@ fn make_enum_func_no_arg() {
     enum A {
         A { a: bool },
     }
-    fn a() -> impl Parser<bool> {
+    fn a() -> impl Parser<Output = bool> {
         short('a').switch()
     }
     let parser = construct!(A::A { a() }).to_options();
@@ -79,7 +79,7 @@ fn make_alt_var() {
 
 #[test]
 fn make_alt_func_no_arg() {
-    fn a() -> impl Parser<bool> {
+    fn a() -> impl Parser<Output = bool> {
         short('a').switch()
     }
     let parser = construct!([a()]).to_options();

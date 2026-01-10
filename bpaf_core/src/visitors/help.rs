@@ -175,7 +175,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     self.output.push_str(usage);
                 } else {
                     let mut usage = crate::visitors::usage::Usage::default();
-                    inner.visit(&mut usage);
+                    inner.vi(&mut usage);
                     usage.render_to(&mut self.output);
                 }
                 self.output.push('\n');
@@ -246,14 +246,14 @@ impl<'a> Visitor<'a> for Help<'a> {
                 let before = self[place].len();
                 _ = write!(&mut self[place], "{:#} ", name);
                 let mut u = Usage::default();
-                inner.visit(&mut u);
+                inner.vi(&mut u);
                 u.render_to(&mut self[place]);
 
                 self.track_tab(self.written_chars_since(place, before));
                 self.help(place, named.help);
 
                 self.in_section += 1;
-                inner.visit(self);
+                inner.vi(self);
                 self.in_section -= 1;
                 if self.in_section == 0 {
                     let mut tmp = std::mem::take(&mut self.current);
@@ -268,7 +268,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 inner,
             } => {
                 self.in_section += 1;
-                inner.visit(self);
+                inner.vi(self);
                 self.in_section -= 1;
                 // throw away inner nested sections
                 if self.in_section == 0 {

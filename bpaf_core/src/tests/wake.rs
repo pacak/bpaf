@@ -21,7 +21,7 @@ macro_rules! arranged {
 }
 
 fn run_arranged(
-    parser: impl Parser<[Result<bool, Error>; 4]> + 'static,
+    parser: impl Parser<Output = [Result<bool, Error>; 4]> + 'static,
     input: &[&str],
 ) -> [bool; 4] {
     let r = parser.to_options().run_inner(input).unwrap();
@@ -68,7 +68,7 @@ fn arrange<T: 'static>(
     kind_1234: Kind,
     kind_12: Kind,
     kind_34: Kind,
-) -> impl Parser<[Result<T, Error>; 4]> {
+) -> impl Parser<Output = [Result<T, Error>; 4]> {
     #![allow(clippy::type_complexity)]
 
     let run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<[Result<T, Error>; 4], Error>>> =

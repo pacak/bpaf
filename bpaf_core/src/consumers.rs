@@ -129,7 +129,7 @@ impl Named {
         }
     }
 
-    pub fn nest<T: 'static, P: Parser<T> + 'static>(self, inner: P) -> Nested<T> {
+    pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
             names: self,
             inner: inner.into_rc(),
@@ -149,7 +149,8 @@ pub struct Nested<T> {
     inner: RcParser<T>,
 }
 
-impl<T: 'static> Parser<T> for Nested<T> {
+impl<T: 'static> Parser for Nested<T> {
+    type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_flag(&self.names.names).await;
         let res = res.map_err(|err| self.names.complete_name(err, None)); // TODO - can we do better?
@@ -178,9 +179,7 @@ impl<T: 'static> Parser<T> for Nested<T> {
             (Err(e1), Err(e2)) => Err(e1 + e2),
         }
     }
-}
 
-impl<T: 'static> Visited for Nested<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Nested {
             named: &self.names,
@@ -248,10 +247,10 @@ impl LNamed {
 }
 
 impl Visited for () {
-    fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
+    fn vi<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
-
-impl<T: 'static> Visited for Literal<T> {
+impl<T: Clone + 'static> Parser for Literal<T> {
+    type Output = T;
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Command {
             names: &self.named.names,
@@ -260,9 +259,6 @@ impl<T: 'static> Visited for Literal<T> {
         };
         visitor.item(item);
     }
-}
-
-impl<T: Clone + 'static> Parser<T> for Literal<T> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.named.names).await;
         let res = res.map_err(|e| complete_command(&self.named.names, e));
@@ -288,7 +284,8 @@ pub struct Flag<T> {
     named: Named,
 }
 
-impl<T: Clone + 'static> Parser<T> for Flag<T> {
+impl<T: Clone + 'static> Parser for Flag<T> {
+    type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_flag(&self.named.names).await;
         let res = res.map_err(|err| self.named.complete_name(err, None));
@@ -306,8 +303,7 @@ impl<T: Clone + 'static> Parser<T> for Flag<T> {
             Err(Error::missing(item))
         }
     }
-}
-impl<T> Visited for Flag<T> {
+
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Flag { named: &self.named };
         if self.absent.is_some() {
@@ -334,11 +330,12 @@ pub struct Argument<T> {
     ctx: PhantomData<T>,
 }
 
-impl<T> Parser<T> for Argument<T>
+impl<T> Parser for Argument<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
+    type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_arg(&self.named.names).await;
         let res = res.map_err(|err| self.named.complete_name(err, Some(self.metavar)));
@@ -355,9 +352,7 @@ where
             Err(Error::missing(item))
         }
     }
-}
 
-impl<T> Visited for Argument<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Arg {
             named: &self.named,
@@ -377,7 +372,7 @@ impl<T> Argument<T> {
 
 /// # complete for argument
 impl<T: 'static> Argument<T> {
-    pub fn complete<F>(self, completer: F) -> WithComplete<T, Argument<T>>
+    pub fn complete<F>(self, completer: F) -> WithComplete<Argument<T>>
     where
         Self: Sized,
         F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
@@ -386,13 +381,12 @@ impl<T: 'static> Argument<T> {
             inner: self,
             completer: Box::new(completer),
             group: None,
-            ctx: PhantomData,
         }
     }
 }
 /// # complete for positional
 impl<T: 'static> Positional<T> {
-    pub fn complete<F>(self, completer: F) -> WithComplete<T, Positional<T>>
+    pub fn complete<F>(self, completer: F) -> WithComplete<Positional<T>>
     where
         Self: Sized,
         F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
@@ -401,7 +395,6 @@ impl<T: 'static> Positional<T> {
             inner: self,
             completer: Box::new(completer),
             group: None,
-            ctx: PhantomData,
         }
     }
 }
@@ -414,44 +407,37 @@ impl<T> Positional<T> {
     }
 }
 
-pub struct WithComplete<T, P> {
-    ctx: PhantomData<T>,
+pub struct WithComplete<P> {
     inner: P,
     group: Option<String>,
     completer: StringCompleter,
 }
 
-impl<T, I> WithComplete<T, I> {
+impl<I> WithComplete<I> {
     pub fn group(mut self, group: impl Into<String>) -> Self {
         self.group = Some(group.into());
         self
     }
 }
 
-impl<P, T> Parser<T> for WithComplete<T, P>
+impl<P> Parser for WithComplete<P>
 where
-    T: 'static,
-    P: Parser<T>,
+    P: Parser,
 {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    type Output = P::Output;
+    async fn run(&self, ctx: Ctx) -> Result<P::Output, Error> {
         self.inner
             .run(ctx)
             .await
             .map_err(|err| complete_value(err, self.group.as_deref(), &self.completer))
     }
-}
 
-impl<P, T> Visited for WithComplete<T, P>
-where
-    T: 'static,
-    P: Parser<T>,
-{
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.inner.visit(visitor)
     }
 }
 
-impl<T, P: Leaf> Leaf for WithComplete<T, P> {}
+impl<P: Leaf> Leaf for WithComplete<P> {}
 
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,
@@ -481,11 +467,12 @@ fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
     Error::Problem(ctx.cursor.get() as u32, p)
 }
 
-impl<T> Parser<T> for Positional<T>
+impl<T> Parser for Positional<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
+    type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_pos().await;
         let res = res.map_err(|err| complete_pos(err, self.metavar));
@@ -497,8 +484,7 @@ where
             Err(Error::missing(item))
         }
     }
-}
-impl<T> Visited for Positional<T> {
+
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Positional {
             meta: self.metavar,
@@ -517,21 +503,22 @@ struct DummyAny<T> {
 pub fn any<T: 'static>(
     meta: &'static str,
     check: impl Fn(&str) -> Option<T> + 'static,
-) -> impl Parser<T> {
+) -> impl Parser<Output = T> {
     DummyAny {
         meta: Metavar(meta),
         check: Rc::new(check),
     }
 }
 
-pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> impl Parser<T> {
+pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> impl Parser<Output = T> {
     DummyAny {
         meta: Metavar(meta),
         check: Rc::new(|s: &str| T::from_str(s).ok()),
     }
 }
 
-impl<T> Visited for DummyAny<T> {
+impl<T: 'static> Parser for DummyAny<T> {
+    type Output = T;
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Positional {
             meta: self.meta,
@@ -539,9 +526,7 @@ impl<T> Visited for DummyAny<T> {
         };
         visitor.item(item)
     }
-}
 
-impl<T: 'static> Parser<T> for DummyAny<T> {
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let h = Rc::new(Cell::new(None));
         let out = h.clone();
@@ -579,13 +564,12 @@ pub struct Pure<T> {
     value: T,
 }
 
-impl<T: 'static + Clone> Parser<T> for Pure<T> {
+impl<T: 'static + Clone> Parser for Pure<T> {
+    type Output = T;
     async fn run(&self, _ctx: Ctx) -> Result<T, Error> {
         Ok(self.value.clone())
     }
-}
 
-impl<T> Visited for Pure<T> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
 

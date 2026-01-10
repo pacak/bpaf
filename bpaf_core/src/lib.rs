@@ -63,20 +63,18 @@ pub mod api {
             pub visits: Vec<Box<dyn Visited>>,
         }
 
-        impl<T: 'static> Parser<T> for Prod<T> {
+        impl<T: 'static> Parser for Prod<T> {
+            type Output = T;
             async fn run(&self, ctx: Ctx) -> Result<T, Error> {
                 // TODO - explain
                 let closure = (*self.run)(ctx);
                 r#yield().await;
                 closure()
             }
-        }
-
-        impl<T: 'static> Visited for Prod<T> {
             fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
                 visitor.push_group(VisitGroup::Prod);
                 for item in &self.visits {
-                    item.visit(visitor);
+                    item.vi(visitor);
                 }
                 visitor.pop_group();
             }
@@ -96,12 +94,13 @@ pub mod api {
         }
 
         impl<T: 'static> Sum<T> {
-            pub fn or_else(&mut self, other: impl Parser<T> + 'static) {
+            pub fn or_else(&mut self, other: impl Parser<Output = T> + 'static) {
                 self.items.push(other.into_rc());
             }
         }
 
-        impl<T: 'static> Visited for Sum<T> {
+        impl<T: 'static> Parser for Sum<T> {
+            type Output = T;
             fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
                 visitor.push_group(VisitGroup::Sum);
                 for i in &self.items {
@@ -109,9 +108,6 @@ pub mod api {
                 }
                 visitor.pop_group();
             }
-        }
-
-        impl<T: 'static> Parser<T> for Sum<T> {
             async fn run(&self, ctx: Ctx) -> Result<T, Error> {
                 let id = ctx.current_task.borrow().id;
                 let mut scopes = Vec::new();
@@ -303,6 +299,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ffi::{OsStr, OsString},
     fmt::Write,
+    marker::PhantomData,
     pin::Pin,
     rc::Rc,
     task::Poll,
@@ -1055,7 +1052,7 @@ impl Executor {
                 };
                 let is_ddash = IsDDash::attempt(&unexpected, value.as_ref());
                 let mut visitors = (once, better, is_ddash);
-                parser.visit(&mut visitors);
+                parser.vi(&mut visitors);
                 if let Some(problem) = visitors.0.into_problem() {
                     return problem;
                 }
@@ -1101,7 +1098,7 @@ impl Executor {
 
                 if let Some(target) = value.to_str() {
                     let mut is_command = ValidCommand::new(target);
-                    parser.visit(&mut is_command);
+                    parser.vi(&mut is_command);
                     if let Some(problem) = is_command.into_problem() {
                         return problem;
                     }
@@ -1468,8 +1465,8 @@ impl RawCtx {
             (false, None) => {}
         }
 
-        parser.visit(&mut help_visitor);
-        help.visit(&mut help_visitor);
+        parser.vi(&mut help_visitor);
+        help.vi(&mut help_visitor);
 
         // TODO - WIDTH, `Colorscheme`, custom style
         ParseFailure::Stdout(help_visitor.render())
@@ -1900,12 +1897,13 @@ impl std::fmt::Display for Lit<'_> {
 }
 
 pub struct Exit<T> {
-    ctx: std::marker::PhantomData<T>,
+    ctx: PhantomData<T>,
     code: i32,
     msg: Cow<'static, str>,
 }
 
-impl<T: 'static> Parser<T> for Exit<T> {
+impl<T: 'static> Parser for Exit<T> {
+    type Output = T;
     fn run(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
         let msg = self.msg.as_ref().to_owned();
         std::future::ready(Err(Error::Final(if self.code == 0 {
@@ -1914,15 +1912,13 @@ impl<T: 'static> Parser<T> for Exit<T> {
             ParseFailure::Stderr(msg)
         })))
     }
-}
 
-impl<T> Visited for Exit<T> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
 
 pub fn fail<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
     Exit {
-        ctx: std::marker::PhantomData,
+        ctx: PhantomData,
         code: 1,
         msg: msg.into(),
     }
@@ -1930,7 +1926,7 @@ pub fn fail<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
 
 pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
     Exit {
-        ctx: std::marker::PhantomData,
+        ctx: PhantomData,
         code: 0,
         msg: msg.into(),
     }

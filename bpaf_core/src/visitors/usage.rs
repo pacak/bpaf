@@ -184,7 +184,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     text: Cow::Borrowed("{"),
                 }));
                 let mut u = Usage::default();
-                inner.visit(&mut u);
+                inner.vi(&mut u);
                 let mut inner_usage = String::new();
                 u.render_to(&mut inner_usage);
                 self.events.push(Event::Put(Put::Text {
@@ -203,7 +203,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 descr: _,
                 inner,
             } => {
-                inner.visit(self);
+                inner.vi(self);
                 return;
             }
             Item::Rendered { text, gr: _ } => Put::Text {

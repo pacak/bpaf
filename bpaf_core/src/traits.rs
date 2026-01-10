@@ -3,22 +3,41 @@
 use crate::{Ctx, Error, Exit, Lit, Metavar, Named};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
+pub trait Visited {
+    fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
+    fn into_box(self) -> Box<dyn Visited>
+    where
+        Self: Sized + 'static,
+    {
+        Box::new(self)
+    }
+}
+
+impl<P: Parser> Visited for P {
+    fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.visit(visitor)
+    }
+}
+
 use crate::adapters::*;
-pub trait Parser<T: 'static>: Visited {
-    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<T, Error>>;
+pub trait Parser {
+    type Output: 'static;
+    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<Self::Output, Error>>;
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 
     /// Convert the parser into a boxed, reference counted version
-    fn into_rc(self) -> RcParser<T>
+    fn into_rc(self) -> RcParser<Self::Output>
     where
-        Self: Sized + Parser<T> + 'static,
+        Self: Sized + 'static,
     {
         RcParser(Rc::new(self))
     }
 
-    fn map<F, R>(self, map: F) -> Map<Self, F, T, R>
+    fn map<F, R>(self, map: F) -> Map<Self, F, R>
     where
         Self: Sized,
-        F: Fn(T) -> R + 'static,
+        F: Fn(Self::Output) -> R + 'static,
         R: 'static,
     {
         Map {
@@ -27,10 +46,10 @@ pub trait Parser<T: 'static>: Visited {
             map,
         }
     }
-    fn parse<F, R, E>(self, f: F) -> Parse<T, Self, F, E, R>
+    fn parse<F, R, E>(self, f: F) -> Parse<Self, F, E, R>
     where
-        Self: Sized + Parser<T>,
-        F: Fn(T) -> Result<R, E>,
+        Self: Sized,
+        F: Fn(Self::Output) -> Result<R, E>,
         E: ToString,
     {
         Parse {
@@ -40,7 +59,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn optional(self) -> Optional<T>
+    fn optional(self) -> Optional<Self::Output>
     where
         Self: Sized + 'static,
     {
@@ -49,7 +68,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn many(self) -> Many<T>
+    fn many(self) -> Many<Self::Output>
     where
         Self: Sized + 'static,
     {
@@ -58,7 +77,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn some(self, message: &'static str) -> Many1<T>
+    fn some(self, message: &'static str) -> Many1<Self::Output>
     where
         Self: Sized + 'static,
     {
@@ -68,7 +87,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn count(self) -> Count<T>
+    fn count(self) -> Count<Self::Output>
     where
         Self: Sized + 'static,
     {
@@ -77,7 +96,7 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn to_options(self) -> OptionParser<T>
+    fn to_options(self) -> OptionParser<Self::Output>
     where
         Self: Sized + 'static,
     {
@@ -87,42 +106,39 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn guard<F>(self, check: F, message: &'static str) -> Guard<T, Self, F>
+    fn guard<F>(self, check: F, message: &'static str) -> Guard<Self, F>
     where
         Self: Sized,
-        F: Fn(&T) -> bool,
+        F: Fn(&Self::Output) -> bool,
     {
         Guard {
             inner: self,
             check,
             message,
-            ctx: PhantomData,
         }
     }
 
-    fn hide(self) -> Hide<T, Self>
+    fn hide(self) -> Hide<Self>
     where
         Self: Sized,
     {
         Hide {
             inner: self,
-            ctx: PhantomData,
             only_usage: false,
         }
     }
 
-    fn hide_usage(self) -> Hide<T, Self>
+    fn hide_usage(self) -> Hide<Self>
     where
         Self: Sized,
     {
         Hide {
             inner: self,
-            ctx: PhantomData,
             only_usage: true,
         }
     }
 
-    fn fallback(self, value: T) -> Fallback<T, Self>
+    fn fallback(self, value: Self::Output) -> Fallback<Self::Output, Self>
     where
         Self: Sized,
     {
@@ -133,59 +149,38 @@ pub trait Parser<T: 'static>: Visited {
         }
     }
 
-    fn group_help(self, help: &'static str) -> Group<T, Self>
+    fn group_help(self, help: &'static str) -> Group<Self>
     where
         Self: Sized,
     {
         Group {
             inner: self,
             title: help,
-            ctx: PhantomData,
             descr: None,
         }
     }
 
     /// Return an index of an item in the argument list OR a position where parser gave up
     /// locating...
-    fn offset(self) -> WithOffset<T, Self>
+    fn offset(self) -> WithOffset<Self>
     where
         Self: Sized + Leaf,
     {
-        WithOffset {
-            inner: self,
-            ctx: PhantomData,
-        }
+        WithOffset { inner: self }
     }
 
-    fn then_exit(self, exit: Exit<T>) -> ThenExit<T, Self>
+    fn then_exit(self, exit: Exit<Self::Output>) -> ThenExit<Self::Output, Self>
     where
         Self: Sized,
     {
         ThenExit { inner: self, exit }
     }
 
-    fn or_exit(self, exit: Exit<T>) -> OrExit<T, Self>
+    fn or_exit(self, exit: Exit<Self::Output>) -> OrExit<Self::Output, Self>
     where
         Self: Sized,
     {
         OrExit { inner: self, exit }
-    }
-}
-
-impl<A: Visited, B: Visited> Visited for (A, B) {
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        self.0.visit(visitor);
-        self.1.visit(visitor);
-    }
-}
-
-pub trait Visited {
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
-    fn into_box(self) -> Box<dyn Visited>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
     }
 }
 
@@ -284,23 +279,28 @@ trait DynParser<T: 'static> {
     fn dyn_visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 }
 
-impl<T: 'static, P: Parser<T>> DynParser<T> for P {
+impl<T: 'static, P: Parser<Output = T>> DynParser<T> for P {
     fn dyn_run(&self, ctx: Ctx) -> Pin<Box<dyn Future<Output = Result<T, Error>> + '_>> {
-        Box::pin(<Self as Parser<T>>::run(self, ctx))
+        Box::pin(<Self as Parser>::run(self, ctx))
     }
     fn dyn_visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.visit(visitor);
     }
 }
 
-impl<T: 'static> Visited for RcParser<T> {
+impl<T: 'static> Parser for RcParser<T> {
+    type Output = T;
+
+    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+        self.0.as_ref().dyn_run(ctx).await
+    }
+
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.0.as_ref().dyn_visit(visitor)
     }
-}
-impl<T: 'static> Parser<T> for RcParser<T> {
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        self.0.as_ref().dyn_run(ctx).await
+
+    fn into_rc(self) -> Self {
+        self
     }
 }
 
