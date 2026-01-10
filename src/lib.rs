@@ -27,7 +27,7 @@
 //! Add `bpaf`, optionally with derive enabled
 //!
 //! ```text
-//! $ cargo add bpaf -F derive,dull_color
+//! $ cargo add bpaf -F derive,dull-color
 //! ```
 //!
 //! Use either derive or combinatoric API and try running it
