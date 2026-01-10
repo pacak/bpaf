@@ -3,6 +3,8 @@
 use crate::{Ctx, Error, Exit, Lit, Metavar, Named};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
+/// This mostly exists to allow Executor and various helpers to depend on visits
+/// without having to expose them to all the parser details
 pub trait Visited {
     fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
     fn into_box(self) -> Box<dyn Visited>
