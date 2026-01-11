@@ -688,17 +688,18 @@ impl RawCtx {
     }
 }
 
-struct Executor {
+struct Executor<'a> {
     ctx: Ctx,
     tasks: BTreeMap<Id, Task>,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<(Id, Parent, u32)>,
     sums: BTreeMap<Id, Scope>,
     triggers: Triggers,
+    visited: &'a dyn Visited,
 }
 
-impl Executor {
-    fn new(ctx: Ctx) -> Self {
+impl<'a> Executor<'a> {
+    fn new(ctx: Ctx, visited: &'a dyn Visited) -> Self {
         Self {
             ctx,
             tasks: BTreeMap::new(),
@@ -706,6 +707,7 @@ impl Executor {
             to_propagate: VecDeque::new(),
             sums: BTreeMap::new(),
             triggers: Default::default(),
+            visited,
         }
     }
 
@@ -890,7 +892,7 @@ impl Executor {
         Some(Ok(()))
     }
 
-    fn execute(&mut self, parser: &dyn Visited) -> Result<(), Error> {
+    fn execute(&mut self) -> Result<(), Error> {
         // Keep running as long as we are making progress:
         // - consuming new items
         // -
@@ -946,7 +948,7 @@ impl Executor {
             if best_size == 0 {
                 self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor.get() as u32;
-                return Err(Error::Problem(pos, self.complain_about(front, parser)));
+                return Err(Error::Problem(pos, self.complain_about(front)));
             }
 
             self.stage_2(best_size);
@@ -989,7 +991,7 @@ impl Executor {
         Ok(())
     }
 
-    fn complain_about(&self, unexpected: &OsString, parser: &dyn Visited) -> Problem {
+    fn complain_about(&self, unexpected: &OsString) -> Problem {
         match lex_os_arg(unexpected) {
             Arg::Named {
                 name: unexpected,
@@ -1015,7 +1017,7 @@ impl Executor {
                 };
                 let is_ddash = IsDDash::attempt(&unexpected, value.as_ref());
                 let mut visitors = (once, better, is_ddash);
-                parser.vi(&mut visitors);
+                self.visited.vi(&mut visitors);
                 if let Some(problem) = visitors.0.into_problem() {
                     return problem;
                 }
@@ -1061,7 +1063,7 @@ impl Executor {
 
                 if let Some(target) = value.to_str() {
                     let mut is_command = ValidCommand::new(target);
-                    parser.vi(&mut is_command);
+                    self.visited.vi(&mut is_command);
                     if let Some(problem) = is_command.into_problem() {
                         return problem;
                     }
@@ -1468,7 +1470,7 @@ impl RawCtx {
         parser: &dyn Visited,
         info: Option<&Info>,
     ) -> Result<(), Error> {
-        let r = Executor::new(self.clone()).execute(parser);
+        let r = Executor::new(self.clone(), parser).execute();
 
         let Some(info) = info else { return r };
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
@@ -1478,7 +1480,7 @@ impl RawCtx {
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
-            if Executor::new(ctx.clone()).execute(&help).is_ok() {
+            if Executor::new(ctx.clone(), &help).execute().is_ok() {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
