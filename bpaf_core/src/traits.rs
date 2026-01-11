@@ -1,6 +1,6 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Ctx, Error, Exit, Lit, Metavar, Named};
+use crate::{Ctx, Error, Exit, Lit, Metavar, Named, r#yield};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 /// This mostly exists to allow Executor and various helpers to depend on visits
@@ -326,3 +326,46 @@ impl<T> Clone for RcParser<T> {
 /// Main problem with partially succeeding parsers is that catching errors from them can lead to
 /// data loss, but also the concept of "this parser started here" becomes blurry.
 pub trait Leaf {}
+
+macro_rules! tuple_impl {
+    ($( $name:ident)+) => {
+        impl<$( $name: 'static),+> Parser for ($(RcParser<$name>,)+) {
+            type Output = ($( $name ),+);
+
+            async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+                #![allow(non_snake_case)]
+                let ($( $name ),+) = &self;
+                $( let $name = ctx.spawn(crate::Kind::Prod, $name.clone());)+
+                r#yield().await;
+                let mut err = None;
+                $( let $name = $name.take().map_err(|e| e.append_to(&mut err));)+
+
+                if let Some(err) = err {
+                    Err(err)
+                } else {
+                    Ok(($($name?),+))
+                }
+            }
+
+            fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+                #![allow(non_snake_case)]
+                visitor.push_group(VisitGroup::Prod);
+                let ($( $name ),+) = &self;
+                $($name.visit(visitor); )+
+                visitor.pop_group();
+            }
+        }
+    };
+}
+
+tuple_impl! { A B }
+tuple_impl! { A B C }
+tuple_impl! { A B C D }
+tuple_impl! { A B C D E }
+tuple_impl! { A B C D E F }
+tuple_impl! { A B C D E F G }
+tuple_impl! { A B C D E F G H }
+tuple_impl! { A B C D E F G H I }
+tuple_impl! { A B C D E F G H I J }
+tuple_impl! { A B C D E F G H I J K }
+tuple_impl! { A B C D E F G H I J K L }

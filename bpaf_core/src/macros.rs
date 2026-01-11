@@ -1,32 +1,34 @@
+/// Blurb
 #[macro_export]
 macro_rules! construct {
     // sadly can't use name::path around here since it conflicts with `(` in positional items
     // `construct!(Enum::Cons { a, b, c })`
-    ( $ns:ident $(::$con:ident)* { $($rest:tt)* }) =>
-        {{ $crate::macros::prepare!([named $ns $( ::$con)*] [] $($rest)*) }};
+    ( $ns:ident $(::$con:ident)* { $($field:tt)* }) =>
+        {{ $crate::prepare!([named $ns $( ::$con)*] [] $($field)*) }};
 
     // `construct!(Enum::Cons ( a, b, c ))`
-     ( $ns:ident $(:: $con:ident)* ( $($rest:tt)* )) =>
-        {{ $crate::macros::prepare!([pos $ns $(:: $con)*] [] $($rest)*) }};
+     ( $ns:ident $(:: $con:ident)* ( $($field:tt)* )) =>
+        {{ $crate::prepare!([pos $ns $(:: $con)*] [] $($field)*) }};
 
     // construct!([a, b, c])
-    ([ $($name:tt)+ ]) => // first - to make sure we have at lest one item
-        {{ $crate::macros::prepare!([alt] [] $($name)+) }};
+    ([ $($field:tt)+ ]) => // first - to make sure we have at lest one item
+        {{ $crate::prepare!([alt] [] $($field)+) }};
 
     // construct!( a, b, c )
-    ( $($name:tt)+) =>
-        {{ $crate::prepare!([pos] [] $($name)+) }};
+    ( $($field:tt)+) =>
+        {{ $crate::prepare!([pos] [] $($field)+) }};
 
 }
 
 /// Instantiate parsers for fields given by functions
+#[doc(hidden)]
 #[macro_export]
 macro_rules! prepare {
 
     // instantiate field from a function call
     ($ty:tt [$($fields:tt)*] $field:ident() $(, $($rest:tt)*)? ) => {{
         let $field = $field();
-        $crate::macros::prepare!($ty [$($fields)* $field] $($($rest)*)?)
+        $crate::prepare!($ty [$($fields)* $field] $($($rest)*)?)
     }};
     // otherwise field is already a variable - we can use it as is.
     ($ty:tt [$($fields:tt)*] $field:ident $(, $($rest:tt)*)? ) => {{
@@ -38,13 +40,37 @@ macro_rules! prepare {
         $crate::__private::Sum{ items: ::std::vec![ $($field.into_rc()),*] }
     };
 
-    // For product type the logic is a bit more complicated - do one more step
-    ($ty:tt [$($fields:tt)*]) => {
-        $crate::fin!($ty [ $($fields)* ])
+    // // For product type the logic is a bit more complicated - do one more step
+    // ($ty:tt [$($fields:tt)*]) => {
+    //     $crate::fin!($ty [ $($fields)* ])
+    // };
+
+    // 13+ fields in a product - generate new dummy structure and a parser for that
+    ($ty:tt [$a:tt $b:tt $c:tt $d:tt $e:tt $f:tt $g:tt $h:tt $i:tt $j:tt $k:tt $l:tt $m:tt]) => {
+        $crate::fin!($ty [ $a $b $c $d $e $f $g $h $i $j $k $l $m])
     };
+
+    // reuse tuple logic
+    ($ty:tt $fs:tt) => { $crate::via_tuple!($ty $fs) }
 }
 
-// === Making a body for the product parser
+#[doc(hidden)]
+#[macro_export]
+macro_rules! via_tuple {
+    // single item positional and named - can use directly with a `map`
+    ([pos   $($con:tt)+] [$f:ident]) => { $f.map(|$f| $($con)+ ($f)) };
+    ([named $($con:tt)+] [$f:ident]) => { $f.map(|$f| $($con)+ {$f}) };
+
+    // tuple below 13 items - use tuple instance directly
+    ([pos] [$($f:ident)+]) => { ( $($f.into_rc()),+) };
+
+    // for named/positional below 13 items - go via tuple
+    ([pos   $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ ($($f),+)) };
+    ([named $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ {$($f),+}) };
+}
+
+/// Making a body for the product parser
+#[doc(hidden)]
 #[macro_export]
 macro_rules! fin {
 
@@ -76,6 +102,7 @@ macro_rules! fin {
     }};
 }
 
+#[doc(hidden)]
 #[macro_export]
 macro_rules! make {
     // === Pack parsed results into a constructor
@@ -87,5 +114,3 @@ macro_rules! make {
     ([pos   $($con:tt)*] [$($fields:ident)*]) => { $($con)* ( $($fields?),* ) };
 
 }
-
-pub use {fin, make, prepare};
