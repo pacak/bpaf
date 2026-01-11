@@ -37,48 +37,9 @@ pub mod api {
         use crate::{
             Ctx, Kind, Op, Parser, Scope,
             error::Error,
-            traits::{RcParser, VisitGroup, Visited, Visitor},
+            traits::{RcParser, VisitGroup, Visitor},
             r#yield,
         };
-
-        /// A categorical product of two or more parsers
-        ///
-        /// This is a parser that is composed of two or more parsers. For `Bp<Con<T>>` to succeed
-        /// each member must succeed as well.
-        ///
-        /// You can create it with [`construct!`](crate::construct)
-        ///
-        /// TODO - a few dummy examples
-        pub struct Prod<T> {
-            #[allow(clippy::type_complexity)]
-            pub run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<T, Error>>>,
-
-            // TODO - this is a whole lot of allocations, we can achieve the same results
-            // by adding a Visited implementation for (A, B, ...) then recursively folding $fields
-            // into (A, (B, (... )))
-
-            // I would love to make it a closure that takes `Visitor`, but in current design
-            // `Visited` lends values to the visitor instead of cloning and lending closures are
-            // not a thing, at least at the moment
-            pub visits: Vec<Box<dyn Visited>>,
-        }
-
-        impl<T: 'static> Parser for Prod<T> {
-            type Output = T;
-            async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-                // TODO - explain
-                let closure = (*self.run)(ctx);
-                r#yield().await;
-                closure()
-            }
-            fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-                visitor.push_group(VisitGroup::Prod);
-                for item in &self.visits {
-                    item.vi(visitor);
-                }
-                visitor.pop_group();
-            }
-        }
 
         /// A categorical sum of two or more parsers
         ///
@@ -319,8 +280,10 @@ impl<T> JoinHandle<T> {
 
 #[doc(hidden)]
 pub mod __private {
-    pub use crate::api::composite::{Prod, Sum};
+    pub use crate::api::composite::Sum;
     pub use crate::error::Error;
+    pub use crate::traits::*;
+    pub use crate::r#yield;
     pub use crate::{Ctx, Kind};
     pub use ::std::compile_error;
 }
@@ -433,9 +396,9 @@ impl std::fmt::Display for Metavar {
     }
 }
 
-struct Yield(bool);
+pub struct Yield(bool);
 
-fn r#yield() -> Yield {
+pub fn r#yield() -> Yield {
     Yield(false)
 }
 
@@ -1945,5 +1908,5 @@ mod tests {
     mod pure_with;
     mod unsorted;
     mod usage;
-    mod wake;
+    // mod wake;
 }

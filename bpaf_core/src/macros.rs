@@ -30,7 +30,7 @@ macro_rules! prepare {
         let $field = $field();
         $crate::prepare!($ty [$($fields)* $field] $($($rest)*)?)
     }};
-    // otherwise field is already a variable - we can use it as is.
+    // otherwise, field is already a variable - we can use it as is.
     ($ty:tt [$($fields:tt)*] $field:ident $(, $($rest:tt)*)? ) => {{
         $crate::prepare!($ty [$($fields)* $field] $($($rest)* )?)
     }};
@@ -45,9 +45,14 @@ macro_rules! prepare {
     //     $crate::fin!($ty [ $($fields)* ])
     // };
 
+
+     ($ty:tt [$($f:tt)+]) => {
+         $crate::prod!($ty [$($f)+])
+     };
+
     // 13+ fields in a product - generate new dummy structure and a parser for that
     ($ty:tt [$a:tt $b:tt $c:tt $d:tt $e:tt $f:tt $g:tt $h:tt $i:tt $j:tt $k:tt $l:tt $m:tt]) => {
-        $crate::fin!($ty [ $a $b $c $d $e $f $g $h $i $j $k $l $m])
+        $crate::prod!($ty [ $a $b $c $d $e $f $g $h $i $j $k $l $m])
     };
 
     // reuse tuple logic
@@ -69,48 +74,55 @@ macro_rules! via_tuple {
     ([named $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ {$($f),+}) };
 }
 
-/// Making a body for the product parser
 #[doc(hidden)]
 #[macro_export]
-macro_rules! fin {
+macro_rules! prod {
+    ($ty:tt [$($f:ident)+]) => {{
+        mod ty {
+            #![allow(non_camel_case_types, unused_parens, clippy::double_parens)]
+            use $crate::__private::*;
+            pub(super) struct Ty<$($f),+> {
+                $( pub $f: $f, )+
+            }
+            impl <$($f: Parser + Clone + 'static),+> Parser for Ty<$($f),+> {
+                type Output = ($($f::Output),+);
 
-    ($ty:tt [$($fields:ident)*]) => {{
-        $( let $fields = $fields.into_rc(); )*
+                async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+                    $( let $f = ctx.spawn(Kind::Prod, self.$f.clone().into_rc());)+
+                    r#yield().await;
+                    let mut err = None;
 
-        // This allocates...
-        let visits = vec![ $($crate::Visited::into_box($fields.clone()) ),* ];
-
-        let run:  ::std::boxed::Box<dyn ::std::ops::Fn($crate::__private::Ctx) ->
-        ::std::boxed::Box<dyn ::std::ops::FnOnce() -> ::std::result::Result<_, $crate::__private::Error>>> =
-            ::std::boxed::Box::new(move |ctx: $crate::__private::Ctx| {
-                $( let $fields = ctx.spawn($crate::__private::Kind::Prod, $fields.clone());)*
-                ::std::boxed::Box::new(||{
-                    let mut err = ::std::option::Option::None;
-                    $( let $fields = $fields.take().map_err(|e| e.append_to(&mut err)); )*
-
-                    if let ::std::option::Option::Some(err) = err {
-                        return ::std::result::Result::Err(err);
+                    $( let $f = $f.take().map_err(|e| e.append_to(&mut err)); )+
+                    if let Some(err) = err {
+                        Err(err)
+                    } else {
+                        Ok(($( $f? ),+))
                     }
+                }
 
-                    ::std::result::Result::Ok::<_, $crate::__private::Error>
-                        ($crate::make!($ty [$($fields)*]))
-                })
-            });
+                fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+                    visitor.push_group(VisitGroup::Prod);
+                    $( self.$f.visit(visitor); )+
+                    visitor.pop_group();
 
-        $crate::__private::Prod { run, visits }
+                }
+            }
+        }
 
-    }};
+            #[allow(non_camel_case_types, unused_parens)]
+        ty::Ty { $($f: $f.into_rc()),+}.map(|($($f),+)| $crate::make!($ty [ $($f)+ ]))
+    }}
+
 }
 
 #[doc(hidden)]
 #[macro_export]
+/// Pack parsed results into a constructor
 macro_rules! make {
-    // === Pack parsed results into a constructor
-    // this gets called from a step above
+    // this gets called from prod!
     //
     // for named they go into {}
-    ([named $($con:tt)+] [$($fields:ident)*]) => { $($con)+ {  $($fields: $fields?),* } };
+    ([named $($con:tt)+] [$($fields:ident)*]) => { $($con)+ {  $($fields: $fields),* } };
     // for positional - (), if there's no constructor - we are making a tuple
-    ([pos   $($con:tt)*] [$($fields:ident)*]) => { $($con)* ( $($fields?),* ) };
-
+    ([pos   $($con:tt)*] [$($fields:ident)*]) => { $($con)* ( $($fields),* ) };
 }
