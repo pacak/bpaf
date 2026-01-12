@@ -304,4 +304,11 @@ impl Error {
         });
         Error::Silent("swapped by append_to")
     }
+
+    /// Convert the error into a final version
+    ///
+    /// Used to convert errors from sub parsers (command parser, etc) that must take priority
+    pub(crate) fn finalize_problems(self) -> Error {
+        Error::Final(ParseFailure::from(self))
+    }
 }

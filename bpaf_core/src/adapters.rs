@@ -228,17 +228,6 @@ impl<T: 'static> Parser for Command<T> {
     }
 }
 
-impl Error {
-    fn finalize_problems(self) -> Error {
-        match &self {
-            Error::Missing(..) | Error::CompReply(..) | Error::CompReq(..) | Error::Problem(..) => {
-                ParseFailure::from(self).into()
-            }
-            Error::Final(..) | Error::Silent(_) => self,
-        }
-    }
-}
-
 pub struct Count<T> {
     pub(crate) inner: RcParser<T>,
 }
