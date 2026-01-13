@@ -1,4 +1,4 @@
-use crate::visitors::VKind;
+use crate::{Flag, Nest, visitors::VKind};
 
 use super::*;
 /// Check if parser accepts a certain named item only once
@@ -38,8 +38,12 @@ impl<'a> IsAcceptedOnce<'a> {
 
 impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
     fn item(&mut self, item: Item<'a>) {
-        let (Item::Flag { named, .. } | Item::Arg { named, .. } | Item::Nested { named, .. }) =
-            item
+        let (Item::Flag { named, .. }
+        | Item::Arg { named, .. }
+        | Item::Nested {
+            outer: Nest::Named(Flag { named, .. }),
+            ..
+        }) = item
         else {
             return;
         };
@@ -100,8 +104,12 @@ impl<'a> BetterName<'a> {
 
 impl<'a> Visitor<'a> for BetterName<'a> {
     fn item(&mut self, item: Item<'a>) {
-        let (Item::Flag { named, .. } | Item::Arg { named, .. } | Item::Nested { named, .. }) =
-            item
+        let (Item::Flag { named, .. }
+        | Item::Arg { named, .. }
+        | Item::Nested {
+            outer: Nest::Named(Flag { named, .. }),
+            ..
+        }) = item
         else {
             return;
         };
@@ -210,8 +218,12 @@ impl Visitor<'_> for IsDDash {
         if self.exists {
             return;
         }
-        let (Item::Flag { named, .. } | Item::Arg { named, .. } | Item::Nested { named, .. }) =
-            &item
+        let (Item::Flag { named, .. }
+        | Item::Arg { named, .. }
+        | Item::Nested {
+            outer: Nest::Named(Flag { named, .. }),
+            ..
+        }) = item
         else {
             return;
         };

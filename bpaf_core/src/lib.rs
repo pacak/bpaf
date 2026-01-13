@@ -43,7 +43,7 @@ pub mod api {
             r#yield,
         };
 
-        use crate::consumers::{Keyword_, Named};
+        use crate::consumers::{Keyword, Named};
 
         /// A categorical sum of two or more parsers
         ///
@@ -1476,8 +1476,12 @@ impl RawCtx {
     ) -> Result<(), Error> {
         let r = Executor::new(self.clone(), parser).execute();
 
-        let Some(info) = info else { return r };
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
+            if lazy {
+                return Ok(());
+            }
+            let Some(info) = info else { return r };
+
             let ctx = self.fork(None);
             let help = info.help_parser();
             let (handle, act) = ctx.make_raw_task(help.clone());
@@ -1508,7 +1512,7 @@ impl RawCtx {
             }
         }
 
-        if lazy { Ok(()) } else { r }
+        r
     }
 }
 

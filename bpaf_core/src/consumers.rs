@@ -131,37 +131,29 @@ impl Named {
 
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
         Nested {
-            names: self,
+            outer: Nest::Named(self.req_flag(())),
             inner: inner.into_rc(),
         }
     }
 }
 
-impl<T: 'static> Nested<T> {
-    pub fn help(mut self, help: &'static str) -> Self {
-        self.names.help = Some(help);
-        self
-    }
+pub enum Nest {
+    Named(Flag<()>),
+    Keyword(Keyword<()>),
 }
 
 pub struct Nested<T> {
-    names: Named,
+    outer: Nest,
     inner: RcParser<T>,
 }
 
 impl<T: 'static> Parser for Nested<T> {
     type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let res = ctx.parse_flag(&self.names.names).await;
-        let res = res.map_err(|err| self.names.complete_name(err, None)); // TODO - can we do better?
-
-        if !res? {
-            let item = MissingItem::Named {
-                name: self.names.names[0].clone().into_owned(),
-                meta: None,
-            };
-            return Err(Error::missing(item));
-        }
+        match &self.outer {
+            Nest::Named(named) => named.run(ctx.clone()).await?,
+            Nest::Keyword(kw) => kw.run(ctx.clone()).await?,
+        };
         let inner = ctx.fork(None);
         inner.cursor.update(|c| c + 1);
 
@@ -171,9 +163,9 @@ impl<T: 'static> Parser for Nested<T> {
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None);
         let res = handle.take();
-        ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
+        ctx.consume((inner.cursor.get() - 1 - ctx.cursor.get()) as u32);
 
-        match (res, executor_res) {
+        match (res, dbg!(executor_res)) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
             (Err(e1), Err(e2)) => Err(e1 + e2),
@@ -181,11 +173,10 @@ impl<T: 'static> Parser for Nested<T> {
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        let item = Item::Nested {
-            named: &self.names,
+        visitor.item(Item::Nested {
+            outer: &self.outer,
             inner: &self.inner,
-        };
-        visitor.item(item);
+        });
     }
 }
 
@@ -244,6 +235,13 @@ impl Literal {
             absent: Some(absent),
         }
     }
+
+    pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
+        Nested {
+            outer: Nest::Keyword(self.req_flag(())),
+            inner: inner.into_rc(),
+        }
+    }
 }
 
 impl Visited for () {
@@ -281,7 +279,7 @@ impl<T> Leaf for Keyword<T> {}
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
-    named: Named,
+    pub(crate) named: Named,
 }
 
 impl<T: Clone + 'static> Parser for Flag<T> {

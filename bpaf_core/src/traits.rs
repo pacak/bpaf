@@ -1,6 +1,6 @@
 //! [`Parser`] trait and related private helper traits
 
-use crate::{Ctx, Error, Exit, Lit, Metavar, Named, r#yield};
+use crate::{Ctx, Error, Exit, Lit, Metavar, Named, Nest, r#yield};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 /// This mostly exists to allow Executor and various helpers to depend on visits
@@ -241,7 +241,7 @@ pub enum Item<'a> {
     ///
     /// All the inner parsers go under "named" parsers unless [`Item::Section`] moves it elsewhere
     Nested {
-        named: &'a Named,
+        outer: &'a Nest,
         inner: &'a dyn Visited,
     },
     Section {

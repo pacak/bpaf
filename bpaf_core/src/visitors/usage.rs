@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{Item, Metavar, Named, VKind, VisitGroup, Visitor};
+use crate::{Flag, Item, Metavar, Named, Nest, VKind, VisitGroup, Visitor};
 
 #[derive(Debug, Default)]
 pub struct Usage<'a> {
@@ -174,12 +174,20 @@ impl<'a> Visitor<'a> for Usage<'a> {
             },
             Item::Positional { meta, help: _ } => Put::Pos { meta },
             Item::Command { .. } => Put::Command,
-            Item::Nested { named, inner } => {
-                let Some(name) = ShortOrLong::from_named(named) else {
-                    return;
-                };
-                let named = Put::Named { name, meta: None };
-                self.events.push(Event::Put(named));
+            Item::Nested { outer, inner } => {
+                match outer {
+                    Nest::Named(flag) => {
+                        let Some(name) = ShortOrLong::from_named(&flag.named) else {
+                            return;
+                        };
+                        let named = Put::Named { name, meta: None };
+                        self.events.push(Event::Put(named));
+                    }
+                    Nest::Keyword(_) => {
+                        self.events.push(Event::Put(Put::Command));
+                        return;
+                    }
+                }
                 self.events.push(Event::Put(Put::Text {
                     text: Cow::Borrowed("{"),
                 }));

@@ -25,7 +25,7 @@ const H: &str = Style::Header.ansi();
 
 use super::ShortLong;
 use crate::{
-    Item, VKind,
+    Flag, Item, Nest, VKind,
     console_writer::{MAX_TAB, Style, char_width},
     traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},
@@ -237,20 +237,31 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.track_tab(name.col_width());
                 self.help(place, help);
             }
-            Item::Nested { named, inner } => {
-                let Some(name) = named.get_shortlong() else {
-                    // pure env nested parser, makes little sense.
-                    return;
+            Item::Nested { outer, inner } => {
+                let before = self[place].len();
+
+                let help = match outer {
+                    Nest::Named(Flag { named, .. }) => {
+                        let Some(name) = named.get_shortlong() else {
+                            // pure env nested parser, makes little sense.
+                            return;
+                        };
+                        _ = write!(&mut self[place], "{:#} ", name);
+                        named.help
+                    }
+                    Nest::Keyword(keyword) => {
+                        let name = lit_name(&keyword.named.names);
+                        _ = write!(&mut self[place], "{:#} ", name);
+                        keyword.named.info.descr
+                    }
                 };
 
-                let before = self[place].len();
-                _ = write!(&mut self[place], "{:#} ", name);
                 let mut u = Usage::default();
                 inner.vi(&mut u);
                 u.render_to(&mut self[place]);
 
                 self.track_tab(self.written_chars_since(place, before));
-                self.help(place, named.help);
+                self.help(place, help);
 
                 self.in_section += 1;
                 inner.vi(self);
@@ -338,7 +349,14 @@ impl Help<'_> {
             Item::Rendered {
                 gr: Some(place), ..
             } => Place::from(*place),
-
+            Item::Nested {
+                outer: Nest::Named(_),
+                ..
+            } => Place::Named,
+            Item::Nested {
+                outer: Nest::Keyword(_),
+                ..
+            } => Place::Command,
             _ => self.place,
         };
         self.place
