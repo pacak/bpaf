@@ -189,25 +189,25 @@ impl<T: 'static> Parser for Nested<T> {
     }
 }
 
-pub struct Literal<T> {
+pub struct Keyword<T> {
     pub(crate) present: T,
     pub(crate) absent: Option<T>,
-    pub(crate) named: LNamed,
+    pub(crate) named: Literal,
 }
 
-pub struct LNamed {
+pub struct Literal {
     pub(crate) info: Info,
     pub(crate) names: Vec<Lit<'static>>,
 }
 
-pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> LNamed {
-    LNamed {
+pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> Literal {
+    Literal {
         names: vec![Lit(Name::Long(name.into()))],
         info: Info::default(),
     }
 }
 
-impl LNamed {
+impl Literal {
     pub fn short(mut self, name: char) -> Self {
         self.names.push(Lit(Name::Short(name)));
         self
@@ -222,23 +222,23 @@ impl LNamed {
     }
 }
 
-impl LNamed {
-    pub fn switch(self) -> Literal<bool> {
-        Literal {
+impl Literal {
+    pub fn switch(self) -> Keyword<bool> {
+        Keyword {
             named: self,
             present: true,
             absent: Some(false),
         }
     }
-    pub fn req_flag<T: 'static>(self, value: T) -> Literal<T> {
-        Literal {
+    pub fn req_flag<T: 'static>(self, value: T) -> Keyword<T> {
+        Keyword {
             named: self,
             present: value,
             absent: None,
         }
     }
-    pub fn flag<T: 'static>(self, present: T, absent: T) -> Literal<T> {
-        Literal {
+    pub fn flag<T: 'static>(self, present: T, absent: T) -> Keyword<T> {
+        Keyword {
             named: self,
             present,
             absent: Some(absent),
@@ -249,7 +249,7 @@ impl LNamed {
 impl Visited for () {
     fn vi<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
-impl<T: Clone + 'static> Parser for Literal<T> {
+impl<T: Clone + 'static> Parser for Keyword<T> {
     type Output = T;
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Command {
@@ -276,7 +276,7 @@ impl<T: Clone + 'static> Parser for Literal<T> {
     }
 }
 
-impl<T> Leaf for Literal<T> {}
+impl<T> Leaf for Keyword<T> {}
 
 pub struct Flag<T> {
     present: T,

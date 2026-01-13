@@ -33,6 +33,8 @@ pub mod api {
     pub mod composite {
 
         //! TODO - blurb on products and sums
+        //! - [`Named::nest`]
+        //! - [`LNamed::nest`]
 
         use crate::{
             Ctx, Kind, Op, Parser, Scope,
@@ -40,6 +42,8 @@ pub mod api {
             traits::{RcParser, VisitGroup, Visitor},
             r#yield,
         };
+
+        use crate::consumers::{Keyword_, Named};
 
         /// A categorical sum of two or more parsers
         ///
