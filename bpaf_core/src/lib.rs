@@ -270,6 +270,7 @@ use std::{
     task::Poll,
 };
 
+/// A newtype wrapper for sending a value out of a finishing task
 pub struct JoinHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
@@ -279,6 +280,16 @@ impl<T> JoinHandle<T> {
         self.result
             .take()
             .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
+    }
+}
+
+/// A newtype wrapper for receiving a value from a finishing task
+pub(crate) struct ExitHandle<T> {
+    result: Rc<Cell<Option<Result<T, Error>>>>,
+}
+impl<T> ExitHandle<T> {
+    pub(crate) fn exit(self, value: Result<T, Error>) {
+        self.result.set(Some(value))
     }
 }
 
@@ -369,6 +380,7 @@ impl Default for TaskInfo {
     }
 }
 #[derive(Debug, Copy, Clone, Ord, Eq, PartialEq, PartialOrd, Hash)]
+/// Placeholder name used in help messages for [`Argument`] and [`Positional`]
 pub struct Metavar(&'static str);
 impl Metavar {
     #[inline(never)]
@@ -442,6 +454,10 @@ impl Id {
     }
 }
 
+/// An `Id` of a parser instance
+///
+/// Used to track parsers in the Executor as well as relationship between parsers in the
+/// [`PeckingOrder`]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Id(u32);
 
@@ -483,9 +499,13 @@ enum Reason {
     Complete(CompleteReq),
 }
 
-fn make_handle<T: 'static>() -> (Rc<Cell<Option<Result<T, Error>>>>, JoinHandle<T>) {
+fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
     let result = Rc::new(Cell::new(None));
-    (result.clone(), JoinHandle { result })
+    let exit = ExitHandle { result };
+    let join = JoinHandle {
+        result: exit.result.clone(),
+    };
+    (exit, join)
 }
 
 impl RawCtx {
@@ -555,12 +575,12 @@ impl RawCtx {
         self: &Rc<Self>,
         parser: RcParser<T>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
-        let (out, handle) = make_handle();
+        let (out, handle) = make_chan();
         (handle, self.make_act(out, parser))
     }
     fn make_act<T: 'static>(
         self: &Rc<Self>,
-        out: Rc<Cell<Option<Result<T, Error>>>>,
+        out: ExitHandle<T>,
         parser: RcParser<T>,
     ) -> Pin<Box<impl Future<Output = ()> + 'static>> {
         let ctx = self.clone();
@@ -569,7 +589,7 @@ impl RawCtx {
             if ctx.is_outconsumed_leaf(res.is_ok()).await {
                 res = Err(Error::OUTCONSUMED);
             }
-            out.set(Some(res))
+            out.exit(res)
         })
     }
 
@@ -692,6 +712,9 @@ impl RawCtx {
     }
 }
 
+/// Executor connected to a context
+///
+/// Created with [`Executor::new`]
 struct Executor<'a> {
     ctx: Ctx,
     tasks: BTreeMap<Id, Task>,
@@ -1516,6 +1539,9 @@ impl RawCtx {
     }
 }
 
+/// Allows traversing several different pecking orders
+///
+/// We need it to run several parsers concurrently
 #[derive(Default, Debug)]
 struct Mixer<'a> {
     pecking: Vec<&'a PeckingOrder>,
@@ -1525,8 +1551,12 @@ struct Mixer<'a> {
     same_family: bool,
     prev: Option<pecking::Item>,
 }
+
 #[must_use]
 #[derive(Debug)]
+/// A collection of short flags we try to fall back to if we can't parse it as an argument
+///
+/// Created automatically by [`Mixer`]
 struct Group(Vec<char>);
 
 impl<'a> Mixer<'a> {
@@ -1842,21 +1872,23 @@ impl From<String> for Name<'static> {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
+/// A newtype wrapper for [`Name`] to make it a [`Literal`] name instead
+///
+/// So no `-` or `--` for [`Display`](std::fmt::Display) and a helper
 pub struct Lit<'a>(Name<'a>);
 impl Lit<'_> {
     fn into_owned(self) -> Lit<'static> {
-        Lit(match self.0 {
-            Name::Short(s) => Name::Short(s),
-            Name::Long(cow) => Name::Long(Cow::Owned(cow.into_owned())),
-        })
+        Lit(self.0.into_owned())
     }
 
+    /// Check if value is a valid prefix for Name
     fn starts_with(&self, value: &str) -> bool {
         let mut b = [0; 4];
         match &self.0 {
-            Name::Short(c) => c.encode_utf8(&mut b).starts_with(value),
-            Name::Long(cow) => cow.starts_with(value),
+            Name::Short(c) => c.encode_utf8(&mut b),
+            Name::Long(cow) => cow.as_ref(),
         }
+        .starts_with(value)
     }
 }
 
@@ -1869,6 +1901,11 @@ impl std::fmt::Display for Lit<'_> {
     }
 }
 
+/// Parser that produces a failure with a given message
+///
+/// Created with [`fail`] or [`success`], useful for custom error messages or things
+/// like custom `--version` flags, designed to be used with [`Parser::or_exit`] and
+/// [`Parser::then_exit`]
 pub struct Exit<T> {
     ctx: PhantomData<T>,
     code: i32,

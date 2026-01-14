@@ -9,6 +9,9 @@ use crate::{
 
 use super::*;
 
+/// Precursor for named parsers - flags, switches, etc
+///
+/// Create with [`short`], [`long`] or [`env`]
 #[derive(Debug, Clone)]
 pub struct Named {
     pub(crate) names: Vec<Name<'static>>,
@@ -142,6 +145,12 @@ pub enum Nest {
     Keyword(Keyword<()>),
 }
 
+/// A combination of two parsers - right after seeing `A` parse `B`
+///
+/// Deals with things like multi argument options or inline commands.
+///
+/// Start by creating the inner parser and a [`Named`] or [`Litera`] parser
+/// for the trigger then call [`Named::nest`] or [`Literal::nest`]
 pub struct Nested<T> {
     outer: Nest,
     inner: RcParser<T>,
@@ -157,7 +166,7 @@ impl<T: 'static> Parser for Nested<T> {
         let inner = ctx.fork(None);
         inner.cursor.update(|c| c + 1);
 
-        let (out, handle) = make_handle();
+        let (out, handle) = make_chan();
         let act = inner.make_act(out, self.inner.clone());
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
@@ -180,12 +189,17 @@ impl<T: 'static> Parser for Nested<T> {
     }
 }
 
+/// Parser for a literal value such as `build`
+///
+/// Create from [`Literal::flag`], [`Literal::req_flag`], [`Literal::switch`]. Similar
+/// to command parser but doesn't create a sub-parser with separate help
 pub struct Keyword<T> {
     pub(crate) present: T,
     pub(crate) absent: Option<T>,
     pub(crate) named: Literal,
 }
 
+/// A precursor of the [`Keyword`] parser
 pub struct Literal {
     pub(crate) info: Info,
     pub(crate) names: Vec<Lit<'static>>,
@@ -276,6 +290,9 @@ impl<T: Clone + 'static> Parser for Keyword<T> {
 
 impl<T> Leaf for Keyword<T> {}
 
+/// Named Flag - detects presence or absence of `--flag`
+///
+/// Create it with [`Named::flag`], [`Named::req_flag`] or [`Named::switch`]
 pub struct Flag<T> {
     present: T,
     absent: Option<T>,
@@ -322,6 +339,9 @@ impl<T> Flag<T> {
     }
 }
 
+/// Named argument. Parse `VALUE` in `--name VALUE` using [`FromStr`]
+///
+/// Create it with [`Named::argument`]
 pub struct Argument<T> {
     named: Named,
     metavar: Metavar,
