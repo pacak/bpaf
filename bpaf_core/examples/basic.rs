@@ -1,4 +1,4 @@
-use bpaf_crux::*;
+use bpaf_core::*;
 
 fn main() {
     let a = short('a').req_flag('a');

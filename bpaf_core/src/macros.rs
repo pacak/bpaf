@@ -40,19 +40,15 @@ macro_rules! prepare {
         $crate::__private::Sum{ items: ::std::vec![ $($field.into_rc()),*] }
     };
 
-    // // For product type the logic is a bit more complicated - do one more step
-    // ($ty:tt [$($fields:tt)*]) => {
-    //     $crate::fin!($ty [ $($fields)* ])
+
+    // this block is for debugging of prod only
+    // ($ty:tt [$($f:tt)+]) => {
+    //     $crate::prod!($ty [$($f)+])
     // };
 
-
-     ($ty:tt [$($f:tt)+]) => {
-         $crate::prod!($ty [$($f)+])
-     };
-
     // 13+ fields in a product - generate new dummy structure and a parser for that
-    ($ty:tt [$a:tt $b:tt $c:tt $d:tt $e:tt $f:tt $g:tt $h:tt $i:tt $j:tt $k:tt $l:tt $m:tt]) => {
-        $crate::prod!($ty [ $a $b $c $d $e $f $g $h $i $j $k $l $m])
+    ($ty:tt [$a:tt $b:tt $c:tt $d:tt $e:tt $f:tt $g:tt $h:tt $i:tt $j:tt $k:tt $l:tt $($m:tt)+]) => {
+        $crate::prod!($ty [ $a $b $c $d $e $f $g $h $i $j $k $l $($m)+])
     };
 
     // reuse tuple logic
@@ -79,7 +75,7 @@ macro_rules! via_tuple {
 macro_rules! prod {
     ($ty:tt [$($f:ident)+]) => {{
         mod ty {
-            #![allow(non_camel_case_types, unused_parens, clippy::double_parens)]
+            #![allow(non_camel_case_types, unused_parens, clippy::double_parens, unused_imports)]
             use $crate::__private::*;
             pub(super) struct Ty<$($f),+> {
                 $( pub $f: $f, )+
@@ -88,6 +84,7 @@ macro_rules! prod {
                 type Output = ($($f::Output),+);
 
                 async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+                    use $crate::Parser;
                     $( let $f = ctx.spawn(Kind::Prod, self.$f.clone().into_rc());)+
                     r#yield().await;
                     let mut err = None;

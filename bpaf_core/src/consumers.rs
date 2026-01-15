@@ -11,7 +11,7 @@ use super::*;
 
 /// Precursor for named parsers - flags, switches, etc
 ///
-/// Create with [`short`], [`long`] or [`env`]
+/// Create with [`short`], [`long`] or [`env()`]
 #[derive(Debug, Clone)]
 pub struct Named {
     pub(crate) names: Vec<Name<'static>>,
@@ -149,7 +149,7 @@ pub enum Nest {
 ///
 /// Deals with things like multi argument options or inline commands.
 ///
-/// Start by creating the inner parser and a [`Named`] or [`Litera`] parser
+/// Start by creating the inner parser and a [`Named`] or [`Literal`] parser
 /// for the trigger then call [`Named::nest`] or [`Literal::nest`]
 pub struct Nested<T> {
     outer: Nest,
@@ -174,7 +174,7 @@ impl<T: 'static> Parser for Nested<T> {
         let res = handle.take();
         ctx.consume((inner.cursor.get() - 1 - ctx.cursor.get()) as u32);
 
-        match (res, dbg!(executor_res)) {
+        match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
             (Err(e1), Err(e2)) => Err(e1 + e2),
@@ -457,6 +457,7 @@ where
 
 impl<P: Leaf> Leaf for WithComplete<P> {}
 
+/// A parser for positional items - parses operands using [`FromStr`]
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,
     pub(crate) help: Option<&'static str>,
@@ -578,6 +579,9 @@ pub fn pure<T: Clone + 'static>(value: T) -> Pure<T> {
     Pure { value }
 }
 
+/// A parser that produces a value `T` without consuming anything
+///
+/// Created with [`pure`]
 pub struct Pure<T> {
     value: T,
 }

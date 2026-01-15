@@ -15,9 +15,14 @@ fn parse_failed_msg() {
 
 #[test]
 fn parse_simple_flag_works_0() {
+<<<<<<< HEAD
     let a = short('a').switch();
 
     let r = run(a, &["-a"]).unwrap();
+=======
+    let parser = short('a').switch().to_options();
+    let r = parser.run_inner(["-a"]).unwrap();
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     assert!(r);
 }
 
@@ -26,8 +31,13 @@ fn parse_simple_flag_works_1() {
     let a = short('a').switch();
     let b = short('b').flag(1, 2);
     let c = short('c').req_flag(());
+<<<<<<< HEAD
     let parser = construct!(a, b, c);
     let r = run(parser, &["-a", "-b", "-c"]).unwrap();
+=======
+    let parser = construct!(a, b, c).to_options();
+    let r = parser.run_inner(["-a", "-b", "-c"]).unwrap();
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     assert_eq!(r, (true, 1, ()));
 }
 
@@ -35,8 +45,13 @@ fn parse_simple_flag_works_1() {
 fn parse_simple_flag_works_2() {
     let a = short('a').switch();
     let b = short('a').switch();
+<<<<<<< HEAD
     let parser = construct!(a, b);
     let r = run(parser, &["-a", "-a"]).unwrap();
+=======
+    let parser = construct!(a, b).to_options();
+    let r = parser.run_inner(["-a", "-a"]).unwrap();
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     assert_eq!(r, (true, true));
 }
 
@@ -44,12 +59,18 @@ fn parse_simple_flag_works_2() {
 fn optional_tuple_works() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');
+<<<<<<< HEAD
     let parser = construct!(a, b).optional();
     let r = run(parser, &["-a", "-b"]).unwrap();
+=======
+    let parser = construct!(a, b).optional().to_options();
+    let r = parser.run_inner(["-a", "-b"]).unwrap();
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     assert_eq!(r, Some(('a', 'b')));
 }
 
 #[test]
+<<<<<<< HEAD
 fn parse_simpel_arg_works_1() {
     let a = short('a').argument::<u32>("A");
     let b = short('b').argument::<u32>("B");
@@ -57,11 +78,55 @@ fn parse_simpel_arg_works_1() {
     let (ra, rb) = run(parser, &["-a=10", "-b", "20"]).unwrap();
     assert_eq!(ra, 10);
     assert_eq!(rb, 20);
+=======
+fn parse_simple_arg_works_1() {
+    let a = short('a').argument::<u32>("A");
+    let b = short('b').argument::<u32>("B");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-a=10 -b 20").unwrap();
+    assert_eq!(r, (10, 20));
+}
+
+#[test]
+fn multiple_any_parsers() {
+    let a = any("A", |s| s.parse::<i32>().ok().filter(|v| *v < -100));
+    let b = any("B", |s| {
+        s.parse::<i32>().ok().filter(|v| (-100..100).contains(v))
+    });
+    let c = any("C", |s| s.parse::<i32>().ok().filter(|v| *v > 100));
+    let parser = construct!(a, b, c).to_options();
+
+    let r = parser.run_inner("-1000 1000 0").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+
+    let r = parser.run_inner("1000 -1000 0").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+
+    let r = parser.run_inner("0 -1000 1000").unwrap();
+    assert_eq!(r, (-1000, 0, 1000));
+}
+
+#[test]
+fn from_any_str_works() {
+    let a = any_from_str::<i32>("I");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
+
+    let r = parser.run_inner("-42").unwrap();
+    assert_eq!(r, -42);
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
 }
 
 #[test]
 fn simple_parse_any_works() {
+<<<<<<< HEAD
     let parser = any(|s| s.parse::<i32>().ok()).to_options();
+=======
+    let parser = any("A", |s| s.parse::<i32>().ok()).to_options();
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
 
     let r = parser.run_inner("-42").unwrap();
     assert_eq!(r, -42);
@@ -71,7 +136,11 @@ fn simple_parse_any_works() {
 
 #[test]
 fn with_flag_parse_any_works() {
+<<<<<<< HEAD
     let a = any(|s| s.parse::<i32>().ok());
+=======
+    let a = any("A", |s| s.parse::<i32>().ok());
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     let b = short('b').switch();
     let parser = construct!(a, b).to_options();
 
@@ -132,7 +201,10 @@ fn many_with_optional() {
     assert_eq!(r, &[(None, 30)]);
 
     let r = parser.run_inner("-a -b=10 -b20 -a -b 30").unwrap();
+<<<<<<< HEAD
 
+=======
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
     assert_eq!(r, &[(Some(()), 10), (Some(()), 20), (None, 30)]);
 }
 
@@ -230,6 +302,29 @@ fn simple_command() {
 }
 
 #[test]
+<<<<<<< HEAD
+=======
+fn simple_literal() {
+    let a = literal("hello")
+        .help("This is sample command")
+        .flag("lit", "no lit");
+    let b = long("hello")
+        .help("This is a switch")
+        .flag("switch", "no switch");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("--hello").unwrap();
+    assert_eq!(r, "switch");
+
+    let r = parser.run_inner("hello").unwrap();
+    assert_eq!(r, "lit");
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, "no lit");
+}
+
+#[test]
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
 fn simple_nested() {
     let inner = short('a').req_flag('a');
     let parser = short('b').nest(inner).to_options();
@@ -238,6 +333,7 @@ fn simple_nested() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn simple_complete_command() {
     let a = short('a').req_flag('a').to_options().command("alpha");
     let b = short('b').req_flag('b');
@@ -289,6 +385,44 @@ fn simple_complete_for_value() {
         r,
         r#"CompReply([Value { group: None, value: "42", hint: None }])"#
     );
+=======
+fn flag_or_arg() {
+    let a = short('a').req_flag(0);
+    let b = short('a').argument::<usize>("A");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-a4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 0);
+
+    let r = parser.run_inner("-a=4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a 4").unwrap();
+    assert_eq!(r, 4);
+}
+
+#[test]
+fn arg_or_flag() {
+    // behavior should be identical to `flag_or_arg`
+    let a = short('a').req_flag(0);
+    let b = short('a').argument::<usize>("A");
+    let parser = construct!([b, a]).to_options();
+
+    let r = parser.run_inner("-a4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, 0);
+
+    let r = parser.run_inner("-a=4").unwrap();
+    assert_eq!(r, 4);
+
+    let r = parser.run_inner("-a 4").unwrap();
+    assert_eq!(r, 4);
+>>>>>>> 5f9eef1e (Start making bpaf from core and derive)
 }
 
 #[test]

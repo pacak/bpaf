@@ -1,5 +1,9 @@
 //! [`Parser`] trait and related private helper traits
 
+#![allow(unused_imports)]
+#![cfg_attr(doc, warn(unused_imports))]
+
+use crate::visitors::help::Help;
 use crate::{Ctx, Error, Exit, Lit, Metavar, Named, Nest, r#yield};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
@@ -171,11 +175,14 @@ pub trait Parser {
         WithOffset { inner: self }
     }
 
-    fn then_exit(self, exit: Exit<Self::Output>) -> ThenExit<Self::Output, Self>
+    fn then_exit<T>(self, exit: impl Fn(Self::Output) -> Exit<T> + 'static) -> ThenExit<T, Self>
     where
         Self: Sized,
     {
-        ThenExit { inner: self, exit }
+        ThenExit {
+            inner: self,
+            exit: Box::new(exit),
+        }
     }
 
     fn or_exit(self, exit: Exit<Self::Output>) -> OrExit<Self::Output, Self>
@@ -206,7 +213,10 @@ pub enum Item<'a> {
     OptionParser {
         /// Parser information - header, description, footer
         info: &'a Info,
-        /// A way to visit the inner parser - [`Help`] visitor uses it to extract usage information
+        /// A way to visit the inner parser as a whole, possibly with a different visitor. Visitor that
+        /// generates Help uses it to extract usage information.
+        ///
+        /// After receiving this event visitor will receive events related to this parser
         inner: &'a dyn Visited,
     },
     Flag {

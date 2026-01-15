@@ -34,7 +34,7 @@ pub mod api {
 
         //! TODO - blurb on products and sums
         //! - [`Named::nest`]
-        //! - [`LNamed::nest`]
+        //! - [`Literal::nest`]
 
         use crate::{
             Ctx, Kind, Op, Parser, Scope,
@@ -43,7 +43,7 @@ pub mod api {
             r#yield,
         };
 
-        use crate::consumers::{Keyword, Named};
+        use crate::consumers::{Keyword, Literal, Named};
 
         /// A categorical sum of two or more parsers
         ///
@@ -338,6 +338,12 @@ impl std::fmt::Debug for TTarget {
     }
 }
 
+/// A parsing thread tracked by the executor
+///
+/// Doesn't produce a value directly, instead uses a pair of [`ExitHandle`]/[`JoinHandle`] to
+/// pass the value to the parent thread.
+///
+/// Tasks form a tree structure
 struct Task {
     act: Pin<Box<dyn Future<Output = ()>>>,
     info: TaskInfo,
@@ -356,6 +362,10 @@ pub enum Kind {
     Prod,
 }
 
+/// Shared state and meta info about tasks
+///
+/// Used by the executor but also shared with the task itself as it runs in
+/// [`Ctx::current_task`]
 #[derive(Debug)]
 struct TaskInfo {
     /// Current task Id
@@ -412,6 +422,10 @@ impl std::fmt::Display for Metavar {
     }
 }
 
+/// A future that yields on the first poll and returns on the second one
+///
+/// Created with [`r#yield`], one of the key building blocks responsible
+/// for cooperative multitasking
 pub struct Yield(bool);
 
 pub fn r#yield() -> Yield {
@@ -435,6 +449,7 @@ impl Future for Yield {
     }
 }
 
+/// A newtyped [`Id`] for parser tracking relationship
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 struct Parent(u32);
 impl Parent {
@@ -1256,12 +1271,15 @@ impl<'a> Executor<'a> {
     }
 }
 
+/// Intermediate state used by mixer to figure out what tasks can run
+/// concurrently with tasks that alredy got chance to run
 #[derive(Debug, Default)]
 struct Tracker {
     seen: BTreeSet<Parent>,
     stack: Vec<Parent>,
 }
 
+/// Can this task run concurrently or not?
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 enum WalkResult {
     /// Pick this value, next value can be in the same family
@@ -1275,7 +1293,9 @@ enum WalkResult {
 impl Tracker {
     /// Check if current item can run concurrently with all the previously seen ones
     ///
-    /// returns if current value can run and if
+    /// The idea is that if current task intersects with previously executed tasks
+    /// on a sum - it can run and next sibling can run as well. If it intersects
+    /// with a prod - it can't. First task can always run
     fn walk_tasks_up(&mut self, mut cur: Id, tasks: &BTreeMap<Id, Task>) -> WalkResult {
         let blank = self.seen.is_empty();
         self.stack.clear();
@@ -1400,6 +1420,8 @@ mod tracker_tests {
 use pecking::PeckingOrder;
 
 type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
+/// A collection of mappings from values encountered in arguments to
+/// tasks scheduled to consume them, in some priority order
 #[derive(Default)]
 struct Triggers {
     // `-f`, `--foo`
@@ -1911,16 +1933,21 @@ pub struct Exit<T> {
     code: i32,
     msg: Cow<'static, str>,
 }
+impl<T> Exit<T> {
+    fn to_error(&self) -> Error {
+        let msg = self.msg.as_ref().to_owned();
+        Error::Final(if self.code == 0 {
+            ParseFailure::Stdout(msg)
+        } else {
+            ParseFailure::Stderr(msg)
+        })
+    }
+}
 
 impl<T: 'static> Parser for Exit<T> {
     type Output = T;
     fn run(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
-        let msg = self.msg.as_ref().to_owned();
-        std::future::ready(Err(Error::Final(if self.code == 0 {
-            ParseFailure::Stdout(msg)
-        } else {
-            ParseFailure::Stderr(msg)
-        })))
+        std::future::ready(Err(self.to_error()))
     }
 
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}

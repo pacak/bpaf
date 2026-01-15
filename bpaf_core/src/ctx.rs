@@ -14,6 +14,7 @@ use crate::{
     Conflict, Id, KillReason, Parent, Reason, TChange, TTarget, Task, TaskInfo, args::Args,
 };
 
+/// State shared between all the parsers, used via [`Ctx`] alias
 pub struct RawCtx {
     /// Scheduled ops
     ///

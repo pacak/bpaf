@@ -60,6 +60,9 @@ impl<T: 'static> Parser for Optional<T> {
     }
 }
 
+/// A top level parser with associated description
+///
+/// Created with [`Parser::to_options`]
 pub struct OptionParser<T> {
     pub(crate) inner: RcParser<T>,
     pub(crate) info: Info,
@@ -461,6 +464,8 @@ impl<T: 'static + std::fmt::Display, P> Fallback<T, P> {
 }
 
 impl<T, P> Fallback<T, P> {
+    /// Show a fallback value in a help using custom call to [`write!`]
+    /// `.format_fallback(|v, f| write!(f, "{v}"))`
     pub fn format_fallback(
         mut self,
         format: impl Fn(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
@@ -470,6 +475,7 @@ impl<T, P> Fallback<T, P> {
     }
 }
 
+/// Helper for [`Fallback`] that allows using a custom formatter
 struct DisplayWith<'a, T, F>(&'a T, F);
 
 impl<'a, T, F: Fn(&'a T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result> std::fmt::Display
@@ -482,6 +488,7 @@ impl<'a, T, F: Fn(&'a T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result> std:
     }
 }
 
+/// A parser that produces a value by calling a closure
 pub struct PureWith<F> {
     pub(crate) act: F,
 }
@@ -543,20 +550,17 @@ where
     }
 }
 
-pub struct ThenExit<T, P> {
+pub struct ThenExit<T, P: Parser> {
     pub(crate) inner: P,
-    pub(crate) exit: Exit<T>,
+    pub(crate) exit: Box<dyn Fn(P::Output) -> Exit<T>>,
 }
 
-impl<T: 'static, P: Parser<Output = T>> Parser for ThenExit<T, P> {
+impl<T: 'static, P: Parser> Parser for ThenExit<T, P> {
     type Output = T;
     async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        let a = self.inner.run(ctx.clone()).await;
-
-        if a.is_ok() {
-            self.exit.run(ctx).await
-        } else {
-            a
+        match self.inner.run(ctx.clone()).await {
+            Ok(o) => Err((self.exit)(o).to_error()),
+            Err(e) => Err(e),
         }
     }
 
