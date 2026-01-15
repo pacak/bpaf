@@ -1,5 +1,10 @@
 # Change Log
 
+## bpaf [0.9.21], bpaf_derive [0.5.21] - 2026-01-15
+- Documentation fixes
+- minor derive macro improvements
+- MSRV is now 1.60
+
 ## bpaf [0.9.20] - 2025-05-25
 - Documentation fixes (#424)
   thanks @yuriks
