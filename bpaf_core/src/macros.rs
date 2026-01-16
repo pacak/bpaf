@@ -69,6 +69,7 @@ macro_rules! via_tuple {
     // for named/positional below 13 items - go via tuple
     ([pos   $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ ($($f),+)) };
     ([named $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ {$($f),+}) };
+
     ([named $($con:tt)+] []) => { $crate::pure( $($con)+ {} ) };
 }
 
