@@ -1885,6 +1885,7 @@ mod tests {
     mod offset;
     mod osstring;
     mod pure_with;
+    mod repeat;
     mod unsorted;
     mod usage;
     // mod wake;

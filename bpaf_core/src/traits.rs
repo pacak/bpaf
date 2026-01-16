@@ -102,6 +102,15 @@ pub trait Parser {
         }
     }
 
+    fn last(self) -> Last<Self::Output>
+    where
+        Self: Sized + 'static,
+    {
+        Last {
+            inner: self.into_rc(),
+        }
+    }
+
     fn to_options(self) -> OptionParser<Self::Output>
     where
         Self: Sized + 'static,

@@ -253,6 +253,27 @@ impl<T: 'static> Parser for Count<T> {
     }
 }
 
+pub struct Last<T> {
+    pub(crate) inner: RcParser<T>,
+}
+
+impl<T: 'static> Parser for Last<T> {
+    type Output = T;
+
+    async fn run(&self, ctx: crate::Ctx) -> Result<Self::Output, Error> {
+        let mut xs = parse_many(self.inner.clone(), ctx, 1, usize::MAX).await?;
+        Ok(xs.remove(xs.len() - 1))
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Many);
+        visitor.push_group(VisitGroup::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+        visitor.pop_group();
+    }
+}
+
 pub struct Many<T> {
     pub(crate) inner: RcParser<T>,
 }
@@ -261,7 +282,7 @@ impl<T: 'static> Parser for Many<T> {
     type Output = Vec<T>;
 
     fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<Vec<T>, Error>> {
-        parse_many(self.inner.clone(), ctx, usize::MAX)
+        parse_many(self.inner.clone(), ctx, 0, usize::MAX)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -276,6 +297,7 @@ impl<T: 'static> Parser for Many<T> {
 async fn parse_many<T: 'static>(
     parser: RcParser<T>,
     ctx: crate::Ctx,
+    min: usize,
     max: usize,
 ) -> Result<Vec<T>, Error> {
     let mut res = Vec::new();
@@ -303,7 +325,7 @@ async fn parse_many<T: 'static>(
                 }
                 break;
             }
-            (false, Err(e)) if e.can_catch() => break,
+            (false, Err(e)) if e.can_catch() && res.len() >= min => break,
             (false, Err(e)) => return Err(e),
         }
         if res.len() >= max {
@@ -320,7 +342,7 @@ pub struct Many1<T> {
 impl<T: 'static> Parser for Many1<T> {
     type Output = Vec<T>;
     async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-        let res = parse_many(self.inner.clone(), ctx, usize::MAX).await?;
+        let res = parse_many(self.inner.clone(), ctx, 0, usize::MAX).await?;
         if res.is_empty() {
             Err(Error::Problem(u32::MAX, Problem::Static(self.message)))
         } else {
