@@ -73,7 +73,7 @@ fn fallback_usage_subcommand() {
 }
 
 #[test]
-fn fallback_usage_lut() {
+fn fallback_usage_lut_1() {
     let input: Top = parse_quote! {
         #[bpaf(options)]
         enum Lutgen {
@@ -88,6 +88,32 @@ fn fallback_usage_lut() {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Lutgen::Generate)
+                .to_options()
+                .descr("descr")
+                .fallback_to_usage()
+                .command("generate")
+                .to_options()
+        }
+    };
+    assert_eq!(input.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn fallback_usage_lut_2() {
+    let input: Top = parse_quote! {
+        #[bpaf(options)]
+        enum Lutgen {
+            /// descr
+            #[bpaf(command, fallback_to_usage)]
+            Generate {},
+        }
+    };
+
+    let expected = quote! {
+        fn lutgen() -> ::bpaf::OptionParser<Lutgen> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::pure(Lutgen::Generate {})
                 .to_options()
                 .descr("descr")
                 .fallback_to_usage()
@@ -156,9 +182,7 @@ fn top_struct_options1() {
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
-                {
-                    ::bpaf::construct!(Opt {})
-                }
+            ::bpaf::pure(Opt {})
                 .to_options()
                 .descr("those are options")
                 .header(h)
@@ -180,9 +204,7 @@ fn options_with_custom_usage() {
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
-                {
-                    ::bpaf::construct!(Opt {})
-                }
+            ::bpaf::pure(Opt {})
                 .to_options()
                 .usage("App: usage")
         }
@@ -203,11 +225,9 @@ fn struct_options2() {
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
-            {
-                ::bpaf::construct!(Opt {})
-            }
-            .to_options()
-            .descr("those are options")
+            ::bpaf::pure(Opt {})
+                .to_options()
+                .descr("those are options")
         }
     };
 
@@ -271,13 +291,11 @@ fn struct_command_short() {
         fn o() -> impl ::bpaf::Parser<O> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
-            {
-                ::bpaf::construct!(O{ })
-            }
-            .to_options()
-            .descr("those are options")
-            .command("o")
-            .short('x')
+            ::bpaf::pure(O{ })
+                .to_options()
+                .descr("those are options")
+                .command("o")
+                .short('x')
 
         }
     };
@@ -1090,9 +1108,7 @@ fn no_fields_declaration() {
         fn opts() -> impl ::bpaf::Parser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
-            {
-                ::bpaf::construct!(Opts {})
-            }
+            ::bpaf::pure(Opts {})
         }
     };
 
