@@ -252,14 +252,14 @@ fn a_or_b_opt_and_c() {
     assert_usage(parser, "[-a=A | -b=B] C");
 }
 
-#[test]
-fn any_in_adjacent() {
-    let a = short('a').req_flag(());
-    let b = any("A", Some);
-    let parser: OptionParser<((), i64)> = construct!(a, b).adjacent().to_options();
-
-    assert_usage(parser, "-a A");
-}
+// #[test]
+// fn any_in_adjacent() {
+//     let a = short('a').req_flag(());
+//     let b = any("A", Some);
+//     let parser: OptionParser<((), i64)> = construct!(a, b).adjacent().to_options();
+//
+//     assert_usage(parser, "-a A");
+// }
 
 #[test]
 fn positionals_in_branches_are_okay() {

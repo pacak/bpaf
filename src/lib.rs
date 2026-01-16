@@ -469,3 +469,4 @@
 //! </div>
 
 pub use bpaf_core::*;
+pub use bpaf_derive::Bpaf;
