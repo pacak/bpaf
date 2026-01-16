@@ -63,6 +63,9 @@ pub enum Problem {
     Dynamic {
         err: String,
     },
+    NotStrict {
+        metavar: Metavar,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -94,7 +97,6 @@ impl std::fmt::Display for Problem {
                     accepted.to_string_lossy(),
                 )
             }
-
             Problem::ConflictPos {
                 accepted,
                 unexpected,
@@ -156,6 +158,9 @@ impl std::fmt::Display for Problem {
                 )
             }
             Problem::Dynamic { err } => write!(f, "{err}"),
+            Problem::NotStrict { metavar } => {
+                write!(f, "expected `{metavar}` to be on the right side of `--`")
+            }
         }
     }
 }

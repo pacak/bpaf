@@ -461,6 +461,7 @@ impl<P: Leaf> Leaf for WithComplete<P> {}
 pub struct Positional<T> {
     pub(crate) metavar: Metavar,
     pub(crate) help: Option<&'static str>,
+    pub(crate) strict: bool,
     ctx: PhantomData<T>,
 }
 
@@ -469,14 +470,24 @@ pub fn positional<T: 'static>(metavar: &'static str) -> Positional<T> {
         metavar: Metavar(metavar),
         ctx: PhantomData,
         help: None,
+        strict: false,
     }
 }
 
-fn complete_pos(err: Error, meta: Metavar) -> Error {
+impl<T: 'static> Positional<T> {
+    pub fn strict(mut self) -> Self {
+        self.strict = true;
+        self
+    }
+}
+
+fn complete_pos(err: Error, needs_strict: bool, meta: Metavar) -> Error {
     let Error::CompReq(ref comp) = err else {
         return err;
     };
+
     match comp {
+        CompleteReq::Anything if needs_strict => todo!(),
         CompleteReq::Anything => Error::CompReply(Vec1::new(CompleteReply::Pos { meta })),
         CompleteReq::Name { .. } | CompleteReq::Literal { .. } | CompleteReq::Value(..) => err,
     }
@@ -494,13 +505,21 @@ where
     type Output = T;
     async fn run(&self, ctx: Ctx) -> Result<T, Error> {
         let res = ctx.parse_pos().await;
-        let res = res.map_err(|err| complete_pos(err, self.metavar));
+        let res = res
+            .map_err(|err| complete_pos(err, self.strict && !ctx.strict_pos.get(), self.metavar));
 
-        if let Some(os) = res? {
-            parse_os_str(os).map_err(|p| problem_at_pos(&ctx, p))
-        } else {
+        let Some(os) = res? else {
             let item = MissingItem::Pos { meta: self.metavar };
-            Err(Error::missing(item))
+            return Err(Error::missing(item));
+        };
+        if self.strict && !ctx.strict_pos.get() {
+            let cursor = ctx.cursor.get() as u32;
+            let problem = Problem::NotStrict {
+                metavar: self.metavar,
+            };
+            Err(Error::Problem(cursor, problem))
+        } else {
+            parse_os_str(os).map_err(|p| problem_at_pos(&ctx, p))
         }
     }
 

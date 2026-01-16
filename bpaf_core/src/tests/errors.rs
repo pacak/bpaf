@@ -749,3 +749,16 @@ fn pair_of_pos() {
     let r = parser.run_inner("33 4.0").unwrap();
     assert_eq!(r, (33, 4.0));
 }
+
+#[test]
+fn strict_pos_msg() {
+    let a = positional::<i32>("A").strict();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("32").unwrap_err().unwrap_stderr();
+    let expected = "expected `A` to be on the right side of `--`";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-- -32").unwrap();
+    assert_eq!(r, -32);
+}
