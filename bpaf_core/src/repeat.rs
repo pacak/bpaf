@@ -30,8 +30,20 @@ impl<T: 'static> Parser for Last<T> {
     type Output = T;
 
     async fn run(&self, ctx: crate::Ctx) -> Result<Self::Output, Error> {
-        let mut xs = parse_many(self.inner.clone(), ctx, 1, usize::MAX).await?;
-        Ok(xs.remove(xs.len() - 1))
+        let start = ctx.next_free.get();
+        let mut prev = None;
+        loop {
+            let this = try_parse(start, self.inner.clone(), ctx.clone()).await;
+            match (prev, this) {
+                // keep consuming as long as there are new items
+                (_, (true, Ok(v))) => prev = Some(v),
+                (None, (_, Err(e))) => return Err(e),
+                (None, (false, Ok(v))) => return Ok(v),
+
+                (Some(v), (_, Err(_))) => return Ok(v),
+                (Some(v), (false, _)) => return Ok(v),
+            }
+        }
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
@@ -61,6 +73,20 @@ impl<T: 'static> Parser for Many<T> {
         visitor.pop_group();
         visitor.pop_group();
     }
+}
+
+async fn try_parse<T: 'static>(
+    start: u32,
+    parser: RcParser<T>,
+    ctx: Ctx,
+) -> (bool, Result<T, Error>) {
+    let before = ctx.current_task.borrow().consumed;
+    ctx.next_free.set(start);
+    let (h, pair) = ctx.spawn_with_early_exit(parser);
+    r#yield().await;
+    ctx.remove_early_exit(pair);
+    let after = ctx.current_task.borrow().consumed;
+    (before < after, h.take())
 }
 
 async fn parse_many<T: 'static>(
