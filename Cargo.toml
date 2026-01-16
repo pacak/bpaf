@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.9.21"
+version = "0.9.22"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
@@ -32,7 +32,7 @@ bpaf = { path = ".",  features = ["derive", "extradocs", "autocomplete", "docgen
 [package.metadata.docs.rs]
 features = ["unstable-docs"]
 cargo-args = ["-Zunstable-options", "-Zrustdoc-scrape-examples"]
-rustdoc-args = ["--cfg", "docsrs", "--generate-link-to-definition"]
+rustdoc-args = ["--generate-link-to-definition"]
 
 
 [features]

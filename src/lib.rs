@@ -2,7 +2,6 @@
 #![allow(clippy::needless_doctest_main)]
 #![allow(clippy::redundant_else)] // not useful
 #![allow(rustdoc::redundant_explicit_links)] // two random markdown parsers I tried only supports explicit links
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 //! Lightweight and flexible command line argument parser with derive and combinatoric style API
 
