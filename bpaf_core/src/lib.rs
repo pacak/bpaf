@@ -55,7 +55,7 @@ pub mod api {
         ///
         /// TODO - a few dummy examples
         pub struct Sum<T> {
-            pub(crate) items: Vec<RcParser<T>>,
+            pub items: Vec<RcParser<T>>,
         }
 
         impl<T: 'static> Sum<T> {
