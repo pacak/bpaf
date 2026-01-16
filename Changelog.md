@@ -1,5 +1,9 @@
 # Change Log
 
+## Unreleased
+
+- generate slightly better code in bpaf_derive
+
 ## bpaf [0.9.27], bpaf_derive [0.5.26] - 2026-07-29
 - improve error message if user passes an empty value to argument or positional
 
@@ -24,8 +28,6 @@
 
 ## bpaf [0.9.22], bpaf_derive [0.5.22] - 2026-01-15
 - fix docs.rs generation
-
-## bpaf [0.9.21], bpaf_derive [0.5.21] - 2026-01-15
 - Documentation fixes
 - minor derive macro improvements
 - MSRV is now 1.60
