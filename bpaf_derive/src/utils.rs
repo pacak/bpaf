@@ -1,7 +1,7 @@
 use syn::{
-    parenthesized,
+    Attribute, Expr, LitChar, LitStr, Result, parenthesized,
     parse::{Parse, ParseStream},
-    token, Attribute, Expr, LitChar, LitStr, Result,
+    token,
 };
 
 pub(crate) fn parse_arg<T: Parse>(input: ParseStream) -> Result<T> {
@@ -137,11 +137,7 @@ impl<'a> LineIter<'a> {
             }
             res.push_str(&t);
         }
-        if res.is_empty() {
-            None
-        } else {
-            Some(res)
-        }
+        if res.is_empty() { None } else { Some(res) }
     }
 }
 

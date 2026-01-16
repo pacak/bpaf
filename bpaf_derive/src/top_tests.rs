@@ -1,6 +1,6 @@
 use crate::Top;
 use pretty_assertions::assert_eq;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::parse_quote;
 
 #[test]

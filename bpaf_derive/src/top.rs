@@ -1,23 +1,23 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    braced, parenthesized,
+    Attribute, Error, Expr, Ident, ItemFn, LitChar, LitStr, Result, Visibility, braced,
+    parenthesized,
     parse::{Parse, ParseStream},
     parse_quote,
     punctuated::Punctuated,
     spanned::Spanned,
     token,
     visit_mut::VisitMut,
-    Attribute, Error, Expr, Ident, ItemFn, LitChar, LitStr, Result, Visibility,
 };
 
 use crate::{
-    attrs::{parse_bpaf_doc_attrs, EnumPrefix, PostDecor, StrictName},
+    attrs::{EnumPrefix, PostDecor, StrictName, parse_bpaf_doc_attrs},
     custom_path::CratePathReplacer,
     field::StructField,
     help::Help,
     td::{CommandCfg, EAttr, Ed, Mode, OptionsCfg, ParserCfg, TopInfo},
-    utils::{to_kebab_case, to_snake_case, LineIter},
+    utils::{LineIter, to_kebab_case, to_snake_case},
 };
 
 #[derive(Debug)]
