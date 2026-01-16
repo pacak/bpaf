@@ -186,7 +186,7 @@ impl Iterator for LineIter<'_> {
 }
 
 #[cfg(test)]
-fn split(input: &str) -> LineIter {
+fn split(input: &str) -> LineIter<'_> {
     LineIter::from(input)
 }
 

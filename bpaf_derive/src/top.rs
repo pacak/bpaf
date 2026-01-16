@@ -639,6 +639,11 @@ impl ToTokens for Branch {
             fields,
         } = self;
         match fields {
+            FieldSet::Named(fields) if fields.is_empty() => {
+                quote! {
+                    ::bpaf::pure( #enum_name #ident {})
+                }
+            }
             FieldSet::Named(fields) => {
                 let name = fields
                     .iter()
@@ -650,6 +655,12 @@ impl ToTokens for Branch {
                     #( let #name = #value; )*
                     ::bpaf::construct!( #enum_name #ident { #( #result , )* })
                 }}
+            }
+
+            FieldSet::Unnamed(fields) if fields.is_empty() => {
+                quote! {
+                    ::bpaf::pure( #enum_name #ident ())
+                }
             }
             FieldSet::Unnamed(fields) => {
                 let name = fields
