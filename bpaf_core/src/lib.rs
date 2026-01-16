@@ -11,6 +11,7 @@ mod macros;
 mod miniansi;
 mod os_str;
 mod pecking;
+mod repeat;
 mod traits;
 mod utils;
 mod visitors;

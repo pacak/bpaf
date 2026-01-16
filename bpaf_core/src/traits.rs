@@ -3,8 +3,10 @@
 #![allow(unused_imports)]
 #![cfg_attr(doc, warn(unused_imports))]
 
-use crate::visitors::help::Help;
-use crate::{Ctx, Error, Exit, Lit, Metavar, Named, Nest, r#yield};
+use crate::{
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, repeat::*, visitors::help::Help,
+    r#yield,
+};
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
 /// This mostly exists to allow Executor and various helpers to depend on visits
@@ -25,7 +27,6 @@ impl<P: Parser> Visited for P {
     }
 }
 
-use crate::adapters::*;
 pub trait Parser {
     type Output: 'static;
     fn run(&self, ctx: Ctx) -> impl Future<Output = Result<Self::Output, Error>>;
