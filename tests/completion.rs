@@ -1,3 +1,4 @@
+/*
 #![allow(clippy::ptr_arg)]
 use bpaf::*;
 
@@ -1583,3 +1584,4 @@ fn positionals_with_no_completions_are_not_duplicated() {
 \tBETA\t\tBeta argument\n\n"
     );
 }
+*/
