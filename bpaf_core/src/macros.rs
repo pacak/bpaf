@@ -65,9 +65,11 @@ macro_rules! via_tuple {
     // tuple below 13 items - use tuple instance directly
     ([pos] [$($f:ident)+]) => { ( $($f.into_rc()),+) };
 
+
     // for named/positional below 13 items - go via tuple
     ([pos   $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ ($($f),+)) };
     ([named $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ {$($f),+}) };
+    ([named $($con:tt)+] []) => { $crate::pure( $($con)+ {} ) };
 }
 
 #[doc(hidden)]

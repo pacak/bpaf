@@ -86,3 +86,16 @@ fn make_alt_func_no_arg() {
     let r = parser.run_inner("-a").unwrap();
     assert!(r);
 }
+
+#[test]
+fn make_pure_named_enum() {
+    #[derive(Eq, PartialEq, Clone, Copy, Debug)]
+    enum Foo {
+        Bar {},
+    }
+
+    let parser = construct!(Foo::Bar {}).to_options();
+    let r = parser.run_inner("").unwrap();
+
+    assert_eq!(r, Foo::Bar {});
+}
