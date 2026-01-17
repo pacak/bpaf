@@ -195,6 +195,9 @@ pub enum MissingItem {
     Lit {
         value: Lit<'static>,
     },
+    Custom {
+        rendered: String,
+    },
 }
 
 impl std::fmt::Display for MissingItem {
@@ -207,6 +210,7 @@ impl std::fmt::Display for MissingItem {
             } => write!(f, "missing `{name} {meta}`"),
             MissingItem::Pos { meta } => write!(f, "missing `{meta}`"),
             MissingItem::Lit { value } => write!(f, "missing `{value}`"),
+            MissingItem::Custom { rendered } => f.write_str(rendered),
         }
     }
 }

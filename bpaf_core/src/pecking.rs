@@ -66,6 +66,10 @@ impl PeckingOrder {
             Pecking::Set { set } => set.first().copied(),
         }
     }
+
+    pub(crate) fn clear(&mut self) {
+        self.0 = Pecking::Empty
+    }
 }
 
 #[derive(Debug, Default)]

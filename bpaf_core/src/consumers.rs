@@ -532,65 +532,6 @@ where
     }
 }
 
-struct DummyAnyOs<T>(Rc<dyn Fn(&OsStr) -> Option<T>>);
-struct DummyAny<T> {
-    meta: Metavar,
-    check: Rc<dyn Fn(&str) -> Option<T>>,
-}
-
-pub fn any<T: 'static>(
-    meta: &'static str,
-    check: impl Fn(&str) -> Option<T> + 'static,
-) -> impl Parser<Output = T> {
-    DummyAny {
-        meta: Metavar(meta),
-        check: Rc::new(check),
-    }
-}
-
-pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> impl Parser<Output = T> {
-    DummyAny {
-        meta: Metavar(meta),
-        check: Rc::new(|s: &str| T::from_str(s).ok()),
-    }
-}
-
-impl<T: 'static> Parser for DummyAny<T> {
-    type Output = T;
-    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
-        let item = Item::Positional {
-            meta: self.meta,
-            help: None,
-        };
-        visitor.item(item)
-    }
-
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        let h = Rc::new(Cell::new(None));
-        let out = h.clone();
-        let c = self.check.clone();
-        let check = Rc::new(move |os: &OsStr| -> bool {
-            let r = os.to_str().and_then(|v| c(v));
-            match r {
-                Some(v) => {
-                    h.set(Some(v));
-                    true
-                }
-                None => false,
-            }
-        });
-
-        if ctx.await_passing_check(check).await? {
-            Ok(out.take().unwrap())
-        } else {
-            let item = MissingItem::Pos {
-                meta: Metavar("XXX"), // TODO
-            };
-            Err(Error::missing(item))
-        }
-    }
-}
-
 /// In case of conflicts it is excluded from "earlier running parser" wins
 /// and it's position in the selection takes a priority. Including it in conflict resolution will
 /// make it so any branch containing `pure` anywhere automatically advances.

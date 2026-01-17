@@ -1,4 +1,5 @@
 mod adapters;
+mod anything;
 mod arg;
 mod args;
 mod complete;
@@ -155,6 +156,7 @@ use crate::{
 #[doc(inline)]
 pub use crate::{
     adapters::OptionParser,
+    anything::{any, any_from_str},
     consumers::*,
     traits::{Parser, Visited},
 };
@@ -182,7 +184,7 @@ pub struct JoinHandle<T> {
 }
 
 impl<T> JoinHandle<T> {
-    pub fn take(self) -> Result<T, Error> {
+    pub fn take(&self) -> Result<T, Error> {
         self.result
             .take()
             .unwrap_or(Err(Error::Silent("Empty JoinHandle?")))
@@ -194,7 +196,7 @@ pub(crate) struct ExitHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 impl<T> ExitHandle<T> {
-    pub(crate) fn exit(self, value: Result<T, Error>) {
+    pub(crate) fn exit(&self, value: Result<T, Error>) {
         self.result.set(Some(value))
     }
 }
@@ -1059,9 +1061,14 @@ impl<'a> Executor<'a> {
         };
 
         // pre-populate pecking order with any check wakeups that can match
-        self.triggers.active_checks = PeckingOrder::default();
+        self.triggers.active_checks.clear();
         for (id, (parent, check)) in self.triggers.checks.iter() {
             if check(front) {
+                // Here we rely on checks idempotence, run all the checks
+                // at once, collect those that succeed and let usual mixer
+                // mechanism to wake up those that will advance.
+                // If task won't get a chance to run - we'll try to wake it up later
+                // and the check should update the inner state.
                 self.triggers.active_checks.insert(*parent, *id);
             }
         }
@@ -1878,6 +1885,7 @@ pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
 #[cfg(test)]
 mod tests {
     mod algebra;
+    mod any;
     mod complete;
     mod construct;
     mod errors;
