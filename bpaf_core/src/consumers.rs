@@ -129,6 +129,7 @@ impl Named {
             named: self,
             metavar: Metavar(metavar),
             ctx: PhantomData,
+            adjacent: false,
         }
     }
 
@@ -346,6 +347,7 @@ pub struct Argument<T> {
     named: Named,
     metavar: Metavar,
     ctx: PhantomData<T>,
+    adjacent: bool,
 }
 
 impl<T> Parser for Argument<T>
