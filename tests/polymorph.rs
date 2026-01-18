@@ -9,7 +9,7 @@ fn generic_argument_field() {
         field: T,
     }
 
-    fn poly<T>(name: &'static str) -> impl Parser<Poly<T>>
+    fn poly<T>(name: &'static str) -> impl Parser<Output = Poly<T>>
     where
         T: FromStr + 'static,
         <T as FromStr>::Err: std::fmt::Display,

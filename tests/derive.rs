@@ -135,5 +135,5 @@ fn pure_optional() {
         foo: Option<Vec<u32>>,
     }
 
-    assert_eq!(opts().run().foo, None);
+    assert_eq!(opts().run_inner("").unwrap().foo, None);
 }

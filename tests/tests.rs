@@ -797,7 +797,6 @@ Available options:
     -h, --help     Prints help information
 ";
     assert_eq!(expected_help, help);
-    std::env::set_var(name, "top s3cr3t");
 
     let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
     let expected_help = "\
@@ -892,8 +891,7 @@ Available commands:
         .unwrap_err()
         .unwrap_stdout();
 
-    let expected_help =
-        "inner descr\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
+    let expected_help = "inner descr\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
     assert_eq!(expected_help, help);
 
     // hidden and visible aliases are working
@@ -1633,7 +1631,7 @@ fn empty_struct() {
 fn empty_tuple() {
     #[derive(Debug, Clone, Eq, PartialEq)]
     struct Foo();
-    let parser = construct!(Foo()).to_options();
+    let parser = construct!(Foo {}).to_options();
 
     let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, Foo());
@@ -1697,9 +1695,8 @@ Available options:
 
 #[test]
 fn many_env() {
-    std::env::set_var("USER1", "top s3cr3t");
     let parser = short('v')
-        .env("USER1")
+        .env("CARGO_PKG_NAME")
         .argument::<String>("USER")
         .many()
         .to_options();
@@ -1709,33 +1706,31 @@ fn many_env() {
 
 #[test]
 fn env_hidden_arg() {
-    std::env::set_var("USER1", "top s3cr3t");
-    let parser = env("USER1").argument::<String>("USER").to_options();
+    let parser = env("CARGO_PKG_NAME")
+        .argument::<String>("USER")
+        .to_options();
     let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, "top s3cr3t");
 }
 
 #[test]
 fn env_hidden_switch() {
-    std::env::set_var("USER1", "top s3cr3t");
-    let parser = env("USER1").switch().to_options();
+    let parser = env("CARGO_PKG_NAME").switch().to_options();
     let r = parser.run_inner(&[]).unwrap();
     assert!(r);
 }
 
 #[test]
 fn env_hidden_flag() {
-    std::env::set_var("USER1", "top s3cr3t");
-    let parser = env("USER1").flag(true, false).to_options();
+    let parser = env("CARGO_PKG_NAME").flag(true, false).to_options();
     let r = parser.run_inner(&[]).unwrap();
     assert!(r);
 }
 
 #[test]
 fn some_env() {
-    std::env::set_var("USER1", "top s3cr3t");
     let parser = short('v')
-        .env("USER1")
+        .env("CARGO_PKG_NAME")
         .argument::<String>("USER")
         .some("a")
         .to_options();
