@@ -62,7 +62,7 @@ fn fallback_usage_subcommand() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Opt)
@@ -137,7 +137,7 @@ fn top_struct_construct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -158,7 +158,7 @@ fn top_enum_construct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -254,7 +254,7 @@ fn struct_command_no_decor() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Opt)
@@ -276,7 +276,7 @@ fn struct_command_decor() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Opt)
@@ -301,7 +301,7 @@ fn struct_command_short() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn o() -> impl ::bpaf::Parser<O> {
+        fn o() -> impl ::bpaf::Parser<Output=O> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(O{ })
@@ -340,7 +340,7 @@ fn unnamed_command_enum() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opts() -> impl ::bpaf::Parser<Opts> {
+        fn opts() -> impl ::bpaf::Parser<Output=Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -378,7 +378,7 @@ fn enum_markdownish() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opt() -> impl ::bpaf::Parser<Opt> {
+        fn opt() -> impl ::bpaf::Parser<Output = Opt> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -522,7 +522,7 @@ fn enum_to_flag_and_switches() {
 
     let expected = quote! {
         #[doc(hidden)]
-        pub fn opt() -> impl ::bpaf::Parser<Opt> {
+        pub fn opt() -> impl ::bpaf::Parser<Output=Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -650,7 +650,7 @@ fn req_flag_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn foo() -> impl ::bpaf::Parser<Foo> {
+        fn foo() -> impl ::bpaf::Parser<Output=Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::long("foo").req_flag(Foo)
@@ -667,7 +667,7 @@ fn generate_parser() {
     };
     let expected = quote! {
         #[doc(hidden)]
-        fn oof() -> impl ::bpaf::Parser<Foo> {
+        fn oof() -> impl ::bpaf::Parser<Output=Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::long("foo").req_flag(Foo)
@@ -701,7 +701,7 @@ fn generate_command() {
     };
     let expected = quote! {
         #[doc(hidden)]
-        fn oof() -> impl ::bpaf::Parser<Foo> {
+        fn oof() -> impl ::bpaf::Parser<Output=Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Foo).to_options().command("foo")
@@ -722,7 +722,7 @@ fn command_with_aliases_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn command() -> impl ::bpaf::Parser<Command> {
+        fn command() -> impl ::bpaf::Parser<Output=Command> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -754,7 +754,7 @@ fn command_with_aliases_enum() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn options() -> impl ::bpaf::Parser<Options> {
+        fn options() -> impl ::bpaf::Parser<Output=Options> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -813,7 +813,7 @@ fn named_to_positional_with_metavar() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn options() -> impl ::bpaf::Parser<Options> {
+        fn options() -> impl ::bpaf::Parser<Output=Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -837,7 +837,7 @@ fn named_to_positional_without_metavar() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn options() -> impl ::bpaf::Parser<Options> {
+        fn options() -> impl ::bpaf::Parser<Output=Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -861,7 +861,7 @@ fn private_visibility() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn options() -> impl ::bpaf::Parser<Options> {
+        fn options() -> impl ::bpaf::Parser<Output=Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
             {
@@ -896,7 +896,7 @@ fn hidden_default_enum_singleton() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn decision() -> impl ::bpaf::Parser<Decision> {
+        fn decision() -> impl ::bpaf::Parser<Output=Decision> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1047,7 +1047,7 @@ fn fallback_for_enum() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn decision() -> impl ::bpaf::Parser<Decision> {
+        fn decision() -> impl ::bpaf::Parser<Output=Decision> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1072,7 +1072,7 @@ fn fallback_for_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn value() -> impl ::bpaf::Parser<Value> {
+        fn value() -> impl ::bpaf::Parser<Output=Value> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1097,7 +1097,7 @@ fn adjacent_for_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opts() -> impl ::bpaf::Parser<Opts> {
+        fn opts() -> impl ::bpaf::Parser<Output=Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1153,7 +1153,7 @@ fn box_for_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opts() -> impl ::bpaf::Parser<Opts> {
+        fn opts() -> impl ::bpaf::Parser<Output=Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1176,7 +1176,7 @@ fn no_fields_declaration() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn opts() -> impl ::bpaf::Parser<Opts> {
+        fn opts() -> impl ::bpaf::Parser<Output=Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(Opts {})
@@ -1195,7 +1195,7 @@ fn single_unit_command() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn one() -> impl ::bpaf::Parser<One> {
+        fn one() -> impl ::bpaf::Parser<Output=One> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(One).to_options().command("one")
@@ -1214,7 +1214,7 @@ fn single_unit_adjacent_command() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn one() -> impl ::bpaf::Parser<One> {
+        fn one() -> impl ::bpaf::Parser<Output=One> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             ::bpaf::pure(One).to_options().command("one").adjacent()
@@ -1240,7 +1240,7 @@ fn ingore_doc_comment_top_level_1() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn mode() -> impl ::bpaf::Parser<Mode> {
+        fn mode() -> impl ::bpaf::Parser<Output=Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1298,7 +1298,7 @@ fn top_comment_is_group_help_enum() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn mode() -> impl ::bpaf::Parser<Mode> {
+        fn mode() -> impl ::bpaf::Parser<Output=Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1327,7 +1327,7 @@ fn top_comment_is_group_help_struct() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn mode() -> impl ::bpaf::Parser<Mode> {
+        fn mode() -> impl ::bpaf::Parser<Output=Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
             {
@@ -1401,7 +1401,7 @@ fn custom_bpaf_path_parser() {
 
     let expected = quote! {
         #[doc(hidden)]
-        fn items() -> impl ::indirector::bpaf::Parser<Items> {
+        fn items() -> impl ::indirector::bpaf::Parser<Output=Items> {
             #[allow(unused_imports)]
             use ::indirector::bpaf::Parser;
             {

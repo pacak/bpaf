@@ -225,7 +225,7 @@ impl ToTokens for Top {
                     let help = help.as_ref().map(|v| quote!(.help(#v)));
                     quote! {
                         #[doc(hidden)]
-                        #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+                        #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
 
                             #[allow(unused_imports)]
                             use ::bpaf::Parser;
@@ -302,7 +302,7 @@ impl ToTokens for Top {
                 let group_help = group_help.as_ref().map(|v| quote!(.group_help(#v)));
                 quote! {
                     #[doc(hidden)]
-                    #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
+                    #vis fn #generate() -> impl ::bpaf::Parser<Output = #ty> {
                         #[allow(unused_imports)]
                         use ::bpaf::Parser;
                         #body
