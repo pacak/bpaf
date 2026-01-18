@@ -99,3 +99,11 @@ fn make_pure_named_enum() {
 
     assert_eq!(r, Foo::Bar {});
 }
+
+#[test]
+fn with_absolute_path() {
+    let a = short('a').switch();
+    let parser = construct!(::std::option::Option::Some(a)).to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, Some(true));
+}

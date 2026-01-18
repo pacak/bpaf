@@ -1,14 +1,20 @@
 /// Blurb
 #[macro_export]
 macro_rules! construct {
-    // sadly can't use name::path around here since it conflicts with `(` in positional items
+    // sadly can't use $name:path around here since it conflicts with `(` in positional items
     // `construct!(Enum::Cons { a, b, c })`
-    ( $ns:ident $(::$con:ident)* { $($field:tt)* }) =>
-        {{ $crate::prepare!([named $ns $( ::$con)*] [] $($field)*) }};
+    (    $ns:ident $(::$con:ident)* { $($field:tt)* }) =>
+        {{ $crate::prepare!([named    $ns $( ::$con)*] [] $($field)*) }};
+
+    ( :: $ns:ident $(::$con:ident)* { $($field:tt)* }) =>
+        {{ $crate::prepare!([named :: $ns $( ::$con)*] [] $($field)*) }};
 
     // `construct!(Enum::Cons ( a, b, c ))`
-     ( $ns:ident $(:: $con:ident)* ( $($field:tt)* )) =>
-        {{ $crate::prepare!([pos $ns $(:: $con)*] [] $($field)*) }};
+    (   $ns:ident $(:: $con:ident)* ( $($field:tt)* )) =>
+        {{ $crate::prepare!([pos    $ns $(:: $con)*] [] $($field)*) }};
+
+    ( :: $ns:ident $(:: $con:ident)* ( $($field:tt)* )) =>
+        {{ $crate::prepare!([pos :: $ns $(:: $con)*] [] $($field)*) }};
 
     // construct!([a, b, c])
     ([ $($field:tt)+ ]) => // first - to make sure we have at lest one item
