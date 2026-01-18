@@ -111,6 +111,20 @@ impl<T: 'static> OptionParser<T> {
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
+    pub fn run(&self) -> T {
+        match self.run_inner(std::env::args_os()) {
+            Ok(r) => r,
+            Err(ParseFailure::Stdout(o)) => {
+                print!("{o}");
+                std::process::exit(0);
+            }
+            Err(ParseFailure::Stderr(o)) => {
+                print!("{o}");
+                std::process::exit(0);
+            }
+        }
+    }
+
     fn run_in_ctx(&self, lazy: bool, ctx: crate::Ctx) -> Result<T, Error> {
         let (handle, act) = ctx.make_raw_task(self.inner.clone());
 
