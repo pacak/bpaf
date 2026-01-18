@@ -350,6 +350,13 @@ pub struct Argument<T> {
     adjacent: bool,
 }
 
+impl<T> Argument<T> {
+    pub fn adjacent(mut self) -> Self {
+        self.adjacent = true;
+        self
+    }
+}
+
 impl<T> Parser for Argument<T>
 where
     T: FromStr + 'static,
@@ -361,7 +368,15 @@ where
         let res = res.map_err(|err| self.named.complete_name(err, Some(self.metavar)));
 
         if let Some(os) = res? {
-            parse_os_str(os).map_err(|e| problem_at_pos(&ctx, e))
+            if self.adjacent && ctx.current_task.borrow().consumed == 2 {
+                let cursor = ctx.cursor.get();
+                let name = ctx.args[cursor].clone();
+                let value = ctx.args[cursor].clone();
+                let problem = Problem::NotAdjacent { name, value };
+                Err(Error::Problem(cursor as u32, problem))
+            } else {
+                parse_os_str(os).map_err(|e| problem_at_pos(&ctx, e))
+            }
         } else if let Some(os) = self.named.get_env() {
             parse_os_str(os).map_err(|p| Error::Problem(u32::MAX, p))
         } else {

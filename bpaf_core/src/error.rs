@@ -66,6 +66,10 @@ pub enum Problem {
     NotStrict {
         metavar: Metavar,
     },
+    NotAdjacent {
+        name: OsString,
+        value: OsString,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -160,6 +164,14 @@ impl std::fmt::Display for Problem {
             Problem::Dynamic { err } => write!(f, "{err}"),
             Problem::NotStrict { metavar } => {
                 write!(f, "expected `{metavar}` to be on the right side of `--`")
+            }
+            Problem::NotAdjacent { name, value } => {
+                write!(
+                    f,
+                    "Expected value to be adjacent to {name}, try {name}={value}",
+                    name = name.to_string_lossy(),
+                    value = value.to_string_lossy(),
+                )
             }
         }
     }
