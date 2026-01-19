@@ -890,8 +890,8 @@ impl<'a> Executor<'a> {
 
             if best_size == 0
                 && let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
+                && self.kill_in_scope(scope, KillReason::NoMatchingInput)
             {
-                self.kill_in_scope(scope, KillReason::NoMatchingInput);
                 continue;
             }
 
@@ -1025,7 +1025,8 @@ impl<'a> Executor<'a> {
         }
     }
 
-    fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) {
+    fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) -> bool {
+        let mut advanced = false;
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
         for (_, mut task) in self
             .tasks
@@ -1036,10 +1037,12 @@ impl<'a> Executor<'a> {
             if task.info.parent_id == Parent(0) {
                 continue;
             }
+            advanced = true;
             self.to_propagate
                 .push_back((task.info.id, task.info.parent_id, task.info.consumed));
         }
         self.propagate();
+        advanced
     }
 
     /// Run the first stage of the trigger
