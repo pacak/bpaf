@@ -299,44 +299,6 @@ fn simple_complete_for_value() {
     );
 }
 
-fn flag_or_arg() {
-    let a = short('a').req_flag(0);
-    let b = short('a').argument::<usize>("A");
-    let parser = construct!([a, b]).to_options();
-
-    let r = parser.run_inner("-a4").unwrap();
-    assert_eq!(r, 4);
-
-    let r = parser.run_inner("-a").unwrap();
-    assert_eq!(r, 0);
-
-    let r = parser.run_inner("-a=4").unwrap();
-    assert_eq!(r, 4);
-
-    let r = parser.run_inner("-a 4").unwrap();
-    assert_eq!(r, 4);
-}
-
-#[test]
-fn arg_or_flag() {
-    // behavior should be identical to `flag_or_arg`
-    let a = short('a').req_flag(0);
-    let b = short('a').argument::<usize>("A");
-    let parser = construct!([b, a]).to_options();
-
-    let r = parser.run_inner("-a4").unwrap();
-    assert_eq!(r, 4);
-
-    let r = parser.run_inner("-a").unwrap();
-    assert_eq!(r, 0);
-
-    let r = parser.run_inner("-a=4").unwrap();
-    assert_eq!(r, 4);
-
-    let r = parser.run_inner("-a 4").unwrap();
-    assert_eq!(r, 4);
-}
-
 #[test]
 fn flag_or_arg() {
     let a = short('a').req_flag(0);
@@ -378,11 +340,11 @@ fn arg_or_flag() {
 
 #[test]
 fn multiple_any_parsers() {
-    let a = any("A", |s| s.parse::<i32>().ok().filter(|v| *v < -100));
-    let b = any("B", |s| {
+    let a = any("A", |s: &str| s.parse::<i32>().ok().filter(|v| *v < -100));
+    let b = any("B", |s: &str| {
         s.parse::<i32>().ok().filter(|v| (-100..100).contains(v))
     });
-    let c = any("C", |s| s.parse::<i32>().ok().filter(|v| *v > 100));
+    let c = any("C", |s: &str| s.parse::<i32>().ok().filter(|v| *v > 100));
     let parser = construct!(a, b, c).to_options();
 
     let r = parser.run_inner("-1000 1000 0").unwrap();
@@ -395,33 +357,12 @@ fn multiple_any_parsers() {
     assert_eq!(r, (-1000, 0, 1000));
 }
 
-fn simple_literal() {
-    let a = literal("hello")
-        .help("This is sample command")
-        .flag("lit", "no lit");
-    let b = long("hello")
-        .help("This is a switch")
-        .flag("switch", "no switch");
-    let parser = construct!([a, b]).to_options();
-
-    let r = parser.run_inner("--hello").unwrap();
-    assert_eq!(r, "switch");
-
-    let r = parser.run_inner("hello").unwrap();
-    assert_eq!(r, "lit");
-
-    let r = parser.run_inner("").unwrap();
-    assert_eq!(r, "no lit");
-}
-
 #[test]
-fn from_any_str_works() {
-    let a = any_from_str::<i32>("I");
-    let parser = a.to_options();
+fn unexpected_in_pure_optional() {
+    let parser = pure(12).optional().to_options();
 
-    let r = parser.run_inner("42").unwrap();
-    assert_eq!(r, 42);
+    let r = parser.run_inner("asdf").unwrap_err().unwrap_stderr();
 
-    let r = parser.run_inner("-42").unwrap();
-    assert_eq!(r, -42);
+    let expected = "`asdf` is not expected in this context";
+    assert_eq!(r, expected);
 }
