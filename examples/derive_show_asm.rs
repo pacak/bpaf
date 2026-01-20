@@ -1,7 +1,7 @@
 //! Parsing snippet from cargo-show-asm
 //! Derive + typed fallback + external both with and without name
 
-use bpaf::{construct, long, Bpaf, Parser, ShellComp};
+use bpaf::{Bpaf, Parser, ShellComp, construct, long};
 use std::{convert::Infallible, path::PathBuf};
 
 #[derive(Clone, Debug, Bpaf)]
@@ -45,7 +45,7 @@ pub struct SelectedFunction {
     pub nth: usize,
 }
 
-fn parse_manifest_path() -> impl Parser<PathBuf> {
+fn parse_manifest_path() -> impl Parser<Output = PathBuf> {
     long("manifest-path")
         .help("Path to Cargo.toml")
         .argument::<PathBuf>("PATH")
@@ -92,7 +92,7 @@ pub enum Syntax {
     Att,
 }
 
-fn color_detection() -> impl Parser<bool> {
+fn color_detection() -> impl Parser<Output = bool> {
     let yes = long("color")
         .help("Enable color highlighting")
         .req_flag(true);

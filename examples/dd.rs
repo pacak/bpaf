@@ -1,6 +1,6 @@
 //! This is not a typical bpaf usage,
 //! but you should be able to replicate command line used by dd
-use bpaf::{any, construct, doc::Style, short, OptionParser, Parser};
+use bpaf::{OptionParser, Parser, any, construct, doc::Style, short};
 use std::str::FromStr;
 
 #[derive(Debug, Clone)]
@@ -13,7 +13,7 @@ pub struct Options {
 }
 
 /// Parses a string that starts with `name`, returns the suffix parsed in a usual way
-fn tag<T>(name: &'static str, meta: &str, help: &'static str) -> impl Parser<T>
+fn tag<T>(name: &'static str, meta: &str, help: &'static str) -> impl Parser<Output = T>
 where
     T: FromStr,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -28,19 +28,19 @@ where
         .parse(|s| s.parse())
 }
 
-fn in_file() -> impl Parser<String> {
+fn in_file() -> impl Parser<Output = String> {
     tag::<String>("if=", "FILE", "read from FILE")
         .fallback(String::from("-"))
         .display_fallback()
 }
 
-fn out_file() -> impl Parser<String> {
+fn out_file() -> impl Parser<Output = String> {
     tag::<String>("of=", "FILE", "write to FILE")
         .fallback(String::from("-"))
         .display_fallback()
 }
 
-fn block_size() -> impl Parser<usize> {
+fn block_size() -> impl Parser<Output = usize> {
     // it is possible to parse notation used by dd itself as well,
     // using usuze only for simplicity
     tag::<usize>("bs=", "SIZE", "read/write SIZE blocks at once")

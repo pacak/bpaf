@@ -29,7 +29,7 @@ struct Cmd {
 // At this point we have OptionParser<Cmd> and we want to turn that into a regular parser
 // with custom usage string - for that we are using two functions from combinatoric api:
 // `usage` and `command`
-fn cmd_usage() -> impl Parser<Cmd> {
+fn cmd_usage() -> impl Parser<Output = Cmd> {
     cmd().usage("A very custom usage goes here").command("cmd")
 }
 

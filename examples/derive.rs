@@ -1,6 +1,6 @@
 //! pretty basic derive example with external function
 
-use bpaf::{short, Bpaf, Parser};
+use bpaf::{Bpaf, Parser, short};
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Bpaf)]
@@ -24,7 +24,7 @@ struct Opts {
     files_to_process: Vec<PathBuf>,
 }
 
-fn verbose() -> impl Parser<usize> {
+fn verbose() -> impl Parser<Output = usize> {
     // number of occurrences of the v/verbose flag capped at 3
     short('v')
         .long("verbose")

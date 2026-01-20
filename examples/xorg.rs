@@ -10,7 +10,11 @@ pub struct Options {
 }
 
 // matches literal name prefixed with - or +
-fn toggle_options(meta: &'static str, name: &'static str, help: &'static str) -> impl Parser<bool> {
+fn toggle_options(
+    meta: &'static str,
+    name: &'static str,
+    help: &'static str,
+) -> impl Parser<Output = bool> {
     any(meta, move |s: String| {
         if let Some(suf) = s.strip_prefix('+') {
             (suf == name).then_some(true)
@@ -25,7 +29,7 @@ fn toggle_options(meta: &'static str, name: &'static str, help: &'static str) ->
 }
 
 // matches literal +ext and -ext followed by extension name
-fn extension() -> impl Parser<(String, bool)> {
+fn extension() -> impl Parser<Output = (String, bool)> {
     let state = any("(+|-)ext", |s: String| match s.as_str() {
         "-ext" => Some(false),
         "+ext" => Some(true),

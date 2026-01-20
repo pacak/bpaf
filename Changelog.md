@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## Breaking changes
+- all the type names
+- `Parser<T>` is now `Parser<Output = T>`
+- `literal("name")` -> `literal("name").req_flag(())`
+
 - generate slightly better code in bpaf_derive
 
 ## bpaf [0.9.27], bpaf_derive [0.5.26] - 2026-07-29

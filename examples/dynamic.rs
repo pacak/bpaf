@@ -9,21 +9,21 @@ enum Value {
     String(String),
 }
 
-fn number(name: &'static str) -> impl Parser<(String, Value)> {
+fn number(name: &'static str) -> impl Parser<Output = (String, Value)> {
     let label = name.to_string();
     long(name)
         .argument::<usize>("NUM")
         .map(move |n| (label.clone(), Value::Number(n)))
 }
 
-fn bool(name: &'static str) -> impl Parser<(String, Value)> {
+fn bool(name: &'static str) -> impl Parser<Output = (String, Value)> {
     let label = name.to_string();
     long(name)
         .switch()
         .map(move |n| (label.clone(), Value::Bool(n)))
 }
 
-fn string(name: &'static str) -> impl Parser<(String, Value)> {
+fn string(name: &'static str) -> impl Parser<Output = (String, Value)> {
     let label = name.to_string();
     long(name)
         .help("this can use a help message")

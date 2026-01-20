@@ -21,11 +21,11 @@ enum Command {
     Build(Build),
 }
 
-fn shared() -> impl Parser<Vec<String>> {
+fn shared() -> impl Parser<Output = Vec<String>> {
     positional("ARG").many()
 }
 
-fn parse_command() -> impl Parser<(Command, Vec<String>)> {
+fn parse_command() -> impl Parser<Output = (Command, Vec<String>)> {
     let action = action().map(Command::Action);
     let action = construct!(action, shared()).to_options().command("action");
     let build = build().map(Command::Build);
