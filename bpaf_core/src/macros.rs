@@ -95,7 +95,7 @@ macro_rules! prod {
                 async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
                     use $crate::Parser;
                     $( let $f = ctx.spawn(Kind::Prod, self.$f.clone().into_rc());)+
-                    r#yield().await;
+                    ctx.wait_for_children().await;
                     let mut err = None;
 
                     $( let $f = $f.take().map_err(|e| e.append_to(&mut err)); )+

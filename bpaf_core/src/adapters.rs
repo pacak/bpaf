@@ -8,7 +8,6 @@ use crate::{
     error::MissingItem,
     traits::{Leaf, VisitGroup},
     utils::Vec1,
-    r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -39,7 +38,7 @@ impl<T: 'static> Parser for Optional<T> {
     async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
         // TODO - use scoped spawn, `Scope` and get rid of spawn_with_early_exit
         let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
-        r#yield().await;
+        ctx.wait_for_children().await;
         ctx.remove_early_exit(pair);
         match h.take() {
             Ok(v) => Ok(Some(v)),

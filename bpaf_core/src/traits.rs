@@ -356,7 +356,7 @@ macro_rules! tuple_impl {
                 #![allow(non_snake_case)]
                 let ($( $name ),+) = &self;
                 $( let $name = ctx.spawn(crate::Kind::Prod, $name.clone());)+
-                r#yield().await;
+                ctx.wait_for_children().await;
                 let mut err = None;
                 $( let $name = $name.take().map_err(|e| e.append_to(&mut err));)+
 

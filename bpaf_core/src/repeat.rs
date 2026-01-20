@@ -83,7 +83,7 @@ async fn try_parse<T: 'static>(
     let before = ctx.current_task.borrow().consumed;
     ctx.next_free.set(start);
     let (h, pair) = ctx.spawn_with_early_exit(parser);
-    r#yield().await;
+    ctx.wait_for_children().await;
     ctx.remove_early_exit(pair);
     let after = ctx.current_task.borrow().consumed;
     (before < after, h.take())
@@ -101,8 +101,7 @@ async fn parse_many<T: 'static>(
     while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
         ctx.next_free.set(start);
         let (h, pair) = ctx.spawn_with_early_exit(parser.clone());
-
-        r#yield().await;
+        ctx.wait_for_children().await;
         ctx.remove_early_exit(pair);
 
         let consumed_after = ctx.current_task.borrow().consumed;

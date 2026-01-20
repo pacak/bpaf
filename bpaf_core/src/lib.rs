@@ -42,7 +42,6 @@ pub mod api {
             Ctx, Kind, Op, Parser, Scope,
             error::Error,
             traits::{RcParser, VisitGroup, Visitor},
-            r#yield,
         };
 
         use crate::consumers::{Keyword, Literal, Named};
@@ -94,7 +93,7 @@ pub mod api {
                         end: scopes.last().unwrap().end,
                     },
                 });
-                r#yield().await;
+                ctx.wait_for_children().await;
                 ctx.trim_children(scopes).await;
 
                 let mut acc = Error::Silent("Empty Alt?");
@@ -1400,6 +1399,12 @@ impl RawCtx {
 
         // TODO - WIDTH, `Colorscheme`, custom style
         ParseFailure::Stdout(help_visitor.render())
+    }
+
+    pub async fn wait_for_children(&self) {
+        if self.current_task.borrow().pending > 0 {
+            r#yield().await;
+        }
     }
 }
 

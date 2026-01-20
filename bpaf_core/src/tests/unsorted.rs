@@ -366,3 +366,13 @@ fn unexpected_in_pure_optional() {
     let expected = "`asdf` is not expected in this context";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn pure_pair() {
+    let a = pure(42);
+    let b = pure(90);
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, (42, 90));
+}
