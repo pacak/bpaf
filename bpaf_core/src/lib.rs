@@ -529,16 +529,10 @@ impl RawCtx {
         parser: RcParser<T>,
         kind: Kind,
     ) -> (JoinHandle<T>, Scope) {
-        let start = self.next_free.get();
+        let start = Id(self.next_free.get());
         let h = self.spawn(kind, parser);
-        let end = self.next_free.get();
-        (
-            h,
-            Scope {
-                start: Id(start),
-                end: Id(end),
-            },
-        )
+        let end = Id(self.next_free.get());
+        (h, Scope { start, end })
     }
 
     fn spawn_with_early_exit<T: 'static>(
