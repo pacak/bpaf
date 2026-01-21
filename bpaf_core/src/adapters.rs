@@ -250,6 +250,13 @@ pub struct Command<T> {
     lazy: bool,
 }
 
+impl<T> Command<T> {
+    pub fn help(mut self, help: &'static str) -> Self {
+        self.inner.info.descr = Some(help);
+        self
+    }
+}
+
 pub struct Parse<P, F, E, R> {
     pub(crate) ctx: PhantomData<(F, E, R)>,
     pub(crate) inner: P,
