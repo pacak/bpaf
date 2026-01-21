@@ -30,25 +30,43 @@ impl<T: 'static, P: Parser<Output = T>, R: 'static, F: Fn(T) -> R> Parser for Ma
 }
 impl<P: Leaf, F, R> Leaf for Map<P, F, R> {}
 
+pub(crate) enum Optionality<T> {
+    /// Value was produced by parsing something
+    Parsed(T),
+    /// Value was produced with no changes to the arguments
+    Summoned(T),
+    /// Error indicates that an item is missing and it CAN be caught
+    Missing(Error),
+    /// Some other error - it can't be caught
+    Failed(Error),
+}
+
+#[inline(always)]
+pub(crate) async fn optional<T: 'static>(ctx: crate::Ctx, parser: RcParser<T>) -> Optionality<T> {
+    let before = ctx.current_task.borrow().consumed;
+    let (handle, scope) = ctx.scoped_spawn(parser, Kind::Sum);
+    ctx.early_exit.borrow_mut().insert(scope);
+    ctx.wait_for_children().await;
+    ctx.early_exit.borrow_mut().remove(&scope);
+    let stalled = ctx.current_task.borrow().consumed == before;
+    match handle.take() {
+        Ok(v) if stalled => Optionality::Summoned(v),
+        Ok(v) => Optionality::Parsed(v),
+        Err(e @ Error::Missing(_)) if stalled => Optionality::Missing(e),
+        Err(e) => Optionality::Failed(e),
+    }
+}
+
 pub struct Optional<T> {
     pub(crate) inner: RcParser<T>,
 }
 impl<T: 'static> Parser for Optional<T> {
     type Output = Option<T>;
     async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
-        // TODO - use scoped spawn, `Scope` and get rid of spawn_with_early_exit
-        let (h, pair) = ctx.spawn_with_early_exit(self.inner.clone());
-        ctx.wait_for_children().await;
-        ctx.remove_early_exit(pair);
-        match h.take() {
-            Ok(v) => Ok(Some(v)),
-            Err(err) => {
-                if err.can_catch() && ctx.current_task.borrow().consumed == 0 {
-                    Ok(None)
-                } else {
-                    Err(err)
-                }
-            }
+        match optional(ctx, self.inner.clone()).await {
+            Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
+            Optionality::Missing(_) => Ok(None),
+            Optionality::Failed(e) => Err(e),
         }
     }
 
