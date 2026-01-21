@@ -305,10 +305,6 @@ impl Error {
         }
     }
 
-    pub(crate) fn can_catch(&self) -> bool {
-        matches!(self, Error::Missing(_))
-    }
-
     pub(crate) fn missing(item: MissingItem) -> Self {
         Self::Missing(Vec1::new(item))
     }

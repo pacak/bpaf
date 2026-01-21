@@ -84,6 +84,18 @@ pub trait Parser {
         }
     }
 
+    fn collect<C>(self) -> Collect<C, Self::Output>
+    where
+        Self: Sized + 'static,
+    {
+        Collect {
+            inner: self.into_rc(),
+            ctx: PhantomData,
+            min: 0,
+            max: u32::MAX,
+        }
+    }
+
     fn some(self, message: &'static str) -> Many1<Self::Output>
     where
         Self: Sized + 'static,

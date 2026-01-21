@@ -23,3 +23,17 @@ fn last_fallback() {
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, 42);
 }
+
+#[test]
+fn no_losing_data() {
+    let a = positional::<u32>("A");
+    let b = positional::<u32>("B");
+    let parser = construct!(a, b).many().to_options();
+
+    let r = parser.run_inner("1 2 3 4").unwrap();
+    assert_eq!(r, &[(1, 2), (3, 4)]);
+
+    let r = parser.run_inner("1 2 3").unwrap_err().unwrap_stderr();
+    let expected = "missing `B`";
+    assert_eq!(r, expected);
+}
