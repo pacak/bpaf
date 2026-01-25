@@ -48,7 +48,7 @@ pub mod api {
 
         /// A categorical sum of two or more parsers
         ///
-        /// This is a parser that is composed of two or more parsers. For `Bp<Sum<T>>` to succeed
+        /// This is a parser that is composed of two or more parsers. For `Sum<T>` to succeed
         /// at least one member must succeed. If there are several succeeding variants - one that
         /// consumes more input wins. If this is equal - one that goes earlier wins.
         ///
@@ -491,8 +491,6 @@ impl RawCtx {
     }
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
-    //
-    // TODO - Do I really need `Bp` wrapper here?
     fn make_raw_task<T: 'static>(
         self: &Rc<Self>,
         parser: RcParser<T>,
