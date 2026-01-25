@@ -492,14 +492,14 @@ impl RawCtx {
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
     fn make_raw_task<T: 'static>(
-        self: &Rc<Self>,
+        self: &Ctx,
         parser: RcParser<T>,
     ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
         let (out, handle) = make_chan();
         (handle, self.make_act(out, parser))
     }
     fn make_act<T: 'static>(
-        self: &Rc<Self>,
+        self: &Ctx,
         out: ExitHandle<T>,
         parser: RcParser<T>,
     ) -> Pin<Box<impl Future<Output = ()> + 'static>> {
@@ -513,7 +513,7 @@ impl RawCtx {
         })
     }
 
-    pub fn spawn<T: 'static>(self: &Rc<RawCtx>, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
+    pub fn spawn<T: 'static>(self: &Ctx, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -523,7 +523,7 @@ impl RawCtx {
 
     /// Spawn a parser and collect the range it occupies
     fn scoped_spawn<T: 'static>(
-        self: &Rc<RawCtx>,
+        self: &Ctx,
         parser: RcParser<T>,
         kind: Kind,
     ) -> (JoinHandle<T>, Scope) {
@@ -534,7 +534,7 @@ impl RawCtx {
     }
 
     fn spawn_with_early_exit<T: 'static>(
-        self: &Rc<RawCtx>,
+        self: &Ctx,
         parser: RcParser<T>,
     ) -> (JoinHandle<T>, Scope) {
         let start = Id(self.next_free.get());
@@ -1402,7 +1402,7 @@ impl RawCtx {
 
 impl RawCtx {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork(&self, level: Option<String>) -> Rc<RawCtx> {
+    pub(crate) fn fork(&self, level: Option<String>) -> Ctx {
         let mut args = self.args.clone();
         args.path.extend(level);
         Self::make(args, self.cursor.get(), self.strict_pos.get())
@@ -1412,7 +1412,7 @@ impl RawCtx {
         Self::make(args, 0, false)
     }
 
-    fn make(args: Args, cursor: usize, strict_pos: bool) -> Rc<RawCtx> {
+    fn make(args: Args, cursor: usize, strict_pos: bool) -> Ctx {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
