@@ -1884,6 +1884,29 @@ pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
     }
 }
 
+pub struct Cargo<P> {
+    name: &'static str,
+    inner: P,
+}
+pub fn cargo_helper<P>(name: &'static str, inner: P) -> Cargo<P> {
+    Cargo { name, inner }
+}
+
+impl<P: Parser> Parser for Cargo<P> {
+    type Output = P::Output;
+
+    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<Self::Output, Error>> {
+        if ctx.args.get(0).is_some_and(|v| v == self.name) {
+            ctx.cursor.update(|c| c + 1);
+        }
+        self.inner.run(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.inner.visit(visitor)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     mod algebra;
