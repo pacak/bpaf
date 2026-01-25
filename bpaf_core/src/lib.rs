@@ -533,23 +533,6 @@ impl RawCtx {
         (h, Scope { start, end })
     }
 
-    fn spawn_with_early_exit<T: 'static>(
-        self: &Ctx,
-        parser: RcParser<T>,
-    ) -> (JoinHandle<T>, Scope) {
-        let start = Id(self.next_free.get());
-        let h = self.spawn(Kind::Prod, parser);
-        let end = Id(self.next_free.get());
-        let scope = Scope { start, end };
-        self.early_exit.borrow_mut().insert(scope);
-        (h, scope)
-    }
-
-    fn remove_early_exit(&self, scope: Scope) {
-        let removed = self.early_exit.borrow_mut().remove(&scope);
-        assert!(removed);
-    }
-
     #[inline(never)]
     fn make_child_info(&self, kind: Kind) -> TaskInfo {
         let mut cur = self.current_task.borrow_mut();
