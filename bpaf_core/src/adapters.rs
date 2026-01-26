@@ -113,7 +113,7 @@ enum Rev {
 }
 
 #[derive(Default, Clone)]
-struct Custom {
+pub struct Custom {
     // --help or -h
     help: Option<RcParser<Help>>,
     version: Option<RcParser<crate::Extra>>,

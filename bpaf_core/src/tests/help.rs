@@ -77,7 +77,7 @@ Available options:
 #[test]
 fn help_after_switch() {
     let parser = short('a').switch().help("this is help").to_options();
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: [-a]
 
@@ -143,7 +143,7 @@ fn fancy_meta() {
     let b = long("stdin-file-path").argument::<String>("PATH");
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: --trailing-comma=<all|es5|none> --stdin-file-path=PATH
@@ -204,7 +204,7 @@ fn very_long_switch() {
     let b = short('b').long("batman").help("help for batman").switch();
     let p = construct!(a, b).to_options();
 
-    let r = p.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = p.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: -p=MEGAPOTATO [-b]
 
@@ -226,7 +226,7 @@ Available options:
 //     let bc = construct!(b, c2);
 //     let parser = construct!([ac, bc]).to_options();
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
 // Usage: (-a [-c] | -b [-c])
@@ -251,7 +251,7 @@ fn duplicate_items_dif_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a [-c] | -b [-c])
@@ -277,7 +277,7 @@ Available options:
 //     let bc = construct!(b, c2);
 //     let parser = construct!([ac, bc]).to_options();
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
 // Usage: (-a C | -b C)
@@ -304,7 +304,7 @@ fn duplicate_pos_items_diff_help() {
     let bc = construct!(b, c2);
     let parser = construct!([ac, bc]).to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: (-a C | -b C)
@@ -384,7 +384,7 @@ Available options:
 //     -h, --help  Prints help information
 // ";
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //     assert_eq!(r, expected);
 //
 //     // this shouldn't crash
@@ -402,7 +402,7 @@ Available options:
 //     let detailed = long("detailed").short('d').help("detailed").switch();
 //     let parser = construct!(verbose, combo, detailed).to_options();
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
 // Usage: [-v] [-f [-e] NAME STATE] [-d]
@@ -429,7 +429,7 @@ Available options:
 //     let combo = construct!(a, b).adjacent();
 //     let verbose = short('v').long("verbose").switch();
 //     let parser = construct!(verbose, combo).to_options();
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
 // Usage: [-v] NAME VAL
@@ -510,7 +510,7 @@ fn fallback_display_tuple() {
         .display_fallback()
         .to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [--a=NUM --b=NUM]
@@ -560,7 +560,7 @@ fn env_fallback_visible() {
         .switch();
     let parser = construct!(fonts_dir, system_fonts).to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
 Usage: [--fonts=DIR] [--system-fonts]
@@ -584,7 +584,7 @@ fn fallback_format_simple_arg() {
         .format_fallback(|i, f| write!(f, "**{i}**"))
         .to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
 Usage: [--a=NUM]
 
@@ -604,7 +604,7 @@ fn nested_group_help() {
 
     let parser = construct!(a, b).group_help("outer").to_options();
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     println!("{r}");
     let expected = "\
 Usage: [-a] [-b]
@@ -633,7 +633,7 @@ Available options:
 //     });
 //     let parser = construct!(ab, c).to_options();
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //     let expected = "\
 // Usage: [-a] [-b] [-c]
 //
@@ -659,7 +659,7 @@ Available options:
 //     let a = short('a').switch();
 //     let parser = a.to_options().help_parser(h).version_parser(v);
 //
-//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stderr();
+//     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
 //     assert_eq!(r, "`--help` is not expected in this context");
 //
 //     let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
