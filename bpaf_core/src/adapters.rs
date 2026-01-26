@@ -60,12 +60,12 @@ pub(crate) async fn optional<'p, T: 'static>(
     }
 }
 
-pub struct Optional<T> {
-    pub(crate) inner: RcParser<T>,
+pub struct Optional<P> {
+    pub(crate) inner: P,
 }
-impl<T: 'static> Parser for Optional<T> {
-    type Output = Option<T>;
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Option<T>, Error> {
+impl<P: Parser> Parser for Optional<P> {
+    type Output = Option<P::Output>;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Option<P::Output>, Error> {
         match optional(ctx, &self.inner).await {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
@@ -79,6 +79,7 @@ impl<T: 'static> Parser for Optional<T> {
         visitor.pop_group();
     }
 }
+impl<P: Leaf> Leaf for Optional<P> {}
 
 /// A top level parser with associated description
 ///

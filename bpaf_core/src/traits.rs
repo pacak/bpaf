@@ -66,13 +66,11 @@ pub trait Parser {
         }
     }
 
-    fn optional(self) -> Optional<Self::Output>
+    fn optional(self) -> Optional<Self>
     where
         Self: Sized + 'static,
     {
-        Optional {
-            inner: self.into_rc(),
-        }
+        Optional { inner: self }
     }
 
     fn many(self) -> Many<Self::Output>
