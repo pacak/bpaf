@@ -11,13 +11,13 @@ pub struct Count<T> {
 
 impl<T: 'static> Parser for Count<T> {
     type Output = usize;
-    async fn run(&self, ctx: crate::Ctx) -> Result<usize, Error> {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<usize, Error> {
         let mut cnt = 0;
 
         let start = ctx.next_free.get();
         loop {
             ctx.next_free.set(start);
-            match optional(ctx.clone(), self.inner.clone()).await {
+            match optional(ctx.clone(), &self.inner).await {
                 Optionality::Parsed(_) => cnt += 1,
                 Optionality::Summoned(_) => return Ok(cnt.max(1)),
                 Optionality::Missing(_) => return Ok(cnt),
@@ -42,12 +42,12 @@ pub struct Last<T> {
 impl<T: 'static> Parser for Last<T> {
     type Output = T;
 
-    async fn run(&self, ctx: crate::Ctx) -> Result<Self::Output, Error> {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         let start = ctx.next_free.get();
         let mut prev = None;
         loop {
             ctx.next_free.set(start);
-            let this = optional(ctx.clone(), self.inner.clone()).await;
+            let this = optional(ctx.clone(), &self.inner).await;
             match (prev, this) {
                 (_, Optionality::Parsed(v)) => prev = Some(v),
                 (_, Optionality::Summoned(v)) => return Ok(v),
@@ -77,8 +77,8 @@ pub struct Collect<C, T> {
 impl<T: 'static, C: FromIterator<T> + 'static> Parser for Collect<C, T> {
     type Output = C;
 
-    async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
-        Ok(parse_many(self.inner.clone(), ctx, self.min, self.max)
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        Ok(parse_many(&self.inner, ctx, self.min, self.max)
             .await?
             .into_iter()
             .collect())
@@ -122,8 +122,8 @@ pub struct Many<T> {
 impl<T: 'static> Parser for Many<T> {
     type Output = Vec<T>;
 
-    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<Vec<T>, Error>> {
-        parse_many(self.inner.clone(), ctx, 0, u32::MAX)
+    fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> impl Future<Output = Result<Vec<T>, Error>> + 'p {
+        parse_many(&self.inner, ctx, 0, u32::MAX)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -137,9 +137,9 @@ impl<T: 'static> Parser for Many<T> {
 
 /// run `parser` several times
 /// -
-async fn parse_many<T: 'static>(
-    parser: RcParser<T>,
-    ctx: crate::Ctx,
+async fn parse_many<'p, T: 'static>(
+    parser: &'p impl Parser<Output = T>,
+    ctx: crate::Ctx<'p>,
     min: u32,
     max: u32,
 ) -> Result<Vec<T>, Error> {
@@ -147,7 +147,7 @@ async fn parse_many<T: 'static>(
     let start = ctx.next_free.get();
     while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
         ctx.next_free.set(start);
-        match optional(ctx.clone(), parser.clone()).await {
+        match optional(ctx.clone(), parser).await {
             Optionality::Parsed(v) => res.push(v),
 
             Optionality::Summoned(v) if res.is_empty() => res.push(v),
@@ -175,8 +175,8 @@ pub struct Many1<T> {
 }
 impl<T: 'static> Parser for Many1<T> {
     type Output = Vec<T>;
-    async fn run(&self, ctx: crate::Ctx) -> Result<Vec<T>, Error> {
-        let res = parse_many(self.inner.clone(), ctx, 0, u32::MAX).await?;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Vec<T>, Error> {
+        let res = parse_many(&self.inner, ctx, 0, u32::MAX).await?;
         if res.is_empty() {
             Err(Error::Problem(u32::MAX, Problem::Static(self.message)))
         } else {

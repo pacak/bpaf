@@ -19,8 +19,8 @@ pub struct Map<P, F, R> {
 
 impl<T: 'static, P: Parser<Output = T>, R: 'static, F: Fn(T) -> R> Parser for Map<P, F, R> {
     type Output = R;
-    async fn run(&self, ctx: crate::Ctx) -> Result<R, crate::Error> {
-        let t = self.inner.run(ctx).await?;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<R, crate::Error> {
+        let t = self.inner.eval(ctx).await?;
         Ok((self.map)(t))
     }
 
@@ -42,7 +42,10 @@ pub(crate) enum Optionality<T> {
 }
 
 #[inline(always)]
-pub(crate) async fn optional<T: 'static>(ctx: crate::Ctx, parser: RcParser<T>) -> Optionality<T> {
+pub(crate) async fn optional<'p, T: 'static>(
+    ctx: crate::Ctx<'p>,
+    parser: &'p impl Parser<Output = T>,
+) -> Optionality<T> {
     let before = ctx.current_task.borrow().consumed;
     let (handle, scope) = ctx.scoped_spawn(parser, Kind::Sum);
     ctx.early_exit.borrow_mut().insert(scope);
@@ -62,8 +65,8 @@ pub struct Optional<T> {
 }
 impl<T: 'static> Parser for Optional<T> {
     type Output = Option<T>;
-    async fn run(&self, ctx: crate::Ctx) -> Result<Option<T>, Error> {
-        match optional(ctx, self.inner.clone()).await {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Option<T>, Error> {
+        match optional(ctx, &self.inner).await {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
             Optionality::Failed(e) => Err(e),
@@ -85,7 +88,7 @@ pub struct OptionParser<T> {
     pub(crate) info: Info,
 }
 
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Info {
     pub header: Option<&'static str>,
     pub descr: Option<&'static str>,
@@ -93,38 +96,118 @@ pub struct Info {
     pub usage: Option<&'static str>,
     pub version: Option<&'static str>,
     pub fallback_to_usage: bool,
+    pub custom: Option<Box<Custom>>,
 }
 
-impl Info {
-    pub(crate) fn help_parser(&self) -> RcParser<crate::Extra> {
-        use crate::{Extra, short};
-        let help = short('h')
-            .long("help")
-            .help("Prints help information")
-            .req_flag(Extra::Help)
-            .count()
-            .parse(|c| match c {
-                1 => Ok(crate::Extra::Help),
-                2 => Ok(crate::Extra::LongHelp),
-                _ => Err("not help"),
-            });
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Help {
+    Brief,
+    Full,
+}
 
-        let mut alt = construct!([help]);
-        if let Some(v) = self.version {
-            let version = short('V')
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum Rev {
+    Bash,
+    Zsh,
+    Fish,
+}
+
+#[derive(Default, Clone)]
+struct Custom {
+    // --help or -h
+    help: Option<RcParser<Help>>,
+    version: Option<RcParser<crate::Extra>>,
+    complete_start: Option<RcParser<Rev>>,
+    complete_dump: Option<RcParser<()>>,
+}
+
+impl Custom {
+    fn make_help(&self) -> impl Parser<Output = crate::Extra> + 'static {
+        use crate::{Extra, Parser, short};
+        WithBackup {
+            primary: self.help.clone(),
+            backup: short('h')
+                .long("help")
+                .help("Prints help information")
+                .req_flag(Help::Brief),
+        }
+        .count()
+        .parse(|c| match c {
+            1 => Ok(Extra::Help),
+            2 => Ok(Extra::LongHelp),
+            _ => Err("not help"),
+        })
+    }
+
+    fn make_version(
+        &self,
+        version: Option<&'static str>,
+    ) -> impl Parser<Output = crate::Extra> + 'static {
+        use crate::{Extra, short};
+        Some(WithBackup {
+            primary: self.version.clone(),
+            backup: short('V')
                 .long("version")
                 .help("Prints version information")
-                .req_flag(Extra::Version(v));
+                .req_flag(Extra::Version(version?)),
+        })
+    }
 
-            alt.items.push(version.into_rc());
+    fn create(&self, version: Option<&'static str>) -> RcParser<crate::Extra> {
+        let help = self.make_help();
+        let version = self.make_version(version);
+        construct!([help, version]).hide_usage().into_rc()
+    }
+}
+
+struct WithBackup<A, B> {
+    primary: Option<A>,
+    backup: B,
+}
+impl<T: 'static, A: Parser<Output = T>, B: Parser<Output = T>> Parser for WithBackup<A, B> {
+    type Output = T;
+
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
+        match &self.primary {
+            Some(p) => p.eval(ctx).await,
+            None => self.backup.eval(ctx).await,
         }
-        alt.hide_usage().into_rc()
+    }
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        match &self.primary {
+            Some(p) => p.visit(visitor),
+            None => self.backup.visit(visitor),
+        }
+    }
+}
+
+impl<P: Parser> Parser for Option<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
+        if let Some(p) = self {
+            p.eval(ctx).await
+        } else {
+            Err(Error::Silent("There is no parser"))
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        if let Some(p) = self {
+            p.visit(visitor)
+        }
     }
 }
 
 impl<T: 'static> OptionParser<T> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
-        let ctx = RawCtx::new(args.into());
+        let help_parser = self
+            .info
+            .custom
+            .as_deref()
+            .unwrap_or(&Custom::default())
+            .create(self.info.version);
+        let ctx = RawCtx::new(args.into(), &help_parser);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -142,8 +225,8 @@ impl<T: 'static> OptionParser<T> {
         }
     }
 
-    fn run_in_ctx(&self, lazy: bool, ctx: crate::Ctx) -> Result<T, Error> {
-        let (handle, act) = ctx.make_raw_task(self.inner.clone());
+    fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        let (handle, act) = ctx.make_raw_task(&self.inner);
 
         let no_input = ctx.args.len() == ctx.cursor.get();
         let info = ctx.make_child_info(Kind::Prod);
@@ -153,8 +236,7 @@ impl<T: 'static> OptionParser<T> {
 
         let res = handle.take();
         if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
-            let help = self.info.help_parser();
-            return Err(Error::Final(ctx.render_help_for(self, &help, false)));
+            return Err(Error::Final(ctx.render_help_for(self, false)));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
@@ -234,7 +316,7 @@ impl<T: 'static> Command<T> {
 
 impl<T: 'static> Parser for Command<T> {
     type Output = T;
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.names).await;
         let res = res.map_err(|err| complete_command(&self.names, err));
         let Some(name) = res? else {
@@ -289,8 +371,8 @@ where
     E: ToString,
 {
     type Output = R;
-    async fn run(&self, ctx: crate::Ctx) -> Result<R, Error> {
-        let t = self.inner.run(ctx.clone()).await?;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<R, Error> {
+        let t = self.inner.eval(ctx.clone()).await?;
         match (self.f)(t) {
             Ok(r) => Ok(r),
             Err(error) => Err(Error::Problem(
@@ -316,8 +398,8 @@ pub struct Guard<P, F> {
 
 impl<P: Parser, F: Fn(&P::Output) -> bool> Parser for Guard<P, F> {
     type Output = P::Output;
-    async fn run(&self, ctx: crate::Ctx) -> Result<Self::Output, Error> {
-        let r = self.inner.run(ctx.clone()).await?;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
+        let r = self.inner.eval(ctx.clone()).await?;
 
         if (self.check)(&r) {
             Ok(r)
@@ -344,8 +426,8 @@ pub struct Hide<P> {
 
 impl<P: Parser> Parser for Hide<P> {
     type Output = P::Output;
-    async fn run(&self, ctx: crate::Ctx) -> Result<P::Output, Error> {
-        self.inner.run(ctx).await
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
+        self.inner.eval(ctx).await
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -364,8 +446,8 @@ pub struct Fallback<T, P> {
 
 impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
     type Output = T;
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        match self.inner.run(ctx).await {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        match self.inner.eval(ctx).await {
             Err(Error::Missing(_)) => Ok(self.value.clone()),
             otherwise => otherwise,
         }
@@ -427,9 +509,9 @@ pub struct PureWith<F> {
     pub(crate) act: F,
 }
 
-impl<T: 'static, E: ToString, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
+impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
     type Output = T;
-    async fn run(&self, _ctx: crate::Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, _ctx: crate::Ctx<'p>) -> Result<T, Error> {
         (self.act)().map_err(|err| {
             Error::Problem(
                 u32::MAX,
@@ -451,8 +533,8 @@ pub struct Group<P> {
 
 impl<P: Parser> Parser for Group<P> {
     type Output = P::Output;
-    fn run(&self, ctx: crate::Ctx) -> impl Future<Output = Result<P::Output, Error>> {
-        self.inner.run(ctx)
+    fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> impl Future<Output = Result<P::Output, Error>> {
+        self.inner.eval(ctx)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -473,8 +555,8 @@ where
     P: Parser + Leaf,
 {
     type Output = (Option<usize>, P::Output);
-    async fn run(&self, ctx: crate::Ctx) -> Result<(Option<usize>, P::Output), Error> {
-        let t = self.inner.run(ctx.clone()).await?;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<(Option<usize>, P::Output), Error> {
+        let t = self.inner.eval(ctx.clone()).await?;
         let consumed = ctx.current_task.borrow().consumed > 0;
         Ok((consumed.then_some(ctx.cursor.get()), t))
     }
@@ -491,8 +573,8 @@ pub struct ThenExit<T, P: Parser> {
 
 impl<T: 'static, P: Parser> Parser for ThenExit<T, P> {
     type Output = T;
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        match self.inner.run(ctx.clone()).await {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        match self.inner.eval(ctx.clone()).await {
             Ok(o) => Err((self.exit)(o).to_error()),
             Err(e) => Err(e),
         }
@@ -510,9 +592,9 @@ pub struct OrExit<T, P> {
 
 impl<T: 'static, P: Parser<Output = T>> Parser for OrExit<T, P> {
     type Output = T;
-    async fn run(&self, ctx: crate::Ctx) -> Result<T, Error> {
-        match self.inner.run(ctx.clone()).await {
-            Err(_) => self.exit.run(ctx).await,
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        match self.inner.eval(ctx.clone()).await {
+            Err(_) => self.exit.eval(ctx).await,
             ok => ok,
         }
     }

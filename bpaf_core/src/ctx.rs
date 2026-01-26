@@ -15,11 +15,11 @@ use crate::{
 };
 
 /// State shared between all the parsers, used via [`Ctx`] alias
-pub struct RawCtx {
+pub struct RawCtx<'p> {
     /// Scheduled ops
     ///
     /// Holds other operations that might need access to tasks or other internal structures
-    pub(crate) pending_ops: RefCell<VecDeque<Op>>,
+    pub(crate) pending_ops: RefCell<VecDeque<Op<'p>>>,
 
     /// Early exit ranges
     ///
@@ -53,14 +53,16 @@ pub struct RawCtx {
     ///
     /// Needs to live here so it gets shared to nested parsers that get a new executor
     pub(crate) strict_pos: Cell<bool>,
+
+    pub(crate) help_parser: &'p crate::RcParser<crate::Extra>,
 }
 
 ///
-pub type Ctx = Rc<RawCtx>;
+pub type Ctx<'p> = Rc<RawCtx<'p>>;
 
 #[derive(Debug)]
-pub(crate) enum Op {
-    Spawn(Task),
+pub(crate) enum Op<'p> {
+    Spawn(Task<'p>),
     RegisterSum {
         id: Id,
         scope: Scope,

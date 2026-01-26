@@ -159,16 +159,16 @@ pub struct Nested<T> {
 
 impl<T: 'static> Parser for Nested<T> {
     type Output = T;
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         match &self.outer {
-            Nest::Named(named) => named.run(ctx.clone()).await?,
-            Nest::Keyword(kw) => kw.run(ctx.clone()).await?,
+            Nest::Named(named) => named.eval(ctx.clone()).await?,
+            Nest::Keyword(kw) => kw.eval(ctx.clone()).await?,
         };
         let inner = ctx.fork(None);
         inner.cursor.update(|c| c + 1);
 
         let (out, handle) = make_chan();
-        let act = inner.make_act(out, self.inner.clone());
+        let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None);
@@ -272,7 +272,7 @@ impl<T: Clone + 'static> Parser for Keyword<T> {
         };
         visitor.item(item);
     }
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.named.names).await;
         let res = res.map_err(|e| complete_command(&self.named.names, e));
         let value = res?
@@ -302,7 +302,7 @@ pub struct Flag<T> {
 
 impl<T: Clone + 'static> Parser for Flag<T> {
     type Output = T;
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_flag(&self.named.names).await;
         let res = res.map_err(|err| self.named.complete_name(err, None));
         if res? {
@@ -363,7 +363,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     type Output = T;
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_arg(&self.named.names).await;
         let res = res.map_err(|err| self.named.complete_name(err, Some(self.metavar)));
 
@@ -460,9 +460,9 @@ where
     P: Parser,
 {
     type Output = P::Output;
-    async fn run(&self, ctx: Ctx) -> Result<P::Output, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
         self.inner
-            .run(ctx)
+            .eval(ctx)
             .await
             .map_err(|err| complete_value(err, self.group.as_deref(), &self.completer))
     }
@@ -520,7 +520,7 @@ where
     <T as std::str::FromStr>::Err: std::fmt::Display,
 {
     type Output = T;
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_pos().await;
         let res = res
             .map_err(|err| complete_pos(err, self.strict && !ctx.strict_pos.get(), self.metavar));
@@ -565,7 +565,7 @@ pub struct Pure<T> {
 
 impl<T: 'static + Clone> Parser for Pure<T> {
     type Output = T;
-    async fn run(&self, _ctx: Ctx) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, _ctx: Ctx<'p>) -> Result<T, Error> {
         Ok(self.value.clone())
     }
 

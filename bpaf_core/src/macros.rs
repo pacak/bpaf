@@ -89,12 +89,12 @@ macro_rules! prod {
             pub(super) struct Ty<$($f),+> {
                 $( pub $f: $f, )+
             }
-            impl <$($f: Parser + Clone + 'static),+> Parser for Ty<$($f),+> {
+            impl <$($f: Parser + 'static),+> Parser for Ty<$( $f ),+> {
                 type Output = ($($f::Output),+);
 
-                async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+                async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
                     use $crate::Parser;
-                    $( let $f = ctx.spawn(Kind::Prod, self.$f.clone().into_rc());)+
+                    $( let $f = ctx.spawn(Kind::Prod, &self.$f); )+
                     ctx.wait_for_children().await;
                     let mut err = None;
 

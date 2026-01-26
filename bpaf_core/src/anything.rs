@@ -70,7 +70,7 @@ pub fn any<K, T: 'static>(meta: &'static str, check: impl AnyCheck<K, T>) -> Any
 impl<T: 'static> Parser for Anything<T> {
     type Output = T;
 
-    async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
         let r = ctx.await_passing_check(self.check.clone()).await?;
 
         if r {

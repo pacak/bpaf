@@ -20,7 +20,7 @@ impl TTarget {
     }
 }
 
-impl RawCtx {
+impl<'p> RawCtx<'p> {
     fn with_trigger(&self, change: TChange, items: impl IntoIterator<Item = TTarget>) {
         let (parent, id) = self.task_parent_and_id();
         let mut pending = self.pending_ops.borrow_mut();

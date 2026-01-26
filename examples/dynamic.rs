@@ -68,6 +68,6 @@ fn main() {
         )
     }
 
-    let options = parser.run();
+    let options = parser.eval();
     println!("{:?}", options);
 }

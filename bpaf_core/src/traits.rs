@@ -29,7 +29,7 @@ impl<P: Parser> Visited for P {
 
 pub trait Parser {
     type Output: 'static;
-    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<Self::Output, Error>>;
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p;
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 
@@ -309,13 +309,17 @@ pub enum VisitGroup {
 
 /// Helper trait that allows shoving non-dyn compatible trait [`Parser`] into an [`Rc`]
 trait DynParser<T: 'static> {
-    fn dyn_run(&self, ctx: Ctx) -> Pin<Box<dyn Future<Output = Result<T, Error>> + '_>>;
+    fn dyn_eval<'p>(&'p self, ctx: Ctx<'p>)
+    -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'p>>;
     fn dyn_visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
 }
 
 impl<T: 'static, P: Parser<Output = T>> DynParser<T> for P {
-    fn dyn_run(&self, ctx: Ctx) -> Pin<Box<dyn Future<Output = Result<T, Error>> + '_>> {
-        Box::pin(<Self as Parser>::run(self, ctx))
+    fn dyn_eval<'p>(
+        &'p self,
+        ctx: Ctx<'p>,
+    ) -> Pin<Box<dyn Future<Output = Result<T, Error>> + 'p>> {
+        Box::pin(<Self as Parser>::eval(self, ctx))
     }
     fn dyn_visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         self.visit(visitor);
@@ -325,8 +329,8 @@ impl<T: 'static, P: Parser<Output = T>> DynParser<T> for P {
 impl<T: 'static> Parser for RcParser<T> {
     type Output = T;
 
-    async fn run(&self, ctx: Ctx) -> Result<T, Error> {
-        self.0.as_ref().dyn_run(ctx).await
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
+        self.0.as_ref().dyn_eval(ctx).await
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
@@ -364,10 +368,10 @@ macro_rules! tuple_impl {
         impl<$( $name: 'static),+> Parser for ($(RcParser<$name>,)+) {
             type Output = ($( $name ),+);
 
-            async fn run(&self, ctx: Ctx) -> Result<Self::Output, Error> {
+            async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
                 #![allow(non_snake_case)]
                 let ($( $name ),+) = &self;
-                $( let $name = ctx.spawn(crate::Kind::Prod, $name.clone());)+
+                $( let $name = ctx.spawn(crate::Kind::Prod, $name);)+
                 ctx.wait_for_children().await;
                 let mut err = None;
                 $( let $name = $name.take().map_err(|e| e.append_to(&mut err));)+

@@ -74,14 +74,14 @@ pub mod api {
                 }
                 visitor.pop_group();
             }
-            async fn run(&self, ctx: Ctx) -> Result<T, Error> {
+            async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
                 let id = ctx.current_task.borrow().id;
                 let mut scopes = Vec::new();
                 let handles = self
                     .items
                     .iter()
                     .map(|parser| {
-                        let (h, scope) = ctx.scoped_spawn(parser.clone(), Kind::Sum);
+                        let (h, scope) = ctx.scoped_spawn(parser, Kind::Sum);
                         scopes.push(scope);
                         h
                     })
@@ -251,12 +251,12 @@ impl std::fmt::Debug for TTarget {
 /// pass the value to the parent thread.
 ///
 /// Tasks form a tree structure
-struct Task {
-    act: Pin<Box<dyn Future<Output = ()>>>,
+struct Task<'a> {
+    act: Pin<Box<dyn Future<Output = ()> + 'a>>,
     info: TaskInfo,
 }
 
-impl std::fmt::Debug for Task {
+impl std::fmt::Debug for Task<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Task { act: _, info } = self;
         f.debug_struct("Task").field("info", info).finish()
@@ -430,7 +430,7 @@ fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
     (exit, join)
 }
 
-impl RawCtx {
+impl<'p> RawCtx<'p> {
     fn task_parent_and_id(&self) -> (Parent, Id) {
         let cur = self.current_task.borrow();
         (cur.parent_id, cur.id)
@@ -492,20 +492,21 @@ impl RawCtx {
 
     /// Convert a parser into a task that saves its output to a [`JoinHandle`]
     fn make_raw_task<T: 'static>(
-        self: &Ctx,
-        parser: RcParser<T>,
-    ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'static>>) {
+        self: &Ctx<'p>,
+        parser: &'p impl Parser<Output = T>,
+    ) -> (JoinHandle<T>, Pin<Box<impl Future<Output = ()> + 'p>>) {
         let (out, handle) = make_chan();
         (handle, self.make_act(out, parser))
     }
+
     fn make_act<T: 'static>(
-        self: &Ctx,
+        self: &Ctx<'p>,
         out: ExitHandle<T>,
-        parser: RcParser<T>,
-    ) -> Pin<Box<impl Future<Output = ()> + 'static>> {
+        parser: &'p impl Parser<Output = T>,
+    ) -> Pin<Box<impl Future<Output = ()> + 'p>> {
         let ctx = self.clone();
         Box::pin(async move {
-            let mut res = parser.run(ctx.clone()).await;
+            let mut res: Result<T, Error> = parser.eval(ctx.clone()).await;
             if ctx.is_outconsumed_leaf(res.is_ok()).await {
                 res = Err(Error::OUTCONSUMED);
             }
@@ -513,7 +514,11 @@ impl RawCtx {
         })
     }
 
-    pub fn spawn<T: 'static>(self: &Ctx, kind: Kind, parser: RcParser<T>) -> JoinHandle<T> {
+    pub fn spawn<T: 'static>(
+        self: &Ctx<'p>,
+        kind: Kind,
+        parser: &'p impl Parser<Output = T>,
+    ) -> JoinHandle<T> {
         let (handle, act) = self.make_raw_task(parser);
         let info = self.make_child_info(kind);
         let task = Task { act, info };
@@ -523,8 +528,8 @@ impl RawCtx {
 
     /// Spawn a parser and collect the range it occupies
     fn scoped_spawn<T: 'static>(
-        self: &Ctx,
-        parser: RcParser<T>,
+        self: &Ctx<'p>,
+        parser: &'p impl Parser<Output = T>,
         kind: Kind,
     ) -> (JoinHandle<T>, Scope) {
         let start = Id(self.next_free.get());
@@ -549,7 +554,7 @@ impl RawCtx {
     }
 
     #[inline(never)]
-    fn add_task(&self, mut task: Task) {
+    fn add_task(&self, mut task: Task<'p>) {
         *self.wakeup_reason.borrow_mut() = Reason::Pass;
         if self.poll_in_context(&mut task) {
             let mut cur = self.current_task.borrow_mut();
@@ -612,9 +617,9 @@ impl RawCtx {
 /// Executor connected to a context
 ///
 /// Created with [`Executor::new`]
-struct Executor<'a> {
-    ctx: Ctx,
-    tasks: BTreeMap<Id, Task>,
+struct Executor<'a, 'p> {
+    ctx: Ctx<'p>,
+    tasks: BTreeMap<Id, Task<'p>>,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<(Id, Parent, u32)>,
     sums: BTreeMap<Id, Scope>,
@@ -622,8 +627,8 @@ struct Executor<'a> {
     visited: &'a dyn Visited,
 }
 
-impl<'a> Executor<'a> {
-    fn new(ctx: Ctx, visited: &'a dyn Visited) -> Self {
+impl<'a, 'p> Executor<'a, 'p> {
+    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited) -> Self {
         Self {
             ctx,
             tasks: BTreeMap::new(),
@@ -1223,7 +1228,7 @@ impl Tracker {
 #[cfg(test)]
 mod tracker_tests {
     use super::*;
-    fn mk_dummy_task(id: u32, parent: u32, parent_kind: Kind) -> (Id, Task) {
+    fn mk_dummy_task(id: u32, parent: u32, parent_kind: Kind) -> (Id, Task<'static>) {
         let id = Id(id);
         let task = Task {
             act: Box::pin(async {}),
@@ -1337,13 +1342,8 @@ enum Extra {
     Version(&'static str),
 }
 
-impl RawCtx {
-    fn render_help_for(
-        &self,
-        parser: &dyn Visited,
-        help: &dyn Visited,
-        detailed: bool,
-    ) -> ParseFailure {
+impl<'p> RawCtx<'p> {
+    fn render_help_for(&self, parser: &dyn Visited, detailed: bool) -> ParseFailure {
         let mut help_visitor = crate::visitors::help::Help::default();
         help_visitor.detailed = detailed;
 
@@ -1370,7 +1370,7 @@ impl RawCtx {
         }
 
         parser.vi(&mut help_visitor);
-        help.vi(&mut help_visitor);
+        self.help_parser.vi(&mut help_visitor);
 
         // TODO - WIDTH, `Colorscheme`, custom style
         ParseFailure::Stdout(help_visitor.render())
@@ -1383,19 +1383,29 @@ impl RawCtx {
     }
 }
 
-impl RawCtx {
+impl<'p> RawCtx<'p> {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork(&self, level: Option<String>) -> Ctx {
+    pub(crate) fn fork(&self, level: Option<String>) -> Ctx<'p> {
         let mut args = self.args.clone();
         args.path.extend(level);
-        Self::make(args, self.cursor.get(), self.strict_pos.get())
+        Self::make(
+            args,
+            self.cursor.get(),
+            self.strict_pos.get(),
+            self.help_parser,
+        )
     }
 
-    pub(crate) fn new(args: Args) -> Ctx {
-        Self::make(args, 0, false)
+    pub(crate) fn new(args: Args, help_parser: &'p RcParser<crate::Extra>) -> Ctx<'p> {
+        Self::make(args, 0, false, help_parser)
     }
 
-    fn make(args: Args, cursor: usize, strict_pos: bool) -> Ctx {
+    fn make(
+        args: Args,
+        cursor: usize,
+        strict_pos: bool,
+        help_parser: &'p RcParser<crate::Extra>,
+    ) -> Ctx<'p> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -1406,11 +1416,12 @@ impl RawCtx {
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
+            help_parser,
         })
     }
 
     fn execute(
-        self: &Ctx,
+        self: &Ctx<'p>,
         lazy: bool,
         parser: &dyn Visited,
         info: Option<&Info>,
@@ -1424,17 +1435,18 @@ impl RawCtx {
             let Some(info) = info else { return r };
 
             let ctx = self.fork(None);
-            let help = info.help_parser();
-            let (handle, act) = ctx.make_raw_task(help.clone());
+            let help = ctx.help_parser;
+
+            let (handle, act) = ctx.make_raw_task(help);
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
-            if Executor::new(ctx.clone(), &help).execute().is_ok() {
+            if Executor::new(ctx.clone(), parser).execute().is_ok() {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
                             Extra::Help | Extra::LongHelp => {
-                                ctx.render_help_for(parser, &help, xtra == Extra::LongHelp)
+                                ctx.render_help_for(parser, xtra == Extra::LongHelp)
                             }
                             Extra::Version(v) => {
                                 // Run it twice? Add a restriction to the position
@@ -1842,7 +1854,7 @@ impl<T> Exit<T> {
 
 impl<T: 'static> Parser for Exit<T> {
     type Output = T;
-    fn run(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
+    fn eval(&self, _: Ctx) -> impl Future<Output = Result<T, Error>> {
         std::future::ready(Err(self.to_error()))
     }
 
@@ -1876,11 +1888,11 @@ pub fn cargo_helper<P>(name: &'static str, inner: P) -> Cargo<P> {
 impl<P: Parser> Parser for Cargo<P> {
     type Output = P::Output;
 
-    fn run(&self, ctx: Ctx) -> impl Future<Output = Result<Self::Output, Error>> {
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> {
         if ctx.args.get(0).is_some_and(|v| v == self.name) {
             ctx.cursor.update(|c| c + 1);
         }
-        self.inner.run(ctx)
+        self.inner.eval(ctx)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
