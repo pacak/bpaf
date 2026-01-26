@@ -363,8 +363,8 @@ pub trait Leaf {}
 
 macro_rules! tuple_impl {
     ($( $name:ident)+) => {
-        impl<$( $name: 'static),+> Parser for ($(RcParser<$name>,)+) {
-            type Output = ($( $name ),+);
+        impl<$( $name: Parser + 'static),+> Parser for ($($name),+) {
+            type Output = ($( $name::Output ),+);
 
             async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
                 #![allow(non_snake_case)]
