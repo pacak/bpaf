@@ -6,6 +6,7 @@ pub struct Args {
     pub(crate) items: Rc<[OsString]>,
     pub(crate) complete: bool,
 }
+
 impl Args {
     pub(crate) fn get(&self, ix: usize) -> Option<&OsString> {
         self.items.get(ix)

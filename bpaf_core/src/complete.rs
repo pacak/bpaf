@@ -1,6 +1,6 @@
 use std::{ffi::OsString, rc::Rc};
 
-use crate::{Error, Lit, Metavar, Name, Named, ParseFailure, utils::Vec1};
+use crate::{Error, Lit, Metavar, Name, Named, ParseFailure, Parser, utils::Vec1};
 impl From<CompleteReply> for Error {
     fn from(value: CompleteReply) -> Self {
         Error::CompReply(Vec1::new(value))

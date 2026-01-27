@@ -8,6 +8,7 @@ mod consumers;
 mod core_consumers;
 mod ctx;
 mod error;
+mod info;
 mod macros;
 mod miniansi;
 mod os_str;
@@ -144,10 +145,10 @@ pub mod api {
 }
 
 use crate::{
-    adapters::Info,
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CompleteReq,
+    info::Info,
     utils::{Vec1, reuse_vec},
     visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };

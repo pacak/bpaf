@@ -4,8 +4,8 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, repeat::*, visitors::help::Help,
-    r#yield,
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, info::Info, repeat::*,
+    visitors::help::Help, r#yield,
 };
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
