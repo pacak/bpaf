@@ -149,6 +149,7 @@ use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CompleteReq,
+    console_writer::Styled,
     info::{Custom, Extra, Info},
     utils::{Vec1, reuse_vec},
     visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
@@ -1803,15 +1804,15 @@ impl std::fmt::Display for Lit<'_> {
 pub struct Exit<T> {
     ctx: PhantomData<T>,
     code: i32,
-    msg: Cow<'static, str>,
+    msg: Styled,
 }
 impl<T> Exit<T> {
     fn to_error(&self) -> Error {
-        let msg = self.msg.as_ref().to_owned();
+        let msg = self.msg.clone();
         Error::Final(if self.code == 0 {
-            ParseFailure::stdout(msg)
+            ParseFailure::Stdout(msg)
         } else {
-            ParseFailure::stderr(msg)
+            ParseFailure::Stderr(msg)
         })
     }
 }
@@ -1825,7 +1826,7 @@ impl<T: 'static> Parser for Exit<T> {
     fn visit<'a>(&'a self, _: &mut dyn Visitor<'a>) {}
 }
 
-pub fn fail<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
+pub fn fail<T>(msg: impl Into<Styled>) -> Exit<T> {
     Exit {
         ctx: PhantomData,
         code: 1,
@@ -1833,7 +1834,7 @@ pub fn fail<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
     }
 }
 
-pub fn success<T>(msg: impl Into<Cow<'static, str>>) -> Exit<T> {
+pub fn success<T>(msg: impl Into<Styled>) -> Exit<T> {
     Exit {
         ctx: PhantomData,
         code: 0,

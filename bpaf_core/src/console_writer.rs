@@ -7,6 +7,21 @@ pub struct Styled {
     pub(crate) tab: usize,
 }
 
+impl From<&str> for Styled {
+    fn from(value: &str) -> Self {
+        Self {
+            raw: value.to_string(),
+            tab: 0,
+        }
+    }
+}
+
+impl From<String> for Styled {
+    fn from(raw: String) -> Self {
+        Self { raw, tab: 0 }
+    }
+}
+
 impl Styled {
     #[inline]
     pub fn mono(&self) -> String {
