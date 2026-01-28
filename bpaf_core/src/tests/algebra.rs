@@ -53,3 +53,27 @@ fn then_success() {
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "missing `-a`\n");
 }
+
+#[test]
+fn sum_is_associative_right() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let ab = construct!([a, b]);
+    let parser = construct!([ab, c]).to_options();
+    assert_eq!(parser.run_inner("-a").unwrap(), 'a');
+    assert_eq!(parser.run_inner("-b").unwrap(), 'b');
+    assert_eq!(parser.run_inner("-c").unwrap(), 'c');
+}
+
+#[test]
+fn sum_is_associative_left() {
+    let a = short('a').req_flag('a');
+    let b = short('b').req_flag('b');
+    let c = short('c').req_flag('c');
+    let bc = construct!([b, c]);
+    let parser = construct!([a, bc]).to_options();
+    assert_eq!(parser.run_inner("-a").unwrap(), 'a');
+    assert_eq!(parser.run_inner("-b").unwrap(), 'b');
+    assert_eq!(parser.run_inner("-c").unwrap(), 'c');
+}
