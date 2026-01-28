@@ -43,6 +43,52 @@ fn then_fail() {
 }
 
 #[test]
+fn nested_literal_success() {
+    let a = short('a')
+        .req_flag(42)
+        .then_exit(|v| success::<()>(format!("{v}!")));
+    let parser = literal("alpha").nest(a).to_options();
+    let r = parser.run_inner("alpha -a").unwrap_err().unwrap_stdout();
+    assert_eq!(r, "42!\n");
+}
+
+#[test]
+fn nested_flag_success() {
+    let a = short('a')
+        .req_flag(42)
+        .then_exit(|v| success::<()>(format!("{v}!")));
+    let parser = long("alpha").nest(a).to_options();
+    let r = parser.run_inner("--alpha -a").unwrap_err().unwrap_stdout();
+    assert_eq!(r, "42!\n");
+}
+
+#[test]
+fn success_makes_associative_sum_left() {
+    let a = short('a').req_flag('a').then_exit(|_| success("ok"));
+    let b = short('b').req_flag('b');
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-a").unwrap_err().unwrap_stdout();
+    assert_eq!(r, "ok\n");
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn success_makes_associative_sum_right() {
+    let a = short('a').req_flag('a').then_exit(|_| success("ok"));
+    let b = short('b').req_flag('b');
+    let parser = construct!([b, a]).to_options();
+
+    let r = parser.run_inner("-a").unwrap_err().unwrap_stdout();
+    assert_eq!(r, "ok\n");
+
+    let r = parser.run_inner("-b").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
 fn then_success() {
     let a = short('a').req_flag(42);
     let parser = a.then_exit::<()>(|_| success("this is ok")).to_options();
