@@ -9,6 +9,7 @@ mod consumers;
 mod core_consumers;
 mod ctx;
 mod error;
+mod help_cmd;
 mod info;
 mod macros;
 mod miniansi;
@@ -46,6 +47,7 @@ pub mod api {
             traits::{RcParser, VisitGroup, Visitor},
         };
 
+        #[cfg(doc)]
         use crate::consumers::{Keyword, Literal, Named};
 
         /// A categorical sum of two or more parsers
@@ -152,7 +154,10 @@ use crate::{
     console_writer::Styled,
     info::{Custom, Extra, Info},
     utils::{Vec1, reuse_vec},
-    visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
+    visitors::{
+        errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
+        help::render_help,
+    },
 };
 
 #[doc(inline)]
@@ -160,6 +165,7 @@ pub use crate::{
     adapters::OptionParser,
     anything::{any, any_from_str},
     consumers::*,
+    help_cmd::help_command,
     traits::{Parser, Visited},
 };
 
@@ -1409,7 +1415,6 @@ impl<'p> RawCtx<'p> {
                                     Some(&extra),
                                     &ctx.args.path,
                                     xtra == Extra::LongHelp,
-                                    ctx.custom,
                                 ))
                             }
                             Extra::Version(v) => ParseFailure::stdout(format!("Version: {v}\n")),

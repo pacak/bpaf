@@ -136,7 +136,6 @@ impl<T: 'static> OptionParser<T> {
                     Some(&ctx.custom.create(self.info.version)),
                     &ctx.args.path,
                     false,
-                    ctx.custom,
                 ),
             )));
         }

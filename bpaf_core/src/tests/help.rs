@@ -865,3 +865,43 @@ Available options:
     let expected = "v 3.14\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn help_command_works() {
+    let a = short('a')
+        .switch()
+        .to_options()
+        .descr("does alpha")
+        .command("alpha")
+        .help("do alpha");
+    let b = short('b')
+        .switch()
+        .to_options()
+        .descr("does beta")
+        .command("beta")
+        .help("do beta");
+    let c = short('c')
+        .switch()
+        .to_options()
+        .command("gamma")
+        .help("do gamma");
+    let cmds = construct!([a, b, c]);
+    let parser = help_command(cmds).to_options();
+
+    let r = parser.run_inner("help alpha").unwrap_err().unwrap_stdout();
+    let expected = "do alpha
+
+Usage: app alpha [-a]
+
+Available options:
+    -a
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("alpha --help")
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, expected);
+}

@@ -36,7 +36,6 @@ pub fn render_help(
     extra: Option<&dyn Visited>,
     path: &str,
     detailed: bool,
-    custom: &Custom,
 ) -> Styled {
     let mut h = Help {
         path,
