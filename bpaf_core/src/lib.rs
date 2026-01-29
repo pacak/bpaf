@@ -1823,6 +1823,16 @@ impl Lit<'_> {
     }
 }
 
+impl PartialEq<OsStr> for Lit<'_> {
+    fn eq(&self, other: &OsStr) -> bool {
+        let mut buf = [0; 4];
+        match &self.0 {
+            Name::Short(s) => s.encode_utf8(&mut buf) == other,
+            Name::Long(cow) => cow.as_ref() == other,
+        }
+    }
+}
+
 impl std::fmt::Display for Lit<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match &self.0 {
