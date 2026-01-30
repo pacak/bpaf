@@ -1346,28 +1346,7 @@ impl<'p> RawCtx<'p> {
     fn render_help_for(&self, parser: &dyn Visited, detailed: bool) -> ParseFailure {
         let mut help_visitor = crate::visitors::help::Help::default();
         help_visitor.detailed = detailed;
-
-        let place;
-        let app = &self.args.path[0]; // always have it, but sometimes it's empty
-        match (
-            !app.is_empty(),
-            (self.args.path.len() > 1)
-                .then_some(self.args.path.last())
-                .flatten(),
-        ) {
-            (true, Some(last)) => {
-                place = format!("{app} ... {last}");
-                help_visitor.app_name = Some(&place);
-            }
-            (true, None) => {
-                help_visitor.app_name = Some(app);
-            }
-            (false, Some(last)) => {
-                place = format!("... {last}");
-                help_visitor.app_name = Some(&place);
-            }
-            (false, None) => {}
-        }
+        help_visitor.path = &self.args.path;
 
         parser.vi(&mut help_visitor);
         self.help_parser.vi(&mut help_visitor);
@@ -1385,9 +1364,12 @@ impl<'p> RawCtx<'p> {
 
 impl<'p> RawCtx<'p> {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork(&self, level: Option<String>) -> Ctx<'p> {
+    pub(crate) fn fork(&self, level: Option<&str>) -> Ctx<'p> {
         let mut args = self.args.clone();
-        args.path.extend(level);
+        if let Some(name) = level {
+            args.path.push(' ');
+            args.path.push_str(name);
+        }
         Self::make(
             args,
             self.cursor.get(),

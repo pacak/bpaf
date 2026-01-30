@@ -2,7 +2,7 @@ use std::{ffi::OsString, rc::Rc};
 
 #[derive(Debug, Clone)]
 pub struct Args {
-    pub(crate) path: Vec<String>,
+    pub(crate) path: String,
     pub(crate) items: Rc<[OsString]>,
     pub(crate) complete: bool,
 }
@@ -11,17 +11,31 @@ impl Args {
     pub(crate) fn get(&self, ix: usize) -> Option<&OsString> {
         self.items.get(ix)
     }
+
     pub(crate) fn len(&self) -> usize {
         self.items.len()
+    }
+
+    pub fn set_name(mut self, name: impl Into<String>) -> Self {
+        self.path = name.into();
+        self
+    }
+
+    pub fn set_comp(mut self, _rev: usize) -> Self {
+        self.complete = true;
+        self
     }
 }
 
 impl Args {
-    fn make(app: Option<String>, items: impl IntoIterator<Item = OsString>) -> Self {
+    pub fn make(
+        app: impl Into<String>,
+        items: impl IntoIterator<Item = impl Into<OsString>>,
+    ) -> Self {
         Self {
-            path: vec![app.unwrap_or_default()],
+            path: app.into(),
             complete: false,
-            items: items.into_iter().collect(),
+            items: items.into_iter().map(|v| v.into()).collect(),
         }
     }
 }
@@ -36,51 +50,50 @@ impl std::ops::Index<usize> for Args {
 
 impl From<&[&str]> for Args {
     fn from(value: &[&str]) -> Self {
-        Self::make(None, value.iter().map(OsString::from))
+        Self::make("app", value.iter().map(OsString::from))
     }
 }
 
 impl From<&[OsString]> for Args {
     fn from(value: &[OsString]) -> Self {
-        Self::make(None, value.iter().cloned())
+        Self::make("app", value.iter().cloned())
     }
 }
 
 impl<const W: usize> From<&[&str; W]> for Args {
     fn from(value: &[&str; W]) -> Self {
-        Self::make(None, value.iter().map(OsString::from))
+        Self::make("app", value.iter().map(OsString::from))
     }
 }
 
 impl<const W: usize> From<[&str; W]> for Args {
     fn from(value: [&str; W]) -> Self {
-        Self::make(None, value.iter().map(OsString::from))
+        Self::make("app", value.iter().map(OsString::from))
     }
 }
 
 impl From<std::env::Args> for Args {
     fn from(mut value: std::env::Args) -> Self {
-        let app = Some(value.next().expect("Empty args?"));
-        Self::make(app, value.map(OsString::from)) // TODO
+        let app = value.next().expect("Empty args?");
+        Self::make(app, value.map(OsString::from))
     }
 }
 
 impl From<std::env::ArgsOs> for Args {
     fn from(mut value: std::env::ArgsOs) -> Self {
-        let app = Some(
-            value
-                .next()
-                .expect("Empty args?")
-                .to_string_lossy()
-                .into_owned(),
-        );
+        let app = value
+            .next()
+            .expect("Empty args?")
+            .to_string_lossy()
+            .into_owned();
+
         Self::make(app, value)
     }
 }
 
 impl From<&str> for Args {
     fn from(value: &str) -> Self {
-        Self::make(None, split(value).unwrap().into_iter().map(OsString::from))
+        Self::make("app", split(value).unwrap().into_iter().map(OsString::from))
     }
 }
 
@@ -92,7 +105,7 @@ impl From<(&str, &str)> for Args {
             .map(OsString::from)
             .collect::<Vec<_>>();
         items.push(OsString::from(value.1));
-        let mut res = Self::make(None, items);
+        let mut res = Self::make("app", items);
         res.complete = true;
         res
     }

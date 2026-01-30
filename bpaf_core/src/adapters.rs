@@ -209,14 +209,17 @@ impl<T: 'static> Parser for Command<T> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.names).await;
         let res = res.map_err(|err| complete_command(&self.names, err));
-        let Some(name) = res? else {
+        if res?.is_none() {
             let missing = MissingItem::Lit {
                 value: self.names[0].clone(),
             };
             return Err(Error::Missing(Vec1::new(missing)));
         };
+        let Some(Lit(Name::Long(n))) = self.names.first().as_ref() else {
+            unreachable!("For commands first name should always be a long one, by construction");
+        };
 
-        let inner = ctx.fork(Some(name.to_string()));
+        let inner = ctx.fork(Some(n.as_ref()));
         inner.cursor.update(|c| c + 1);
         let res = self.inner.run_in_ctx(self.lazy, inner.clone());
         ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);

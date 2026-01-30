@@ -12,7 +12,7 @@ fn basic_two_item_arg() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-l] -s { KEY VAL }
+Usage: app [-l] -s { KEY VAL }
 
 Available options:
     -l, --long         with some help
@@ -41,7 +41,7 @@ fn keyword_nested_two_item_arg() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-  Usage: [-l] COMMAND ...
+  Usage: app [-l] COMMAND ...
 
 Available options:
     -l, --long   with some help

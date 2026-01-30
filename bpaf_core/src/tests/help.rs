@@ -6,7 +6,7 @@ fn smallest() {
     let parser = a.to_options();
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: -a
+Usage: app -a
 
 Available options:
     -a          A simple flag
@@ -29,7 +29,7 @@ fn simple_flag() {
     let expected = "\
 This is a description
 
-Usage: -a
+Usage: app -a
 
 This is a header
 
@@ -65,7 +65,7 @@ fooo
 
 baz
 
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a
@@ -79,7 +79,7 @@ fn help_after_switch() {
     let parser = short('a').switch().help("this is help").to_options();
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a          this is help
@@ -96,8 +96,7 @@ fn fallback_to_usage() {
         .fallback_to_usage();
 
     let r = a.run_inner("").unwrap_err().unwrap_stdout();
-    let expected =
-        "Usage: -a=A\n\nAvailable options:\n    -a=A\n    -h, --help  Prints help information\n";
+    let expected = "Usage: app -a=A\n\nAvailable options:\n    -a=A\n    -h, --help  Prints help information\n";
     assert_eq!(r, expected);
 }
 
@@ -114,7 +113,7 @@ fn fallback_to_usage_nested() {
 
     let r = a.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: COMMAND ...
+Usage: app COMMAND ...
 
 Available options:
     -h, --help  Prints help information
@@ -128,7 +127,7 @@ Available commands:
     let expected = "\
 help for cmd
 
-Usage: ... cmd -a=A
+Usage: app cmd -a=A
 
 Available options:
     -a=A
@@ -146,7 +145,7 @@ fn fancy_meta() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: --trailing-comma=<all|es5|none> --stdin-file-path=PATH
+Usage: app --trailing-comma=<all|es5|none> --stdin-file-path=PATH
 
 Available options:
         --trailing-comma=<all|es5|none>
@@ -177,7 +176,7 @@ fn decorations() {
 descr
 descr
 
-Usage: custom usage
+Usage: app custom usage
 
 header
 header
@@ -206,7 +205,7 @@ fn very_long_switch() {
 
     let r = p.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: -p=MEGAPOTATO [-b]
+Usage: app -p=MEGAPOTATO [-b]
 
 Available options:
     -p, --ppppppppppppppppppppppppppppppppppppp=MEGAPOTATO  this is help for megapotato
@@ -229,7 +228,7 @@ Available options:
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
-// Usage: (-a [-c] | -b [-c])
+// Usage: app (-a [-c] | -b [-c])
 //
 // Available options:
 //     -a
@@ -254,7 +253,7 @@ fn duplicate_items_dif_help() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: (-a [-c] | -b [-c])
+Usage: app (-a [-c] | -b [-c])
 
 Available options:
     -a
@@ -280,7 +279,7 @@ Available options:
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
-// Usage: (-a C | -b C)
+// Usage: app (-a C | -b C)
 //
 // Available positional items:
 //     C           C
@@ -307,7 +306,7 @@ fn duplicate_pos_items_diff_help() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: (-a C | -b C)
+Usage: app (-a C | -b C)
 
 Available positional items:
     C           C1
@@ -340,7 +339,7 @@ fn enum_with_docs() {
         .unwrap_stdout();
 
     let expected = "\
-Usage: (--intel | --att)
+Usage: app (--intel | --att)
 
 Pick mode:
         --intel  help
@@ -372,7 +371,7 @@ Available options:
 //     let parser = construct!(a, fooo(), b).to_options();
 //
 //     let expected = "\
-// Usage: [-a] --tag NAME VAL [-b]
+// Usage: app [-a] --tag NAME VAL [-b]
 //
 // Available options:
 //     -a          help for a
@@ -405,7 +404,7 @@ Available options:
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
-// Usage: [-v] [-f [-e] NAME STATE] [-d]
+// Usage: app [-v] [-f [-e] NAME STATE] [-d]
 //
 // Available options:
 //     -v, --verbose   verbose
@@ -432,7 +431,7 @@ Available options:
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //
 //     let expected = "\
-// Usage: [-v] NAME VAL
+// Usage: app [-v] NAME VAL
 //
 // Available positional items:
 //   NAME VAL
@@ -457,7 +456,7 @@ fn fallback_display_simple_arg() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [--a=NUM]
+Usage: app [--a=NUM]
 
 Available options:
         --a=NUM  help for a
@@ -479,7 +478,7 @@ fn fallback_display_simple_pos() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [NUM]
+Usage: app [NUM]
 
 Available positional items:
     NUM         help for pos
@@ -513,7 +512,7 @@ fn fallback_display_tuple() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [--a=NUM --b=NUM]
+Usage: app [--a=NUM --b=NUM]
 
 Available options:
         --a=NUM  help for a
@@ -535,7 +534,7 @@ fn fallback_display_no_help() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [--a=NUM]
+Usage: app [--a=NUM]
 
 Available options:
         --a=NUM
@@ -563,7 +562,7 @@ fn env_fallback_visible() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [--fonts=DIR] [--system-fonts]
+Usage: app [--fonts=DIR] [--system-fonts]
 
 Available options:
         --fonts=DIR     Load fonts from this directory
@@ -586,7 +585,7 @@ fn fallback_format_simple_arg() {
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: [--a=NUM]
+Usage: app [--a=NUM]
 
 Available options:
         --a=NUM  help for a
@@ -607,7 +606,7 @@ fn nested_group_help() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     println!("{r}");
     let expected = "\
-Usage: [-a] [-b]
+Usage: app [-a] [-b]
 
 outer
     -a          help for a
@@ -635,7 +634,7 @@ Available options:
 //
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 //     let expected = "\
-// Usage: [-a] [-b] [-c]
+// Usage: app [-a] [-b] [-c]
 //
 // Uses either of those [-a] [-b]
 //     -a          option a
@@ -663,7 +662,7 @@ Available options:
 //     assert_eq!(r, "`--help` is not expected in this context");
 //
 //     let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
-//     let expected = "Usage: [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
+//     let expected = "Usage: app [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
 //     assert_eq!(r, expected);
 // }
 //
@@ -677,7 +676,7 @@ fn various_name_lengths_under() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a, --123456789012345  A
@@ -696,7 +695,7 @@ fn various_name_lengths_at() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a, --1234567890123456  A
@@ -715,7 +714,7 @@ fn various_name_lengths_over1() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a, --12345678901234567  A
@@ -734,7 +733,7 @@ fn various_name_lengths_over2() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: [-a]
+Usage: app [-a]
 
 Available options:
     -a, --1234567890123456789  A
@@ -750,7 +749,7 @@ fn help_and_version_newline() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     assert_eq!(
         r,
-        "Usage: [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n"
+        "Usage: app [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n"
     );
 
     let r = parser.run_inner("--version").unwrap_err().unwrap_stdout();
@@ -771,7 +770,7 @@ fn fallback_to_usage_and_commands() {
     let expected = "\
 inner
 
-Usage: ... cmd
+Usage: app cmd
 
 Available options:
     -h, --help  Prints help information
@@ -782,7 +781,7 @@ Available options:
     let expected = "\
 outer
 
-Usage: COMMAND ...
+Usage: app COMMAND ...
 
 Available options:
     -h, --help  Prints help information
