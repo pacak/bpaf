@@ -4,8 +4,8 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, info::Info, repeat::*,
-    visitors::help::Help, r#yield,
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, error::ParseFailure, info::Info,
+    repeat::*, visitors::help::Help, r#yield,
 };
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
@@ -205,11 +205,14 @@ pub trait Parser {
         }
     }
 
-    fn or_exit(self, exit: Exit<Self::Output>) -> OrExit<Self::Output, Self>
+    fn or_exit(self, exit: impl Fn(ParseFailure) -> Exit<Self::Output> + 'static) -> OrExit<Self>
     where
         Self: Sized,
     {
-        OrExit { inner: self, exit }
+        OrExit {
+            inner: self,
+            exit: Box::new(exit),
+        }
     }
 }
 

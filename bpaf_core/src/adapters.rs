@@ -475,16 +475,16 @@ impl<T: 'static, P: Parser> Parser for ThenExit<T, P> {
     }
 }
 
-pub struct OrExit<T, P> {
+pub struct OrExit<P: Parser> {
     pub(crate) inner: P,
-    pub(crate) exit: Exit<T>,
+    pub(crate) exit: Box<dyn Fn(ParseFailure) -> Exit<P::Output>>,
 }
 
-impl<T: 'static, P: Parser<Output = T>> Parser for OrExit<T, P> {
-    type Output = T;
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+impl<P: Parser> Parser for OrExit<P> {
+    type Output = P::Output;
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         match self.inner.eval(ctx.clone()).await {
-            Err(_) => self.exit.eval(ctx).await,
+            Err(e) => Err((self.exit)(ParseFailure::from(e)).to_error()),
             ok => ok,
         }
     }

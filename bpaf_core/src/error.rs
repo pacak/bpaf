@@ -227,6 +227,14 @@ impl std::fmt::Display for MissingItem {
     }
 }
 
+impl std::fmt::Display for ParseFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ParseFailure::Stdout(m) | ParseFailure::Stderr(m) => f.write_str(m),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum ParseFailure {
     Stdout(String),
