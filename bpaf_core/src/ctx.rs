@@ -12,6 +12,7 @@ use crate::Executor;
 
 use crate::{
     Conflict, Id, KillReason, Parent, Reason, TChange, TTarget, Task, TaskInfo, args::Args,
+    info::Custom,
 };
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -54,7 +55,7 @@ pub struct RawCtx<'p> {
     /// Needs to live here so it gets shared to nested parsers that get a new executor
     pub(crate) strict_pos: Cell<bool>,
 
-    pub(crate) help_parser: &'p crate::RcParser<crate::Extra>,
+    pub(crate) custom: &'p Custom,
 }
 
 ///

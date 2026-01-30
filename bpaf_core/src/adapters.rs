@@ -91,13 +91,11 @@ pub struct OptionParser<T> {
 
 impl<T: 'static> OptionParser<T> {
     pub fn run_inner(&self, args: impl Into<Args>) -> Result<T, ParseFailure> {
-        let help_parser = self
-            .info
-            .custom
-            .as_deref()
-            .unwrap_or(&Custom::default())
-            .create(self.info.version);
-        let ctx = RawCtx::new(args.into(), &help_parser);
+        let custom = match self.info.custom.as_deref() {
+            Some(custom) => custom,
+            None => &Custom::default(),
+        };
+        let ctx = RawCtx::new(args.into(), custom);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -126,7 +124,8 @@ impl<T: 'static> OptionParser<T> {
 
         let res = handle.take();
         if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
-            return Err(Error::Final(ctx.render_help_for(self, false)));
+            let extra = ctx.custom.create(self.info.version);
+            return Err(Error::Final(ctx.render_help_for(self, &extra, false)));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),

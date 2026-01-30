@@ -1,4 +1,8 @@
-use crate::{Parser, construct, error::Error, traits::RcParser};
+//! All the customization is done though custom/info
+
+use crate::{
+    OptionParser, Parser, console_writer2::Colorscheme, construct, error::Error, traits::RcParser,
+};
 
 #[derive(Default)]
 pub struct Info {
@@ -11,8 +15,31 @@ pub struct Info {
     pub(crate) custom: Option<Box<Custom>>,
 }
 
+impl<T> OptionParser<T> {
+    fn custom(&mut self) -> &mut Custom {
+        self.info.custom.get_or_insert_default()
+    }
+
+    /// Parser must consume at least one item, use [`Named::req_switch`] or similar
+    pub fn help_parser(mut self, parser: impl Parser<Output = Help> + 'static) -> Self {
+        self.custom().help = Some(parser.into_rc());
+        self
+    }
+
+    pub fn colorscheme(mut self, colorscheme: Colorscheme) -> Self {
+        self.custom().colorscheme = Some(colorscheme);
+        self
+    }
+
+    /// Parser must consume at least one item, use [`Named::req_switch`] or similar
+    pub fn version_parser(mut self, parser: impl Parser<Output = ()> + 'static) -> Self {
+        self.custom().version = Some(parser.into_rc());
+        self
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum Help {
+pub enum Help {
     Brief,
     Full,
 }
@@ -24,18 +51,26 @@ enum Rev {
     Fish,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+pub(crate) enum Extra {
+    Help,
+    LongHelp,
+    Version(&'static str),
+}
+
 #[derive(Default, Clone)]
 pub struct Custom {
     // --help or -h
     pub(crate) help: Option<RcParser<Help>>,
-    pub(crate) version: Option<RcParser<crate::Extra>>,
+    pub(crate) version: Option<RcParser<()>>,
     pub(crate) complete_start: Option<RcParser<Rev>>,
     pub(crate) complete_dump: Option<RcParser<()>>,
+    pub(crate) colorscheme: Option<Colorscheme>,
 }
 
 impl Custom {
-    fn make_help(&self) -> impl Parser<Output = crate::Extra> + 'static {
-        use crate::{Extra, Parser, short};
+    fn make_help(&self) -> impl Parser<Output = Extra> + 'static {
+        use crate::{Parser, short};
         WithBackup {
             primary: self.help.clone(),
             backup: short('h')
@@ -51,25 +86,26 @@ impl Custom {
         })
     }
 
-    fn make_version(
-        &self,
-        version: Option<&'static str>,
-    ) -> impl Parser<Output = crate::Extra> + 'static {
-        use crate::{Extra, short};
-        Some(WithBackup {
-            primary: self.version.clone(),
-            backup: short('V')
-                .long("version")
-                .help("Prints version information")
-                .req_flag(Extra::Version(version?)),
-        })
+    fn make_version(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> + 'static {
+        use crate::short;
+        let version = version?;
+        Some(
+            WithBackup {
+                primary: self.version.clone(),
+                backup: short('V')
+                    .long("version")
+                    .help("Prints version information")
+                    .req_flag(()),
+            }
+            .map(|_| Extra::Version(version)),
+        )
     }
 
-    pub(crate) fn create(&self, version: Option<&'static str>) -> RcParser<crate::Extra> {
+    pub(crate) fn create(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> {
         let help = self.make_help();
         let version = self.make_version(version);
 
-        construct!([help, version]).hide_usage().into_rc()
+        construct!([help, version]).hide_usage()
     }
 }
 

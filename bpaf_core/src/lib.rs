@@ -149,7 +149,7 @@ use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CompleteReq,
-    info::Info,
+    info::{Custom, Extra, Info},
     utils::{Vec1, reuse_vec},
     visitors::errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
 };
@@ -508,7 +508,8 @@ impl<'p> RawCtx<'p> {
         let ctx = self.clone();
         Box::pin(async move {
             let mut res: Result<T, Error> = parser.eval(ctx.clone()).await;
-            if ctx.is_outconsumed_leaf(res.is_ok()).await {
+            let is_final = matches!(res, Ok(_) | Err(Error::Final(_)));
+            if ctx.is_outconsumed_leaf(is_final).await {
                 res = Err(Error::OUTCONSUMED);
             }
             out.exit(res)
@@ -1336,21 +1337,19 @@ struct Triggers {
 // reactor - listens for readiness, notifies tasks
 // executor - runs ready tasks
 
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
-enum Extra {
-    Help,
-    LongHelp,
-    Version(&'static str),
-}
-
 impl<'p> RawCtx<'p> {
-    fn render_help_for(&self, parser: &dyn Visited, detailed: bool) -> ParseFailure {
+    fn render_help_for(
+        &self,
+        parser: &dyn Visited,
+        custom: &dyn Visited,
+        detailed: bool,
+    ) -> ParseFailure {
         let mut help_visitor = crate::visitors::help::Help::default();
         help_visitor.detailed = detailed;
         help_visitor.path = &self.args.path;
 
         parser.vi(&mut help_visitor);
-        self.help_parser.vi(&mut help_visitor);
+        custom.vi(&mut help_visitor);
 
         // TODO - WIDTH, `Colorscheme`, custom style
         ParseFailure::Stdout(help_visitor.render())
@@ -1365,30 +1364,23 @@ impl<'p> RawCtx<'p> {
 
 impl<'p> RawCtx<'p> {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork(&self, level: Option<&str>) -> Ctx<'p> {
+    pub(crate) fn fork<'o>(&'o self, level: Option<&str>) -> Ctx<'o>
+    where
+        'p: 'o,
+    {
         let mut args = self.args.clone();
         if let Some(name) = level {
             args.path.push(' ');
             args.path.push_str(name);
         }
-        Self::make(
-            args,
-            self.cursor.get(),
-            self.strict_pos.get(),
-            self.help_parser,
-        )
+        Self::make(args, self.cursor.get(), self.strict_pos.get(), self.custom)
     }
 
-    pub(crate) fn new(args: Args, help_parser: &'p RcParser<crate::Extra>) -> Ctx<'p> {
-        Self::make(args, 0, false, help_parser)
+    pub(crate) fn new(args: Args, custom: &'p Custom) -> Ctx<'p> {
+        Self::make(args, 0, false, custom)
     }
 
-    fn make(
-        args: Args,
-        cursor: usize,
-        strict_pos: bool,
-        help_parser: &'p RcParser<crate::Extra>,
-    ) -> Ctx<'p> {
+    fn make<'o>(args: Args, cursor: usize, strict_pos: bool, custom: &'o Custom) -> Ctx<'o> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -1399,7 +1391,7 @@ impl<'p> RawCtx<'p> {
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
-            help_parser,
+            custom,
         })
     }
 
@@ -1416,30 +1408,21 @@ impl<'p> RawCtx<'p> {
                 return Ok(());
             }
             let Some(info) = info else { return r };
-
+            let extra = self.custom.create(info.version);
             let ctx = self.fork(None);
-            let help = ctx.help_parser;
-
-            let (handle, act) = ctx.make_raw_task(help);
+            let (handle, act) = ctx.make_raw_task(&extra);
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
+
             if Executor::new(ctx.clone(), parser).execute().is_ok() {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
                             Extra::Help | Extra::LongHelp => {
-                                ctx.render_help_for(parser, xtra == Extra::LongHelp)
+                                ctx.render_help_for(parser, &extra, xtra == Extra::LongHelp)
                             }
-                            Extra::Version(v) => {
-                                // Run it twice? Add a restriction to the position
-                                // or number of items?
-                                if self.args.len() == 1 {
-                                    ParseFailure::Stdout(format!("Version: {v}\n"))
-                                } else {
-                                    return r;
-                                }
-                            }
+                            Extra::Version(v) => ParseFailure::Stdout(format!("Version: {v}\n")),
                         }));
                     }
                     Err(e @ Error::Final(_)) => return Err(e),
@@ -1447,7 +1430,6 @@ impl<'p> RawCtx<'p> {
                 }
             }
         }
-
         r
     }
 }

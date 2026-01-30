@@ -791,3 +791,77 @@ Available commands:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn custom_help_flag() {
+    let a = short('a').help("Do A").req_flag('a');
+    let halp = short('H')
+        .long("halp")
+        .help("Verbose help!")
+        .req_flag(crate::info::Help::Full);
+    let parser = a.to_options().help_parser(halp).fallback_to_usage();
+
+    let r = parser.run_inner("--halp").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -a
+
+Available options:
+    -a          Do A
+    -H, --halp  Verbose help!
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
+    let expected = "`--help` is not expected in this context";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn custom_version() {
+    let a = short('a').switch();
+    let parser = a.to_options().version("3.14");
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app [-a]
+
+Available options:
+    -a
+    -h, --help     Prints help information
+    -V, --version  Prints version information
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--version").unwrap_err().unwrap_stdout();
+    let expected = "Version: 3.14\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn custom_version_flag() {
+    let a = short('a').switch();
+    let vf = short('v')
+        .long("ver")
+        .help("For version")
+        .req_flag(())
+        .then_exit(|_| success("v 3.14"));
+    let parser = a.to_options().version("3.14").version_parser(vf);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app [-a]
+
+Available options:
+    -a
+    -h, --help  Prints help information
+    -v, --ver   For version
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--ver").unwrap_err().unwrap_stdout();
+    let expected = "v 3.14";
+    assert_eq!(r, expected);
+}
