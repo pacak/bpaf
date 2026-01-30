@@ -206,7 +206,6 @@ pub mod __private {
     pub use crate::api::composite::Sum;
     pub use crate::error::Error;
     pub use crate::traits::*;
-    pub use crate::r#yield;
     pub use crate::{Ctx, Kind};
     pub use ::std::compile_error;
 }
@@ -334,9 +333,9 @@ impl std::fmt::Display for Metavar {
 ///
 /// Created with [`r#yield`], one of the key building blocks responsible
 /// for cooperative multitasking
-pub struct Yield(bool);
+struct Yield(bool);
 
-pub fn r#yield() -> Yield {
+fn r#yield() -> Yield {
     Yield(false)
 }
 
