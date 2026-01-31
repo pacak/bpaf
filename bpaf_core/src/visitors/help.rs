@@ -25,14 +25,31 @@ const H: &str = Style::Header.ansi();
 
 use super::ShortLong;
 use crate::{
-    Flag, Item, Nest, VKind,
-    console_writer::{MAX_TAB, Style, char_width},
+    Flag, Item, Nest, VKind, Visited,
+    console_writer::{Colorscheme, MAX_TAB, Style, apply_style, char_width},
     traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
+pub fn render_help(
+    parser: &dyn Visited,
+    path: &str,
+    detailed: bool,
+    style: &Colorscheme,
+) -> String {
+    let mut h = Help {
+        path,
+        detailed,
+        ..Default::default()
+    };
+
+    parser.vi(&mut h);
+    h.prepare_output();
+    apply_style(&h.output, h.max_tab + 2, Some(style))
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
-pub(crate) struct Lit<'a>(pub(crate) ShortLong<'a>);
+struct Lit<'a>(pub(crate) ShortLong<'a>);
 
 impl std::fmt::Display for Lit<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -386,7 +403,7 @@ impl Help<'_> {
         }
     }
 
-    pub(crate) fn render(mut self) -> String {
+    fn prepare_output(&mut self) {
         use std::fmt::Write as _;
         if !self.pos.is_empty() {
             self.output.push('\n');
@@ -414,6 +431,9 @@ impl Help<'_> {
             self.output.push('\n');
             self.output.push_str(footer);
         }
+    }
+    pub(crate) fn render(mut self) -> String {
+        self.prepare_output();
 
         crate::console_writer::apply_style(&self.output, self.max_tab + 2, None)
     }

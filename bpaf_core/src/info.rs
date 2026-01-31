@@ -1,7 +1,7 @@
 //! All the customization is done though custom/info
 
 use crate::{
-    OptionParser, Parser, console_writer2::Colorscheme, construct, error::Error, traits::RcParser,
+    OptionParser, Parser, console_writer::Colorscheme, construct, error::Error, traits::RcParser,
 };
 
 #[derive(Default)]
