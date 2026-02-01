@@ -1,3 +1,4 @@
+#![warn(clippy::unused_async)]
 mod adapters;
 mod anything;
 mod arg;
