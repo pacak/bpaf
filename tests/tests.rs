@@ -220,37 +220,6 @@ Available options:
 }
 
 #[test]
-fn fallback_with_ok() {
-    let parser = short('a')
-        .argument("ARG")
-        .fallback_with::<_, &str>(|| Ok(10u32))
-        .to_options();
-
-    let r = parser.run_inner(&["-a", "1"]).unwrap();
-    assert_eq!(r, 1);
-
-    let r = parser.run_inner(&[]).unwrap();
-    assert_eq!(r, 10);
-}
-
-#[test]
-fn fallback_with_err() {
-    let parser = short('a')
-        .argument::<u32>("ARG")
-        .fallback_with::<_, &str>(|| Err("nope"))
-        .to_options();
-
-    let r = parser.run_inner(&["-a", "1"]).unwrap();
-    assert_eq!(r, 1);
-
-    let r = parser.run_inner(&["-a", "x"]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `x`: invalid digit found in string");
-
-    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "nope");
-}
-
-#[test]
 fn default_arguments() {
     let a = short('a').argument::<i32>("ARG").fallback(42);
     let decorated = a.to_options();

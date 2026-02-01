@@ -433,6 +433,42 @@ impl<T, P> Fallback<T, P> {
     }
 }
 
+pub struct FallbackWith<P, F, E> {
+    pub(crate) inner: P,
+    pub(crate) fallback: F,
+    pub(crate) ctx: PhantomData<E>,
+}
+
+impl<P: Leaf, F, E> Leaf for FallbackWith<P, F, E> {}
+impl<P, F, E> Parser for FallbackWith<P, F, E>
+where
+    P: Parser,
+    F: Fn() -> Result<P::Output, E>,
+    E: ToString,
+{
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
+        match self.inner.eval(ctx.clone()).await {
+            Err(Error::Missing(_)) => match (self.fallback)() {
+                Ok(v) => Ok(v),
+
+                Err(e) => Err(Error::Problem(
+                    ctx.leaf_cursor(),
+                    Problem::Dynamic { err: e.to_string() },
+                )),
+            },
+            otherwise => otherwise,
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Optional);
+        self.inner.visit(visitor);
+        visitor.pop_group();
+    }
+}
+
 /// Helper for [`Fallback`] that allows using a custom formatter
 struct DisplayWith<'a, T, F>(&'a T, F);
 
