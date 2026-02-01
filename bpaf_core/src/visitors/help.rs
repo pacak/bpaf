@@ -189,10 +189,10 @@ impl<'a> Visitor<'a> for Help<'a> {
                     self.copy_text(Place::Body, descr);
                     self.output.push('\n');
                 }
-                _ = write!(&mut self.output, "Usage: {} ", self.path);
                 if let Some(usage) = info.usage {
                     self.output.push_str(usage);
                 } else {
+                    _ = write!(&mut self.output, "Usage: {} ", self.path);
                     let mut usage = crate::visitors::usage::Usage::default();
                     inner.vi(&mut usage);
                     usage.render_to(&mut self.output);

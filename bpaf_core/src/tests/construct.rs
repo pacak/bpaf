@@ -109,6 +109,14 @@ fn with_absolute_path() {
 }
 
 #[test]
+fn with_long_rel_path() {
+    let a = short('a').switch();
+    let parser = construct!(std::option::Option::Some(a)).to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, Some(true));
+}
+
+#[test]
 fn make_struct2_pos() {
     let a = short('a').switch();
     let b = short('b').switch();

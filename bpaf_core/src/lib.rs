@@ -1434,6 +1434,7 @@ mod tests {
     mod construct;
     mod errors;
     mod flag;
+    mod git;
     mod help;
     mod nested;
     mod offset;

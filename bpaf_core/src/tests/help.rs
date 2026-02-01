@@ -44,6 +44,39 @@ And this is a footer
 }
 
 #[test]
+fn simple_two_optional_flags_with_one_hidden() {
+    let a = short('a').long("AAAAA").switch();
+    let b = short('b').switch().hide();
+    let decorated = construct!(a, b).to_options().descr("this is a test");
+
+    // no version information given - no version field generated
+    let err = decorated.run_inner("-a -V").unwrap_err().unwrap_stderr();
+    assert_eq!("'-V' is not expected in this context\n", err);
+
+    // accepts only one copy of -a
+    let err = decorated.run_inner("-a -a").unwrap_err().unwrap_stderr();
+    assert_eq!(
+        "argument '-a' cannot be used multiple times in this context\n",
+        err
+    );
+
+    let help = decorated.run_inner("-h").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+this is a test
+
+Usage: app [-a]
+
+Available options:
+    -a, --AAAAA
+    -h, --help   Prints help information
+";
+    assert_eq!(expected_help, help);
+
+    let r = decorated.run_inner("-a -b").unwrap();
+    assert_eq!(r, (true, true));
+}
+
+#[test]
 fn complex_descr() {
     let descr = "\
 fooo
@@ -157,6 +190,21 @@ Available options:
 }
 
 #[test]
+fn custom_usage() {
+    let a = short('a').long("long").argument::<String>("ARG");
+    let parser = a.to_options().usage("Usage: -a=ARG or --long=ARG");
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+Usage: -a=ARG or --long=ARG
+
+Available options:
+    -a, --long=ARG
+    -h, --help      Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
 fn fancy_meta() {
     let a = long("trailing-comma").argument::<String>("all|es5|none");
     let b = long("stdin-file-path").argument::<String>("PATH");
@@ -187,7 +235,7 @@ fn decorations() {
         .header("header\n header")
         .footer("footer\n footer")
         .version("version")
-        .usage("custom usage");
+        .usage("Usage: app custom usage");
 
     let r = p.run_inner("--help").unwrap_err().unwrap_stdout();
 
@@ -485,6 +533,12 @@ Available options:
 ";
 
     assert_eq!(r, expected);
+
+    let r = parser.run_inner("--a 44").unwrap();
+    assert_eq!(r, 44);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 42);
 }
 
 #[test]
@@ -617,25 +671,66 @@ Available options:
 }
 
 #[test]
-fn nested_group_help() {
-    let a = short('a').help("help for a").switch().group_help("inner");
-    let b = short('b').help("help for b").switch();
+fn group_help_args() {
+    let a = short('a').help("flag A, related to B").switch();
+    let b = short('b').help("flag B, related to A").switch();
+    let c = short('c').help("flag C, unrelated").switch();
+    let ab = construct!(a, b).group_help("Explanation applicable for both A and B:");
+    let parser = construct!(ab, c).to_options();
 
-    let parser = construct!(a, b).group_help("outer").to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+Usage: app [-a] [-b] [-c]
 
-    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
-    println!("{r}");
-    let expected = "\
-Usage: app [-a] [-b]
+Explanation applicable for both A and B:
+    -a          flag A, related to B
+    -b          flag B, related to A
 
-outer
-    -a          help for a
-    -b          help for b
+Available options:
+    -c          flag C, unrelated
+    -h, --help  Prints help information
+";
+
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn group_help_commands() {
+    let a = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_a")
+        .help("command that does A");
+    let b = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_b")
+        .help("command that does B")
+        .into_box();
+    let c = short('a')
+        .switch()
+        .to_options()
+        .command("cmd_c")
+        .help("command that does C");
+    let parser = construct!([a, b]).group_help("Explanation applicable for both A and B:");
+
+    let parser = construct!([parser, c]).to_options();
+
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+Usage: app COMMAND ...
+
+Explanation applicable for both A and B:
+    cmd_a       command that does A
+    cmd_b       command that does B
 
 Available options:
     -h, --help  Prints help information
+
+Available commands:
+    cmd_c       command that does C
 ";
-    assert_eq!(r, expected);
+    assert_eq!(expected_help, help);
 }
 
 // #[test]
@@ -813,6 +908,53 @@ Available commands:
 }
 
 #[test]
+fn default_plays_nicely_with_command() {
+    #[derive(Debug, Clone, Default)]
+    enum Foo {
+        Foo,
+        #[default]
+        Bar,
+    }
+
+    let cmd = pure(Foo::Foo)
+        .to_options()
+        .descr("inner")
+        .command("foo")
+        .help("foo")
+        .fallback(Default::default());
+
+    let parser = cmd.to_options().descr("outer");
+
+    let help = parser.run_inner("foo --help").unwrap_err().unwrap_stdout();
+
+    let expected_help = "inner
+
+Usage: app foo
+
+Available options:
+    -h, --help  Prints help information
+";
+
+    assert_eq!(expected_help, help);
+
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected_help = "\
+outer
+
+Usage: app [COMMAND ...]
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    foo         foo
+";
+
+    assert_eq!(expected_help, help);
+}
+
+#[test]
 fn custom_help_flag() {
     let a = short('a').help("Do A").req_flag('a');
     let halp = short('H')
@@ -982,4 +1124,39 @@ Available options:
 
     let r = parser.run_inner("value").unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected 'value' (A) to follow '--'\n");
+}
+
+#[test]
+fn subcommands() {
+    let bar = short('b').switch();
+
+    let bar_cmd = bar.to_options().descr("This is local info").command("bar");
+
+    let parser = bar_cmd.to_options().descr("This is global info");
+
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+This is global info
+
+Usage: app COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    bar         This is local info
+";
+    assert_eq!(expected_help, help);
+
+    let help = parser.run_inner("bar --help").unwrap_err().unwrap_stdout();
+    let expected_help = "\
+This is local info
+
+Usage: app bar [-b]
+
+Available options:
+    -b
+    -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
 }

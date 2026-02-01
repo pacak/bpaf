@@ -234,3 +234,29 @@ fn flatten_prod_of_prods() {
     let parser = construct!(a, b).to_options();
     assert_eq!(usage(&parser), "-a [-a] -b [-b]");
 }
+
+#[test]
+fn several_commands_squash_1() {
+    let a = pure(()).to_options().command("cmd_a");
+    let b = pure(()).to_options().command("cmd_b");
+    let ab = construct!([a, b]).group_help("Explanation applicable for both A and B:");
+    let c = pure(()).to_options().command("cmd_c");
+
+    let parser = construct!([ab, c]);
+
+    let u = usage(&parser);
+
+    assert_eq!(u, "COMMAND ...");
+}
+
+#[test]
+fn several_commands_squash_2() {
+    let a = pure(()).to_options().command("cmd_a");
+    let b = pure(()).to_options().command("cmd_b");
+    let c = pure(()).to_options().command("cmd_c");
+    let parser = construct!([a, b, c]).to_options();
+
+    let u = usage(&parser);
+
+    assert_eq!(u, "COMMAND ...");
+}

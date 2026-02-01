@@ -18,3 +18,21 @@ fn restrict_to_adjacent() {
     let r = parser.run_inner("-a42").unwrap();
     assert_eq!(r, 42);
 }
+
+#[test]
+fn parse_errors() {
+    let parser = short('a').argument::<i32>("ARG").to_options();
+
+    let r = parser.run_inner("-a 123x").unwrap_err().unwrap_stderr();
+    let expected = "couldn't parse '123x': invalid digit found in string\n";
+    assert_eq!(expected, r);
+
+    let r = parser.run_inner("-b 123x").unwrap_err().unwrap_stderr();
+
+    let expected = "'-b' is not expected in this context\n";
+    assert_eq!(expected, r);
+
+    let r = parser.run_inner("-a 123 -b").unwrap_err().unwrap_stderr();
+    let expected = "'-b' is not expected in this context\n";
+    assert_eq!(expected, r);
+}
