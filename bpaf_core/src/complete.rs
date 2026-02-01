@@ -313,7 +313,6 @@ pub(crate) fn render_completions(
 ///
 /// For every completion request we look at all the active parsers and for every potentially
 /// matching one generate a guess.
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CReq<'a> {
     /// An attempt to complete this name
     Named { name: Name<'a> },
@@ -353,9 +352,6 @@ where
     'b: 'a,
 {
     let mut out = Vec::new();
-
-    // TODO - want to include all the "any" parsers here
-    // self.pecking_push(Some(&triggers.any));
     match arg {
         Arg::Named {
             name: Name::Long(name_prefix),
@@ -431,9 +427,6 @@ where
             }
         }
     };
-
-    out.sort_by(|v1, v2| v1.0.cmp(&v2.0));
-
     out
 }
 
