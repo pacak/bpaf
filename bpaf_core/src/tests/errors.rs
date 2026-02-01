@@ -1452,3 +1452,27 @@ Available commands:
 ";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn nested_flag_error() {
+    let inner = short('i').flag('i', 'I');
+    let a = short('a').nest(inner);
+    let b = short('b').flag('b', 'B');
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-i").unwrap_err().unwrap_stderr();
+    let expected = "flag '-i' is not valid in this context, but it can be used after '-a'\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn nested_keyword_error() {
+    let inner = short('i').flag('i', 'I');
+    let kw = literal("all").nest(inner);
+    let b = short('b').flag('b', 'B');
+    let parser = construct!([kw, b]).to_options();
+
+    let r = parser.run_inner("-i").unwrap_err().unwrap_stderr();
+    let expected = "flag '-i' is not valid in this context, but it can be used after 'all'\n";
+    assert_eq!(r, expected);
+}

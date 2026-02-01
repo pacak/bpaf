@@ -89,6 +89,8 @@ pub enum Problem {
         cmd: Lit<'static>,
         name: Name<'static>,
     },
+    /// flag `name` is not valid in this context, but can be used after `outer`
+    TryInNested { outer: String, name: Name<'static> },
 }
 
 impl std::fmt::Display for Problem {
@@ -212,7 +214,13 @@ impl std::fmt::Display for Problem {
             Problem::TryInCommand { cmd, name } => {
                 write!(
                     f,
-                    "flag {Q}{name}{Q} is not valid in this context, did you mean to pass it to command {Q}{cmd}{Q}?"
+                    "flag {Q}{I}{name}{R}{Q} is not valid in this context, did you mean to pass it to command {Q}{V}{cmd}{R}{Q}?"
+                )
+            }
+            Problem::TryInNested { outer, name } => {
+                write!(
+                    f,
+                    "flag {Q}{I}{name}{R}{Q} is not valid in this context, but it can be used after {Q}{V}{outer}{R}{Q}"
                 )
             }
         }

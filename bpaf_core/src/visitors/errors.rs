@@ -1,4 +1,4 @@
-use crate::{Flag, Lit, Nest, Problem, Visitor, traits::VKind};
+use crate::{Flag, Keyword, Lit, Nest, Problem, Visitor, traits::VKind};
 
 use super::*;
 
@@ -291,14 +291,21 @@ impl Visitor<'_> for IsDDash {
     }
 }
 
-/// Given a named item, check if there's a command at current level
-/// that accepts it, and remember the command name.
+/// Given a named item, check if there's a command or nested parser at the
+/// current level that accepts it, and remember the name.
 pub(crate) struct IsInCommand<'a> {
     /// name we are looking for
     target: &'a Name<'a>,
-    /// A candidate command, if we found it
-    candidate: Option<&'a Lit<'static>>,
-    current_command: Option<&'a Lit<'static>>,
+    /// A candidate, if we found it
+    candidate: Option<Candidate<'a>>,
+    current_ctx: Option<Candidate<'a>>,
+}
+
+#[derive(Clone, Copy)]
+enum Candidate<'a> {
+    Command(&'a Lit<'static>),
+    NamedFlag(&'a Name<'static>),
+    Keyword(&'a Lit<'static>),
 }
 
 impl<'a> IsInCommand<'a> {
@@ -306,17 +313,28 @@ impl<'a> IsInCommand<'a> {
         Self {
             target,
             candidate: None,
-            current_command: None,
+            current_ctx: None,
         }
     }
 }
 
 impl<'a> ProblemVisitor<'a> for IsInCommand<'a> {
     fn see_problem(&self) -> Option<Problem> {
-        let cmd = self.candidate?;
-        Some(Problem::TryInCommand {
-            cmd: cmd.clone(),
-            name: self.target.clone().into_owned(),
+        let candidate = self.candidate?;
+        let name = self.target.clone().into_owned();
+        Some(match candidate {
+            Candidate::Command(cmd) => Problem::TryInCommand {
+                cmd: cmd.clone(),
+                name,
+            },
+            Candidate::NamedFlag(n) => Problem::TryInNested {
+                outer: n.to_string(),
+                name,
+            },
+            Candidate::Keyword(l) => Problem::TryInNested {
+                outer: l.to_string(),
+                name,
+            },
         })
     }
 }
@@ -329,26 +347,43 @@ impl<'a> Visitor<'a> for IsInCommand<'a> {
         match item {
             Item::OptionParser { inner, .. } => inner.vi(self),
             Item::Command { names, inner, .. } => {
-                if self.current_command.is_none() {
-                    self.current_command = names.first();
+                if self.current_ctx.is_none() {
+                    self.current_ctx = names.first().map(Candidate::Command);
                     inner.vi(self);
-                    self.current_command = None;
+                    self.current_ctx = None;
                 }
             }
-            Item::Flag { named }
-            | Item::Arg { named, .. }
-            | Item::Nested {
-                outer: Nest::Named(Flag { named, .. }),
-                ..
-            } => {
-                if self.current_command.is_some() && named.names.contains(self.target) {
-                    self.candidate = self.current_command;
+            Item::Nested { outer, inner } => match outer {
+                Nest::Named(Flag { named, .. }) => {
+                    if let Some(Candidate::Command(cmd)) = self.current_ctx
+                        && named.names.contains(self.target)
+                    {
+                        self.candidate = Some(Candidate::Command(cmd));
+                        return;
+                    }
+                    if self.current_ctx.is_none() {
+                        self.current_ctx = named.names.first().map(Candidate::NamedFlag);
+                        inner.vi(self);
+                        self.current_ctx = None;
+                    }
+                }
+                Nest::Keyword(Keyword { named, .. }) => {
+                    if self.current_ctx.is_none() {
+                        self.current_ctx = named.names.first().map(Candidate::Keyword);
+                        inner.vi(self);
+                        self.current_ctx = None;
+                    }
+                }
+            },
+            Item::Flag { named } | Item::Arg { named, .. } => {
+                if !named.names.contains(self.target) {
+                    return;
+                }
+                if let Some(ctx) = self.current_ctx {
+                    self.candidate = Some(ctx);
                 }
             }
-            Item::Positional { .. }
-            | Item::Section { .. }
-            | Item::Rendered { .. }
-            | Item::Nested { .. } => {}
+            Item::Positional { .. } | Item::Section { .. } | Item::Rendered { .. } => {}
         }
     }
 
