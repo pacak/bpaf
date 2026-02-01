@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use crate::{Flag, Item, Metavar, Named, Nest, VKind, VisitGroup, Visitor};
+use crate::{Item, Metavar, Named, Nest, VKind, VisitGroup, Visitor};
 
 #[derive(Debug, Default)]
 pub struct Usage<'a> {
@@ -220,6 +220,10 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 descr: _,
                 inner,
             } => {
+                // Section (group_help) is transparent for usage, undo the sibling count increment
+                if let Some(siblings) = self.siblings_mut() {
+                    *siblings -= 1;
+                }
                 inner.vi(self);
                 return;
             }

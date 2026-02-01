@@ -344,7 +344,10 @@ pub enum MissingItem {
 
 impl std::fmt::Display for Missing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if matches!(self.item, MissingItem::Custom { .. }) {
+        if matches!(
+            self.item,
+            MissingItem::Custom { .. } | MissingItem::Cmd { .. }
+        ) {
             write!(f, "{}", self.item)
         } else {
             write!(f, "{}{}", self.item, self.count)
