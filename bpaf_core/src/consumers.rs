@@ -385,6 +385,53 @@ impl<T> Argument<T> {
     pub fn negative_lit(self) -> NegArgument<T> {
         NegArgument { inner: self }
     }
+
+    pub fn on_missing_value<F: Fn() -> Result<T, String>>(
+        self,
+        handler: F,
+    ) -> OnMissingValue<F, T> {
+        OnMissingValue { arg: self, handler }
+    }
+}
+
+pub struct OnMissingValue<F, T> {
+    arg: Argument<T>,
+    handler: F,
+}
+
+impl<F, T> Parser for OnMissingValue<F, T>
+where
+    T: FromStr + 'static,
+    F: Fn() -> Result<T, String>,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    type Output = T;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        let r = self.arg.eval(ctx.clone()).await;
+        let Err(Error::Problem(
+            i,
+            Problem::WrongArgument {
+                meta: _,
+                name: _,
+                value: None,
+            },
+        )) = r
+        else {
+            return r;
+        };
+        match (self.handler)() {
+            Ok(v) => {
+                ctx.consume(1);
+                Ok(v)
+            }
+            Err(err) => Err(Error::Problem(i, Problem::Dynamic { err })),
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.arg.visit(visitor)
+    }
 }
 
 impl<T> Parser for Argument<T>
