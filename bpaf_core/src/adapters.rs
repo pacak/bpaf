@@ -158,13 +158,13 @@ impl<T: 'static> OptionParser<T> {
                 if !std::io::IsTerminal::is_terminal(&std::io::stdout()) {
                     cs = None;
                 }
-                let (code, text) = match e {
-                    ParseFailure::Stdout(raw) => (0, raw.with_cs(cs)),
-                    ParseFailure::Stderr(raw) => (1, raw.with_cs(cs)),
-                    ParseFailure::Console(o) => (0, o),
+                let text = match &e {
+                    ParseFailure::Stdout(raw) => &raw.with_cs(cs),
+                    ParseFailure::Stderr(raw) => &raw.with_cs(cs),
+                    ParseFailure::Console(o) => o,
                 };
                 print!("{text}");
-                std::process::exit(code)
+                std::process::exit(e.exit_code())
             }
         }
     }
