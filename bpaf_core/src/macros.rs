@@ -115,7 +115,12 @@ macro_rules! prod {
         }
 
         #[allow(non_camel_case_types, unused_parens)]
-        $crate::Parser::map(ty::Ty { $($f: $f),+}, |($($f),+)| $crate::make!($ty [ $($f)+ ]))
+        $crate::Parser::into_box(
+            $crate::Parser::map(
+                ty::Ty { $($f: $f),+},
+                |($($f),+)| $crate::make!($ty [ $($f)+ ])
+            )
+        )
     }}
 
 }
