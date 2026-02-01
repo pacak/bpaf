@@ -10,6 +10,7 @@ fn test_toggle_flag() {
     }
 
     let parser = toggle_flag(short('y'), Flag::Y, short('n'), Flag::N).to_options();
+    // let parser = short('y').req_flag(Flag::Y).or_else(short('n').req_flag(Flag::N)).last();
 
     let r = parser.run_inner(&[]).unwrap();
     assert_eq!(r, None);
