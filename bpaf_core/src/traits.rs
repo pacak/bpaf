@@ -19,12 +19,6 @@ use std::{marker::PhantomData, pin::Pin, rc::Rc};
 /// without having to expose them to all the parser details
 pub trait Visited {
     fn vi<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
-    fn into_box(self) -> Box<dyn Visited>
-    where
-        Self: Sized + 'static,
-    {
-        Box::new(self)
-    }
 }
 
 impl<P: Parser> Visited for P {
