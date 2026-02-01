@@ -1,68 +1,68 @@
 use bpaf::*;
 
-// no Doc
-#[test]
-fn custom_usage_override_with_fn() {
-    let parser = short('p').switch().to_options().with_usage(|b| {
-        let mut buf = Doc::default();
-        buf.text("Usage: hey ");
-        buf.doc(&b);
-        buf
-    });
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-    assert_eq!(
-        r,
-        "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
-    );
-}
+// // no Doc
+// #[test]
+// fn custom_usage_override_with_fn() {
+//     let parser = short('p').switch().to_options().with_usage(|b| {
+//         let mut buf = Doc::default();
+//         buf.text("Usage: hey ");
+//         buf.doc(&b);
+//         buf
+//     });
+//     let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+//     assert_eq!(
+//         r,
+//         "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n"
+//     );
+// }
 
 // I don't think that's possible - .adjacent by itself is replaced with .nest()
 // but it can't possibly handle `-a=-20` since that's two items
 #[test]
 fn fancy_negative() {
-    let a = short('a').req_flag(());
-    #[allow(clippy::redundant_closure)]
-    let b = any("A", |i: i32| Some(i));
-    let ab = construct!(a, b).adjacent().map(|x| x.1);
+    let a = short('a').argument::<i32>("N").negative_lit();
 
     let c = short('c').argument::<usize>("C").fallback(42);
 
-    let parser = construct!(ab, c).to_options();
+    let parser = construct!(a, c).to_options();
 
-    let r = parser.run_inner(&["-a", "-10"]).unwrap();
+    let r = parser.run_inner("-a -10").unwrap();
     assert_eq!(r, (-10, 42));
 
-    let r = parser.run_inner(&["-a=-20", "-c", "110"]).unwrap();
+    let r = parser.run_inner("-a -c").unwrap_err().unwrap_stderr();
+    let expected =
+        "'-a' requires an argument 'N', got '-c', try '-a=-c' to use it as an argument\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a=-20 -c 110").unwrap();
     assert_eq!(r, (-20, 110));
 
-    let r = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
-    // TODO - rendering sucks once you start inventing fancy combinations and don't provide help...
     let expected = "\
-Usage: -a A [-c=C]
+Usage: app -a=N [-c=C]
 
 Available options:
-  -a A
-
+    -a=N
     -c=C
     -h, --help  Prints help information
 ";
     assert_eq!(r, expected);
 }
 
-// .adjacent() is gone
-#[test]
-fn adjacent_anywhere_needs_to_consume_something() {
-    let a = short('a').switch();
-    let b = short('b').switch();
-    let parser = construct!(a, b).adjacent().to_options();
-
-    let r = parser.run_inner(&["-a"]).unwrap();
-    assert_eq!(r, (true, false));
-
-    let r = parser.run_inner(&["-b"]).unwrap();
-    assert_eq!(r, (false, true));
-}
+// // .adjacent() is gone
+// #[test]
+// fn adjacent_anywhere_needs_to_consume_something() {
+//     let a = short('a').switch();
+//     let b = short('b').switch();
+//     let parser = construct!(a, b).adjacent().to_options();
+//
+//     let r = parser.run_inner(&["-a"]).unwrap();
+//     assert_eq!(r, (true, false));
+//
+//     let r = parser.run_inner(&["-b"]).unwrap();
+//     assert_eq!(r, (false, true));
+// }
 
 // currently such commands are not possible - it's not a literal. Need to make a new adapter for
 // that
