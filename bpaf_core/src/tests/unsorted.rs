@@ -253,10 +253,7 @@ fn simple_complete_command() {
 
     let r = parser.run_inner(("", "")).unwrap_err();
     let r = format!("{r:?}");
-    assert_eq!(
-        r,
-        "CompReply([Command { name: \"alpha\", help: None }, Named { name: Short('b'), meta: None, help: None }])"
-    );
+    assert_eq!(r, "Console(\"alpha (None)\\n-b (None)\\n\")");
 }
 #[test]
 fn simple_complete_named() {
@@ -269,16 +266,7 @@ fn simple_complete_named() {
 
     let r = parser.run_inner(("--name=bob", "--missy")).unwrap_err();
     let r = format!("{r:?}");
-    assert_eq!(
-        r,
-        "CompReply([Named { name: Long(\"missy\"), meta: None, help: None }])"
-    );
-
-    // let Error::Complete(c) = parser.run_inner(("--name=Bob", "--miss")).unwrap_err() else {
-    //     panic!();
-    // };
-    // let expected = "[Item { name: Long(\"missy\"), meta: None, help: None }, Item { name: Long(\"missle-launcher\"), meta: None, help: None }]";
-    // assert_eq!(format!("{:?}", c.as_slice()), expected);
+    assert_eq!(r, "Console(\"--missy (None)\\n\")");
 }
 
 #[test]
@@ -289,14 +277,9 @@ fn simple_complete_for_value() {
         .complete(|_s| vec![("42".into(), None)]);
     let parser = construct!(a, b).to_options();
 
-    let r = parser.run_inner(("-b", "")).unwrap_err();
-    // let r = parser.run_inner(("-b=", "")).unwrap_err();
     let r = parser.run_inner(("", "-b=")).unwrap_err();
     let r = format!("{r:?}");
-    assert_eq!(
-        r,
-        r#"CompReply([Value { group: None, value: "42", hint: None }])"#
-    );
+    assert_eq!(r, "Console(\"42 (None)\\n\")");
 }
 
 #[test]
