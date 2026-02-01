@@ -1660,6 +1660,7 @@ impl<P: Parser> Parser for Cargo<P> {
 
 #[cfg(test)]
 mod tests {
+    mod adjacent;
     mod algebra;
     mod any;
     mod argument;
