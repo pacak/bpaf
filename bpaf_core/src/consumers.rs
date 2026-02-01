@@ -525,13 +525,13 @@ where
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
         let r = self.inner.eval(ctx.clone()).await;
         let Err(Error::Problem(
-            ix,
+            _,
             Problem::WrongArgument {
                 meta: _,
                 name: _,
                 value: Some(value),
             },
-        )) = r
+        )) = &r
         else {
             return r;
         };
@@ -541,13 +541,7 @@ where
                 ctx.consume(2);
                 Ok(v)
             }
-            Err(err) => Err(Error::Problem(
-                ix,
-                Problem::Parse {
-                    value: Some(value),
-                    error: err.to_string(),
-                },
-            )),
+            Err(_) => r,
         }
     }
 

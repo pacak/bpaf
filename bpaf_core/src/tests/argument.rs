@@ -52,7 +52,9 @@ fn negative_literal_with_unsigned_fails() {
     let parser = short('a').argument::<u32>("N").negative_lit().to_options();
 
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse '-42': invalid digit found in string\n");
+    let expected =
+        "'-a' requires an argument 'N', got '-42', try '-a=-42' to use it as an argument\n";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -60,7 +62,9 @@ fn negative_literal_invalid_value() {
     let parser = short('a').argument::<i32>("N").negative_lit().to_options();
 
     let r = parser.run_inner("-a -x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse '-x': invalid digit found in string\n");
+    let expected =
+        "'-a' requires an argument 'N', got '-x', try '-a=-x' to use it as an argument\n";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -311,7 +315,8 @@ fn no_argument() {
     assert_eq!(r, (-42, false));
 
     let r = parser.run_inner("-a -k").unwrap_err().unwrap_stderr();
-    let expected = "couldn't parse '-k': invalid digit found in string\n";
+    let expected =
+        "'-a' requires an argument 'N', got '-k', try '-a=-k' to use it as an argument\n";
     assert_eq!(r, expected);
 }
 
