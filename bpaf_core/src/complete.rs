@@ -476,8 +476,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             if task.info.parent_id.is_root() {
                 continue;
             }
-            self.to_propagate
-                .push_back((task.info.id, task.info.parent_id, task.info.consumed));
+            self.to_propagate.push_back(task.info);
             assert!(r);
         }
         self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);

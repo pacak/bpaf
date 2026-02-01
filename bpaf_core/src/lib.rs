@@ -303,16 +303,39 @@ pub enum Kind {
 ///
 /// Used by the executor but also shared with the task itself as it runs in
 /// [`Ctx::current_task`]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 struct TaskInfo {
     /// Current task Id
     id: Id,
     parent_kind: Kind,
     parent_id: Parent,
+    /// For trigger tasks having it nonzero means the task is done
+    /// and won't be consuming anything
     consumed: u32,
     /// number of children this task is currently waiting for, we are going to wake them up only if
     // there's no pending children - if we can return immediately
     pending: u32,
+    state: TaskState,
+}
+
+/// Tracks tasks state
+///
+/// Updates once, right before storing result in the output handle
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+enum TaskState {
+    Pending,
+    Success,
+    Failure,
+}
+
+impl From<bool> for TaskState {
+    fn from(success: bool) -> Self {
+        if success {
+            Self::Success
+        } else {
+            Self::Failure
+        }
+    }
 }
 
 impl Default for TaskInfo {
@@ -323,6 +346,7 @@ impl Default for TaskInfo {
             parent_id: Parent(0),
             consumed: 0,
             pending: 0,
+            state: TaskState::Pending,
         }
     }
 }
@@ -463,9 +487,14 @@ fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
 
 impl<'p> RawCtx<'p> {
     #[inline(never)]
+    /// is_final includes both "Ok" result and an error that can be caught.
+    ///
+    /// TODO: this whole function is a mess, starting from a name and up to
+    /// control flow...
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
         // The only possible scenario for a consuming leaf is getting an `Arg`
         if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
+            self.current_task.borrow_mut().state = TaskState::from(success);
             return false;
         }
         // if parser fails to produce a result due to validation or `FromStr`
@@ -478,10 +507,19 @@ impl<'p> RawCtx<'p> {
         r#yield().await; // between stage_1 and stage_2
         // surviving gets Pass, one that consumed less - `NoPass`, but we want to preserve the
         // error message so return true only when there's an OK result we don't want.
-        matches!(
+        let killed = matches!(
             &*self.wakeup_reason.borrow(),
             Reason::Kill(KillReason::TooShort)
-        ) && success
+        );
+
+        let mut st = self.current_task.borrow_mut();
+        st.state = TaskState::from(success && !killed);
+
+        if killed {
+            st.consumed = 0;
+        }
+
+        killed && success
     }
 
     /// After consumption when called from a leaf node returns what was consumed
@@ -577,6 +615,7 @@ impl<'p> RawCtx<'p> {
             parent_kind: kind,
             parent_id: Parent(cur.id.0),
             pending: 0,
+            state: TaskState::Pending,
         }
     }
 
@@ -613,7 +652,7 @@ struct Executor<'a, 'p> {
     ctx: Ctx<'p>,
     tasks: BTreeMap<Id, Task<'p>>,
     to_wake: Vec<Id>,
-    to_propagate: VecDeque<(Id, Parent, u32)>,
+    to_propagate: VecDeque<TaskInfo>,
     sums: BTreeMap<Id, Scope>,
     triggers: Triggers,
     mixer: Mixer,
@@ -986,8 +1025,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 continue;
             }
             advanced = true;
-            self.to_propagate
-                .push_back((task.info.id, task.info.parent_id, task.info.consumed));
+            self.to_propagate.push_back(task.info);
         }
         self.propagate();
         advanced
@@ -1025,7 +1063,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         for id in self.mixer.for_wake(&self.tasks) {
             let task = &mut self.tasks.get_mut(&id).unwrap();
             let r = self.ctx.poll_in_context(task);
-            assert!(!r);
+            assert!(!r, "task should not finish during this stage");
             self.to_wake.push(id);
 
             best_size = best_size.max(task.info.consumed);
@@ -1041,7 +1079,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn stage_2(&mut self, best_size: u32) {
         for id in self.to_wake.drain(..) {
             let Some(mut task) = self.tasks.remove(&id) else {
-                todo!("Second stage got a task {id:?} that isn't in tasks?");
+                unreachable!("Second stage got a task {id:?} that isn't in tasks?");
             };
             let term = task.info.consumed < best_size;
             *self.ctx.wakeup_reason.borrow_mut() = if term {
@@ -1051,12 +1089,14 @@ impl<'a, 'p> Executor<'a, 'p> {
             };
 
             if self.ctx.poll_in_context(&mut task) {
-                let size = if term { 0 } else { task.info.consumed };
+                let consumed = if term { 0 } else { task.info.consumed };
                 if task.info.parent_id.is_root() {
                     continue;
                 }
-                self.to_propagate
-                    .push_back((task.info.id, task.info.parent_id, size));
+                self.to_propagate.push_back(TaskInfo {
+                    consumed,
+                    ..task.info
+                });
             } else {
                 unreachable!("Task failed to exit during the second stage?");
             }
@@ -1069,9 +1109,9 @@ impl<'a, 'p> Executor<'a, 'p> {
         // those that don't.
         // not reusing capacity, in most cases it will be exactly one branch advancing
         let mut advancing = Vec1::default();
-        for (id, _parent, consumed) in self.to_propagate.iter().copied() {
-            if consumed > 0 {
-                advancing.push(id)
+        for info in self.to_propagate.iter().copied() {
+            if info.consumed > 0 {
+                advancing.push(info.id)
             }
         }
         *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
@@ -1095,29 +1135,38 @@ impl<'a, 'p> Executor<'a, 'p> {
 
         // part 2, pushing parsed results up
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
-        while let Some((_id, parent, consumed)) = self.to_propagate.pop_front() {
-            let id = parent.as_id();
+        while let Some(info) = self.to_propagate.pop_front() {
+            let id = info.parent_id.as_id();
             let std::collections::btree_map::Entry::Occupied(mut occ_task) = self.tasks.entry(id)
             else {
                 todo!("Unknown task {id:?} in propagete?")
             };
             let task = occ_task.get_mut();
             task.info.pending -= 1;
-            task.info.consumed += consumed;
+            task.info.consumed += info.consumed;
+
+            // notifying parent Sum that one of the children is done so other children can be wiped
+            if info.state == TaskState::Success
+                && info.consumed > 0
+                && info.parent_kind == Kind::Sum
+                && task.info.pending > 0
+            {
+                *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(Vec1::new(info.id));
+                self.ctx.poll_in_context(task);
+                *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
+            };
+
             if task.info.pending > 0 {
                 continue;
             }
+
             if self.ctx.poll_in_context(task) {
                 let task = occ_task.remove();
                 if task.info.parent_id.is_root() {
                     // the parent is root = there's no task to wake up
                     continue;
                 }
-                self.to_propagate.push_back((
-                    task.info.id,
-                    task.info.parent_id,
-                    task.info.consumed,
-                ));
+                self.to_propagate.push_back(task.info);
             } else {
                 assert!(
                     task.info.pending > 0,

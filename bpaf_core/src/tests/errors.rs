@@ -861,3 +861,59 @@ fn conflicts_with_any_are_okay() {
     let r = parser.run_inner("15").unwrap();
     assert_eq!(r, 15);
 }
+
+#[test]
+fn pos1_vs_pos3() {
+    let a = positional::<usize>("A").map(|x| x * 10);
+    let b = positional::<usize>("B");
+    let c = positional::<usize>("C");
+    let d = positional::<usize>("d");
+    let bcd = construct!(b, c, d).map(|(b, c, d)| b + c + d);
+    let parser = construct!([a, bcd]).to_options();
+
+    let r = parser.run_inner("2 3 4").unwrap_err().unwrap_stderr();
+    // This error message can be confusing, but that's a fault of the parser.
+    // While `bcd` can succeed - the moment we parse "2" with both `a` and `b`
+    // we must made a decision what to kill or keep running - without knowing
+    // what parsers are left. To avoid data loss `a` must return the result.
+    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+
+    let r = parser.run_inner("2 3").unwrap_err().unwrap_stderr();
+    // this test case illustrates the problem that the previous case is trying to avoid.
+    // Suppose we didn't produce the result with `a` and proceeded parsing with `c`.
+    // So far so good, but then we've reached the end of the input. `bcd` can't succeed
+    // but `a` can't succeed either since it didn't consume "3".
+    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+
+    let r = parser.run_inner("1").unwrap();
+    assert_eq!(r, 10);
+}
+
+#[test]
+fn pos2_vs_pos3() {
+    let a = positional::<usize>("A");
+    let b = positional::<usize>("B");
+    let c = positional::<usize>("C");
+    let d = positional::<usize>("D");
+    let e = positional::<usize>("E");
+    let ab = construct!(a, b).map(|(a, b)| a + b);
+    let cde = construct!(c, d, e).map(|(c, d, e)| c + d + e);
+    let parser = construct!([ab, cde]).to_options();
+
+    // let r = parser.run_inner("2 3 4").unwrap_err().unwrap_stderr();
+    // // This error message can be confusing, but that's a fault of the parser.
+    // // While `bcd` can succeed - the moment we parse "2" with both `a` and `b`
+    // // we must made a decision what to kill or keep running - without knowing
+    // // what parsers are left. To avoid data loss `a` must return the result.
+    // assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+
+    let r = parser.run_inner("1 2").unwrap();
+    // this test case illustrates the problem that the previous case is trying to avoid.
+    // Suppose we didn't produce the result with `a` and proceeded parsing with `c`.
+    // So far so good, but then we've reached the end of the input. `bcd` can't succeed
+    // but `a` can't succeed either since it didn't consume "3".
+    assert_eq!(r, 3);
+
+    let r = parser.run_inner("1 2 3").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+}

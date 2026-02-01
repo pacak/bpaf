@@ -390,7 +390,7 @@ impl<'p> RawCtx<'p> {
                         }
                         lives
                     });
-                    if scopes.len() == 1 {
+                    if scopes.len() <= 1 {
                         // This is an optimization. Once there's only one branch
                         // left in a sum - it's not different from a regular parser.
                         // De-registering the sum avoids extra wakeups.
