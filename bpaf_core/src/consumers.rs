@@ -685,6 +685,10 @@ impl<T: 'static> Positional<T> {
         self.strict = true;
         self
     }
+
+    pub fn posix(self) -> PosixPos<T> {
+        PosixPos { pos: self }
+    }
 }
 
 fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
@@ -723,6 +727,32 @@ where
             strict: self.strict,
         };
         visitor.item(item);
+    }
+}
+
+// The behavior is formally defined by The Open Group Base Specifications (POSIX.1-2024 / IEEE Std 1003.1).
+// The POSIX Utility Syntax Guidelines
+// In Chapter 12: Utility Conventions, specifically Guideline 9, the standard states:
+//     Guideline 9: All options should precede operands on the command line.
+pub struct PosixPos<T> {
+    pos: Positional<T>,
+}
+
+impl<T> Parser for PosixPos<T>
+where
+    T: 'static + FromStr,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    type Output = T;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        let r = self.pos.eval(ctx.clone()).await?;
+        ctx.strict_pos.set(true);
+        Ok(r)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.pos.visit(visitor)
     }
 }
 
