@@ -24,7 +24,7 @@ fn default_value_using_pure_with_err() {
     let opts = construct!([a, b]).to_options();
     let r = opts.run_inner(&[]);
     let e = r.unwrap_err().unwrap_stderr();
-    assert_eq!("some-err", e);
+    assert_eq!("some-err\n", e);
 }
 
 #[test]

@@ -1338,23 +1338,6 @@ struct Triggers {
 // executor - runs ready tasks
 
 impl<'p> RawCtx<'p> {
-    fn render_help_for(
-        &self,
-        parser: &dyn Visited,
-        custom: &dyn Visited,
-        detailed: bool,
-    ) -> ParseFailure {
-        let mut help_visitor = crate::visitors::help::Help::default();
-        help_visitor.detailed = detailed;
-        help_visitor.path = &self.args.path;
-
-        parser.vi(&mut help_visitor);
-        custom.vi(&mut help_visitor);
-
-        // TODO - WIDTH, `Colorscheme`, custom style
-        ParseFailure::Stdout(help_visitor.render())
-    }
-
     pub async fn wait_for_children(&self) {
         if self.current_task.borrow().pending > 0 {
             r#yield().await;
@@ -1420,9 +1403,15 @@ impl<'p> RawCtx<'p> {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
                             Extra::Help | Extra::LongHelp => {
-                                ctx.render_help_for(parser, &extra, xtra == Extra::LongHelp)
+                                ParseFailure::Stdout(crate::visitors::help::render_help(
+                                    parser,
+                                    Some(&extra),
+                                    &ctx.args.path,
+                                    xtra == Extra::LongHelp,
+                                    ctx.custom,
+                                ))
                             }
-                            Extra::Version(v) => ParseFailure::Stdout(format!("Version: {v}\n")),
+                            Extra::Version(v) => ParseFailure::stdout(format!("Version: {v}\n")),
                         }));
                     }
                     Err(e @ Error::Final(_)) => return Err(e),
@@ -1820,9 +1809,9 @@ impl<T> Exit<T> {
     fn to_error(&self) -> Error {
         let msg = self.msg.as_ref().to_owned();
         Error::Final(if self.code == 0 {
-            ParseFailure::Stdout(msg)
+            ParseFailure::stdout(msg)
         } else {
-            ParseFailure::Stderr(msg)
+            ParseFailure::stderr(msg)
         })
     }
 }

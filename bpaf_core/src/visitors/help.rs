@@ -25,27 +25,33 @@ const H: &str = Style::Header.ansi();
 
 use super::ShortLong;
 use crate::{
-    Flag, Item, Nest, VKind, Visited,
-    console_writer::{Colorscheme, MAX_TAB, Style, apply_style, char_width},
+    Custom, Flag, Item, Nest, VKind, Visited,
+    console_writer::{MAX_TAB, Style, Styled, char_width},
     traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
 pub fn render_help(
     parser: &dyn Visited,
+    extra: Option<&dyn Visited>,
     path: &str,
     detailed: bool,
-    style: &Colorscheme,
-) -> String {
+    custom: &Custom,
+) -> Styled {
     let mut h = Help {
         path,
         detailed,
         ..Default::default()
     };
-
     parser.vi(&mut h);
+    if let Some(extra) = extra {
+        extra.vi(&mut h);
+    }
     h.prepare_output();
-    apply_style(&h.output, h.max_tab + 2, Some(style))
+    Styled {
+        raw: h.output,
+        tab: h.max_tab + 2,
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -432,10 +438,13 @@ impl Help<'_> {
             self.output.push_str(footer);
         }
     }
-    pub(crate) fn render(mut self) -> String {
+    pub(crate) fn render(mut self) -> Styled {
         self.prepare_output();
 
-        crate::console_writer::apply_style(&self.output, self.max_tab + 2, None)
+        Styled {
+            tab: self.max_tab + 2,
+            raw: self.output,
+        }
     }
 }
 

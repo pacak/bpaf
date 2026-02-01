@@ -1,11 +1,29 @@
 pub(crate) const MAX_WIDTH: usize = 100;
 pub(crate) const MAX_TAB: usize = 28;
 
+#[derive(Debug, Clone)]
+pub struct Styled {
+    pub(crate) raw: String,
+    pub(crate) tab: usize,
+}
+
+impl Styled {
+    #[inline]
+    pub fn mono(&self) -> String {
+        apply_style(&self.raw, self.tab, None)
+    }
+    #[inline]
+    pub fn apply(&self, scheme: &Colorscheme) -> String {
+        apply_style(&self.raw, self.tab, Some(scheme))
+    }
+}
+
 /// Apply color scheme, split long lines and layout tab column
 /// - lines must have at most one tab
 /// - lines that start with 2 or more spaces are not wrapped
 /// - all line breaks are preserved
-pub(crate) fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String {
+#[inline(never)]
+fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String {
     let mut out = String::new();
     for line in input.lines() {
         let mut cursor = 0;

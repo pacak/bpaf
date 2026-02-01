@@ -103,10 +103,16 @@ impl<T: 'static> OptionParser<T> {
         match self.run_inner(std::env::args_os()) {
             Ok(r) => r,
             Err(ParseFailure::Stdout(o)) => {
+                let o = o.mono();
                 print!("{o}");
                 std::process::exit(0);
             }
             Err(ParseFailure::Stderr(o)) => {
+                let o = o.mono();
+                print!("{o}");
+                std::process::exit(1);
+            }
+            Err(ParseFailure::Console(o)) => {
                 print!("{o}");
                 std::process::exit(0);
             }
@@ -124,8 +130,15 @@ impl<T: 'static> OptionParser<T> {
 
         let res = handle.take();
         if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
-            let extra = ctx.custom.create(self.info.version);
-            return Err(Error::Final(ctx.render_help_for(self, &extra, false)));
+            return Err(Error::Final(ParseFailure::Stdout(
+                crate::visitors::help::render_help(
+                    self,
+                    Some(&ctx.custom.create(self.info.version)),
+                    &ctx.args.path,
+                    false,
+                    ctx.custom,
+                ),
+            )));
         }
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),

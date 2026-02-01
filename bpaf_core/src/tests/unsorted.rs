@@ -4,13 +4,13 @@ fn parse_failed_msg() {
     let parser = short('a').argument::<usize>("A").to_options();
 
     let r = parser.run_inner("-a 34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
 
     let r = parser.run_inner("-a=34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
 
     let r = parser.run_inner("-a34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string");
+    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
 }
 
 #[test]
@@ -363,7 +363,7 @@ fn unexpected_in_pure_optional() {
 
     let r = parser.run_inner("asdf").unwrap_err().unwrap_stderr();
 
-    let expected = "`asdf` is not expected in this context";
+    let expected = "`asdf` is not expected in this context\n";
     assert_eq!(r, expected);
 }
 

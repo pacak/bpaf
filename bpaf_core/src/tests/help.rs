@@ -815,7 +815,7 @@ Available options:
     assert_eq!(r, expected);
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
-    let expected = "`--help` is not expected in this context";
+    let expected = "`--help` is not expected in this context\n";
     assert_eq!(r, expected);
 }
 
@@ -862,6 +862,6 @@ Available options:
     assert_eq!(r, expected);
 
     let r = parser.run_inner("--ver").unwrap_err().unwrap_stdout();
-    let expected = "v 3.14";
+    let expected = "v 3.14\n";
     assert_eq!(r, expected);
 }

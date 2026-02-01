@@ -5,6 +5,7 @@ use crate::{
     Lit, Metavar, Name,
     arg::Adjacency,
     complete::{CompleteReply, CompleteReq, render_completions},
+    console_writer::Styled,
     utils::Vec1,
 };
 
@@ -230,15 +231,27 @@ impl std::fmt::Display for MissingItem {
 impl std::fmt::Display for ParseFailure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ParseFailure::Stdout(m) | ParseFailure::Stderr(m) => f.write_str(m),
+            ParseFailure::Stdout(m) | ParseFailure::Stderr(m) => f.write_str(&m.mono()),
+            ParseFailure::Console(c) => f.write_str(c),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum ParseFailure {
-    Stdout(String),
-    Stderr(String),
+    Stdout(Styled),
+    Stderr(Styled),
+    Console(String),
+}
+
+impl ParseFailure {
+    pub(crate) fn stderr(raw: String) -> Self {
+        ParseFailure::Stderr(Styled { raw, tab: 0 })
+    }
+
+    pub(crate) fn stdout(raw: String) -> Self {
+        ParseFailure::Stdout(Styled { raw, tab: 0 })
+    }
 }
 
 impl From<ParseFailure> for Error {
@@ -257,19 +270,25 @@ impl ParseFailure {
     #[track_caller]
     pub fn unwrap_stdout(self) -> String {
         match self {
-            ParseFailure::Stdout(s) => s,
-            ParseFailure::Stderr(e) => {
-                unwrap_failed("Called `ParseFailure::unwrap_stdout()` on Stderr", &e)
-            }
+            ParseFailure::Stdout(s) => s.mono(),
+            ParseFailure::Console(s) => s,
+            ParseFailure::Stderr(e) => unwrap_failed(
+                "called `ParseFailure::unwrap_stdout()` on Stderr",
+                &e.mono(),
+            ),
         }
     }
 
     #[track_caller]
     pub fn unwrap_stderr(self) -> String {
         match self {
-            ParseFailure::Stderr(s) => s,
-            ParseFailure::Stdout(e) => {
-                unwrap_failed("Called `ParseFailure::unwrap_stderr()` on Stdout", &e)
+            ParseFailure::Stderr(s) => s.mono(),
+            ParseFailure::Stdout(e) => unwrap_failed(
+                "called `ParseFailure::unwrap_stderr()` on Stdout",
+                &e.mono(),
+            ),
+            ParseFailure::Console(s) => {
+                unwrap_failed("Called `ParseFailure::unwrap_stderr()` on Console", &s)
             }
         }
     }
@@ -280,14 +299,14 @@ impl From<Error> for ParseFailure {
         match value {
             Error::Missing(vec1) => {
                 let m = &vec1.as_slice()[0];
-                ParseFailure::Stderr(m.to_string())
+                ParseFailure::stderr(m.to_string())
             }
-            Error::CompReply(items) => ParseFailure::Stdout(render_completions(items)),
-            Error::CompReq(_) => ParseFailure::Stdout(String::new()),
-            Error::Problem(_, problem) => ParseFailure::Stderr(problem.to_string()),
+            Error::CompReply(items) => ParseFailure::Console(render_completions(items)),
+            Error::CompReq(w) => unreachable!("Unhandled completion request {w:?}"),
+            Error::Problem(_, problem) => ParseFailure::stderr(problem.to_string()),
             Error::Final(parse_failure) => parse_failure,
             Error::Silent(reason) => {
-                ParseFailure::Stderr(format!("Internal error, got unexpected silent {reason}"))
+                ParseFailure::stderr(format!("internal error, got unexpected silent {reason}"))
             }
         }
     }

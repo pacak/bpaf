@@ -9,7 +9,7 @@ fn last_works() {
     assert_eq!(r, 4);
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `P`");
+    assert_eq!(r, "missing `P`\n");
 }
 
 #[test]
@@ -34,6 +34,6 @@ fn no_losing_data() {
     assert_eq!(r, &[(1, 2), (3, 4)]);
 
     let r = parser.run_inner("1 2 3").unwrap_err().unwrap_stderr();
-    let expected = "missing `B`";
+    let expected = "missing `B`\n";
     assert_eq!(r, expected);
 }
