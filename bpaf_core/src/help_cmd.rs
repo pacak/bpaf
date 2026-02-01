@@ -1,32 +1,28 @@
+use std::marker::PhantomData;
+
 use crate::{
-    Ctx, Custom, Error, Item, Lit, OsStr, Parser, VKind, VisitGroup, Visited, Visitor, construct,
-    literal, positional, render_help, success,
+    Ctx, Error, Item, OsStr, Parser, VKind, VisitGroup, Visited, Visitor, error::ParseFailure,
+    positional,
 };
 
-struct CmdPath;
-impl Parser for CmdPath {
-    type Output = (String, Custom);
-
-    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p {
-        std::future::ready(Ok((ctx.path.clone(), ctx.shared.custom.clone())))
-    }
-
-    fn visit<'a>(&'a self, _visitor: &mut dyn Visitor<'a>) {}
-}
-
-fn find_cmd<'a>(name: &'a str, parser: &'a dyn Visited) -> Option<&'a dyn Visited> {
-    struct X<'a> {
-        name: Lit<'a>,
+fn find_cmd<'a>(name: &str, parser: &'a dyn Visited) -> Option<&'a dyn Visited> {
+    struct X<'a, 'b> {
+        name: &'b OsStr,
         matched: Option<&'a dyn Visited>,
     }
-    impl<'a> Visitor<'a> for X<'a> {
+    impl<'a> Visitor<'a> for X<'a, '_> {
         fn item(&mut self, item: Item<'a>) {
-            let Item::Command { names, inner, .. } = item else {
+            if self.matched.is_some() {
                 return;
-            };
-
-            if self.matched.is_none() && names.contains(&self.name) {
-                self.matched = Some(inner)
+            }
+            match item {
+                Item::Command { names, inner, .. } => {
+                    if names.iter().any(|lit| lit == self.name) {
+                        self.matched = Some(inner);
+                    }
+                }
+                Item::OptionParser { inner, .. } => inner.vi(self),
+                _ => {}
             }
         }
 
@@ -39,34 +35,61 @@ fn find_cmd<'a>(name: &'a str, parser: &'a dyn Visited) -> Option<&'a dyn Visite
 
     let mut x = X {
         matched: None,
-        name: crate::arg::as_name(OsStr::new(name)).unwrap(),
+        name: OsStr::new(name),
     };
     parser.vi(&mut x);
     x.matched
 }
 
-pub fn help_command<P: Parser + 'static>(commands: P) -> impl Parser<Output = P::Output> {
-    let cmds = commands.into_rc();
-    let i = cmds.clone();
-    let name = positional::<String>("NAME").help("Display help for subcommand NAME");
-    let path = CmdPath;
-    let inner = construct!(name, path).parse::<_, _, String>(move |(name, (mut path, custom))| {
-        if let Some(cmd) = find_cmd(&name, &i) {
-            path.push(' ');
-            path.push_str(&name);
-            let extra = custom.create(None);
-            Ok(render_help(cmd, Some(&extra), &path, true))
-        } else {
-            Err(format!("No such command: {name}"))
-        }
-    });
+fn walk<'a>(mut stack: &[String], mut ctx: Ctx<'a>) -> ParseFailure {
+    while let Some((name, rest)) = stack.split_first() {
+        match find_cmd(name, ctx.visited) {
+            Some(new_cmd) => {
+                stack = rest;
 
-    let help = literal("help")
-        .nest(inner)
-        .map(|x| {
-            println!("{x:?}");
-            x
-        })
-        .then_exit(success);
-    construct!([cmds, help])
+                ctx = ctx.fork(Some(name), new_cmd);
+            }
+            None => {
+                use crate::console_writer::Style;
+                const I: &str = Style::Invalid.ansi();
+                const R: &str = Style::Text.ansi();
+                const Q: &str = Style::MonoTick.ansi();
+                return ParseFailure::stderr(format!(
+                    "Unrecognized command {Q}{I}{name}{R}{Q} at {Q}{}{Q}",
+                    ctx.path
+                ));
+            }
+        }
+    }
+    ctx.render_help(true)
+}
+
+struct HelpCmd<I, T> {
+    inner: I,
+    ctx: PhantomData<T>,
+}
+
+impl<T: 'static, I: Parser<Output = Vec<String>>> Parser for HelpCmd<I, T> {
+    type Output = T;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        let path = self.inner.eval(ctx.clone()).await?;
+        Err(Error::Final(walk(&path, ctx)))
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.inner.visit(visitor);
+    }
+}
+
+pub fn help_command<T: 'static>() -> impl Parser<Output = T> {
+    HelpCmd {
+        inner: positional::<String>("NAME")
+            .help("Display help for subcommand NAME")
+            .many()
+            .to_options()
+            .descr("Display help for a given subcommand(s)")
+            .command("help"),
+        ctx: PhantomData,
+    }
 }

@@ -169,10 +169,10 @@ use crate::{
     args::Args,
     complete::CReq,
     console_writer::Styled,
-    info::{Custom, Extra, Info},
+    info::{Extra, Info},
     pecking::Mixer,
     utils::Vec1,
-    visitors::{errors::IsInCommand, help::render_help},
+    visitors::errors::IsInCommand,
 };
 
 #[doc(inline)]
@@ -1331,13 +1331,11 @@ impl<'p> RawCtx<'p> {
 
     pub(crate) fn new(
         args: &'p Args,
-        custom: &'p Custom,
         extra: &'p BoxParser<Extra>,
         visited: &'p dyn Visited,
     ) -> Ctx<'p> {
         let shared = Rc::new(SharedCtx {
             args,
-            custom,
             help_and_version: extra,
             tasks: RefCell::new(Tasks::new()),
             next_free: Cell::new(1),

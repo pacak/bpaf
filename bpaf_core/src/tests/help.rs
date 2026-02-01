@@ -1057,8 +1057,7 @@ fn help_command_works() {
         .to_options()
         .command("gamma")
         .help("do gamma");
-    let cmds = construct!([a, b, c]);
-    let parser = help_command(cmds).to_options();
+    let parser = construct!([a, b, c, help_command()]).to_options();
 
     let r = parser.run_inner("help alpha").unwrap_err().unwrap_stdout();
     let expected = "does alpha (descr)
@@ -1087,9 +1086,78 @@ Available commands:
     alpha       do alpha (help)
     beta        do beta
     gamma       do gamma
-    help NAME
-    NAME        Display help for subcommand NAME
+    help        Display help for a given subcommand(s)
 ";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("help").unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn help_command_two_levels() {
+    let inner = short('i')
+        .switch()
+        .to_options()
+        .descr("inner descr")
+        .command("inner")
+        .help("inner help");
+    let outer = inner
+        .to_options()
+        .descr("outer descr")
+        .command("outer")
+        .help("outer help");
+    let parser = construct!([outer, help_command()]).to_options();
+
+    let r = parser
+        .run_inner("help outer inner")
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "inner descr
+
+Usage: app outer inner [-i]
+
+Available options:
+    -i
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("outer inner --help")
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    outer       outer help
+    help        Display help for a given subcommand(s)
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("help outer").unwrap_err().unwrap_stdout();
+    let expected = "outer descr
+
+Usage: app outer COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    inner       inner help
+";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("outer --help")
+        .unwrap_err()
+        .unwrap_stdout();
     assert_eq!(r, expected);
 }
 

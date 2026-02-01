@@ -135,7 +135,7 @@ impl<T: 'static> OptionParser<T> {
         let mut args = args.into();
         args.check_complete()?;
 
-        let ctx = RawCtx::new(&args, custom, &help_and_version, self);
+        let ctx = RawCtx::new(&args, &help_and_version, self);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
