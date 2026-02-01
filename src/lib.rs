@@ -469,4 +469,5 @@
 //! </div>
 
 pub use bpaf_core::*;
+#[cfg(feature = "bpaf_derive")]
 pub use bpaf_derive::Bpaf;
