@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use bpaf::*;
 
 // no Doc

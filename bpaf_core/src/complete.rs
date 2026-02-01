@@ -392,22 +392,17 @@ where
                 out.push((req, order));
             }
         }
-        Arg::Pos { value } if strict_pos => {
-            if let Some(value) = value.to_str() {
-                let req = CReq::Value { value };
-                out.push((req, &triggers.pos))
-            }
-        }
         Arg::Pos { value } => {
             let Some(value) = value.to_str() else {
                 return out;
             };
 
-            if !value.starts_with("-") {
-                let req = CReq::Value { value };
-                out.push((req, &triggers.pos))
-            }
+            let req = CReq::Value { value };
+            out.push((req, &triggers.pos));
 
+            if strict_pos {
+                return out;
+            }
             if value.is_empty() || value == "-" {
                 for (name, order) in triggers.args.iter().chain(triggers.flags.iter()) {
                     let req = CReq::Named { name: name.clone() };
@@ -443,20 +438,22 @@ impl<'p> crate::Executor<'p> {
             return None;
         }
 
-        let arg = crate::arg::lex_os_arg(arg_os);
-
         let Some(value) = arg_os.to_str() else {
             // Explicitly ignoring non-utf8 items. Produce an empty completion result
             return Some(Err(Error::CompReply(CompReply::default()))); // TODO - this can be const
+        };
+        let strict_pos = self.ctx.strict_pos.get();
+        let arg = if strict_pos {
+            Arg::Pos { value: arg_os }
+        } else {
+            crate::arg::lex_os_arg(arg_os)
         };
 
         let mut m = BTreeMap::<Id, Vec<CReq<'p>>>::default();
         // Normally we traverse each pecking order at once since only sum items can run
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
-        for (req, order) in
-            orders_by_prefix(&arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
-        {
+        for (req, order) in orders_by_prefix(&arg, &self.ctx.triggers.borrow(), strict_pos) {
             self.mixer.push_peck(order);
             self.to_wake
                 .extend(self.mixer.for_wake(&self.ctx.shared.tasks.borrow()));
@@ -469,11 +466,9 @@ impl<'p> crate::Executor<'p> {
         // Also collect from global triggers - they should show up in autocomplete
         // alongside local triggers, unlike stage_1 where global takes priority.
         if self.full_parser {
-            for (req, order) in orders_by_prefix(
-                &arg,
-                &self.ctx.shared.global_triggers.borrow(),
-                self.ctx.strict_pos.get(),
-            ) {
+            for (req, order) in
+                orders_by_prefix(&arg, &self.ctx.shared.global_triggers.borrow(), strict_pos)
+            {
                 self.mixer.push_peck(order);
                 self.to_wake
                     .extend(self.mixer.for_wake(&self.ctx.shared.tasks.borrow()));

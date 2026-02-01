@@ -8,7 +8,7 @@
 
 use crate::{
     Arg, CReq, Conflict, Error, Id, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
-    Reason, Scope, TTarget, arg, error::CV, lex_os_arg, r#yield,
+    Reason, Scope, TTarget, arg, complete::CompReply, error::CV, lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
 
@@ -77,7 +77,11 @@ impl<'p> RawCtx<'p> {
             Reason::Complete(shell, creqs) => match creqs.as_slice() {
                 [CReq::Value { value }] => {
                     let prefix_value = if strict && !self.strict_pos.get() {
-                        "--".to_owned()
+                        if value.is_empty() {
+                            "--".to_owned()
+                        } else {
+                            return Err(Error::CompReply(CompReply::default()));
+                        }
                     } else if value.is_empty() {
                         meta.to_string()
                     } else {

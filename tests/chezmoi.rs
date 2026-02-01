@@ -87,6 +87,7 @@ fn completion_test_1() {
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
     let expected = "\
+\"--\"\tprefix: None, suffix: None
 --add\tAdd a file
 --smart-add\tSmartly add a file
 --doctor\tPerform environment sanity check
@@ -141,6 +142,7 @@ Available options:
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
     let expected = "\
+\"-\"\tprefix: None, suffix: None
 --doctor\tPerform environment sanity check
 ";
     assert_eq!(r, expected);
@@ -177,7 +179,9 @@ fn completion_test_3() {
     let parser = options();
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    let expected = "--doctor\tPerform environment sanity check
+    let expected = "\
+\"--\"\tprefix: None, suffix: None
+--doctor\tPerform environment sanity check
 --document\tPrint docs
 ";
     assert_eq!(r, expected);
