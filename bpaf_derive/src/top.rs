@@ -224,6 +224,7 @@ impl ToTokens for Top {
                     let short = short.iter().map(|v| quote!(.short(#v)));
                     let help = help.as_ref().map(|v| quote!(.help(#v)));
                     quote! {
+                        #[doc(hidden)]
                         #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
 
                             #[allow(unused_imports)]
@@ -279,6 +280,7 @@ impl ToTokens for Top {
                 let max_width = max_width.as_ref().map(|v| quote!(.max_width(#v)));
 
                 quote! {
+                    #[doc(hidden)]
                     #vis fn #generate() -> ::bpaf::OptionParser<#ty> {
                         #[allow(unused_imports)]
                         use ::bpaf::Parser;
@@ -299,6 +301,7 @@ impl ToTokens for Top {
                 let ParserCfg { group_help } = &parser;
                 let group_help = group_help.as_ref().map(|v| quote!(.group_help(#v)));
                 quote! {
+                    #[doc(hidden)]
                     #vis fn #generate() -> impl ::bpaf::Parser<#ty> {
                         #[allow(unused_imports)]
                         use ::bpaf::Parser;

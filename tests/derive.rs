@@ -1,4 +1,6 @@
-//#![allow(deprecated)]
+#![deny(missing_docs)]
+
+//! hi
 use bpaf::{Bpaf, Parser};
 
 #[test]
