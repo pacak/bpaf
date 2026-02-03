@@ -1,0 +1,99 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Wrap a calculated value into a `Parser`"><title>pure_with in bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">pure_with</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bpaf</a></div><h1>Function <span class="fn">pure_<wbr>with</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/lib.rs.html#1256-1262">Source</a> </span></div><pre class="rust item-decl"><code>pub fn pure_with&lt;T, F, E&gt;(val: F) -&gt; ParsePureWith&lt;T, F, E&gt;<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Wrap a calculated value into a <code>Parser</code></p>
+<p>This parser represents a possibly failing equivalent to <a href="fn.pure.html" title="fn bpaf::pure"><code>pure</code></a>.
+It produces <code>T</code> by invoking the provided callback without consuming anything from the command
+line, which can be useful with <a href="macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a>. As with any parsers, <code>T</code> should be <code>Clone</code>
+and <code>Debug</code>.</p>
+<p>Both <a href="fn.pure.html" title="fn bpaf::pure"><code>pure</code></a> and <code>pure_with</code> are designed to put values into structures, to generate fallback
+you should be using <a href="trait.Parser.html#method.fallback" title="method bpaf::Parser::fallback"><code>fallback</code></a> and <a href="trait.Parser.html#method.fallback_with" title="method bpaf::Parser::fallback_with"><code>fallback_with</code></a>.</p>
+<p>See also <a href="fn.pure.html" title="fn bpaf::pure"><code>pure</code></a> for a pure computation that can’t fail.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    name: String,
+    money: u32,
+}
+
+<span class="kw">fn </span>starting_money() -&gt; <span class="prelude-ty">Result</span>&lt;u32, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+    <span class="prelude-val">Ok</span>(<span class="number">330</span>)
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="comment">// User can customise a name
+    </span><span class="kw">let </span>name = long(<span class="string">"name"</span>).help(<span class="string">"Use a custom user name"</span>).argument(<span class="string">"NAME"</span>);
+    <span class="comment">// but not starting amount of money
+    </span><span class="kw">let </span>money = pure_with(starting_money);
+    <span class="macro">construct!</span>(Options { name, money }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument(<span class="string">"NAME"</span>))]
+    </span><span class="doccomment">/// Use a custom user name
+    </span>name: String,
+    <span class="attr">#[bpaf(pure_with(starting_money))]
+    </span>money: u32,
+}
+
+<span class="kw">fn </span>starting_money() -&gt; <span class="prelude-ty">Result</span>&lt;u32, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+    <span class="prelude-val">Ok</span>(<span class="number">330</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>pure</code> does not show up in <code>--help</code> message</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--name</b></tt>=<tt><i>NAME</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --name</b></tt>=<tt><i>NAME</i></tt></dt>
+<dd>Use a custom user name</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And there’s no way to alter the value from the command line</p>
+<div class='bpaf-doc'>
+$ app --name Bob<br>
+Options { name: "Bob", money: 330 }
+</div>
+<p>Any attempts to do so would result in an error :)</p>
+<div class='bpaf-doc'>
+$ app --money 100000 --name Hackerman<br>
+<b>Error:</b> <b>--money</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details></div></details></section></div></main></body></html>

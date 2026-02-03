@@ -1,0 +1,123 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_4_decorating - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _4_decorating</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _4_<wbr>decorating</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#improving-the-user-experience" title="Improving the user experience">Improving the user experience</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>1_<wbr>combinatoric_<wbr>api</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_1_combinatoric_api</a></div><h1>Module <span>_4_<wbr>decorating</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#1184">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_3_subcommands/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_3_subcommands">← Subcommand parsers</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api">↑ Combinatoric API ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+<h5 id="improving-the-user-experience"><a class="doc-anchor" href="#improving-the-user-experience">§</a>Improving the user experience</h5>
+<p>Once you have the final parser done there are still a few ways you can improve user experience.
+<a href="../../../../struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> comes equipped with a few methods that let you set version number,
+description, help message header and footer and so on.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = short(<span class="string">'i'</span>).argument::&lt;u32&gt;(<span class="string">"ARG"</span>);
+    <span class="macro">construct!</span>(Options { argument })
+        .to_options()
+        .version(<span class="string">"3.1415"</span>)
+        .descr(<span class="string">"This is a short description"</span>)
+        .header(<span class="string">"It can contain multiple blocks, this block goes before options"</span>)
+        .footer(<span class="string">"This one goes after"</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>In addition to all the arguments specified by user <code>bpaf</code> adds a few more. One of them is
+<code>--help</code>:</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p>This is a short description</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-i</b></tt>=<tt><i>ARG</i></tt></p><p>It can contain multiple blocks, this block goes before options</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-i</b></tt>=<tt><i>ARG</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+<dt><tt><b>-V</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Prints version information</dd>
+</dl>
+</p><p>This one goes after</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>The other one is <code>--version</code> - passing a string literal or something like
+<code>env!("CARGO_PKG_VERSION")</code> to get version from <code>cargo</code> directly usually works</p>
+<div class='bpaf-doc'>
+$ app --version<br>
+<p>Version: 3.1415</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Other than that <code>bpaf</code> tries its best to provide a helpful error messages</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>-i</b></tt>=<tt><i>ARG</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And if all parsers are satisfied <a href="../../../../struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a> produces the result</p>
+<div class='bpaf-doc'>
+$ app -i 10<br>
+Options { argument: 10 }
+</div>
+</details>
+<p>There are a few other things you can do:</p>
+<ul>
+<li>group some of the primitive parsers into logical blocks for <code>--help</code> message with
+<a href="../../../../trait.Parser.html#method.group_help" title="method bpaf::Parser::group_help"><code>Parser::group_help</code></a></li>
+<li>add tests to make sure important combinations are handled the way they are supposed to
+after any future refactors with <a href="../../../../struct.OptionParser.html#method.run_inner" title="method bpaf::OptionParser::run_inner"><code>OptionParser::run_inner</code></a></li>
+<li>add a test to make sure that bpaf internal invariants are satisfied with
+<a href="../../../../struct.OptionParser.html#method.check_invariants" title="method bpaf::OptionParser::check_invariants"><code>OptionParser::check_invariants</code></a></li>
+<li>generate user documentation in manpage and markdown formats with
+<a href="../../../../struct.OptionParser.html#method.render_manpage" title="method bpaf::OptionParser::render_manpage"><code>OptionParser::render_manpage</code></a> and <a href="../../../../struct.OptionParser.html#method.render_markdown" title="method bpaf::OptionParser::render_markdown"><code>OptionParser::render_markdown</code></a></li>
+</ul>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_3_subcommands/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_3_subcommands">← Subcommand parsers</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api">↑ Combinatoric API ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

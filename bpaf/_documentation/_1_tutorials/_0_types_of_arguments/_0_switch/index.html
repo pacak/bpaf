@@ -1,0 +1,170 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_0_switch - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _0_switch</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _0_<wbr>switch</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#options-switches-or-flags" title="Options, switches or flags">Options, switches or flags</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>0_<wbr>types_<wbr>of_<wbr>arguments</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_0_types_of_arguments</a></div><h1>Module <span>_0_<wbr>switch</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#240">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_1_argument">Option arguments or arguments →</a></p>
+  </td>
+</tr></table>
+<h5 id="options-switches-or-flags"><a class="doc-anchor" href="#options-switches-or-flags">§</a>Options, switches or flags</h5>
+<p>Options or flags usually starts with a dash, a single dash for short options and a double dash for
+long one. Several short options can usually be squashed together with a single dash in front of
+them to save on typing: <code>-vvv</code> can be parsed the same as <code>-v -v -v</code>. Options don’t have any
+other information apart from being there or not. Relative position usually does not matter and
+<code>--alpha --beta</code> should parse the same as <code>--beta --alpha</code>.</p>
+<div class="code-wrap">
+<pre>
+$ cargo <span style="font-weight: bold">--help</span>
+$ ls <span style="font-weight: bold">-la</span>
+$ ls <span style="font-weight: bold">--time --reverse</span>
+</pre>
+</div>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    verbose: bool,
+    release: bool,
+    default_features: bool,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>verbose = short(<span class="string">'v'</span>)
+        .long(<span class="string">"verbose"</span>)
+        .help(<span class="string">"Produce verbose output"</span>)
+        .switch();
+    <span class="kw">let </span>release = long(<span class="string">"release"</span>)
+        .help(<span class="string">"Build artifacts in release mode"</span>)
+        .flag(<span class="bool-val">true</span>, <span class="bool-val">false</span>);
+    <span class="kw">let </span>default_features = long(<span class="string">"no-default-features"</span>)
+        .help(<span class="string">"Do not activate default features"</span>)
+        <span class="comment">// default_features uses opposite values,
+        // producing `true` when value is absent
+        </span>.flag(<span class="bool-val">false</span>, <span class="bool-val">true</span>);
+
+    <span class="macro">construct!</span>(Options {
+        verbose,
+        release,
+        default_features,
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Produce verbose output
+    </span><span class="comment">// bpaf uses `switch` for `bool` fields in named
+    // structs unless consumer attribute is present.
+    // But it is also possible to give it explicit
+    // consumer annotation to serve as a reminder:
+    // #[bpaf(short, long, switch)]
+    </span><span class="attr">#[bpaf(short, long)]
+    </span>verbose: bool,
+
+    <span class="attr">#[bpaf(flag(<span class="bool-val">true</span>, <span class="bool-val">false</span>))]
+    </span><span class="doccomment">/// Build artifacts in release mode
+    </span>release: bool,
+
+    <span class="doccomment">/// Do not activate default features
+    </span><span class="comment">// default_features uses opposite values,
+    // producing `true` when value is absent
+    </span><span class="attr">#[bpaf(long(<span class="string">"no-default-features"</span>), flag(<span class="bool-val">false</span>, <span class="bool-val">true</span>))]
+    </span>default_features: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> output <code>bpaf</code> shows switches as usual flags with no meta variable attached</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] [<tt><b>--release</b></tt>] [<tt><b>--no-default-features</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
+<dd>Produce verbose output</dd>
+<dt><tt><b>    --release</b></tt></dt>
+<dd>Build artifacts in release mode</dd>
+<dt><tt><b>    --no-default-features</b></tt></dt>
+<dd>Do not activate default features</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Both <code>switch</code> and <code>flag</code> succeed if value is not present, <code>switch</code> returns <code>false</code>, <code>flag</code> returns
+second value.</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { verbose: false, release: false, default_features: true }
+</div>
+<p>When value is present - <code>switch</code> returns <code>true</code>, <code>flag</code> returns first value.</p>
+<div class='bpaf-doc'>
+$ app --verbose --no-default-features --detailed<br>
+<b>Error:</b> <b>--detailed</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Like with most parsrs unless specified <code>switch</code> and <code>flag</code> consume at most one item from the
+command line:</p>
+<div class='bpaf-doc'>
+$ app --no-default-features --no-default-features<br>
+<b>Error:</b> argument <tt><b>--no-default-features</b></tt> cannot be used multiple times in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p>For more detailed info see <a href="../../../../params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a> and
+<a href="../../../../params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>NamedArg::flag</code></a></p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_1_argument">Option arguments or arguments →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_02_xorg - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _02_xorg</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _02_<wbr>xorg</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#xorg1-xorg-xinerama-extension-name" title="`Xorg(1)`: `Xorg +xinerama +extension name`"><code>Xorg(1)</code>: <code>Xorg +xinerama +extension name</code></a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_02_<wbr>xorg</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2461">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd">← <code>dd(1)</code>: <code>dd if=/dev/zero of=/dev/null bs=1000</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">Command chaining →</a></p>
+  </td>
+</tr></table>
+<h5 id="xorg1-xorg-xinerama-extension-name"><a class="doc-anchor" href="#xorg1-xorg-xinerama-extension-name">§</a><code>Xorg(1)</code>: <code>Xorg +xinerama +extension name</code></h5>
+<p>This example implements syntax similar to used by <code>Xorg</code> or similar programs. As usual with
+strange examples <a href="../../../fn.any.html" title="fn bpaf::any"><code>any</code></a> serves an important role.</p>
+<p>The example implements the following parsers:</p>
+<ul>
+<li>enable or disable an extension using <code>+ext name</code> and <code>-ext name</code> like syntax</li>
+<li>enable or disable specific extensions with syntax like <code>-xinerama</code> or <code>+backing</code></li>
+</ul>
+<p>Both parsers use <a href="../../../fn.any.html" title="fn bpaf::any"><code>any</code></a> with <a href="../../../params/struct.ParseAny.html#method.anywhere" title="method bpaf::params::ParseAny::anywhere"><code>ParseAny::anywhere</code></a></p>
+<details><summary><tt>examples/xorg.rs</tt></summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// A way to represent xorg like flags, not a typical usage
+</span><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+<span class="attr">#[derive(Debug, Clone)]
+#[allow(dead_code)]
+</span><span class="kw">pub struct </span>Options {
+    turbo: bool,
+    backing: bool,
+    xinerama: bool,
+    extensions: Vec&lt;(String, bool)&gt;,
+}
+
+<span class="comment">// matches literal name prefixed with - or +
+</span><span class="kw">fn </span>toggle_options(meta: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, help: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; <span class="kw">impl </span>Parser&lt;bool&gt; {
+    any(meta, <span class="kw">move </span>|s: String| {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(suf) = s.strip_prefix(<span class="string">'+'</span>) {
+            (suf == name).then_some(<span class="bool-val">true</span>)
+        } <span class="kw">else if let </span><span class="prelude-val">Some</span>(suf) = s.strip_prefix(<span class="string">'-'</span>) {
+            (suf == name).then_some(<span class="bool-val">false</span>)
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
+    })
+    .help(help)
+    .anywhere()
+}
+
+<span class="comment">// matches literal +ext and -ext followed by extension name
+</span><span class="kw">fn </span>extension() -&gt; <span class="kw">impl </span>Parser&lt;(String, bool)&gt; {
+    <span class="kw">let </span>state = any(<span class="string">"(+|-)ext"</span>, |s: String| <span class="kw">match </span>s.as_str() {
+        <span class="string">"-ext" </span>=&gt; <span class="prelude-val">Some</span>(<span class="bool-val">false</span>),
+        <span class="string">"+ext" </span>=&gt; <span class="prelude-val">Some</span>(<span class="bool-val">true</span>),
+        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+    })
+    .anywhere();
+
+    <span class="kw">let </span>name = positional::&lt;String&gt;(<span class="string">"EXT"</span>)
+        .help(<span class="string">"Extension to enable or disable, see documentation for the full list"</span>);
+    <span class="macro">construct!</span>(state, name).adjacent().map(|(a, b)| (b, a))
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>backing = toggle_options(<span class="string">"(+|-)backing"</span>, <span class="string">"backing"</span>, <span class="string">"Set backing status"</span>).fallback(<span class="bool-val">false</span>);
+    <span class="kw">let </span>xinerama =
+        toggle_options(<span class="string">"(+|-)xinerama"</span>, <span class="string">"xinerama"</span>, <span class="string">"Set Xinerama status"</span>).fallback(<span class="bool-val">true</span>);
+    <span class="kw">let </span>turbo = short(<span class="string">'t'</span>)
+        .long(<span class="string">"turbo"</span>)
+        .help(<span class="string">"Engage the turbo mode"</span>)
+        .switch();
+    <span class="kw">let </span>extensions = extension().many();
+    <span class="macro">construct!</span>(Options {
+        turbo,
+        backing,
+        xinerama,
+        extensions,
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:#?}"</span>, options().run());
+}
+</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>xorg</code> takes parameters in a few different ways, notably as a long name starting with plus or
+minus with different defaults</p>
+<div class='bpaf-doc'>
+$ app -xinerama +backing<br>
+Options { turbo: false, backing: true, xinerama: false, extensions: [] }
+</div>
+<p>But also as <code>+ext name</code> and <code>-ext name</code> to enable or disable an extensions</p>
+<div class='bpaf-doc'>
+$ app --turbo +ext banana -ext apple<br>
+Options { turbo: true, backing: false, xinerama: true, extensions: [("banana", true), ("apple", false)] }
+</div>
+<p>While <code>bpaf</code> takes some effort to render the help even for custom stuff - you can always
+bypass it by hiding options and substituting your own with custom <code>header</code>/<code>footer</code>.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-t</b></tt>] [<tt><i>(+|-)backing</i></tt>] [<tt><i>(+|-)xinerama</i></tt>] [<tt><i>(+|-)ext</i></tt> <tt><i>EXT</i></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-t</b></tt>, <tt><b>--turbo</b></tt></dt>
+<dd>Engage the turbo mode</dd>
+<dt><tt><i>(+|-)backing</i></tt></dt>
+<dd>Set backing status</dd>
+<dt><tt><i>(+|-)xinerama</i></tt></dt>
+<dd>Set Xinerama status</dd>
+<div style='padding-left: 0.5em'><tt><i>(+|-)ext</i></tt> <tt><i>EXT</i></tt></div><dt><tt><i>EXT</i></tt></dt>
+<dd>Extension to enable or disable, see documentation for the full list</dd>
+<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd">← <code>dd(1)</code>: <code>dd if=/dev/zero of=/dev/null bs=1000</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">Command chaining →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

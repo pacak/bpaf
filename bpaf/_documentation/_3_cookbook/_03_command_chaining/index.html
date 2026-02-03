@@ -1,0 +1,209 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_03_command_chaining - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _03_command_chaining</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _03_<wbr>command_<wbr>chaining</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#command-chaining" title="Command chaining">Command chaining</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_03_<wbr>command_<wbr>chaining</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2520">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_02_xorg/index.html" title="mod bpaf::_documentation::_3_cookbook::_02_xorg">← <code>Xorg(1)</code>: <code>Xorg +xinerama +extension name</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code> →</a></p>
+  </td>
+</tr></table>
+<h5 id="command-chaining"><a class="doc-anchor" href="#command-chaining">§</a>Command chaining</h5>
+<p>Lets you do things like <code>setup.py sdist bdist</code>: <a href="https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining">command chaining</a></p>
+<p>With <a href="../../../params/struct.ParseCommand.html#method.adjacent" title="method bpaf::params::ParseCommand::adjacent"><code>adjacent</code></a>
+<code>bpaf</code> allows you to have several commands side by side instead of being nested.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    premium: bool,
+    commands: Vec&lt;Cmd&gt;,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="comment">// shape of the variants doesn't really matter, let's use all of them :)
+</span><span class="kw">enum </span>Cmd {
+    Eat(String),
+    Drink { coffee: bool },
+    Sleep { time: usize },
+}
+
+<span class="kw">fn </span>cmd() -&gt; <span class="kw">impl </span>Parser&lt;Cmd&gt; {
+    <span class="kw">let </span>eat = positional::&lt;String&gt;(<span class="string">"FOOD"</span>)
+        .to_options()
+        .descr(<span class="string">"Performs eating action"</span>)
+        .command(<span class="string">"eat"</span>)
+        .adjacent()
+        .map(Cmd::Eat);
+
+    <span class="kw">let </span>coffee = long(<span class="string">"coffee"</span>)
+        .help(<span class="string">"Are you going to drink coffee?"</span>)
+        .switch();
+    <span class="kw">let </span>drink = <span class="macro">construct!</span>(Cmd::Drink { coffee })
+        .to_options()
+        .descr(<span class="string">"Performs drinking action"</span>)
+        .command(<span class="string">"drink"</span>)
+        .adjacent();
+
+    <span class="kw">let </span>time = long(<span class="string">"time"</span>).argument::&lt;usize&gt;(<span class="string">"HOURS"</span>);
+    <span class="kw">let </span>sleep = <span class="macro">construct!</span>(Cmd::Sleep { time })
+        .to_options()
+        .descr(<span class="string">"Performs taking a nap action"</span>)
+        .command(<span class="string">"sleep"</span>)
+        .adjacent();
+
+    <span class="macro">construct!</span>([eat, drink, sleep])
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>premium = short(<span class="string">'p'</span>)
+        .long(<span class="string">"premium"</span>)
+        .help(<span class="string">"Opt in for premium serivces"</span>)
+        .switch();
+    <span class="kw">let </span>commands = cmd().many();
+    <span class="macro">construct!</span>(Options { premium, commands }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Opt in for premium serivces
+    </span><span class="kw">pub </span>premium: bool,
+    <span class="attr">#[bpaf(external(cmd), many)]
+    </span><span class="kw">pub </span>commands: Vec&lt;Cmd&gt;,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">pub enum </span>Cmd {
+    <span class="attr">#[bpaf(command, adjacent)]
+    </span><span class="doccomment">/// Performs eating action
+    </span>Eat(<span class="attr">#[bpaf(positional(<span class="string">"FOOD"</span>))] </span>String),
+    <span class="attr">#[bpaf(command, adjacent)]
+    </span><span class="doccomment">/// Performs drinking action
+    </span>Drink {
+        <span class="doccomment">/// Are you going to drink coffee?
+        </span>coffee: bool,
+    },
+    <span class="attr">#[bpaf(command, adjacent)]
+    </span><span class="doccomment">/// Performs taking a nap action
+    </span>Sleep {
+        <span class="attr">#[bpaf(argument(<span class="string">"HOURS"</span>))]
+        </span>time: usize,
+    },
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Example implements a parser that supports one of three possible commands:</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt>] [<tt><i>COMMAND ...</i></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-p</b></tt>, <tt><b>--premium</b></tt></dt>
+<dd>Opt in for premium serivces</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p><p><div>
+<b>Available commands:</b></div><dl><dt><tt><b>eat</b></tt></dt>
+<dd>Performs eating action</dd>
+<dt><tt><b>drink</b></tt></dt>
+<dd>Performs drinking action</dd>
+<dt><tt><b>sleep</b></tt></dt>
+<dd>Performs taking a nap action</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>As usual every command comes with its own help</p>
+<div class='bpaf-doc'>
+$ app drink --help<br>
+<p>Performs drinking action</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>drink</b></tt> [<tt><b>--coffee</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --coffee</b></tt></dt>
+<dd>Are you going to drink coffee?</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Normally you can use one command at a time, but making commands <code>adjacent</code> lets
+parser to succeed after consuming an adjacent block only and leaving leftovers for the rest of
+the parser, consuming them as a <code>Vec&lt;Cmd&gt;</code> with <a href="../../../trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a> allows to chain multiple
+items sequentially</p>
+<div class='bpaf-doc'>
+$ app eat Fastfood drink --coffee sleep --time=5<br>
+Options { premium: false, commands: [Eat("Fastfood"), Drink { coffee: true }, Sleep { time: 5 }] }
+</div>
+<p>The way this works is by running parsers for each command. In the first iteration <code>eat</code> succeeds,
+it consumes <code>eat fastfood</code> portion and appends its value to the resulting vector. Then second
+iteration runs on leftovers, in this case it will be <code>drink --coffee sleep --time=5</code>.
+Here <code>drink</code> succeeds and consumes <code>drink --coffee</code> portion, then <code>sleep</code> parser runs, etc.</p>
+<p>You can mix chained commands with regular arguments that belong to the top level parser</p>
+<div class='bpaf-doc'>
+$ app sleep --time 10 --premium eat 'Bak Kut Teh' drink<br>
+Options { premium: true, commands: [Sleep { time: 10 }, Eat("Bak Kut Teh"), Drink { coffee: false }] }
+</div>
+<p>But not inside the command itself since values consumed by the command are not going to be
+adjacent</p>
+<div class='bpaf-doc'>
+$ app sleep --time 10 eat --premium 'Bak Kut Teh' drink<br>
+<b>Error:</b> expected <tt><i>FOOD</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_02_xorg/index.html" title="mod bpaf::_documentation::_3_cookbook::_02_xorg">← <code>Xorg(1)</code>: <code>Xorg +xinerama +extension name</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code> →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

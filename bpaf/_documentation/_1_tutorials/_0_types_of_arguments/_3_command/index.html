@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_3_command - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _3_command</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _3_<wbr>command</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#commands-or-subcommands" title="Commands or subcommands">Commands or subcommands</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>0_<wbr>types_<wbr>of_<wbr>arguments</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_0_types_of_arguments</a></div><h1>Module <span>_3_<wbr>command</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#427">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_positional/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_2_positional">← Operands or positional items</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_4_exotic/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_4_exotic">Exotic schemas →</a></p>
+  </td>
+</tr></table>
+<h5 id="commands-or-subcommands"><a class="doc-anchor" href="#commands-or-subcommands">§</a>Commands or subcommands</h5>
+<p>Commands are similar to positional items, but instead of representing an item they start
+a whole new parser, usually with its help and other arguments. Commands allow a single
+application to perform multiple different functions. The command parser will be able to parse all
+the command line options to the right of the command name</p>
+<div class="code-wrap">
+<pre>
+$ cargo <span style="font-weight: bold">build --release</span>
+$ cargo <span style="font-weight: bold">clippy</span>
+$ cargo <span style="font-weight: bold">asm --intel --everything</span>
+</pre>
+</div>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Cmd {
+    flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    flag: bool,
+    cmd: Cmd,
+}
+
+<span class="kw">fn </span>cmd() -&gt; <span class="kw">impl </span>Parser&lt;Cmd&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to command"</span>)
+        .switch();
+    <span class="kw">let </span>arg = long(<span class="string">"arg"</span>).argument::&lt;usize&gt;(<span class="string">"ARG"</span>);
+    <span class="macro">construct!</span>(Cmd { flag, arg })
+        .to_options()
+        .descr(<span class="string">"Command to do something"</span>)
+        .command(<span class="string">"cmd"</span>)
+        <span class="comment">// you can chain add extra short and long names
+        </span>.short(<span class="string">'c'</span>)
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to the outer layer"</span>)
+        .switch();
+    <span class="macro">construct!</span>(Options { flag, cmd() }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="comment">// `command` annotation with no name gets the name from the object it is attached to,
+// but you can override it using something like #[bpaf(command("my_command"))]
+// you can chain more short and long names here to serve as aliases
+</span><span class="attr">#[bpaf(command(<span class="string">"cmd"</span>), short(<span class="string">'c'</span>))]
+</span><span class="doccomment">/// Command to do something
+</span><span class="kw">pub struct </span>Cmd {
+    <span class="doccomment">/// This flag is specific to command
+    </span>flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// This flag is specific to the outer layer
+    </span>flag: bool,
+    <span class="attr">#[bpaf(external)]
+    </span>cmd: Cmd,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Commands show up on both outer level help</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--flag</b></tt>] <tt><i>COMMAND ...</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to the outer layer</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p><p><div>
+<b>Available commands:</b></div><dl><dt><tt><b>cmd</b></tt>, <tt><b>c</b></tt></dt>
+<dd>Command to do something</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>As well as showing their own help</p>
+<div class='bpaf-doc'>
+$ app cmd --help<br>
+<p>Command to do something</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>cmd</b></tt> [<tt><b>--flag</b></tt>] <tt><b>--arg</b></tt>=<tt><i>ARG</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to command</dd>
+<dt><tt><b>    --arg</b></tt>=<tt><i>ARG</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>In this example there’s only one command and it is required, so is the argument inside of it</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42<br>
+Options { flag: false, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>If you don’t specify this command - parsing will fail</p>
+<p>You can have the same flag names inside and outside of the command, but it might be confusing
+for the end user. This example enables the outer flag</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>And this one - both inside and outside</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: true, arg: 42 } }
+</div>
+<p>And that’s the confusing part - unless you add context restrictions with
+<a href="../../../../parsers/struct.ParseCon.html#method.adjacent" title="method bpaf::parsers::ParseCon::adjacent"><code>adjacent</code></a> and parse command first - outer flag wins.
+So it’s best not to mix names on different levels</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+</details>
+<p>For more detailed info see <a href="../../../../struct.OptionParser.html#method.command" title="method bpaf::OptionParser::command"><code>OptionParser::command</code></a></p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_positional/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_2_positional">← Operands or positional items</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_4_exotic/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_4_exotic">Exotic schemas →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

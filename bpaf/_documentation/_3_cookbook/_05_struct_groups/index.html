@@ -1,0 +1,199 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_05_struct_groups - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _05_struct_groups</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _05_<wbr>struct_<wbr>groups</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#structure-groups---foo---foo-1-arg1---foo-2-arg2---foo-3-arg3" title="Structure groups: `--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3`">Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code></a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_05_<wbr>struct_<wbr>groups</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2623">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">← Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_06_multi_flag/index.html" title="mod bpaf::_documentation::_3_cookbook::_06_multi_flag">Multi-value arguments with optional flags: <code>--foo ARG1 --flag --inner ARG2</code> →</a></p>
+  </td>
+</tr></table>
+<h5 id="structure-groups---foo---foo-1-arg1---foo-2-arg2---foo-3-arg3"><a class="doc-anchor" href="#structure-groups---foo---foo-1-arg1---foo-2-arg2---foo-3-arg3">§</a>Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code></h5>
+<p>Groups of options that can be specified multiple times. All such groups should be kept without
+overwriting previous one.</p>
+<div class="example-wrap"><pre class="language-console"><code> $ prometheus_sensors_exporter \
+     \
+     `# 2 physical sensors located on physycial different i2c bus or address` \
+     --sensor \
+         --sensor-device=tmp102 \
+         --sensor-name=&quot;temperature_tmp102_outdoor&quot; \
+         --sensor-i2c-bus=0 \
+         --sensor-i2c-address=0x48 \
+     --sensor \
+         --sensor-device=tmp102 \
+         --sensor-name=&quot;temperature_tmp102_indoor&quot; \
+         --sensor-i2c-bus=1 \
+         --sensor-i2c-address=0x49 \</code></pre></div><details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    rect: Vec&lt;Rect&gt;,
+    mirror: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">struct </span>Rect {
+    rect: (),
+    width: usize,
+    height: usize,
+    painted: bool,
+}
+
+<span class="kw">fn </span>rect() -&gt; <span class="kw">impl </span>Parser&lt;Rect&gt; {
+    <span class="kw">let </span>rect = long(<span class="string">"rect"</span>).help(<span class="string">"Define a new rectangle"</span>).req_flag(());
+    <span class="kw">let </span>width = short(<span class="string">'w'</span>)
+        .long(<span class="string">"width"</span>)
+        .help(<span class="string">"Rectangle width in pixels"</span>)
+        .argument::&lt;usize&gt;(<span class="string">"PX"</span>);
+    <span class="kw">let </span>height = short(<span class="string">'h'</span>)
+        .long(<span class="string">"height"</span>)
+        .help(<span class="string">"Rectangle height in pixels"</span>)
+        .argument::&lt;usize&gt;(<span class="string">"PX"</span>);
+    <span class="kw">let </span>painted = short(<span class="string">'p'</span>)
+        .long(<span class="string">"painted"</span>)
+        .help(<span class="string">"Should rectangle be filled?"</span>)
+        .switch();
+    <span class="macro">construct!</span>(Rect {
+        rect,
+        width,
+        height,
+        painted,
+    })
+    .adjacent()
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>mirror = long(<span class="string">"mirror"</span>).help(<span class="string">"Mirror the image"</span>).switch();
+    <span class="kw">let </span>rect = rect().many();
+    <span class="macro">construct!</span>(Options { rect, mirror }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(external, many)]
+    </span>rect: Vec&lt;Rect&gt;,
+    <span class="doccomment">/// Mirror the image
+    </span>mirror: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(adjacent)]
+</span><span class="kw">struct </span>Rect {
+    <span class="doccomment">/// Define a new rectangle
+    </span>rect: (),
+    <span class="attr">#[bpaf(short, long, argument(<span class="string">"PX"</span>))]
+    </span><span class="doccomment">/// Rectangle width in pixels
+    </span>width: usize,
+    <span class="attr">#[bpaf(short, long, argument(<span class="string">"PX"</span>))]
+    </span><span class="doccomment">/// Rectangle height in pixels
+    </span>height: usize,
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Should rectangle be filled?
+    </span>painted: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>This example parses multipe rectangles from a command line defined by dimensions and the fact
+if its filled or not, to make things more interesting - every group of coordinates must be
+prefixed with <code>--rect</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--rect</b></tt> <tt><b>-w</b></tt>=<tt><i>PX</i></tt> <tt><b>-h</b></tt>=<tt><i>PX</i></tt> [<tt><b>-p</b></tt>]]... [<tt><b>--mirror</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>--rect</b></tt> <tt><b>-w</b></tt>=<tt><i>PX</i></tt> <tt><b>-h</b></tt>=<tt><i>PX</i></tt> [<tt><b>-p</b></tt>]</div><dt><tt><b>    --rect</b></tt></dt>
+<dd>Define a new rectangle</dd>
+<dt><tt><b>-w</b></tt>, <tt><b>--width</b></tt>=<tt><i>PX</i></tt></dt>
+<dd>Rectangle width in pixels</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--height</b></tt>=<tt><i>PX</i></tt></dt>
+<dd>Rectangle height in pixels</dd>
+<dt><tt><b>-p</b></tt>, <tt><b>--painted</b></tt></dt>
+<dd>Should rectangle be filled?</dd>
+<p></p><dt><tt><b>    --mirror</b></tt></dt>
+<dd>Mirror the image</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Order of items within the rectangle is not significant and you can have several of them,
+because fields are still regular arguments - order doesn’t matter for as long as they belong
+to some rectangle</p>
+<div class='bpaf-doc'>
+$ app --rect --width 10 --height 10 --rect --height=10 --width=10<br>
+Options { rect: [Rect { rect: (), width: 10, height: 10, painted: false }, Rect { rect: (), width: 10, height: 10, painted: false }], mirror: false }
+</div>
+<p>You can have optional values that belong to the group inside and outer flags in the middle</p>
+<div class='bpaf-doc'>
+$ app --rect --width 10 --painted --height 10 --mirror --rect --height 10 --width 10<br>
+Options { rect: [Rect { rect: (), width: 10, height: 10, painted: true }, Rect { rect: (), width: 10, height: 10, painted: false }], mirror: true }
+</div>
+<p>But with <code>adjacent</code> they cannot interleave</p>
+<div class='bpaf-doc'>
+$ app --rect --rect --width 10 --painted --height 10 --height 10 --width 10<br>
+<b>Error:</b> expected <tt><b>--width</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Or have items that don’t belong to the group inside them</p>
+<div class='bpaf-doc'>
+$ app --rect --width 10 --mirror --painted --height 10 --rect --height 10 --width 10<br>
+<b>Error:</b> expected <tt><b>--height</b></tt>=<tt><i>PX</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">← Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_06_multi_flag/index.html" title="mod bpaf::_documentation::_3_cookbook::_06_multi_flag">Multi-value arguments with optional flags: <code>--foo ARG1 --flag --inner ARG2</code> →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

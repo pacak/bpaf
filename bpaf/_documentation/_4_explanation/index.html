@@ -1,0 +1,224 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_4_explanation - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _4_explanation</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _4_<wbr>explanation</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#theory-explanation" title="Theory explanation">Theory explanation</a></li><li><a href="#applicative-functors-category-theory-what-is-it-about" title="Applicative functors, Category Theory? What is it about?">Applicative functors, Category Theory? What is it about?</a><ul><li><a href="#category-theory" title="Category theory">Category theory</a></li><li><a href="#composition-and-decomposition" title="Composition and decomposition">Composition and decomposition</a></li><li><a href="#functors" title="Functors">Functors</a></li><li><a href="#applicative-functors" title="Applicative Functors">Applicative Functors</a></li><li><a href="#alternative-functors" title="Alternative Functors">Alternative Functors</a></li><li><a href="#parser-trait-and-construct-macro" title="`Parser` trait and `construct!` macro"><code>Parser</code> trait and <code>construct!</code> macro</a></li><li><a href="#so-why-use-applicative-functors-then" title="So why use `Applicative Functors` then?">So why use <code>Applicative Functors</code> then?</a></li><li><a href="#putting-the-values-into-a-context" title="Putting the values into a context">Putting the values into a context</a></li><li><a href="#taking-the-results-out" title="Taking the results out">Taking the results out</a></li></ul></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">bpaf</a>::<wbr><a href="../index.html">_documentation</a></div><h1>Module <span>_4_<wbr>explanation</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/bpaf/_documentation.rs.html#2916">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_3_cookbook/index.html" title="mod bpaf::_documentation::_3_cookbook">← Parsing cookbook</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation">↑ Project documentation ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+<h5 id="theory-explanation"><a class="doc-anchor" href="#theory-explanation">§</a>Theory explanation</h5>
+<p>Theoretical information about abstractions used by the library, oriented for understanding</p>
+<h2 id="applicative-functors-category-theory-what-is-it-about"><a class="doc-anchor" href="#applicative-functors-category-theory-what-is-it-about">§</a>Applicative functors, Category Theory? What is it about?</h2>
+<p>You don’t need to read/understand this chapter in order to use the library but it might
+help to understand what makes it tick.</p>
+<p><code>bpaf</code> uses ideas from functional proggramming, specifically Functor, Applicative and
+Alternative to create a composable interface. Exposed API and the fact that individual
+components obey certain laws ensures that any composition of parsers is valid even if it
+doesn’t make any sense.</p>
+<h3 id="category-theory"><a class="doc-anchor" href="#category-theory">§</a>Category theory</h3>
+<p>Category theory, also called Abstract Nonsense, is a general theory about mathematical
+structures and their relations. <em>Category</em> in CT constists of two sorts of abstractions:
+<em>objects</em> and <em>morphisms</em> along with some extra rules:</p>
+<ul>
+<li>objects don’t expose any information other than the name and only serve as start and end points for morphisms</li>
+<li>morphisms must compose with associative composition</li>
+<li>there must be an <em>identity morphism</em> for every object that maps the object to itself</li>
+</ul>
+<p>A simple example of a category would be a category where objects are Rust types (here: <code>u8</code> ..
+<code>u64</code>) and morphisms are functions between those types (here: <code>a</code>, <code>b</code> and <code>c</code>):</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>a(i: u8) -&gt; u16 {
+    <span class="number">3000 </span>+ i <span class="kw">as </span>u16
+}
+ 
+<span class="kw">fn </span>b(i: u16) -&gt; u32 {
+    <span class="number">40000 </span>+ i <span class="kw">as </span>u32
+}
+ 
+<span class="kw">fn </span>c(i: u32) -&gt; u64 {
+    <span class="number">40000 </span>+ i <span class="kw">as </span>u64
+}
+ 
+<span class="doccomment">/// Identity morphism
+</span><span class="kw">fn </span>id&lt;T&gt;(i: T) -&gt; T {
+    i
+}
+ 
+<span class="doccomment">/// morphism composition:
+/// `comp (a, comp(b, c))` gives the same results as `comp(comp(a, b), c)`
+</span><span class="kw">fn </span>comp&lt;F, G, A, B, C&gt;(f: F, g: G) -&gt; <span class="kw">impl </span>Fn(A) -&gt; C
+<span class="kw">where
+    </span>F: Fn(A) -&gt; B,
+    G: Fn(B) -&gt; C,
+{
+    <span class="kw">move </span>|i| g(f(i))
+}</code></pre></div><h3 id="composition-and-decomposition"><a class="doc-anchor" href="#composition-and-decomposition">§</a>Composition and decomposition</h3>
+<p>Decomposition is one of the keys to solving big problems - you break down big problem into a
+bunch of small problems, solve them separately and compose back a solution. Decomposition is
+not required by computers but makes it easier to think about a problem: magical number for
+human short term memory is 7 plus minus 2 objects. Category theory, studies relations and
+composition can be a valuable tool: after all decomposition only makes sense when you can
+combine components back into a solution. Imperative algorithms that operate in terms of
+mutating variables are harder decompose - individual pieces need to be aware of the variables,
+functional and declarative approaches make it easier: calculating a sum of all the numbers in a
+vector can be decomposed into running an iterator over it and applying <code>fold</code> to it: <code>fold</code>
+doesn’t need to know about iteration shape, iterator doesn’t need to know about how values are
+used.</p>
+<p>In category theory you are not allowed to look inside the objects at all and can distinguish
+between them only by means of the composition so as long as implemented API obeys the
+restrictions set by category theory - it should be very composable.</p>
+<h3 id="functors"><a class="doc-anchor" href="#functors">§</a>Functors</h3>
+<p>Let’s start by talking about what a <code>Functor</code> is. Wikipedia defines it as a “design pattern
+that allows for a generic type to apply a function inside without changing the structure of
+the generic type”. Sounds scary, but in Rust terms it’s a trait that takes a value or values
+in a container (or more general <em>value in a context</em> ) such as <code>Option&lt;A&gt;</code> and a function
+<code>fn(A) -&gt; B</code> and gives you <code>Option&lt;B&gt;</code> back.</p>
+<p>Closest analogy in a real code you can write in Rust right now would be modifying an <code>Option</code>
+using only <code>Option::map</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>plus_one(input: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    input.map(|i| i + <span class="number">1</span>)
+}
+ 
+<span class="kw">let </span>present = <span class="prelude-val">Some</span>(<span class="number">10</span>);
+<span class="kw">let </span>absent = <span class="prelude-val">None</span>;
+ 
+<span class="macro">assert_eq!</span>(plus_one(present), <span class="prelude-val">Some</span>(<span class="number">11</span>));
+<span class="macro">assert_eq!</span>(plus_one(absent), <span class="prelude-val">None</span>);</code></pre></div>
+<p><code>Vec</code>, <code>Result</code> and other types that implement <code>map</code> are <code>Functors</code> as well, but <code>Functor</code>
+is not limited just to containers - you don’t have to have a value inside to be able to
+manipulate it. In fact a regular rust function is also a <code>Functor</code> if you squint hard enough.
+Consider <code>Reader</code> that allows you to perform transformations on a <em>value in a context</em> <code>T</code>
+without having any value until it the execution time:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">struct </span>Reader&lt;T&gt;(Box&lt;<span class="kw">dyn </span>Fn(T) -&gt; T&gt;);
+<span class="kw">impl</span>&lt;T: <span class="lifetime">'static</span>&gt; Reader&lt;T&gt; {
+    <span class="doccomment">/// Initialize an new value in a context
+    </span><span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(Box::new(|x| x))
+    }
+ 
+    <span class="doccomment">/// Modify a value in a context
+    </span><span class="kw">fn </span>map&lt;F:  Fn(T) -&gt; T + <span class="lifetime">'static</span>&gt;(<span class="self">self</span>, f: F) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(Box::new(<span class="kw">move </span>|x| f((<span class="self">self</span>.<span class="number">0</span>)(x))))
+    }
+ 
+    <span class="doccomment">/// Apply the changes by giving it the initial value
+    </span><span class="kw">fn </span>run(<span class="self">self</span>, input: T) -&gt; T {
+        (<span class="self">self</span>.<span class="number">0</span>)(input)
+    }
+}
+ 
+<span class="kw">let </span>val = Reader::&lt;u32&gt;::new();
+<span class="kw">let </span>val = val.map(|x| x + <span class="number">1</span>);
+<span class="kw">let </span>res = val.run(<span class="number">10</span>);
+<span class="macro">assert_eq!</span>(res, <span class="number">11</span>);</code></pre></div>
+<p>Not all the collections are <code>Functors</code> - by <code>Functor</code> laws mapping the <em>value in context</em>
+shouldn’t change the shape so any collections where shape depends on a value, such as <code>HashSet</code>
+or <code>BTreeSet</code> are out.</p>
+<h3 id="applicative-functors"><a class="doc-anchor" href="#applicative-functors">§</a>Applicative Functors</h3>
+<p><code>map</code> in <code>Functor</code> is limited to a single <em>value in a context</em>, <code>Applicative Functor</code> extends it
+to operations combining multiple values, closest Rust analogy would be doing computations on
+<code>Option</code> or <code>Result</code> using only <code>?</code>, having <code>Some</code>/<code>Ok</code> around the whole expression and not using <code>return</code>.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>add_numbers(input_a: <span class="prelude-ty">Option</span>&lt;u32&gt;, input_b: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    <span class="prelude-val">Some</span>(input_a<span class="question-mark">? </span>+ input_b<span class="question-mark">?</span>)
+}
+ 
+<span class="kw">let </span>present_1 = <span class="prelude-val">Some</span>(<span class="number">10</span>);
+<span class="kw">let </span>present_2 = <span class="prelude-val">Some</span>(<span class="number">20</span>);
+<span class="kw">let </span>absent = <span class="prelude-val">None</span>;
+ 
+<span class="macro">assert_eq!</span>(add_numbers(present_1, present_2), <span class="prelude-val">Some</span>(<span class="number">30</span>));
+<span class="macro">assert_eq!</span>(add_numbers(present_1, absent), <span class="prelude-val">None</span>);
+<span class="macro">assert_eq!</span>(add_numbers(absent, absent), <span class="prelude-val">None</span>);</code></pre></div>
+<p>Similarly to <code>Functors</code>, <code>Applicative Functors</code> are not limited to containers and can
+represent <em>a value in an arbitrary context</em>.</p>
+<p><code>Try</code> trait (<code>?</code>) for <code>Option</code> and <code>Result</code> short circuits when it finds a missing value,
+but <code>Applicative Functors</code> in general don’t have to - in fact to implement dynamic completion
+<code>bpaf</code> needs to check items past the first failure point to collect all the possible
+completions.</p>
+<h3 id="alternative-functors"><a class="doc-anchor" href="#alternative-functors">§</a>Alternative Functors</h3>
+<p>So far <code>Applicative Functors</code> allow us to create structs containing multiple fields out of
+individual parsers for each field. <code>Alternative</code> extends <code>Applicative</code> with two extra
+things: one for combining two <em>values in a context</em> into one and and an idenity element
+for this operation. In Rust a closest analogy would be <code>Option::or</code> and <code>Option::None</code>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>pick_number(a: <span class="prelude-ty">Option</span>&lt;u32&gt;, b: <span class="prelude-ty">Option</span>&lt;u32&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;u32&gt; {
+    a.or(b)
+}
+ 
+<span class="kw">let </span>present_1 = <span class="prelude-val">Some</span>(<span class="number">10</span>);
+<span class="kw">let </span>present_2 = <span class="prelude-val">Some</span>(<span class="number">20</span>);
+<span class="kw">let </span>empty = <span class="prelude-val">None</span>;
+<span class="macro">assert_eq!</span>(pick_number(present_1, present_2), present_1);
+<span class="macro">assert_eq!</span>(pick_number(present_1, empty), present_1);
+<span class="macro">assert_eq!</span>(pick_number(empty, present_1), present_1);
+<span class="macro">assert_eq!</span>(pick_number(empty, empty), empty);</code></pre></div><h3 id="parser-trait-and-construct-macro"><a class="doc-anchor" href="#parser-trait-and-construct-macro">§</a><code>Parser</code> trait and <code>construct!</code> macro</h3>
+<p><a href="../../trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> trait defines a context for values and gives access to <code>Functor</code> laws and <a href="../../macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a>
+macro allows to compose several values according to <code>Applicative</code> and <code>Alternative</code> laws.</p>
+<h3 id="so-why-use-applicative-functors-then"><a class="doc-anchor" href="#so-why-use-applicative-functors-then">§</a>So why use <code>Applicative Functors</code> then?</h3>
+<p>As a user I want to be able to express requirements using full power of Rust algebraic
+datatypes: <code>struct</code> for product types and <code>enum</code> for sum types. To give an example -
+<code>cargo-show-asm</code> asks user to specify what to output - Intel or AT&amp;T asm, LLVM or Rust’s MIR
+and opts to represent it as one of four flags: <code>--intel</code>, <code>--att</code>, <code>--llvm</code> and <code>--mir</code>. While
+each flag can be though of a boolean value - present/absent - consuming it as an <code>enum</code> with four
+possible values is much more convenient compared to a struct-like thing that can have any
+combination of the flags inside:</p>
+<div class="example-wrap"><pre class="language-no_check"><code>/// Format selection as enum - program needs to deal with just one format
+enum Format {
+    Intel,
+    Att,
+    Llvm,
+    Mir
+}
+ 
+/// Format selection as struct - can represent any possible combination of formats
+struct Formats {
+    intel: bool,
+    att: bool,
+    llvm: bool,
+    mir: bool,
+}</code></pre></div>
+<p><code>Applicative</code> interface gives just enough power to compose simple parsers as an arbitrary tree
+ready for consumption.</p>
+<p>As a library author I need to be able to extract information from the tree constructed by user
+to generate <code>--help</code> information and do command line completion. As long as the tree uses only
+<code>Applicative</code> powers - it is possible to evaluate it without giving it any input.
+Adding <code>Monadic</code> powers (deciding what to parse next depending on the previous input) would
+make this impossible.</p>
+<p>So <code>Applicative Functors</code> sits right in the middle between what users want to express and
+library can consume.</p>
+<p>To recap - all sorts of Functors listed here only define laws to how individual parts are
+composed, how values in context can be transformed and how pure values can be turned into a
+functor, but not how the values are parsed or how they can be extracted.</p>
+<h3 id="putting-the-values-into-a-context"><a class="doc-anchor" href="#putting-the-values-into-a-context">§</a>Putting the values into a context</h3>
+<p>Similarly to how <code>Reader</code> defined above <code>bpaf</code>’s <code>Parsers</code> don’t actually have values inside
+until they are executed. Instead starting points (<a href="../../params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a>, <a href="../../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a>,
+<a href="../../params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a>, etc) define what exactly needs to be consumed, various mapping
+functions define transformations, <a href="../../macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a> composes them and defines the relative order
+values should be consumed. Not everything present inside <a href="../../trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> can be repesented in terms
+of plain applicative functors - specifically <a href="../../trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>parse</code></a> is not and it is best
+though of as a function that takes one applicative and gives a different applicative back.
+The actual values will show up inside once <code>bpaf</code> starts running the <a href="../../struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> with
+<a href="../../struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a>.</p>
+<h3 id="taking-the-results-out"><a class="doc-anchor" href="#taking-the-results-out">§</a>Taking the results out</h3>
+<p>The rest of the execution is relatively simple: getting console arguments from OS, doing the
+initial split into short/long flags and standalone words, disambiguating groups of short
+options from short options with attached values and applying all the transformations like
+<code>Reader::run</code> above would do.</p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_3_cookbook/index.html" title="mod bpaf::_documentation::_3_cookbook">← Parsing cookbook</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation">↑ Project documentation ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

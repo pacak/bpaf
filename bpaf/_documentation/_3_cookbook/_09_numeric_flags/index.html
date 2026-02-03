@@ -1,0 +1,51 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_09_numeric_flags - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _09_numeric_flags</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _09_<wbr>numeric_<wbr>flags</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#numeric-flags---compression-levels-like-in-zip" title="Numeric flags - compression levels like in zip">Numeric flags - compression levels like in zip</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_09_<wbr>numeric_<wbr>flags</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2844">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_08_cargo_helper/index.html" title="mod bpaf::_documentation::_3_cookbook::_08_cargo_helper">← Implementing cargo commands</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+<h5 id="numeric-flags---compression-levels-like-in-zip"><a class="doc-anchor" href="#numeric-flags---compression-levels-like-in-zip">§</a>Numeric flags - compression levels like in zip</h5>
+<p>While you can add flags in a usual way for compression levels using <code>short(1)</code>, <code>short(2)</code>, etc
+combined with <code>req_flag</code>, you can also parse all of then using <a href="../../../fn.any.html" title="fn bpaf::any"><code>any</code></a></p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::{doc::Style, <span class="kw-2">*</span>};
+ 
+<span class="kw">fn </span>compression() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    any::&lt;isize, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">"COMP"</span>, |x: isize| {
+        <span class="kw">if </span>(-<span class="number">9</span>..=-<span class="number">1</span>).contains(<span class="kw-2">&amp;</span>x) {
+            <span class="prelude-val">Some</span>(x.abs().try_into().unwrap())
+        } <span class="kw">else </span>{
+            <span class="prelude-val">None
+        </span>}
+    })
+    .metavar(<span class="kw-2">&amp;</span>[
+        (<span class="string">"-1"</span>, Style::Literal),
+        (<span class="string">" to "</span>, Style::Text),
+        (<span class="string">"-9"</span>, Style::Literal),
+    ])
+    .help(<span class="string">"Compression level"</span>)
+    .anywhere()
+}
+ 
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>opts = compression().to_options().run();
+ 
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, opts);
+}</code></pre></div>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_08_cargo_helper/index.html" title="mod bpaf::_documentation::_3_cookbook::_08_cargo_helper">← Implementing cargo commands</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

@@ -1,0 +1,29 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Pick last passed value between two different flags"><title>toggle_flag in bpaf::batteries - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">toggle_flag</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">toggle_<wbr>flag</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#example" title="Example">Example</a></li><li><a href="#usage" title="Usage">Usage</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="index.html">In bpaf::<wbr>batteries</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">bpaf</a>::<wbr><a href="index.html">batteries</a></div><h1>Function <span class="fn">toggle_<wbr>flag</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/bpaf/batteries.rs.html#128-137">Source</a> </span></div><pre class="rust item-decl"><code>pub fn toggle_flag&lt;T: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Copy.html" title="trait core::marker::Copy">Copy</a> + 'static&gt;(
+    a: <a class="struct" href="../params/struct.NamedArg.html" title="struct bpaf::params::NamedArg">NamedArg</a>,
+    val_a: T,
+    b: <a class="struct" href="../params/struct.NamedArg.html" title="struct bpaf::params::NamedArg">NamedArg</a>,
+    val_b: T,
+) -&gt; impl <a class="trait" href="../trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;<a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;T&gt;&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Pick last passed value between two different flags</p>
+<p>Usually <code>bpaf</code> only allows to parse a single instance for every invocation unless
+you specify <a href="../trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a> or <a href="../trait.Parser.html#method.some" title="method bpaf::Parser::some"><code>some</code></a>. <code>toggle_flag</code> would consume
+multiple instances of two different flags and returns last specified value.</p>
+<p>This function relies on a fact that selection between two different parsers prefers left most
+value. This helps to preserve relative order of parsrs.
+You can use similar approach to combine multiple flags accounting for their relative order.</p>
+<p>Parser returns <code>Optional&lt;T&gt;</code> value, you can add a fallback with <a href="../trait.Parser.html#method.map" title="method bpaf::Parser::map"><code>map</code></a> or turn
+missing value info failure with a custom error message with <a href="../trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>parse</code></a>.</p>
+<h2 id="example"><a class="doc-anchor" href="#example">§</a>Example</h2><div class="example-wrap"><pre class="language-console"><code>$ app --banana --no-banana --banana --banana
+Some(Banana)
+$ app
+None</code></pre></div><h2 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h2>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::batteries::toggle_flag;
+
+<span class="attr">#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+</span><span class="kw">enum </span>Select {
+    Banana,
+    NoBanana,
+}
+
+<span class="kw">fn </span>pick() -&gt; <span class="kw">impl </span>Parser&lt;<span class="prelude-ty">Option</span>&lt;Select&gt;&gt; {
+    toggle_flag(long(<span class="string">"banana"</span>), Select::Banana, long(<span class="string">"no-banana"</span>), Select::NoBanana)
+}</code></pre></div></div></details></section></div></main></body></html>

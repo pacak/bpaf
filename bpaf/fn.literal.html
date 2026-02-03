@@ -1,0 +1,203 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="A specialized version of `any` that consumes an arbitrary string"><title>literal in bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">literal</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">literal</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#see-also" title="See also">See also</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate bpaf</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bpaf</a></div><h1>Function <span class="fn">literal</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/lib.rs.html#1489-1492">Source</a> </span></div><pre class="rust item-decl"><code>pub fn literal(val: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="params/struct.ParseAny.html" title="struct bpaf::params::ParseAny">ParseAny</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.unit.html">()</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>A specialized version of <a href="fn.any.html" title="fn bpaf::any"><code>any</code></a> that consumes an arbitrary string</p>
+<p>By default <code>literal</code> behaves similarly to <a href="fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> so you should be using it near the
+rightmost end of the consumer struct and it will only try to parse the first unconsumed
+item on the command line. It is possible to lift this restriction by calling
+<a href="params/struct.ParseAny.html#method.anywhere" title="method bpaf::params::ParseAny::anywhere"><code>anywhere</code></a> on the parser.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    block_size: usize,
+    count: usize,
+    output_file: String,
+    turbo: bool,
+}
+
+<span class="doccomment">/// Parses a string that starts with `name`, returns the suffix parsed in a usual way
+</span><span class="kw">fn </span>tag&lt;T&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, meta: <span class="kw-2">&amp;</span>str, help: <span class="kw">impl </span>Into&lt;Doc&gt;) -&gt; <span class="kw">impl </span>Parser&lt;T&gt;
+<span class="kw">where
+    </span>T: FromStr,
+    &lt;T <span class="kw">as </span>FromStr&gt;::Err: std::fmt::Display,
+{
+    <span class="comment">// closure inside checks if command line argument starts with a given name
+    // and if it is - it accepts it, otherwise it behaves like it never saw it
+    // it is possible to parse OsString here and strip the prefix with
+    // `os_str_bytes` or a similar crate
+    </span>any(<span class="string">""</span>, <span class="kw">move </span>|s: String| <span class="prelude-val">Some</span>(s.strip_prefix(name)<span class="question-mark">?</span>.to_owned()))
+        <span class="comment">// this defines custom metavar for the help message
+        // so it looks like something it designed to parse
+        </span>.metavar(<span class="kw-2">&amp;</span>[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        <span class="comment">// this makes it so tag parser tries to read all (unconsumed by earlier parsers)
+        // item on a command line instead of trying and failing on the first one
+        </span>.anywhere()
+        <span class="comment">// At this point parser produces `String` while consumer might expect some other
+        // type. [`parse`](Parser::parse) handles that
+        </span>.parse(|s| s.parse())
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>block_size = tag(<span class="string">"bs="</span>, <span class="string">"BLOCK"</span>, <span class="string">"How many bytes to read at once"</span>)
+        .fallback(<span class="number">1024</span>)
+        .display_fallback();
+    <span class="kw">let </span>count = tag(<span class="string">"count="</span>, <span class="string">"NUM"</span>, <span class="string">"How many blocks to read"</span>).fallback(<span class="number">1</span>);
+    <span class="kw">let </span>output_file = tag(<span class="string">"of="</span>, <span class="string">"FILE"</span>, <span class="string">"Save results into this file"</span>);
+
+    <span class="comment">// this consumes literal value of "+turbo" locate and produces `bool`
+    </span><span class="kw">let </span>turbo = literal(<span class="string">"+turbo"</span>)
+        .help(<span class="string">"Engage turbo mode!"</span>)
+        .anywhere()
+        .map(|<span class="kw">_</span>| <span class="bool-val">true</span>)
+        .fallback(<span class="bool-val">false</span>);
+
+    <span class="macro">construct!</span>(Options {
+        block_size,
+        count,
+        output_file,
+        turbo
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// This example is still technically derive API, but derive is limited to gluing
+// things together and keeping macro complexity under control.
+</span><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="comment">// `external` here and below derives name from the field name, looking for
+    // functions called `block_size`, `count`, etc that produce parsers of
+    // the right type.
+    // A different way would be to write down the name explicitly:
+    // #[bpaf(external(block_size), fallback(1024), display_fallback)]
+    </span><span class="attr">#[bpaf(external, fallback(<span class="number">1024</span>), display_fallback)]
+    </span>block_size: usize,
+    <span class="attr">#[bpaf(external, fallback(<span class="number">1</span>))]
+    </span>count: usize,
+    <span class="attr">#[bpaf(external)]
+    </span>output_file: String,
+    <span class="attr">#[bpaf(external)]
+    </span>turbo: bool,
+}
+
+<span class="kw">fn </span>block_size() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    tag(<span class="string">"bs="</span>, <span class="string">"BLOCK"</span>, <span class="string">"How many bytes to read at once"</span>)
+}
+
+<span class="kw">fn </span>count() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    tag(<span class="string">"count="</span>, <span class="string">"NUM"</span>, <span class="string">"How many blocks to read"</span>)
+}
+
+<span class="kw">fn </span>output_file() -&gt; <span class="kw">impl </span>Parser&lt;String&gt; {
+    tag(<span class="string">"of="</span>, <span class="string">"FILE"</span>, <span class="string">"Save results into this file"</span>)
+}
+
+<span class="kw">fn </span>turbo() -&gt; <span class="kw">impl </span>Parser&lt;bool&gt; {
+    literal(<span class="string">"+turbo"</span>)
+        .help(<span class="string">"Engage turbo mode!"</span>)
+        .anywhere()
+        .map(|<span class="kw">_</span>| <span class="bool-val">true</span>)
+        .fallback(<span class="bool-val">false</span>)
+}
+
+<span class="doccomment">/// Parses a string that starts with `name`, returns the suffix parsed in a usual way
+</span><span class="kw">fn </span>tag&lt;T&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, meta: <span class="kw-2">&amp;</span>str, help: <span class="kw">impl </span>Into&lt;Doc&gt;) -&gt; <span class="kw">impl </span>Parser&lt;T&gt;
+<span class="kw">where
+    </span>T: FromStr,
+    &lt;T <span class="kw">as </span>FromStr&gt;::Err: std::fmt::Display,
+{
+    <span class="comment">// closure inside checks if command line argument starts with a given name
+    // and if it is - it accepts it, otherwise it behaves like it never saw it
+    // it is possible to parse OsString here and strip the prefix with
+    // `os_str_bytes` or a similar crate
+    </span>any(<span class="string">""</span>, <span class="kw">move </span>|s: String| <span class="prelude-val">Some</span>(s.strip_prefix(name)<span class="question-mark">?</span>.to_owned()))
+        <span class="comment">// this defines custom metavar for the help message
+        // so it looks like something it designed to parse
+        </span>.metavar(<span class="kw-2">&amp;</span>[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        <span class="comment">// this makes it so tag parser tries to read all (unconsumed by earlier parsers)
+        // item on a command line instead of trying and failing on the first one
+        </span>.anywhere()
+        <span class="comment">// At this point parser produces `String` while consumer might expect some other
+        // type. [`parse`](Parser::parse) handles that
+        </span>.parse(|s| s.parse())
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Instead of usual metavariable <code>any</code> parsers take something that can represent any value</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>bs=</b></tt><tt><i>BLOCK</i></tt>] [<tt><b>count=</b></tt><tt><i>NUM</i></tt>] <tt><b>of=</b></tt><tt><i>FILE</i></tt> [<tt><b>+turbo</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>bs=</b></tt><tt><i>BLOCK</i></tt></dt>
+<dd>How many bytes to read at once</dd>
+<dt></dt>
+<dd>[default: 1024]</dd>
+<dt><tt><b>count=</b></tt><tt><i>NUM</i></tt></dt>
+<dd>How many blocks to read</dd>
+<dt><tt><b>of=</b></tt><tt><i>FILE</i></tt></dt>
+<dd>Save results into this file</dd>
+<dt><tt><b>+turbo</b></tt></dt>
+<dd>Engage turbo mode!</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Output file is required in this parser, other values are optional</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>of=</b></tt><tt><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app of=simple.txt<br>
+Options { block_size: 1024, count: 1, output_file: "simple.txt", turbo: false }
+</div>
+<p>Since options are defined with <code>anywhere</code> - order doesn’t matter</p>
+<div class='bpaf-doc'>
+$ app bs=10 of=output.rs +turbo<br>
+Options { block_size: 10, count: 1, output_file: "output.rs", turbo: true }
+</div>
+<div class='bpaf-doc'>
+$ app +turbo bs=10 of=output.rs<br>
+Options { block_size: 10, count: 1, output_file: "output.rs", turbo: true }
+</div>
+<div class='bpaf-doc'>
+$ app bs=65536 count=12 of=hello_world.rs<br>
+Options { block_size: 65536, count: 12, output_file: "hello_world.rs", turbo: false }
+</div>
+</details>
+<h2 id="see-also"><a class="doc-anchor" href="#see-also">§</a>See also</h2>
+<p><a href="fn.any.html" title="fn bpaf::any"><code>any</code></a> - a generic version of <code>literal</code> that uses function to decide if value is to be parsed
+or not.</p>
+</div></details></section></div></main></body></html>

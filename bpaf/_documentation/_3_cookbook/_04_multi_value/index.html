@@ -1,0 +1,161 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_04_multi_value - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _04_multi_value</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _04_<wbr>multi_<wbr>value</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#multi-value-arguments---foo-arg1-arg2-arg3" title="Multi-value arguments: `--foo ARG1 ARG2 ARG3`">Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code></a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_04_<wbr>multi_<wbr>value</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2572">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">← Command chaining</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code> →</a></p>
+  </td>
+</tr></table>
+<h5 id="multi-value-arguments---foo-arg1-arg2-arg3"><a class="doc-anchor" href="#multi-value-arguments---foo-arg1-arg2-arg3">§</a>Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code></h5>
+<p>By default arguments take at most one value, you can create multi value options by using
+<a href="../../../parsers/struct.ParseCon.html#method.adjacent" title="method bpaf::parsers::ParseCon::adjacent"><code>adjacent</code></a> modifier</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    point: Vec&lt;Point&gt;,
+    rotate: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">struct </span>Point {
+    point: (),
+    x: usize,
+    y: usize,
+    z: f64,
+}
+
+<span class="kw">fn </span>point() -&gt; <span class="kw">impl </span>Parser&lt;Point&gt; {
+    <span class="kw">let </span>point = short(<span class="string">'p'</span>)
+        .long(<span class="string">"point"</span>)
+        .help(<span class="string">"Point coordinates"</span>)
+        .req_flag(());
+    <span class="kw">let </span>x = positional::&lt;usize&gt;(<span class="string">"X"</span>).help(<span class="string">"X coordinate of a point"</span>);
+    <span class="kw">let </span>y = positional::&lt;usize&gt;(<span class="string">"Y"</span>).help(<span class="string">"Y coordinate of a point"</span>);
+    <span class="kw">let </span>z = positional::&lt;f64&gt;(<span class="string">"Z"</span>).help(<span class="string">"Height of a point above the plane"</span>);
+    <span class="macro">construct!</span>(Point { point, x, y, z }).adjacent()
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>rotate = short(<span class="string">'r'</span>)
+        .long(<span class="string">"rotate"</span>)
+        .help(<span class="string">"Face the camera towards the first point"</span>)
+        .switch();
+    <span class="kw">let </span>point = point().many();
+    <span class="macro">construct!</span>(Options { point, rotate }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(external, many)]
+    </span>point: Vec&lt;Point&gt;,
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Face the camera towards the first point
+    </span>rotate: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(adjacent)]
+</span><span class="kw">struct </span>Point {
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Point coordinates
+    </span>point: (),
+    <span class="attr">#[bpaf(positional(<span class="string">"X"</span>))]
+    </span><span class="doccomment">/// X coordinate of a point
+    </span>x: usize,
+    <span class="attr">#[bpaf(positional(<span class="string">"Y"</span>))]
+    </span><span class="doccomment">/// Y coordinate of a point
+    </span>y: usize,
+    <span class="attr">#[bpaf(positional(<span class="string">"Z"</span>))]
+    </span><span class="doccomment">/// Height of a point above the plane
+    </span>z: f64,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Fields can have different types, including <code>Option</code> or <code>Vec</code>, in this example they are two
+<code>usize</code> and one <code>f64</code>.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt> <tt><i>X</i></tt> <tt><i>Y</i></tt> <tt><i>Z</i></tt>]... [<tt><b>-r</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-p</b></tt> <tt><i>X</i></tt> <tt><i>Y</i></tt> <tt><i>Z</i></tt></div><dt><tt><b>-p</b></tt>, <tt><b>--point</b></tt></dt>
+<dd>Point coordinates</dd>
+<dt><tt><i>X</i></tt></dt>
+<dd>X coordinate of a point</dd>
+<dt><tt><i>Y</i></tt></dt>
+<dd>Y coordinate of a point</dd>
+<dt><tt><i>Z</i></tt></dt>
+<dd>Height of a point above the plane</dd>
+<p></p><dt><tt><b>-r</b></tt>, <tt><b>--rotate</b></tt></dt>
+<dd>Face the camera towards the first point</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>flag <code>--point</code> takes 3 positional arguments: two integers for X and Y coordinates and one floating point for height, order is
+important, switch <code>--rotate</code> can go on either side of it</p>
+<div class='bpaf-doc'>
+$ app --rotate --point 10 20 3.1415<br>
+Options { point: [Point { point: (), x: 10, y: 20, z: 3.1415 }], rotate: true }
+</div>
+<p>parser accepts multiple points, they must not interleave</p>
+<div class='bpaf-doc'>
+$ app --point 10 20 3.1415 --point 1 2 0.0<br>
+Options { point: [Point { point: (), x: 10, y: 20, z: 3.1415 }, Point { point: (), x: 1, y: 2, z: 0.0 }], rotate: false }
+</div>
+<p><code>--rotate</code> can’t go in the middle of the point definition as the parser expects the second item</p>
+<div class='bpaf-doc'>
+$ app --point 10 20 --rotate 3.1415<br>
+<b>Error:</b> expected <tt><i>Z</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">← Command chaining</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code> →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

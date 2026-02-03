@@ -1,0 +1,88 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Choose between several parsers specified at runtime"><title>choice in bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc fn"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">choice</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bpaf</a></div><h1>Function <span class="fn">choice</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/lib.rs.html#1515-1525">Source</a> </span></div><pre class="rust item-decl"><code>pub fn choice&lt;T: 'static&gt;(
+    parsers: impl <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.IntoIterator.html" title="trait core::iter::traits::collect::IntoIterator">IntoIterator</a>&lt;Item = <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;&gt;,
+) -&gt; impl <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Choose between several parsers specified at runtime</p>
+<p>You can use this function to create multiple parsers that produce the same type of value at a runtime
+and let bpaf to pick one that best fits best. This function is designed to work in Combinatoric
+API, but you can use it in Derive API with <code>extern</code>.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    desert: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>desert = [<span class="string">"apple"</span>, <span class="string">"banana"</span>, <span class="string">"orange"</span>, <span class="string">"grape"</span>, <span class="string">"strawberry"</span>]
+        .iter()
+        .map(|name| {
+            long(name)
+                .help(<span class="string">"Pick one of the options"</span>)
+                .req_flag(<span class="kw-2">*</span>name)
+                .boxed()
+        });
+    <span class="kw">let </span>desert = choice(desert).optional();
+    <span class="macro">construct!</span>(Options { desert }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>Here <a href="fn.choice.html" title="fn bpaf::choice"><code>choice</code></a> function is used to create an option for each possible desert item</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--apple</b></tt> | <tt><b>--banana</b></tt> | <tt><b>--orange</b></tt> | <tt><b>--grape</b></tt> | <tt><b>--strawberry</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --apple</b></tt></dt>
+<dd>Pick one of the options</dd>
+<dt><tt><b>    --banana</b></tt></dt>
+<dd>Pick one of the options</dd>
+<dt><tt><b>    --orange</b></tt></dt>
+<dd>Pick one of the options</dd>
+<dt><tt><b>    --grape</b></tt></dt>
+<dd>Pick one of the options</dd>
+<dt><tt><b>    --strawberry</b></tt></dt>
+<dd>Pick one of the options</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>User can pick any item</p>
+<div class='bpaf-doc'>
+$ app --apple<br>
+Options { desert: Some("apple") }
+</div>
+<p>Since parser consumes only one value you can’t specify multiple flags of the same type</p>
+<div class='bpaf-doc'>
+$ app --orange --grape<br>
+<b>Error:</b> <tt><b>--grape</b></tt> cannot be used at the same time as <tt><b>--orange</b></tt>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And <a href="trait.Parser.html#method.optional" title="method bpaf::Parser::optional"><code>Parser::optional</code></a> makes it so when value is not specified - <code>None</code> is produced instead</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { desert: None }
+</div>
+</details></div></details></section></div></main></body></html>

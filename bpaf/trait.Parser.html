@@ -1,0 +1,2532 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Simple or composed argument parser"><title>Parser in bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc trait"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Parser</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Parser</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#overview" title="Overview">Overview</a></li><li><a href="#derive-specific-considerations" title="Derive specific considerations">Derive specific considerations</a></li></ul><h3><a href="#provided-methods">Provided Methods</a></h3><ul class="block"><li><a href="#method.boxed" title="boxed">boxed</a></li><li><a href="#method.collect" title="collect">collect</a></li><li><a href="#method.complete" title="complete">complete</a></li><li><a href="#method.complete_shell" title="complete_shell">complete_shell</a></li><li><a href="#method.count" title="count">count</a></li><li><a href="#method.custom_usage" title="custom_usage">custom_usage</a></li><li><a href="#method.fallback" title="fallback">fallback</a></li><li><a href="#method.fallback_with" title="fallback_with">fallback_with</a></li><li><a href="#method.group_help" title="group_help">group_help</a></li><li><a href="#method.guard" title="guard">guard</a></li><li><a href="#method.hide" title="hide">hide</a></li><li><a href="#method.hide_usage" title="hide_usage">hide_usage</a></li><li><a href="#method.last" title="last">last</a></li><li><a href="#method.many" title="many">many</a></li><li><a href="#method.map" title="map">map</a></li><li><a href="#method.optional" title="optional">optional</a></li><li><a href="#method.parse" title="parse">parse</a></li><li><a href="#method.run" title="run">run</a></li><li><a href="#method.some" title="some">some</a></li><li><a href="#method.to_options" title="to_options">to_options</a></li><li><a href="#method.with_group_help" title="with_group_help">with_group_help</a></li></ul><h3><a href="#foreign-impls">Implementations on Foreign Types</a></h3><ul class="block"><li><a href="#impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E" title="Box&#60;dyn Parser&#60;T&#62;&#62;">Box&#60;dyn Parser&#60;T&#62;&#62;</a></li></ul><h3><a href="#trait-implementations">Trait Implementations</a></h3><ul class="block trait-implementation"><li><a href="#impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E" title="Parser&#60;T&#62;">Parser&#60;T&#62;</a></li></ul><h3><a href="#implementors">Implementors</a></h3></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate bpaf</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bpaf</a></div><h1>Trait <span class="trait">Parser</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/lib.rs.html#585-1225">Source</a> </span></div><pre class="rust item-decl"><code>pub trait Parser&lt;T&gt; {
+<details class="toggle type-contents-toggle"><summary class="hideme"><span>Show 21 methods</span></summary>    // Provided methods
+    fn <a href="#method.many" class="fn">many</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseMany.html" title="struct bpaf::parsers::ParseMany">ParseMany</a>&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.collect" class="fn">collect</a>&lt;C&gt;(self) -&gt; <a class="struct" href="parsers/struct.ParseCollect.html" title="struct bpaf::parsers::ParseCollect">ParseCollect</a>&lt;Self, C, T&gt;
+       <span class="where">where C: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator">FromIterator</a>&lt;T&gt;,
+             Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.some" class="fn">some</a>(self, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="parsers/struct.ParseSome.html" title="struct bpaf::parsers::ParseSome">ParseSome</a>&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.optional" class="fn">optional</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseOptional.html" title="struct bpaf::parsers::ParseOptional">ParseOptional</a>&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.count" class="fn">count</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseCount.html" title="struct bpaf::parsers::ParseCount">ParseCount</a>&lt;Self, T&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.last" class="fn">last</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseLast.html" title="struct bpaf::parsers::ParseLast">ParseLast</a>&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.parse" class="fn">parse</a>&lt;F, R, E&gt;(self, f: F) -&gt; ParseWith&lt;T, Self, F, E, R&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;R, E&gt;,
+             E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.map" class="fn">map</a>&lt;F, R&gt;(self, map: F) -&gt; ParseMap&lt;T, Self, F, R&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; R + 'static</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.guard" class="fn">guard</a>&lt;F&gt;(self, check: F, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; ParseGuard&lt;Self, F&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.bool.html">bool</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.fallback" class="fn">fallback</a>(self, value: T) -&gt; <a class="struct" href="parsers/struct.ParseFallback.html" title="struct bpaf::parsers::ParseFallback">ParseFallback</a>&lt;Self, T&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.fallback_with" class="fn">fallback_with</a>&lt;F, E&gt;(
+        self,
+        fallback: F,
+    ) -&gt; <a class="struct" href="parsers/struct.ParseFallbackWith.html" title="struct bpaf::parsers::ParseFallbackWith">ParseFallbackWith</a>&lt;T, Self, F, E&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,
+             E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.hide" class="fn">hide</a>(self) -&gt; ParseHide&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.hide_usage" class="fn">hide_usage</a>(self) -&gt; ParseUsage&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.custom_usage" class="fn">custom_usage</a>&lt;M&gt;(self, usage: M) -&gt; ParseUsage&lt;Self&gt;
+       <span class="where">where M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;,
+             Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.group_help" class="fn">group_help</a>&lt;M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, message: M) -&gt; ParseGroupHelp&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.with_group_help" class="fn">with_group_help</a>&lt;F&gt;(self, f: F) -&gt; ParseWithGroupHelp&lt;Self, F&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="struct" href="doc/struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo">MetaInfo</a>&lt;'_&gt;) -&gt; <a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a></span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.complete" class="fn">complete</a>&lt;M, F&gt;(self, op: F) -&gt; ParseComp&lt;Self, F&gt;
+       <span class="where">where M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;,
+             F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(M, <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;M&gt;)&gt;,
+             Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.complete_shell" class="fn">complete_shell</a>(self, op: <a class="enum" href="enum.ShellComp.html" title="enum bpaf::ShellComp">ShellComp</a>) -&gt; <a class="struct" href="parsers/struct.ParseCompShell.html" title="struct bpaf::parsers::ParseCompShell">ParseCompShell</a>&lt;Self&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.to_options" class="fn">to_options</a>(self) -&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.run" class="fn">run</a>(self) -&gt; T
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static</span> { ... }
+<span class="item-spacer"></span>    fn <a href="#method.boxed" class="fn">boxed</a>(self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;
+       <span class="where">where Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static</span> { ... }
+</details>}</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Simple or composed argument parser</p>
+<h2 id="overview"><a class="doc-anchor" href="#overview">§</a>Overview</h2>
+<p>It’s best to think of an object implementing <a href="trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> trait as a container with a value
+inside that is composable with other <code>Parser</code> containers using <a href="macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a> and the only
+way to extract this value is by transforming it to <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> with
+<a href="trait.Parser.html#method.to_options" title="method bpaf::Parser::to_options"><code>to_options</code></a> and running it with <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a>. At which
+point you either get your value out or <code>bpaf</code> would generate a message describing a problem
+(missing argument, validation failure, user requested help, etc) and the program would
+exit.</p>
+<p>Values inside can be of any type for as long as they implement <code>Debug</code>, <code>Clone</code> and
+there are no lifetimes other than static.</p>
+<p>When consuming the values you can jump straight to a value that implements
+<a href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr"><code>FromStr</code></a> trait and then transform it into something that your program would use. Alternatively,
+you can consume either <code>String</code> or <code>OsString</code> and parse that by hand. It’s better to perform
+as much parsing and validation inside the <code>Parser</code> as possible so the program itself gets
+strictly typed and correct value while the user gets immediate feedback on what’s wrong with the
+arguments they pass.</p>
+<p>Order of operations matters, each subsequent parser gets the output of the earlier one. Both
+parsers <code>a</code> and <code>b</code> would consume multiple numeric values, each less than 10, but <code>a</code>
+validates a single value and then consumes multiple of them already validated, while <code>b</code> first
+consumes and then performs validation. The former approach is usually more readable.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>a = short(<span class="string">'a'</span>).argument::&lt;usize&gt;(<span class="string">"N"</span>)
+    .guard(|<span class="kw-2">&amp;</span>a| a &lt; <span class="number">10</span>, <span class="string">"`a` must be below 10"</span>)
+    .many();
+<span class="kw">let </span>b = short(<span class="string">'b'</span>).argument::&lt;usize&gt;(<span class="string">"N"</span>)
+    .many()
+    .guard(|bs| bs.iter().all(|<span class="kw-2">&amp;</span>b| b &lt; <span class="number">10</span>), <span class="string">"`b` must be below 10"</span>);</code></pre></div>
+<p>The same logic applies to derive API - the current type depends on the order of annotations:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Bpaf, Debug, Clone)]
+</span><span class="kw">struct </span>Simple {
+    <span class="attr">#[bpaf(argument(<span class="string">"N"</span>), guard(less_than_10, <span class="string">"`a` must be below 10"</span>), many)]
+    </span>a: Vec&lt;usize&gt;,
+    <span class="attr">#[bpaf(argument(<span class="string">"N"</span>), many, guard(all_less_than_10, <span class="string">"`b` must be below 10"</span>))]
+    </span>b: Vec&lt;usize&gt;,
+}</code></pre></div>
+<p>For example suppose your program needs the user to specify dimensions of a rectangle, with sides
+being 1..20 units long and the total area must not exceed 200 units square. A parser that
+consumes it might look like this:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Copy, Clone)]
+</span><span class="kw">struct </span>Rectangle {
+    width: u32,
+    height: u32,
+}
+
+<span class="kw">fn </span>rectangle() -&gt; <span class="kw">impl </span>Parser&lt;Rectangle&gt; {
+    <span class="kw">let </span>invalid_size = <span class="string">"Sides of a rectangle must be 1..20 units long"</span>;
+    <span class="kw">let </span>invalid_area = <span class="string">"Area of a rectangle must not exceed 200 units square"</span>;
+    <span class="kw">let </span>width = long(<span class="string">"width"</span>)
+        .help(<span class="string">"Width of the rectangle"</span>)
+        .argument::&lt;u32&gt;(<span class="string">"PX"</span>)
+        .guard(|<span class="kw-2">&amp;</span>x| <span class="number">1 </span>&lt;= x &amp;&amp; x &lt;= <span class="number">10</span>, invalid_size);
+    <span class="kw">let </span>height = long(<span class="string">"height"</span>)
+        .help(<span class="string">"Height of the rectangle"</span>)
+        .argument::&lt;u32&gt;(<span class="string">"PX"</span>)
+        .guard(|<span class="kw-2">&amp;</span>x| <span class="number">1 </span>&lt;= x &amp;&amp; x &lt;= <span class="number">10</span>, invalid_size);
+    <span class="macro">construct!</span>(Rectangle { width, height })
+        .guard(|<span class="kw-2">&amp;</span>r| r.width * r.height &lt;= <span class="number">400</span>, invalid_area)
+}</code></pre></div><h2 id="derive-specific-considerations"><a class="doc-anchor" href="#derive-specific-considerations">§</a>Derive specific considerations</h2>
+<p>Every method defined on this trait belongs to the <code>postprocessing</code> section of the field
+annotation. <code>bpaf</code> would try to figure out what chain to use for as long as there are no
+options changing the type: you can use <a href="trait.Parser.html#method.fallback_with" title="method bpaf::Parser::fallback_with"><code>fallback</code></a>,
+<a href="trait.Parser.html#method.fallback_with" title="method bpaf::Parser::fallback_with"><code>fallback_with</code></a>, <a href="trait.Parser.html#method.guard" title="method bpaf::Parser::guard"><code>guard</code></a>, <a href="trait.Parser.html#method.hide" title="method bpaf::Parser::hide"><code>hide</code></a> and
+<a href="trait.Parser.html#method.group_help" title="method bpaf::Parser::group_help"><code>group_help</code></a> but not the rest of them.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">struct </span>Options {
+    <span class="comment">// no annotation at all - `bpaf` inserts implicit `argument` and gets the right type
+    </span>number_1: u32,
+
+    <span class="comment">// fallback isn't changing the type so `bpaf` still handles it
+    </span><span class="attr">#[bpaf(fallback(<span class="number">42</span>))]
+    </span>number_2: u32,
+
+    <span class="comment">// `bpaf` inserts implicit `argument`, `optional` and the right type
+    </span>number_3: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+
+    <span class="comment">// fails to compile: you need to specify `argument`
+    // #[bpaf(optional)]
+    // number_4: Option&lt;u32&gt;,
+
+    </span><span class="attr">#[bpaf(argument(<span class="string">"N"</span>), optional)]
+    </span>number_5: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+
+    <span class="comment">// explicit consumer and a full postprocessing chain
+    </span><span class="attr">#[bpaf(argument::&lt;u32&gt;(<span class="string">"N"</span>), optional)]
+    </span>number_6: <span class="prelude-ty">Option</span>&lt;u32&gt;,
+}</code></pre></div></div></details><h2 id="provided-methods" class="section-header">Provided Methods<a href="#provided-methods" class="anchor">§</a></h2><div class="methods"><details class="toggle method-toggle" open><summary><section id="method.many" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#623-631">Source</a><h4 class="code-header">fn <a href="#method.many" class="fn">many</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseMany.html" title="struct bpaf::parsers::ParseMany">ParseMany</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Consume zero or more items from a command line and collect them into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a></p>
+<p><code>many</code> preserves any parsing failures and propagates them outwards, with an extra
+<a href="parsers/struct.ParseMany.html#method.catch" title="method bpaf::parsers::ParseMany::catch"><code>catch</code></a> statement you can instead stop at the first value
+that failed to parse and ignore it and all the subsequent ones.</p>
+<p><code>many</code> will collect at most one result that does not consume anything from the argument
+list allowing using it in combination with any parsers with a fallback. After the first
+one, it will keep collecting the results as long as they consume something.</p>
+<p>For derive usage <code>bpaf</code> would insert implicit <code>many</code> when the resulting type is a
+vector.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: Vec&lt;u32&gt;,
+    switches: Vec&lt;bool&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .many();
+    <span class="kw">let </span>switches = long(<span class="string">"switch"</span>).help(<span class="string">"some switch"</span>).switch().many();
+    <span class="macro">construct!</span>(Options { argument, switches }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span>argument: Vec&lt;u32&gt;,
+    <span class="doccomment">/// some switch
+    </span><span class="attr">#[bpaf(long(<span class="string">"switch"</span>), switch)]
+    </span>switches: Vec&lt;bool&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In usage lines <code>many</code> items are indicated with <code>...</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]... [<tt><b>--switch</b></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>    --switch</b></tt></dt>
+<dd>some switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Run inner parser as many times as possible collecting all the new results
+First <code>false</code> is collected from a switch even if it is not consuming anything</p>
+<div class='bpaf-doc'>
+$ app --argument 10 --argument 20<br>
+Options { argument: [10, 20], switches: [false] }
+</div>
+<p>If there’s no matching parameters - it would produce an empty vector. Note, in case of
+<a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> parser or other parsers that can succeed without consuming anything
+it would capture that value so <code>many</code> captures the first one of those.
+You can use <a href="params/struct.NamedArg.html#method.req_flag" title="method bpaf::params::NamedArg::req_flag"><code>req_flag</code></a> to avoid that.</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { argument: [], switches: [false] }
+</div>
+<p>For parsers that can succeed without consuming anything such as <code>flag</code> or <code>switch</code> - <code>many</code>
+only collects values as long as they produce something</p>
+<div class='bpaf-doc'>
+$ app --switch --switch<br>
+Options { argument: [], switches: [true, true] }
+</div>
+</details>
+<h5 id="see-also"><a class="doc-anchor" href="#see-also">§</a>See also</h5>
+<p><a href="trait.Parser.html#method.some" title="method bpaf::Parser::some"><code>some</code></a> also collects results to a vector but requires at least one
+element to succeed, <a href="trait.Parser.html#method.collect" title="method bpaf::Parser::collect"><code>collect</code></a> collects results into a <a href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator"><code>FromIterator</code></a>
+structure</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.collect" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#649-659">Source</a><h4 class="code-header">fn <a href="#method.collect" class="fn">collect</a>&lt;C&gt;(self) -&gt; <a class="struct" href="parsers/struct.ParseCollect.html" title="struct bpaf::parsers::ParseCollect">ParseCollect</a>&lt;Self, C, T&gt;<div class="where">where
+    C: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator">FromIterator</a>&lt;T&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Transform parser into a collection parser</p>
+<p>A generic variant of <a href="trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a>, instead of collecting into a vector
+it collects into any collection that implements <a href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator"><code>FromIterator</code></a> trait</p>
+<p><code>collect</code> preserves any parsing failures and propagates them outwards, with extra
+<a href="parsers/struct.ParseCollect.html#method.catch" title="method bpaf::parsers::ParseCollect::catch"><code>catch</code></a> statement you can instead stop at the first value
+that failed to parse and ignore it and all the subsequent ones.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::collections::BTreeSet;
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: BTreeSet&lt;u32&gt;,
+    switches: BTreeSet&lt;bool&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .collect();
+    <span class="kw">let </span>switches = long(<span class="string">"switch"</span>).help(<span class="string">"some switch"</span>).switch().collect();
+    <span class="macro">construct!</span>(Options { argument, switches }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>std::collections::BTreeSet;
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span><span class="attr">#[bpaf(argument::&lt;u32&gt;(<span class="string">"ARG"</span>), collect)]
+    </span>argument: BTreeSet&lt;u32&gt;,
+    <span class="doccomment">/// some switch
+    </span><span class="attr">#[bpaf(long(<span class="string">"switch"</span>), switch, collect)]
+    </span>switches: BTreeSet&lt;bool&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In usage lines <code>collect</code> items are indicated with <code>...</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>... [<tt><b>--switch</b></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>    --switch</b></tt></dt>
+<dd>some switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Run inner parser as many times as possible collecting all the new results
+First <code>false</code> is collected from a switch even if it is not consuming anything</p>
+<div class='bpaf-doc'>
+$ app --argument 10 --argument 20 --argument 20<br>
+Options { argument: {10, 20}, switches: {false} }
+</div>
+<p>If there’s no matching parameters - it would produce an empty set. Note, in case of
+<a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> parser or other parsers that can succeed without consuming anything
+it would capture that value so <code>many</code> captures the first one of those.
+You can use <a href="params/struct.NamedArg.html#method.req_flag" title="method bpaf::params::NamedArg::req_flag"><code>req_flag</code></a> to avoid that.</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { argument: {}, switches: {false} }
+</div>
+<p>For parsers that can succeed without consuming anything such as <code>flag</code> or <code>switch</code> - <code>many</code>
+only collects values as long as they produce something</p>
+<div class='bpaf-doc'>
+$ app --switch --switch<br>
+Options { argument: {}, switches: {true} }
+</div>
+</details>
+<p><code>collect</code> will collect at most one result that does not consume anything from the argument
+list allowing using it in combination of any parsers with a fallback. After the first one
+it will keep collecting the results as long as they consume something.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.some" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#682-691">Source</a><h4 class="code-header">fn <a href="#method.some" class="fn">some</a>(self, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="parsers/struct.ParseSome.html" title="struct bpaf::parsers::ParseSome">ParseSome</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Consume one or more items from a command line and collect them into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a></p>
+<p>Takes a string used as an error message if there are no specified parameters</p>
+<p><code>some</code> preserves any parsing failures and propagates them outwards, with an extra
+<a href="parsers/struct.ParseSome.html#method.catch" title="method bpaf::parsers::ParseSome::catch"><code>catch</code></a> statement you can instead stop at the first value
+that failed to parse and ignore it and all the subsequent ones.</p>
+<p><code>some</code> will collect at most one result that does not consume anything from the argument
+list allowing using it in combination with any parsers with a fallback. After the first
+one, it will keep collecting the results as long as they consume something.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: Vec&lt;u32&gt;,
+    switches: Vec&lt;bool&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .some(<span class="string">"want at least one argument"</span>);
+    <span class="kw">let </span>switches = long(<span class="string">"switch"</span>)
+        .help(<span class="string">"some switch"</span>)
+        .req_flag(<span class="bool-val">true</span>)
+        .some(<span class="string">"want at least one switch"</span>);
+    <span class="macro">construct!</span>(Options { argument, switches }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span><span class="attr">#[bpaf(argument(<span class="string">"ARG"</span>), some(<span class="string">"want at least one argument"</span>))]
+    </span>argument: Vec&lt;u32&gt;,
+    <span class="doccomment">/// some switch
+    </span><span class="attr">#[bpaf(long(<span class="string">"switch"</span>), req_flag(<span class="bool-val">true</span>), some(<span class="string">"want at least one switch"</span>))]
+    </span>switches: Vec&lt;bool&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In usage lines <code>some</code> items are indicated with <code>...</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>... <tt><b>--switch</b></tt>...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>    --switch</b></tt></dt>
+<dd>some switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Run inner parser as many times as possible collecting all the new results, but unlike
+<code>many</code> needs to collect at least one element to succeed</p>
+<div class='bpaf-doc'>
+$ app --argument 10 --argument 20 --switch<br>
+Options { argument: [10, 20], switches: [true] }
+</div>
+<p>With not enough parameters to satisfy both parsers at least once - it fails</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> want at least one argument
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>both parsers need to succeed to create a struct</p>
+<div class='bpaf-doc'>
+$ app --argument 10<br>
+<b>Error:</b> want at least one switch
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>For parsers that can succeed without consuming anything such as <code>flag</code> or <code>switch</code> - <code>some</code>
+only collects values as long as they produce something</p>
+<div class='bpaf-doc'>
+$ app --switch --argument 10<br>
+Options { argument: [10], switches: [true] }
+</div>
+</details>
+<h5 id="see-also-1"><a class="doc-anchor" href="#see-also-1">§</a>See also</h5>
+<p><a href="trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a> also collects results to a vector but succeeds with
+no matching values. <a href="trait.Parser.html#method.collect" title="method bpaf::Parser::collect"><code>collect</code></a> collects results into a <a href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator"><code>FromIterator</code></a>
+structure</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.optional" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#710-718">Source</a><h4 class="code-header">fn <a href="#method.optional" class="fn">optional</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseOptional.html" title="struct bpaf::parsers::ParseOptional">ParseOptional</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Turn a required argument into an optional one</p>
+<p><code>optional</code> converts any missing items into <code>None</code> and passes the remaining parsing
+failures untouched. With an extra <a href="parsers/struct.ParseOptional.html#method.catch" title="method bpaf::parsers::ParseOptional::catch"><code>catch</code></a> statement, you can handle
+those failures too.</p>
+<h5 id="derive-usage"><a class="doc-anchor" href="#derive-usage">§</a>Derive usage</h5>
+<p>By default, <code>bpaf</code> would automatically use optional for fields of type <code>Option&lt;T&gt;</code>,
+for as long as it’s not prevented from doing so by present postprocessing options.
+But it’s also possible to specify it explicitly.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    version: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+    feature: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>version = long(<span class="string">"version"</span>).argument(<span class="string">"VERS"</span>).optional();
+    <span class="kw">let </span>feature = long(<span class="string">"feature"</span>).argument(<span class="string">"FEAT"</span>).optional();
+    <span class="macro">construct!</span>(Options { version, feature }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument(<span class="string">"VERS"</span>))]
+    </span>version: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+    <span class="attr">#[bpaf(argument(<span class="string">"FEAT"</span>))]
+    </span>feature: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>bpaf</code> encases optional arguments in usage with <code>[]</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--version</b></tt>=<tt><i>VERS</i></tt>] [<tt><b>--feature</b></tt>=<tt><i>FEAT</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --version</b></tt>=<tt><i>VERS</i></tt></dt>
+<dt><tt><b>    --feature</b></tt>=<tt><i>FEAT</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Missing arguments are turned into None</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { version: None, feature: None }
+</div>
+<p>Present values are <code>Some</code></p>
+<div class='bpaf-doc'>
+$ app --version 10<br>
+Options { version: Some(10), feature: None }
+</div>
+<p>As usual you can specify both</p>
+<div class='bpaf-doc'>
+$ app --version 10 --feature feat<br>
+Options { version: Some(10), feature: Some("feat") }
+</div>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.count" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#728-736">Source</a><h4 class="code-header">fn <a href="#method.count" class="fn">count</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseCount.html" title="struct bpaf::parsers::ParseCount">ParseCount</a>&lt;Self, T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Count how many times the inner parser succeeds, and return that number.</p>
+<p>When you are dealing with a parser that can succeed without consuming
+anything from a command line - <code>bpaf</code> will count first such success as well.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    verbosity: usize,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>verbosity = short(<span class="string">'v'</span>)
+        .long(<span class="string">"verbose"</span>)
+        .help(<span class="string">"Increase the verbosity level"</span>)
+        .req_flag(())
+        .count();
+
+    <span class="macro">construct!</span>(Options { verbosity }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Increase the verbosity level
+    </span><span class="attr">#[bpaf(short(<span class="string">'v'</span>), long(<span class="string">"verbose"</span>), req_flag(()), count)]
+    </span>verbosity: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> message <code>req_flag</code> look similarly to <a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> and
+<a href="params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
+<dd>Increase the verbosity level</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Since parser uses <code>req_flag</code> it succeeds exactly 0 times if there’s no parameters</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { verbosity: 0 }
+</div>
+<p>If it was specified - <code>count</code> tracks it a discards parsed values</p>
+<div class='bpaf-doc'>
+$ app -vvv<br>
+Options { verbosity: 3 }
+</div>
+<div class='bpaf-doc'>
+$ app --verbose --verbose<br>
+Options { verbosity: 2 }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.last" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#743-748">Source</a><h4 class="code-header">fn <a href="#method.last" class="fn">last</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseLast.html" title="struct bpaf::parsers::ParseLast">ParseLast</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Apply the inner parser as many times as it succeeds, return the last value</p>
+<p>You can use this to allow users to pick contradicting options</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Style {
+    Intel,
+    Att,
+    Llvm,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Report {
+    <span class="doccomment">/// Include defailed report
+    </span>Detailed,
+    <span class="doccomment">/// Include minimal report
+    </span>Minimal,
+    <span class="doccomment">/// No preferences
+    </span>Undecided,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    style: Style,
+    report: Report,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>intel = long(<span class="string">"intel"</span>)
+        .help(<span class="string">"Show assembly using Intel style"</span>)
+        .req_flag(Style::Intel);
+    <span class="kw">let </span>att = long(<span class="string">"att"</span>)
+        .help(<span class="string">"Show assembly using AT&amp;T style"</span>)
+        .req_flag(Style::Att);
+    <span class="kw">let </span>llvm = long(<span class="string">"llvm"</span>).help(<span class="string">"Show llvm-ir"</span>).req_flag(Style::Llvm);
+    <span class="kw">let </span>style = <span class="macro">construct!</span>([intel, att, llvm]).last();
+
+    <span class="kw">let </span>detailed = long(<span class="string">"detailed"</span>)
+        .help(<span class="string">"Include detailed report"</span>)
+        .req_flag(Report::Detailed);
+    <span class="kw">let </span>minimal = long(<span class="string">"minimal"</span>)
+        .help(<span class="string">"Include minimal report"</span>)
+        .req_flag(Report::Minimal);
+    <span class="kw">let </span>report = <span class="macro">construct!</span>([detailed, minimal])
+        .last()
+        .fallback(Report::Undecided);
+
+    <span class="macro">construct!</span>(Options { style, report }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(last)]
+</span><span class="kw">pub enum </span>Style {
+    <span class="doccomment">/// Show assembly using Intel style
+    </span>Intel,
+    <span class="doccomment">/// Show assembly using AT&amp;T style
+    </span>Att,
+    <span class="doccomment">/// Show llvm-ir
+    </span>Llvm,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(last, fallback(Report::Undecided))]
+</span><span class="kw">pub enum </span>Report {
+    <span class="doccomment">/// Include detailed report
+    </span>Detailed,
+    <span class="doccomment">/// Include minimal report
+    </span>Minimal,
+    <span class="attr">#[bpaf(skip)]
+    </span><span class="doccomment">/// No preferences
+    </span>Undecided,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="comment">// external here uses explicit reference to function `style`
+    // generated above
+    </span><span class="attr">#[bpaf(external(style))]
+    </span>style: Style,
+    <span class="comment">// here reference is implicit and derived from field name: `report`
+    </span><span class="attr">#[bpaf(external)]
+    </span>report: Report,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> message <code>last</code> shows that inner parser can run multiple times</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>)... [<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --intel</b></tt></dt>
+<dd>Show assembly using Intel style</dd>
+<dt><tt><b>    --att</b></tt></dt>
+<dd>Show assembly using AT&T style</dd>
+<dt><tt><b>    --llvm</b></tt></dt>
+<dd>Show llvm-ir</dd>
+<dt><tt><b>    --detailed</b></tt></dt>
+<dd>Include detailed report</dd>
+<dt><tt><b>    --minimal</b></tt></dt>
+<dd>Include minimal report</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p><code>style</code> takes one of several possible values and <code>last</code> lets user to pass it several times</p>
+<div class='bpaf-doc'>
+$ app --intel<br>
+Options { style: Intel, report: Undecided }
+</div>
+<div class='bpaf-doc'>
+$ app --intel --att<br>
+Options { style: Att, report: Undecided }
+</div>
+<div class='bpaf-doc'>
+$ app --intel --att --intel<br>
+Options { style: Intel, report: Undecided }
+</div>
+<p>same goes with <code>report</code></p>
+<div class='bpaf-doc'>
+$ app --intel --detailed<br>
+Options { style: Intel, report: Detailed }
+</div>
+<div class='bpaf-doc'>
+$ app --att --detailed --minimal<br>
+Options { style: Att, report: Minimal }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.parse" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#776-789">Source</a><h4 class="code-header">fn <a href="#method.parse" class="fn">parse</a>&lt;F, R, E&gt;(self, f: F) -&gt; ParseWith&lt;T, Self, F, E, R&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;R, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></h4></section></summary><div class="docblock"><p>Apply a failing transformation to a contained value</p>
+<p>Transformation preserves the present/absent state of the value: to parse an optional value you
+can either first try to <code>parse</code> it and then mark it as <a href="trait.Parser.html#method.optional" title="method bpaf::Parser::optional"><code>optional</code></a> or first
+deal with the optionality and then parse a value wrapped in <a href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option"><code>Option</code></a>. In most cases
+the former approach is more concise.</p>
+<p>Similarly, it is possible to parse multiple items with <a href="trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a> or
+<a href="trait.Parser.html#method.some" title="method bpaf::Parser::some"><code>some</code></a> by either parsing a single item first and then turning it into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a>
+or collecting them into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a> first and then parsing the whole vector. The former approach
+is more concise.</p>
+<p>This is a most general of transforming parsers and you can express
+<a href="trait.Parser.html#method.map" title="method bpaf::Parser::map"><code>map</code></a> and <a href="trait.Parser.html#method.guard" title="method bpaf::Parser::guard"><code>guard</code></a> in terms of it.</p>
+<p>Examples are a bit artificial, to parse a value from a string you can specify
+the type directly in the <code>argument</code>’s turbofish and then apply <code>map</code>.</p>
+<h5 id="derive-usage-1"><a class="doc-anchor" href="#derive-usage-1">§</a>Derive usage:</h5>
+<p><code>parse</code> takes a single parameter: function name to call. Function type should match
+parameter <code>F</code> used by <code>parse</code> in combinatoric API.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    number: u32,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>number = long(<span class="string">"number"</span>)
+        .argument::&lt;String&gt;(<span class="string">"N"</span>)
+        <span class="comment">// normally you'd use argument::&lt;u32&gt; to get a numeric
+        // value and `map` to double it
+        </span>.parse::&lt;<span class="kw">_</span>, <span class="kw">_</span>, ParseIntError&gt;(|s| <span class="prelude-val">Ok</span>(u32::from_str(<span class="kw-2">&amp;</span>s)<span class="question-mark">? </span>* <span class="number">2</span>));
+    <span class="macro">construct!</span>(Options { number }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>twice_the_num(s: String) -&gt; <span class="prelude-ty">Result</span>&lt;u32, ParseIntError&gt; {
+    <span class="prelude-val">Ok</span>(u32::from_str(<span class="kw-2">&amp;</span>s)<span class="question-mark">? </span>* <span class="number">2</span>)
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument::&lt;String&gt;(<span class="string">"N"</span>), parse(twice_the_num))]
+    </span>number: u32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>parse</code> don’t make any changes to generated <code>--help</code> message</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--number</b></tt>=<tt><i>N</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --number</b></tt>=<tt><i>N</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can use <code>parse</code> to apply arbitrary failing transformation to any input.
+For example here <code>--number</code> takes a numerical value and doubles it</p>
+<div class='bpaf-doc'>
+$ app --number 10<br>
+Options { number: 20 }
+</div>
+<p>But if function inside the parser fails - user will get the error back unless it’s handled
+in some other way</p>
+<div class='bpaf-doc'>
+$ app --number ten<br>
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.map" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#803-814">Source</a><h4 class="code-header">fn <a href="#method.map" class="fn">map</a>&lt;F, R&gt;(self, map: F) -&gt; ParseMap&lt;T, Self, F, R&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; R + 'static,</div></h4></section></summary><div class="docblock"><p>Apply a pure transformation to a contained value</p>
+<p>A common case of the <a href="trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>parse</code></a> method, exists mostly for convenience.</p>
+<h5 id="derive-usage-2"><a class="doc-anchor" href="#derive-usage-2">§</a>Derive usage:</h5>
+<p>The <code>map</code> takes a single parameter: function name to call. This function should transform
+the value produced by the parser into a new value of the same or different type.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    number: u32,
+}
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>number = long(<span class="string">"number"</span>).argument::&lt;u32&gt;(<span class="string">"N"</span>).map(|x| x * <span class="number">2</span>);
+    <span class="macro">construct!</span>(Options { number }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>twice_the_num(n: u32) -&gt; u32 {
+    n * <span class="number">2
+</span>}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument::&lt;u32&gt;(<span class="string">"N"</span>), map(twice_the_num))]
+    </span>number: u32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>map</code> don’t make any changes to generated <code>--help</code> message</p>
+<p>You can use <code>map</code> to apply arbitrary pure transformation to any input.
+Here <code>--number</code> takes a numerical value and doubles it</p>
+<div class='bpaf-doc'>
+$ app --number 10<br>
+Options { number: 20 }
+</div>
+<p>But if function inside the parser fails - user will get the error back unless it’s handled
+in some way. In fact here execution never reaches <code>map</code> function -
+<a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> tries to parse <code>ten</code> as a number, fails and reports the error</p>
+<div class='bpaf-doc'>
+$ app --number ten<br>
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.guard" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#829-839">Source</a><h4 class="code-header">fn <a href="#method.guard" class="fn">guard</a>&lt;F&gt;(self, check: F, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; ParseGuard&lt;Self, F&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.bool.html">bool</a>,</div></h4></section></summary><div class="docblock"><p>Validate or fail with a message</p>
+<p>If the value doesn’t satisfy the constraint - the parser fails with the specified error message.</p>
+<h5 id="derive-usage-3"><a class="doc-anchor" href="#derive-usage-3">§</a>Derive usage</h5>
+<p>Derive variant of the <code>guard</code> takes a function name instead of a closure, mostly to keep things
+clean. The second argument can be either a string literal or a constant name for a static <a href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html" title="primitive str"><code>str</code></a>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    number: u32,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>number = long(<span class="string">"number"</span>).argument::&lt;u32&gt;(<span class="string">"N"</span>).guard(
+        |n| <span class="kw-2">*</span>n &lt;= <span class="number">10</span>,
+        <span class="string">"Values greater than 10 are only available in the DLC pack!"</span>,
+    );
+    <span class="macro">construct!</span>(Options { number }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>dlc_check(number: <span class="kw-2">&amp;</span>u32) -&gt; bool {
+    <span class="kw-2">*</span>number &lt;= <span class="number">10
+</span>}
+
+<span class="kw">const </span>DLC_NEEDED: <span class="kw-2">&amp;</span>str = <span class="string">"Values greater than 10 are only available in the DLC pack!"</span>;
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument(<span class="string">"N"</span>), guard(dlc_check, DLC_NEEDED))]
+    </span>number: u32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>guard</code> don’t make any changes to generated <code>--help</code> message</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--number</b></tt>=<tt><i>N</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --number</b></tt>=<tt><i>N</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can use guard to set boundary limits or perform other checks on parsed values.
+Parser accepts numbers below 10</p>
+<div class='bpaf-doc'>
+$ app --number 5<br>
+Options { number: 5 }
+</div>
+<p>And fails with the error message on higher values:</p>
+<div class='bpaf-doc'>
+$ app --number 11<br>
+<b>Error:</b> <b>11</b>: Values greater than 10 are only available in the DLC pack!
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>But if function inside the parser fails - user will get the error back unless it’s handled
+in some way</p>
+<div class='bpaf-doc'>
+$ app --number ten<br>
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.fallback" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#858-867">Source</a><h4 class="code-header">fn <a href="#method.fallback" class="fn">fallback</a>(self, value: T) -&gt; <a class="struct" href="parsers/struct.ParseFallback.html" title="struct bpaf::parsers::ParseFallback">ParseFallback</a>&lt;Self, T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Use this value as default if the value isn’t present on a command line</p>
+<p>Parser would still fail if the value is present but failure comes from some transformation</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    jobs: usize,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>jobs = long(<span class="string">"jobs"</span>)
+        .help(<span class="string">"Number of jobs"</span>)
+        .argument(<span class="string">"JOBS"</span>)
+        .fallback(<span class="number">42</span>)
+        .display_fallback();
+    <span class="macro">construct!</span>(Options { jobs }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+#[allow(dead_code)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Number of jobs
+    </span><span class="attr">#[bpaf(argument(<span class="string">"JOBS"</span>), fallback(<span class="number">42</span>), display_fallback)]
+    </span>jobs: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>fallback</code> changes parser to fallback to a default value used when argument is not specified</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { jobs: 42 }
+</div>
+<p>If value is present - fallback value is ignored</p>
+<div class='bpaf-doc'>
+$ app --jobs 10<br>
+Options { jobs: 10 }
+</div>
+<p>Parsing errors are preserved and presented to the user</p>
+<div class='bpaf-doc'>
+$ app --jobs ten<br>
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>With <a href="parsers/struct.ParseFallback.html#method.display_fallback" title="method bpaf::parsers::ParseFallback::display_fallback"><code>display_fallback</code></a>,
+<a href="parsers/struct.ParseFallback.html#method.debug_fallback" title="method bpaf::parsers::ParseFallback::debug_fallback"><code>debug_fallback</code></a>, and
+<a href="parsers/struct.ParseFallback.html#method.format_fallback" title="method bpaf::parsers::ParseFallback::format_fallback"><code>format_fallback</code></a>, you can make it so the default value
+is visible in the <code>--help</code> output.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--jobs</b></tt>=<tt><i>JOBS</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --jobs</b></tt>=<tt><i>JOBS</i></tt></dt>
+<dd>Number of jobs</dd>
+<dt></dt>
+<dd>[default: 42]</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h5 id="see-also-2"><a class="doc-anchor" href="#see-also-2">§</a>See also</h5>
+<p><a href="trait.Parser.html#method.fallback_with" title="method bpaf::Parser::fallback_with"><code>fallback_with</code></a> would allow to try to fallback to a value that
+comes from a failing computation such as reading a file. By default, the fallback value will
+not be shown in the <code>--help</code> output; you can change that by using
+<a href="parsers/struct.ParseFallback.html#method.display_fallback" title="method bpaf::parsers::ParseFallback::display_fallback"><code>display_fallback</code></a>,
+<a href="parsers/struct.ParseFallback.html#method.debug_fallback" title="method bpaf::parsers::ParseFallback::debug_fallback"><code>debug_fallback</code></a>, or
+<a href="parsers/struct.ParseFallback.html#method.format_fallback" title="method bpaf::parsers::ParseFallback::format_fallback"><code>format_fallback</code></a>.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.fallback_with" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#885-898">Source</a><h4 class="code-header">fn <a href="#method.fallback_with" class="fn">fallback_with</a>&lt;F, E&gt;(self, fallback: F) -&gt; <a class="struct" href="parsers/struct.ParseFallbackWith.html" title="struct bpaf::parsers::ParseFallbackWith">ParseFallbackWith</a>&lt;T, Self, F, E&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></h4></section></summary><div class="docblock"><p>Use value produced by this function as default if the value isn’t present</p>
+<p>Would still fail if the value is present but failure comes from some earlier transformation</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>try_to_get_version() -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+    <span class="prelude-val">Ok</span>(<span class="number">42</span>)
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    version: usize,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>version = long(<span class="string">"version"</span>)
+        .help(<span class="string">"Specify protocol version"</span>)
+        .argument(<span class="string">"VERS"</span>)
+        .fallback_with(try_to_get_version)
+        .display_fallback();
+    <span class="macro">construct!</span>(Options { version }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>try_to_get_version() -&gt; <span class="prelude-ty">Result</span>&lt;usize, <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt; {
+    <span class="prelude-val">Ok</span>(<span class="number">42</span>)
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument(<span class="string">"VERS"</span>), fallback_with(try_to_get_version), display_fallback)]
+    </span><span class="doccomment">/// Specify protocol version
+    </span>version: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>fallback_with</code> changes parser to fallback to a value that comes from a potentially failing
+computation when argument is not specified</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { version: 42 }
+</div>
+<p>If value is present - fallback value is ignored</p>
+<div class='bpaf-doc'>
+$ app --version 10<br>
+Options { version: 10 }
+</div>
+<p>Parsing errors are preserved and presented to the user</p>
+<div class='bpaf-doc'>
+$ app --version ten<br>
+<b>Error:</b> couldn't parse <b>ten</b>: invalid digit found in string
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p><code>bpaf</code> encases parsers with fallback value of some sort in usage with <code>[]</code></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--version</b></tt>=<tt><i>VERS</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --version</b></tt>=<tt><i>VERS</i></tt></dt>
+<dd>Specify protocol version</dd>
+<dt></dt>
+<dd>[default: 42]</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h5 id="see-also-3"><a class="doc-anchor" href="#see-also-3">§</a>See also</h5>
+<p><a href="trait.Parser.html#method.fallback" title="method bpaf::Parser::fallback"><code>fallback</code></a> implements similar logic expect that failures aren’t expected.
+By default, the fallback value will
+not be shown in the <code>--help</code> output; you can change that by using
+<a href="parsers/struct.ParseFallbackWith.html#method.display_fallback" title="method bpaf::parsers::ParseFallbackWith::display_fallback"><code>display_fallback</code></a>,
+<a href="parsers/struct.ParseFallbackWith.html#method.debug_fallback" title="method bpaf::parsers::ParseFallbackWith::debug_fallback"><code>debug_fallback</code></a>, or
+<a href="parsers/struct.ParseFallbackWith.html#method.format_fallback" title="method bpaf::parsers::ParseFallbackWith::format_fallback"><code>format_fallback</code></a>.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.hide" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#999-1004">Source</a><h4 class="code-header">fn <a href="#method.hide" class="fn">hide</a>(self) -&gt; ParseHide&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Ignore this parser during any sort of help generation</p>
+<p>Best used for optional parsers or parsers with a defined fallback, usually for implementing
+backward compatibility or hidden aliases</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+    switch: bool,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .fallback(<span class="number">30</span>);
+    <span class="kw">let </span>switch = long(<span class="string">"switch"</span>).help(<span class="string">"secret switch"</span>).switch().hide();
+    <span class="macro">construct!</span>(Options { argument, switch }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span><span class="attr">#[bpaf(fallback(<span class="number">30</span>))]
+    </span>argument: u32,
+    <span class="doccomment">/// secret switch
+    </span><span class="attr">#[bpaf(hide)]
+    </span>switch: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>hide</code>  removes the inner parser from any help or autocompletion logic</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>But doesn’t change the parsing behavior in any way otherwise</p>
+<div class='bpaf-doc'>
+$ app --argument 32<br>
+Options { argument: 32, switch: false }
+</div>
+<div class='bpaf-doc'>
+$ app --argument 42 --switch<br>
+Options { argument: 42, switch: true }
+</div>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.hide_usage" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1015-1023">Source</a><h4 class="code-header">fn <a href="#method.hide_usage" class="fn">hide_usage</a>(self) -&gt; ParseUsage&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Ignore this parser when generating a usage line</p>
+<p>Parsers hidden from usage will still show up in the available arguments list. Best used on
+optional things that augment the main application functionality but not define it.
+Alternatively, you can use <a href="trait.Parser.html#method.custom_usage" title="method bpaf::Parser::custom_usage"><code>custom_usage</code></a> to replace a single
+option or a group of them with some other text.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+    switch: bool,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .fallback(<span class="number">30</span>);
+    <span class="kw">let </span>switch = long(<span class="string">"switch"</span>)
+        .help(<span class="string">"not that important switch"</span>)
+        .switch()
+        .hide_usage();
+    <span class="macro">construct!</span>(Options { argument, switch }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[allow(dead_code)]
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span><span class="attr">#[bpaf(fallback(<span class="number">30</span>))]
+    </span>argument: u32,
+    <span class="doccomment">/// not that important switch
+    </span><span class="attr">#[bpaf(hide_usage)]
+    </span>switch: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>hide_usage</code> hides the inner parser from the generated usage line, but not from the rest of the help or completion</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>    --switch</b></tt></dt>
+<dd>not that important switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>But doesn’t change the parsing behavior in any way otherwise</p>
+<div class='bpaf-doc'>
+$ app --argument 32<br>
+Options { argument: 32, switch: false }
+</div>
+<div class='bpaf-doc'>
+$ app --argument 32 --switch<br>
+Options { argument: 32, switch: true }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.custom_usage" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1029-1038">Source</a><h4 class="code-header">fn <a href="#method.custom_usage" class="fn">custom_usage</a>&lt;M&gt;(self, usage: M) -&gt; ParseUsage&lt;Self&gt;<div class="where">where
+    M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Customize how this parser looks like in the usage line</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    binary: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    package: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>binary = short(<span class="string">'b'</span>)
+        .long(<span class="string">"binary"</span>)
+        .help(<span class="string">"Binary to run"</span>)
+        .argument(<span class="string">"BIN"</span>)
+        .optional()
+        .custom_usage(<span class="kw-2">&amp;</span>[
+            (<span class="string">"--binary"</span>, Style::Literal),
+            (<span class="string">"="</span>, Style::Text),
+            (<span class="string">"BINARY"</span>, Style::Metavar),
+        ]);
+
+    <span class="kw">let </span>package = short(<span class="string">'p'</span>)
+        .long(<span class="string">"package"</span>)
+        .help(<span class="string">"Package to check"</span>)
+        .argument(<span class="string">"PACKAGE"</span>)
+        .optional();
+
+    <span class="macro">construct!</span>(Options { binary, package }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">const </span>BINARY_USAGE: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, Style)] = <span class="kw-2">&amp;</span>[
+    (<span class="string">"--binary"</span>, Style::Literal),
+    (<span class="string">"="</span>, Style::Text),
+    (<span class="string">"BINARY"</span>, Style::Metavar),
+];
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Binary to run
+    </span><span class="attr">#[bpaf(short, long, argument(<span class="string">"BIN"</span>), custom_usage(BINARY_USAGE))]
+    </span>binary: <span class="prelude-ty">Option</span>&lt;String&gt;,
+
+    <span class="doccomment">/// Package to check
+    </span><span class="attr">#[bpaf(short, long, argument(<span class="string">"PACKAGE"</span>))]
+    </span>package: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>custom_usage</code> changes how parser shows up in the “Usage” section of generated <code>--help</code>, note
+lack of <code>[]</code>, long name instead of a short one and different metavariable value</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--binary</b></tt>=<tt><i>BINARY</i></tt> [<tt><b>-p</b></tt>=<tt><i>PACKAGE</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-b</b></tt>, <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Binary to run</dd>
+<dt><tt><b>-p</b></tt>, <tt><b>--package</b></tt>=<tt><i>PACKAGE</i></tt></dt>
+<dd>Package to check</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Parsing behavior stays unchanged</p>
+<div class='bpaf-doc'>
+$ app --binary cargo-asm --package cargo-show-asm<br>
+Options { binary: Some("cargo-asm"), package: Some("cargo-show-asm") }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.group_help" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1047-1055">Source</a><h4 class="code-header">fn <a href="#method.group_help" class="fn">group_help</a>&lt;M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, message: M) -&gt; ParseGroupHelp&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Attach a help message to a complex parser</p>
+<p><code>bpaf</code> inserts the group help message before the block with all the fields
+from the inner parser and an empty line after the block.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Rectangle {
+    width: u32,
+    height: u32,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+    rectangle: Rectangle,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .fallback(<span class="number">30</span>);
+
+    <span class="kw">let </span>width = long(<span class="string">"width"</span>)
+        .help(<span class="string">"Width of the rectangle"</span>)
+        .argument(<span class="string">"W"</span>)
+        .fallback(<span class="number">10</span>);
+    <span class="kw">let </span>height = long(<span class="string">"height"</span>)
+        .help(<span class="string">"Height of the rectangle"</span>)
+        .argument(<span class="string">"H"</span>)
+        .fallback(<span class="number">10</span>);
+    <span class="kw">let </span>rectangle = <span class="macro">construct!</span>(Rectangle { width, height }).group_help(<span class="string">"Takes a rectangle"</span>);
+
+    <span class="macro">construct!</span>(Options {
+        argument,
+        rectangle
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">pub struct </span>Rectangle {
+    <span class="doccomment">/// Width of the rectangle
+    </span><span class="attr">#[bpaf(argument(<span class="string">"W"</span>), fallback(<span class="number">10</span>))]
+    </span>width: u32,
+    <span class="doccomment">/// Height of the rectangle
+    </span><span class="attr">#[bpaf(argument(<span class="string">"H"</span>), fallback(<span class="number">10</span>))]
+    </span>height: u32,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// important argument
+    </span><span class="attr">#[bpaf(fallback(<span class="number">30</span>))]
+    </span>argument: u32,
+    <span class="doccomment">/// secret switch
+    </span><span class="attr">#[bpaf(external, group_help(<span class="string">"Takes a rectangle"</span>))]
+    </span>rectangle: Rectangle,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>group_help</code> adds extra decoration for the inner group in <code>--help</code> message</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
+<b>Takes a rectangle</b></div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<dd>Width of the rectangle</dd>
+<dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
+<dd>Height of the rectangle</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And doesn’t change the parsing behavior in any way</p>
+<div class='bpaf-doc'>
+$ app --argument 32 --width 20 --height 13<br>
+Options { argument: 32, rectangle: Rectangle { width: 20, height: 13 } }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.with_group_help" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1061-1067">Source</a><h4 class="code-header">fn <a href="#method.with_group_help" class="fn">with_group_help</a>&lt;F&gt;(self, f: F) -&gt; ParseWithGroupHelp&lt;Self, F&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="struct" href="doc/struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo">MetaInfo</a>&lt;'_&gt;) -&gt; <a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>,</div></h4></section></summary><div class="docblock"><p>Make a help message for a complex parser from its <a href="doc/struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo"><code>MetaInfo</code></a></p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::doc::<span class="kw-2">*</span>;
+<span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Rectangle {
+    width: u32,
+    height: u32,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+    rectangle: Rectangle,
+}
+
+<span class="kw">fn </span>generate_rectangle_help(meta: MetaInfo) -&gt; Doc {
+    <span class="kw">let </span><span class="kw-2">mut </span>buf = Doc::default();
+    buf.text(<span class="string">"The app takes a rectangle defined by width and height\n\nYou can customize the screen size using "</span>);
+    buf.meta(meta, <span class="bool-val">true</span>);
+    buf.text(<span class="string">" parameters"</span>);
+    buf
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .fallback(<span class="number">30</span>);
+    <span class="kw">let </span>width = long(<span class="string">"width"</span>)
+        .help(<span class="string">"Width of the rectangle"</span>)
+        .argument(<span class="string">"W"</span>)
+        .fallback(<span class="number">10</span>);
+    <span class="kw">let </span>height = long(<span class="string">"height"</span>)
+        .help(<span class="string">"Height of the rectangle"</span>)
+        .argument(<span class="string">"H"</span>)
+        .fallback(<span class="number">10</span>);
+    <span class="kw">let </span>rectangle =
+        <span class="macro">construct!</span>(Rectangle { width, height }).with_group_help(generate_rectangle_help);
+
+    <span class="macro">construct!</span>(Options {
+        argument,
+        rectangle
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p><code>with_group_help</code> lets you write longer description for group of options that can also refer to
+those options. Similar to <a href="trait.Parser.html#method.group_help" title="method bpaf::Parser::group_help"><code>group_help</code></a> encased optios are separated from
+the rest by a blank line.</p>
+<p>Invoking help with a single <code>--help</code> flag renders shot(er) version of the help message
+that contanis only the first paragraph for each block:</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
+<b>The app takes a rectangle defined by width and height</b><div style='padding-left: 0.5em'> You can customize the screen size using [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>] parameters</div></div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<dd>Width of the rectangle</dd>
+<dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
+<dd>Height of the rectangle</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Invoking help with double <code>--help --help</code> flag renders the full help message with all the
+descriptions added</p>
+<div class='bpaf-doc'>
+$ app --help --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>] [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>]</p><p><div>
+<b>The app takes a rectangle defined by width and height</b><div style='padding-left: 0.5em'> You can customize the screen size using [<tt><b>--width</b></tt>=<tt><i>W</i></tt>] [<tt><b>--height</b></tt>=<tt><i>H</i></tt>] parameters</div></div><dl><dt><tt><b>    --width</b></tt>=<tt><i>W</i></tt></dt>
+<dd>Width of the rectangle</dd>
+<dt><tt><b>    --height</b></tt>=<tt><i>H</i></tt></dt>
+<dd>Height of the rectangle</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Other than rendering the help message that there’s no interactions with other parsers</p>
+<div class='bpaf-doc'>
+$ app --width 120 --height 11<br>
+Options { argument: 30, rectangle: Rectangle { width: 120, height: 11 } }
+</div>
+<div class='bpaf-doc'>
+$ app --argument 12<br>
+Options { argument: 12, rectangle: Rectangle { width: 10, height: 10 } }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.complete" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1098-1109">Source</a><h4 class="code-header">fn <a href="#method.complete" class="fn">complete</a>&lt;M, F&gt;(self, op: F) -&gt; ParseComp&lt;Self, F&gt;<div class="where">where
+    M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(M, <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;M&gt;)&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Dynamic shell completion</p>
+<p>Allows to generate autocompletion information for the shell. Completer places generated input
+in place of metavar placeholders, so running <code>completer</code> on something that doesn’t have a
+<a href="fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> or an <a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> doesn’t make much sense.</p>
+<p>Takes a function as a parameter that tries to complete partial input to a full one with an
+optional description. <code>bpaf</code> would substitute a current positional item or an argument with an empty
+string if a value isn’t available yet so it’s best to run <code>complete</code> where parsing can’t fail:
+right after <a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> or <a href="fn.positional.html" title="fn bpaf::positional"><code>positional</code></a>, but this isn’t enforced.</p>
+<h5 id="example"><a class="doc-anchor" href="#example">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>$ app --name L&lt;TAB&gt;
+$ app --name Lupusregina _</code></pre></div><details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    name: String,
+}
+
+<span class="kw">fn </span>completer(input: <span class="kw-2">&amp;</span>String) -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;)&gt; {
+    <span class="kw">let </span>names = [<span class="string">"Yuri"</span>, <span class="string">"Lupusregina"</span>, <span class="string">"Solution"</span>, <span class="string">"Shizu"</span>, <span class="string">"Entoma"</span>];
+    names
+        .iter()
+        .filter(|name| name.starts_with(input))
+        .map(|name| (<span class="kw-2">*</span>name, <span class="prelude-val">None</span>))
+        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>name = short(<span class="string">'n'</span>)
+        .long(<span class="string">"name"</span>)
+        .help(<span class="string">"Specify character's name"</span>)
+        .argument(<span class="string">"NAME"</span>)
+        .complete(completer);
+    <span class="macro">construct!</span>(Options { name }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// suggest completions for the input
+</span><span class="kw">fn </span>completer(input: <span class="kw-2">&amp;</span>String) -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;)&gt; {
+    <span class="kw">let </span>names = [<span class="string">"Yuri"</span>, <span class="string">"Lupusregina"</span>, <span class="string">"Solution"</span>, <span class="string">"Shizu"</span>, <span class="string">"Entoma"</span>];
+    names
+        .iter()
+        .filter(|name| name.starts_with(input))
+        .map(|name| (<span class="kw-2">*</span>name, <span class="prelude-val">None</span>))
+        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(short, long, argument(<span class="string">"NAME"</span>), complete(completer))]
+    </span><span class="doccomment">/// Specify character's name
+    </span>name: String,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>complete</code> annotation does not affect parsing results or generated help message</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-n</b></tt>=<tt><i>NAME</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-n</b></tt>, <tt><b>--name</b></tt>=<tt><i>NAME</i></tt></dt>
+<dd>Specify character's name</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app --name Bob<br>
+Options { name: "Bob" }
+</div>
+<p>But when invoked with shell completion can generate suggestions for user to what to type:</p>
+<div class="example-wrap"><pre class="language-console"><code>$ app --name L&lt;TAB&gt;
+$ app --name Lupisregina</code></pre></div></details>
+<h6 id="a-simple-example"><a class="doc-anchor" href="#a-simple-example">§</a>A simple example</h6><details><summary><tt>examples/simple_dynamic.rs</tt></summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">//! Simple dynamic completion example
+
+</span><span class="attr">#![allow(dead_code)]
+</span><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="kw">fn </span>crates(input: <span class="kw-2">&amp;</span>String) -&gt; Vec&lt;(<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;)&gt; {
+    <span class="kw">let </span>crates = [
+        (
+            <span class="string">"cargo-hackerman"</span>,
+            <span class="string">"Workspace hack management and package/feature query"</span>,
+        ),
+        (<span class="string">"cargo-prebuilt"</span>, <span class="string">"Download prebuilt crate binaries"</span>),
+        (<span class="string">"cargo-show-asm"</span>, <span class="string">"Display generated assembly"</span>),
+        (
+            <span class="string">"cargo-supply-chain"</span>,
+            <span class="string">"Gather author, contributor, publisher data on crates"</span>,
+        ),
+        (<span class="string">"chezmoi_modify_manager"</span>, <span class="string">"Chezmoi addon to patch ini files"</span>),
+        (<span class="string">"xvf"</span>, <span class="string">"Easy archive extraction"</span>),
+        (<span class="string">"newdoc"</span>, <span class="string">"Generate pre-populated module files"</span>),
+        (
+            <span class="string">"nust64"</span>,
+            <span class="string">"Tools for compiling a Rust project into an N64 ROM"</span>,
+        ),
+        (<span class="string">"uggo"</span>, <span class="string">"CLI tool to query builds from u.gg"</span>),
+    ];
+
+    crates
+        .iter()
+        .filter(|p| p.<span class="number">0</span>.starts_with(input))
+        .map(|name| (name.<span class="number">0</span>, <span class="prelude-val">Some</span>(name.<span class="number">1</span>)))
+        .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;()
+}
+
+<span class="attr">#[derive(Debug, Clone, Copy, Bpaf)]
+</span><span class="doccomment">/// Format for generated report
+</span><span class="attr">#[bpaf(fallback(Format::Text))]
+</span><span class="kw">enum </span>Format {
+    <span class="doccomment">/// Generate report in JSON format
+    </span>Json,
+    <span class="doccomment">/// Generate report in XML format
+    </span>Xml,
+    <span class="doccomment">/// Generate report in plaintext format
+    </span>Text,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Select crate for analysis
+    </span><span class="attr">#[bpaf(long(<span class="string">"crate"</span>), argument(<span class="string">"NAME"</span>), complete(crates))]
+    </span>name: String,
+    <span class="doccomment">/// Include dependencies into report
+    </span>dependencies: bool,
+    <span class="attr">#[bpaf(external)]
+    </span>format: Format,
+    <span class="doccomment">/// Upload report to a url
+    </span><span class="attr">#[bpaf(positional(<span class="string">"URL"</span>))]
+    </span>upload: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run());
+}
+</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Let’s consider a simple application that performs crate analysis</p>
+<p>Application generates help message as usual</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--crate</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--dependencies</b></tt>] [<tt><b>--json</b></tt> | <tt><b>--xml</b></tt> | <tt><b>--text</b></tt>] [<tt><i>URL</i></tt>]</p><p><div>
+<b>Format for generated report</b></div><dl><dt><tt><b>    --json</b></tt></dt>
+<dd>Generate report in JSON format</dd>
+<dt><tt><b>    --xml</b></tt></dt>
+<dd>Generate report in XML format</dd>
+<dt><tt><b>    --text</b></tt></dt>
+<dd>Generate report in plaintext format</dd>
+</dl>
+</p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>URL</i></tt></dt>
+<dd>Upload report to a url</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --crate</b></tt>=<tt><i>NAME</i></tt></dt>
+<dd>Select crate for analysis</dd>
+<dt><tt><b>    --dependencies</b></tt></dt>
+<dd>Include dependencies into report</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Shell (zsh in this case) with help of completion system can request possible items to type
+along with some description</p>
+<pre>
+% simple_dynamic \t
+% simple_dynamic
+--crate=NAME             -- Select crate for analysis
+--dependencies           -- Include dependencies into report
+URL: Upload report to a url
+Format for generated report
+--json                   -- Generate report in JSON format
+--xml                    -- Generate report in XML format
+--text                   -- Generate report in plaintext format
+</pre>
+<p>When user provides enough input to identify a possible item - shell substitutes it and allows
+to perform more completions</p>
+<pre>
+% simple_dynamic --j\t
+% simple_dynamic --json
+</pre>
+<p>Since all output format keys are mutually exclusive - with <code>--json</code> already present on a
+command line <code>--xml</code> and <code>--text</code> won’t show up</p>
+<pre>
+% simple_dynamic --json \t
+% simple_dynamic --json
+--crate=NAME             -- Select crate for analysis
+--dependencies           -- Include dependencies into report
+URL: Upload report to a url
+</pre>
+<p>With dynamic completion it is easy to provide shell with more details. For example one of the
+options your application can take can be a crate name from reverse dependencies. Using
+<code>complete</code> method you can tell <code>bpaf</code> what values your parser expects and <code>bpaf</code> would
+communicate this to shell. In this example possible completions are generated by <code>crates</code>
+function from a static list, but you can use any other source. <code>bpaf</code> would only call <code>crates</code>
+function when trying to complete a crate name.</p>
+<pre>
+% simple_dynamic --json --crate \t
+% simple_dynamic --json --crate
+NAME: Select crate for analysis
+cargo-hackerman          -- Workspace hack management and package/feature query
+cargo-prebuilt           -- Download prebuilt crate binaries
+cargo-show-asm           -- Display generated assembly
+cargo-supply-chain       -- Gather author, contributor, publisher data on crates
+chezmoi_modify_manager   -- Chezmoi addon to patch ini files
+xvf                      -- Easy archive extraction
+newdoc                   -- Generate pre-populated module files
+nust64                   -- Tools for compiling a Rust project into an N64 ROM
+uggo                     -- CLI tool to query builds from u.gg
+</pre>
+<p>As usual completion system uses input to filter on possible variants</p>
+<pre>
+% simple_dynamic --json --crate cargo-\t
+% simple_dynamic --json --crate cargo-
+cargo-hackerman          -- Workspace hack management and package/feature query
+cargo-prebuilt           -- Download prebuilt crate binaries
+cargo-show-asm           -- Display generated assembly
+cargo-supply-chain       -- Gather author, contributor, publisher data on crates
+</pre>
+<p>And as soon as there’s enough to identify input in a unique way - shell would substitute it.</p>
+<pre>
+% simple_dynamic --json --crate cargo-ha\t
+% simple_dynamic --json --crate cargo-hackerman
+</pre>
+<p>Outside of generating completion info - <code>complete</code> annotation does not affect the results</p>
+<div class='bpaf-doc'>
+$ app --json --crate cargo-hackerman<br>
+Options { name: "cargo-hackerman", dependencies: false, format: Json, upload: None }
+</div>
+</details>
+<h6 id="more-detailed-example"><a class="doc-anchor" href="#more-detailed-example">§</a>More detailed example</h6><details><summary><tt>examples/derive_show_asm.rs</tt></summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">//! Parsing snippet from cargo-show-asm
+//! Derive + typed fallback + external both with and without name
+
+</span><span class="kw">use </span>bpaf::{construct, long, Bpaf, Parser, ShellComp};
+<span class="kw">use </span>std::{convert::Infallible, path::PathBuf};
+
+<span class="attr">#[derive(Clone, Debug, Bpaf)]
+#[bpaf(options(<span class="string">"asm"</span>))] </span><span class="comment">// derives cargo helper for cargo-asm
+</span><span class="attr">#[allow(clippy::struct_excessive_bools)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(external(parse_manifest_path))]
+    </span><span class="kw">pub </span>manifest_path: PathBuf,
+    <span class="doccomment">/// Custom target directory for generated artifacts
+    </span><span class="attr">#[bpaf(argument(<span class="string">"DIR"</span>))]
+    </span><span class="kw">pub </span>target_dir: <span class="prelude-ty">Option</span>&lt;PathBuf&gt;,
+    <span class="doccomment">/// Package to use if ambigous
+    </span><span class="attr">#[bpaf(long, short, argument(<span class="string">"SPEC"</span>))]
+    </span><span class="kw">pub </span>package: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="attr">#[bpaf(external, optional)]
+    </span><span class="kw">pub </span>focus: <span class="prelude-ty">Option</span>&lt;Focus&gt;,
+    <span class="doccomment">/// Produce a build plan instead of actually building
+    </span><span class="kw">pub </span>dry: bool,
+    <span class="doccomment">/// Requires Cargo.lock and cache are up to date
+    </span><span class="kw">pub </span>frozen: bool,
+    <span class="doccomment">/// Requires Cargo.lock is up to date
+    </span><span class="kw">pub </span>locked: bool,
+    <span class="doccomment">/// Run without accessing the network
+    </span><span class="kw">pub </span>offline: bool,
+    <span class="attr">#[bpaf(external)]
+    </span><span class="kw">pub </span>format: Format,
+    <span class="attr">#[bpaf(external, fallback(Syntax::Intel))]
+    </span><span class="kw">pub </span>syntax: Syntax,
+    <span class="attr">#[bpaf(external)]
+    </span><span class="kw">pub </span>selected_function: SelectedFunction,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="doccomment">/// Item to pick from the output
+</span><span class="kw">pub struct </span>SelectedFunction {
+    <span class="doccomment">/// Complete or partial function name to filter
+    </span><span class="attr">#[bpaf(positional(<span class="string">"FUNCTION"</span>))]
+    </span><span class="kw">pub </span>function: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    <span class="doccomment">/// Select nth item from a filtered list
+    </span><span class="attr">#[bpaf(positional(<span class="string">"INDEX"</span>), fallback(<span class="number">0</span>))]
+    </span><span class="kw">pub </span>nth: usize,
+}
+
+<span class="kw">fn </span>parse_manifest_path() -&gt; <span class="kw">impl </span>Parser&lt;PathBuf&gt; {
+    long(<span class="string">"manifest-path"</span>)
+        .help(<span class="string">"Path to Cargo.toml"</span>)
+        .argument::&lt;PathBuf&gt;(<span class="string">"PATH"</span>)
+        .complete_shell(ShellComp::File {
+            mask: <span class="prelude-val">Some</span>(<span class="string">"*.toml"</span>),
+        })
+        .parse(|p| {
+            <span class="comment">// cargo-metadata wants to see
+            </span><span class="kw">if </span>p.is_absolute() {
+                <span class="prelude-val">Ok</span>(p)
+            } <span class="kw">else </span>{
+                std::env::current_dir()
+                    .map(|d| d.join(p))
+                    .and_then(|full_path| full_path.canonicalize())
+            }
+        })
+        .fallback_with(|| std::env::current_dir().map(|x| x.join(<span class="string">"Cargo.toml"</span>)))
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="doccomment">/// How to render output
+</span><span class="kw">pub struct </span>Format {
+    <span class="doccomment">/// Print interleaved Rust code
+    </span><span class="kw">pub </span>rust: bool,
+
+    <span class="attr">#[bpaf(external(color_detection))]
+    </span><span class="kw">pub </span>color: bool,
+
+    <span class="doccomment">/// include full demangled name instead of just prefix
+    </span><span class="kw">pub </span>full_name: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="doccomment">/// Pick output type
+///
+/// included help
+///
+///
+/// Extended help
+</span><span class="kw">pub enum </span>Syntax {
+    <span class="doccomment">/// Generate assembly using Intel style
+    </span>Intel,
+    <span class="doccomment">/// Generate assembly using AT&amp;T style
+    </span>Att,
+}
+
+<span class="kw">fn </span>color_detection() -&gt; <span class="kw">impl </span>Parser&lt;bool&gt; {
+    <span class="kw">let </span>yes = long(<span class="string">"color"</span>)
+        .help(<span class="string">"Enable color highlighting"</span>)
+        .req_flag(<span class="bool-val">true</span>);
+    <span class="kw">let </span>no = long(<span class="string">"no-color"</span>)
+        .help(<span class="string">"Disable color highlighting"</span>)
+        .req_flag(<span class="bool-val">false</span>);
+    <span class="macro">construct!</span>([yes, no]).fallback_with::&lt;<span class="kw">_</span>, Infallible&gt;(|| {
+        <span class="comment">// we can call for supports-color crate here
+        </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>)
+    })
+}
+
+<span class="kw">fn </span>comp_examples(prefix: <span class="kw-2">&amp;</span>String) -&gt; Vec&lt;(String, <span class="prelude-ty">Option</span>&lt;String&gt;)&gt; {
+    <span class="comment">// in the actual app we can ask cargo-metadata for this info
+    </span><span class="kw">let </span>examples = [<span class="string">"derive_show_asm"</span>, <span class="string">"coreutils"</span>, <span class="string">"comonad"</span>];
+    examples
+        .iter()
+        .filter_map(|e| {
+            <span class="kw">if </span>e.starts_with(prefix) {
+                <span class="prelude-val">Some</span>((e.to_string(), <span class="prelude-val">None</span>))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">None
+            </span>}
+        })
+        .collect()
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="doccomment">/// Select artifact to use for analysis
+///
+/// Only one is valid
+</span><span class="kw">pub enum </span>Focus {
+    <span class="doccomment">/// Show results from library code
+    </span>Lib,
+
+    Test(
+        <span class="doccomment">/// Show results from a test
+        </span><span class="attr">#[bpaf(long(<span class="string">"test"</span>), argument(<span class="string">"TEST"</span>))]
+        </span>String,
+    ),
+
+    Bench(
+        <span class="doccomment">/// Show results from a benchmark
+        </span><span class="attr">#[bpaf(long(<span class="string">"bench"</span>), argument(<span class="string">"BENCH"</span>))]
+        </span>String,
+    ),
+
+    Example(
+        <span class="doccomment">/// Show results from an example
+        </span><span class="attr">#[bpaf(long(<span class="string">"example"</span>), argument(<span class="string">"EXAMPLE"</span>), complete(comp_examples))]
+        </span>String,
+    ),
+
+    Bin(
+        <span class="doccomment">/// Show results from a binary
+        </span><span class="attr">#[bpaf(long(<span class="string">"bin"</span>), argument(<span class="string">"BIN"</span>))]
+        </span>String,
+    ),
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:#?}"</span>, options().run());
+}
+</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Example defines this parser</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--manifest-path</b></tt>=<tt><i>PATH</i></tt>] [<tt><b>--target-dir</b></tt>=<tt><i>DIR</i></tt>] [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>] [<tt><b>--lib</b></tt> | <tt><b>--test</b></tt>=<tt><i>TEST</i></tt> | <tt><b>--bench</b></tt>=<tt><i>BENCH</i></tt> | <tt><b>--example</b></tt>=<tt><i>EXAMPLE</i></tt> | <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt>] [<tt><b>--dry</b></tt>] [<tt><b>--frozen</b></tt>] [<tt><b>--locked</b></tt>] [<tt><b>--offline</b></tt>] [<tt><b>--rust</b></tt>] [<tt><b>--color</b></tt> | <tt><b>--no-color</b></tt>] [<tt><b>--full-name</b></tt>] [<tt><b>--intel</b></tt> | <tt><b>--att</b></tt>] [<tt><i>FUNCTION</i></tt>] [<tt><i>INDEX</i></tt>]</p><p><div>
+<b>Select artifact to use for analysis</b><div style='padding-left: 0.5em'> Only one is valid</div></div><dl><dt><tt><b>    --lib</b></tt></dt>
+<dd>Show results from library code</dd>
+<dt><tt><b>    --test</b></tt>=<tt><i>TEST</i></tt></dt>
+<dd>Show results from a test</dd>
+<dt><tt><b>    --bench</b></tt>=<tt><i>BENCH</i></tt></dt>
+<dd>Show results from a benchmark</dd>
+<dt><tt><b>    --example</b></tt>=<tt><i>EXAMPLE</i></tt></dt>
+<dd>Show results from an example</dd>
+<dt><tt><b>    --bin</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Show results from a binary</dd>
+</dl>
+</p><p><div>
+<b>How to render output</b></div><dl><dt><tt><b>    --rust</b></tt></dt>
+<dd>Print interleaved Rust code</dd>
+<dt><tt><b>    --color</b></tt></dt>
+<dd>Enable color highlighting</dd>
+<dt><tt><b>    --no-color</b></tt></dt>
+<dd>Disable color highlighting</dd>
+<dt><tt><b>    --full-name</b></tt></dt>
+<dd>include full demangled name instead of just prefix</dd>
+</dl>
+</p><p><div>
+<b>Pick output type</b><div style='padding-left: 0.5em'> included help</div></div><dl><dt><tt><b>    --intel</b></tt></dt>
+<dd>Generate assembly using Intel style</dd>
+<dt><tt><b>    --att</b></tt></dt>
+<dd>Generate assembly using AT&T style</dd>
+</dl>
+</p><p><div>
+<b>Item to pick from the output</b></div><dl><dt><tt><i>FUNCTION</i></tt></dt>
+<dd>Complete or partial function name to filter</dd>
+<dt><tt><i>INDEX</i></tt></dt>
+<dd>Select nth item from a filtered list</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --manifest-path</b></tt>=<tt><i>PATH</i></tt></dt>
+<dd>Path to Cargo.toml</dd>
+<dt><tt><b>    --target-dir</b></tt>=<tt><i>DIR</i></tt></dt>
+<dd>Custom target directory for generated artifacts</dd>
+<dt><tt><b>-p</b></tt>, <tt><b>--package</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to use if ambigous</dd>
+<dt><tt><b>    --dry</b></tt></dt>
+<dd>Produce a build plan instead of actually building</dd>
+<dt><tt><b>    --frozen</b></tt></dt>
+<dd>Requires Cargo.lock and cache are up to date</dd>
+<dt><tt><b>    --locked</b></tt></dt>
+<dd>Requires Cargo.lock is up to date</dd>
+<dt><tt><b>    --offline</b></tt></dt>
+<dd>Run without accessing the network</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>By default completion system lists all possible cases</p>
+<pre>
+% derive_show_asm \t
+% derive_show_asm
+--manifest-path=PATH     -- Path to Cargo.toml
+--target-dir=DIR         -- Custom target directory for generated artifacts
+--package=SPEC           -- Package to use if ambigous
+--dry                    -- Produce a build plan instead of actually building
+--frozen                 -- Requires Cargo.lock and cache are up to date
+--locked                 -- Requires Cargo.lock is up to date
+--offline                -- Run without accessing the network
+Select artifact to use for analysis
+--lib                    -- Show results from library code
+--test=TEST              -- Show results from a test
+--bench=BENCH            -- Show results from a benchmark
+--example=EXAMPLE        -- Show results from an example
+--bin=BIN                -- Show results from a binary
+How to render output
+--rust                   -- Print interleaved Rust code
+--color                  -- Enable color highlighting
+--no-color               -- Disable color highlighting
+--full-name              -- include full demangled name instead of just prefix
+Pick output type
+--intel                  -- Generate assembly using Intel style
+--att                    -- Generate assembly using AT&T style
+Item to pick from the output
+FUNCTION: Complete or partial function name to filter
+</pre>
+<p>But when user tries to complete example name - it only lists examples produced by
+<code>comp_examples</code> function</p>
+<pre>
+% derive_show_asm --example \t
+% derive_show_asm --example
+Select artifact to use for analysis
+EXAMPLE: Show results from an example
+derive_show_asm
+coreutils
+comonad
+</pre>
+<p>And completes the full name when user gives enough information</p>
+<pre>
+% derive_show_asm --example cor\t
+% derive_show_asm --example coreutils
+</pre>
+</details>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.complete_shell" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1153-1161">Source</a><h4 class="code-header">fn <a href="#method.complete_shell" class="fn">complete_shell</a>(self, op: <a class="enum" href="enum.ShellComp.html" title="enum bpaf::ShellComp">ShellComp</a>) -&gt; <a class="struct" href="parsers/struct.ParseCompShell.html" title="struct bpaf::parsers::ParseCompShell">ParseCompShell</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class="docblock"><p>Static shell completion</p>
+<p>Allows to ask existing shell completion to provide some information such as a file or
+directory names or pass through existing shell completion scripts, see
+<a href="enum.ShellComp.html" title="enum bpaf::ShellComp"><code>ShellComp</code></a> for accessible functionality</p>
+<p>Places function calls in place of metavar placeholder, so running <code>complete_shell</code> on
+something that doesn’t have a <a href="fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> or <a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> doesn’t
+make much sense.</p>
+<h5 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>$ app --output C&lt;TAB&gt;
+$ app --output Cargo.toml _</code></pre></div><h5 id="combinatoric-usage"><a class="doc-anchor" href="#combinatoric-usage">§</a>Combinatoric usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>output() -&gt; <span class="kw">impl </span>Parser&lt;String&gt; {
+    long(<span class="string">"output"</span>)
+        .help(<span class="string">"Cargo.toml file to use as output"</span>)
+        .argument(<span class="string">"OUTPUT"</span>)
+        .complete_shell(ShellComp::File { mask: <span class="prelude-val">Some</span>(<span class="string">"*.toml"</span>) })
+}</code></pre></div><h5 id="derive-usage-4"><a class="doc-anchor" href="#derive-usage-4">§</a>Derive usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">struct </span>Options {
+    <span class="doccomment">/// Cargo.toml file to use as output
+    </span><span class="attr">#[bpaf(argument(<span class="string">"OUTPUT"</span>), complete_shell(ShellComp::File { mask: <span class="prelude-val">Some</span>(<span class="string">"*.toml"</span>) }))]
+    </span>output: String,
+}</code></pre></div>
+<p>For multiple file types correct mask syntax is <code>"*.(toml|md)"</code>.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.to_options" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1182-1190">Source</a><h4 class="code-header">fn <a href="#method.to_options" class="fn">to_options</a>(self) -&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class="docblock"><p>Transform <code>Parser</code> into <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> to get ready to <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a> it</p>
+<h5 id="derive-usage-5"><a class="doc-anchor" href="#derive-usage-5">§</a>Derive usage</h5>
+<p>Add a top-level <code>options</code> annotation to generate <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> instead of default
+<a href="trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a>.</p>
+<p>In addition to <code>options</code> annotation, you can also specify either <code>version</code> or
+<code>version(value)</code> annotation. The former uses version from <code>cargo</code>, later uses the
+specified value which should be an expression of type <code>&amp;'static str</code>, see
+<a href="struct.OptionParser.html#method.version" title="method bpaf::OptionParser::version"><code>version</code></a>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: u32,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = short(<span class="string">'i'</span>).argument::&lt;u32&gt;(<span class="string">"ARG"</span>);
+    <span class="macro">construct!</span>(Options { argument })
+        .to_options()
+        .version(<span class="string">"3.1415"</span>)
+        .descr(<span class="string">"This is a short description"</span>)
+        .header(<span class="string">"It can contain multiple blocks, this block goes before options"</span>)
+        .footer(<span class="string">"This one goes after"</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, version(<span class="string">"3.1415"</span>))]
+</span><span class="doccomment">/// This is a short description
+///
+///
+/// It can contain multiple blocks, this block goes before options
+///
+///
+/// This one goes after
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(short(<span class="string">'i'</span>))]
+    </span>argument: u32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In addition to all the arguments specified by user <code>bpaf</code> adds a few more. One of them is
+<code>--help</code>:</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p>This is a short description</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-i</b></tt>=<tt><i>ARG</i></tt></p><p>It can contain multiple blocks, this block goes before options</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-i</b></tt>=<tt><i>ARG</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+<dt><tt><b>-V</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Prints version information</dd>
+</dl>
+</p><p>This one goes after</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>The other one is <code>--version</code> - passing a string literal or something like
+<code>env!("CARGO_PKG_VERSION")</code> to get version from <code>cargo</code> directly usually works</p>
+<div class='bpaf-doc'>
+$ app --version<br>
+<p>Version: 3.1415</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Other than that <code>bpaf</code> tries its best to provide a helpful error messages</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>-i</b></tt>=<tt><i>ARG</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And if all parsers are satisfied <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a> produces the result</p>
+<div class='bpaf-doc'>
+$ app -i 10<br>
+Options { argument: 10 }
+</div>
+</details>
+<h5 id="see-also-4"><a class="doc-anchor" href="#see-also-4">§</a>See also</h5>
+<p>There’s some methods implemented on <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> directly to customize the appearance</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.run" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1205-1210">Source</a><h4 class="code-header">fn <a href="#method.run" class="fn">run</a>(self) -&gt; T<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class="docblock"><p>Finalize and run the parser</p>
+<p>Generally, you’d want to use <a href="trait.Parser.html#method.to_options" title="method bpaf::Parser::to_options"><code>Parser::to_options</code></a> to finalize the parser and <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>OptionParser::run</code></a>,
+but this also works for simple cases:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>main() {
+    <span class="kw">let </span>name = short(<span class="string">'n'</span>).long(<span class="string">"name"</span>).argument::&lt;String&gt;(<span class="string">"USER"</span>).run();
+    <span class="comment">// do things with name
+</span>}</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.boxed" class="method"><a class="src rightside" href="../src/bpaf/lib.rs.html#1219-1224">Source</a><h4 class="code-header">fn <a href="#method.boxed" class="fn">boxed</a>(self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class="docblock"><p>Create a boxed representation for a parser</p>
+<p>The boxed parser doesn’t expose internal representation in its type and allows to return
+of different parsers in different conditional branches</p>
+<p>You can create it with a single argument <code>construct</code> macro or by using <code>boxed</code> annotation</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;f64&gt; {
+    <span class="kw">let </span>miles = long(<span class="string">"distance"</span>)
+        .help(<span class="string">"distance in miles"</span>)
+        .argument::&lt;f64&gt;(<span class="string">"MILES"</span>)
+        .map(|d| d * <span class="number">1.609344</span>);
+
+    <span class="kw">let </span>km = long(<span class="string">"distance"</span>)
+        .help(<span class="string">"distance in km"</span>)
+        .argument::&lt;f64&gt;(<span class="string">"KM"</span>);
+
+    <span class="comment">// suppose this is reading from config fule
+    </span><span class="kw">let </span>use_metric = <span class="bool-val">true</span>;
+
+    <span class="comment">// without use of `boxed` here branches have different types so it won't typecheck
+    // boxed make it so branches have the same type as long as they return the same type
+    </span><span class="kw">let </span>distance = <span class="kw">if </span>use_metric {
+        km.boxed()
+    } <span class="kw">else </span>{
+        miles.boxed()
+    };
+
+    distance.to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>It is also possible to make dynamic choice about the parsers. This example defines two parsers
+for distance - imperial and metric and picks one from some source available at runtime only.</p>
+<p>Help message will contain only one parser</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--distance</b></tt>=<tt><i>KM</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --distance</b></tt>=<tt><i>KM</i></tt></dt>
+<dd>distance in km</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>and only one parser will produce a result</p>
+<div class='bpaf-doc'>
+$ app --distance 10<br>
+10.0
+</div>
+</details></div></details></div><h2 id="trait-implementations" class="section-header">Trait Implementations<a href="#trait-implementations" class="anchor">§</a></h2><div id="trait-implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#1220-1227">Source</a><a href="#impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.many-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#623-631">Source</a><a href="#method.many-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.many" class="fn">many</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseMany.html" title="struct bpaf::parsers::ParseMany">ParseMany</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class='docblock'>Consume zero or more items from a command line and collect them into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a> <a href="trait.Parser.html#method.many">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.collect-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#649-659">Source</a><a href="#method.collect-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.collect" class="fn">collect</a>&lt;C&gt;(self) -&gt; <a class="struct" href="parsers/struct.ParseCollect.html" title="struct bpaf::parsers::ParseCollect">ParseCollect</a>&lt;Self, C, T&gt;<div class="where">where
+    C: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator">FromIterator</a>&lt;T&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class='docblock'>Transform parser into a collection parser <a href="trait.Parser.html#method.collect">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.some-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#682-691">Source</a><a href="#method.some-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.some" class="fn">some</a>(self, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="parsers/struct.ParseSome.html" title="struct bpaf::parsers::ParseSome">ParseSome</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Consume one or more items from a command line and collect them into a <a href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec"><code>Vec</code></a> <a href="trait.Parser.html#method.some">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.optional-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#710-718">Source</a><a href="#method.optional-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.optional" class="fn">optional</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseOptional.html" title="struct bpaf::parsers::ParseOptional">ParseOptional</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Turn a required argument into an optional one <a href="trait.Parser.html#method.optional">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.count-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#728-736">Source</a><a href="#method.count-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.count" class="fn">count</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseCount.html" title="struct bpaf::parsers::ParseCount">ParseCount</a>&lt;Self, T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Count how many times the inner parser succeeds, and return that number. <a href="trait.Parser.html#method.count">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.last-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#743-748">Source</a><a href="#method.last-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.last" class="fn">last</a>(self) -&gt; <a class="struct" href="parsers/struct.ParseLast.html" title="struct bpaf::parsers::ParseLast">ParseLast</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Apply the inner parser as many times as it succeeds, return the last value <a href="trait.Parser.html#method.last">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.parse-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#776-789">Source</a><a href="#method.parse-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.parse" class="fn">parse</a>&lt;F, R, E&gt;(self, f: F) -&gt; ParseWith&lt;T, Self, F, E, R&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;R, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></h4></section></summary><div class='docblock'>Apply a failing transformation to a contained value <a href="trait.Parser.html#method.parse">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.map-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#803-814">Source</a><a href="#method.map-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.map" class="fn">map</a>&lt;F, R&gt;(self, map: F) -&gt; ParseMap&lt;T, Self, F, R&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(T) -&gt; R + 'static,</div></h4></section></summary><div class='docblock'>Apply a pure transformation to a contained value <a href="trait.Parser.html#method.map">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.guard-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#829-839">Source</a><a href="#method.guard-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.guard" class="fn">guard</a>&lt;F&gt;(self, check: F, message: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; ParseGuard&lt;Self, F&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.bool.html">bool</a>,</div></h4></section></summary><div class='docblock'>Validate or fail with a message <a href="trait.Parser.html#method.guard">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.fallback-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#858-867">Source</a><a href="#method.fallback-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.fallback" class="fn">fallback</a>(self, value: T) -&gt; <a class="struct" href="parsers/struct.ParseFallback.html" title="struct bpaf::parsers::ParseFallback">ParseFallback</a>&lt;Self, T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Use this value as default if the value isn’t present on a command line <a href="trait.Parser.html#method.fallback">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.fallback_with-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#885-898">Source</a><a href="#method.fallback_with-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.fallback_with" class="fn">fallback_with</a>&lt;F, E&gt;(self, fallback: F) -&gt; <a class="struct" href="parsers/struct.ParseFallbackWith.html" title="struct bpaf::parsers::ParseFallbackWith">ParseFallbackWith</a>&lt;T, Self, F, E&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></h4></section></summary><div class='docblock'>Use value produced by this function as default if the value isn’t present <a href="trait.Parser.html#method.fallback_with">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.hide-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#999-1004">Source</a><a href="#method.hide-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.hide" class="fn">hide</a>(self) -&gt; ParseHide&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Ignore this parser during any sort of help generation <a href="trait.Parser.html#method.hide">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.hide_usage-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1015-1023">Source</a><a href="#method.hide_usage-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.hide_usage" class="fn">hide_usage</a>(self) -&gt; ParseUsage&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Ignore this parser when generating a usage line <a href="trait.Parser.html#method.hide_usage">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.custom_usage-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1029-1038">Source</a><a href="#method.custom_usage-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.custom_usage" class="fn">custom_usage</a>&lt;M&gt;(self, usage: M) -&gt; ParseUsage&lt;Self&gt;<div class="where">where
+    M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Customize how this parser looks like in the usage line <a href="trait.Parser.html#method.custom_usage">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.group_help-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1047-1055">Source</a><a href="#method.group_help-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.group_help" class="fn">group_help</a>&lt;M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, message: M) -&gt; ParseGroupHelp&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Attach a help message to a complex parser <a href="trait.Parser.html#method.group_help">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.with_group_help-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1061-1067">Source</a><a href="#method.with_group_help-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.with_group_help" class="fn">with_group_help</a>&lt;F&gt;(self, f: F) -&gt; ParseWithGroupHelp&lt;Self, F&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="struct" href="doc/struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo">MetaInfo</a>&lt;'_&gt;) -&gt; <a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>,</div></h4></section></summary><div class='docblock'>Make a help message for a complex parser from its <a href="doc/struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo"><code>MetaInfo</code></a> <a href="trait.Parser.html#method.with_group_help">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.complete-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1098-1109">Source</a><a href="#method.complete-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.complete" class="fn">complete</a>&lt;M, F&gt;(self, op: F) -&gt; ParseComp&lt;Self, F&gt;<div class="where">where
+    M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a>) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;(M, <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;M&gt;)&gt;,
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Dynamic shell completion <a href="trait.Parser.html#method.complete">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.complete_shell-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1153-1161">Source</a><a href="#method.complete_shell-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.complete_shell" class="fn">complete_shell</a>(self, op: <a class="enum" href="enum.ShellComp.html" title="enum bpaf::ShellComp">ShellComp</a>) -&gt; <a class="struct" href="parsers/struct.ParseCompShell.html" title="struct bpaf::parsers::ParseCompShell">ParseCompShell</a>&lt;Self&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h4></section></summary><div class='docblock'>Static shell completion <a href="trait.Parser.html#method.complete_shell">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.to_options-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1182-1190">Source</a><a href="#method.to_options-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.to_options" class="fn">to_options</a>(self) -&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class='docblock'>Transform <code>Parser</code> into <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> to get ready to <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a> it <a href="trait.Parser.html#method.to_options">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.run-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1205-1210">Source</a><a href="#method.run-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.run" class="fn">run</a>(self) -&gt; T<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class='docblock'>Finalize and run the parser <a href="trait.Parser.html#method.run">Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.boxed-1" class="method trait-impl"><a class="src rightside" href="../src/bpaf/lib.rs.html#1219-1224">Source</a><a href="#method.boxed-1" class="anchor">§</a><h4 class="code-header">fn <a href="trait.Parser.html#method.boxed" class="fn">boxed</a>(self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a> + <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + 'static,</div></h4></section></summary><div class='docblock'>Create a boxed representation for a parser <a href="trait.Parser.html#method.boxed">Read more</a></div></details></div></details></div><h2 id="foreign-impls" class="section-header">Implementations on Foreign Types<a href="#foreign-impls" class="anchor">§</a></h2><section id="impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E-1" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#1220-1227">Source</a><a href="#impl-Parser%3CT%3E-for-Box%3Cdyn+Parser%3CT%3E%3E-1" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/boxed/struct.Box.html" title="struct alloc::boxed::Box">Box</a>&lt;dyn <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;&gt;</h3></section><h2 id="implementors" class="section-header">Implementors<a href="#implementors" class="anchor">§</a></h2><div id="implementors-list"><section id="impl-Parser%3CT%3E-for-ParseCompShell%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/complete_shell.rs.html#79-114">Source</a><a href="#impl-Parser%3CT%3E-for-ParseCompShell%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;P, T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="parsers/struct.ParseCompShell.html" title="struct bpaf::parsers::ParseCompShell">ParseCompShell</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; + <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h3><span class="item-info"><div class="stab portability">Available on <strong>crate feature <code>autocomplete</code></strong> only.</div></span></section><section id="impl-Parser%3CT%3E-for-ParseFallback%3CP,+T%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#484-517">Source</a><a href="#impl-Parser%3CT%3E-for-ParseFallback%3CP,+T%3E" class="anchor">§</a><h3 class="code-header">impl&lt;P, T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="parsers/struct.ParseFallback.html" title="struct bpaf::parsers::ParseFallback">ParseFallback</a>&lt;P, T&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    T: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a>,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseAny%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#919-949">Source</a><a href="#impl-Parser%3CT%3E-for-ParseAny%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="params/struct.ParseAny.html" title="struct bpaf::params::ParseAny">ParseAny</a>&lt;T&gt;</h3></section><section id="impl-Parser%3CT%3E-for-ParseArgument%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#686-706">Source</a><a href="#impl-Parser%3CT%3E-for-ParseArgument%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="params/struct.ParseArgument.html" title="struct bpaf::params::ParseArgument">ParseArgument</a>&lt;T&gt;<div class="where">where
+    T: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr">FromStr</a> + 'static,
+    &lt;T as <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr">FromStr</a>&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html#associatedtype.Err" title="type core::str::traits::FromStr::Err">Err</a>: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a>,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseCommand%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#427-501">Source</a><a href="#impl-Parser%3CT%3E-for-ParseCommand%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="params/struct.ParseCommand.html" title="struct bpaf::params::ParseCommand">ParseCommand</a>&lt;T&gt;</h3></section><section id="impl-Parser%3CT%3E-for-ParsePositional%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#852-869">Source</a><a href="#impl-Parser%3CT%3E-for-ParsePositional%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="params/struct.ParsePositional.html" title="struct bpaf::params::ParsePositional">ParsePositional</a>&lt;T&gt;<div class="where">where
+    T: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr">FromStr</a> + 'static,
+    &lt;T as <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr">FromStr</a>&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html#associatedtype.Err" title="type core::str::traits::FromStr::Err">Err</a>: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/fmt/trait.Display.html" title="trait core::fmt::Display">Display</a>,</div></h3></section><section id="impl-Parser%3CC%3E-for-ParseCollect%3CP,+C,+T%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#191-205">Source</a><a href="#impl-Parser%3CC%3E-for-ParseCollect%3CP,+C,+T%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, C, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;C&gt; for <a class="struct" href="parsers/struct.ParseCollect.html" title="struct bpaf::parsers::ParseCollect">ParseCollect</a>&lt;P, C, T&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    C: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/iter/traits/collect/trait.FromIterator.html" title="trait core::iter::traits::collect::FromIterator">FromIterator</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3COption%3CT%3E%3E-for-ParseOptional%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#727-739">Source</a><a href="#impl-Parser%3COption%3CT%3E%3E-for-ParseOptional%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;<a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;T&gt;&gt; for <a class="struct" href="parsers/struct.ParseOptional.html" title="struct bpaf::parsers::ParseOptional">ParseOptional</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3Cusize%3E-for-ParseCount%3CP,+T%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#663-684">Source</a><a href="#impl-Parser%3Cusize%3E-for-ParseCount%3CP,+T%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.usize.html">usize</a>&gt; for <a class="struct" href="parsers/struct.ParseCount.html" title="struct bpaf::parsers::ParseCount">ParseCount</a>&lt;P, T&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3CVec%3CT%3E%3E-for-ParseMany%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#835-848">Source</a><a href="#impl-Parser%3CVec%3CT%3E%3E-for-ParseMany%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;T&gt;&gt; for <a class="struct" href="parsers/struct.ParseMany.html" title="struct bpaf::parsers::ParseMany">ParseMany</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3CVec%3CT%3E%3E-for-ParseSome%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#141-163">Source</a><a href="#impl-Parser%3CVec%3CT%3E%3E-for-ParseSome%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/vec/struct.Vec.html" title="struct alloc::vec::Vec">Vec</a>&lt;T&gt;&gt; for <a class="struct" href="parsers/struct.ParseSome.html" title="struct bpaf::parsers::ParseSome">ParseSome</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseCon%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#936-949">Source</a><a href="#impl-Parser%3CT%3E-for-ParseCon%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="parsers/struct.ParseCon.html" title="struct bpaf::parsers::ParseCon">ParseCon</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.bool.html">bool</a>, &amp;mut State) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, Error&gt;,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseLast%3CP%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#692-717">Source</a><a href="#impl-Parser%3CT%3E-for-ParseLast%3CP%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="parsers/struct.ParseLast.html" title="struct bpaf::parsers::ParseLast">ParseLast</a>&lt;P&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseFallbackWith%3CT,+P,+F,+E%3E" class="impl"><a class="src rightside" href="../src/bpaf/structs.rs.html#20-57">Source</a><a href="#impl-Parser%3CT%3E-for-ParseFallbackWith%3CT,+P,+F,+E%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T, P, F, E&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="parsers/struct.ParseFallbackWith.html" title="struct bpaf::parsers::ParseFallbackWith">ParseFallbackWith</a>&lt;T, P, F, E&gt;<div class="where">where
+    P: <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt;,
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>() -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, E&gt;,
+    E: <a class="trait" href="https://doc.rust-lang.org/1.93.0/alloc/string/trait.ToString.html" title="trait alloc::string::ToString">ToString</a>,</div></h3></section><section id="impl-Parser%3CT%3E-for-ParseFlag%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#534-573">Source</a><a href="#impl-Parser%3CT%3E-for-ParseFlag%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/clone/trait.Clone.html" title="trait core::clone::Clone">Clone</a> + 'static&gt; <a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a>&lt;T&gt; for <a class="struct" href="params/struct.ParseFlag.html" title="struct bpaf::params::ParseFlag">ParseFlag</a>&lt;T&gt;</h3></section></div><script src="../trait.impl/bpaf/trait.Parser.js" data-ignore-extern-crates="alloc" async></script></section></div></main></body></html>

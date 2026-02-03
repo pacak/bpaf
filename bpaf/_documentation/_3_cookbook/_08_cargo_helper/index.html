@@ -1,0 +1,106 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_08_cargo_helper - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _08_cargo_helper</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _08_<wbr>cargo_<wbr>helper</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#implementing-cargo-commands" title="Implementing cargo commands">Implementing cargo commands</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_08_<wbr>cargo_<wbr>helper</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2793">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">← Skipping optional positional items if parsing or validation fails</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_09_numeric_flags/index.html" title="mod bpaf::_documentation::_3_cookbook::_09_numeric_flags">Numeric flags - compression levels like in zip →</a></p>
+  </td>
+</tr></table>
+<h5 id="implementing-cargo-commands"><a class="doc-anchor" href="#implementing-cargo-commands">§</a>Implementing cargo commands</h5>
+<p>With <a href="../../../batteries/fn.cargo_helper.html" title="fn bpaf::batteries::cargo_helper"><code>cargo_helper</code></a> you can use your application as a <code>cargo</code> command.
+You will need to enable <code>batteries</code> feature while importing <code>bpaf</code>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: usize,
+    switch: bool,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"An argument"</span>)
+        .argument::&lt;usize&gt;(<span class="string">"ARG"</span>);
+    <span class="kw">let </span>switch = short(<span class="string">'s'</span>).help(<span class="string">"A switch"</span>).switch();
+    <span class="kw">let </span>options = <span class="macro">construct!</span>(Options { argument, switch });
+
+    <span class="comment">// Given the cargo command is `cargo pretty`.
+    </span>cargo_helper(<span class="string">"pretty"</span>, options).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options(<span class="string">"pretty"</span>))] </span><span class="comment">// Given the cargo command is `cargo pretty`.
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// An argument
+    </span>argument: usize,
+    <span class="doccomment">/// A switch
+    </span><span class="attr">#[bpaf(short)]
+    </span>switch: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Let’s say the goal is to parse an argument and a switch:</p>
+<div class='bpaf-doc'>
+$ app --argument 15<br>
+Options { argument: 15, switch: false }
+</div>
+<p>But when used as a <code>cargo</code> subcommand, cargo will also pass the command name. For example
+you can invoke an app with binary name <code>cargo-asm</code></p>
+<div class="example-wrap"><pre class="language-console"><code>$ cargo asm --lib --everything
+...</code></pre></div>
+<p><code>cargo</code> will then spawn the executable and pass it following parameters:</p>
+<div class="example-wrap"><pre class="language-console"><code>$ cargo-asm asm --lib --everything
+...</code></pre></div>
+<p>If you are not using <code>cargo_helper</code> - parser won’t know what to do with <code>asm</code> part.
+<code>cargo-helper</code> allows the parser to strip it from the front and everything works as expected.</p>
+<p>And it doesn’t show up in <code>--help</code> so not to confuse users</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--argument</b></tt>=<tt><i>ARG</i></tt> [<tt><b>-s</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>An argument</dd>
+<dt><tt><b>-s</b></tt></dt>
+<dd>A switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">← Skipping optional positional items if parsing or validation fails</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_09_numeric_flags/index.html" title="mod bpaf::_documentation::_3_cookbook::_09_numeric_flags">Numeric flags - compression levels like in zip →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

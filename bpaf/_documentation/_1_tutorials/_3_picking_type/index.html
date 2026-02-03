@@ -1,0 +1,139 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_3_picking_type - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _3_picking_type</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _3_<wbr>picking_<wbr>type</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#designing-a-good-datatype" title="Designing a good datatype">Designing a good datatype</a></li><li><a href="#more-reading" title="More reading">More reading</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_1_tutorials</a></div><h1>Module <span>_3_<wbr>picking_<wbr>type</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#1874">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_derive_api/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api">← Derive API tutorial</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials">↑ Tutorials ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+<h5 id="designing-a-good-datatype"><a class="doc-anchor" href="#designing-a-good-datatype">§</a>Designing a good datatype</h5>
+<p>bpaf allows you to reduce the size of legal values to valid ones</p>
+<p>Parsing usually starts with deciding what kind of data your application wants to get from the user.
+You should try to take advantage of the Rust type system, try to represent the result such that more
+validation can be done during parsing.</p>
+<p>Data types can represent a set of <em>legal</em> states - for example, for u8 this is all the numbers
+from 0 to 255, while your app logic may only operate correctly only on some set of <em>valid</em>
+states: if this u8 represents a fill ratio for something in percents - only valid numbers are
+from 0 to 100. You can try to narrow down the set of legal states to valid states with <a href="https://doc.rust-lang.org/rust-by-example/generics/new_types.html">newtype
+pattern</a>. This newtype will
+indicate through the type when you’ve already done validation. For the fill ratio example you can
+implement a newtype along with <code>FromStr</code> implementation to get validation for free during
+parsing.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Copy)]
+</span><span class="kw">pub struct </span>Ratio(u8);
+ 
+<span class="kw">impl </span>FromStr <span class="kw">for </span>Ratio {
+    <span class="kw">type </span><span class="prelude-val">Err </span>= <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str;
+ 
+    <span class="kw">fn </span>from_str(s: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, <span class="self">Self</span>::Err&gt; {
+        <span class="kw">match </span>s.parse() {
+            <span class="prelude-val">Ok</span>(n) <span class="kw">if </span>n &lt;= <span class="number">100 </span>=&gt; <span class="prelude-val">Ok</span>(Ratio(n)),
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(<span class="string">"Invalid fill ratio"</span>)
+        }
+    }
+}
+ 
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">struct </span>Options {
+    <span class="doccomment">/// Fill ratio
+    </span>ratio: Ratio
+}
+ 
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run());
+}</code></pre></div>
+<p>Try using enums instead of structs for mutually exclusive options:</p>
+<div class="example-wrap"><pre class="language-no_check"><code>/// Good format selection
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+enum OutputFormat {
+    Intel,
+    Att,
+    Llvm
+}
+ 
+fn main() {
+    let format = output_format().run();
+ 
+    // `rustc` ensures you handle each case, parser won&#39;t try to consume
+    // combinations of flags it can&#39;t represent. For example it won&#39;t accept
+    // both `--intel` and `--att` at once
+    // (unless it can collect multiple of them in a vector)
+    match format {
+        OutputFormat::Intel =&gt; ...,
+        OutputFormat::Att =&gt; ...,
+        OutputFormat::Llvm =&gt; ...,
+    }
+}</code></pre></div>
+<p>While it’s easy to see how flags like <code>--intel</code> and <code>--att</code> maps to each of those bools,
+consuming inside your app is more fragile</p>
+<div class="example-wrap"><pre class="language-no_check"><code>/// Bad format selection
+#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+struct OutputFormat {
+    intel: bool,
+    att: bool,
+    llvm: bool,
+}
+ 
+fn main() {
+    let format = output_format().run();
+    // what happens when none matches? Or all of them?
+    // What happens when you add a new output format?
+    if format.intel {
+        ...
+    } else if format.att {
+        ...
+    } else if format.llvm {
+        ...
+    } else {
+        // can this branch be reached?
+    }
+}</code></pre></div>
+<p>Mutually exclusive things are not limited to just flags. For example if your program can take
+input from several different sources such as file, database or interactive input it’s a good
+idea to use enum as well:</p>
+<div class="example-wrap"><pre class="language-no_check"><code>/// Good input selection
+#[derive(Debug, Clone, Bpaf)]
+enum Input {
+    File {
+        filepath: PathBuf,
+    }
+    Database {
+        user: String,
+        password: String.
+    }
+    Interactive,
+}</code></pre></div>
+<p>If your codebase uses newtype pattern - it’s a good idea to use it starting from the command
+options:</p>
+<div class="example-wrap"><pre class="language-no_check"><code>#[derive(Debug, Clone, Bpaf)]
+struct Options {
+    // better than taking a String and parsing internally
+    date: NaiveDate,
+    // f64 might work too, but you can start from some basic sanity checks
+    speed: Speed
+}</code></pre></div><h2 id="more-reading"><a class="doc-anchor" href="#more-reading">§</a>More reading</h2>
+<ul>
+<li><a href="https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/">https://fsharpforfunandprofit.com/posts/designing-with-types-making-illegal-states-unrepresentable/</a></li>
+<li><a href="https://geeklaunch.io/blog/make-invalid-states-unrepresentable/">https://geeklaunch.io/blog/make-invalid-states-unrepresentable/</a></li>
+<li><a href="https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/">https://lexi-lambda.github.io/blog/2019/11/05/parse-don-t-validate/</a></li>
+<li><a href="https://khalilstemmler.com/articles/typescript-domain-driven-design/make-illegal-states-unrepresentable/">https://khalilstemmler.com/articles/typescript-domain-driven-design/make-illegal-states-unrepresentable/</a></li>
+</ul>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_derive_api/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api">← Derive API tutorial</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials">↑ Tutorials ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

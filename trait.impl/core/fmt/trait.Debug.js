@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["bpaf",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"bpaf/doc/enum.Style.html\" title=\"enum bpaf::doc::Style\">Style</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"bpaf/enum.ParseFailure.html\" title=\"enum bpaf::ParseFailure\">ParseFailure</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"bpaf/enum.ShellComp.html\" title=\"enum bpaf::ShellComp\">ShellComp</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"bpaf/params/struct.NamedArg.html\" title=\"struct bpaf::params::NamedArg\">NamedArg</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"struct\" href=\"bpaf/struct.Doc.html\" title=\"struct bpaf::Doc\">Doc</a>"],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.93.0/core/fmt/trait.Debug.html\" title=\"trait core::fmt::Debug\">Debug</a> for <a class=\"enum\" href=\"bpaf/doc/enum.Section.html\" title=\"enum bpaf::doc::Section\">Section</a>&lt;'a&gt;"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1485]}

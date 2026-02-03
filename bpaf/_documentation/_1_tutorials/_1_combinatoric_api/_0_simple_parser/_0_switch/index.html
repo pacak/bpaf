@@ -1,0 +1,91 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_0_simple_parser::_0_switch - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../../" data-static-root-path="../../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _0_switch</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _0_<wbr>switch</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#switch-parser" title="Switch parser">Switch parser</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>1_<wbr>combinatoric_<wbr>api::<wbr>_<wbr>0_<wbr>simple_<wbr>parser</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../../index.html">bpaf</a>::<wbr><a href="../../../../index.html">_documentation</a>::<wbr><a href="../../../index.html">_1_tutorials</a>::<wbr><a href="../../index.html">_1_combinatoric_api</a>::<wbr><a href="../index.html">_0_simple_parser</a></div><h1>Module <span>_0_<wbr>switch</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../../src/bpaf/_documentation.rs.html#671">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_0_simple_parser">↑ Making a simple parser ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_0_simple_parser::_1_argument">Argument parser →</a></p>
+  </td>
+</tr></table>
+<h5 id="switch-parser"><a class="doc-anchor" href="#switch-parser">§</a>Switch parser</h5>
+<p>Let’s start with the simplest possible one - a simple switch that gets parsed into a <code>bool</code>.</p>
+<p>First of all - the switch needs a name - you can start with <a href="../../../../../fn.short.html" title="fn bpaf::short"><code>short</code></a> or <a href="../../../../../fn.long.html" title="fn bpaf::long"><code>long</code></a> and add more
+names if you want: <code>long("simple")</code> or <code>short('s').long("simple")</code>. This gives something with
+the type <a href="../../../../../params/struct.NamedArg.html" title="struct bpaf::params::NamedArg"><code>NamedArg</code></a>:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::parsers::NamedArg;
+<span class="kw">fn </span>simple_switch() -&gt; NamedArg {
+    short(<span class="string">'s'</span>).long(<span class="string">"simple"</span>)
+}</code></pre></div>
+<p>From <code>NamedArg</code> you make a switch parser by calling <a href="../../../../../params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a>. Usually, you do it
+right away without assigning <code>NamedArg</code> to a variable.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>simple_switch() -&gt; <span class="kw">impl </span>Parser&lt;bool&gt; {
+    short(<span class="string">'s'</span>).long(<span class="string">"simple"</span>).switch()
+}</code></pre></div>
+<p>The switch parser we just made implements trait <a href="../../../../../trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> and to run it you convert it to <a href="../../../../../struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> with
+<a href="../../../../../trait.Parser.html#method.to_options" title="method bpaf::Parser::to_options"><code>Parser::to_options</code></a> and run it with <a href="../../../../../struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>OptionParser::run</code></a></p>
+<p>Full example with some sample inputs and outputs:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;bool&gt; {
+    <span class="kw">let </span>simple = short(<span class="string">'s'</span>).long(<span class="string">"simple"</span>).switch();
+    simple.to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>If you run the app with no parameters - switch will parse as <code>false</code></p>
+<div class='bpaf-doc'>
+$ app <br>
+false
+</div>
+<p>Both short and long names produce true</p>
+<div class='bpaf-doc'>
+$ app -s<br>
+true
+</div>
+<div class='bpaf-doc'>
+$ app --simple<br>
+true
+</div>
+<p>In addition to the switch you defined <code>bpaf</code> generates switch for user help</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-s</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-s</b></tt>, <tt><b>--simple</b></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p>With <a href="../../../../../params/struct.NamedArg.html#method.help" title="method bpaf::params::NamedArg::help"><code>NamedArg::help</code></a> you can attach a help message that will be used in <code>--help</code> output.</p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_0_simple_parser">↑ Making a simple parser ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_0_simple_parser::_1_argument">Argument parser →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

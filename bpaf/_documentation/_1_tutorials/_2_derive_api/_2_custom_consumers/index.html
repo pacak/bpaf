@@ -1,0 +1,118 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_2_derive_api::_2_custom_consumers - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _2_custom_consumers</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _2_<wbr>custom_<wbr>consumers</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#customizing-the-consumers" title="Customizing the consumers">Customizing the consumers</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>2_<wbr>derive_<wbr>api</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_2_derive_api</a></div><h1>Module <span>_2_<wbr>custom_<wbr>consumers</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#1421">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_custom_names/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api::_1_custom_names">← Customizing flag and argument names</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api">↑ Derive API tutorial ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_postpr/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api::_3_postpr">Transforming parsed values →</a></p>
+  </td>
+</tr></table>
+<h5 id="customizing-the-consumers"><a class="doc-anchor" href="#customizing-the-consumers">§</a>Customizing the consumers</h5>
+<p>By default, <code>bpaf</code> picks parsers depending on a field type according to those rules:</p>
+<ol>
+<li><code>bool</code> fields are converted into switches: <a href="../../../../params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a></li>
+<li><code>()</code> (unit) fields, unit variants of an enum or unit structs themselves are handled as
+<a href="../../../../params/struct.NamedArg.html#method.req_flag" title="method bpaf::params::NamedArg::req_flag"><code>NamedArg::req_flag</code></a> and thus users must always specify
+them for the parser to succeed</li>
+<li>All other types with no <code>Vec</code>/<code>Option</code> are parsed using <a href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr"><code>FromStr</code></a>, but
+smartly, so non-utf8 <code>PathBuf</code>/<code>OsString</code> are working as expected.</li>
+<li>For values wrapped in <code>Option</code> or <code>Vec</code> bpaf derives the inner parser and then applies
+applies logic from <a href="../../../../trait.Parser.html#method.optional" title="method bpaf::Parser::optional"><code>Parser::optional</code></a> and <a href="../../../../trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>Parser::many</code></a> respectively.</li>
+</ol>
+<p>You can change it with annotations like <code>switch</code>, <code>argument</code> or <code>positional</code></p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// A custom switch
+    </span><span class="attr">#[bpaf(short, switch)]
+    </span>switch: bool,
+
+    <span class="doccomment">/// Custom number
+    </span><span class="attr">#[bpaf(positional(<span class="string">"NUM"</span>))]
+    </span>argument: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p><code>bpaf</code> generates help message with a short name only as described</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-s</b></tt>] <tt><i>NUM</i></tt></p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>NUM</i></tt></dt>
+<dd>Custom number</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-s</b></tt></dt>
+<dd>A custom switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And accepts the short name only</p>
+<div class='bpaf-doc'>
+$ app -s 42<br>
+Options { switch: true, argument: 42 }
+</div>
+<p>long name is missing</p>
+<div class='bpaf-doc'>
+$ app --switch 42<br>
+<b>Error:</b> <b>--switch</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p>With arguments that consume a value you can specify its type using turbofish-line syntax</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// A custom argument
+    </span><span class="attr">#[bpaf(positional::&lt;usize&gt;(<span class="string">"LENGTH"</span>))]
+    </span>argument: usize,
+}
+ 
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>opts = options().run();
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, opts)
+}</code></pre></div>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_custom_names/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api::_1_custom_names">← Customizing flag and argument names</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api">↑ Derive API tutorial ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_postpr/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api::_3_postpr">Transforming parsed values →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

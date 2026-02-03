@@ -1,0 +1,1157 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Tools to define primitive parsers"><title>bpaf::params - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module params</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module params</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#ways-to-consume-data" title="Ways to consume data">Ways to consume data</a><ul><li><a href="#flag" title="Flag">Flag</a></li><li><a href="#required-flag" title="Required flag">Required flag</a></li><li><a href="#switch" title="Switch">Switch</a></li><li><a href="#argument" title="Argument">Argument</a></li><li><a href="#positional" title="Positional">Positional</a></li><li><a href="#any" title="Any">Any</a></li><li><a href="#command" title="Command">Command</a></li></ul></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate bpaf</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">bpaf</a></div><h1>Module <span>params</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/bpaf/params.rs.html#1-949">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Tools to define primitive parsers</p>
+<h2 id="ways-to-consume-data"><a class="doc-anchor" href="#ways-to-consume-data">§</a>Ways to consume data</h2><h3 id="flag"><a class="doc-anchor" href="#flag">§</a>Flag</h3>
+<ul>
+<li><a href="struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a> - a string that consists of two dashes (<code>--flag</code>) and a name and a single
+dash and a single character (<code>-f</code>) created with <a href="struct.NamedArg.html#method.long" title="method bpaf::params::NamedArg::long"><code>long</code></a> and <a href="struct.NamedArg.html#method.short" title="method bpaf::params::NamedArg::short"><code>short</code></a>
+respectively. Depending if this name is present or absent on the command line
+primitive flag parser produces one of two values. User can combine several short flags in a single
+invocation: <code>-a -b -c</code> is the same as <code>-abc</code>.</li>
+</ul>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    decision: Decision,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Decision {
+    Yes,
+    No,
+}
+
+<span class="kw">fn </span>parse_decision() -&gt; <span class="kw">impl </span>Parser&lt;Decision&gt; {
+    long(<span class="string">"decision"</span>)
+        .help(<span class="string">"Positive decision"</span>)
+        .flag(Decision::Yes, Decision::No)
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>decision = parse_decision();
+    <span class="macro">construct!</span>(Options { decision }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Positive decision
+    </span><span class="attr">#[bpaf(flag(Decision::Yes, Decision::No))]
+    </span>decision: Decision,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Decision {
+    Yes,
+    No,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> output <code>bpaf</code> shows flags with no meta variable attached</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--decision</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --decision</b></tt></dt>
+<dd>Positive decision</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Presense of a long name is decoded into <code>Yes</code></p>
+<div class='bpaf-doc'>
+$ app --decision<br>
+Options { decision: Yes }
+</div>
+<p>Absense is <code>No</code></p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { decision: No }
+</div>
+</details>
+<h3 id="required-flag"><a class="doc-anchor" href="#required-flag">§</a>Required flag</h3>
+<p>Similar to <code>flag</code>, but instead of falling back to the second value required flag parser would
+fail. Mostly useful in combination with other parsers, created with <a href="struct.NamedArg.html#method.req_flag" title="method bpaf::params::NamedArg::req_flag"><code>NamedArg::req_flag</code></a>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Style {
+    Intel,
+    Att,
+    Llvm,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Report {
+    <span class="doccomment">/// Include defailed report
+    </span>Detailed,
+    <span class="doccomment">/// Include minimal report
+    </span>Minimal,
+    <span class="doccomment">/// No preferences
+    </span>Undecided,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    agree: (),
+    style: Style,
+    report: Report,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>agree = long(<span class="string">"agree"</span>)
+        .help(<span class="string">"You must agree to perform the action"</span>)
+        .req_flag(());
+
+    <span class="kw">let </span>intel = long(<span class="string">"intel"</span>)
+        .help(<span class="string">"Show assembly using Intel style"</span>)
+        .req_flag(Style::Intel);
+    <span class="kw">let </span>att = long(<span class="string">"att"</span>)
+        .help(<span class="string">"Show assembly using AT&amp;T style"</span>)
+        .req_flag(Style::Att);
+    <span class="kw">let </span>llvm = long(<span class="string">"llvm"</span>).help(<span class="string">"Show llvm-ir"</span>).req_flag(Style::Llvm);
+    <span class="kw">let </span>style = <span class="macro">construct!</span>([intel, att, llvm]);
+
+    <span class="kw">let </span>detailed = long(<span class="string">"detailed"</span>)
+        .help(<span class="string">"Include detailed report"</span>)
+        .req_flag(Report::Detailed);
+    <span class="kw">let </span>minimal = long(<span class="string">"minimal"</span>)
+        .help(<span class="string">"Include minimal report"</span>)
+        .req_flag(Report::Minimal);
+    <span class="kw">let </span>report = <span class="macro">construct!</span>([detailed, minimal]).fallback(Report::Undecided);
+
+    <span class="macro">construct!</span>(Options {
+        agree,
+        style,
+        report
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">pub enum </span>Style {
+    <span class="doccomment">/// Show assembly using Intel style
+    </span>Intel,
+    <span class="doccomment">/// Show assembly using AT&amp;T style
+    </span>Att,
+    <span class="doccomment">/// Show llvm-ir
+    </span>Llvm,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(fallback(Report::Undecided))]
+</span><span class="kw">pub enum </span>Report {
+    <span class="doccomment">/// Include detailed report
+    </span>Detailed,
+    <span class="doccomment">/// Include minimal report
+    </span>Minimal,
+    <span class="attr">#[bpaf(skip)]
+    </span><span class="doccomment">/// No preferences
+    </span>Undecided,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// You must agree to perform the action
+    </span>agree: (),
+    <span class="comment">// external here uses explicit reference to function `style`
+    // generated above
+    </span><span class="attr">#[bpaf(external(style))]
+    </span>style: Style,
+    <span class="comment">// here reference is implicit and derived from field name: `report`
+    </span><span class="attr">#[bpaf(external)]
+    </span>report: Report,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> message <code>req_flag</code> look similarly to <a href="struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> and
+<a href="struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a></p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--agree</b></tt> (<tt><b>--intel</b></tt> | <tt><b>--att</b></tt> | <tt><b>--llvm</b></tt>) [<tt><b>--detailed</b></tt> | <tt><b>--minimal</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --agree</b></tt></dt>
+<dd>You must agree to perform the action</dd>
+<dt><tt><b>    --intel</b></tt></dt>
+<dd>Show assembly using Intel style</dd>
+<dt><tt><b>    --att</b></tt></dt>
+<dd>Show assembly using AT&T style</dd>
+<dt><tt><b>    --llvm</b></tt></dt>
+<dd>Show llvm-ir</dd>
+<dt><tt><b>    --detailed</b></tt></dt>
+<dd>Include detailed report</dd>
+<dt><tt><b>    --minimal</b></tt></dt>
+<dd>Include minimal report</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Example contains two parsers that fails without any input: <code>agree</code> requires passing <code>--agree</code></p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>--agree</b></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>While <code>style</code> takes one of several possible values</p>
+<div class='bpaf-doc'>
+$ app --agree<br>
+<b>Error:</b> expected <tt><b>--intel</b></tt>, <tt><b>--att</b></tt>, or more, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>It is possible to alter the behavior using <a href="../trait.Parser.html#method.fallback" title="method bpaf::Parser::fallback"><code>fallback</code></a> or
+<a href="../trait.Parser.html#method.hide" title="method bpaf::Parser::hide"><code>hide</code></a>.</p>
+<div class='bpaf-doc'>
+$ app --agree --intel<br>
+Options { agree: (), style: Intel, report: Undecided }
+</div>
+<p>While parser for <code>style</code> takes any posted output - it won’t take multiple of them at once
+(unless other combinators such as <a href="../trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a> permit it) or <a href="../trait.Parser.html#method.last" title="method bpaf::Parser::last"><code>last</code></a>.</p>
+<div class='bpaf-doc'>
+$ app --agree --att --llvm<br>
+<b>Error:</b> <tt><b>--llvm</b></tt> cannot be used at the same time as <tt><b>--att</b></tt>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h3 id="switch"><a class="doc-anchor" href="#switch">§</a>Switch</h3>
+<p>A special case of a flag that gets decoded into a <code>bool</code>, mostly serves as a convenient
+shortcut to <code>.flag(true, false)</code>. Created with <a href="struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    verbose: bool,
+    release: bool,
+    default_features: bool,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>verbose = short(<span class="string">'v'</span>)
+        .long(<span class="string">"verbose"</span>)
+        .help(<span class="string">"Produce verbose output"</span>)
+        .switch();
+    <span class="kw">let </span>release = long(<span class="string">"release"</span>)
+        .help(<span class="string">"Build artifacts in release mode"</span>)
+        .flag(<span class="bool-val">true</span>, <span class="bool-val">false</span>);
+    <span class="kw">let </span>default_features = long(<span class="string">"no-default-features"</span>)
+        .help(<span class="string">"Do not activate default features"</span>)
+        <span class="comment">// default_features uses opposite values,
+        // producing `true` when value is absent
+        </span>.flag(<span class="bool-val">false</span>, <span class="bool-val">true</span>);
+
+    <span class="macro">construct!</span>(Options {
+        verbose,
+        release,
+        default_features,
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Produce verbose output
+    </span><span class="comment">// bpaf uses `switch` for `bool` fields in named
+    // structs unless consumer attribute is present.
+    // But it is also possible to give it explicit
+    // consumer annotation to serve as a reminder:
+    // #[bpaf(short, long, switch)]
+    </span><span class="attr">#[bpaf(short, long)]
+    </span>verbose: bool,
+
+    <span class="attr">#[bpaf(flag(<span class="bool-val">true</span>, <span class="bool-val">false</span>))]
+    </span><span class="doccomment">/// Build artifacts in release mode
+    </span>release: bool,
+
+    <span class="doccomment">/// Do not activate default features
+    </span><span class="comment">// default_features uses opposite values,
+    // producing `true` when value is absent
+    </span><span class="attr">#[bpaf(long(<span class="string">"no-default-features"</span>), flag(<span class="bool-val">false</span>, <span class="bool-val">true</span>))]
+    </span>default_features: bool,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>In <code>--help</code> output <code>bpaf</code> shows switches as usual flags with no meta variable attached</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] [<tt><b>--release</b></tt>] [<tt><b>--no-default-features</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
+<dd>Produce verbose output</dd>
+<dt><tt><b>    --release</b></tt></dt>
+<dd>Build artifacts in release mode</dd>
+<dt><tt><b>    --no-default-features</b></tt></dt>
+<dd>Do not activate default features</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Both <code>switch</code> and <code>flag</code> succeed if value is not present, <code>switch</code> returns <code>false</code>, <code>flag</code> returns
+second value.</p>
+<div class='bpaf-doc'>
+$ app <br>
+Options { verbose: false, release: false, default_features: true }
+</div>
+<p>When value is present - <code>switch</code> returns <code>true</code>, <code>flag</code> returns first value.</p>
+<div class='bpaf-doc'>
+$ app --verbose --no-default-features --detailed<br>
+<b>Error:</b> <b>--detailed</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Like with most parsrs unless specified <code>switch</code> and <code>flag</code> consume at most one item from the
+command line:</p>
+<div class='bpaf-doc'>
+$ app --no-default-features --no-default-features<br>
+<b>Error:</b> argument <tt><b>--no-default-features</b></tt> cannot be used multiple times in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h3 id="argument"><a class="doc-anchor" href="#argument">§</a>Argument</h3>
+<p>A short or long <code>flag</code> followed by either a space or <code>=</code> and
+then by a string literal.  <code>-f foo</code>, <code>--flag bar</code> or <code>-o=-</code> are all valid argument examples. Note, string
+literal can’t start with <code>-</code> unless separated from the flag with <code>=</code>. For short flags value
+can follow immediately: <code>-fbar</code>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    name: String,
+    age: usize,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>name = short(<span class="string">'n'</span>)
+        .long(<span class="string">"name"</span>)
+        .help(<span class="string">"Specify user name"</span>)
+        <span class="comment">// you can specify exact type argument should produce
+        // for as long as it implements `FromStr`
+        </span>.argument::&lt;String&gt;(<span class="string">"NAME"</span>);
+
+    <span class="kw">let </span>age = long(<span class="string">"age"</span>)
+        .help(<span class="string">"Specify user age"</span>)
+        <span class="comment">// but often rust can figure it out from the context,
+        // here age is going to be `usize`
+        </span>.argument(<span class="string">"AGE"</span>)
+        .fallback(<span class="number">18</span>)
+        .display_fallback();
+
+    <span class="macro">construct!</span>(Options { name, age }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="comment">// you can specify exact type argument should produce
+    // for as long as it implements `FromStr`
+    </span><span class="attr">#[bpaf(short, long, argument::&lt;String&gt;(<span class="string">"NAME"</span>))]
+    </span><span class="doccomment">/// Specify user name
+    </span>name: String,
+    <span class="comment">// but often rust can figure it out from the context,
+    // here age is going to be `usize`
+    </span><span class="attr">#[bpaf(argument(<span class="string">"AGE"</span>), fallback(<span class="number">18</span>), display_fallback)]
+    </span><span class="doccomment">/// Specify user age
+    </span>age: usize,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>-n</b></tt>=<tt><i>NAME</i></tt> [<tt><b>--age</b></tt>=<tt><i>AGE</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-n</b></tt>, <tt><b>--name</b></tt>=<tt><i>NAME</i></tt></dt>
+<dd>Specify user name</dd>
+<dt><tt><b>    --age</b></tt>=<tt><i>AGE</i></tt></dt>
+<dd>Specify user age</dd>
+<dt></dt>
+<dd>[default: 18]</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p><code>--help</code> shows arguments as a short name with attached metavariable</p>
+<p>Value can be separated from flag by space, <code>=</code> sign</p>
+<div class='bpaf-doc'>
+$ app --name Bob --age 12<br>
+Options { name: "Bob", age: 12 }
+</div>
+<div class='bpaf-doc'>
+$ app --name "Bob" --age=12<br>
+Options { name: "Bob", age: 12 }
+</div>
+<div class='bpaf-doc'>
+$ app --name=Bob<br>
+Options { name: "Bob", age: 18 }
+</div>
+<div class='bpaf-doc'>
+$ app --name="Bob"<br>
+Options { name: "Bob", age: 18 }
+</div>
+<p>Or in case of short name - be directly adjacent to it</p>
+<div class='bpaf-doc'>
+$ app -nBob<br>
+Options { name: "Bob", age: 18 }
+</div>
+<p>For long names - this doesn’t work since parser can’t tell where name
+stops and argument begins:</p>
+<div class='bpaf-doc'>
+$ app --age12<br>
+<b>Error:</b> no such flag: <b>--age12</b>, did you mean <tt><b>--age</b></tt>?
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Either way - value is required, passing just the argument name results in parse failure</p>
+<div class='bpaf-doc'>
+$ app --name<br>
+<b>Error:</b> <tt><b>--name</b></tt> requires an argument <tt><i>NAME</i></tt>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h3 id="positional"><a class="doc-anchor" href="#positional">§</a>Positional</h3>
+<p>A positional argument with no additonal name, for example in <code>vim main.rs</code> <code>main.rs</code>
+is a positional argument. Can’t start with <code>-</code>, created with <a href="../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    verbose: bool,
+    crate_name: String,
+    feature_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>verbose = short(<span class="string">'v'</span>)
+        .long(<span class="string">"verbose"</span>)
+        .help(<span class="string">"Display detailed information"</span>)
+        .switch();
+
+    <span class="kw">let </span>crate_name = positional(<span class="string">"CRATE"</span>).help(<span class="string">"Crate name to use"</span>);
+
+    <span class="kw">let </span>feature_name = positional(<span class="string">"FEATURE"</span>)
+        .help(<span class="string">"Display information about this feature"</span>)
+        .optional();
+
+    <span class="macro">construct!</span>(Options {
+        verbose,
+        <span class="comment">// You must place positional items and commands after
+        // all other parsers
+        </span>crate_name,
+        feature_name
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Display detailed information
+    </span><span class="attr">#[bpaf(short, long)]
+    </span>verbose: bool,
+
+    <span class="comment">// You must place positional items and commands after
+    // all other parsers
+    </span><span class="attr">#[bpaf(positional(<span class="string">"CRATE"</span>))]
+    </span><span class="doccomment">/// Crate name to use
+    </span>crate_name: String,
+
+    <span class="attr">#[bpaf(positional(<span class="string">"FEATURE"</span>))]
+    </span><span class="doccomment">/// Display information about this feature
+    </span>feature_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Positional items show up in a separate group of arguments if they contain a help message,
+otherwise they will show up only in <strong>Usage</strong> part.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><i>CRATE</i></tt> [<tt><i>FEATURE</i></tt>]</p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>CRATE</i></tt></dt>
+<dd>Crate name to use</dd>
+<dt><tt><i>FEATURE</i></tt></dt>
+<dd>Display information about this feature</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
+<dd>Display detailed information</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can mix positional items with regular items</p>
+<div class='bpaf-doc'>
+$ app --verbose bpaf<br>
+Options { verbose: true, crate_name: "bpaf", feature_name: None }
+</div>
+<p>And since <code>bpaf</code> API expects to have non positional items consumed before positional ones - you
+can use them in a different order. In this example <code>bpaf</code> corresponds to a <code>crate_name</code> field and
+<code>--verbose</code> – to <code>verbose</code>.</p>
+<div class='bpaf-doc'>
+$ app bpaf --verbose<br>
+Options { verbose: true, crate_name: "bpaf", feature_name: None }
+</div>
+<p>In previous examples optional field <code>feature</code> was missing, this one contains it.</p>
+<div class='bpaf-doc'>
+$ app bpaf autocomplete<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("autocomplete") }
+</div>
+<p>Users can use <code>--</code> to tell <code>bpaf</code> to treat remaining items as positionals - this might be
+required to handle unusual items.</p>
+<div class='bpaf-doc'>
+$ app bpaf -- --verbose<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("--verbose") }
+</div>
+<div class='bpaf-doc'>
+$ app -- bpaf --verbose<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("--verbose") }
+</div>
+<p>Without using <code>--</code> <code>bpaf</code> would only accept items that don’t start with <code>-</code> as positional.</p>
+<div class='bpaf-doc'>
+$ app --detailed<br>
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, got <b>--detailed</b>. Pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app --verbose<br>
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can use <a href="../fn.any.html" title="fn bpaf::any"><code>any</code></a> to work around this restriction.</p>
+</details>
+<h3 id="any"><a class="doc-anchor" href="#any">§</a>Any</h3>
+<p>Also a positional argument with no additional name, but unlike <a href="../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> itself, <a href="../fn.any.html" title="fn bpaf::any"><code>any</code></a>
+isn’t restricted to positional looking structure and would consume any items as they appear on
+a command line. Can be useful to collect anything unused to pass to other applications.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    turbo: bool,
+    rest: Vec&lt;OsString&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>turbo = short(<span class="string">'t'</span>)
+        .long(<span class="string">"turbo"</span>)
+        .help(<span class="string">"Engage the turbo mode"</span>)
+        .switch();
+    <span class="kw">let </span>rest = any::&lt;OsString, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">"REST"</span>, |x| (<span class="macro">x !</span>= <span class="string">"--help"</span>).then_some(x))
+        .help(<span class="string">"app will pass anything unused to a child process"</span>)
+        .many();
+    <span class="macro">construct!</span>(Options { turbo, rest }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Engage the turbo mode
+    </span>turbo: bool,
+    <span class="attr">#[bpaf(any(<span class="string">"REST"</span>, not_help), many)]
+    </span><span class="doccomment">/// app will pass anything unused to a child process
+    </span>rest: Vec&lt;OsString&gt;,
+}
+
+<span class="kw">fn </span>not_help(s: OsString) -&gt; <span class="prelude-ty">Option</span>&lt;OsString&gt; {
+    <span class="kw">if </span>s == <span class="string">"--help" </span>{
+        <span class="prelude-val">None
+    </span>} <span class="kw">else </span>{
+        <span class="prelude-val">Some</span>(s)
+    }
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p><code>--help</code> keeps working for as long as <code>any</code> captures only intended values - that is it ignores
+<code>--help</code> flag specifically</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-t</b></tt>] [<tt><i>REST</i></tt>]...</p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>REST</i></tt></dt>
+<dd>app will pass anything unused to a child process</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-t</b></tt>, <tt><b>--turbo</b></tt></dt>
+<dd>Engage the turbo mode</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can mix <code>any</code> with regular options, here <a href="struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> <code>turbo</code> works because it goes
+before <code>rest</code> in the parser declaration</p>
+<div class='bpaf-doc'>
+$ app --turbo git commit -m "hello world"<br>
+Options { turbo: true, rest: ["git", "commit", "-m", "hello world"] }
+</div>
+<p>“before” in the previous line means in the parser definition, not on the user input, here
+<code>--turbo</code> gets consumed by <code>turbo</code> parser even the argument goes</p>
+<div class='bpaf-doc'>
+$ app git commit -m="hello world" --turbo<br>
+Options { turbo: true, rest: ["git", "commit", "-m=hello world"] }
+</div>
+<div class='bpaf-doc'>
+$ app -- git commit -m="hello world" --turbo<br>
+Options { turbo: false, rest: ["git", "commit", "-m=hello world", "--turbo"] }
+</div>
+<div class='bpaf-doc'>
+$ app git commit -m="hello world" -- --turbo<br>
+Options { turbo: false, rest: ["git", "commit", "-m=hello world", "--turbo"] }
+</div>
+</details>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    block_size: usize,
+    count: usize,
+    output_file: String,
+    turbo: bool,
+}
+
+<span class="doccomment">/// Parses a string that starts with `name`, returns the suffix parsed in a usual way
+</span><span class="kw">fn </span>tag&lt;T&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, meta: <span class="kw-2">&amp;</span>str, help: <span class="kw">impl </span>Into&lt;Doc&gt;) -&gt; <span class="kw">impl </span>Parser&lt;T&gt;
+<span class="kw">where
+    </span>T: FromStr,
+    &lt;T <span class="kw">as </span>FromStr&gt;::Err: std::fmt::Display,
+{
+    <span class="comment">// closure inside checks if command line argument starts with a given name
+    // and if it is - it accepts it, otherwise it behaves like it never saw it
+    // it is possible to parse OsString here and strip the prefix with
+    // `os_str_bytes` or a similar crate
+    </span>any(<span class="string">""</span>, <span class="kw">move </span>|s: String| <span class="prelude-val">Some</span>(s.strip_prefix(name)<span class="question-mark">?</span>.to_owned()))
+        <span class="comment">// this defines custom metavar for the help message
+        // so it looks like something it designed to parse
+        </span>.metavar(<span class="kw-2">&amp;</span>[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        <span class="comment">// this makes it so tag parser tries to read all (unconsumed by earlier parsers)
+        // item on a command line instead of trying and failing on the first one
+        </span>.anywhere()
+        <span class="comment">// At this point parser produces `String` while consumer might expect some other
+        // type. [`parse`](Parser::parse) handles that
+        </span>.parse(|s| s.parse())
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>block_size = tag(<span class="string">"bs="</span>, <span class="string">"BLOCK"</span>, <span class="string">"How many bytes to read at once"</span>)
+        .fallback(<span class="number">1024</span>)
+        .display_fallback();
+    <span class="kw">let </span>count = tag(<span class="string">"count="</span>, <span class="string">"NUM"</span>, <span class="string">"How many blocks to read"</span>).fallback(<span class="number">1</span>);
+    <span class="kw">let </span>output_file = tag(<span class="string">"of="</span>, <span class="string">"FILE"</span>, <span class="string">"Save results into this file"</span>);
+
+    <span class="comment">// this consumes literal value of "+turbo" locate and produces `bool`
+    </span><span class="kw">let </span>turbo = literal(<span class="string">"+turbo"</span>)
+        .help(<span class="string">"Engage turbo mode!"</span>)
+        .anywhere()
+        .map(|<span class="kw">_</span>| <span class="bool-val">true</span>)
+        .fallback(<span class="bool-val">false</span>);
+
+    <span class="macro">construct!</span>(Options {
+        block_size,
+        count,
+        output_file,
+        turbo
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// This example is still technically derive API, but derive is limited to gluing
+// things together and keeping macro complexity under control.
+</span><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="comment">// `external` here and below derives name from the field name, looking for
+    // functions called `block_size`, `count`, etc that produce parsers of
+    // the right type.
+    // A different way would be to write down the name explicitly:
+    // #[bpaf(external(block_size), fallback(1024), display_fallback)]
+    </span><span class="attr">#[bpaf(external, fallback(<span class="number">1024</span>), display_fallback)]
+    </span>block_size: usize,
+    <span class="attr">#[bpaf(external, fallback(<span class="number">1</span>))]
+    </span>count: usize,
+    <span class="attr">#[bpaf(external)]
+    </span>output_file: String,
+    <span class="attr">#[bpaf(external)]
+    </span>turbo: bool,
+}
+
+<span class="kw">fn </span>block_size() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    tag(<span class="string">"bs="</span>, <span class="string">"BLOCK"</span>, <span class="string">"How many bytes to read at once"</span>)
+}
+
+<span class="kw">fn </span>count() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    tag(<span class="string">"count="</span>, <span class="string">"NUM"</span>, <span class="string">"How many blocks to read"</span>)
+}
+
+<span class="kw">fn </span>output_file() -&gt; <span class="kw">impl </span>Parser&lt;String&gt; {
+    tag(<span class="string">"of="</span>, <span class="string">"FILE"</span>, <span class="string">"Save results into this file"</span>)
+}
+
+<span class="kw">fn </span>turbo() -&gt; <span class="kw">impl </span>Parser&lt;bool&gt; {
+    literal(<span class="string">"+turbo"</span>)
+        .help(<span class="string">"Engage turbo mode!"</span>)
+        .anywhere()
+        .map(|<span class="kw">_</span>| <span class="bool-val">true</span>)
+        .fallback(<span class="bool-val">false</span>)
+}
+
+<span class="doccomment">/// Parses a string that starts with `name`, returns the suffix parsed in a usual way
+</span><span class="kw">fn </span>tag&lt;T&gt;(name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, meta: <span class="kw-2">&amp;</span>str, help: <span class="kw">impl </span>Into&lt;Doc&gt;) -&gt; <span class="kw">impl </span>Parser&lt;T&gt;
+<span class="kw">where
+    </span>T: FromStr,
+    &lt;T <span class="kw">as </span>FromStr&gt;::Err: std::fmt::Display,
+{
+    <span class="comment">// closure inside checks if command line argument starts with a given name
+    // and if it is - it accepts it, otherwise it behaves like it never saw it
+    // it is possible to parse OsString here and strip the prefix with
+    // `os_str_bytes` or a similar crate
+    </span>any(<span class="string">""</span>, <span class="kw">move </span>|s: String| <span class="prelude-val">Some</span>(s.strip_prefix(name)<span class="question-mark">?</span>.to_owned()))
+        <span class="comment">// this defines custom metavar for the help message
+        // so it looks like something it designed to parse
+        </span>.metavar(<span class="kw-2">&amp;</span>[(name, Style::Literal), (meta, Style::Metavar)][..])
+        .help(help)
+        <span class="comment">// this makes it so tag parser tries to read all (unconsumed by earlier parsers)
+        // item on a command line instead of trying and failing on the first one
+        </span>.anywhere()
+        <span class="comment">// At this point parser produces `String` while consumer might expect some other
+        // type. [`parse`](Parser::parse) handles that
+        </span>.parse(|s| s.parse())
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Instead of usual metavariable <code>any</code> parsers take something that can represent any value</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>bs=</b></tt><tt><i>BLOCK</i></tt>] [<tt><b>count=</b></tt><tt><i>NUM</i></tt>] <tt><b>of=</b></tt><tt><i>FILE</i></tt> [<tt><b>+turbo</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>bs=</b></tt><tt><i>BLOCK</i></tt></dt>
+<dd>How many bytes to read at once</dd>
+<dt></dt>
+<dd>[default: 1024]</dd>
+<dt><tt><b>count=</b></tt><tt><i>NUM</i></tt></dt>
+<dd>How many blocks to read</dd>
+<dt><tt><b>of=</b></tt><tt><i>FILE</i></tt></dt>
+<dd>Save results into this file</dd>
+<dt><tt><b>+turbo</b></tt></dt>
+<dd>Engage turbo mode!</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Output file is required in this parser, other values are optional</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>of=</b></tt><tt><i>FILE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app of=simple.txt<br>
+Options { block_size: 1024, count: 1, output_file: "simple.txt", turbo: false }
+</div>
+<p>Since options are defined with <code>anywhere</code> - order doesn’t matter</p>
+<div class='bpaf-doc'>
+$ app bs=10 of=output.rs +turbo<br>
+Options { block_size: 10, count: 1, output_file: "output.rs", turbo: true }
+</div>
+<div class='bpaf-doc'>
+$ app +turbo bs=10 of=output.rs<br>
+Options { block_size: 10, count: 1, output_file: "output.rs", turbo: true }
+</div>
+<div class='bpaf-doc'>
+$ app bs=65536 count=12 of=hello_world.rs<br>
+Options { block_size: 65536, count: 12, output_file: "hello_world.rs", turbo: false }
+</div>
+</details>
+<h3 id="command"><a class="doc-anchor" href="#command">§</a>Command</h3>
+<p>A command defines a starting point for an independent subparser. Name must be a valid utf8
+string. For example <code>cargo build</code> invokes command <code>"build"</code> and after <code>"build"</code> <code>cargo</code>
+starts accepting values it won’t accept otherwise</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Cmd {
+    flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    flag: bool,
+    cmd: Cmd,
+}
+
+<span class="kw">fn </span>cmd() -&gt; <span class="kw">impl </span>Parser&lt;Cmd&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to command"</span>)
+        .switch();
+    <span class="kw">let </span>arg = long(<span class="string">"arg"</span>).argument::&lt;usize&gt;(<span class="string">"ARG"</span>);
+    <span class="macro">construct!</span>(Cmd { flag, arg })
+        .to_options()
+        .descr(<span class="string">"Command to do something"</span>)
+        .command(<span class="string">"cmd"</span>)
+        <span class="comment">// you can chain add extra short and long names
+        </span>.short(<span class="string">'c'</span>)
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to the outer layer"</span>)
+        .switch();
+    <span class="macro">construct!</span>(Options { flag, cmd() }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="comment">// `command` annotation with no name gets the name from the object it is attached to,
+// but you can override it using something like #[bpaf(command("my_command"))]
+// you can chain more short and long names here to serve as aliases
+</span><span class="attr">#[bpaf(command(<span class="string">"cmd"</span>), short(<span class="string">'c'</span>))]
+</span><span class="doccomment">/// Command to do something
+</span><span class="kw">pub struct </span>Cmd {
+    <span class="doccomment">/// This flag is specific to command
+    </span>flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// This flag is specific to the outer layer
+    </span>flag: bool,
+    <span class="attr">#[bpaf(external)]
+    </span>cmd: Cmd,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Commands show up on both outer level help</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--flag</b></tt>] <tt><i>COMMAND ...</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to the outer layer</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p><p><div>
+<b>Available commands:</b></div><dl><dt><tt><b>cmd</b></tt>, <tt><b>c</b></tt></dt>
+<dd>Command to do something</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>As well as showing their own help</p>
+<div class='bpaf-doc'>
+$ app cmd --help<br>
+<p>Command to do something</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>cmd</b></tt> [<tt><b>--flag</b></tt>] <tt><b>--arg</b></tt>=<tt><i>ARG</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to command</dd>
+<dt><tt><b>    --arg</b></tt>=<tt><i>ARG</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>In this example there’s only one command and it is required, so is the argument inside of it</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42<br>
+Options { flag: false, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>If you don’t specify this command - parsing will fail</p>
+<p>You can have the same flag names inside and outside of the command, but it might be confusing
+for the end user. This example enables the outer flag</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>And this one - both inside and outside</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: true, arg: 42 } }
+</div>
+<p>And that’s the confusing part - unless you add context restrictions with
+<a href="../parsers/struct.ParseCon.html#method.adjacent" title="method bpaf::parsers::ParseCon::adjacent"><code>adjacent</code></a> and parse command first - outer flag wins.
+So it’s best not to mix names on different levels</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+</details>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.NamedArg.html" title="struct bpaf::params::NamedArg">Named<wbr>Arg</a></dt><dd>A named thing used to create <a href="struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a>, <a href="struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a> or
+<a href="struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a></dd><dt><a class="struct" href="struct.ParseAny.html" title="struct bpaf::params::ParseAny">Parse<wbr>Any</a></dt><dd>Consume an arbitrary value that satisfies a condition, created with <a href="../fn.any.html" title="fn bpaf::any"><code>any</code></a>, implements
+<a href="struct.ParseAny.html#method.anywhere" title="method bpaf::params::ParseAny::anywhere"><code>anywhere</code></a>.</dd><dt><a class="struct" href="struct.ParseArgument.html" title="struct bpaf::params::ParseArgument">Parse<wbr>Argument</a></dt><dd>Parser for a named argument, created with <a href="struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a>.</dd><dt><a class="struct" href="struct.ParseCommand.html" title="struct bpaf::params::ParseCommand">Parse<wbr>Command</a></dt><dd>Builder structure for the [<code>command</code>]</dd><dt><a class="struct" href="struct.ParseFlag.html" title="struct bpaf::params::ParseFlag">Parse<wbr>Flag</a></dt><dd>Parser for a named switch, created with <a href="struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>NamedArg::flag</code></a> or <a href="struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a></dd><dt><a class="struct" href="struct.ParsePositional.html" title="struct bpaf::params::ParsePositional">Parse<wbr>Positional</a></dt><dd>Parse a positional item, created with <a href="../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a></dd></dl></section></div></main></body></html>

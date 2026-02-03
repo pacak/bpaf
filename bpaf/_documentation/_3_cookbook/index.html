@@ -1,0 +1,43 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _3_cookbook</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _3_<wbr>cookbook</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#parsing-cookbook" title="Parsing cookbook">Parsing cookbook</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../index.html">bpaf</a>::<wbr><a href="../index.html">_documentation</a></div><h1>Module <span>_3_<wbr>cookbook</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../src/bpaf/_documentation.rs.html#2276">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_howto/index.html" title="mod bpaf::_documentation::_2_howto">← HOWTO - practical, oriented to solving problems guides</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation">↑ Project documentation ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_4_explanation/index.html" title="mod bpaf::_documentation::_4_explanation">Theory explanation →</a></p>
+  </td>
+</tr></table>
+<h5 id="parsing-cookbook"><a class="doc-anchor" href="#parsing-cookbook">§</a>Parsing cookbook</h5>
+<p>How to parse less frequent combinations</p>
+<p>While <code>bpaf</code>’s design tries to cover the most common use cases, mostly
+<a href="https://pubs.opengroup.org/onlinepubs/9699919799.2018edition/basedefs/V1_chap12.html">posix conventions</a>,
+it can also handle some more unusual requirements. It might come at the cost of having to write
+more code, more confusing error messages or worse performance, but it will get the job done.</p>
+<ul>
+<li><a href="_00_find/index.html" title="mod bpaf::_documentation::_3_cookbook::_00_find"><code>find(1)</code>: <code>find -exec commands -flags terminated by \;</code></a></li>
+<li><a href="_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd"><code>dd(1)</code>: <code>dd if=/dev/zero of=/dev/null bs=1000</code></a></li>
+<li><a href="_02_xorg/index.html" title="mod bpaf::_documentation::_3_cookbook::_02_xorg"><code>Xorg(1)</code>: <code>Xorg +xinerama +extension name</code></a></li>
+<li><a href="_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">Command chaining</a> - Lets you do things like <code>setup.py sdist bdist</code>: <a href="https://click.palletsprojects.com/en/7.x/commands/#multi-command-chaining">command chaining</a></li>
+<li><a href="_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">Multi-value arguments: <code>--foo ARG1 ARG2 ARG3</code></a></li>
+<li><a href="_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code></a></li>
+<li><a href="_06_multi_flag/index.html" title="mod bpaf::_documentation::_3_cookbook::_06_multi_flag">Multi-value arguments with optional flags: <code>--foo ARG1 --flag --inner ARG2</code></a></li>
+<li><a href="_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">Skipping optional positional items if parsing or validation fails</a></li>
+<li><a href="_08_cargo_helper/index.html" title="mod bpaf::_documentation::_3_cookbook::_08_cargo_helper">Implementing cargo commands</a></li>
+<li><a href="_09_numeric_flags/index.html" title="mod bpaf::_documentation::_3_cookbook::_09_numeric_flags">Numeric flags - compression levels like in zip</a></li>
+</ul>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_2_howto/index.html" title="mod bpaf::_documentation::_2_howto">← HOWTO - practical, oriented to solving problems guides</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation">↑ Project documentation ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_4_explanation/index.html" title="mod bpaf::_documentation::_4_explanation">Theory explanation →</a></p>
+  </td>
+</tr></table>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="_00_find/index.html" title="mod bpaf::_documentation::_3_cookbook::_00_find">_00_<wbr>find</a></dt><dd> </dd><dt><a class="mod" href="_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd">_01_dd</a></dt><dd> </dd><dt><a class="mod" href="_02_xorg/index.html" title="mod bpaf::_documentation::_3_cookbook::_02_xorg">_02_<wbr>xorg</a></dt><dd> </dd><dt><a class="mod" href="_03_command_chaining/index.html" title="mod bpaf::_documentation::_3_cookbook::_03_command_chaining">_03_<wbr>command_<wbr>chaining</a></dt><dd> </dd><dt><a class="mod" href="_04_multi_value/index.html" title="mod bpaf::_documentation::_3_cookbook::_04_multi_value">_04_<wbr>multi_<wbr>value</a></dt><dd> </dd><dt><a class="mod" href="_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">_05_<wbr>struct_<wbr>groups</a></dt><dd> </dd><dt><a class="mod" href="_06_multi_flag/index.html" title="mod bpaf::_documentation::_3_cookbook::_06_multi_flag">_06_<wbr>multi_<wbr>flag</a></dt><dd> </dd><dt><a class="mod" href="_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">_07_<wbr>skip_<wbr>positional</a></dt><dd> </dd><dt><a class="mod" href="_08_cargo_helper/index.html" title="mod bpaf::_documentation::_3_cookbook::_08_cargo_helper">_08_<wbr>cargo_<wbr>helper</a></dt><dd> </dd><dt><a class="mod" href="_09_numeric_flags/index.html" title="mod bpaf::_documentation::_3_cookbook::_09_numeric_flags">_09_<wbr>numeric_<wbr>flags</a></dt><dd> </dd></dl></section></div></main></body></html>

@@ -1,0 +1,214 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_2_combining - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _2_combining</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _2_<wbr>combining</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#combining-multiple-simple-parsers" title="Combining multiple simple parsers">Combining multiple simple parsers</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>1_<wbr>combinatoric_<wbr>api</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_1_combinatoric_api</a></div><h1>Module <span>_2_<wbr>combining</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#1020">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_chaining/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_1_chaining">← Transforming parsers</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api">↑ Combinatoric API ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_subcommands/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_3_subcommands">Subcommand parsers →</a></p>
+  </td>
+</tr></table>
+<h5 id="combining-multiple-simple-parsers"><a class="doc-anchor" href="#combining-multiple-simple-parsers">§</a>Combining multiple simple parsers</h5>
+<p>A single-item option parser can only get you so far. Fortunately, you can combine multiple
+parsers with <a href="../../../../macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a> macro.</p>
+<p>For sequential composition (all the fields must be present) you write your code as if you are
+constructing a structure, enum variant or a tuple and wrap it with <code>construct!</code>. Both
+a constructor and parsers must be present in the scope. If instead of a parser you have a function
+that creates one - just add <code>()</code> after the name:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">struct </span>Options {
+    alpha: usize,
+    beta: usize
+}
+ 
+<span class="kw">fn </span>alpha() -&gt; <span class="kw">impl </span>Parser&lt;usize&gt; {
+    long(<span class="string">"alpha"</span>).argument(<span class="string">"ALPHA"</span>)
+}
+ 
+<span class="kw">fn </span>both() -&gt; <span class="kw">impl </span>Parser&lt;Options&gt; {
+    <span class="kw">let </span>beta = long(<span class="string">"beta"</span>).argument(<span class="string">"BETA"</span>);
+    <span class="comment">// call `alpha` function, and use result to make parser
+    // for field `alpha`, use parser `beta` for field `beta`
+    </span><span class="macro">construct!</span>(Options { alpha(), beta })
+}</code></pre></div>
+<p>Full example:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    argument: Vec&lt;u32&gt;,
+    switches: Vec&lt;bool&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>argument = long(<span class="string">"argument"</span>)
+        .help(<span class="string">"important argument"</span>)
+        .argument(<span class="string">"ARG"</span>)
+        .many();
+    <span class="kw">let </span>switches = long(<span class="string">"switch"</span>).help(<span class="string">"some switch"</span>).switch().many();
+    <span class="macro">construct!</span>(Options { argument, switches }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>Help message describes all the parser combined</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--argument</b></tt>=<tt><i>ARG</i></tt>]... [<tt><b>--switch</b></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --argument</b></tt>=<tt><i>ARG</i></tt></dt>
+<dd>important argument</dd>
+<dt><tt><b>    --switch</b></tt></dt>
+<dd>some switch</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And users can pass any combinations of options, resulting parser will handle them as long as they are valid</p>
+<div class='bpaf-doc'>
+$ app --argument 10 --argument 20<br>
+Options { argument: [10, 20], switches: [false] }
+</div>
+<div class='bpaf-doc'>
+$ app --switch<br>
+Options { argument: [], switches: [true] }
+</div>
+<div class='bpaf-doc'>
+$ app --switch --switch --argument 20<br>
+Options { argument: [20], switches: [true, true] }
+</div>
+</details>
+<p>If you are using positional parsers - they must go to the right-most side and will run in
+the order you specify them. For named parsers order affects only the <code>--help</code> message.</p>
+<p>The second type of composition <code>construct!</code> offers is a parallel composition. You pass multiple
+parsers that produce the same result type in <code>[]</code> and <code>bpaf</code> selects one that fits best with
+the data user gave.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;f64&gt; {
+    <span class="kw">let </span>miles = long(<span class="string">"miles"</span>).help(<span class="string">"Distance in miles"</span>).argument(<span class="string">"MI"</span>);
+    <span class="kw">let </span>km = long(<span class="string">"kilo"</span>).help(<span class="string">"Distance in kilometers"</span>).argument(<span class="string">"KM"</span>);
+    <span class="macro">construct!</span>([miles, km]).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>Help message describes all the parser combined</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> (<tt><b>--miles</b></tt>=<tt><i>MI</i></tt> | <tt><b>--kilo</b></tt>=<tt><i>KM</i></tt>)</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --miles</b></tt>=<tt><i>MI</i></tt></dt>
+<dd>Distance in miles</dd>
+<dt><tt><b>    --kilo</b></tt>=<tt><i>KM</i></tt></dt>
+<dd>Distance in kilometers</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Users can pass value that satisfy either parser</p>
+<div class='bpaf-doc'>
+$ app --miles 42<br>
+42.0
+</div>
+<div class='bpaf-doc'>
+$ app --kilo 15<br>
+15.0
+</div>
+<p>But not both at once or not at all:</p>
+<div class='bpaf-doc'>
+$ app --miles 53 --kilo 10<br>
+<b>Error:</b> <tt><b>--kilo</b></tt> cannot be used at the same time as <tt><b>--miles</b></tt>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>--miles</b></tt>=<tt><i>MI</i></tt> or <tt><b>--kilo</b></tt>=<tt><i>KM</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>If those cases are valid you can handle them with <code>optional</code> and <code>many</code></p>
+</details>
+<p>If parsers inside parallel composition can parse the same object - the longest possible match
+should go first since <code>bpaf</code> picks an earlier parser if everything else is equal, otherwise it
+does not matter. In this example <code>construct!([miles, km])</code> produces the same results as
+<code>construct!([km, miles])</code> and only <code>--help</code> message is going to be different.</p>
+<p>Parsers created with <a href="../../../../macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a> still implement the <a href="../../../../trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> trait so you can apply more
+transformation on top. For example same as you can make a simple parser optional - you can make
+a composite parser optional. Parser transformed this way will succeed if both <code>--alpha</code> and
+<code>--beta</code> are present or neither of them:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">struct </span>Options {
+    alpha: usize,
+    beta: usize
+}
+ 
+<span class="kw">fn </span>parser() -&gt; <span class="kw">impl </span>Parser&lt;<span class="prelude-ty">Option</span>&lt;Options&gt;&gt; {
+    <span class="kw">let </span>alpha = long(<span class="string">"alpha"</span>).argument(<span class="string">"ALPHA"</span>);
+    <span class="kw">let </span>beta = long(<span class="string">"beta"</span>).argument(<span class="string">"BETA"</span>);
+    <span class="macro">construct!</span>(Options { alpha, beta }).optional()
+}</code></pre></div>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_chaining/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_1_chaining">← Transforming parsers</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api">↑ Combinatoric API ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_subcommands/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api::_3_subcommands">Subcommand parsers →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

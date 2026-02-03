@@ -1,0 +1,216 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_00_find - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _00_find</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _00_<wbr>find</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#find1-find--exec-commands--flags-terminated-by-" title="`find(1)`: `find -exec commands -flags terminated by \;`"><code>find(1)</code>: <code>find -exec commands -flags terminated by \;</code></a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_00_<wbr>find</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2336">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd"><code>dd(1)</code>: <code>dd if=/dev/zero of=/dev/null bs=1000</code> →</a></p>
+  </td>
+</tr></table>
+<h5 id="find1-find--exec-commands--flags-terminated-by-"><a class="doc-anchor" href="#find1-find--exec-commands--flags-terminated-by-">§</a><code>find(1)</code>: <code>find -exec commands -flags terminated by \;</code></h5>
+<p>An Example for <code>find</code> shows how to implement 3 different unusual options:</p>
+<ul>
+<li>an option with a long name but a single dash as a prefix: <code>-user bob</code></li>
+<li>an option that captures everything until the next fixed character</li>
+<li>an option that takes a set of characters: <code>-mode -rw</code>, <code>mode /rw</code></li>
+</ul>
+<p>In all cases, long name with a single dash is implemented by the <a href="../../../fn.literal.html" title="fn bpaf::literal"><code>literal</code></a> with
+<a href="../../../params/struct.ParseAny.html#method.anywhere" title="method bpaf::params::ParseAny::anywhere"><code>ParseAny::anywhere</code></a> with some items made <code>adjacent</code> to it.</p>
+<p>To parse <code>-user bob</code> this is simply literal <code>-user</code> adjacent to a positional item with <code>map</code> to
+focus on the interesting part.</p>
+<p>For <code>-exec more things here ;</code> this is a combination of literal <code>-exec</code>, followed by <code>many</code>
+items that are not <code>;</code> parsed positionally with <code>any</code> followed by <code>;</code> - again with <code>any</code>, but
+<code>literal</code> works too.</p>
+<p>And lastly to parse mode - after the tag, we accept <code>any</code> to be able to handle a combination of
+modes that may or may not start with <code>-</code> and use <a href="../../../trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>Parser::parse</code></a> to parse them or fail.</p>
+<p>All special cases are made optional with <a href="../../../trait.Parser.html#method.optional" title="method bpaf::Parser::optional"><code>Parser::optional</code></a>, but <a href="../../../trait.Parser.html#method.fallback" title="method bpaf::Parser::fallback"><code>Parser::fallback</code></a> also
+works.</p>
+<details><summary><tt>examples/find.rs</tt></summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">//! This is not a typical bpaf usage,
+//! but you should be able to replicate command line used by find
+
+</span><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+<span class="kw">use </span>std::{ffi::OsString, path::PathBuf};
+
+<span class="attr">#[derive(Debug, Clone, Default)]
+</span><span class="kw">pub struct </span>Perms {
+    read: bool,
+    write: bool,
+    exec: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Perm {
+    All(Perms),
+    Any(Perms),
+    Exact(Perms),
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+#[allow(dead_code)]
+</span><span class="kw">pub struct </span>Options {
+    paths: Vec&lt;PathBuf&gt;,
+    exec: <span class="prelude-ty">Option</span>&lt;Vec&lt;OsString&gt;&gt;,
+    user: <span class="prelude-ty">Option</span>&lt;String&gt;,
+    perm: <span class="prelude-ty">Option</span>&lt;Perm&gt;,
+}
+
+<span class="comment">// Parses -user xxx
+</span><span class="kw">fn </span>user() -&gt; <span class="kw">impl </span>Parser&lt;<span class="prelude-ty">Option</span>&lt;String&gt;&gt; {
+    <span class="comment">// match only literal "-user"
+    </span><span class="kw">let </span>tag = literal(<span class="string">"-user"</span>).anywhere();
+    <span class="kw">let </span>value = positional(<span class="string">"USER"</span>).help(<span class="string">"User name"</span>);
+    <span class="macro">construct!</span>(tag, value)
+        .adjacent()
+        .map(|pair| pair.<span class="number">1</span>)
+        .optional()
+}
+
+<span class="comment">// parsers -exec xxx yyy zzz ;
+</span><span class="kw">fn </span>exec() -&gt; <span class="kw">impl </span>Parser&lt;<span class="prelude-ty">Option</span>&lt;Vec&lt;OsString&gt;&gt;&gt; {
+    <span class="kw">let </span>tag = literal(<span class="string">"-exec"</span>)
+        .help(<span class="string">"for every file find finds execute a separate shell command"</span>)
+        .anywhere();
+
+    <span class="kw">let </span>item = any::&lt;OsString, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">"ITEM"</span>, |s| (<span class="macro">s !</span>= <span class="string">";"</span>).then_some(s))
+        .help(<span class="string">"command with its arguments, find will replace {} with a file name"</span>)
+        .many();
+
+    <span class="kw">let </span>endtag = any::&lt;String, <span class="kw">_</span>, <span class="kw">_</span>&gt;(<span class="string">";"</span>, |s| (s == <span class="string">";"</span>).then_some(()))
+        .help(<span class="string">"anything after literal \";\" will be considered a regular option again"</span>);
+
+    <span class="macro">construct!</span>(tag, item, endtag)
+        .adjacent()
+        .map(|triple| triple.<span class="number">1</span>)
+        .optional()
+}
+
+<span class="doccomment">/// parses symbolic permissions `-perm -mode`, `-perm /mode` and `-perm mode`
+</span><span class="kw">fn </span>perm() -&gt; <span class="kw">impl </span>Parser&lt;<span class="prelude-ty">Option</span>&lt;Perm&gt;&gt; {
+    <span class="kw">fn </span>parse_mode(input: <span class="kw-2">&amp;</span>str) -&gt; <span class="prelude-ty">Result</span>&lt;Perms, String&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>perms = Perms::default();
+        <span class="kw">for </span>c <span class="kw">in </span>input.chars() {
+            <span class="kw">match </span>c {
+                <span class="string">'r' </span>=&gt; perms.read = <span class="bool-val">true</span>,
+                <span class="string">'w' </span>=&gt; perms.write = <span class="bool-val">true</span>,
+                <span class="string">'x' </span>=&gt; perms.exec = <span class="bool-val">true</span>,
+                <span class="kw">_ </span>=&gt; <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="macro">format!</span>(<span class="string">"{} is not a valid permission string"</span>, input)),
+            }
+        }
+        <span class="prelude-val">Ok</span>(perms)
+    }
+
+    <span class="kw">let </span>tag = literal(<span class="string">"-mode"</span>).anywhere();
+
+    <span class="comment">// `any` here is used to parse an arbitrary string that can also start with dash (-)
+    // regular positional parser won't work here
+    </span><span class="kw">let </span>mode = any(<span class="string">"MODE"</span>, <span class="prelude-val">Some</span>)
+        .help(<span class="string">"(perm | -perm | /perm), where perm is any subset of rwx characters, ex +rw"</span>)
+        .parse::&lt;<span class="kw">_</span>, <span class="kw">_</span>, String&gt;(|s: String| {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(m) = s.strip_prefix(<span class="string">'-'</span>) {
+                <span class="prelude-val">Ok</span>(Perm::All(parse_mode(m)<span class="question-mark">?</span>))
+            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(m) = s.strip_prefix(<span class="string">'/'</span>) {
+                <span class="prelude-val">Ok</span>(Perm::Any(parse_mode(m)<span class="question-mark">?</span>))
+            } <span class="kw">else </span>{
+                <span class="prelude-val">Ok</span>(Perm::Exact(parse_mode(<span class="kw-2">&amp;</span>s)<span class="question-mark">?</span>))
+            }
+        });
+
+    <span class="macro">construct!</span>(tag, mode)
+        .adjacent()
+        .map(|pair| pair.<span class="number">1</span>)
+        .optional()
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>paths = positional::&lt;PathBuf&gt;(<span class="string">"PATH"</span>).many();
+
+    <span class="macro">construct!</span>(Options {
+        exec(),
+        user(),
+        perm(),
+        paths,
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:#?}"</span>, options().run());
+}
+</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Usually <code>find</code> takes a path where to look, the rest is optional</p>
+<div class='bpaf-doc'>
+$ app src tests<br>
+Options { paths: ["src", "tests"], exec: None, user: None, perm: None }
+</div>
+<p>In addition to paths <code>find</code> can take some more options, typically unusual: username, note a
+single dash with a long name:</p>
+<div class='bpaf-doc'>
+$ app -user bob<br>
+Options { paths: [], exec: None, user: Some("bob"), perm: None }
+</div>
+<p>Permissions, in an unusual format:</p>
+<div class='bpaf-doc'>
+$ app -mode /x<br>
+Options { paths: [], exec: None, user: None, perm: Some(Any(Perms { read: false, write: false, exec: true })) }
+</div>
+<p>And the most interesting one is <code>-exec</code> which takes multiple arbitrary parameters terminated
+by <code>;</code> (in shell you have to escape it as <code>\\;</code>)</p>
+<div class='bpaf-doc'>
+$ app -exec cat -A '{}' \;<br>
+Options { paths: [], exec: Some(["cat", "-A", "{}"]), user: None, perm: None }
+</div>
+<p>As usuall you can mix them and order doesn’t matter</p>
+<div class='bpaf-doc'>
+$ app src -mode -r -user bob -exec rustc '{}' \;<br>
+Options { paths: ["src"], exec: Some(["rustc", "{}"]), user: Some("bob"), perm: Some(All(Perms { read: true, write: false, exec: false })) }
+</div>
+<p>While <code>bpaf</code> takes some effort to render the help even for custom stuff - you can always
+bypass it by hiding options and substituting your own with custom <code>header</code>/<code>footer</code>.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-exec</b></tt> [<tt><i>ITEM</i></tt>]... <tt><i>;</i></tt>] [<tt><b>-user</b></tt> <tt><i>USER</i></tt>] [<tt><b>-mode</b></tt> <tt><i>MODE</i></tt>] [<tt><i>PATH</i></tt>]...</p><p><div>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-exec</b></tt> [<tt><i>ITEM</i></tt>]... <tt><i>;</i></tt></div><dt><tt><b>-exec</b></tt></dt>
+<dd>for every file find finds execute a separate shell command</dd>
+<dt><tt><i>ITEM</i></tt></dt>
+<dd>command with its arguments, find will replace {} with a file name</dd>
+<dt><tt><i>;</i></tt></dt>
+<dd>anything after literal ";" will be considered a regular option again</dd>
+<p></p><div style='padding-left: 0.5em'><tt><b>-user</b></tt> <tt><i>USER</i></tt></div><dt><tt><i>USER</i></tt></dt>
+<dd>User name</dd>
+<p></p><div style='padding-left: 0.5em'><tt><b>-mode</b></tt> <tt><i>MODE</i></tt></div><dt><tt><i>MODE</i></tt></dt>
+<dd>(perm | -perm | /perm), where perm is any subset of rwx characters, ex +rw</dd>
+<p></p><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_01_dd/index.html" title="mod bpaf::_documentation::_3_cookbook::_01_dd"><code>dd(1)</code>: <code>dd if=/dev/zero of=/dev/null bs=1000</code> →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

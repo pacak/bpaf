@@ -1,0 +1,187 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_2_positional - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../../" data-static-root-path="../../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _2_positional</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _2_<wbr>positional</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#operands-or-positional-items" title="Operands or positional items">Operands or positional items</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>1_<wbr>tutorials::<wbr>_<wbr>0_<wbr>types_<wbr>of_<wbr>arguments</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../../index.html">bpaf</a>::<wbr><a href="../../../index.html">_documentation</a>::<wbr><a href="../../index.html">_1_tutorials</a>::<wbr><a href="../index.html">_0_types_of_arguments</a></div><h1>Module <span>_2_<wbr>positional</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../../src/bpaf/_documentation.rs.html#365">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_1_argument">← Option arguments or arguments</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_command/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_3_command">Commands or subcommands →</a></p>
+  </td>
+</tr></table>
+<h5 id="operands-or-positional-items"><a class="doc-anchor" href="#operands-or-positional-items">§</a>Operands or positional items</h5>
+<p>Operands are usually items that are present on a command line and not prefixed by a short or
+long name. They are usually used to represent the most important part of the operation:
+<code>cat Cargo.toml</code> - display THIS file, <code>rm -rf target</code> - remove THIS folder and so on.</p>
+<div class="code-wrap">
+<pre>
+$ cat <span style="font-weight: bold">/etc/passwd</span>
+$ rm -rf <span style="font-weight: bold">target</span>
+$ man <span style="font-weight: bold">gcc</span>
+</pre>
+</div>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    verbose: bool,
+    crate_name: String,
+    feature_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>verbose = short(<span class="string">'v'</span>)
+        .long(<span class="string">"verbose"</span>)
+        .help(<span class="string">"Display detailed information"</span>)
+        .switch();
+
+    <span class="kw">let </span>crate_name = positional(<span class="string">"CRATE"</span>).help(<span class="string">"Crate name to use"</span>);
+
+    <span class="kw">let </span>feature_name = positional(<span class="string">"FEATURE"</span>)
+        .help(<span class="string">"Display information about this feature"</span>)
+        .optional();
+
+    <span class="macro">construct!</span>(Options {
+        verbose,
+        <span class="comment">// You must place positional items and commands after
+        // all other parsers
+        </span>crate_name,
+        feature_name
+    })
+    .to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Display detailed information
+    </span><span class="attr">#[bpaf(short, long)]
+    </span>verbose: bool,
+
+    <span class="comment">// You must place positional items and commands after
+    // all other parsers
+    </span><span class="attr">#[bpaf(positional(<span class="string">"CRATE"</span>))]
+    </span><span class="doccomment">/// Crate name to use
+    </span>crate_name: String,
+
+    <span class="attr">#[bpaf(positional(<span class="string">"FEATURE"</span>))]
+    </span><span class="doccomment">/// Display information about this feature
+    </span>feature_name: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Positional items show up in a separate group of arguments if they contain a help message,
+otherwise they will show up only in <strong>Usage</strong> part.</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-v</b></tt>] <tt><i>CRATE</i></tt> [<tt><i>FEATURE</i></tt>]</p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>CRATE</i></tt></dt>
+<dd>Crate name to use</dd>
+<dt><tt><i>FEATURE</i></tt></dt>
+<dd>Display information about this feature</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-v</b></tt>, <tt><b>--verbose</b></tt></dt>
+<dd>Display detailed information</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can mix positional items with regular items</p>
+<div class='bpaf-doc'>
+$ app --verbose bpaf<br>
+Options { verbose: true, crate_name: "bpaf", feature_name: None }
+</div>
+<p>And since <code>bpaf</code> API expects to have non positional items consumed before positional ones - you
+can use them in a different order. In this example <code>bpaf</code> corresponds to a <code>crate_name</code> field and
+<code>--verbose</code> – to <code>verbose</code>.</p>
+<div class='bpaf-doc'>
+$ app bpaf --verbose<br>
+Options { verbose: true, crate_name: "bpaf", feature_name: None }
+</div>
+<p>In previous examples optional field <code>feature</code> was missing, this one contains it.</p>
+<div class='bpaf-doc'>
+$ app bpaf autocomplete<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("autocomplete") }
+</div>
+<p>Users can use <code>--</code> to tell <code>bpaf</code> to treat remaining items as positionals - this might be
+required to handle unusual items.</p>
+<div class='bpaf-doc'>
+$ app bpaf -- --verbose<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("--verbose") }
+</div>
+<div class='bpaf-doc'>
+$ app -- bpaf --verbose<br>
+Options { verbose: false, crate_name: "bpaf", feature_name: Some("--verbose") }
+</div>
+<p>Without using <code>--</code> <code>bpaf</code> would only accept items that don’t start with <code>-</code> as positional.</p>
+<div class='bpaf-doc'>
+$ app --detailed<br>
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, got <b>--detailed</b>. Pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app --verbose<br>
+<b>Error:</b> expected <tt><i>CRATE</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>You can use <a href="../../../../fn.any.html" title="fn bpaf::any"><code>any</code></a> to work around this restriction.</p>
+</details>
+<p>For more detailed info see <a href="../../../../fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> and</p>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_1_argument/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_1_argument">← Option arguments or arguments</a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">↑ Types of arguments ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_3_command/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments::_3_command">Commands or subcommands →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

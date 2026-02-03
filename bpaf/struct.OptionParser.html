@@ -1,0 +1,1080 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Ready to run `Parser` with additional information attached"><title>OptionParser in bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="sidebar-items.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc struct"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">OptionParser</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Option<wbr>Parser</a></h2><h3><a href="#implementations">Methods</a></h3><ul class="block method"><li><a href="#method.check_invariants" title="check_invariants">check_invariants</a></li><li><a href="#method.command" title="command">command</a></li><li><a href="#method.descr" title="descr">descr</a></li><li><a href="#method.fallback_to_usage" title="fallback_to_usage">fallback_to_usage</a></li><li><a href="#method.footer" title="footer">footer</a></li><li><a href="#method.header" title="header">header</a></li><li><a href="#method.help_parser" title="help_parser">help_parser</a></li><li><a href="#method.max_width" title="max_width">max_width</a></li><li><a href="#method.render_html" title="render_html">render_html</a></li><li><a href="#method.render_manpage" title="render_manpage">render_manpage</a></li><li><a href="#method.render_markdown" title="render_markdown">render_markdown</a></li><li><a href="#method.run" title="run">run</a></li><li><a href="#method.run_inner" title="run_inner">run_inner</a></li><li><a href="#method.try_run" title="try_run">try_run</a></li><li><a href="#method.usage" title="usage">usage</a></li><li><a href="#method.version" title="version">version</a></li><li><a href="#method.version_parser" title="version_parser">version_parser</a></li><li><a href="#method.with_usage" title="with_usage">with_usage</a></li></ul><h3><a href="#synthetic-implementations">Auto Trait Implementations</a></h3><ul class="block synthetic-implementation"><li><a href="#impl-RefUnwindSafe-for-OptionParser%3CT%3E" title="!RefUnwindSafe">!RefUnwindSafe</a></li><li><a href="#impl-Send-for-OptionParser%3CT%3E" title="!Send">!Send</a></li><li><a href="#impl-Sync-for-OptionParser%3CT%3E" title="!Sync">!Sync</a></li><li><a href="#impl-UnwindSafe-for-OptionParser%3CT%3E" title="!UnwindSafe">!UnwindSafe</a></li><li><a href="#impl-Freeze-for-OptionParser%3CT%3E" title="Freeze">Freeze</a></li><li><a href="#impl-Unpin-for-OptionParser%3CT%3E" title="Unpin">Unpin</a></li></ul><h3><a href="#blanket-implementations">Blanket Implementations</a></h3><ul class="block blanket-implementation"><li><a href="#impl-Any-for-T" title="Any">Any</a></li><li><a href="#impl-Borrow%3CT%3E-for-T" title="Borrow&#60;T&#62;">Borrow&#60;T&#62;</a></li><li><a href="#impl-BorrowMut%3CT%3E-for-T" title="BorrowMut&#60;T&#62;">BorrowMut&#60;T&#62;</a></li><li><a href="#impl-From%3CT%3E-for-T" title="From&#60;T&#62;">From&#60;T&#62;</a></li><li><a href="#impl-Into%3CU%3E-for-T" title="Into&#60;U&#62;">Into&#60;U&#62;</a></li><li><a href="#impl-OwoColorize-for-D" title="OwoColorize">OwoColorize</a></li><li><a href="#impl-TryFrom%3CU%3E-for-T" title="TryFrom&#60;U&#62;">TryFrom&#60;U&#62;</a></li><li><a href="#impl-TryInto%3CU%3E-for-T" title="TryInto&#60;U&#62;">TryInto&#60;U&#62;</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="index.html">In crate bpaf</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="index.html">bpaf</a></div><h1>Struct <span class="struct">Option<wbr>Parser</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/info.rs.html#58-61">Source</a> </span></div><pre class="rust item-decl"><code>pub struct OptionParser&lt;T&gt; { <span class="comment">/* private fields */</span> }</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Ready to run <a href="trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> with additional information attached</p>
+<p>Created with <a href="trait.Parser.html#method.to_options" title="method bpaf::Parser::to_options"><code>to_options</code></a></p>
+<p>In addition to the inner parser <code>OptionParser</code> contains documentation about a program or a
+subcommand as a whole, version, custom usage, if specified, and handles custom parsers for
+<code>--version</code> and <code>--help</code> flags.</p>
+</div></details><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-OptionParser%3CT%3E" class="impl"><a class="src rightside" href="../src/bpaf/buffer/html.rs.html#63-75">Source</a><a href="#impl-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.render_html" class="method"><a class="src rightside" href="../src/bpaf/buffer/html.rs.html#66-68">Source</a><h4 class="code-header">pub fn <a href="#method.render_html" class="fn">render_html</a>(&amp;self, app: impl <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></h4></section></summary><div class="docblock"><p>Render command line documentation for the app into html/markdown mix</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.render_markdown" class="method"><a class="src rightside" href="../src/bpaf/buffer/html.rs.html#72-74">Source</a><h4 class="code-header">pub fn <a href="#method.render_markdown" class="fn">render_markdown</a>(&amp;self, app: impl <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a>&gt;) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></h4></section></summary><div class="docblock"><p>Render command line documentation for the app into Markdown</p>
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-OptionParser%3CT%3E-1" class="impl"><a class="src rightside" href="../src/bpaf/buffer/manpage.rs.html#50-154">Source</a><a href="#impl-OptionParser%3CT%3E-1" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.render_manpage" class="method"><a class="src rightside" href="../src/bpaf/buffer/manpage.rs.html#52-153">Source</a><h4 class="code-header">pub fn <a href="#method.render_manpage" class="fn">render_manpage</a>(
+    &amp;self,
+    app: impl <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.AsRef.html" title="trait core::convert::AsRef">AsRef</a>&lt;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>&gt;,
+    section: <a class="enum" href="doc/enum.Section.html" title="enum bpaf::doc::Section">Section</a>&lt;'_&gt;,
+    last_update_date: <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>&gt;,
+    vendor: <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>&gt;,
+    application_title: <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>&gt;,
+) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/alloc/string/struct.String.html" title="struct alloc::string::String">String</a></h4></section></summary><div class="docblock"><p>Render command line documentation for the app into a manpage</p>
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-OptionParser%3CT%3E-2" class="impl"><a class="src rightside" href="../src/bpaf/info.rs.html#63-712">Source</a><a href="#impl-OptionParser%3CT%3E-2" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.run" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#86-97">Source</a><h4 class="code-header">pub fn <a href="#method.run" class="fn">run</a>(self) -&gt; T<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Execute the <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a>, extract a parsed value or print some diagnostic and exit</p>
+<h5 id="usage"><a class="doc-anchor" href="#usage">§</a>Usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Parses number of repetitions of `-v` on a command line
+</span><span class="kw">fn </span>verbosity() -&gt; OptionParser&lt;usize&gt; {
+    <span class="kw">let </span>parser = short(<span class="string">'v'</span>)
+        .req_flag(())
+        .many()
+        .map(|xs|xs.len());
+
+    parser
+        .to_options()
+        .descr(<span class="string">"Takes verbosity flag and does nothing else"</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>verbosity: usize = verbosity().run();
+}</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.try_run" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#145-150">Source</a><h4 class="code-header">pub fn <a href="#method.try_run" class="fn">try_run</a>(self) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, <a class="enum" href="enum.ParseFailure.html" title="enum bpaf::ParseFailure">ParseFailure</a>&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section><span class="item-info"><div class="stab deprecated"><span class="emoji">👎</span><span>Deprecated: You should switch to equivalent parser.run_inner(Args::current_args())</span></div></span></summary><div class="docblock"><p>Execute the <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a>, extract a parsed value or return a <a href="enum.ParseFailure.html" title="enum bpaf::ParseFailure"><code>ParseFailure</code></a></p>
+<p>In most cases using <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>run</code></a> is sufficient, you can use <code>try_run</code> if you
+want to control the exit code or you need to perform a custom cleanup.</p>
+<h5 id="usage-1"><a class="doc-anchor" href="#usage-1">§</a>Usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="doccomment">/// Parses number of repetitions of `-v` on a command line
+</span><span class="kw">fn </span>verbosity() -&gt; OptionParser&lt;usize&gt; {
+    <span class="kw">let </span>parser = short(<span class="string">'v'</span>)
+        .req_flag(())
+        .many()
+        .map(|xs|xs.len());
+
+    parser
+        .to_options()
+        .descr(<span class="string">"Takes verbosity flag and does nothing else"</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>verbosity: <span class="prelude-ty">Option</span>&lt;usize&gt; = <span class="kw">match </span>verbosity().try_run() {
+        <span class="prelude-val">Ok</span>(v) =&gt; <span class="prelude-val">Some</span>(v),
+        <span class="prelude-val">Err</span>(ParseFailure::Stdout(buf, full)) =&gt; {
+            <span class="macro">print!</span>(<span class="string">"{}"</span>, buf.monochrome(full));
+            <span class="prelude-val">None
+        </span>}
+        <span class="prelude-val">Err</span>(ParseFailure::Completion(msg)) =&gt; {
+            <span class="macro">print!</span>(<span class="string">"{}"</span>, msg);
+            <span class="prelude-val">None
+        </span>}
+        <span class="prelude-val">Err</span>(ParseFailure::Stderr(buf)) =&gt; {
+            <span class="macro">eprintln!</span>(<span class="string">"{}"</span>, buf.monochrome(<span class="bool-val">true</span>));
+            <span class="prelude-val">None
+        </span>}
+    };
+
+    <span class="comment">// Run cleanup tasks
+</span>}</code></pre></div><h5 id="errors"><a class="doc-anchor" href="#errors">§</a>Errors</h5>
+<p><a href="enum.ParseFailure.html" title="enum bpaf::ParseFailure"><code>ParseFailure</code></a> represents parsing errors, autocomplete results and generated <code>--help</code>
+output.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.run_inner" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#197-227">Source</a><h4 class="code-header">pub fn <a href="#method.run_inner" class="fn">run_inner</a>&lt;'a&gt;(
+    &amp;self,
+    args: impl <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Args.html" title="struct bpaf::Args">Args</a>&lt;'a&gt;&gt;,
+) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, <a class="enum" href="enum.ParseFailure.html" title="enum bpaf::ParseFailure">ParseFailure</a>&gt;<div class="where">where
+    Self: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h4></section></summary><div class="docblock"><p>Execute the <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> and produce a values for unit tests or manual processing</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[test]
+</span><span class="kw">fn </span>positional_argument() {
+    <span class="kw">let </span>parser =
+        positional::&lt;String&gt;(<span class="string">"FILE"</span>)
+            .help(<span class="string">"File to process"</span>)
+            .to_options();
+
+    <span class="kw">let </span>help = parser
+        .run_inner(<span class="kw-2">&amp;</span>[<span class="string">"--help"</span>])
+        .unwrap_err()
+        .unwrap_stdout();
+    <span class="kw">let </span>expected_help = <span class="string">"\
+Usage: FILE
+
+Available positional items:
+    FILE        File to process
+
+Available options:
+    -h, --help  Prints help information
+"</span>;
+    <span class="macro">assert_eq!</span>(expected_help, help);
+}</code></pre></div>
+<p>See also <a href="struct.Args.html" title="struct bpaf::Args"><code>Args</code></a> and it’s <code>From</code> impls to produce input and
+<a href="enum.ParseFailure.html#method.unwrap_stderr" title="method bpaf::ParseFailure::unwrap_stderr"><code>ParseFailure::unwrap_stderr</code></a> / <a href="enum.ParseFailure.html#method.unwrap_stdout" title="method bpaf::ParseFailure::unwrap_stdout"><code>ParseFailure::unwrap_stdout</code></a> for processing results.</p>
+<h5 id="errors-1"><a class="doc-anchor" href="#errors-1">§</a>Errors</h5>
+<p>If parser can’t produce desired result <code>run_inner</code> returns <a href="enum.ParseFailure.html" title="enum bpaf::ParseFailure"><code>ParseFailure</code></a>
+which represents runtime behavior: one branch to print something to stdout and exit with
+success and the other branch to print something to stderr and exit with failure.</p>
+<p><code>bpaf</code> generates contents of this <code>ParseFailure</code> using expected textual output from
+<a href="trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>parse</code></a>, stdout/stderr isn’t actually captured.</p>
+<p>Exact string reperentations may change between versions including minor releases.</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.version" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#356-359">Source</a><h4 class="code-header">pub fn <a href="#method.version" class="fn">version</a>&lt;B: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, version: B) -&gt; Self</h4></section></summary><div class="docblock"><p>Set the version field.</p>
+<p>By default <code>bpaf</code> won’t include any version info and won’t accept <code>--version</code> switch.</p>
+<h5 id="combinatoric-usage"><a class="doc-anchor" href="#combinatoric-usage">§</a>Combinatoric usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+<span class="kw">fn </span>options() -&gt; OptionParser&lt;bool&gt;  {
+   short(<span class="string">'s'</span>)
+       .switch()
+       .to_options()
+       .version(<span class="macro">env!</span>(<span class="string">"CARGO_PKG_VERSION"</span>))
+}</code></pre></div><h5 id="derive-usage"><a class="doc-anchor" href="#derive-usage">§</a>Derive usage</h5>
+<p><code>version</code> annotation is available after <code>options</code> and <code>command</code> annotations, takes
+an optional argument - version value to use, otherwise <code>bpaf_derive</code> would use value from cargo.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, version)]
+</span><span class="kw">struct </span>Options {
+    <span class="attr">#[bpaf(short)]
+    </span>switch: bool
+}</code></pre></div><h5 id="example"><a class="doc-anchor" href="#example">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>$ app --version
+Version: 0.5.0</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.descr" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#421-424">Source</a><h4 class="code-header">pub fn <a href="#method.descr" class="fn">descr</a>&lt;B: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, descr: B) -&gt; Self</h4></section></summary><div class="docblock"><p>Set the description field</p>
+<p>Description field should be 1-2 lines long briefly explaining program purpose. If
+description field is present <code>bpaf</code> would print it right before the usage line.</p>
+<h5 id="combinatoric-usage-1"><a class="doc-anchor" href="#combinatoric-usage-1">§</a>Combinatoric usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>options() -&gt; OptionParser&lt;bool&gt;  {
+   short(<span class="string">'s'</span>)
+       .switch()
+       .to_options()
+       .descr(<span class="string">"This is a description"</span>)
+       .header(<span class="string">"This is a header"</span>)
+       .footer(<span class="string">"This is a footer"</span>)
+}</code></pre></div><h5 id="derive-usage-1"><a class="doc-anchor" href="#derive-usage-1">§</a>Derive usage</h5>
+<p><code>bpaf_derive</code> uses doc comments on the <code>struct</code> / <code>enum</code> to derive description, it skips single empty
+lines and uses double empty lines break it into blocks. <code>bpaf_derive</code> would use first block as the
+description, second block - header, third block - footer.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, version)]
+</span><span class="doccomment">/// This is a description
+///
+///
+/// This is a header
+///
+///
+/// This is a footer
+///
+///
+/// This is just a comment
+</span><span class="kw">struct </span>Options {
+    <span class="attr">#[bpaf(short)]
+    </span>switch: bool
+}</code></pre></div><h5 id="example-1"><a class="doc-anchor" href="#example-1">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>This is a description
+
+Usage: [-s]
+
+This is a header
+
+Available options:
+    -s
+    -h, --help     Prints help information
+    -V, --version  Prints version information
+
+This is a footer</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.header" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#486-489">Source</a><h4 class="code-header">pub fn <a href="#method.header" class="fn">header</a>&lt;B: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, header: B) -&gt; Self</h4></section></summary><div class="docblock"><p>Set the header field</p>
+<p><code>bpaf</code> displays the header between the usage line and a list of the available options in <code>--help</code> output</p>
+<h5 id="combinatoric-usage-2"><a class="doc-anchor" href="#combinatoric-usage-2">§</a>Combinatoric usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>options() -&gt; OptionParser&lt;bool&gt;  {
+   short(<span class="string">'s'</span>)
+       .switch()
+       .to_options()
+       .descr(<span class="string">"This is a description"</span>)
+       .header(<span class="string">"This is a header"</span>)
+       .footer(<span class="string">"This is a footer"</span>)
+}</code></pre></div><h5 id="derive-usage-2"><a class="doc-anchor" href="#derive-usage-2">§</a>Derive usage</h5>
+<p><code>bpaf_derive</code> uses doc comments on the <code>struct</code> / <code>enum</code> to derive description, it skips single empty
+lines and uses double empty lines break it into blocks. <code>bpaf_derive</code> would use first block as the
+description, second block - header, third block - footer.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, version)]
+</span><span class="doccomment">/// This is a description
+///
+///
+/// This is a header
+///
+///
+/// This is a footer
+///
+///
+/// This is just a comment
+</span><span class="kw">struct </span>Options {
+    <span class="attr">#[bpaf(short)]
+    </span>switch: bool
+}</code></pre></div><h5 id="example-2"><a class="doc-anchor" href="#example-2">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>This is a description
+
+Usage: [-s]
+
+This is a header
+
+Available options:
+    -s
+    -h, --help     Prints help information
+    -V, --version  Prints version information
+
+This is a footer</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.footer" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#551-554">Source</a><h4 class="code-header">pub fn <a href="#method.footer" class="fn">footer</a>&lt;M: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;&gt;(self, footer: M) -&gt; Self</h4></section></summary><div class="docblock"><p>Set the footer field</p>
+<p><code>bpaf</code> displays the footer after list of the available options in <code>--help</code> output</p>
+<h5 id="combinatoric-usage-3"><a class="doc-anchor" href="#combinatoric-usage-3">§</a>Combinatoric usage</h5>
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">fn </span>options() -&gt; OptionParser&lt;bool&gt;  {
+   short(<span class="string">'s'</span>)
+       .switch()
+       .to_options()
+       .descr(<span class="string">"This is a description"</span>)
+       .header(<span class="string">"This is a header"</span>)
+       .footer(<span class="string">"This is a footer"</span>)
+}</code></pre></div><h5 id="derive-usage-3"><a class="doc-anchor" href="#derive-usage-3">§</a>Derive usage</h5>
+<p><code>bpaf_derive</code> uses doc comments on the <code>struct</code> / <code>enum</code> to derive description, it skips single empty
+lines and uses double empty lines break it into blocks. <code>bpaf_derive</code> would use first block as the
+description, second block - header, third block - footer.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, version)]
+</span><span class="doccomment">/// This is a description
+///
+///
+/// This is a header
+///
+///
+/// This is a footer
+///
+///
+/// This is just a comment
+</span><span class="kw">struct </span>Options {
+    <span class="attr">#[bpaf(short)]
+    </span>switch: bool
+}</code></pre></div><h5 id="example-3"><a class="doc-anchor" href="#example-3">§</a>Example</h5><div class="example-wrap"><pre class="language-console"><code>This is a description
+
+Usage: [-s]
+
+This is a header
+
+Available options:
+    -s
+    -h, --help     Prints help information
+    -V, --version  Prints version information
+
+This is a footer</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.usage" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#561-567">Source</a><h4 class="code-header">pub fn <a href="#method.usage" class="fn">usage</a>&lt;B&gt;(self, usage: B) -&gt; Self<div class="where">where
+    B: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>&gt;,</div></h4></section></summary><div class="docblock"><p>Set custom usage field</p>
+<p>Custom usage field to use instead of one derived by <code>bpaf</code>.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    release: bool,
+    binary: String,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>release = short(<span class="string">'r'</span>)
+        .long(<span class="string">"release"</span>)
+        .help(<span class="string">"Perform actions in release mode"</span>)
+        .switch();
+
+    <span class="kw">let </span>binary = short(<span class="string">'b'</span>)
+        .long(<span class="string">"binary"</span>)
+        .help(<span class="string">"Use this binary"</span>)
+        .argument(<span class="string">"BIN"</span>);
+
+    <span class="macro">construct!</span>(Options { release, binary })
+        .to_options()
+        .usage(<span class="string">"Usage: my_program [--release] [--binary=BIN] ..."</span>)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, usage(<span class="string">"Usage: my_program [--release] [--binary=BIN] ..."</span>))]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(short, long)]
+    </span><span class="doccomment">/// Perform actions in release mode
+    </span>release: bool,
+    <span class="attr">#[bpaf(short, long, argument(<span class="string">"BIN"</span>))]
+    </span><span class="doccomment">/// Use this binary
+    </span>binary: String,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Method <code>usage</code> lets you to override the whole usage line</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p>Usage: my_program [--release] [--binary=BIN] ...</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-r</b></tt>, <tt><b>--release</b></tt></dt>
+<dd>Perform actions in release mode</dd>
+<dt><tt><b>-b</b></tt>, <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Use this binary</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>It doesn’t alter parser’s behavior otherwise</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app -r --binary test<br>
+Options { release: true, binary: "test" }
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.with_usage" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#595-603">Source</a><h4 class="code-header">pub fn <a href="#method.with_usage" class="fn">with_usage</a>&lt;F&gt;(self, f: F) -&gt; Self<div class="where">where
+    F: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/ops/function/trait.Fn.html" title="trait core::ops::function::Fn">Fn</a>(<a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>) -&gt; <a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a>,</div></h4></section></summary><div class="docblock"><p>Generate new usage line using automatically derived usage</p>
+<p>You can customize the surroundings of the usage line while still
+having part that frequently changes generated by bpaf</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    release: bool,
+    binary: String,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>release = short(<span class="string">'r'</span>)
+        .long(<span class="string">"release"</span>)
+        .help(<span class="string">"Perform actions in release mode"</span>)
+        .switch();
+
+    <span class="kw">let </span>binary = short(<span class="string">'b'</span>)
+        .long(<span class="string">"binary"</span>)
+        .help(<span class="string">"Use this binary"</span>)
+        .argument(<span class="string">"BIN"</span>);
+
+    <span class="macro">construct!</span>(Options { release, binary })
+        .to_options()
+        .with_usage(|u| {
+            <span class="kw">let </span><span class="kw-2">mut </span>doc = Doc::default();
+            doc.emphasis(<span class="string">"Usage: "</span>);
+            doc.literal(<span class="string">"my_program"</span>);
+            doc.text(<span class="string">" "</span>);
+            doc.doc(<span class="kw-2">&amp;</span>u);
+            doc
+        })
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p><code>with_usage</code> lets you to place some custom text around generated usage line</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage: </b><tt><b>my_program</b></tt> [<tt><b>-r</b></tt>] <tt><b>-b</b></tt>=<tt><i>BIN</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-r</b></tt>, <tt><b>--release</b></tt></dt>
+<dd>Perform actions in release mode</dd>
+<dt><tt><b>-b</b></tt>, <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Use this binary</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>It doesn’t alter parser’s behavior otherwise</p>
+<div class='bpaf-doc'>
+$ app <br>
+<b>Error:</b> expected <tt><b>--binary</b></tt>=<tt><i>BIN</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app -r --binary test<br>
+Options { release: true, binary: "test" }
+</div>
+</details>
+<p>At the moment this method is not directly supported by derive API,
+but since it gives you an object of <a href="struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser&lt;T&gt;</code></a>
+type you can alter it using Combinatoric API:</p>
+<div class="example-wrap"><pre class="language-text"><code>#[derive(Debug, Clone, Bpaf)] {
+pub struct Options {
+    ...
+}
+
+fn my_decor(usage: Doc) -&gt; Doc {
+    ...
+}
+
+fn main() {
+    let options = options().with_usage(my_decor).run();
+    ...
+}</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.check_invariants" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#623-625">Source</a><h4 class="code-header">pub fn <a href="#method.check_invariants" class="fn">check_invariants</a>(&amp;self, _cosmetic: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.bool.html">bool</a>)</h4></section></summary><div class="docblock"><p>Check the invariants <code>bpaf</code> relies on for normal operations</p>
+<p>Takes a parameter whether to check for cosmetic invariants or not
+(max help width exceeding 120 symbols, etc), currently not in use</p>
+<p>Best used as part of your test suite:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[test]
+</span><span class="kw">fn </span>check_options() {
+    options().check_invariants(<span class="bool-val">false</span>)
+}</code></pre></div><h5 id="panics"><a class="doc-anchor" href="#panics">§</a>Panics</h5>
+<p><code>check_invariants</code> indicates problems with panic</p>
+</div></details><details class="toggle method-toggle" open><summary><section id="method.help_parser" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#635-638">Source</a><h4 class="code-header">pub fn <a href="#method.help_parser" class="fn">help_parser</a>(self, parser: <a class="struct" href="params/struct.NamedArg.html" title="struct bpaf::params::NamedArg">NamedArg</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Customize parser for <code>--help</code></p>
+<p>By default <code>bpaf</code> displays help when program is called with either <code>--help</code> or <code>-h</code>, you
+can customize those names and description in the help message</p>
+<p>Note, <code>--help</code> is something user expects to work</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    package: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>help = long(<span class="string">"help"</span>).short(<span class="string">'H'</span>).help(<span class="string">"Renders help information"</span>);
+    <span class="kw">let </span>version = long(<span class="string">"version"</span>)
+        .short(<span class="string">'v'</span>)
+        .help(<span class="string">"Renders version information"</span>);
+    <span class="kw">let </span>package = short(<span class="string">'p'</span>)
+        .help(<span class="string">"Package to check"</span>)
+        .argument(<span class="string">"SPEC"</span>)
+        .optional();
+
+    <span class="macro">construct!</span>(Options { package })
+        .to_options()
+        .descr(<span class="string">"Command with custom flags for help and version"</span>)
+        .version(<span class="string">"0.42"</span>)
+        .help_parser(help)
+        .version_parser(version)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>This example replaces description and short name for <code>--help</code> parser. Long name works as is</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p>Command with custom flags for help and version</p><p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-p</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to check</dd>
+<dt><tt><b>-H</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Renders help information</dd>
+<dt><tt><b>-v</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Renders version information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Short name is now capitalized</p>
+<div class='bpaf-doc'>
+$ app -H<br>
+<p>Command with custom flags for help and version</p><p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-p</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to check</dd>
+<dt><tt><b>-H</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Renders help information</dd>
+<dt><tt><b>-v</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Renders version information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>and old short name no longer works.</p>
+<div class='bpaf-doc'>
+$ app -h<br>
+<b>Error:</b> <b>-h</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Same with <code>--version</code> parser - new description, original long name and custom short name are
+both working</p>
+<div class='bpaf-doc'>
+$ app --version<br>
+<p>Version: 0.42</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app -v<br>
+<p>Version: 0.42</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.version_parser" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#648-651">Source</a><h4 class="code-header">pub fn <a href="#method.version_parser" class="fn">version_parser</a>(self, parser: <a class="struct" href="params/struct.NamedArg.html" title="struct bpaf::params::NamedArg">NamedArg</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Customize parser for <code>--version</code></p>
+<p>By default <code>bpaf</code> displays version information when program is called with either <code>--version</code>
+or <code>-V</code> (and version is available), you can customize those names and description in the help message</p>
+<p>Note, <code>--version</code> is something user expects to work</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    package: <span class="prelude-ty">Option</span>&lt;String&gt;,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>help = long(<span class="string">"help"</span>).short(<span class="string">'H'</span>).help(<span class="string">"Renders help information"</span>);
+    <span class="kw">let </span>version = long(<span class="string">"version"</span>)
+        .short(<span class="string">'v'</span>)
+        .help(<span class="string">"Renders version information"</span>);
+    <span class="kw">let </span>package = short(<span class="string">'p'</span>)
+        .help(<span class="string">"Package to check"</span>)
+        .argument(<span class="string">"SPEC"</span>)
+        .optional();
+
+    <span class="macro">construct!</span>(Options { package })
+        .to_options()
+        .descr(<span class="string">"Command with custom flags for help and version"</span>)
+        .version(<span class="string">"0.42"</span>)
+        .help_parser(help)
+        .version_parser(version)
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<p>This example replaces description and short name for <code>--help</code> parser. Long name works as is</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p>Command with custom flags for help and version</p><p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-p</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to check</dd>
+<dt><tt><b>-H</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Renders help information</dd>
+<dt><tt><b>-v</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Renders version information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Short name is now capitalized</p>
+<div class='bpaf-doc'>
+$ app -H<br>
+<p>Command with custom flags for help and version</p><p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-p</b></tt>=<tt><i>SPEC</i></tt>]</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-p</b></tt>=<tt><i>SPEC</i></tt></dt>
+<dd>Package to check</dd>
+<dt><tt><b>-H</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Renders help information</dd>
+<dt><tt><b>-v</b></tt>, <tt><b>--version</b></tt></dt>
+<dd>Renders version information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>and old short name no longer works.</p>
+<div class='bpaf-doc'>
+$ app -h<br>
+<b>Error:</b> <b>-h</b> is not expected in this context
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Same with <code>--version</code> parser - new description, original long name and custom short name are
+both working</p>
+<div class='bpaf-doc'>
+$ app --version<br>
+<p>Version: 0.42</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<div class='bpaf-doc'>
+$ app -v<br>
+<p>Version: 0.42</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details></div></details><details class="toggle method-toggle" open><summary><section id="method.fallback_to_usage" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#695-698">Source</a><h4 class="code-header">pub fn <a href="#method.fallback_to_usage" class="fn">fallback_to_usage</a>(self) -&gt; Self</h4></section></summary><div class="docblock"><p>Print help if app was called with no parameters</p>
+<p>By default <code>bpaf</code> tries to parse command line options and displays the best possible
+error it can come up with. If application requires a subcommand or some argument
+and user specified none - it might be a better experience for user to print
+the help message.</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="comment">// create option parser in a usual way, derive or combinatoric API
+</span><span class="kw">let </span>opts = options().fallback_to_usage().run();</code></pre></div>
+<p>For derive macro you can specify <code>fallback_to_usage</code> in top level annotations
+for options and for individual commands if fallback to useage is the desired behavior:</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="kw">enum </span>Commands {
+    <span class="attr">#[bpaf(command, fallback_to_usage)]
+    </span>Action {
+        ...
+    }
+}</code></pre></div>
+<p>Or</p>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options, fallback_to_usage)]
+</span><span class="kw">struct </span>Options {
+    ...
+}
+
+<span class="kw">fn </span>main() {
+    <span class="kw">let </span>options = options().run(); <span class="comment">// falls back to usage
+</span>}</code></pre></div></div></details><details class="toggle method-toggle" open><summary><section id="method.max_width" class="method"><a class="src rightside" href="../src/bpaf/info.rs.html#708-711">Source</a><h4 class="code-header">pub fn <a href="#method.max_width" class="fn">max_width</a>(self, width: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.usize.html">usize</a>) -&gt; Self</h4></section></summary><div class="docblock"><p>Set the width of the help message printed to the terminal upon failure</p>
+<p>By default, the help message is printed with a width of 100 characters.
+This method allows to change where the help message is wrapped.</p>
+<p>Setting the max width too low may negatively affect the readability of the help message.
+Also, the alignment padding of broken lines is always applied.</p>
+</div></details></div></details><details class="toggle implementors-toggle" open><summary><section id="impl-OptionParser%3CT%3E-3" class="impl"><a class="src rightside" href="../src/bpaf/params.rs.html#268-314">Source</a><a href="#impl-OptionParser%3CT%3E-3" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.command" class="method"><a class="src rightside" href="../src/bpaf/params.rs.html#302-313">Source</a><h4 class="code-header">pub fn <a href="#method.command" class="fn">command</a>(self, name: &amp;'static <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.str.html">str</a>) -&gt; <a class="struct" href="params/struct.ParseCommand.html" title="struct bpaf::params::ParseCommand">ParseCommand</a>&lt;T&gt;<div class="where">where
+    T: 'static,</div></h4></section></summary><div class="docblock"><p>Parse a subcommand</p>
+<p>Subcommands allow to use a totally independent parser inside a current one. Inner parser
+can have its own help message, description, version and so on. You can nest them arbitrarily
+too.</p>
+<h5 id="important-restriction"><a class="doc-anchor" href="#important-restriction">§</a>Important restriction</h5>
+<p>When parsing command arguments from command lines you should have parsers for all your
+named values before parsers for commands and positional items. In derive API fields parsed as
+positional should be at the end of your <code>struct</code>/<code>enum</code>. Same rule applies
+to parsers with positional fields or commands inside: such parsers should go to the end as well.</p>
+<p>Use <a href="struct.OptionParser.html#method.check_invariants" title="method bpaf::OptionParser::check_invariants"><code>check_invariants</code></a> in your test to ensure correctness.</p>
+<p>For example for non positional <code>non_pos</code> and a command <code>command</code> parsers</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">let </span>valid = <span class="macro">construct!</span>(non_pos(), command());
+<span class="kw">let </span>invalid = <span class="macro">construct!</span>(command(), non_pos());</code></pre></div>
+<p><strong><code>bpaf</code> panics during help generation unless if this restriction holds</strong></p>
+<p>You can attach a single visible short alias and multiple hiddden short and long aliases
+using <a href="params/struct.ParseCommand.html#method.short" title="method bpaf::params::ParseCommand::short"><code>short</code></a> and <a href="params/struct.ParseCommand.html#method.long" title="method bpaf::params::ParseCommand::long"><code>long</code></a> methods.</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Cmd {
+    flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    flag: bool,
+    cmd: Cmd,
+}
+
+<span class="kw">fn </span>cmd() -&gt; <span class="kw">impl </span>Parser&lt;Cmd&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to command"</span>)
+        .switch();
+    <span class="kw">let </span>arg = long(<span class="string">"arg"</span>).argument::&lt;usize&gt;(<span class="string">"ARG"</span>);
+    <span class="macro">construct!</span>(Cmd { flag, arg })
+        .to_options()
+        .descr(<span class="string">"Command to do something"</span>)
+        .command(<span class="string">"cmd"</span>)
+        <span class="comment">// you can chain add extra short and long names
+        </span>.short(<span class="string">'c'</span>)
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>flag = long(<span class="string">"flag"</span>)
+        .help(<span class="string">"This flag is specific to the outer layer"</span>)
+        .switch();
+    <span class="macro">construct!</span>(Options { flag, cmd() }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+</span><span class="comment">// `command` annotation with no name gets the name from the object it is attached to,
+// but you can override it using something like #[bpaf(command("my_command"))]
+// you can chain more short and long names here to serve as aliases
+</span><span class="attr">#[bpaf(command(<span class="string">"cmd"</span>), short(<span class="string">'c'</span>))]
+</span><span class="doccomment">/// Command to do something
+</span><span class="kw">pub struct </span>Cmd {
+    <span class="doccomment">/// This flag is specific to command
+    </span>flag: bool,
+    arg: usize,
+}
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// This flag is specific to the outer layer
+    </span>flag: bool,
+    <span class="attr">#[bpaf(external)]
+    </span>cmd: Cmd,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Commands show up on both outer level help</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>--flag</b></tt>] <tt><i>COMMAND ...</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to the outer layer</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p><p><div>
+<b>Available commands:</b></div><dl><dt><tt><b>cmd</b></tt>, <tt><b>c</b></tt></dt>
+<dd>Command to do something</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>As well as showing their own help</p>
+<div class='bpaf-doc'>
+$ app cmd --help<br>
+<p>Command to do something</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>cmd</b></tt> [<tt><b>--flag</b></tt>] <tt><b>--arg</b></tt>=<tt><i>ARG</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --flag</b></tt></dt>
+<dd>This flag is specific to command</dd>
+<dt><tt><b>    --arg</b></tt>=<tt><i>ARG</i></tt></dt>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>In this example there’s only one command and it is required, so is the argument inside of it</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42<br>
+Options { flag: false, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>If you don’t specify this command - parsing will fail</p>
+<p>You can have the same flag names inside and outside of the command, but it might be confusing
+for the end user. This example enables the outer flag</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+<p>And this one - both inside and outside</p>
+<div class='bpaf-doc'>
+$ app --flag cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: true, arg: 42 } }
+</div>
+<p>And that’s the confusing part - unless you add context restrictions with
+<a href="parsers/struct.ParseCon.html#method.adjacent" title="method bpaf::parsers::ParseCon::adjacent"><code>adjacent</code></a> and parse command first - outer flag wins.
+So it’s best not to mix names on different levels</p>
+<div class='bpaf-doc'>
+$ app cmd --arg 42 --flag<br>
+Options { flag: true, cmd: Cmd { flag: false, arg: 42 } }
+</div>
+</details>
+<p>To represent multiple possible commands it is convenient to use enums</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub enum </span>Options {
+    <span class="doccomment">/// Run a binary
+    </span>Run {
+        <span class="doccomment">/// Name of a binary to run
+        </span>bin: String,
+
+        <span class="doccomment">/// Arguments to pass to a binary
+        </span>args: Vec&lt;String&gt;,
+    },
+    <span class="doccomment">/// Compile a binary
+    </span>Build {
+        <span class="doccomment">/// Name of a binary to build
+        </span>bin: String,
+
+        <span class="doccomment">/// Compile the binary in release mode
+        </span>release: bool,
+    },
+}
+
+<span class="comment">// combine mode gives more flexibility to share the same code across multiple parsers
+</span><span class="kw">fn </span>run() -&gt; <span class="kw">impl </span>Parser&lt;Options&gt; {
+    <span class="kw">let </span>bin = long(<span class="string">"bin"</span>).help(<span class="string">"Name of a binary to run"</span>).argument(<span class="string">"BIN"</span>);
+    <span class="kw">let </span>args = positional(<span class="string">"ARG"</span>)
+        .strict()
+        .help(<span class="string">"Arguments to pass to a binary"</span>)
+        .many();
+
+    <span class="macro">construct!</span>(Options::Run { bin, args })
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>run = run().to_options().descr(<span class="string">"Run a binary"</span>).command(<span class="string">"run"</span>);
+
+    <span class="kw">let </span>bin = long(<span class="string">"bin"</span>)
+        .help(<span class="string">"Name of a binary to build "</span>)
+        .argument(<span class="string">"BIN"</span>);
+    <span class="kw">let </span>release = long(<span class="string">"release"</span>)
+        .help(<span class="string">"Compile the binary in release mode"</span>)
+        .switch();
+    <span class="kw">let </span>build = <span class="macro">construct!</span>(Options::Build { bin, release })
+        .to_options()
+        .descr(<span class="string">"Compile a binary"</span>)
+        .command(<span class="string">"build"</span>);
+
+    <span class="macro">construct!</span>([run, build]).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub enum </span>Options {
+    <span class="attr">#[bpaf(command)]
+    </span><span class="doccomment">/// Run a binary
+    </span>Run {
+        <span class="attr">#[bpaf(argument(<span class="string">"BIN"</span>))]
+        </span><span class="doccomment">/// Name of a binary to run
+        </span>bin: String,
+
+        <span class="attr">#[bpaf(positional(<span class="string">"ARG"</span>), strict, many)]
+        </span><span class="doccomment">/// Arguments to pass to a binary
+        </span>args: Vec&lt;String&gt;,
+    },
+    <span class="attr">#[bpaf(command)]
+    </span><span class="doccomment">/// Compile a binary
+    </span>Build {
+        <span class="attr">#[bpaf(argument(<span class="string">"BIN"</span>))]
+        </span><span class="doccomment">/// Name of a binary to build
+        </span>bin: String,
+
+        <span class="doccomment">/// Compile the binary in release mode
+        </span>release: bool,
+    },
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>Help contains both commands, bpaf takes short command description from the inner command
+description</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><i>COMMAND ...</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p><p><div>
+<b>Available commands:</b></div><dl><dt><tt><b>run</b></tt></dt>
+<dd>Run a binary</dd>
+<dt><tt><b>build</b></tt></dt>
+<dd>Compile a binary</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Same as before each command gets its own help message</p>
+<div class='bpaf-doc'>
+$ app run --help<br>
+<p>Run a binary</p><p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>run</b></tt> <tt><b>--bin</b></tt>=<tt><i>BIN</i></tt> <tt><b>--</b></tt> [<tt><i>ARG</i></tt>]...</p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>ARG</i></tt></dt>
+<dd>Arguments to pass to a binary</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --bin</b></tt>=<tt><i>BIN</i></tt></dt>
+<dd>Name of a binary to run</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>And can be executed separately</p>
+<div class='bpaf-doc'>
+$ app run --bin basic<br>
+Run { bin: "basic", args: [] }
+</div>
+<div class='bpaf-doc'>
+$ app build --bin demo --release<br>
+Build { bin: "demo", release: true }
+</div>
+</details></div></details></div></details></div><h2 id="synthetic-implementations" class="section-header">Auto Trait Implementations<a href="#synthetic-implementations" class="anchor">§</a></h2><div id="synthetic-implementations-list"><section id="impl-Freeze-for-OptionParser%3CT%3E" class="impl"><a href="#impl-Freeze-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Freeze.html" title="trait core::marker::Freeze">Freeze</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section><section id="impl-RefUnwindSafe-for-OptionParser%3CT%3E" class="impl"><a href="#impl-RefUnwindSafe-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; !<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/panic/unwind_safe/trait.RefUnwindSafe.html" title="trait core::panic::unwind_safe::RefUnwindSafe">RefUnwindSafe</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section><section id="impl-Send-for-OptionParser%3CT%3E" class="impl"><a href="#impl-Send-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; !<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Send.html" title="trait core::marker::Send">Send</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section><section id="impl-Sync-for-OptionParser%3CT%3E" class="impl"><a href="#impl-Sync-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; !<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sync.html" title="trait core::marker::Sync">Sync</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section><section id="impl-Unpin-for-OptionParser%3CT%3E" class="impl"><a href="#impl-Unpin-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Unpin.html" title="trait core::marker::Unpin">Unpin</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section><section id="impl-UnwindSafe-for-OptionParser%3CT%3E" class="impl"><a href="#impl-UnwindSafe-for-OptionParser%3CT%3E" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; !<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/panic/unwind_safe/trait.UnwindSafe.html" title="trait core::panic::unwind_safe::UnwindSafe">UnwindSafe</a> for <a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">OptionParser</a>&lt;T&gt;</h3></section></div><h2 id="blanket-implementations" class="section-header">Blanket Implementations<a href="#blanket-implementations" class="anchor">§</a></h2><div id="blanket-implementations-list"><details class="toggle implementors-toggle"><summary><section id="impl-Any-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/any.rs.html#138">Source</a><a href="#impl-Any-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/any/trait.Any.html" title="trait core::any::Any">Any</a> for T<div class="where">where
+    T: 'static + ?<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.type_id" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/any.rs.html#139">Source</a><a href="#method.type_id" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/any/trait.Any.html#tymethod.type_id" class="fn">type_id</a>(&amp;self) -&gt; <a class="struct" href="https://doc.rust-lang.org/1.93.0/core/any/struct.TypeId.html" title="struct core::any::TypeId">TypeId</a></h4></section></summary><div class='docblock'>Gets the <code>TypeId</code> of <code>self</code>. <a href="https://doc.rust-lang.org/1.93.0/core/any/trait.Any.html#tymethod.type_id">Read more</a></div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-Borrow%3CT%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/borrow.rs.html#212">Source</a><a href="#impl-Borrow%3CT%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.Borrow.html" title="trait core::borrow::Borrow">Borrow</a>&lt;T&gt; for T<div class="where">where
+    T: ?<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.borrow" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/borrow.rs.html#214">Source</a><a href="#method.borrow" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.Borrow.html#tymethod.borrow" class="fn">borrow</a>(&amp;self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;T</a></h4></section></summary><div class='docblock'>Immutably borrows from an owned value. <a href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.Borrow.html#tymethod.borrow">Read more</a></div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-BorrowMut%3CT%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/borrow.rs.html#221">Source</a><a href="#impl-BorrowMut%3CT%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.BorrowMut.html" title="trait core::borrow::BorrowMut">BorrowMut</a>&lt;T&gt; for T<div class="where">where
+    T: ?<a class="trait" href="https://doc.rust-lang.org/1.93.0/core/marker/trait.Sized.html" title="trait core::marker::Sized">Sized</a>,</div></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.borrow_mut" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/borrow.rs.html#222">Source</a><a href="#method.borrow_mut" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.BorrowMut.html#tymethod.borrow_mut" class="fn">borrow_mut</a>(&amp;mut self) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.reference.html">&amp;mut T</a></h4></section></summary><div class='docblock'>Mutably borrows from an owned value. <a href="https://doc.rust-lang.org/1.93.0/core/borrow/trait.BorrowMut.html#tymethod.borrow_mut">Read more</a></div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-From%3CT%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#785">Source</a><a href="#impl-From%3CT%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;T&gt; for T</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.from" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#788">Source</a><a href="#method.from" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.From.html#tymethod.from" class="fn">from</a>(t: T) -&gt; T</h4></section></summary><div class="docblock"><p>Returns the argument unchanged.</p>
+</div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-Into%3CU%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#767-769">Source</a><a href="#impl-Into%3CU%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T, U&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;U&gt; for T<div class="where">where
+    U: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;T&gt;,</div></h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.into" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#777">Source</a><a href="#method.into" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html#tymethod.into" class="fn">into</a>(self) -&gt; U</h4></section></summary><div class="docblock"><p>Calls <code>U::from(self)</code>.</p>
+<p>That is, this conversion is whatever the implementation of
+<code><a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.From.html" title="trait core::convert::From">From</a>&lt;T&gt; for U</code> chooses to do.</p>
+</div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-OwoColorize-for-D" class="impl"><a href="#impl-OwoColorize-for-D" class="anchor">§</a><h3 class="code-header">impl&lt;D&gt; OwoColorize for D</h3></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.fg" class="method trait-impl"><a href="#method.fg" class="anchor">§</a><h4 class="code-header">fn <a class="fn">fg</a>&lt;C&gt;(&amp;self) -&gt; FgColorDisplay&lt;'_, C, Self&gt;<div class="where">where
+    C: Color,</div></h4></section></summary><div class='docblock'>Set the foreground color generically <a>Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.bg" class="method trait-impl"><a href="#method.bg" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bg</a>&lt;C&gt;(&amp;self) -&gt; BgColorDisplay&lt;'_, C, Self&gt;<div class="where">where
+    C: Color,</div></h4></section></summary><div class='docblock'>Set the background color generically. <a>Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.black" class="method trait-impl"><a href="#method.black" class="anchor">§</a><h4 class="code-header">fn <a class="fn">black</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Black, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to black</div></details><details class="toggle method-toggle" open><summary><section id="method.on_black" class="method trait-impl"><a href="#method.on_black" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_black</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Black, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to black</div></details><details class="toggle method-toggle" open><summary><section id="method.red" class="method trait-impl"><a href="#method.red" class="anchor">§</a><h4 class="code-header">fn <a class="fn">red</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Red, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to red</div></details><details class="toggle method-toggle" open><summary><section id="method.on_red" class="method trait-impl"><a href="#method.on_red" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_red</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Red, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to red</div></details><details class="toggle method-toggle" open><summary><section id="method.green" class="method trait-impl"><a href="#method.green" class="anchor">§</a><h4 class="code-header">fn <a class="fn">green</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Green, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to green</div></details><details class="toggle method-toggle" open><summary><section id="method.on_green" class="method trait-impl"><a href="#method.on_green" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_green</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Green, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to green</div></details><details class="toggle method-toggle" open><summary><section id="method.yellow" class="method trait-impl"><a href="#method.yellow" class="anchor">§</a><h4 class="code-header">fn <a class="fn">yellow</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Yellow, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to yellow</div></details><details class="toggle method-toggle" open><summary><section id="method.on_yellow" class="method trait-impl"><a href="#method.on_yellow" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_yellow</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Yellow, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to yellow</div></details><details class="toggle method-toggle" open><summary><section id="method.blue" class="method trait-impl"><a href="#method.blue" class="anchor">§</a><h4 class="code-header">fn <a class="fn">blue</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Blue, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to blue</div></details><details class="toggle method-toggle" open><summary><section id="method.on_blue" class="method trait-impl"><a href="#method.on_blue" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_blue</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Blue, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to blue</div></details><details class="toggle method-toggle" open><summary><section id="method.magenta" class="method trait-impl"><a href="#method.magenta" class="anchor">§</a><h4 class="code-header">fn <a class="fn">magenta</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Magenta, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to magenta</div></details><details class="toggle method-toggle" open><summary><section id="method.on_magenta" class="method trait-impl"><a href="#method.on_magenta" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_magenta</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Magenta, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to magenta</div></details><details class="toggle method-toggle" open><summary><section id="method.purple" class="method trait-impl"><a href="#method.purple" class="anchor">§</a><h4 class="code-header">fn <a class="fn">purple</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Magenta, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to purple</div></details><details class="toggle method-toggle" open><summary><section id="method.on_purple" class="method trait-impl"><a href="#method.on_purple" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_purple</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Magenta, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to purple</div></details><details class="toggle method-toggle" open><summary><section id="method.cyan" class="method trait-impl"><a href="#method.cyan" class="anchor">§</a><h4 class="code-header">fn <a class="fn">cyan</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Cyan, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to cyan</div></details><details class="toggle method-toggle" open><summary><section id="method.on_cyan" class="method trait-impl"><a href="#method.on_cyan" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_cyan</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Cyan, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to cyan</div></details><details class="toggle method-toggle" open><summary><section id="method.white" class="method trait-impl"><a href="#method.white" class="anchor">§</a><h4 class="code-header">fn <a class="fn">white</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, White, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to white</div></details><details class="toggle method-toggle" open><summary><section id="method.on_white" class="method trait-impl"><a href="#method.on_white" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_white</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, White, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to white</div></details><details class="toggle method-toggle" open><summary><section id="method.default_color" class="method trait-impl"><a href="#method.default_color" class="anchor">§</a><h4 class="code-header">fn <a class="fn">default_color</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, Default, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to the terminal default</div></details><details class="toggle method-toggle" open><summary><section id="method.on_default_color" class="method trait-impl"><a href="#method.on_default_color" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_default_color</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, Default, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to the terminal default</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_black" class="method trait-impl"><a href="#method.bright_black" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_black</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightBlack, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright black</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_black" class="method trait-impl"><a href="#method.on_bright_black" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_black</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightBlack, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright black</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_red" class="method trait-impl"><a href="#method.bright_red" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_red</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightRed, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright red</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_red" class="method trait-impl"><a href="#method.on_bright_red" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_red</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightRed, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright red</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_green" class="method trait-impl"><a href="#method.bright_green" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_green</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightGreen, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright green</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_green" class="method trait-impl"><a href="#method.on_bright_green" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_green</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightGreen, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright green</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_yellow" class="method trait-impl"><a href="#method.bright_yellow" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_yellow</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightYellow, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright yellow</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_yellow" class="method trait-impl"><a href="#method.on_bright_yellow" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_yellow</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightYellow, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright yellow</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_blue" class="method trait-impl"><a href="#method.bright_blue" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_blue</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightBlue, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright blue</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_blue" class="method trait-impl"><a href="#method.on_bright_blue" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_blue</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightBlue, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright blue</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_magenta" class="method trait-impl"><a href="#method.bright_magenta" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_magenta</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightMagenta, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright magenta</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_magenta" class="method trait-impl"><a href="#method.on_bright_magenta" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_magenta</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightMagenta, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright magenta</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_purple" class="method trait-impl"><a href="#method.bright_purple" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_purple</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightMagenta, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright purple</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_purple" class="method trait-impl"><a href="#method.on_bright_purple" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_purple</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightMagenta, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright purple</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_cyan" class="method trait-impl"><a href="#method.bright_cyan" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_cyan</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightCyan, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright cyan</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_cyan" class="method trait-impl"><a href="#method.on_bright_cyan" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_cyan</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightCyan, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright cyan</div></details><details class="toggle method-toggle" open><summary><section id="method.bright_white" class="method trait-impl"><a href="#method.bright_white" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bright_white</a>(&amp;self) -&gt; FgColorDisplay&lt;'_, BrightWhite, Self&gt;</h4></section></summary><div class='docblock'>Change the foreground color to bright white</div></details><details class="toggle method-toggle" open><summary><section id="method.on_bright_white" class="method trait-impl"><a href="#method.on_bright_white" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_bright_white</a>(&amp;self) -&gt; BgColorDisplay&lt;'_, BrightWhite, Self&gt;</h4></section></summary><div class='docblock'>Change the background color to bright white</div></details><details class="toggle method-toggle" open><summary><section id="method.bold" class="method trait-impl"><a href="#method.bold" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bold</a>(&amp;self) -&gt; BoldDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text bold</div></details><details class="toggle method-toggle" open><summary><section id="method.dimmed" class="method trait-impl"><a href="#method.dimmed" class="anchor">§</a><h4 class="code-header">fn <a class="fn">dimmed</a>(&amp;self) -&gt; DimDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text dim</div></details><details class="toggle method-toggle" open><summary><section id="method.italic" class="method trait-impl"><a href="#method.italic" class="anchor">§</a><h4 class="code-header">fn <a class="fn">italic</a>(&amp;self) -&gt; ItalicDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text italicized</div></details><details class="toggle method-toggle" open><summary><section id="method.underline" class="method trait-impl"><a href="#method.underline" class="anchor">§</a><h4 class="code-header">fn <a class="fn">underline</a>(&amp;self) -&gt; UnderlineDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text underlined</div></details><details class="toggle method-toggle" open><summary><section id="method.blink" class="method trait-impl"><a href="#method.blink" class="anchor">§</a><h4 class="code-header">fn <a class="fn">blink</a>(&amp;self) -&gt; BlinkDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text blink</div></details><details class="toggle method-toggle" open><summary><section id="method.blink_fast" class="method trait-impl"><a href="#method.blink_fast" class="anchor">§</a><h4 class="code-header">fn <a class="fn">blink_fast</a>(&amp;self) -&gt; BlinkFastDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Make the text blink (but fast!)</div></details><details class="toggle method-toggle" open><summary><section id="method.reversed" class="method trait-impl"><a href="#method.reversed" class="anchor">§</a><h4 class="code-header">fn <a class="fn">reversed</a>(&amp;self) -&gt; ReversedDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Swap the foreground and background colors</div></details><details class="toggle method-toggle" open><summary><section id="method.hidden" class="method trait-impl"><a href="#method.hidden" class="anchor">§</a><h4 class="code-header">fn <a class="fn">hidden</a>(&amp;self) -&gt; HiddenDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Hide the text</div></details><details class="toggle method-toggle" open><summary><section id="method.strikethrough" class="method trait-impl"><a href="#method.strikethrough" class="anchor">§</a><h4 class="code-header">fn <a class="fn">strikethrough</a>(&amp;self) -&gt; StrikeThroughDisplay&lt;'_, Self&gt;</h4></section></summary><div class='docblock'>Cross out the text</div></details><details class="toggle method-toggle" open><summary><section id="method.color" class="method trait-impl"><a href="#method.color" class="anchor">§</a><h4 class="code-header">fn <a class="fn">color</a>&lt;Color&gt;(&amp;self, color: Color) -&gt; FgDynColorDisplay&lt;'_, Color, Self&gt;<div class="where">where
+    Color: DynColor,</div></h4></section></summary><div class='docblock'>Set the foreground color at runtime. Only use if you do not know which color will be used at
+compile-time. If the color is constant, use either [<code>OwoColorize::fg</code>] or
+a color-specific method, such as [<code>OwoColorize::green</code>], <a>Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.on_color" class="method trait-impl"><a href="#method.on_color" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_color</a>&lt;Color&gt;(&amp;self, color: Color) -&gt; BgDynColorDisplay&lt;'_, Color, Self&gt;<div class="where">where
+    Color: DynColor,</div></h4></section></summary><div class='docblock'>Set the background color at runtime. Only use if you do not know what color to use at
+compile-time. If the color is constant, use either [<code>OwoColorize::bg</code>] or
+a color-specific method, such as [<code>OwoColorize::on_yellow</code>], <a>Read more</a></div></details><details class="toggle method-toggle" open><summary><section id="method.fg_rgb" class="method trait-impl"><a href="#method.fg_rgb" class="anchor">§</a><h4 class="code-header">fn <a class="fn">fg_rgb</a>&lt;const R: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, const G: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, const B: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>&gt;(
+    &amp;self,
+) -&gt; FgColorDisplay&lt;'_, CustomColor&lt;R, G, B&gt;, Self&gt;</h4></section></summary><div class='docblock'>Set the foreground color to a specific RGB value.</div></details><details class="toggle method-toggle" open><summary><section id="method.bg_rgb" class="method trait-impl"><a href="#method.bg_rgb" class="anchor">§</a><h4 class="code-header">fn <a class="fn">bg_rgb</a>&lt;const R: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, const G: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, const B: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>&gt;(
+    &amp;self,
+) -&gt; BgColorDisplay&lt;'_, CustomColor&lt;R, G, B&gt;, Self&gt;</h4></section></summary><div class='docblock'>Set the background color to a specific RGB value.</div></details><details class="toggle method-toggle" open><summary><section id="method.truecolor" class="method trait-impl"><a href="#method.truecolor" class="anchor">§</a><h4 class="code-header">fn <a class="fn">truecolor</a>(&amp;self, r: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, g: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, b: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>) -&gt; FgDynColorDisplay&lt;'_, Rgb, Self&gt;</h4></section></summary><div class='docblock'>Sets the foreground color to an RGB value.</div></details><details class="toggle method-toggle" open><summary><section id="method.on_truecolor" class="method trait-impl"><a href="#method.on_truecolor" class="anchor">§</a><h4 class="code-header">fn <a class="fn">on_truecolor</a>(&amp;self, r: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, g: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>, b: <a class="primitive" href="https://doc.rust-lang.org/1.93.0/std/primitive.u8.html">u8</a>) -&gt; BgDynColorDisplay&lt;'_, Rgb, Self&gt;</h4></section></summary><div class='docblock'>Sets the background color to an RGB value.</div></details><details class="toggle method-toggle" open><summary><section id="method.style" class="method trait-impl"><a href="#method.style" class="anchor">§</a><h4 class="code-header">fn <a class="fn">style</a>(&amp;self, style: Style) -&gt; Styled&lt;&amp;Self&gt;</h4></section></summary><div class='docblock'>Apply a runtime-determined style</div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-TryFrom%3CU%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#827-829">Source</a><a href="#impl-TryFrom%3CU%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T, U&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;U&gt; for T<div class="where">where
+    U: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.Into.html" title="trait core::convert::Into">Into</a>&lt;T&gt;,</div></h3></section></summary><div class="impl-items"><details class="toggle" open><summary><section id="associatedtype.Error-1" class="associatedtype trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#831">Source</a><a href="#associatedtype.Error-1" class="anchor">§</a><h4 class="code-header">type <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html#associatedtype.Error" class="associatedtype">Error</a> = <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/convert/enum.Infallible.html" title="enum core::convert::Infallible">Infallible</a></h4></section></summary><div class='docblock'>The type returned in the event of a conversion error.</div></details><details class="toggle method-toggle" open><summary><section id="method.try_from" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#834">Source</a><a href="#method.try_from" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html#tymethod.try_from" class="fn">try_from</a>(value: U) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;T, &lt;T as <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;U&gt;&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html#associatedtype.Error" title="type core::convert::TryFrom::Error">Error</a>&gt;</h4></section></summary><div class='docblock'>Performs the conversion.</div></details></div></details><details class="toggle implementors-toggle"><summary><section id="impl-TryInto%3CU%3E-for-T" class="impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#811-813">Source</a><a href="#impl-TryInto%3CU%3E-for-T" class="anchor">§</a><h3 class="code-header">impl&lt;T, U&gt; <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryInto.html" title="trait core::convert::TryInto">TryInto</a>&lt;U&gt; for T<div class="where">where
+    U: <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;T&gt;,</div></h3></section></summary><div class="impl-items"><details class="toggle" open><summary><section id="associatedtype.Error" class="associatedtype trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#815">Source</a><a href="#associatedtype.Error" class="anchor">§</a><h4 class="code-header">type <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryInto.html#associatedtype.Error" class="associatedtype">Error</a> = &lt;U as <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;T&gt;&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html#associatedtype.Error" title="type core::convert::TryFrom::Error">Error</a></h4></section></summary><div class='docblock'>The type returned in the event of a conversion error.</div></details><details class="toggle method-toggle" open><summary><section id="method.try_into" class="method trait-impl"><a class="src rightside" href="https://doc.rust-lang.org/1.93.0/src/core/convert/mod.rs.html#818">Source</a><a href="#method.try_into" class="anchor">§</a><h4 class="code-header">fn <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryInto.html#tymethod.try_into" class="fn">try_into</a>(self) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.93.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;U, &lt;U as <a class="trait" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html" title="trait core::convert::TryFrom">TryFrom</a>&lt;T&gt;&gt;::<a class="associatedtype" href="https://doc.rust-lang.org/1.93.0/core/convert/trait.TryFrom.html#associatedtype.Error" title="type core::convert::TryFrom::Error">Error</a>&gt;</h4></section></summary><div class='docblock'>Performs the conversion.</div></details></div></details></div></section></div></main></body></html>

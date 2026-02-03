@@ -1,0 +1,207 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Lightweight and flexible command line argument parser with derive and combinatoric style API"><title>bpaf - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../" data-static-root-path="../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../static.files/storage-e2aeef58.js"></script><script defer src="../crates.js"></script><script defer src="../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../static.files/favicon-044be391.svg"></head><body class="rustdoc mod crate"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Crate bpaf</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><ul class="block"><li><a id="all-types" href="all.html">All Items</a></li></ul><section id="rustdoc-toc"><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#quick-links" title="Quick links">Quick links</a></li><li><a href="#a-quick-start" title="A quick start">A quick start</a><ul><li><a href="#consuming-items---making-parser" title="Consuming items - making `Parser`">Consuming items - making <code>Parser</code></a></li><li><a href="#transforming-and-changing-parsers" title="Transforming and changing parsers">Transforming and changing parsers</a></li><li><a href="#combining-multiple-parsers-together" title="Combining multiple parsers together">Combining multiple parsers together</a></li><li><a href="#improving-user-experience" title="Improving user experience">Improving user experience</a></li><li><a href="#testing-your-parsers-and-running-them" title="Testing your parsers and running them">Testing your parsers and running them</a></li><li><a href="#cargo-features" title="Cargo features">Cargo features</a></li></ul></li></ul><h3><a href="#modules">Crate Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#macros" title="Macros">Macros</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li><li><a href="#traits" title="Traits">Traits</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#derives" title="Derive Macros">Derive Macros</a></li></ul></section><div id="rustdoc-modnav"></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><h1>Crate <span>bpaf</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../src/bpaf/lib.rs.html#1-1525">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Lightweight and flexible command line argument parser with derive and combinatoric style API</p>
+<h2 id="quick-links"><a class="doc-anchor" href="#quick-links">§</a>Quick links</h2>
+<ul>
+<li><a href="_documentation/_0_intro/index.html" title="mod bpaf::_documentation::_0_intro">Introduction</a> - features, design goals, restrictions</li>
+<li><a href="_documentation/_1_tutorials/index.html" title="mod bpaf::_documentation::_1_tutorials">Tutorials</a> - practical learning oriented information and
+examples to get you started
+<ul>
+<li><a href="_documentation/_1_tutorials/_0_types_of_arguments/index.html" title="mod bpaf::_documentation::_1_tutorials::_0_types_of_arguments">Types of arguments</a> -
+common types of line options and conventions (optional)</li>
+<li><a href="_documentation/_1_tutorials/_1_combinatoric_api/index.html" title="mod bpaf::_documentation::_1_tutorials::_1_combinatoric_api">Combinatoric API</a>  -
+Parse arguments without using proc macros</li>
+<li><a href="_documentation/_1_tutorials/_2_derive_api/index.html" title="mod bpaf::_documentation::_1_tutorials::_2_derive_api">Derive API</a> -
+Create a parser by defining a structure</li>
+</ul>
+</li>
+<li><a href="_documentation/_2_howto/index.html" title="mod bpaf::_documentation::_2_howto">How-to and guides</a> - assumes familiarity with the basics and
+explains how to concrete tasks</li>
+<li><a href="_documentation/_4_explanation/index.html" title="mod bpaf::_documentation::_4_explanation">Explanations</a> - theoretical information about abstractions
+used by the library, oriented for understanding</li>
+<li><a href="https://github.com/pacak/bpaf/discussions">FAQ</a> - questions from library users</li>
+</ul>
+<h2 id="a-quick-start"><a class="doc-anchor" href="#a-quick-start">§</a>A quick start</h2>
+<p>Add <code>bpaf</code>, optionally with derive enabled</p>
+<div class="example-wrap"><pre class="language-text"><code>$ cargo add bpaf -F derive,dull-color</code></pre></div>
+<p>Use either derive or combinatoric API and try running it</p>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    message: String,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>message = positional(<span class="string">"MESSAGE"</span>).help(<span class="string">"Message to print in a big friendly letters"</span>);
+    <span class="macro">construct!</span>(Options { message }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="kw">use </span>bpaf::<span class="kw-2">*</span>;
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="doccomment">/// Message to print in a big friendly letters
+    </span><span class="attr">#[bpaf(positional(<span class="string">"MESSAGE"</span>))]
+    </span>message: String,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<p>With everything in place users should be able to pass their arguments</p>
+<div class='bpaf-doc'>
+$ app "Hello world"<br>
+Options { message: "Hello world" }
+</div>
+<p>As well as read the help message generated by the library</p>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><i>MESSAGE</i></tt></p><p><div>
+<b>Available positional items:</b></div><dl><dt><tt><i>MESSAGE</i></tt></dt>
+<dd>Message to print in a big friendly letters</dd>
+</dl>
+</p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<h3 id="consuming-items---making-parser"><a class="doc-anchor" href="#consuming-items---making-parser">§</a>Consuming items - making <code>Parser</code></h3>
+<p><code>bpaf</code> allows you to describe the parsers using a mix of two APIs: combinatoric and derive.
+Both APIs can achieve the same results, you can use one that better suits your needs. You can
+find documentation with more examples following those links.</p>
+<ul>
+<li>For an argument with a name you define <a href="params/struct.NamedArg.html" title="struct bpaf::params::NamedArg"><code>NamedArg</code></a> using a combination of <a href="fn.short.html" title="fn bpaf::short"><code>short</code></a>,
+<a href="fn.long.html" title="fn bpaf::long"><code>long</code></a> and <a href="fn.env.html" title="fn bpaf::env"><code>env</code></a>. At the same time you can attach
+<a href="params/struct.NamedArg.html#method.help" title="method bpaf::params::NamedArg::help"><code>help</code></a>.</li>
+<li><a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>NamedArg::switch</code></a> - simple switch that returns <code>true</code> if it’s present on a command
+line and <code>false</code> otherwise.</li>
+<li><a href="params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>NamedArg::flag</code></a> - a variant of <code>switch</code> that lets you return one of two custom
+values, for example <code>Color::On</code> and <code>Color::Off</code>.</li>
+<li><a href="params/struct.NamedArg.html#method.req_flag" title="method bpaf::params::NamedArg::req_flag"><code>NamedArg::req_flag</code></a> - a variant of <code>switch</code> that only only succeeds when it’s name
+is present on a command line</li>
+<li><a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>NamedArg::argument</code></a> - named argument containing a value, you can further
+customize it with <a href="params/struct.ParseArgument.html#method.adjacent" title="method bpaf::params::ParseArgument::adjacent"><code>adjacent</code></a></li>
+<li><a href="fn.positional.html" title="fn bpaf::positional"><code>positional</code></a> - positional argument, you can further customize it with
+<a href="params/struct.ParsePositional.html#method.strict" title="method bpaf::params::ParsePositional::strict"><code>strict</code></a></li>
+<li><a href="struct.OptionParser.html#method.command" title="method bpaf::OptionParser::command"><code>OptionParser::command</code></a> - subcommand parser.</li>
+<li><a href="fn.any.html" title="fn bpaf::any"><code>any</code></a> and its specialized version <a href="fn.literal.html" title="fn bpaf::literal"><code>literal</code></a> are escape hatches that can parse anything
+not fitting into usual classification.</li>
+<li><a href="fn.pure.html" title="fn bpaf::pure"><code>pure</code></a> and <a href="fn.pure_with.html" title="fn bpaf::pure_with"><code>pure_with</code></a> - a way to generate a value that can be composed without parsing
+it from the command line.</li>
+</ul>
+<h3 id="transforming-and-changing-parsers"><a class="doc-anchor" href="#transforming-and-changing-parsers">§</a>Transforming and changing parsers</h3>
+<p>By default primitive parsers gives you back a single <code>bool</code>, a single <code>PathBuf</code> or a single
+value produced by <a href="https://doc.rust-lang.org/1.93.0/core/str/traits/trait.FromStr.html" title="trait core::str::traits::FromStr"><code>FromStr</code></a> trait, etc. You can further transform it by chaining methods from
+<a href="trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> trait, some of those methods are applied automagically if you are using derive API.</p>
+<p><code>bpaf</code> distinguishes two types of parse failures - “value is absent” and
+“value is present but invalid”, most parsers listed in this section only handle the first
+type of failure by default, but you can use their respective <code>catch</code> method to handle the later
+one.</p>
+<ul>
+<li><a href="trait.Parser.html#method.fallback" title="method bpaf::Parser::fallback"><code>fallback</code></a> and <a href="trait.Parser.html#method.fallback_with" title="method bpaf::Parser::fallback_with"><code>fallback_with</code></a> - return a
+different value if parser fails to find what it is looking for. Generated help for former
+can be updated to include default value using
+<a href="parsers/struct.ParseFallback.html#method.display_fallback" title="method bpaf::parsers::ParseFallback::display_fallback"><code>display_fallback</code></a>,
+<a href="parsers/struct.ParseFallback.html#method.debug_fallback" title="method bpaf::parsers::ParseFallback::debug_fallback"><code>debug_fallback</code></a>, or
+<a href="parsers/struct.ParseFallback.html#method.format_fallback" title="method bpaf::parsers::ParseFallback::format_fallback"><code>format_fallback</code></a>.</li>
+<li><a href="trait.Parser.html#method.optional" title="method bpaf::Parser::optional"><code>optional</code></a> - return <code>None</code> if value is missing instead of failing, see
+also <a href="parsers/struct.ParseOptional.html#method.catch" title="method bpaf::parsers::ParseOptional::catch"><code>catch</code></a> .</li>
+<li><a href="trait.Parser.html#method.many" title="method bpaf::Parser::many"><code>many</code></a>, <a href="trait.Parser.html#method.some" title="method bpaf::Parser::some"><code>some</code></a> and <a href="trait.Parser.html#method.collect" title="method bpaf::Parser::collect"><code>collect</code></a> - collect
+multiple values into a collection, usually a vector, see their respective
+<a href="parsers/struct.ParseMany.html#method.catch" title="method bpaf::parsers::ParseMany::catch"><code>catch</code></a>, <a href="parsers/struct.ParseSome.html#method.catch" title="method bpaf::parsers::ParseSome::catch"><code>catch</code></a> and <a href="parsers/struct.ParseCollect.html#method.catch" title="method bpaf::parsers::ParseCollect::catch"><code>catch</code></a>.</li>
+<li><a href="trait.Parser.html#method.map" title="method bpaf::Parser::map"><code>map</code></a>, <a href="trait.Parser.html#method.parse" title="method bpaf::Parser::parse"><code>parse</code></a> and <a href="trait.Parser.html#method.guard" title="method bpaf::Parser::guard"><code>guard</code></a> - transform
+and/or validate value produced by a parser</li>
+<li><a href="trait.Parser.html#method.to_options" title="method bpaf::Parser::to_options"><code>to_options</code></a> - finalize the parser and prepare to run it</li>
+</ul>
+<h3 id="combining-multiple-parsers-together"><a class="doc-anchor" href="#combining-multiple-parsers-together">§</a>Combining multiple parsers together</h3>
+<p>Once you have parsers for all the primitive fields figured out you can start combining them
+together to produce a parser for a final result - data type you designed in the step one.
+For derive API you apply annotations to data types with <code>#[derive(Bpaf)</code>] and <code>#[bpaf(..)]</code>,
+with combinatoric API you use <a href="macro.construct.html" title="macro bpaf::construct"><code>construct!</code></a> macro.</p>
+<p>All fields in a struct needs to be successfully parsed in order for the parser to succeed
+and only one variant from enum will consume its values at a time.</p>
+<p>You can use <a href="parsers/struct.ParseCon.html#method.adjacent" title="method bpaf::parsers::ParseCon::adjacent"><code>adjacent</code></a> annotation to parse multiple flags as an adjacent
+group allowing for more unusual scenarios such as multiple value arguments or chained commands.</p>
+<h3 id="improving-user-experience"><a class="doc-anchor" href="#improving-user-experience">§</a>Improving user experience</h3>
+<p><code>bpaf</code> would use doc comments on fields and structures in derive mode and and values passed
+in various <code>help</code> methods to generate <code>--help</code> documentation, you can further improve it
+using those methods:</p>
+<ul>
+<li><a href="trait.Parser.html#method.hide_usage" title="method bpaf::Parser::hide_usage"><code>hide_usage</code></a> and <a href="trait.Parser.html#method.hide" title="method bpaf::Parser::hide"><code>hide</code></a> - hide the parser from
+generated <em>Usage</em> line or whole generated help</li>
+<li><a href="trait.Parser.html#method.group_help" title="method bpaf::Parser::group_help"><code>group_help</code></a> and <a href="trait.Parser.html#method.with_group_help" title="method bpaf::Parser::with_group_help"><code>with_group_help</code></a> -
+add a common description shared by several parsers</li>
+<li><a href="trait.Parser.html#method.custom_usage" title="method bpaf::Parser::custom_usage"><code>custom_usage</code></a> - customize usage for a primitive or composite parser</li>
+<li><a href="struct.OptionParser.html#method.usage" title="method bpaf::OptionParser::usage"><code>usage</code></a> and <a href="struct.OptionParser.html#method.with_usage" title="method bpaf::OptionParser::with_usage"><code>with_usage</code></a> lets you to
+customize whole usage line as a whole either by completely overriding it or by building around it.</li>
+</ul>
+<p>By default with completion enabled <code>bpaf</code> would complete names for flags, arguments and
+commands. You can also generate completion for argument values, possible positionals, etc.
+This requires enabling <strong>autocomplete</strong> cargo feature.</p>
+<ul>
+<li><a href="trait.Parser.html#method.complete" title="method bpaf::Parser::complete"><code>complete</code></a> and <a href="trait.Parser.html#method.complete_shell" title="method bpaf::Parser::complete_shell"><code>complete_shell</code></a></li>
+</ul>
+<p>And finally you can generate documentation for command line in markdown, html and manpage
+formats using <a href="struct.OptionParser.html#method.render_markdown" title="method bpaf::OptionParser::render_markdown"><code>render_markdown</code></a>,
+<a href="struct.OptionParser.html#method.render_html" title="method bpaf::OptionParser::render_html"><code>render_html</code></a> and <a href="struct.OptionParser.html#method.render_manpage" title="method bpaf::OptionParser::render_manpage"><code>render_manpage</code></a>,
+for more detailed info see <a href="doc/index.html" title="mod bpaf::doc"><code>doc</code></a> module</p>
+<h3 id="testing-your-parsers-and-running-them"><a class="doc-anchor" href="#testing-your-parsers-and-running-them">§</a>Testing your parsers and running them</h3>
+<ul>
+<li>You can <a href="struct.OptionParser.html#method.run" title="method bpaf::OptionParser::run"><code>OptionParser::run</code></a> the parser on the arguments passed on the command line</li>
+<li><a href="struct.OptionParser.html#method.check_invariants" title="method bpaf::OptionParser::check_invariants"><code>check_invariants</code></a> checks for a few invariants in the
+parser <code>bpaf</code> relies on</li>
+<li><a href="struct.OptionParser.html#method.run_inner" title="method bpaf::OptionParser::run_inner"><code>run_inner</code></a> runs the parser with custom <a href="struct.Args.html" title="struct bpaf::Args"><code>Args</code></a> you can create
+either explicitly or implicitly using one of the <a href="https://doc.rust-lang.org/1.93.0/core/convert/trait.From.html" title="trait core::convert::From"><code>From</code></a> implementations, <code>Args</code> can be
+customized with <a href="struct.Args.html#method.set_comp" title="method bpaf::Args::set_comp"><code>set_comp</code></a> and <a href="struct.Args.html#method.set_name" title="method bpaf::Args::set_name"><code>set_name</code></a>.</li>
+<li><a href="enum.ParseFailure.html" title="enum bpaf::ParseFailure"><code>ParseFailure</code></a> contains the parse outcome, you can consume it either by hands or using one
+of <a href="enum.ParseFailure.html#method.exit_code" title="method bpaf::ParseFailure::exit_code"><code>exit_code</code></a>, <a href="enum.ParseFailure.html#method.unwrap_stdout" title="method bpaf::ParseFailure::unwrap_stdout"><code>unwrap_stdout</code></a> and
+<a href="enum.ParseFailure.html#method.unwrap_stderr" title="method bpaf::ParseFailure::unwrap_stderr"><code>unwrap_stderr</code></a></li>
+</ul>
+<h3 id="cargo-features"><a class="doc-anchor" href="#cargo-features">§</a>Cargo features</h3>
+<ul>
+<li>
+<p><code>derive</code>: adds a dependency on <code>bpaf_derive</code> crate and reexport <code>Bpaf</code> derive macro. You
+need to enable it to use derive API. Disabled by default.</p>
+</li>
+<li>
+<p><code>batteries</code>: helpers implemented with public <code>bpaf</code> API. Disabled by default.</p>
+</li>
+<li>
+<p><code>autocomplete</code>: enables support for shell autocompletion. Disabled by default.</p>
+</li>
+<li>
+<p><code>bright-color</code>, <code>dull-color</code>: use more colors when printing <code>--help</code> and such. Enabling
+either color feature adds some extra dependencies and might raise MRSV. If you are planning
+to use this feature in a published app - it’s best to expose them as feature flags:</p>
+<div class="example-wrap"><pre class="language-toml"><code>[features]
+bright-color = [&quot;bpaf/bright-color&quot;]
+dull-color = [&quot;bpaf/dull-color&quot;]</code></pre></div>
+<p>Disabled by default.</p>
+</li>
+<li>
+<p><code>docgen</code>: generate documentation from help declaration, see <a href="struct.OptionParser.html#method.render_markdown" title="method bpaf::OptionParser::render_markdown"><code>OptionParser::render_markdown</code></a> and <a href="doc/index.html" title="mod bpaf::doc"><code>doc</code></a>. Disabled by default.</p>
+</li>
+</ul>
+</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><dl class="item-table"><dt><a class="mod" href="_documentation/index.html" title="mod bpaf::_documentation">_documentation</a></dt><dd>Project documentation</dd><dt><a class="mod" href="batteries/index.html" title="mod bpaf::batteries">batteries</a></dt><dd>Batteries included - helpful parsers that use only public API</dd><dt><a class="mod" href="doc/index.html" title="mod bpaf::doc">doc</a></dt><dd>Documentation generation system</dd><dt><a class="mod" href="params/index.html" title="mod bpaf::params">params</a></dt><dd>Tools to define primitive parsers</dd><dt><a class="mod" href="parsers/index.html" title="mod bpaf::parsers">parsers</a></dt><dd>This module exposes parsers that accept further configuration with builder pattern</dd></dl><h2 id="macros" class="section-header">Macros<a href="#macros" class="anchor">§</a></h2><dl class="item-table"><dt><a class="macro" href="macro.construct.html" title="macro bpaf::construct">construct</a></dt><dd>Compose several parsers to produce a single result</dd></dl><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Args.html" title="struct bpaf::Args">Args</a></dt><dd>All currently present command line parameters with some extra metainfo</dd><dt><a class="struct" href="struct.Doc.html" title="struct bpaf::Doc">Doc</a></dt><dd>String with styled segments.</dd><dt><a class="struct" href="struct.OptionParser.html" title="struct bpaf::OptionParser">Option<wbr>Parser</a></dt><dd>Ready to run <a href="trait.Parser.html" title="trait bpaf::Parser"><code>Parser</code></a> with additional information attached</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.ParseFailure.html" title="enum bpaf::ParseFailure">Parse<wbr>Failure</a></dt><dd>Unsuccessful command line parsing outcome, use it for unit tests</dd><dt><a class="enum" href="enum.ShellComp.html" title="enum bpaf::ShellComp">Shell<wbr>Comp</a></dt><dd>Shell specific completion</dd></dl><h2 id="traits" class="section-header">Traits<a href="#traits" class="anchor">§</a></h2><dl class="item-table"><dt><a class="trait" href="trait.Parser.html" title="trait bpaf::Parser">Parser</a></dt><dd>Simple or composed argument parser</dd></dl><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><dl class="item-table"><dt><a class="fn" href="fn.any.html" title="fn bpaf::any">any</a></dt><dd>Parse a single arbitrary item from a command line</dd><dt><a class="fn" href="fn.choice.html" title="fn bpaf::choice">choice</a></dt><dd>Choose between several parsers specified at runtime</dd><dt><a class="fn" href="fn.env.html" title="fn bpaf::env">env</a></dt><dd>Parse an environment variable</dd><dt><a class="fn" href="fn.fail.html" title="fn bpaf::fail">fail</a></dt><dd>Fail with a fixed error message</dd><dt><a class="fn" href="fn.literal.html" title="fn bpaf::literal">literal</a></dt><dd>A specialized version of <a href="fn.any.html" title="fn bpaf::any"><code>any</code></a> that consumes an arbitrary string</dd><dt><a class="fn" href="fn.long.html" title="fn bpaf::long">long</a></dt><dd>Parse a <a href="params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a>/<a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a>/<a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> that has a long name</dd><dt><a class="fn" href="fn.positional.html" title="fn bpaf::positional">positional</a></dt><dd>Parse a positional argument</dd><dt><a class="fn" href="fn.pure.html" title="fn bpaf::pure">pure</a></dt><dd>Parser that produces a fixed value</dd><dt><a class="fn" href="fn.pure_with.html" title="fn bpaf::pure_with">pure_<wbr>with</a></dt><dd>Wrap a calculated value into a <code>Parser</code></dd><dt><a class="fn" href="fn.short.html" title="fn bpaf::short">short</a></dt><dd>Parse a <a href="params/struct.NamedArg.html#method.flag" title="method bpaf::params::NamedArg::flag"><code>flag</code></a>/<a href="params/struct.NamedArg.html#method.switch" title="method bpaf::params::NamedArg::switch"><code>switch</code></a>/<a href="params/struct.NamedArg.html#method.argument" title="method bpaf::params::NamedArg::argument"><code>argument</code></a> that has a short name</dd></dl><h2 id="derives" class="section-header">Derive Macros<a href="#derives" class="anchor">§</a></h2><dl class="item-table"><dt><a class="derive" href="derive.Bpaf.html" title="derive bpaf::Bpaf">Bpaf</a></dt><dd>Derive macro for bpaf command line parser</dd></dl></section></div></main></body></html>

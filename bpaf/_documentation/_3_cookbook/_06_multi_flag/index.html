@@ -1,0 +1,146 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content=" "><title>bpaf::_documentation::_3_cookbook::_06_multi_flag - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module _06_multi_flag</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module _06_<wbr>multi_<wbr>flag</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#multi-value-arguments-with-optional-flags---foo-arg1---flag---inner-arg2" title="Multi-value arguments with optional flags: `--foo ARG1 --flag --inner ARG2`">Multi-value arguments with optional flags: <code>--foo ARG1 --flag --inner ARG2</code></a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In bpaf::<wbr>_<wbr>documentation::<wbr>_<wbr>3_<wbr>cookbook</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../../../index.html">bpaf</a>::<wbr><a href="../../index.html">_documentation</a>::<wbr><a href="../index.html">_3_cookbook</a></div><h1>Module <span>_06_<wbr>multi_<wbr>flag</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/bpaf/_documentation.rs.html#2690">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">← Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">Skipping optional positional items if parsing or validation fails →</a></p>
+  </td>
+</tr></table>
+<h5 id="multi-value-arguments-with-optional-flags---foo-arg1---flag---inner-arg2"><a class="doc-anchor" href="#multi-value-arguments-with-optional-flags---foo-arg1---flag---inner-arg2">§</a>Multi-value arguments with optional flags: <code>--foo ARG1 --flag --inner ARG2</code></h5>
+<p>So you can parse things while parsing things. Not sure why you might need this, but you can
+:)</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    meal: Vec&lt;Meal&gt;,
+    premium: bool,
+}
+
+<span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">struct </span>Meal {
+    m: (),
+    spicy: <span class="prelude-ty">Option</span>&lt;usize&gt;,
+    drink: bool,
+    dish: usize,
+}
+
+<span class="doccomment">/// You can mix all sorts of things inside the adjacent group
+</span><span class="kw">fn </span>meal() -&gt; <span class="kw">impl </span>Parser&lt;Meal&gt; {
+    <span class="kw">let </span>m = short(<span class="string">'o'</span>)
+        .long(<span class="string">"meal"</span>)
+        .help(<span class="string">"A meal [o]rder consists of a main dish with an optional drink"</span>)
+        .req_flag(());
+    <span class="kw">let </span>spicy = long(<span class="string">"spicy"</span>)
+        .help(<span class="string">"On a scale from 1 to a lot, how spicy do you want your meal?"</span>)
+        .argument::&lt;usize&gt;(<span class="string">"SPICY"</span>)
+        .optional();
+    <span class="kw">let </span>drink = long(<span class="string">"drink"</span>)
+        .help(<span class="string">"Do you want drink with your meal?"</span>)
+        .switch();
+    <span class="kw">let </span>dish = positional::&lt;usize&gt;(<span class="string">"DISH"</span>).help(<span class="string">"Main dish number"</span>);
+    <span class="macro">construct!</span>(Meal {
+        m,
+        spicy,
+        drink,
+        dish
+    })
+    .adjacent()
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>premium = short(<span class="string">'p'</span>)
+        .long(<span class="string">"premium"</span>)
+        .help(<span class="string">"Do you want to opt in for premium service?"</span>)
+        .switch();
+    <span class="kw">let </span>meal = meal().many();
+    <span class="macro">construct!</span>(Options { meal, premium }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div><details><summary>Output</summary>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> [<tt><b>-o</b></tt> [<tt><b>--spicy</b></tt>=<tt><i>SPICY</i></tt>] [<tt><b>--drink</b></tt>] <tt><i>DISH</i></tt>]... [<tt><b>-p</b></tt>]</p><p><div>
+<b>Available options:</b></div><dl><div style='padding-left: 0.5em'><tt><b>-o</b></tt> [<tt><b>--spicy</b></tt>=<tt><i>SPICY</i></tt>] [<tt><b>--drink</b></tt>] <tt><i>DISH</i></tt></div><dt><tt><b>-o</b></tt>, <tt><b>--meal</b></tt></dt>
+<dd>A meal [o]rder consists of a main dish with an optional drink</dd>
+<dt><tt><b>    --spicy</b></tt>=<tt><i>SPICY</i></tt></dt>
+<dd>On a scale from 1 to a lot, how spicy do you want your meal?</dd>
+<dt><tt><b>    --drink</b></tt></dt>
+<dd>Do you want drink with your meal?</dd>
+<dt><tt><i>DISH</i></tt></dt>
+<dd>Main dish number</dd>
+<p></p><dt><tt><b>-p</b></tt>, <tt><b>--premium</b></tt></dt>
+<dd>Do you want to opt in for premium service?</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+<p>Let’s start simple - a single flag accepts a bunch of stuff, and eveything is present</p>
+<div class='bpaf-doc'>
+$ app --meal 330 --spicy 10 --drink<br>
+Options { meal: [Meal { m: (), spicy: Some(10), drink: true, dish: 330 }], premium: false }
+</div>
+<p>You can omit some parts, but also have multiple groups thank to <code>many</code></p>
+<div class='bpaf-doc'>
+$ app --meal 100 --drink --meal 30 --spicy 10 --meal 50<br>
+Options { meal: [Meal { m: (), spicy: None, drink: true, dish: 100 }, Meal { m: (), spicy: Some(10), drink: false, dish: 30 }, Meal { m: (), spicy: None, drink: false, dish: 50 }], premium: false }
+</div>
+<p>As usual it can be mixed with standalone flags</p>
+<div class='bpaf-doc'>
+$ app --premium --meal 42<br>
+Options { meal: [Meal { m: (), spicy: None, drink: false, dish: 42 }], premium: true }
+</div>
+<p>Thanks to <code>many</code> whole meal part is optional</p>
+<div class='bpaf-doc'>
+$ app --premium<br>
+Options { meal: [], premium: true }
+</div>
+<p>Error messages should be somewhat descriptive</p>
+<div class='bpaf-doc'>
+$ app --meal --drink --spicy 500<br>
+<b>Error:</b> expected <tt><i>DISH</i></tt>, pass <tt><b>--help</b></tt> for usage information
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<p> </p>
+<table width='100%' cellspacing='0' style='border: hidden;'><tr>
+  <td style='width: 33%; text-align: left;'>
+<p><a href="../_05_struct_groups/index.html" title="mod bpaf::_documentation::_3_cookbook::_05_struct_groups">← Structure groups: <code>--foo --foo-1 ARG1 --foo-2 ARG2 --foo-3 ARG3</code></a></p>
+  </td>
+  <td style='width: 34%; text-align: center;'>
+<p><a href="../index.html" title="mod bpaf::_documentation::_3_cookbook">↑ Parsing cookbook ↑</a></p>
+  </td>
+  <td style='width: 33%; text-align: right;'>
+<p><a href="../_07_skip_positional/index.html" title="mod bpaf::_documentation::_3_cookbook::_07_skip_positional">Skipping optional positional items if parsing or validation fails →</a></p>
+  </td>
+</tr></table>
+</div></details></section></div></main></body></html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Documentation generation system"><title>bpaf::doc - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Italic-81dc35de.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-MediumItalic-ccf7e434.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2"href="../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../static.files/rustdoc-ca0dd0c4.css"><meta name="rustdoc-vars" data-root-path="../../" data-static-root-path="../../static.files/" data-current-crate="bpaf" data-themes="" data-resource-suffix="" data-rustdoc-version="1.93.0 (254b59607 2026-01-19)" data-channel="1.93.0" data-search-js="search-9e2438ea.js" data-stringdex-js="stringdex-a3946164.js" data-settings-js="settings-c38705f0.js" ><script src="../../static.files/storage-e2aeef58.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../static.files/main-a410ff4d.js"></script><noscript><link rel="stylesheet" href="../../static.files/noscript-263c88ec.css"></noscript><link rel="alternate icon" type="image/png" href="../../static.files/favicon-32x32-eab170b8.png"><link rel="icon" type="image/svg+xml" href="../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><rustdoc-topbar><h2><a href="#">Module doc</a></h2></rustdoc-topbar><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../bpaf/index.html">bpaf</a><span class="version">0.9.23</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module doc</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#command-line-parser-documentation-generation" title="Command line parser documentation generation">Command line parser documentation generation</a></li><li><a href="#documentation-fragments-to-use-inside---help-messages" title="Documentation fragments to use inside `--help` messages">Documentation fragments to use inside <code>--help</code> messages</a></li></ul><h3><a href="#structs">Module Items</a></h3><ul class="block"><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#enums" title="Enums">Enums</a></li></ul></section><div id="rustdoc-modnav"><h2 class="in-crate"><a href="../index.html">In crate bpaf</a></h2></div></div></nav><div class="sidebar-resizer" title="Drag to resize sidebar"></div><main><div class="width-limiter"><section id="main-content" class="content"><div class="main-heading"><div class="rustdoc-breadcrumbs"><a href="../index.html">bpaf</a></div><h1>Module <span>doc</span>&nbsp;<button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../src/bpaf/doc.rs.html#1-60">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Documentation generation system</p>
+<h2 id="command-line-parser-documentation-generation"><a class="doc-anchor" href="#command-line-parser-documentation-generation">§</a>Command line parser documentation generation</h2>
+<p><a href="../struct.OptionParser.html" title="struct bpaf::OptionParser"><code>OptionParser</code></a> implements two methods: <a href="../struct.OptionParser.html#method.render_html" title="method bpaf::OptionParser::render_html"><code>render_html</code></a> and
+<a href="../struct.OptionParser.html#method.render_manpage" title="method bpaf::OptionParser::render_manpage"><code>render_manpage</code></a> that create a documentation in a mix of
+html/markdown and ROFF formats respectively.</p>
+<p>To use it you should do something like this</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[test]
+</span><span class="kw">fn </span>update_doc() {
+    <span class="kw">let </span>options = options();
+    <span class="kw">let </span>md = options.render_markdown(<span class="string">"app_name"</span>);
+    <span class="kw">let </span>roff = options.render_manpage(<span class="string">"app_name"</span>, Section::General, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>, <span class="prelude-val">None</span>);
+    <span class="comment">// then save those docs into a files
+    // If you commit those docs into your repo and optionally fail a test if there
+    // are changes - CI will ensure that documentation is always up to date
+</span>}</code></pre></div><h2 id="documentation-fragments-to-use-inside---help-messages"><a class="doc-anchor" href="#documentation-fragments-to-use-inside---help-messages">§</a>Documentation fragments to use inside <code>--help</code> messages</h2>
+<p><code>bpaf</code> tries to use semantic approach to documentation generation, instead of describing what
+color specific string slice should be you need to specify what this string slice supposed to
+mean.</p>
+<p>Most of the help related functions take <code>Into&lt;Doc&gt;</code> parameters, normally you would pass one of
+following things:</p>
+<ol>
+<li>Ready made <code>Doc</code> - usually with combinatoric API</li>
+</ol>
+
+<div class="example-wrap ignore"><a href="#" class="tooltip" title="This example is not tested">ⓘ</a><pre class="rust rust-example-rendered"><code><span class="kw">let </span><span class="kw-2">mut </span>doc = Doc::default();
+doc.emphasis(<span class="string">"Usage: "</span>);
+doc.literal(<span class="string">"my_program"</span>); <span class="comment">// or use `env!("CARGO_BIN_NAME")` to get the name of the executable
+// do something with it
+</span>drop(doc)</code></pre></div>
+<ol start="2">
+<li>
+<p>A string slice - <code>&amp;str</code> can be converted into a fully plain text <code>Doc</code> which is enough
+for most applications</p>
+</li>
+<li>
+<p>A slice of style value pairs</p>
+</li>
+</ol>
+<details><summary>Combinatoric example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code><span class="attr">#[derive(Debug, Clone)]
+</span><span class="kw">pub struct </span>Options {
+    number: u32,
+}
+
+<span class="kw">pub fn </span>options() -&gt; OptionParser&lt;Options&gt; {
+    <span class="kw">let </span>number = long(<span class="string">"number"</span>)
+        .help(
+            <span class="kw-2">&amp;</span>[
+                (<span class="string">"Very"</span>, Style::Emphasis),
+                (<span class="string">" important argument"</span>, Style::Text),
+            ][..],
+        )
+        .argument::&lt;u32&gt;(<span class="string">"N"</span>);
+    <span class="macro">construct!</span>(Options { number }).to_options()
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Derive example</summary>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered"><code>
+<span class="kw">const </span>ARG: <span class="kw-2">&amp;</span>[(<span class="kw-2">&amp;</span>str, Style)] = <span class="kw-2">&amp;</span>[
+    (<span class="string">"Very"</span>, Style::Emphasis),
+    (<span class="string">" important argument"</span>, Style::Text),
+];
+
+<span class="attr">#[derive(Debug, Clone, Bpaf)]
+#[bpaf(options)]
+</span><span class="kw">pub struct </span>Options {
+    <span class="attr">#[bpaf(argument(<span class="string">"N"</span>), help(ARG))]
+    </span>number: u32,
+}
+
+<span class="kw">fn </span>main() {
+    <span class="macro">println!</span>(<span class="string">"{:?}"</span>, options().run())
+}</code></pre></div></details>
+<details><summary>Output</summary>
+<div class='bpaf-doc'>
+$ app --help<br>
+<p><b>Usage</b>: <tt><b>app</b></tt> <tt><b>--number</b></tt>=<tt><i>N</i></tt></p><p><div>
+<b>Available options:</b></div><dl><dt><tt><b>    --number</b></tt>=<tt><i>N</i></tt></dt>
+<dd><b>Very</b> important argument</dd>
+<dt><tt><b>-h</b></tt>, <tt><b>--help</b></tt></dt>
+<dd>Prints help information</dd>
+</dl>
+</p>
+<style>
+div.bpaf-doc {
+    padding: 14px;
+    background-color:var(--code-block-background-color);
+    font-family: "Source Code Pro", monospace;
+    margin-bottom: 0.75em;
+}
+div.bpaf-doc dt { margin-left: 1em; }
+div.bpaf-doc dd { margin-left: 3em; }
+div.bpaf-doc dl { margin-top: 0; padding-left: 1em; }
+div.bpaf-doc  { padding-left: 1em; }
+</style>
+</div>
+</details>
+<ol start="4">
+<li>A structure from your own crate that can be converted into <code>Doc</code></li>
+</ol>
+</div></details><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><dl class="item-table"><dt><a class="struct" href="struct.Doc.html" title="struct bpaf::doc::Doc">Doc</a></dt><dd>String with styled segments.</dd><dt><a class="struct" href="struct.MetaInfo.html" title="struct bpaf::doc::MetaInfo">Meta<wbr>Info</a></dt><dd>Parser metainformation</dd></dl><h2 id="enums" class="section-header">Enums<a href="#enums" class="anchor">§</a></h2><dl class="item-table"><dt><a class="enum" href="enum.Section.html" title="enum bpaf::doc::Section">Section</a></dt><dd>Manual page section</dd><dt><a class="enum" href="enum.Style.html" title="enum bpaf::doc::Style">Style</a></dt><dd>Style of a text fragment inside of <a href="../struct.Doc.html" title="struct bpaf::Doc"><code>Doc</code></a></dd></dl></section></div></main></body></html>
