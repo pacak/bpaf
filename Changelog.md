@@ -1,5 +1,11 @@
 # Change Log
 
+## bpaf [0.9.23], bpaf_derive [0.5.23] - 2026-02-03
+- code produced by derive macro is now won't trigger missing-docs lint
+
+## bpaf [0.9.22], bpaf_derive [0.5.22] - 2026-01-15
+- fix docs.rs generation
+
 ## bpaf [0.9.21], bpaf_derive [0.5.21] - 2026-01-15
 - Documentation fixes
 - minor derive macro improvements

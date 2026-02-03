@@ -13,6 +13,7 @@ fn cargo_command_helper() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> ::bpaf::OptionParser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -36,6 +37,7 @@ fn fallback_usage_top() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> ::bpaf::OptionParser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -59,6 +61,7 @@ fn fallback_usage_subcommand() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -84,6 +87,7 @@ fn fallback_usage_lut_1() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn lutgen() -> ::bpaf::OptionParser<Lutgen> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -110,6 +114,7 @@ fn fallback_usage_lut_2() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn lutgen() -> ::bpaf::OptionParser<Lutgen> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -131,6 +136,7 @@ fn top_struct_construct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -151,6 +157,7 @@ fn top_enum_construct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -179,6 +186,7 @@ fn top_struct_options1() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -201,6 +209,7 @@ fn options_with_custom_usage() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -222,6 +231,7 @@ fn struct_options2() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -243,6 +253,7 @@ fn struct_command_no_decor() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -264,6 +275,7 @@ fn struct_command_decor() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -288,6 +300,7 @@ fn struct_command_short() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn o() -> impl ::bpaf::Parser<O> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -326,6 +339,7 @@ fn unnamed_command_enum() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> impl ::bpaf::Parser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -363,6 +377,7 @@ fn enum_markdownish() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -403,6 +418,7 @@ fn enum_command() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -446,6 +462,7 @@ fn unnamed_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -469,6 +486,7 @@ fn unnamed_enum() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt1() -> ::bpaf::OptionParser<Opt1> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -503,6 +521,7 @@ fn enum_to_flag_and_switches() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         pub fn opt() -> impl ::bpaf::Parser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -543,6 +562,7 @@ fn help_generation() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -568,6 +588,7 @@ fn version_with_commands() {
         }
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn action() -> ::bpaf::OptionParser<Action> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -597,6 +618,7 @@ fn hidden_command() {
         }
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn action() -> ::bpaf::OptionParser<Action> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -627,6 +649,7 @@ fn req_flag_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn foo() -> impl ::bpaf::Parser<Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -643,6 +666,7 @@ fn generate_parser() {
             struct Foo;
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn oof() -> impl ::bpaf::Parser<Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -659,6 +683,7 @@ fn generate_options() {
             struct Foo;
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn oof() -> ::bpaf::OptionParser<Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -675,6 +700,7 @@ fn generate_command() {
             struct Foo;
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn oof() -> impl ::bpaf::Parser<Foo> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -695,6 +721,7 @@ fn command_with_aliases_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn command() -> impl ::bpaf::Parser<Command> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -726,6 +753,7 @@ fn command_with_aliases_enum() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> impl ::bpaf::Parser<Options> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -757,6 +785,7 @@ fn version_with_commands_with_cargo_helper() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn action() -> ::bpaf::OptionParser<Action> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -783,6 +812,7 @@ fn named_to_positional_with_metavar() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> impl ::bpaf::Parser<Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -806,6 +836,7 @@ fn named_to_positional_without_metavar() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> impl ::bpaf::Parser<Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -829,6 +860,7 @@ fn private_visibility() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> impl ::bpaf::Parser<Options> {
             #[allow (unused_imports)]
             use ::bpaf::Parser;
@@ -863,6 +895,7 @@ fn hidden_default_enum_singleton() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn decision() -> impl ::bpaf::Parser<Decision> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -904,6 +937,7 @@ fn explicit_external() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> ::bpaf::OptionParser<Options> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -929,6 +963,7 @@ fn implicit_external() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> ::bpaf::OptionParser<Options> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -955,6 +990,7 @@ fn fallback_for_options() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> ::bpaf::OptionParser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -980,6 +1016,7 @@ fn implicitly_named_switch() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> ::bpaf::OptionParser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1009,6 +1046,7 @@ fn fallback_for_enum() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn decision() -> impl ::bpaf::Parser<Decision> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1033,6 +1071,7 @@ fn fallback_for_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn value() -> impl ::bpaf::Parser<Value> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1057,6 +1096,7 @@ fn adjacent_for_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> impl ::bpaf::Parser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1083,6 +1123,7 @@ fn box_for_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> impl ::bpaf::Parser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1105,6 +1146,7 @@ fn no_fields_declaration() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn opts() -> impl ::bpaf::Parser<Opts> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1123,6 +1165,7 @@ fn single_unit_command() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn one() -> impl ::bpaf::Parser<One> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1141,6 +1184,7 @@ fn single_unit_adjacent_command() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn one() -> impl ::bpaf::Parser<One> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1166,6 +1210,7 @@ fn ingore_doc_comment_top_level_1() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn mode() -> impl ::bpaf::Parser<Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1194,6 +1239,7 @@ fn ingore_doc_comment_top_level_2() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn mode() -> ::bpaf::OptionParser<Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1222,6 +1268,7 @@ fn top_comment_is_group_help_enum() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn mode() -> impl ::bpaf::Parser<Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1250,6 +1297,7 @@ fn top_comment_is_group_help_struct() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn mode() -> impl ::bpaf::Parser<Mode> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1274,6 +1322,7 @@ fn max_width() {
         }
     };
     let expected = quote! {
+        #[doc(hidden)]
         fn opt() -> ::bpaf::OptionParser<Opt> {
             #[allow(unused_imports)]
             use ::bpaf::Parser;
@@ -1298,6 +1347,7 @@ fn custom_bpaf_path_options() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn options() -> ::indirector::bpaf::OptionParser<Options> {
             #[allow(unused_imports)]
             use ::indirector::bpaf::Parser;
@@ -1321,6 +1371,7 @@ fn custom_bpaf_path_parser() {
     };
 
     let expected = quote! {
+        #[doc(hidden)]
         fn items() -> impl ::indirector::bpaf::Parser<Items> {
             #[allow(unused_imports)]
             use ::indirector::bpaf::Parser;
@@ -1345,7 +1396,8 @@ fn push_down_command() {
         }
     };
 
-    let expected = quote! {};
+    let expected = quote! {
+        #[doc(hidden)]};
 
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
@@ -1362,7 +1414,8 @@ fn push_down_argument() {
         }
     };
 
-    let expected = quote! {};
+    let expected = quote! {
+        #[doc(hidden)]};
 
     assert_eq!(top.to_token_stream().to_string(), expected.to_string());
 }
