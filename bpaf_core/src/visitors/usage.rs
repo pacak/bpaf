@@ -203,7 +203,8 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 }));
                 return;
             }
-            Item::OptionParser { .. } => {
+            Item::OptionParser { inner, info: _ } => {
+                inner.vi(self);
                 return;
             }
             Item::Section {

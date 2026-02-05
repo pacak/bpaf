@@ -192,8 +192,6 @@ impl<T: 'static> Visited for OptionParser<T> {
             info: &self.info,
             inner: &self.inner,
         });
-
-        self.inner.visit(visitor)
     }
 }
 

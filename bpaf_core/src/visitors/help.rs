@@ -206,6 +206,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 }
 
                 self.footer = info.footer;
+                inner.vi(self);
             }
             Item::Flag { named } => {
                 let Some(sl) = named.get_shortlong() else {

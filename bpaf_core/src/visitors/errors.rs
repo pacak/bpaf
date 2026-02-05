@@ -38,22 +38,28 @@ impl<'a> IsAcceptedOnce<'a> {
 
 impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
     fn item(&mut self, item: Item<'a>) {
-        let (Item::Flag { named, .. }
-        | Item::Arg { named, .. }
-        | Item::Nested {
-            outer: Nest::Named(Flag { named, .. }),
-            ..
-        }) = item
-        else {
-            return;
-        };
-        if named.names.contains(self.name) {
-            let known = if self.in_many > 0 {
-                KnownName::Many
-            } else {
-                KnownName::Single
-            };
-            self.known = self.known.max(known);
+        match item {
+            Item::OptionParser { info: _, inner } => inner.vi(self),
+            Item::Flag { named }
+            | Item::Arg { named, .. }
+            | Item::Nested {
+                outer: Nest::Named(Flag { named, .. }),
+                ..
+            } => {
+                if named.names.contains(self.name) {
+                    let known = if self.in_many > 0 {
+                        KnownName::Many
+                    } else {
+                        KnownName::Single
+                    };
+                    self.known = self.known.max(known);
+                }
+            }
+            Item::Nested { .. }
+            | Item::Positional { .. }
+            | Item::Command { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. } => {}
         }
     }
 
@@ -104,24 +110,30 @@ impl<'a> BetterName<'a> {
 
 impl<'a> Visitor<'a> for BetterName<'a> {
     fn item(&mut self, item: Item<'a>) {
-        let (Item::Flag { named, .. }
-        | Item::Arg { named, .. }
-        | Item::Nested {
-            outer: Nest::Named(Flag { named, .. }),
-            ..
-        }) = item
-        else {
-            return;
-        };
-        for name in &named.names {
-            let Name::Long(long_possible) = name else {
-                continue;
-            };
-            let dist = damerau_levenshtein(self.target, long_possible);
-            if self.distance > dist {
-                self.distance = dist;
-                self.best = long_possible;
+        match item {
+            Item::OptionParser { info: _, inner } => inner.vi(self),
+            Item::Flag { named }
+            | Item::Arg { named, .. }
+            | Item::Nested {
+                outer: Nest::Named(Flag { named, .. }),
+                ..
+            } => {
+                for name in &named.names {
+                    let Name::Long(long_possible) = name else {
+                        continue;
+                    };
+                    let dist = damerau_levenshtein(self.target, long_possible);
+                    if self.distance > dist {
+                        self.distance = dist;
+                        self.best = long_possible;
+                    }
+                }
             }
+            Item::Nested { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. }
+            | Item::Positional { .. }
+            | Item::Command { .. } => {}
         }
     }
 
@@ -141,18 +153,26 @@ pub(crate) struct ValidCommand<'a> {
 
 impl<'a> Visitor<'a> for ValidCommand<'a> {
     fn item(&mut self, item: Item<'a>) {
-        let Item::Command { names, .. } = item else {
-            return;
-        };
-        for name in names {
-            let Name::Long(name) = &name.0 else {
-                continue;
-            };
-            let dist = damerau_levenshtein(self.target, name);
-            if self.distance > dist {
-                self.distance = dist;
-                self.best = name;
+        match item {
+            Item::OptionParser { inner, .. } => inner.vi(self),
+            Item::Command { names, .. } => {
+                for name in names {
+                    let Name::Long(name) = &name.0 else {
+                        continue;
+                    };
+                    let dist = damerau_levenshtein(self.target, name);
+                    if self.distance > dist {
+                        self.distance = dist;
+                        self.best = name;
+                    }
+                }
             }
+            Item::Flag { .. }
+            | Item::Arg { .. }
+            | Item::Positional { .. }
+            | Item::Nested { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. } => {}
         }
     }
 
@@ -218,22 +238,28 @@ impl Visitor<'_> for IsDDash {
         if self.exists {
             return;
         }
-        let (Item::Flag { named, .. }
-        | Item::Arg { named, .. }
-        | Item::Nested {
-            outer: Nest::Named(Flag { named, .. }),
-            ..
-        }) = item
-        else {
-            return;
-        };
 
-        for name in &named.names {
-            if let Name::Long(actual) = name
-                && actual == &self.name
-            {
-                self.exists = true;
+        match item {
+            Item::OptionParser { info: _, inner } => inner.vi(self),
+            Item::Flag { named }
+            | Item::Arg { named, .. }
+            | Item::Nested {
+                outer: Nest::Named(Flag { named, .. }),
+                ..
+            } => {
+                for name in &named.names {
+                    if let Name::Long(actual) = name
+                        && actual == &self.name
+                    {
+                        self.exists = true;
+                    }
+                }
             }
+            Item::Nested { .. }
+            | Item::Positional { .. }
+            | Item::Command { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. } => {}
         }
     }
 
