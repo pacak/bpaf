@@ -214,6 +214,18 @@ pub trait Parser {
             exit: Box::new(exit),
         }
     }
+
+    fn or_else(
+        self,
+        other: impl Parser<Output = Self::Output> + 'static,
+    ) -> crate::api::composite::Sum<Self::Output>
+    where
+        Self: Sized + 'static,
+    {
+        crate::api::composite::Sum {
+            items: vec![self.into_rc(), other.into_rc()],
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

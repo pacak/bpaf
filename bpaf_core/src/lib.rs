@@ -71,6 +71,11 @@ pub mod api {
 
         impl<T: 'static> Parser for Sum<T> {
             type Output = T;
+            fn or_else(mut self, other: impl Parser<Output = Self::Output> + 'static) -> Self {
+                self.items.push(other.into_rc());
+                self
+            }
+
             fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
                 visitor.push_group(VisitGroup::Sum);
                 for i in &self.items {
@@ -1883,6 +1888,7 @@ mod tests {
     mod osstring;
     mod pure_with;
     mod repeat;
+    mod sum;
     mod unsorted;
     mod usage;
     // mod wake;
