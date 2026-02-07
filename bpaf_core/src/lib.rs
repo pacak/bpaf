@@ -845,8 +845,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
-            let ctx = self.ctx.clone();
-            let Some(front) = ctx.args.get(self.ctx.cursor.get()) else {
+            let Some(front) = self.ctx.args.get(self.ctx.cursor.get()) else {
                 break;
             };
 
@@ -1363,19 +1362,31 @@ impl<'p> RawCtx<'p> {
     where
         'p: 'o,
     {
-        let mut args = self.args.clone();
+        let mut path = self.path.clone();
         if let Some(name) = level {
-            args.path.push(' ');
-            args.path.push_str(name);
+            path.push(' ');
+            path.push_str(name);
         }
-        Self::make(args, self.cursor.get(), self.strict_pos.get(), self.custom)
+        Self::make(
+            path,
+            self.args,
+            self.cursor.get(),
+            self.strict_pos.get(),
+            self.custom,
+        )
     }
 
-    pub(crate) fn new(args: Args, custom: &'p Custom) -> Ctx<'p> {
-        Self::make(args, 0, false, custom)
+    pub(crate) fn new(args: &'p Args, custom: &'p Custom) -> Ctx<'p> {
+        Self::make(args.app.clone(), args, 0, false, custom)
     }
 
-    fn make<'o>(args: Args, cursor: u32, strict_pos: bool, custom: &'o Custom) -> Ctx<'o> {
+    fn make<'o>(
+        path: String,
+        args: &'o Args,
+        cursor: u32,
+        strict_pos: bool,
+        custom: &'o Custom,
+    ) -> Ctx<'o> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),
@@ -1387,6 +1398,7 @@ impl<'p> RawCtx<'p> {
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
             custom,
+            path,
         })
     }
 
@@ -1418,7 +1430,7 @@ impl<'p> RawCtx<'p> {
                                 ParseFailure::Stdout(crate::visitors::help::render_help(
                                     parser,
                                     Some(&extra),
-                                    &ctx.args.path,
+                                    &ctx.path,
                                     xtra == Extra::LongHelp,
                                 ))
                             }

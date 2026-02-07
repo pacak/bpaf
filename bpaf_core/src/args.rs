@@ -1,9 +1,9 @@
-use std::{ffi::OsString, rc::Rc};
+use std::ffi::{OsStr, OsString};
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Args {
-    pub(crate) path: String,
-    pub(crate) items: Rc<[OsString]>,
+    pub(crate) app: String,
+    pub(crate) items: Vec<OsString>,
     pub(crate) complete: bool,
 }
 
@@ -17,7 +17,7 @@ impl Args {
     }
 
     pub fn set_name(mut self, name: impl Into<String>) -> Self {
-        self.path = name.into();
+        self.app = name.into();
         self
     }
 
@@ -32,13 +32,13 @@ impl Args {
         app: impl Into<String>,
         items: impl IntoIterator<Item = impl Into<OsString>>,
     ) -> Self {
-        let items: Rc<[OsString]> = items.into_iter().map(|v| v.into()).collect();
+        let items: Vec<OsString> = items.into_iter().map(|v| v.into()).collect();
         assert!(
             items.len() < i32::MAX as usize,
             "Way too many command line arguments"
         );
         Self {
-            path: app.into(),
+            app: app.into(),
             complete: false,
             items,
         }

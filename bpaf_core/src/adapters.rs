@@ -95,7 +95,8 @@ impl<T: 'static> OptionParser<T> {
             Some(custom) => custom,
             None => &Custom::default(),
         };
-        let ctx = RawCtx::new(args.into(), custom);
+        let args = args.into();
+        let ctx = RawCtx::new(&args, custom);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -134,7 +135,7 @@ impl<T: 'static> OptionParser<T> {
                 crate::visitors::help::render_help(
                     self,
                     Some(&ctx.custom.create(self.info.version)),
-                    &ctx.args.path,
+                    &ctx.path,
                     false,
                 ),
             )));

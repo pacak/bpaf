@@ -34,7 +34,8 @@ pub struct RawCtx<'p> {
     pub(crate) next_free: Cell<u32>,
 
     /// Arguments we are parsing as well as a cursor
-    pub(crate) args: Args,
+    pub(crate) args: &'p Args,
+    pub(crate) path: String,
     pub(crate) cursor: Cell<u32>,
 
     /// When task is woken up this contains a reason for it

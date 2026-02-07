@@ -8,7 +8,7 @@ impl Parser for CmdPath {
     type Output = (String, Custom);
 
     fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p {
-        std::future::ready(Ok((ctx.args.path.clone(), ctx.custom.clone())))
+        std::future::ready(Ok((ctx.path.clone(), ctx.custom.clone())))
     }
 
     fn visit<'a>(&'a self, _visitor: &mut dyn Visitor<'a>) {}
