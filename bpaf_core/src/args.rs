@@ -8,8 +8,8 @@ pub struct Args {
 }
 
 impl Args {
-    pub(crate) fn get(&self, ix: u32) -> Option<&OsString> {
-        self.items.get(ix as usize)
+    pub(crate) fn get(&self, ix: u32) -> Option<&OsStr> {
+        Some(&self.items.get(ix as usize)?)
     }
 
     pub(crate) fn len(&self) -> u32 {

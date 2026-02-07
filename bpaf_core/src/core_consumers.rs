@@ -123,7 +123,7 @@ impl<'p> RawCtx<'p> {
                         pos,
                         Problem::WrongArgument {
                             name: name.into_owned(),
-                            value: Some(next.clone()),
+                            value: Some(next.to_os_string()),
                         },
                     )),
                     Arg::Pos {

@@ -416,12 +416,12 @@ enum KillReason {
 }
 
 #[derive(Debug)]
-enum Reason {
+enum Reason<'p> {
     /// Task is waken up so core consumer gets a chance to consume anything.
     /// - `Some` corresponds to a value requested by a trigger
     /// - `None` - leaf task is being told that there is no more matching arguments
     ///   left and it should produce what it can or fail.
-    Arg(Arg<'static>),
+    Arg(Arg<'p>),
 
     Kill(KillReason),
 
@@ -933,7 +933,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         Ok(())
     }
 
-    fn complain_about(&self, unexpected: &OsString) -> Problem {
+    fn complain_about(&self, unexpected: &OsStr) -> Problem {
         match lex_os_arg(unexpected) {
             Arg::Named {
                 name: unexpected,
@@ -1013,7 +1013,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             }
         }
         Problem::Unconsumed {
-            value: unexpected.clone(),
+            value: unexpected.to_os_string(),
         }
     }
 
@@ -1042,7 +1042,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// Each task indicates how much it will consume if allowed to run till the end
     fn stage_1(
         &mut self,
-        front: &OsStr,
+        front: &'p OsStr,
         mixer_capacity: Mixer<'static>,
     ) -> (u32, Mixer<'static>, Option<Group>) {
         let mut mixer = mixer_capacity.reuse_capacity();
@@ -1070,7 +1070,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
         let mgroup = mixer.populate(&arg, &self.triggers, self.ctx.strict_pos.get());
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg.into_owned());
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
         let mut best_size = 0;
         while let Some(next) = mixer.consume_next_item(&self.tasks) {

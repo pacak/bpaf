@@ -39,7 +39,7 @@ pub struct RawCtx<'p> {
     pub(crate) cursor: Cell<u32>,
 
     /// When task is woken up this contains a reason for it
-    pub(crate) wakeup_reason: RefCell<Reason>,
+    pub(crate) wakeup_reason: RefCell<Reason<'p>>,
 
     /// Reference to [`TaskInfo`] for the current task
     ///
