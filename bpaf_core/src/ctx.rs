@@ -35,7 +35,7 @@ pub struct RawCtx<'p> {
 
     /// Arguments we are parsing as well as a cursor
     pub(crate) args: Args,
-    pub(crate) cursor: Cell<usize>,
+    pub(crate) cursor: Cell<u32>,
 
     /// When task is woken up this contains a reason for it
     pub(crate) wakeup_reason: RefCell<Reason>,

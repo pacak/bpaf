@@ -8,12 +8,12 @@ pub struct Args {
 }
 
 impl Args {
-    pub(crate) fn get(&self, ix: usize) -> Option<&OsString> {
-        self.items.get(ix)
+    pub(crate) fn get(&self, ix: u32) -> Option<&OsString> {
+        self.items.get(ix as usize)
     }
 
-    pub(crate) fn len(&self) -> usize {
-        self.items.len()
+    pub(crate) fn len(&self) -> u32 {
+        self.items.len() as u32
     }
 
     pub fn set_name(mut self, name: impl Into<String>) -> Self {
@@ -32,19 +32,24 @@ impl Args {
         app: impl Into<String>,
         items: impl IntoIterator<Item = impl Into<OsString>>,
     ) -> Self {
+        let items: Rc<[OsString]> = items.into_iter().map(|v| v.into()).collect();
+        assert!(
+            items.len() < i32::MAX as usize,
+            "Way too many command line arguments"
+        );
         Self {
             path: app.into(),
             complete: false,
-            items: items.into_iter().map(|v| v.into()).collect(),
+            items,
         }
     }
 }
 
-impl std::ops::Index<usize> for Args {
+impl std::ops::Index<u32> for Args {
     type Output = OsString;
 
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.items[index]
+    fn index(&self, index: u32) -> &Self::Output {
+        &self.items[index as usize]
     }
 }
 

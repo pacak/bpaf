@@ -231,7 +231,7 @@ impl<T: 'static> Parser for Command<T> {
         let inner = ctx.fork(Some(n.as_ref()));
         inner.cursor.update(|c| c + 1);
         let res = self.inner.run_in_ctx(self.lazy, inner.clone());
-        ctx.consume((inner.cursor.get() - ctx.cursor.get()) as u32);
+        ctx.consume(inner.cursor.get() - ctx.cursor.get());
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
     }
@@ -456,8 +456,8 @@ impl<P> Parser for WithOffset<P>
 where
     P: Parser + Leaf,
 {
-    type Output = (Option<usize>, P::Output);
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<(Option<usize>, P::Output), Error> {
+    type Output = (Option<u32>, P::Output);
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<(Option<u32>, P::Output), Error> {
         let t = self.inner.eval(ctx.clone()).await?;
         let consumed = ctx.current_task.borrow().consumed > 0;
         Ok((consumed.then_some(ctx.cursor.get()), t))

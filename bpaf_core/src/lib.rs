@@ -476,14 +476,14 @@ impl<'p> RawCtx<'p> {
         if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             return None;
         }
-        let start = self.cursor.get() as u32;
+        let start = self.cursor.get();
         let end = start + self.current_task.borrow().consumed;
         (end > start).then_some((start, end))
     }
 
     pub(crate) fn leaf_cursor(&self) -> u32 {
         if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
-            self.cursor.get() as u32
+            self.cursor.get()
         } else {
             u32::MAX
         }
@@ -603,7 +603,7 @@ impl<'p> RawCtx<'p> {
                         if !lives {
                             let op = Op::KillScope {
                                 scope: *scope,
-                                cursor: self.cursor.get() as u32,
+                                cursor: self.cursor.get(),
                                 reason: KillReason::Conflict,
                             };
                             self.pending_ops.borrow_mut().push_back(op);
@@ -696,7 +696,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
                 let ix = ix as u32 + 1;
                 let problem = Problem::OnlyOnceInGroup { group, name, ix };
-                return Err(Error::Problem(self.ctx.cursor.get() as u32, problem));
+                return Err(Error::Problem(self.ctx.cursor.get(), problem));
             }
             mixer_capacity = mixer.reuse_capacity();
             self.stage_2(1);
@@ -723,7 +723,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                     cursor,
                     reason,
                 } => {
-                    let old = self.ctx.cursor.replace(cursor as usize);
+                    let old = self.ctx.cursor.replace(cursor);
                     self.kill_in_scope(scope, reason);
                     self.ctx.cursor.set(old);
                 }
@@ -890,14 +890,14 @@ impl<'a, 'p> Executor<'a, 'p> {
 
             if best_size == 0 {
                 self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
-                let pos = self.ctx.cursor.get() as u32;
+                let pos = self.ctx.cursor.get();
                 return Err(Error::Problem(pos, self.complain_about(front)));
             }
 
             self.stage_2(best_size);
             self.propagate();
 
-            self.ctx.cursor.update(|c| c + best_size as usize);
+            self.ctx.cursor.update(|c| c + best_size);
         }
 
         // terminate all the currently active tasks
@@ -946,7 +946,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                         && &unexpected == dropped
                     {
                         return Problem::Conflict {
-                            accepted: self.ctx.args[*pos as usize].clone(),
+                            accepted: self.ctx.args[*pos].clone(),
                             unexpected: unexpected.into_owned(),
                         };
                     }
@@ -985,19 +985,19 @@ impl<'a, 'p> Executor<'a, 'p> {
                         } => {
                             if unexpected_name.is_some_and(|n| &n == conflicted_name) {
                                 return Problem::ConflictPos {
-                                    accepted: self.ctx.args[*pos as usize].clone(),
+                                    accepted: self.ctx.args[*pos].clone(),
                                     unexpected: value.into_owned(),
                                 };
                             }
 
                             return Problem::ConflictPos {
-                                accepted: self.ctx.args[*pos as usize].clone(),
+                                accepted: self.ctx.args[*pos].clone(),
                                 unexpected: value.into_owned(),
                             };
                         }
                         Conflict::Pos { pos } => {
                             return Problem::ConflictPos {
-                                accepted: self.ctx.args[*pos as usize].clone(),
+                                accepted: self.ctx.args[*pos].clone(),
                                 unexpected: value.into_owned(),
                             };
                         }
@@ -1375,7 +1375,7 @@ impl<'p> RawCtx<'p> {
         Self::make(args, 0, false, custom)
     }
 
-    fn make<'o>(args: Args, cursor: usize, strict_pos: bool, custom: &'o Custom) -> Ctx<'o> {
+    fn make<'o>(args: Args, cursor: u32, strict_pos: bool, custom: &'o Custom) -> Ctx<'o> {
         Rc::new(RawCtx {
             args,
             current_task: Default::default(),

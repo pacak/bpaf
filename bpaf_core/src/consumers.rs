@@ -173,7 +173,7 @@ impl<T: 'static> Parser for Nested<T> {
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None);
         let res = handle.take();
-        ctx.consume((inner.cursor.get() - 1 - ctx.cursor.get()) as u32);
+        ctx.consume(inner.cursor.get() - 1 - ctx.cursor.get());
 
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
@@ -373,7 +373,7 @@ where
                 let name = ctx.args[cursor].clone();
                 let value = ctx.args[cursor].clone();
                 let problem = Problem::NotAdjacent { name, value };
-                Err(Error::Problem(cursor as u32, problem))
+                Err(Error::Problem(cursor, problem))
             } else {
                 parse_os_str(os).map_err(|e| problem_at_pos(&ctx, e))
             }
@@ -511,7 +511,7 @@ fn complete_pos(err: Error, needs_strict: bool, meta: Metavar) -> Error {
 }
 
 fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
-    Error::Problem(ctx.cursor.get() as u32, p)
+    Error::Problem(ctx.cursor.get(), p)
 }
 
 impl<T> Parser for Positional<T>
@@ -530,7 +530,7 @@ where
             return Err(Error::missing(item));
         };
         if self.strict && !ctx.strict_pos.get() {
-            let cursor = ctx.cursor.get() as u32;
+            let cursor = ctx.cursor.get();
             let problem = Problem::NotStrict {
                 metavar: self.metavar,
             };

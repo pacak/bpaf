@@ -110,14 +110,14 @@ impl<'p> RawCtx<'p> {
                 let cursor = self.cursor.get() + 1;
                 let Some(next) = self.args.get(cursor) else {
                     return Err(Error::Problem(
-                        cursor as u32 - 1,
+                        cursor - 1,
                         Problem::WrongArgument {
                             name: name.into_owned(),
                             value: None,
                         },
                     ));
                 };
-                let pos = self.cursor.get() as u32;
+                let pos = self.cursor.get();
                 match lex_os_arg(next) {
                     Arg::Named { .. } => Err(Error::Problem(
                         pos,
@@ -180,7 +180,7 @@ impl<'p> RawCtx<'p> {
                         adj,
                         value: val.into_owned(),
                     };
-                    let pos = self.cursor.get() as u32;
+                    let pos = self.cursor.get();
                     Err(Error::Problem(pos, problem))
                 }
                 None => {
@@ -202,7 +202,7 @@ impl<'p> RawCtx<'p> {
         //
         // We do this so when we encounter something we can't parse - we check if it was ever
         // possible to parse it before. This gives a position we parsed instead
-        let pos = self.cursor.get() as u32;
+        let pos = self.cursor.get();
         self.conflicts
             .borrow_mut()
             .extend(items.into_iter().filter_map(|t| t.into_conflict(pos)));
