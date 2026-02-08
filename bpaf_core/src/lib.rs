@@ -1899,6 +1899,7 @@ mod tests {
     mod nested;
     mod offset;
     mod osstring;
+    mod parse;
     mod pure_with;
     mod repeat;
     mod sum;

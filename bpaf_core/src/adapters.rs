@@ -281,7 +281,11 @@ where
             Err(error) => Err(Error::Problem(
                 ctx.leaf_cursor(),
                 Problem::Parse {
-                    value: None,
+                    value: ctx
+                        .current_value
+                        .borrow()
+                        .as_ref()
+                        .map(|v| v.to_string_lossy().into_owned()),
                     error: error.to_string(),
                 },
             )),
