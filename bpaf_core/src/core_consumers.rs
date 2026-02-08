@@ -56,6 +56,7 @@ impl<'p> RawCtx<'p> {
                 value_as_name: _,
             } => {
                 self.consume(1);
+                *self.current_value.borrow_mut() = Some(value);
                 value
             }
         }))
@@ -140,6 +141,7 @@ impl<'p> RawCtx<'p> {
                             };
                             return Err(Error::CompReq(req));
                         }
+                        *self.current_value.borrow_mut() = Some(value);
                         Ok(Some(value))
                     }
                 }
@@ -148,6 +150,7 @@ impl<'p> RawCtx<'p> {
                 name: _,
                 value: Some((_adj, val)),
             } => {
+                *self.current_value.borrow_mut() = Some(val);
                 self.consume(1);
                 Ok(Some(val))
             }

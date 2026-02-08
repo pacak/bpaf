@@ -1081,7 +1081,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
             best_size = best_size.max(task.info.consumed);
         }
-
+        *self.ctx.current_value.borrow_mut() = None;
         (best_size, mixer.reuse_capacity(), mgroup)
     }
 
@@ -1399,6 +1399,7 @@ impl<'p> RawCtx<'p> {
             strict_pos: Cell::new(strict_pos),
             custom,
             path,
+            current_value: Default::default(),
         })
     }
 

@@ -4,6 +4,7 @@
 use std::{
     cell::{Cell, RefCell},
     collections::{BTreeSet, VecDeque},
+    ffi::OsStr,
     rc::Rc,
 };
 
@@ -37,6 +38,9 @@ pub struct RawCtx<'p> {
     pub(crate) args: &'p Args,
     pub(crate) path: String,
     pub(crate) cursor: Cell<u32>,
+
+    /// Value we are parsing - positional value itself or argument part of option_argument
+    pub(crate) current_value: RefCell<Option<&'p OsStr>>,
 
     /// When task is woken up this contains a reason for it
     pub(crate) wakeup_reason: RefCell<Reason<'p>>,
