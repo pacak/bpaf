@@ -212,7 +212,7 @@ pub(crate) struct IsDDash {
 impl IsDDash {
     pub(crate) fn attempt(
         unexpected: &Name<'_>,
-        value: Option<&(Adjacency, Cow<'_, OsStr>)>,
+        value: Option<&(Adjacency, &OsStr)>,
     ) -> Option<Self> {
         let (adj, value) = value?;
         let (Name::Short(prefix), Adjacency::Immediate) = (unexpected, adj) else {

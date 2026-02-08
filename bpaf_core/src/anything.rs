@@ -93,5 +93,5 @@ pub fn any_from_str<T: FromStr + 'static>(meta: &'static str) -> Anything<T>
 where
     <T as FromStr>::Err: std::error::Error,
 {
-    any(meta, |os: &OsStr| parse_os_str(os.to_os_string()).ok())
+    any(meta, |os: &OsStr| parse_os_str(os).ok())
 }

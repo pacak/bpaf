@@ -985,19 +985,19 @@ impl<'a, 'p> Executor<'a, 'p> {
                             if unexpected_name.is_some_and(|n| &n == conflicted_name) {
                                 return Problem::ConflictPos {
                                     accepted: self.ctx.args[*pos].clone(),
-                                    unexpected: value.into_owned(),
+                                    unexpected: value.to_os_string(),
                                 };
                             }
 
                             return Problem::ConflictPos {
                                 accepted: self.ctx.args[*pos].clone(),
-                                unexpected: value.into_owned(),
+                                unexpected: value.to_os_string(),
                             };
                         }
                         Conflict::Pos { pos } => {
                             return Problem::ConflictPos {
                                 accepted: self.ctx.args[*pos].clone(),
-                                unexpected: value.into_owned(),
+                                unexpected: value.to_os_string(),
                             };
                         }
                     }
@@ -1048,7 +1048,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         let mut mixer = mixer_capacity.reuse_capacity();
         let arg = if self.ctx.strict_pos.get() {
             Arg::Pos {
-                value: Cow::Borrowed(front),
+                value: front,
                 value_as_name: None,
             }
         } else {

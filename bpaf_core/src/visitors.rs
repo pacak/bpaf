@@ -6,7 +6,7 @@ use crate::{
     Item, Name, Named, Problem, Visitor, arg::Adjacency, traits::VKind, traits::VisitGroup,
     utils::damerau_levenshtein,
 };
-use std::{borrow::Cow, ffi::OsStr};
+use std::ffi::OsStr;
 
 macro_rules! visit_tuple  {
     ($( $class:ident $field:tt );+) => {

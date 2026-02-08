@@ -378,7 +378,7 @@ where
                 parse_os_str(os).map_err(|e| problem_at_pos(&ctx, e))
             }
         } else if let Some(os) = self.named.get_env() {
-            parse_os_str(os).map_err(|p| Error::Problem(u32::MAX, p))
+            parse_os_str(&os).map_err(|p| Error::Problem(u32::MAX, p))
         } else {
             let item = MissingItem::Named {
                 name: self.named.name_long_or_short().unwrap(), // TODO - handle env

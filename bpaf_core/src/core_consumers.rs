@@ -41,14 +41,14 @@ impl<'p> RawCtx<'p> {
     async fn wait_for(
         &self,
         items: impl IntoIterator<Item = TTarget> + Clone,
-    ) -> Result<Option<Arg<'_>>, Error> {
+    ) -> Result<Option<Arg<'p>>, Error> {
         self.with_trigger(TChange::Add, items.clone());
         r#yield().await;
         self.with_trigger(TChange::Remove, items.clone());
         self.reason_to_arg(items)
     }
 
-    pub(crate) async fn parse_pos(&self) -> Result<Option<OsString>, Error> {
+    pub(crate) async fn parse_pos(&self) -> Result<Option<&'p OsStr>, Error> {
         Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
             Arg::Named { .. } => unreachable!(),
             Arg::Pos {
@@ -56,7 +56,7 @@ impl<'p> RawCtx<'p> {
                 value_as_name: _,
             } => {
                 self.consume(1);
-                value.into_owned()
+                value
             }
         }))
     }
@@ -93,7 +93,7 @@ impl<'p> RawCtx<'p> {
     pub(crate) async fn parse_arg(
         &self,
         names: &[Name<'static>],
-    ) -> Result<Option<OsString>, Error> {
+    ) -> Result<Option<&'p OsStr>, Error> {
         match self
             .wait_for(names.iter().cloned().map(TTarget::Arg))
             .await?
@@ -103,7 +103,7 @@ impl<'p> RawCtx<'p> {
         }
     }
 
-    pub(self) fn parse_arg_consume(&self, arg: Arg) -> Result<Option<OsString>, Error> {
+    pub(self) fn parse_arg_consume(&self, arg: Arg<'p>) -> Result<Option<&'p OsStr>, Error> {
         match arg {
             Arg::Pos { .. } => unreachable!(),
             Arg::Named { name, value: None } => {
@@ -136,11 +136,11 @@ impl<'p> RawCtx<'p> {
                                 Some(prefix) => CompleteReq::Literal {
                                     prefix: prefix.into(),
                                 },
-                                None => CompleteReq::Value(value.into_owned()),
+                                None => CompleteReq::Value(value.to_os_string()),
                             };
                             return Err(Error::CompReq(req));
                         }
-                        Ok(Some(value.clone().into_owned()))
+                        Ok(Some(value))
                     }
                 }
             }
@@ -149,7 +149,7 @@ impl<'p> RawCtx<'p> {
                 value: Some((_adj, val)),
             } => {
                 self.consume(1);
-                Ok(Some(val.into_owned()))
+                Ok(Some(val))
             }
         }
     }
@@ -178,7 +178,7 @@ impl<'p> RawCtx<'p> {
                     let problem = Problem::ExpectedFlag {
                         name: name.into_owned(),
                         adj,
-                        value: val.into_owned(),
+                        value: val.to_os_string(),
                     };
                     let pos = self.cursor.get();
                     Err(Error::Problem(pos, problem))
@@ -211,7 +211,7 @@ impl<'p> RawCtx<'p> {
     fn reason_to_arg(
         &self,
         items: impl IntoIterator<Item = TTarget> + Clone,
-    ) -> Result<Option<Arg<'_>>, Error> {
+    ) -> Result<Option<Arg<'p>>, Error> {
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(arg) => Ok(Some(arg.clone())),
             Reason::Kill(KillReason::Conflict) => {

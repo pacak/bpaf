@@ -59,7 +59,6 @@ pub struct RawCtx<'p> {
     pub(crate) custom: &'p Custom,
 }
 
-///
 pub type Ctx<'p> = Rc<RawCtx<'p>>;
 
 #[derive(Debug)]

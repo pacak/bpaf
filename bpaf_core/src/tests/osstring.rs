@@ -51,7 +51,7 @@ fn lexing_works_with_valid_and_invalid_utf8() {
 
             let ref n @ Arg::Named {
                 ref name,
-                value: Some((_adj, ref value)),
+                value: Some((_adj, value)),
             } = lex_os_arg(&os_string)
             else {
                 unreachable!()

@@ -24,12 +24,12 @@ pub enum Arg<'a> {
     ///
     Named {
         name: Name<'a>,
-        value: Option<(Adjacency, Cow<'a, OsStr>)>,
+        value: Option<(Adjacency, &'a OsStr)>,
     },
     /// Positional item
     Pos {
         value_as_name: Option<Lit<'a>>,
-        value: Cow<'a, OsStr>,
+        value: &'a OsStr,
     },
 }
 
@@ -47,28 +47,13 @@ impl<'a> Arg<'a> {
     fn pos(value: &'a OsStr) -> Self {
         Arg::Pos {
             value_as_name: as_name(value),
-            value: Cow::Borrowed(value),
+            value,
         }
     }
 }
 
+#[cfg(test)]
 impl Arg<'_> {
-    pub(crate) fn into_owned(self) -> Arg<'static> {
-        match self {
-            Arg::Named { name, value } => Arg::Named {
-                name: name.into_owned(),
-                value: value.map(|(adj, val)| (adj, Cow::Owned(val.into_owned()))),
-            },
-            Arg::Pos {
-                value_as_name: name,
-                value,
-            } => Arg::Pos {
-                value_as_name: name.map(|n| n.into_owned()),
-                value: Cow::Owned(value.into_owned()),
-            },
-        }
-    }
-    #[cfg(test)]
     pub(crate) fn encode(&self) -> std::ffi::OsString {
         match self {
             Arg::Named { name, value } => {
@@ -100,10 +85,7 @@ impl Arg<'_> {
             Arg::Pos {
                 value_as_name: _,
                 value,
-            } => {
-                let os: &OsStr = value.as_ref();
-                os.to_owned()
-            }
+            } => value.to_os_string(),
         }
     }
 }
@@ -119,7 +101,7 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
                 // yes, foo is a valid name - this is a long argument with a value
                 Some(name) => Arg::Named {
                     name: Name::Long(Cow::Borrowed(name)),
-                    value: Some((Adjacency::WithEq, Cow::Borrowed(rest))),
+                    value: Some((Adjacency::WithEq, rest)),
                 },
                 // no, `foo` is not a valid name, treat the whole thing as positional
                 None => Arg::pos(value),
@@ -143,10 +125,10 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
         let name = Name::Short(name);
         let value = match suffix.next_char() {
             // `-f=bar` - a short argument with a value
-            Some(('=', rest)) => Some((Adjacency::WithEq, Cow::Borrowed(rest))),
+            Some(('=', rest)) => Some((Adjacency::WithEq, rest)),
 
             // `-fbar`, a short argument with immediately adjacent value
-            Some(_) => Some((Adjacency::Immediate, Cow::Borrowed(suffix))),
+            Some(_) => Some((Adjacency::Immediate, suffix)),
 
             // it's just `-f`, no value
             None => None,
