@@ -371,7 +371,7 @@ where
             if self.adjacent && ctx.current_task.borrow().consumed == 2 {
                 let cursor = ctx.cursor.get();
                 let name = ctx.args[cursor].clone();
-                let value = ctx.args[cursor].clone();
+                let value = ctx.args[cursor + 1].clone();
                 let problem = Problem::NotAdjacent { name, value };
                 Err(Error::Problem(cursor, problem))
             } else {
