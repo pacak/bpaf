@@ -7,7 +7,6 @@ use crate::{
     error::MissingItem,
     info::*,
     traits::{Leaf, VisitGroup},
-    utils::Vec1,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -223,7 +222,7 @@ impl<T: 'static> Parser for Command<T> {
             let missing = MissingItem::Lit {
                 value: self.names[0].clone(),
             };
-            return Err(Error::Missing(Vec1::new(missing)));
+            return Err(Error::Missing(missing));
         };
         let Some(Lit(Name::Long(n))) = self.names.first().as_ref() else {
             unreachable!("For commands first name should always be a long one, by construction");
