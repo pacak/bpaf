@@ -217,11 +217,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.help(place, named.help);
 
                 if let Some(env) = named.env.first() {
-                    _ = if std::env::var_os(env).is_some() {
-                        writeln!(&mut self[place], "\t[env:{env} is set]")
-                    } else {
-                        writeln!(&mut self[place], "\t[env:{env} is not set]")
-                    }
+                    self.env_status(place, env);
                 }
             }
             Item::Arg { named, meta } => {
@@ -233,12 +229,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.track_tab(sl.col_width() + 1 + meta.width());
                 self.help(place, named.help);
                 if let Some(env) = named.env.first() {
-                    _ = match std::env::var_os(env) {
-                        Some(v) => {
-                            writeln!(&mut self[place], "\t[env:{env}: {}]", v.to_string_lossy())
-                        }
-                        None => writeln!(&mut self[place], "\t[env:{env}: N/A]"),
-                    }
+                    self.env_status(place, env);
                 }
             }
             Item::Positional { meta, help } => {
@@ -357,6 +348,15 @@ impl Help<'_> {
         if width <= MAX_TAB {
             self.max_tab = self.max_tab.max(width);
         }
+    }
+
+    fn env_status(&mut self, place: Place, env: &str) {
+        let status = if std::env::var_os(env).is_some() {
+            "is set"
+        } else {
+            "is not set"
+        };
+        self[place].push_str(&format!("\t[env:{env} {status}]\n"));
     }
 
     fn place_for(&mut self, item: &Item) -> Place {

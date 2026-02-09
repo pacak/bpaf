@@ -183,7 +183,7 @@ header
 
 Available options:
     -p, --parser=ARG  help
-                      [env:BPAF_VARIABLE: N/A]
+                      [env:BPAF_VARIABLE is not set]
     -h, --help        Prints help information
     -V, --version     Prints version information
 
@@ -566,7 +566,7 @@ Usage: app [--fonts=DIR] [--system-fonts]
 
 Available options:
         --fonts=DIR     Load fonts from this directory
-                        [env:OIKOS_FONTS: N/A]
+                        [env:OIKOS_FONTS is not set]
         --system-fonts  Search for additional fonts in system directories
                         [env:OIKOS_SYSTEM_FONTS is not set]
     -h, --help          Prints help information
