@@ -341,8 +341,8 @@ impl<T: 'static, P: Parser<Output = T>> DynParser<T> for P {
 impl<T: 'static> Parser for RcParser<T> {
     type Output = T;
 
-    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        self.0.as_ref().dyn_eval(ctx).await
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<T, Error>> {
+        self.0.as_ref().dyn_eval(ctx)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {

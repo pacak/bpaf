@@ -341,8 +341,8 @@ pub struct Hide<P> {
 
 impl<P: Parser> Parser for Hide<P> {
     type Output = P::Output;
-    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
-        self.inner.eval(ctx).await
+    fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> impl Future<Output = Result<P::Output, Error>> {
+        self.inner.eval(ctx)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
