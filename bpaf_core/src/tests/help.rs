@@ -905,3 +905,20 @@ Available options:
         .unwrap_stdout();
     assert_eq!(r, expected);
 }
+
+#[test]
+fn version_works() {
+    let parser = short('a').switch().to_options().version("42");
+
+    let r = parser.run_inner("--version").unwrap_err().unwrap_stdout();
+    let expected = "Version: 42\n";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("-a --version")
+        .unwrap_err()
+        .unwrap_stderr();
+
+    let expected = "`--version` is not expected in this context\n";
+    assert_eq!(r, expected);
+}

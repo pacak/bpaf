@@ -89,16 +89,15 @@ impl Custom {
     fn make_version(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> + 'static {
         use crate::short;
         let version = version?;
-        Some(
-            WithBackup {
-                primary: self.version.clone(),
-                backup: short('V')
-                    .long("version")
-                    .help("Prints version information")
-                    .req_flag(()),
-            }
-            .map(|_| Extra::Version(version)),
-        )
+        let inner = WithBackup {
+            primary: self.version.clone(),
+            backup: short('V')
+                .long("version")
+                .help("Prints version information")
+                .req_flag(()),
+        }
+        .map(|_| Extra::Version(version));
+        Some(OnlyParser { inner })
     }
 
     pub(crate) fn create(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> {
@@ -106,6 +105,27 @@ impl Custom {
         let version = self.make_version(version);
 
         construct!([help, version]).hide_usage()
+    }
+}
+
+struct OnlyParser<P> {
+    inner: P,
+}
+
+impl<P: Parser> Parser for OnlyParser<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
+        let r = self.inner.eval(ctx.clone()).await?;
+        if ctx.current_task.borrow().consumed == ctx.args.len() {
+            Ok(r)
+        } else {
+            Err(Error::Silent("Must be the only item"))
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        self.inner.visit(visitor)
     }
 }
 
