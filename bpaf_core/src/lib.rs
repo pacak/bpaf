@@ -1892,6 +1892,7 @@ impl<P: Parser> Parser for Cargo<P> {
 mod tests {
     mod algebra;
     mod any;
+    mod argument;
     mod complete;
     mod construct;
     mod errors;
