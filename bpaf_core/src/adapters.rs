@@ -54,7 +54,16 @@ pub(crate) async fn optional<'p, T: 'static>(
     match handle.take() {
         Ok(v) if stalled => Optionality::Summoned(v),
         Ok(v) => Optionality::Parsed(v),
-        Err(e @ Error::Missing(_)) if stalled => Optionality::Missing(e),
+        Err(Error::Missing(i)) => {
+            if stalled {
+                Optionality::Missing(Error::Missing(i))
+            } else {
+                Optionality::Failed(Error::Problem(
+                    ctx.cursor.get(),
+                    Problem::Dynamic { err: i.to_string() },
+                ))
+            }
+        }
         Err(e) => Optionality::Failed(e),
     }
 }
