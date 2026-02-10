@@ -2,6 +2,7 @@ use std::ops::RangeBounds;
 
 use crate::{
     adapters::{Optionality, optional},
+    error::MissingItem,
     *,
 };
 
@@ -178,7 +179,9 @@ impl<T: 'static> Parser for Many1<T> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Vec<T>, Error> {
         let res = parse_many(&self.inner, ctx, 0, u32::MAX).await?;
         if res.is_empty() {
-            Err(Error::Problem(u32::MAX, Problem::Static(self.message)))
+            Err(Error::missing(MissingItem::Custom {
+                item: self.message.into(),
+            }))
         } else {
             Ok(res)
         }

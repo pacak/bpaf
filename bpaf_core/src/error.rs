@@ -1,5 +1,5 @@
 #![allow(private_interfaces)] // Name is private at the moment
-use std::ffi::OsString;
+use std::{borrow::Cow, ffi::OsString};
 
 use crate::{
     Lit, Metavar, Name,
@@ -209,7 +209,7 @@ pub enum MissingItem {
         value: Lit<'static>,
     },
     Custom {
-        rendered: String,
+        item: Cow<'static, str>,
     },
 }
 
@@ -223,7 +223,7 @@ impl std::fmt::Display for MissingItem {
             } => write!(f, "missing `{name} {meta}`"),
             MissingItem::Pos { meta } => write!(f, "missing `{meta}`"),
             MissingItem::Lit { value } => write!(f, "missing `{value}`"),
-            MissingItem::Custom { rendered } => f.write_str(rendered),
+            MissingItem::Custom { item: rendered } => f.write_str(rendered),
         }
     }
 }
