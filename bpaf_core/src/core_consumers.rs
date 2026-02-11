@@ -43,7 +43,7 @@ impl<'p> RawCtx<'p> {
         items: impl IntoIterator<Item = TTarget> + Clone,
     ) -> Result<Option<Arg<'p>>, Error> {
         self.with_trigger(TChange::Add, items.clone());
-        r#yield().await;
+        r#yield().await; // wait for a trigger, resumes in the middle of a stage 1
         self.with_trigger(TChange::Remove, items.clone());
         self.reason_to_arg(items)
     }
@@ -228,6 +228,52 @@ impl<'p> RawCtx<'p> {
             | Reason::ChildProgress(_)) => todo!("{r:?}"),
 
             Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
+        }
+    }
+
+    /// Keep track of children progress and trim under-consuming ones
+    ///
+    /// Since a proper parser must consume all the items from the input and only
+    /// one child from a Sum can succeed - we must make sure that only children
+    /// that consume at least as much as the best consuming one remains.
+    ///
+    /// Sum task will be woken up with a `ChildProgress` reason multiple times
+    /// as children make progress.
+    ///
+    /// This method could live inside of an `impl Parser for Sum`. Having it here
+    /// generates smaller code since the way to progress doesn't depend on
+    /// the output type
+    #[inline(never)]
+    pub(crate) async fn all_children_finish(&self, mut scopes: Vec<Scope>) {
+        loop {
+            match *self.wakeup_reason.borrow() {
+                Reason::ChildProgress(ref ids) => {
+                    scopes.retain(|scope| {
+                        let lives = ids.as_slice().iter().any(|id| scope.contains(*id));
+                        if !lives {
+                            let op = Op::KillScope {
+                                scope: *scope,
+                                cursor: self.cursor.get(),
+                                reason: KillReason::Conflict,
+                            };
+                            self.pending_ops.borrow_mut().push_back(op);
+                        }
+                        lives
+                    });
+                    if scopes.len() == 1 {
+                        self.pending_ops.borrow_mut().push_back(Op::DeregisterSum {
+                            id: self.current_task.borrow().id,
+                        });
+                    }
+                }
+                Reason::Push => {
+                    if self.current_task.borrow().pending == 0 {
+                        break;
+                    }
+                }
+                _ => break,
+            }
+            r#yield().await; // end of stage 2
         }
     }
 }

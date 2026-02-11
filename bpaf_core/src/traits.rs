@@ -1,11 +1,10 @@
 //! [`Parser`] trait and related private helper traits
 
-#![allow(unused_imports)]
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
     Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, error::ParseFailure, info::Info,
-    repeat::*, visitors::help::Help, r#yield,
+    repeat::*, visitors::help::Help,
 };
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 

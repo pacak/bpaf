@@ -102,8 +102,8 @@ pub mod api {
                         end: scopes.last().unwrap().end,
                     },
                 });
-                ctx.wait_for_children().await;
-                ctx.trim_children(scopes).await;
+                ctx.wait_for_children().await; // give children a chance to start
+                ctx.all_children_finish(scopes).await;
 
                 let mut acc = Error::Silent("Empty Alt?");
 
@@ -462,7 +462,7 @@ impl<'p> RawCtx<'p> {
             self.current_task.borrow_mut().consumed = 0;
         }
 
-        r#yield().await;
+        r#yield().await; // between stage_1 and stage_2
         // surviving gets Pass, out-consumed - NoPass, but we want to preserve the
         // error message so return true only when there's an OK result we don't want.
         matches!(
@@ -590,41 +590,6 @@ impl<'p> RawCtx<'p> {
         let done = task.act.as_mut().poll(&mut NOOP).is_ready();
         std::mem::swap(&mut task.info, &mut self.current_task.borrow_mut());
         done
-    }
-
-    /// When called from an Alt node it keeps track of children progress and trims
-    /// under-consuming children
-    async fn trim_children(&self, mut scopes: Vec<Scope>) {
-        loop {
-            match *self.wakeup_reason.borrow() {
-                Reason::ChildProgress(ref ids) => {
-                    scopes.retain(|scope| {
-                        let lives = ids.as_slice().iter().any(|id| scope.contains(*id));
-                        if !lives {
-                            let op = Op::KillScope {
-                                scope: *scope,
-                                cursor: self.cursor.get(),
-                                reason: KillReason::Conflict,
-                            };
-                            self.pending_ops.borrow_mut().push_back(op);
-                        }
-                        lives
-                    });
-                    if scopes.len() == 1 {
-                        self.pending_ops.borrow_mut().push_back(Op::DeregisterSum {
-                            id: self.current_task.borrow().id,
-                        });
-                    }
-                }
-                Reason::Push => {
-                    if self.current_task.borrow().pending == 0 {
-                        break;
-                    }
-                }
-                _ => break,
-            }
-            r#yield().await;
-        }
     }
 }
 
@@ -1351,7 +1316,7 @@ struct Triggers {
 impl<'p> RawCtx<'p> {
     pub async fn wait_for_children(&self) {
         if self.current_task.borrow().pending > 0 {
-            r#yield().await;
+            Yield(false).await;
         }
     }
 }
