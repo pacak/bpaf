@@ -158,7 +158,8 @@ use crate::{
     complete::CompleteReq,
     console_writer::Styled,
     info::{Custom, Extra, Info},
-    utils::{Vec1, reuse_vec},
+    pecking::Mixer,
+    utils::Vec1,
     visitors::{
         errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
         help::render_help,
@@ -176,13 +177,14 @@ pub use crate::{
 
 use crate::{
     error::{Error, ParseFailure, Problem},
+    pecking::PeckingOrder,
     traits::{RcParser, VisitGroup, Visitor, *},
 };
 
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     ffi::{OsStr, OsString},
     fmt::Write,
     marker::PhantomData,
@@ -444,11 +446,6 @@ fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
 }
 
 impl<'p> RawCtx<'p> {
-    fn task_parent_and_id(&self) -> (Parent, Id) {
-        let cur = self.current_task.borrow();
-        (cur.parent_id, cur.id)
-    }
-
     #[inline(never)]
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
         // The only possible scenario for a consuming leaf is getting an Arg
@@ -603,6 +600,7 @@ struct Executor<'a, 'p> {
     to_propagate: VecDeque<(Id, Parent, u32)>,
     sums: BTreeMap<Id, Scope>,
     triggers: Triggers,
+    mixer: Mixer,
     visited: &'a dyn Visited,
 }
 
@@ -616,6 +614,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             sums: BTreeMap::new(),
             triggers: Default::default(),
             visited,
+            mixer: Default::default(),
         }
     }
 
@@ -631,7 +630,6 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 
     fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
-        let mut mixer_capacity = Mixer::default();
         for (ix, name) in names.iter().copied().enumerate() {
             // set a wakeup reason, just in case
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
@@ -639,12 +637,11 @@ impl<'a, 'p> Executor<'a, 'p> {
                 value: None,
             });
 
-            let mut mixer = mixer_capacity.reuse_capacity();
-            mixer.populate_short_flag(&name, &self.triggers);
+            self.mixer.populate_short_flag(&name, &self.triggers);
             let mut cnt = 0;
-            while let Some(next) = mixer.consume_next_item(&self.tasks) {
+            for id in self.mixer.for_wake(&self.tasks) {
                 cnt += 1;
-                let task = &mut self.tasks.get_mut(&next.id).unwrap();
+                let task = &mut self.tasks.get_mut(&id).unwrap();
                 let r = self.ctx.poll_in_context(task);
                 assert!(!r); // this breaks the API
                 if task.info.consumed != 1 {
@@ -663,7 +660,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 let problem = Problem::OnlyOnceInGroup { group, name, ix };
                 return Err(Error::Problem(self.ctx.cursor.get(), problem));
             }
-            mixer_capacity = mixer.reuse_capacity();
+
             self.stage_2(1);
             self.propagate();
             self.process_scheduled();
@@ -700,18 +697,18 @@ impl<'a, 'p> Executor<'a, 'p> {
                     target,
                     parent,
                     id,
+                    kind,
                 } => {
                     let triggers = &mut self.triggers;
 
                     fn remove_from<K: Eq + std::hash::Hash>(
                         map: &mut HashMap<K, PeckingOrder>,
                         name: K,
-                        parent: Parent,
                         id: Id,
                     ) {
                         use std::collections::hash_map::Entry;
                         if let Entry::Occupied(mut e) = map.entry(name) {
-                            if e.get_mut().remove(parent, id) {
+                            if e.get_mut().remove(id) {
                                 e.remove();
                             }
                         } else {
@@ -720,32 +717,44 @@ impl<'a, 'p> Executor<'a, 'p> {
                     }
                     match (change, target) {
                         (TChange::Add, TTarget::Arg(name)) => {
-                            triggers.args.entry(name).or_default().insert(parent, id);
+                            triggers
+                                .args
+                                .entry(name)
+                                .or_default()
+                                .insert(parent, id, kind);
                         }
                         (TChange::Add, TTarget::Flag(name)) => {
-                            triggers.flags.entry(name).or_default().insert(parent, id);
+                            triggers
+                                .flags
+                                .entry(name)
+                                .or_default()
+                                .insert(parent, id, kind);
                         }
-                        (TChange::Add, TTarget::Pos) => triggers.pos.insert(parent, id),
+                        (TChange::Add, TTarget::Pos) => triggers.pos.insert(parent, id, kind),
                         (TChange::Add, TTarget::Check(check)) => {
-                            triggers.checks.insert(id, (parent, check));
+                            triggers.checks.insert(id, check);
                         }
                         (TChange::Add, TTarget::Literal(name)) => {
-                            triggers.literal.entry(name).or_default().insert(parent, id);
+                            triggers
+                                .literal
+                                .entry(name)
+                                .or_default()
+                                .insert(parent, id, kind);
                         }
                         (TChange::Remove, TTarget::Arg(name)) => {
-                            remove_from(&mut triggers.args, name, parent, id);
+                            remove_from(&mut triggers.args, name, id);
                         }
                         (TChange::Remove, TTarget::Flag(name)) => {
-                            remove_from(&mut triggers.flags, name, parent, id);
+                            remove_from(&mut triggers.flags, name, id);
                         }
                         (TChange::Remove, TTarget::Pos) => {
-                            triggers.pos.remove(parent, id);
+                            triggers.pos.remove(id);
                         }
                         (TChange::Remove, TTarget::Check(_)) => {
                             triggers.checks.remove(&id);
                         }
                         (TChange::Remove, TTarget::Literal(name)) => {
-                            remove_from(&mut triggers.literal, name, parent, id);
+                            remove_from(&mut triggers.literal, name, id);
                         }
                     }
                 }
@@ -758,25 +767,19 @@ impl<'a, 'p> Executor<'a, 'p> {
             return None;
         }
 
-        let mut mixer = Mixer::default();
         let arg = lex_os_arg(arg);
 
-        // TODO - populate_prefix doesn't really have to be a method on Mixer
-        // it can be a standalone method
-        let (reason, mgroup) =
-            mixer.populate_prefix(&arg, &self.triggers, self.ctx.strict_pos.get());
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(reason);
+        let (req, pecking_orders) =
+            matching_trigggers_by_prefix(&arg, &self.triggers, self.ctx.strict_pos.get());
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(req);
 
         // Normally we traverse each pecking order at once since only sum items can run
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
-        let orders = std::mem::take(&mut mixer.pecking);
-        for po in orders {
-            mixer.pecking.push(po);
-            while let Some(item) = mixer.consume_next_item(&self.tasks) {
-                self.to_wake.push(item.id);
-            }
-            mixer.clear();
+
+        for order in pecking_orders {
+            self.mixer.push_peck(order);
+            self.to_wake.extend(self.mixer.for_wake(&self.tasks));
         }
 
         if self.to_wake.is_empty() {
@@ -803,9 +806,6 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn execute(&mut self) -> Result<(), Error> {
         // Keep running as long as we are making progress:
         // - consuming new items
-        // -
-        let mut mixer_capacity = Mixer::default();
-
         loop {
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
@@ -834,8 +834,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             // This can't be done in a single pass for two reasons:
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
-            let (best_size, mixer, mgroup) = self.stage_1(front, mixer_capacity);
-            mixer_capacity = mixer;
+            let (best_size, mgroup) = self.stage_1(front);
 
             if let Some(group) = mgroup
                 && best_size == 0
@@ -1005,12 +1004,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// Run the first stage of the trigger
     ///
     /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(
-        &mut self,
-        front: &'p OsStr,
-        mixer_capacity: Mixer<'static>,
-    ) -> (u32, Mixer<'static>, Option<Group>) {
-        let mut mixer = mixer_capacity.reuse_capacity();
+    fn stage_1(&mut self, front: &'p OsStr) -> (u32, Option<Group>) {
         let arg = if self.ctx.strict_pos.get() {
             Arg::Pos {
                 value: front,
@@ -1021,33 +1015,34 @@ impl<'a, 'p> Executor<'a, 'p> {
         };
 
         // pre-populate pecking order with any check wakeups that can match
-        self.triggers.active_checks.clear();
-        for (id, (parent, check)) in self.triggers.checks.iter() {
+        for (id, check) in self.triggers.checks.iter() {
             if check(front) {
                 // Here we rely on checks idempotence, run all the checks
                 // at once, collect those that succeed and let usual mixer
                 // mechanism to wake up those that will advance.
                 // If task won't get a chance to run - we'll try to wake it up later
                 // and the check should update the inner state.
-                self.triggers.active_checks.insert(*parent, *id);
+                self.mixer.push(*id);
             }
         }
 
-        let mgroup = mixer.populate(&arg, &self.triggers, self.ctx.strict_pos.get());
+        let mgroup = self
+            .mixer
+            .populate(&arg, &self.triggers, self.ctx.strict_pos.get());
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
         let mut best_size = 0;
-        while let Some(next) = mixer.consume_next_item(&self.tasks) {
-            let task = &mut self.tasks.get_mut(&next.id).unwrap();
+        for id in self.mixer.for_wake(&self.tasks) {
+            let task = &mut self.tasks.get_mut(&id).unwrap();
             let r = self.ctx.poll_in_context(task);
             assert!(!r);
-            self.to_wake.push(next.id);
+            self.to_wake.push(id);
 
             best_size = best_size.max(task.info.consumed);
         }
         *self.ctx.current_value.borrow_mut() = None;
-        (best_size, mixer.reuse_capacity(), mgroup)
+        (best_size, mgroup)
     }
 
     /// Run the second stage of the trigger
@@ -1057,7 +1052,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn stage_2(&mut self, best_size: u32) {
         for id in self.to_wake.drain(..) {
             let Some(mut task) = self.tasks.remove(&id) else {
-                todo!("Second stage got a task id that isn't there?");
+                todo!("Second stage got a task {id:?} that isn't in tasks?");
             };
             let term = task.info.consumed < best_size;
             *self.ctx.wakeup_reason.borrow_mut() = if term {
@@ -1144,154 +1139,6 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 }
 
-/// Intermediate state used by mixer to figure out what tasks can run
-/// concurrently with tasks that alredy got chance to run
-#[derive(Debug, Default)]
-struct Tracker {
-    seen: BTreeSet<Parent>,
-    stack: Vec<Parent>,
-}
-
-/// Can this task run concurrently or not?
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum WalkResult {
-    /// Pick this value, next value can be in the same family
-    PickAndSame,
-    /// Pick this value, next value should be in the different family
-    PickAndNext,
-    /// Skip this value, next value should be in the different family
-    Skip,
-}
-
-impl Tracker {
-    /// Check if current item can run concurrently with all the previously seen ones
-    ///
-    /// The idea is that if current task intersects with previously executed tasks
-    /// on a sum - it can run and next sibling can run as well. If it intersects
-    /// with a prod - it can't. First task can always run
-    fn walk_tasks_up(&mut self, mut cur: Id, tasks: &BTreeMap<Id, Task>) -> WalkResult {
-        let blank = self.seen.is_empty();
-        self.stack.clear();
-        loop {
-            let Some(task) = tasks.get(&cur) else {
-                debug_assert_eq!(cur, Id(0));
-                return WalkResult::PickAndSame;
-            };
-            if !self.seen.insert(task.info.parent_id) {
-                return match (blank, task.info.parent_kind) {
-                    (_, Kind::Sum) => WalkResult::PickAndSame,
-                    (true, Kind::Prod) => WalkResult::PickAndNext,
-                    (false, Kind::Prod) => {
-                        for item in self.stack.drain(..) {
-                            self.seen.remove(&item);
-                        }
-                        WalkResult::Skip
-                    }
-                };
-            } else {
-                self.stack.push(task.info.parent_id);
-            }
-            cur = task.info.parent_id.as_id();
-        }
-    }
-
-    fn clear(&mut self) {
-        self.seen.clear();
-    }
-
-    fn is_empty(&self) -> bool {
-        self.seen.is_empty()
-    }
-}
-#[cfg(test)]
-mod tracker_tests {
-    use super::*;
-    fn mk_dummy_task(id: u32, parent: u32, parent_kind: Kind) -> (Id, Task<'static>) {
-        let id = Id(id);
-        let task = Task {
-            act: Box::pin(async {}),
-            info: TaskInfo {
-                id,
-                parent_kind,
-                parent_id: Parent(parent),
-                consumed: 0,
-                pending: 0,
-            },
-        };
-        (id, task)
-    }
-    fn add_dummy_task(tasks: &mut BTreeMap<Id, Task>, id: u32, parent: u32, pkind: Kind) {
-        let (id, task) = mk_dummy_task(id, parent, pkind);
-        tasks.insert(id, task);
-    }
-
-    #[test]
-    fn product_left_wins() {
-        let mut t = Tracker::default();
-        let mut tasks = BTreeMap::default();
-        add_dummy_task(&mut tasks, 1, 0, Kind::Prod); // root
-        add_dummy_task(&mut tasks, 2, 1, Kind::Prod);
-        add_dummy_task(&mut tasks, 3, 1, Kind::Prod);
-        assert_eq!(t.walk_tasks_up(Id(2), &tasks), WalkResult::PickAndSame);
-        assert_eq!(t.walk_tasks_up(Id(3), &tasks), WalkResult::Skip);
-    }
-
-    #[test]
-    fn product_left_wins_over_sum() {
-        let mut t = Tracker::default();
-        let mut tasks = BTreeMap::default();
-        add_dummy_task(&mut tasks, 1, 0, Kind::Prod); // root
-        add_dummy_task(&mut tasks, 2, 1, Kind::Prod);
-        add_dummy_task(&mut tasks, 3, 1, Kind::Prod);
-        add_dummy_task(&mut tasks, 4, 3, Kind::Prod);
-        add_dummy_task(&mut tasks, 5, 3, Kind::Prod);
-        assert_eq!(t.walk_tasks_up(Id(2), &tasks), WalkResult::PickAndSame);
-        assert_eq!(t.walk_tasks_up(Id(4), &tasks), WalkResult::Skip);
-        assert_eq!(t.walk_tasks_up(Id(5), &tasks), WalkResult::Skip);
-    }
-
-    #[test]
-    fn sums_are_concurrent() {
-        let mut t = Tracker::default();
-        let mut tasks = BTreeMap::default();
-        add_dummy_task(&mut tasks, 1, 0, Kind::Prod); // root
-        add_dummy_task(&mut tasks, 2, 1, Kind::Sum);
-        add_dummy_task(&mut tasks, 3, 1, Kind::Sum);
-        assert_eq!(t.walk_tasks_up(Id(2), &tasks), WalkResult::PickAndSame);
-        assert_eq!(t.walk_tasks_up(Id(3), &tasks), WalkResult::PickAndSame);
-    }
-
-    #[test]
-    fn sums_can_be_nested_left() {
-        let mut t = Tracker::default();
-        let mut tasks = BTreeMap::default();
-        add_dummy_task(&mut tasks, 1, 0, Kind::Prod); // root
-        add_dummy_task(&mut tasks, 2, 1, Kind::Sum);
-        add_dummy_task(&mut tasks, 3, 1, Kind::Sum);
-        add_dummy_task(&mut tasks, 4, 2, Kind::Sum);
-        // assert_eq!(t.walk_tasks_up(Id(2), &tasks), WalkResult::PickAndNext);
-        assert_eq!(t.walk_tasks_up(Id(3), &tasks), WalkResult::PickAndSame);
-        assert_eq!(t.walk_tasks_up(Id(4), &tasks), WalkResult::PickAndSame);
-    }
-
-    #[test]
-    fn sums_can_be_nested_right() {
-        let mut t = Tracker::default();
-        let mut tasks = BTreeMap::default();
-        add_dummy_task(&mut tasks, 1, 0, Kind::Prod); // root
-        add_dummy_task(&mut tasks, 2, 1, Kind::Sum);
-        add_dummy_task(&mut tasks, 3, 2, Kind::Sum);
-        add_dummy_task(&mut tasks, 4, 2, Kind::Sum);
-        // assert!(t.walk_tasks_up(Id(3), &tasks));
-        // assert!(t.walk_tasks_up(Id(4), &tasks));
-        // assert_eq!(t.walk_tasks_up(Id(2), &tasks), WalkResult::PickAndNext);
-        assert_eq!(t.walk_tasks_up(Id(3), &tasks), WalkResult::PickAndSame);
-        assert_eq!(t.walk_tasks_up(Id(4), &tasks), WalkResult::PickAndSame);
-    }
-}
-
-use pecking::PeckingOrder;
-
 type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
 /// A collection of mappings from values encountered in arguments to
 /// tasks scheduled to consume them, in some priority order
@@ -1304,8 +1151,7 @@ struct Triggers {
     // `foo`
     pos: PeckingOrder,
     // `-1`
-    checks: BTreeMap<Id, (Parent, DynamicOsStrCheck)>,
-    active_checks: PeckingOrder,
+    checks: BTreeMap<Id, DynamicOsStrCheck>,
     // `a`, `alpha`
     literal: HashMap<Lit<'static>, PeckingOrder>,
 }
@@ -1412,19 +1258,6 @@ impl<'p> RawCtx<'p> {
     }
 }
 
-/// Allows traversing several different pecking orders
-///
-/// We need it to run several parsers concurrently
-#[derive(Default, Debug)]
-struct Mixer<'a> {
-    pecking: Vec<&'a PeckingOrder>,
-    tracker: Tracker,
-    /// We can run multiple parsers concurrently that belong to the same parent
-    /// for Sum types, but not for Prod types. same_family gets set based on the parent
-    same_family: bool,
-    prev: Option<pecking::Item>,
-}
-
 #[must_use]
 #[derive(Debug)]
 /// A collection of short flags we try to fall back to if we can't parse it as an argument
@@ -1432,142 +1265,120 @@ struct Mixer<'a> {
 /// Created automatically by [`Mixer`]
 struct Group(Vec<char>);
 
-impl<'a> Mixer<'a> {
-    fn populate_short_flag(&mut self, name: &char, triggers: &'a Triggers) {
+fn matching_trigggers_by_prefix<'a>(
+    arg: &'a Arg<'a>,
+    triggers: &'a Triggers,
+    strict_pos: bool,
+) -> (CompleteReq, Vec<&'a PeckingOrder>) {
+    let mut out = Vec::new();
+
+    // TODO - want to include all the "any" parsers here
+    // self.pecking_push(Some(&triggers.any));
+    let req = match arg {
+        Arg::Named {
+            name: Name::Long(name),
+            value: None,
+        } => {
+            for (n, po) in triggers.args.iter().chain(triggers.flags.iter()) {
+                if let Name::Long(ln) = n
+                    && ln.starts_with(name.as_ref())
+                {
+                    out.push(po);
+                }
+            }
+            let prefix = Some(name.as_ref().into());
+            CompleteReq::Name { prefix }
+        }
+        Arg::Named {
+            name: name @ Name::Short(_),
+            value: None,
+        } => {
+            out.extend(triggers.args.get(name));
+            out.extend(triggers.flags.get(name));
+            CompleteReq::Name { prefix: None }
+        }
+        Arg::Named {
+            name,
+            value: Some((adj, val)),
+        } => {
+            out.extend(triggers.args.get(name));
+            match val.to_str() {
+                Some(p) => CompleteReq::Literal { prefix: p.into() },
+                None => todo!(),
+            }
+        }
+        Arg::Pos {
+            value,
+            value_as_name: _,
+        } => {
+            let Some(value) = value.to_str() else {
+                todo!("Completing non-utf?");
+            };
+            let (short, long, lit);
+            let request;
+            if value.is_empty() {
+                (short, long, lit) = (true, true, true);
+                request = CompleteReq::Anything;
+            } else if value == "-" {
+                (short, long, lit) = (true, true, false);
+                request = CompleteReq::Anything;
+            } else if value == "--" {
+                (short, long, lit) = (false, true, false);
+                request = CompleteReq::Name {
+                    prefix: Some(Default::default()),
+                };
+            } else {
+                (short, long, lit) = (false, false, true);
+                request = CompleteReq::Literal {
+                    prefix: value.into(),
+                }
+            }
+            if short && !strict_pos {
+                for (n, f) in triggers.args.iter() {
+                    if matches!(n, Name::Short(_)) {
+                        out.extend(Some(f));
+                    }
+                }
+                for (n, f) in triggers.flags.iter() {
+                    if matches!(n, Name::Short(_)) {
+                        out.extend(Some(f));
+                    }
+                }
+            }
+            // TODO - can avoid iterating twice here
+            if long && !strict_pos {
+                for (n, f) in triggers.args.iter() {
+                    if matches!(n, Name::Long(_)) {
+                        out.extend(Some(f));
+                    }
+                }
+                for (n, f) in triggers.flags.iter() {
+                    if matches!(n, Name::Long(_)) {
+                        out.extend(Some(f));
+                    }
+                }
+            }
+            if lit && !strict_pos {
+                for (name, f) in triggers.literal.iter() {
+                    if name.starts_with(value) {
+                        out.extend(Some(f));
+                    }
+                }
+            }
+            out.extend(Some(&triggers.pos));
+
+            request
+        }
+    };
+    (req, out)
+}
+
+impl Mixer {
+    fn populate_short_flag(&mut self, name: &char, triggers: &Triggers) {
         self.pecking_push(triggers.flags.get(&Name::Short(*name)));
     }
 
-    fn clear(&mut self) {
-        self.tracker.clear();
-        self.prev = None;
-        self.pecking.clear();
-        self.tracker.clear();
-    }
-
-    fn populate_prefix(
-        &mut self,
-        arg: &Arg<'a>,
-        triggers: &'a Triggers,
-        strict_pos: bool,
-    ) -> (CompleteReq, Option<Group>) {
-        // TODO - want to include all the "any" parsers here
-        // self.pecking_push(Some(&triggers.any));
-        match arg {
-            Arg::Named {
-                name: Name::Long(name),
-                value: None,
-            } => {
-                for (n, po) in triggers.args.iter() {
-                    let Name::Long(n) = n else {
-                        continue;
-                    };
-                    if n.starts_with(name.as_ref()) {
-                        self.pecking_push(Some(po));
-                    }
-                }
-                for (n, po) in triggers.flags.iter() {
-                    let Name::Long(n) = n else {
-                        continue;
-                    };
-                    if n.starts_with(name.as_ref()) {
-                        self.pecking_push(Some(po));
-                    }
-                }
-                let prefix = Some(name.as_ref().into());
-                (CompleteReq::Name { prefix }, None)
-            }
-            Arg::Named {
-                name: name @ Name::Short(_),
-                value: None,
-            } => {
-                self.pecking_push(triggers.args.get(name));
-                self.pecking_push(triggers.flags.get(name));
-                (CompleteReq::Name { prefix: None }, None)
-            }
-            Arg::Named {
-                name,
-                value: Some((adj, val)),
-            } => {
-                self.pecking.clear(); // wipe triggers.any since they can't fire // TODO - why?
-                self.pecking_push(triggers.args.get(name));
-                let req = match val.to_str() {
-                    Some(p) => CompleteReq::Literal { prefix: p.into() },
-                    None => todo!(),
-                };
-                (req, None)
-            }
-            Arg::Pos {
-                value,
-                value_as_name: _,
-            } => {
-                let Some(value) = value.to_str() else {
-                    todo!("Completing non-utf?");
-                };
-                let (short, long, lit);
-                let request;
-                if value.is_empty() {
-                    (short, long, lit) = (true, true, true);
-                    request = CompleteReq::Anything;
-                } else if value == "-" {
-                    (short, long, lit) = (true, true, false);
-                    request = CompleteReq::Anything;
-                } else if value == "--" {
-                    (short, long, lit) = (false, true, false);
-                    request = CompleteReq::Name {
-                        prefix: Some(Default::default()),
-                    };
-                } else {
-                    (short, long, lit) = (false, false, true);
-                    request = CompleteReq::Literal {
-                        prefix: value.into(),
-                    }
-                }
-                if short && !strict_pos {
-                    for (n, f) in triggers.args.iter() {
-                        if matches!(n, Name::Short(_)) {
-                            self.pecking_push(Some(f));
-                        }
-                    }
-                    for (n, f) in triggers.flags.iter() {
-                        if matches!(n, Name::Short(_)) {
-                            self.pecking_push(Some(f));
-                        }
-                    }
-                }
-                // TODO - can avoid iterating twice here
-                if long && !strict_pos {
-                    for (n, f) in triggers.args.iter() {
-                        if matches!(n, Name::Long(_)) {
-                            self.pecking_push(Some(f));
-                        }
-                    }
-                    for (n, f) in triggers.flags.iter() {
-                        if matches!(n, Name::Long(_)) {
-                            self.pecking_push(Some(f));
-                        }
-                    }
-                }
-                if lit && !strict_pos {
-                    for (name, f) in triggers.literal.iter() {
-                        if name.starts_with(value) {
-                            self.pecking_push(Some(f));
-                        }
-                    }
-                }
-                self.pecking_push(Some(&triggers.pos));
-
-                (request, None)
-            }
-        }
-    }
-
-    fn populate(
-        &mut self,
-        arg: &Arg<'a>,
-        triggers: &'a Triggers,
-        strict_pos: bool,
-    ) -> Option<Group> {
-        self.pecking_push(Some(&triggers.active_checks));
+    fn populate(&mut self, arg: &Arg, triggers: &Triggers, strict_pos: bool) -> Option<Group> {
         match arg {
             Arg::Named {
                 name: name @ Name::Long(_),
@@ -1587,10 +1398,10 @@ impl<'a> Mixer<'a> {
                 name: name @ Name::Short(short_name),
                 value: Some((Adjacency::Immediate, val)),
             } => {
-                let prev_len = self.pecking.len();
+                let prev_len = self.candidates_len();
                 self.pecking_push(triggers.args.get(name));
                 if triggers.flags.contains_key(name)
-                    && self.pecking.len() == prev_len
+                    && self.candidates_len() == prev_len
                     && let Some(chars) = val.to_str()
                     && chars
                         .chars()
@@ -1624,81 +1435,10 @@ impl<'a> Mixer<'a> {
     /// Add a nonempty pecking order to the mix
     ///
     /// We'll often have empty pecking orders
-    fn pecking_push(&mut self, order: Option<&'a PeckingOrder>) {
-        if let Some(order) = order
-            && !order.is_empty()
-        {
-            self.pecking.push(order);
+    fn pecking_push(&mut self, order: Option<&PeckingOrder>) {
+        if let Some(order) = order {
+            self.push_peck(order);
         }
-    }
-
-    fn first(&self) -> Option<pecking::Item> {
-        let mut res = None;
-        for order in self.pecking.iter().filter_map(|v| v.peek()) {
-            res = Some(res.map_or(order, |old| order.min(old)));
-        }
-        res
-    }
-}
-
-impl<'a> Mixer<'a> {
-    /// Reuse the capacity inside the executor while decoupling the lifetimes
-    fn reuse_capacity<'b>(mut self) -> Mixer<'b> {
-        self.tracker.clear();
-        Mixer {
-            pecking: reuse_vec(self.pecking),
-            tracker: self.tracker,
-            same_family: false,
-            prev: None,
-        }
-    }
-
-    fn consume_next_item(&mut self, tasks: &BTreeMap<Id, Task>) -> Option<pecking::Item> {
-        loop {
-            if let Some(prev) = self.prev {
-                let prev = if self.same_family || self.tracker.is_empty() {
-                    prev
-                } else {
-                    prev.next_family_item()
-                };
-
-                // find best possible item while throwing away orders that can't possibly produce
-                // anything better
-                let mut best_candidate = None;
-                self.pecking.retain(|po| {
-                    let Some(item) = po.item_after(prev).copied() else {
-                        return false;
-                    };
-                    match best_candidate {
-                        Some(pmin) if item >= pmin => false,
-                        _ => {
-                            best_candidate = Some(item);
-                            true
-                        }
-                    }
-                });
-                let best_candidate = best_candidate?;
-                if self.tracker.is_empty() && !self.same_family {
-                    self.tracker.walk_tasks_up(prev.id, tasks);
-                }
-                self.prev = Some(best_candidate);
-                match self.tracker.walk_tasks_up(best_candidate.id, tasks) {
-                    WalkResult::PickAndSame => {
-                        self.same_family = true;
-                        break;
-                    }
-                    WalkResult::PickAndNext => {
-                        self.same_family = false;
-                        break;
-                    }
-                    WalkResult::Skip => continue,
-                }
-            } else {
-                self.prev = self.first();
-                break;
-            }
-        }
-        self.prev
     }
 }
 

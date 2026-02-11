@@ -22,14 +22,15 @@ impl TTarget {
 
 impl<'p> RawCtx<'p> {
     fn with_trigger(&self, change: TChange, items: impl IntoIterator<Item = TTarget>) {
-        let (parent, id) = self.task_parent_and_id();
+        let cur = self.current_task.borrow();
         let mut pending = self.pending_ops.borrow_mut();
         for target in items {
             pending.push_back(Op::Trigger {
                 change,
                 target,
-                parent,
-                id,
+                parent: cur.parent_id,
+                id: cur.id,
+                kind: cur.parent_kind,
             });
         }
     }

@@ -12,7 +12,7 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Parent, Reason, TChange, TTarget, Task, TaskInfo, args::Args,
+    Conflict, Id, KillReason, Kind, Parent, Reason, TChange, TTarget, Task, TaskInfo, args::Args,
     info::Custom,
 };
 
@@ -85,6 +85,7 @@ pub(crate) enum Op<'p> {
         target: TTarget,
         parent: Parent,
         id: Id,
+        kind: Kind,
     },
 }
 

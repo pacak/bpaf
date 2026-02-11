@@ -82,3 +82,25 @@ fn no_dataloss_with_some() {
     let r = parser.run_inner("-b 3 -a4").unwrap();
     assert_eq!(r, &[(4, 3)]);
 }
+
+#[test]
+fn pairpos_1() {
+    let a = positional::<u32>("A").optional();
+    let b = positional::<u32>("B");
+
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("1 42").unwrap();
+    assert_eq!(r, (Some(1), 42));
+}
+
+#[test]
+fn pairpos_2() {
+    let a = positional::<u32>("A");
+    let b = positional::<u32>("B").optional();
+
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("1 42").unwrap();
+    assert_eq!(r, (1, Some(42)));
+}
