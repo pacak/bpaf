@@ -190,6 +190,8 @@ impl<T: 'static> Parser for Nested<T> {
     }
 }
 
+impl<T> Leaf for Nested<T> {}
+
 /// Parser for a literal value such as `build`
 ///
 /// Create from [`Literal::flag`], [`Literal::req_flag`], [`Literal::switch`]. Similar

@@ -365,7 +365,7 @@ impl<T> Clone for RcParser<T> {
 }
 
 #[diagnostic::on_unimplemented(
-    message = "Leaf is a marker trait that is only implemented for primitive parsers, not for anything composite."
+    message = "Leaf is a marker trait that is only implemented for atomic parsers, not constructed ones"
 )]
 /// The idea is to have a marker trait for parsers that can either fail or succeed, but not in
 /// between. For example, `construct!(a, b)` will remain in partially succeeded state once either

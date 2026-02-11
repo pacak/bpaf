@@ -255,6 +255,8 @@ impl<T: 'static> Parser for Command<T> {
     }
 }
 
+impl<T> Leaf for Command<T> {}
+
 pub struct Command<T> {
     names: Vec<Lit<'static>>,
     inner: OptionParser<T>,
@@ -273,6 +275,8 @@ pub struct Parse<P, F, E, R> {
     pub(crate) inner: P,
     pub(crate) f: F,
 }
+
+impl<P: Leaf, F, E, R> Leaf for Parse<P, F, E, R> {}
 
 impl<P, F, E, R> Parser for Parse<P, F, E, R>
 where
@@ -359,6 +363,7 @@ pub struct Fallback<T, P> {
     pub(crate) value_str: Option<String>,
 }
 
+impl<T, P: Leaf> Leaf for Fallback<T, P> {}
 impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
@@ -461,6 +466,7 @@ impl<P: Parser> Parser for Group<P> {
     }
 }
 
+impl<P: Leaf> Leaf for Group<P> {}
 pub struct WithOffset<P> {
     pub(crate) inner: P,
 }
@@ -480,6 +486,7 @@ where
         self.inner.visit(visitor)
     }
 }
+impl<P: Leaf> Leaf for WithOffset<P> {}
 
 pub struct ThenExit<T, P: Parser> {
     pub(crate) inner: P,
@@ -499,7 +506,7 @@ impl<T: 'static, P: Parser> Parser for ThenExit<T, P> {
         self.inner.visit(visitor);
     }
 }
-
+impl<T, P: Parser + Leaf> Leaf for ThenExit<T, P> {}
 pub struct OrExit<P: Parser> {
     pub(crate) inner: P,
     pub(crate) exit: Box<dyn Fn(ParseFailure) -> Exit<P::Output>>,
@@ -517,3 +524,4 @@ impl<P: Parser> Parser for OrExit<P> {
         self.inner.visit(visitor);
     }
 }
+impl<P: Parser + Leaf> Leaf for OrExit<P> {}
