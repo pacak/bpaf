@@ -804,9 +804,29 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 
     fn execute(&mut self) -> Result<(), Error> {
-        // Keep running as long as we are making progress:
-        // - consuming new items
+        let mut prev_pos = self.ctx.cursor.get();
+        let mut duds = 0;
+
+        // We'll stop once there's no more data or no more candidates to run
         loop {
+            // If we want to track progress by having pending parsers - we need to
+            // also avoid loops where the same parser gets spawned and consumes nothing.
+            // Currently all the repeated parsers makes sure to handle this, but this
+            // makes a good sanity check.
+            if prev_pos == self.ctx.cursor.get() {
+                duds += 1;
+                if duds == 10 {
+                    let front = &self.ctx.args[self.ctx.cursor.get()];
+                    unreachable!(
+                        "We made a lot of iterations trying to parse {front:?} but made no progress. \
+                                  This shouldn't be reachable, please report it as a bug."
+                    );
+                }
+            } else {
+                duds = 0;
+            }
+            prev_pos = self.ctx.cursor.get();
+
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
@@ -837,21 +857,21 @@ impl<'a, 'p> Executor<'a, 'p> {
             let (best_size, mgroup) = self.stage_1(front);
 
             if let Some(group) = mgroup
-                && best_size == 0
+                && self.to_wake.is_empty()
             {
                 self.execute_group(group)?;
                 self.propagate();
                 continue;
             }
 
-            if best_size == 0
+            if self.to_wake.is_empty()
                 && let Some(scope) = { self.ctx.early_exit.borrow().last().copied() }
                 && self.kill_in_scope(scope, KillReason::NoMatchingInput)
             {
                 continue;
             }
 
-            if best_size == 0 {
+            if self.to_wake.is_empty() {
                 self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor.get();
                 return Err(Error::Problem(pos, self.complain_about(front)));
