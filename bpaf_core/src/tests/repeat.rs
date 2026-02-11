@@ -104,3 +104,19 @@ fn pairpos_2() {
     let r = parser.run_inner("1 42").unwrap();
     assert_eq!(r, (1, Some(42)));
 }
+
+#[test]
+fn catch_on_option() {
+    let a = positional::<u32>("A")
+        .parse(|v| if v < 10 { Ok(v) } else { Err("too big") })
+        .optional()
+        .catch();
+    let b = positional::<u32>("B");
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("20").unwrap();
+    assert_eq!(r, (None, 20));
+
+    let r = parser.run_inner("1 42").unwrap();
+    assert_eq!(r, (Some(1), 42));
+}

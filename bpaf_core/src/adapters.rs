@@ -70,13 +70,18 @@ pub(crate) async fn optional<'p, T: 'static>(
 
 pub struct Optional<P> {
     pub(crate) inner: P,
+    pub(crate) catch: bool,
 }
 impl<P: Parser> Parser for Optional<P> {
     type Output = Option<P::Output>;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Option<P::Output>, Error> {
-        match optional(ctx, &self.inner).await {
+        match optional(ctx.clone(), &self.inner).await {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
+            Optionality::Failed(_) if self.catch => {
+                ctx.current_task.borrow_mut().consumed = 0;
+                Ok(None)
+            }
             Optionality::Failed(e) => Err(e),
         }
     }
@@ -88,6 +93,13 @@ impl<P: Parser> Parser for Optional<P> {
     }
 }
 impl<P: Leaf> Leaf for Optional<P> {}
+
+impl<P: Leaf> Optional<P> {
+    pub fn catch(mut self) -> Self {
+        self.catch = true;
+        self
+    }
+}
 
 /// A top level parser with associated description
 ///

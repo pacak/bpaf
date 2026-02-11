@@ -69,7 +69,10 @@ pub trait Parser {
     where
         Self: Sized + 'static,
     {
-        Optional { inner: self }
+        Optional {
+            inner: self,
+            catch: false,
+        }
     }
 
     fn many(self) -> Many<Self::Output>
