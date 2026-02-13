@@ -99,8 +99,8 @@ impl<'a> BetterName<'a> {
     pub(crate) fn into_problem(self) -> Option<Problem> {
         if self.distance < 0.4 {
             Some(Problem::DidYouMean {
-                target: Name::from(self.target).into_owned(),
-                best: Name::from(self.best).into_owned(),
+                target: Name::Long(std::borrow::Cow::Owned(self.target.to_string())),
+                best: Name::Long(std::borrow::Cow::Owned(self.best.to_string())),
             })
         } else {
             None

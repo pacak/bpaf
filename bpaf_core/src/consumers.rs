@@ -49,7 +49,7 @@ impl Named {
 /// Match a named item with a short name: `-v` or `-b name`
 pub fn short(name: char) -> Named {
     Named {
-        names: vec![name.into()],
+        names: vec![Name::Short(name)],
         env: Vec::new(),
         help: None,
     }
@@ -77,17 +77,12 @@ pub fn env(name: &'static str) -> Named {
 
 impl Named {
     pub fn short(mut self, name: char) -> Self {
-        self.names.push(name.into());
+        self.names.push(Name::Short(name));
         self
     }
 
-    pub fn long(mut self, name: &'static str) -> Self {
-        self.names.push(name.into());
-        self
-    }
-
-    pub fn long_string(mut self, name: String) -> Self {
-        self.names.push(name.into());
+    pub fn long(mut self, name: impl Into<Cow<'static, str>>) -> Self {
+        self.names.push(Name::Long(name.into()));
         self
     }
 

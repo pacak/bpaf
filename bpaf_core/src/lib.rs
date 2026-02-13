@@ -1481,24 +1481,6 @@ impl Name<'_> {
     }
 }
 
-impl From<char> for Name<'static> {
-    fn from(value: char) -> Self {
-        Name::Short(value)
-    }
-}
-
-impl<'a> From<&'a str> for Name<'a> {
-    fn from(value: &'a str) -> Self {
-        Name::Long(Cow::Borrowed(value))
-    }
-}
-
-impl From<String> for Name<'static> {
-    fn from(value: String) -> Self {
-        Name::Long(Cow::Owned(value))
-    }
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 /// A newtype wrapper for [`Name`] to make it a [`Literal`] name instead
 ///
