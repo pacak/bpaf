@@ -104,8 +104,13 @@ pub mod api {
                 });
                 ctx.wait_for_children().await; // give children a chance to start
                 ctx.all_children_finish(scopes).await;
+                // If there's only one surviving branch - there won't be a sum
+                // to de-register. But sometimes we do so let's clean it up
+                ctx.pending_ops
+                    .borrow_mut()
+                    .push_back(Op::DeregisterSum { id });
 
-                let mut acc = Error::Silent("Empty Alt?");
+                let mut acc = Error::Silent("Empty Sum?");
 
                 let consumed = ctx.current_task.borrow().consumed > 0;
 
@@ -908,11 +913,12 @@ impl<'a, 'p> Executor<'a, 'p> {
                 .iter()
                 .all(|po| matches!(po, Op::Trigger { .. }))
         );
-        // assert!(
-        //     self.sums.is_empty(),
-        //     "All sums should be removed, {:?}",
-        //     self.sums
-        // );
+        assert!(self.tasks.is_empty());
+        assert!(
+            self.sums.is_empty(),
+            "All sums should be removed, {:?}",
+            self.sums
+        );
 
         Ok(())
     }
