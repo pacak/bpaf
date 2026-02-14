@@ -107,3 +107,30 @@ fn with_absolute_path() {
     let r = parser.run_inner("-a").unwrap();
     assert_eq!(r, Some(true));
 }
+
+#[test]
+fn make_struct2_pos() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    struct Ab {
+        a: bool,
+        b: bool,
+    }
+
+    let parser = construct!(Ab { a, b }).to_options();
+    let r = parser.run_inner("-a -b").unwrap();
+    assert_eq!(r, Ab { a: true, b: true });
+}
+
+#[test]
+fn make_struct2_named() {
+    let a = short('a').switch();
+    let b = short('b').switch();
+    #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+    struct Ab(bool, bool);
+
+    let parser = construct!(Ab(a, b)).to_options();
+    let r = parser.run_inner("-a -b").unwrap();
+    assert_eq!(r, Ab(true, true));
+}

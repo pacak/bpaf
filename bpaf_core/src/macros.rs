@@ -42,8 +42,8 @@ macro_rules! prepare {
     }};
 
     // All the logic for sum parser sits inside of Sum datatype
-    ([alt] [ $($field:ident)*]) => {
-        $crate::__private::Sum{ items: ::std::vec![ $($field.into_rc()),*] }
+    ([alt] [$($f:ident)+]) => {
+        $crate::__private::Sum{ items: ::std::vec![ $( $crate::Parser::into_rc($f) ),+] }
     };
 
 
@@ -65,16 +65,16 @@ macro_rules! prepare {
 #[macro_export]
 macro_rules! via_tuple {
     // single item positional and named - can use directly with a `map`
-    ([pos   $($con:tt)+] [$f:ident]) => { $f.map(|$f| $($con)+ ($f)) };
-    ([named $($con:tt)+] [$f:ident]) => { $f.map(|$f| $($con)+ {$f}) };
+    ([pos   $($con:tt)+] [$f:ident]) => { $crate::Parser::map($f, |$f| $($con)+ ($f)) };
+    ([named $($con:tt)+] [$f:ident]) => { $crate::Parser::map($f, |$f| $($con)+ {$f}) };
 
     // tuple below 13 items - use tuple instance directly
-    ([pos] [$($f:ident)+]) => { ( $($f.into_rc()),+) };
+    ([pos] [$($f:ident)+]) => { ( $($f),+) };
 
 
     // for named/positional below 13 items - go via tuple
-    ([pos   $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ ($($f),+)) };
-    ([named $($con:tt)+] [$($f:ident)+]) => { ( $($f.into_rc()),+).map(|($($f),+)|  $($con)+ {$($f),+}) };
+    ([pos   $($con:tt)+] [$($f:ident)+]) => { $crate::Parser::map( ($($f),+), |($($f),+)|  $($con)+ ($($f),+)) };
+    ([named $($con:tt)+] [$($f:ident)+]) => { $crate::Parser::map( ($($f),+), |($($f),+)|  $($con)+ {$($f),+}) };
 
     ([named $($con:tt)+] []) => { $crate::pure( $($con)+ {} ) };
 }
@@ -115,8 +115,8 @@ macro_rules! prod {
             }
         }
 
-            #[allow(non_camel_case_types, unused_parens)]
-        ty::Ty { $($f: $f.into_rc()),+}.map(|($($f),+)| $crate::make!($ty [ $($f)+ ]))
+        #[allow(non_camel_case_types, unused_parens)]
+        $crate::Parser::map(ty::Ty { $($f: $f),+}, |($($f),+)| $crate::make!($ty [ $($f)+ ]))
     }}
 
 }
