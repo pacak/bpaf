@@ -248,14 +248,13 @@ impl<'a> Visitor<'a> for Help<'a> {
             }
             Item::Command {
                 names,
-                info,
+                descr,
                 inner: _,
             } => {
                 let name = lit_name(names);
-                let help = info.descr;
                 _ = write!(&mut self[place], "{name:#}");
                 self.track_tab(name.col_width());
-                self.help(place, help);
+                self.help(place, descr);
             }
             Item::Nested { outer, inner } => {
                 let before = self[place].len();
@@ -272,7 +271,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                     Nest::Keyword(keyword) => {
                         let name = lit_name(&keyword.named.names);
                         _ = write!(&mut self[place], "{:#} ", name);
-                        keyword.named.info.descr
+                        keyword.named.help
                     }
                 };
 

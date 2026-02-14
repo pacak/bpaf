@@ -260,7 +260,7 @@ impl<T: 'static> Parser for Command<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let item = Item::Command {
             names: &self.names,
-            info: &self.inner.info,
+            descr: self.inner.info.descr,
             inner: &self.inner,
         };
         visitor.item(item);

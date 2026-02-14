@@ -199,14 +199,14 @@ pub struct Keyword<T> {
 
 /// A precursor of the [`Keyword`] parser
 pub struct Literal {
-    pub(crate) info: Info,
+    pub(crate) help: Option<&'static str>,
     pub(crate) names: Vec<Lit<'static>>,
 }
 
 pub fn literal<N: Into<Cow<'static, str>>>(name: N) -> Literal {
     Literal {
         names: vec![Lit(Name::Long(name.into()))],
-        info: Info::default(),
+        help: None,
     }
 }
 
@@ -220,7 +220,7 @@ impl Literal {
         self
     }
     pub fn help(mut self, help: &'static str) -> Self {
-        self.info.descr = Some(help);
+        self.help = Some(help);
         self
     }
 }
@@ -264,7 +264,7 @@ impl<T: Clone + 'static> Parser for Keyword<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Command {
             names: &self.named.names,
-            info: &self.named.info,
+            descr: self.named.help,
             inner: &(),
         };
         visitor.item(item);

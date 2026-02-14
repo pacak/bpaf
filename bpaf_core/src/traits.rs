@@ -269,7 +269,7 @@ pub enum Item<'a> {
     },
     Command {
         names: &'a [Lit<'static>],
-        info: &'a Info,
+        descr: Option<&'a str>,
         inner: &'a dyn Visited,
     },
 
