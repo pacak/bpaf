@@ -123,3 +123,13 @@ fn sum_is_associative_left() {
     assert_eq!(parser.run_inner("-b").unwrap(), 'b');
     assert_eq!(parser.run_inner("-c").unwrap(), 'c');
 }
+
+#[test]
+fn sum_with_more_than_one_success() {
+    let a = positional::<u32>("A").map(|a| a * 10);
+    let b = positional::<u32>("b").map(|a| a * 20);
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("1").unwrap();
+    assert_eq!(r, 10);
+}
