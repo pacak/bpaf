@@ -771,3 +771,55 @@ fn strict_pos_msg() {
     let r = parser.run_inner("-- -32").unwrap();
     assert_eq!(r, -32);
 }
+
+#[test]
+fn lazy_command_conflict() {
+    let a = short('a').switch().to_options().command("alpha").lazy();
+    let b = short('b').switch().to_options().command("beta").lazy();
+    let c = short('c').switch();
+
+    let ab = a.or_else(b);
+    let parser = construct!(ab, c).to_options();
+
+    let r = parser.run_inner("alpha beta").unwrap_err().unwrap_stderr();
+    let expected = "`beta` cannot be used at the same time as `alpha`\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("alpha -c").unwrap();
+    assert_eq!(r, (false, true));
+}
+
+#[test]
+fn literal_conflict() {
+    let a = literal("alpha").flag('a', 'A');
+    let b = literal("beta").flag('b', 'B');
+    let parser = a.or_else(b).to_options();
+
+    let r = parser.run_inner("alpha beta").unwrap_err().unwrap_stderr();
+    let expected = "`beta` cannot be used at the same time as `alpha`\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("beta").unwrap();
+    assert_eq!(r, 'b');
+}
+
+#[test]
+fn conflict_with_argument() {
+    let nn = long("noname").req_flag(None);
+    let n = long("name").argument::<String>("NAME").map(Some);
+    let parser = n.or_else(nn).to_options();
+
+    let r = parser
+        .run_inner("--name Bob --noname")
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected = "`--noname` cannot be used at the same time as `--name`\n";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("--noname --name Bob")
+        .unwrap_err()
+        .unwrap_stderr();
+    let expected = "`--name` cannot be used at the same time as `--noname`\n";
+    assert_eq!(r, expected);
+}
