@@ -1,10 +1,12 @@
 use std::ffi::{OsStr, OsString};
 
+use crate::complete::Shell;
+
 #[derive(Debug)]
 pub struct Args {
     pub(crate) app: String,
     pub(crate) items: Vec<OsString>,
-    pub(crate) complete: bool,
+    pub(crate) complete: Option<Shell>,
 }
 
 impl Args {
@@ -21,8 +23,8 @@ impl Args {
         self
     }
 
-    pub fn set_comp(mut self, _rev: usize) -> Self {
-        self.complete = true;
+    pub fn set_comp(mut self, shell: Shell) -> Self {
+        self.complete = Some(shell);
         self
     }
 }
@@ -39,7 +41,7 @@ impl Args {
         );
         Self {
             app: app.into(),
-            complete: false,
+            complete: None,
             items,
         }
     }
@@ -79,19 +81,22 @@ impl<const W: usize> From<[&str; W]> for Args {
 
 impl From<std::env::Args> for Args {
     fn from(mut value: std::env::Args) -> Self {
-        let app = value.next().expect("Empty args?");
+        let app = std::path::Path::new(&value.next().expect("Empty args?"))
+            .file_name()
+            .expect("No file?")
+            .to_string_lossy()
+            .into_owned();
         Self::make(app, value.map(OsString::from))
     }
 }
 
 impl From<std::env::ArgsOs> for Args {
     fn from(mut value: std::env::ArgsOs) -> Self {
-        let app = value
-            .next()
-            .expect("Empty args?")
+        let app = std::path::Path::new(&value.next().expect("Empty args?"))
+            .file_name()
+            .expect("No file?")
             .to_string_lossy()
             .into_owned();
-
         Self::make(app, value)
     }
 }
@@ -111,7 +116,7 @@ impl From<(&str, &str)> for Args {
             .collect::<Vec<_>>();
         items.push(OsString::from(value.1));
         let mut res = Self::make("app", items);
-        res.complete = true;
+        res.complete = Some(Shell::Test);
         res
     }
 }

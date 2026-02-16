@@ -170,7 +170,7 @@ pub mod api {
 use crate::{
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
-    complete::CompleteReq,
+    complete::CReq,
     console_writer::Styled,
     info::{Custom, Extra, Info},
     pecking::Mixer,
@@ -222,7 +222,7 @@ impl<T> JoinHandle<T> {
 }
 
 /// A newtype wrapper for receiving a value from a finishing task
-pub(crate) struct ExitHandle<T> {
+pub struct ExitHandle<T> {
     result: Rc<Cell<Option<Result<T, Error>>>>,
 }
 impl<T> ExitHandle<T> {
@@ -448,7 +448,8 @@ enum Reason<'p> {
     Push,
     /// Notification from the executor to sums about children making progress
     ChildProgress(Vec1<Id>),
-    Complete(CompleteReq),
+
+    Complete(complete::ShellRender, CReq<'p>),
 }
 
 fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
@@ -775,47 +776,6 @@ impl<'a, 'p> Executor<'a, 'p> {
                 }
             }
         }
-    }
-
-    fn check_autocomplete(&mut self, arg: &OsStr) -> Option<Result<(), Error>> {
-        if !self.ctx.args.complete || self.ctx.cursor.get() + 1 != self.ctx.args.len() {
-            return None;
-        }
-
-        let arg = lex_os_arg(arg);
-
-        let (req, pecking_orders) =
-            matching_trigggers_by_prefix(&arg, &self.triggers, self.ctx.strict_pos.get());
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(req);
-
-        // Normally we traverse each pecking order at once since only sum items can run
-        // in parallel, but for autocomplete any item from a prod can run so we'll run
-        // orders independent from each other
-
-        for order in pecking_orders {
-            self.mixer.push_peck(order);
-            self.to_wake.extend(self.mixer.for_wake(&self.tasks));
-        }
-
-        if self.to_wake.is_empty() {
-            return Some(Err(Error::CompReply(Vec1::default())));
-        }
-        self.to_wake.sort();
-        self.to_wake.dedup();
-
-        while let Some(id) = self.to_wake.pop() {
-            let mut task = self.tasks.remove(&id).unwrap();
-            let r = self.ctx.poll_in_context(&mut task);
-            if task.info.parent_id == Parent(0) {
-                continue;
-            }
-            self.to_propagate
-                .push_back((task.info.id, task.info.parent_id, task.info.consumed));
-            assert!(r);
-        }
-        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
-        self.propagate();
-        Some(Ok(()))
     }
 
     fn execute(&mut self) -> Result<(), Error> {
@@ -1294,111 +1254,6 @@ impl<'p> RawCtx<'p> {
 /// Created automatically by [`Mixer`]
 struct Group(Vec<char>);
 
-fn matching_trigggers_by_prefix<'a>(
-    arg: &'a Arg<'a>,
-    triggers: &'a Triggers,
-    strict_pos: bool,
-) -> (CompleteReq, Vec<&'a PeckingOrder>) {
-    let mut out = Vec::new();
-
-    // TODO - want to include all the "any" parsers here
-    // self.pecking_push(Some(&triggers.any));
-    let req = match arg {
-        Arg::Named {
-            name: Name::Long(name),
-            value: None,
-        } => {
-            for (n, po) in triggers.args.iter().chain(triggers.flags.iter()) {
-                if let Name::Long(ln) = n
-                    && ln.starts_with(name.as_ref())
-                {
-                    out.push(po);
-                }
-            }
-            let prefix = Some(name.as_ref().into());
-            CompleteReq::Name { prefix }
-        }
-        Arg::Named {
-            name: name @ Name::Short(_),
-            value: None,
-        } => {
-            out.extend(triggers.args.get(name));
-            out.extend(triggers.flags.get(name));
-            CompleteReq::Name { prefix: None }
-        }
-        Arg::Named {
-            name,
-            value: Some((adj, val)),
-        } => {
-            out.extend(triggers.args.get(name));
-            match val.to_str() {
-                Some(p) => CompleteReq::Literal { prefix: p.into() },
-                None => todo!(),
-            }
-        }
-        Arg::Pos { value } => {
-            let Some(value) = value.to_str() else {
-                todo!("Completing non-utf?");
-            };
-            let (short, long, lit);
-            let request;
-            if value.is_empty() {
-                (short, long, lit) = (true, true, true);
-                request = CompleteReq::Anything;
-            } else if value == "-" {
-                (short, long, lit) = (true, true, false);
-                request = CompleteReq::Anything;
-            } else if value == "--" {
-                (short, long, lit) = (false, true, false);
-                request = CompleteReq::Name {
-                    prefix: Some(Default::default()),
-                };
-            } else {
-                (short, long, lit) = (false, false, true);
-                request = CompleteReq::Literal {
-                    prefix: value.into(),
-                }
-            }
-            if short && !strict_pos {
-                for (n, f) in triggers.args.iter() {
-                    if matches!(n, Name::Short(_)) {
-                        out.extend(Some(f));
-                    }
-                }
-                for (n, f) in triggers.flags.iter() {
-                    if matches!(n, Name::Short(_)) {
-                        out.extend(Some(f));
-                    }
-                }
-            }
-            // TODO - can avoid iterating twice here
-            if long && !strict_pos {
-                for (n, f) in triggers.args.iter() {
-                    if matches!(n, Name::Long(_)) {
-                        out.extend(Some(f));
-                    }
-                }
-                for (n, f) in triggers.flags.iter() {
-                    if matches!(n, Name::Long(_)) {
-                        out.extend(Some(f));
-                    }
-                }
-            }
-            if lit && !strict_pos {
-                for (name, f) in triggers.literal.iter() {
-                    if name.starts_with(value) {
-                        out.extend(Some(f));
-                    }
-                }
-            }
-            out.extend(Some(&triggers.pos));
-
-            request
-        }
-    };
-    (req, out)
-}
-
 impl Mixer {
     fn populate_short_flag(&mut self, name: &char, triggers: &Triggers) {
         self.pecking_push(triggers.flags.get(&Name::Short(*name)));
@@ -1467,8 +1322,8 @@ impl Mixer {
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 enum Name<'a> {
-    Short(char),
     Long(Cow<'a, str>),
+    Short(char),
 }
 
 impl std::fmt::Display for Name<'_> {

@@ -2,7 +2,7 @@ use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
     adapters::PureWith,
-    complete::{CompleteReply, StringCompleter, complete_command, complete_value},
+    complete::{StringCompleter, complete_value},
     error::MissingItem,
     os_str::parse_os_str,
 };
@@ -284,19 +284,17 @@ impl<T: Clone + 'static> Parser for Keyword<T> {
         visitor.item(item);
     }
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_literal(&self.named.names).await;
-        let res = res.map_err(|e| complete_command(&self.named.names, e));
-        let value = res?
-            .map(|_| {
-                ctx.consume(1);
-                self.present.clone()
-            })
-            .or_else(|| self.absent.clone());
-        value.ok_or_else(|| {
-            Error::missing(MissingItem::Lit {
+        let res = ctx.parse_literal(&self.named).await?;
+        let value = if res.is_some() {
+            &self.present
+        } else if let Some(absent) = &self.absent {
+            absent
+        } else {
+            return Err(Error::missing(MissingItem::Lit {
                 value: self.named.names[0].clone(),
-            })
-        })
+            }));
+        };
+        Ok(value.clone())
     }
 }
 
@@ -314,9 +312,8 @@ pub struct Flag<T> {
 impl<T: Clone + 'static> Parser for Flag<T> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_flag(&self.named.names).await;
-        let res = res.map_err(|err| self.named.complete_name(err, None));
-        if res? {
+        let res = ctx.parse_flag(&self.named).await?;
+        if res {
             Ok(self.present.clone())
         } else if let Some(absent) = &self.absent {
             Ok(absent.clone())
@@ -371,10 +368,8 @@ where
 {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_arg(&self.named.names).await;
-        let res = res.map_err(|err| self.named.complete_name(err, Some(self.metavar)));
-
-        if let Some(os) = res? {
+        let res = ctx.parse_arg(&self.named, self.metavar).await?;
+        if let Some(os) = res {
             if self.adjacent && ctx.current_task.borrow().consumed == 2 {
                 let cursor = ctx.cursor.get();
                 let name = ctx.args[cursor].clone();
@@ -418,7 +413,6 @@ impl<T: 'static> Argument<T> {
         WithComplete {
             inner: self,
             completer: Box::new(completer),
-            group: None,
         }
     }
 }
@@ -432,7 +426,6 @@ impl<T: 'static> Positional<T> {
         WithComplete {
             inner: self,
             completer: Box::new(completer),
-            group: None,
         }
     }
 }
@@ -447,15 +440,7 @@ impl<T> Positional<T> {
 
 pub struct WithComplete<P> {
     inner: P,
-    group: Option<String>,
     completer: StringCompleter,
-}
-
-impl<I> WithComplete<I> {
-    pub fn group(mut self, group: impl Into<String>) -> Self {
-        self.group = Some(group.into());
-        self
-    }
 }
 
 impl<P> Parser for WithComplete<P>
@@ -467,7 +452,7 @@ where
         self.inner
             .eval(ctx)
             .await
-            .map_err(|err| complete_value(err, self.group.as_deref(), &self.completer))
+            .map_err(|err| complete_value(err, &self.completer))
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
@@ -501,18 +486,6 @@ impl<T: 'static> Positional<T> {
     }
 }
 
-fn complete_pos(err: Error, needs_strict: bool, meta: Metavar) -> Error {
-    let Error::CompReq(ref comp) = err else {
-        return err;
-    };
-
-    match comp {
-        CompleteReq::Anything if needs_strict => todo!(),
-        CompleteReq::Anything => Error::CompReply(Vec1::new(CompleteReply::Pos { meta })),
-        CompleteReq::Name { .. } | CompleteReq::Literal { .. } | CompleteReq::Value(..) => err,
-    }
-}
-
 fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
     Error::Problem(ctx.cursor.get(), p)
 }
@@ -524,11 +497,9 @@ where
 {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_pos().await;
-        let res = res
-            .map_err(|err| complete_pos(err, self.strict && !ctx.strict_pos.get(), self.metavar));
+        let res = ctx.parse_pos(self.help, self.metavar).await?;
 
-        let Some(os) = res? else {
+        let Some(os) = res else {
             let item = MissingItem::Pos { meta: self.metavar };
             return Err(Error::missing(item));
         };
