@@ -52,10 +52,7 @@ impl<'p> RawCtx<'p> {
     pub(crate) async fn parse_pos(&self) -> Result<Option<&'p OsStr>, Error> {
         Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
             Arg::Named { .. } => unreachable!(),
-            Arg::Pos {
-                value,
-                value_as_name: _,
-            } => {
+            Arg::Pos { value } => {
                 self.consume(1);
                 *self.current_value.borrow_mut() = Some(value);
                 value
@@ -84,10 +81,7 @@ impl<'p> RawCtx<'p> {
             .await?;
 
         Ok(match res {
-            Some(Arg::Pos {
-                value: _,
-                value_as_name: Some(name),
-            }) => Some(name.clone().into_owned()),
+            Some(Arg::Pos { value }) => arg::as_name(value).map(|v| v.into_owned()),
             _ => None,
         })
     }
@@ -128,10 +122,7 @@ impl<'p> RawCtx<'p> {
                             value: Some(next.to_os_string()),
                         },
                     )),
-                    Arg::Pos {
-                        value,
-                        value_as_name: _,
-                    } => {
+                    Arg::Pos { value } => {
                         self.consume(2);
                         if self.args.complete && cursor + 1 == self.args.len() {
                             let req = match value.to_str() {
@@ -192,10 +183,7 @@ impl<'p> RawCtx<'p> {
                     Ok(true)
                 }
             },
-            Arg::Pos {
-                value_as_name: _,
-                value: _,
-            } => unreachable!(),
+            Arg::Pos { value: _ } => unreachable!(),
         }
     }
 

@@ -27,10 +27,7 @@ pub enum Arg<'a> {
         value: Option<(Adjacency, &'a OsStr)>,
     },
     /// Positional item
-    Pos {
-        value_as_name: Option<Lit<'a>>,
-        value: &'a OsStr,
-    },
+    Pos { value: &'a OsStr },
 }
 
 pub(crate) fn as_name<'a>(val: &'a OsStr) -> Option<Lit<'a>> {
@@ -41,15 +38,6 @@ pub(crate) fn as_name<'a>(val: &'a OsStr) -> Option<Lit<'a>> {
     } else {
         Name::Short(first)
     }))
-}
-
-impl<'a> Arg<'a> {
-    fn pos(value: &'a OsStr) -> Self {
-        Arg::Pos {
-            value_as_name: as_name(value),
-            value,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -82,10 +70,7 @@ impl Arg<'_> {
                     None => res,
                 }
             }
-            Arg::Pos {
-                value_as_name: _,
-                value,
-            } => value.to_os_string(),
+            Arg::Pos { value } => value.to_os_string(),
         }
     }
 }
@@ -95,7 +80,7 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
     if let Some(long) = value.strip_prefix("--") {
         match long.split_by_ascii(b'=') {
             // it's just `--` - a positional item
-            _ if long.is_empty() => Arg::pos(value),
+            _ if long.is_empty() => Arg::Pos { value },
             // `--foo=bar`?
             Some((osname, rest)) => match osname.to_str() {
                 // yes, foo is a valid name - this is a long argument with a value
@@ -104,7 +89,7 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
                     value: Some((Adjacency::WithEq, rest)),
                 },
                 // no, `foo` is not a valid name, treat the whole thing as positional
-                None => Arg::pos(value),
+                None => Arg::Pos { value },
             },
             // `--foo` ?
             None => match long.to_str() {
@@ -114,13 +99,13 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
                     value: None,
                 },
                 // no, "foo" is not a valid name, treat the whole thing as positional
-                _ => Arg::pos(value),
+                None => Arg::Pos { value },
             },
         }
     } else if let Some(short) = value.strip_prefix("-") {
         let Some((name, suffix)) = short.next_char() else {
             // It's just `-` - a positional item;
-            return Arg::pos(value);
+            return Arg::Pos { value };
         };
         let name = Name::Short(name);
         let value = match suffix.next_char() {
@@ -135,6 +120,6 @@ pub(crate) fn lex_os_arg(value: &OsStr) -> Arg<'_> {
         };
         Arg::Named { name, value }
     } else {
-        Arg::pos(value)
+        Arg::Pos { value }
     }
 }

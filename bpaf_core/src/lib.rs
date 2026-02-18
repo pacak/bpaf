@@ -954,10 +954,8 @@ impl<'a, 'p> Executor<'a, 'p> {
                     return problem;
                 }
             }
-            Arg::Pos {
-                value,
-                value_as_name: unexpected_name,
-            } => {
+            Arg::Pos { value } => {
+                let unexpected_name = arg::as_name(value);
                 // is it a conflict?
                 for conflict in self.ctx.conflicts.borrow().iter() {
                     match conflict {
@@ -1026,10 +1024,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// Each task indicates how much it will consume if allowed to run till the end
     fn stage_1(&mut self, front: &'p OsStr) -> (u32, Option<Group>) {
         let arg = if self.ctx.strict_pos.get() {
-            Arg::Pos {
-                value: front,
-                value_as_name: None,
-            }
+            Arg::Pos { value: front }
         } else {
             lex_os_arg(front)
         };
@@ -1327,10 +1322,7 @@ fn matching_trigggers_by_prefix<'a>(
                 None => todo!(),
             }
         }
-        Arg::Pos {
-            value,
-            value_as_name: _,
-        } => {
+        Arg::Pos { value } => {
             let Some(value) = value.to_str() else {
                 todo!("Completing non-utf?");
             };
@@ -1437,14 +1429,11 @@ impl Mixer {
                     self.pecking_push(triggers.flags.get(name));
                 }
             }
-            Arg::Pos {
-                value: _,
-                value_as_name: name,
-            } => {
-                if let Some(name) = name
+            Arg::Pos { value } => {
+                if let Some(name) = arg::as_name(value)
                     && !strict_pos
                 {
-                    self.pecking_push(triggers.literal.get(name));
+                    self.pecking_push(triggers.literal.get(&name));
                 }
                 self.pecking_push(Some(&triggers.pos));
             }
