@@ -777,7 +777,7 @@ Available options:
 ";
     assert_eq!(r, expected);
 
-    let r = parser.run_inner(&[]).unwrap_err().unwrap_stdout();
+    let r = parser.run_inner("").unwrap_err().unwrap_stdout();
     let expected = "\
 outer
 
