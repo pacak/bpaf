@@ -53,4 +53,5 @@ members =  [
     "./bpaf_derive",
     "./bpaf_cauwugo",
     "./comptester",
+    "./satis",
 ]
