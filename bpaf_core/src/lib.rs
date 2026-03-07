@@ -463,19 +463,19 @@ fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
 impl<'p> RawCtx<'p> {
     #[inline(never)]
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
-        // The only possible scenario for a consuming leaf is getting an Arg
+        // The only possible scenario for a consuming leaf is getting an `Arg`
         if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             return false;
         }
         // if parser fails to produce a result due to validation or `FromStr`
         // we reset `consumed` back to zero so more conservative parallel branches
-        // that did managed to produce a result can succeed
+        // that did manage to produce a result can succeed
         if !success {
             self.current_task.borrow_mut().consumed = 0;
         }
 
         r#yield().await; // between stage_1 and stage_2
-        // surviving gets Pass, out-consumed - NoPass, but we want to preserve the
+        // surviving gets Pass, one that consumed less - `NoPass`, but we want to preserve the
         // error message so return true only when there's an OK result we don't want.
         matches!(
             &*self.wakeup_reason.borrow(),
