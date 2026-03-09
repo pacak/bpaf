@@ -1523,6 +1523,7 @@ mod tests {
     mod complete;
     mod construct;
     mod errors;
+    mod flag;
     mod help;
     mod nested;
     mod offset;

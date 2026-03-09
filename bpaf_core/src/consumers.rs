@@ -355,6 +355,14 @@ impl<T> Flag<T> {
     }
 }
 
+impl<T: Clone> Flag<T> {
+    /// Change this flag to be the default one when used to select between a group of flags
+    pub fn default(mut self) -> Self {
+        self.absent = Some(self.present.clone());
+        self
+    }
+}
+
 /// Named argument. Parse `VALUE` in `--name VALUE` using [`FromStr`]
 ///
 /// Create it with [`Named::argument`]
