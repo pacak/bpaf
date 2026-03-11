@@ -297,3 +297,45 @@ fn used_only_once_is_more_important_error() {
         "argument `--sort` cannot be used multiple times in this context"
     );
 }
+
+#[test]
+fn argument_missing_value_or_else_enum() {
+    // Reproducer for flox/flox#3411 - enum variant or_else chain.
+    // EditManifest succeeds (optional --file = None), Rename fails with NoArgument.
+    // or_else picks EditManifest, leaving --name unconsumed → wrong "no such flag" error.
+    let edit_manifest = long("file")
+        .argument::<String>("FILE")
+        .optional()
+        .map(|file| (Some("edit"), file));
+    let rename = long("name")
+        .argument::<String>("NAME")
+        .map(|name| (Some("rename"), Some(name)));
+    let parser = construct!([edit_manifest, rename]).to_options();
+
+    let r = parser.run_inner(&["--name"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`--name` requires an argument `NAME`");
+}
+
+#[test]
+fn argument_missing_value_or_else_winner_consumed() {
+    // When the winning branch DID consume the flag, the error should NOT propagate.
+    // --name as a switch vs --name as an argument.
+    let flag_parser = long("name").switch();
+    let arg_parser = long("name").argument::<String>("NAME").map(|_| false);
+    let parser = construct!([flag_parser, arg_parser]).to_options();
+
+    let r = parser.run_inner(&["--name"]).unwrap();
+    assert!(r);
+}
+
+#[test]
+fn argument_missing_value_with_catch() {
+    // .optional().catch() should not swallow NoArgument - the user explicitly
+    // provided the flag, so the missing value should always be reported.
+    let name = long("name").argument::<String>("NAME").optional().catch();
+    let file = long("file").argument::<String>("FILE").optional();
+    let parser = construct!(name, file).to_options();
+
+    let r = parser.run_inner(&["--name"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`--name` requires an argument `NAME`");
+}

@@ -363,6 +363,22 @@ fn this_or_that_picks_first(
             }
         }
         (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
+        // When one branch fails with NoArgument (flag matched but value missing)
+        // and the winning branch didn't consume that flag, the NoArgument error
+        // should take priority - but only when the winning branch didn't consume
+        // more items overall (indicating it actively matched something).
+        // This prevents misleading "no such flag" suggestion errors when the
+        // flag is valid but missing its required value.
+        (None, Some(Error(Message::NoArgument(ix, mv))))
+            if args_a.present(ix) == Some(true) && args_a.len() >= args_b.len() =>
+        {
+            Err(Error(Message::NoArgument(ix, mv)))
+        }
+        (Some(Error(Message::NoArgument(ix, mv))), None)
+            if args_b.present(ix) == Some(true) && args_b.len() >= args_a.len() =>
+        {
+            Err(Error(Message::NoArgument(ix, mv)))
+        }
         // otherwise either a or b are success, true means a is success
         (a_ok, _) => Ok((a_ok.is_none(), None)),
     };
@@ -816,8 +832,14 @@ where
             // anything left unconsumed - this won't be lost.
 
             let missing = matches!(err, Message::Missing(_));
+            // NoArgument means the user explicitly provided the flag but its value is
+            // missing. This should never be silently caught - always report it.
+            let no_argument = matches!(err, Message::NoArgument(_, _));
 
-            if catch || (missing && orig_args.len() == args.len()) || (!missing && err.can_catch())
+            if !no_argument
+                && (catch
+                    || (missing && orig_args.len() == args.len())
+                    || (!missing && err.can_catch()))
             {
                 std::mem::swap(&mut orig_args, args);
                 #[cfg(feature = "autocomplete")]
