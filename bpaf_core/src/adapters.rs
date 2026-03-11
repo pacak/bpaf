@@ -445,12 +445,9 @@ impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for Pure
     type Output = T;
     async fn eval<'p>(&'p self, _ctx: crate::Ctx<'p>) -> Result<T, Error> {
         (self.act)().map_err(|err| {
-            Error::Problem(
-                u32::MAX,
-                Problem::Dynamic {
-                    err: err.to_string(),
-                },
-            )
+            Error::Missing(MissingItem::Custom {
+                item: err.to_string().into(),
+            })
         })
     }
 

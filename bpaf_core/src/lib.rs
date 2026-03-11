@@ -123,12 +123,22 @@ pub mod api {
                         Ok(v) => val = val.or(Some(v)),
                     }
                 }
-                if matches!(&acc, Error::Final(_)) {
-                    // this handles a scenario for a sum parser,
-                    // where one branch is a command and the other branch succeeds
-                    // without consumption. Whole parser succeeds, but we end up
-                    // with unconsumed input and executor looks for suggestions and finds
-                    // the command parser resulting in "no such parser `foo`, did you mean `foo`?"
+
+                // If the succeeding parser didn't consume a value - prefer to return an accumulated
+                // error instead. We are dealing with a fallback-like case here. Such cases should
+                // only handle "missing" style errors.
+                //
+                // Sample scenarios where this branch is taken:
+                // - a sub-parser handles `--help`. It fails with `Error::Final` and we don't want
+                //   to discard it if there's an alternative branch that succeeds without consuming
+                //   anything: input that leads to the sub-parser is still there and needs to be
+                //   consumed.
+                // - in one branch an argument parser fails to consume the trigger due to missing
+                //   value, a different parser in a concurrent branch succeeds without consuming
+                //   anything. We want the error from the argument parser, otherwise the whole parser
+                //   will fail to make progress and we'll have to produce an error explaining the
+                //   unparsed trigger part of the argument.
+                if !consumed && matches!(&acc, Error::Final(_) | Error::Problem(_, _)) {
                     Err(acc)
                 } else {
                     val.ok_or(acc)

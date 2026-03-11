@@ -17,14 +17,40 @@ fn default_value_using_pure_with_ok() {
 }
 
 #[test]
-fn default_value_using_pure_with_err() {
+fn default_value_using_pure_with_err1() {
+    // error from pure_with behaves similar to a "missing" errors:
+    // earlier missing error takes priority
     let a = short('t').argument::<u32>("N");
     let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
 
     let opts = construct!([a, b]).to_options();
-    let r = opts.run_inner("");
-    let e = r.unwrap_err().unwrap_stderr();
+    let e = opts.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!("missing `-t N`\n", e);
+}
+
+#[test]
+fn default_value_using_pure_with_err2() {
+    // error from pure_with behaves similar to a "missing" errors:
+    // earlier missing error takes priority
+    let a = short('t').argument::<u32>("N");
+    let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
+
+    let opts = construct!([b, a]).to_options();
+    let e = opts.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!("some-err\n", e);
+}
+
+#[test]
+fn default_value_using_pure_with_err3() {
+    // error from pure_with behaves similar to a "missing" errors:
+    // earlier missing error takes priority
+    // can be caught with `.fallback()`
+    let a = short('t').argument::<u32>("N");
+    let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
+
+    let opts = construct!([b, a]).fallback(42).to_options();
+    let r = opts.run_inner("").unwrap();
+    assert_eq!(r, 42);
 }
 
 #[test]
@@ -51,7 +77,9 @@ fn default_value_using_pure_with_err_for_some() {
         Err("oh, no!")
     });
     let default_seeds = pure(vec![1, 2]);
-    let seeds = construct!([user_seeds, last_seeds, default_seeds]).to_options();
+    let seeds = construct!([user_seeds, last_seeds])
+        .fallback(vec![1, 2])
+        .to_options();
 
     let r = seeds.run_inner("23 59");
     assert_eq!(vec![23, 59], r.unwrap());

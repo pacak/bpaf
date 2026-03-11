@@ -823,3 +823,17 @@ fn conflict_with_argument() {
     let expected = "`--name` cannot be used at the same time as `--noname`\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn no_misleading_no_such_flag() {
+    // Simulates an enum with alternative variants (e.g. derive enum with or_else)
+    let edit_manifest = long("file").argument::<String>("FILE").optional();
+
+    let rename = long("name").argument::<String>("NAME").map(Some);
+
+    let parser = construct!([edit_manifest, rename]).to_options();
+
+    let r = parser.run_inner("--name").unwrap_err().unwrap_stderr();
+    let expected = "`--name` expects a value\n";
+    assert_eq!(r, expected);
+}
