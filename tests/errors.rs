@@ -320,3 +320,14 @@ fn argument_missing_value_or_else_winner_consumed() {
     let r = parser.run_inner(&["--name"]).unwrap();
     assert!(r);
 }
+
+#[test]
+fn argument_missing_value_with_catch() {
+    // .optional().catch() should not swallow NoArgument - the user explicitly
+    // provided the flag, so the missing value should always be reported.
+    let name = long("name").argument::<String>("NAME").optional().catch();
+    let file = long("file").argument::<String>("FILE").optional();
+    let parser = construct!(name, file).to_options();
+    let r = parser.run_inner(&["--name"]).unwrap_err().unwrap_stderr();
+    assert_eq!(r, "`--name` requires an argument `NAME`");
+}

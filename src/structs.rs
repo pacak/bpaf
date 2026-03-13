@@ -751,6 +751,10 @@ impl<P> ParseOptional<P> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
+    /// `catch` won't catch errors related to partial/incomplete input, for example a named
+    /// argument that lacks a value (`--name` where parser expects `--name Alice`) or a positional
+    /// item that parser expects to be after `--`.
+    ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
     ///
@@ -793,7 +797,7 @@ fn parse_option<P, T>(
     parser: &P,
     len: &mut usize,
     args: &mut State,
-    catch: bool,
+    mut catch: bool,
 ) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
@@ -821,6 +825,8 @@ where
             // anything left unconsumed - this won't be lost.
 
             let missing = matches!(err, Message::Missing(_));
+
+            catch &= !err.wrong_input();
 
             if catch || (missing && orig_args.len() == args.len()) || (!missing && err.can_catch())
             {
