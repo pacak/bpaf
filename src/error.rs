@@ -106,6 +106,18 @@ impl Message {
             | Message::NoArgument(_, _) => false,
         }
     }
+
+    /// A list of errors that `catch` can't catch
+    pub(crate) fn wrong_input(&self) -> bool {
+        matches!(
+            self,
+            Message::StrictPos(_, _)
+                | Message::NonStrictPos(_, _)
+                | Message::NoArgument(_, _)
+                | Message::Unconsumed(_)
+                | Message::Ambiguity(_, _)
+        )
+    }
 }
 
 /// Missing item in a context

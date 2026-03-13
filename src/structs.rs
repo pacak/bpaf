@@ -352,18 +352,23 @@ fn this_or_that_picks_first(
         }
     }
 
-    // otherwise pick based on the left most or successful one
+    let no_consume_a = args.len() == args_a.len();
+    let no_consume_b = args.len() == args_b.len();
+    // otherwise, pick based on the left most or successful one
     #[allow(clippy::let_and_return)] // <- it is without autocomplete only
     let res = match (err_a, err_b) {
         (None, None) => {
-            if args.len() == args_a.len() && args.len() == args_b.len() {
+            if no_consume_a && no_consume_b {
                 Ok((true, None))
             } else {
                 Ok(args_a.pick_winner(args_b))
             }
         }
+        // non consuming parsers should not take priority
+        (None, Some(e2)) if no_consume_a && e2.0.wrong_input() => Err(e2),
+        (Some(e1), None) if no_consume_b && e1.0.wrong_input() => Err(e1),
         (Some(e1), Some(e2)) => Err(e1.combine_with(e2)),
-        // otherwise either a or b are success, true means a is success
+        // otherwise, either `a` or `b` are success, `true` means `a` is success
         (a_ok, _) => Ok((a_ok.is_none(), None)),
     };
 
@@ -746,6 +751,10 @@ impl<P> ParseOptional<P> {
     /// When parser succeeds - `catch` version would return a value as usual
     /// if it fails - `catch` would restore all the consumed values and return None.
     ///
+    /// `catch` won't catch errors related to partial/incomplete input, for example a named
+    /// argument that lacks a value (`--name` where parser expects `--name Alice`) or a positional
+    /// item that parser expects to be after `--`.
+    ///
     /// There's several structures that implement this attribute: [`ParseOptional`], [`ParseMany`]
     /// and [`ParseSome`], behavior should be identical for all of them.
     ///
@@ -788,7 +797,7 @@ fn parse_option<P, T>(
     parser: &P,
     len: &mut usize,
     args: &mut State,
-    catch: bool,
+    mut catch: bool,
 ) -> Result<Option<T>, Error>
 where
     P: Parser<T>,
@@ -816,6 +825,8 @@ where
             // anything left unconsumed - this won't be lost.
 
             let missing = matches!(err, Message::Missing(_));
+
+            catch &= !err.wrong_input();
 
             if catch || (missing && orig_args.len() == args.len()) || (!missing && err.can_catch())
             {
