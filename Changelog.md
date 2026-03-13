@@ -1,5 +1,12 @@
 # Change Log
 
+## bpaf [0.9.24] - 2026-03-13
+- a less confusing error message when invalid user input mixes with parsers that
+  can succeed with no input, see #442
+  thanks @tonky for a solution prototype
+
+- CI test for older rustc now uses 1.71, MSRV should still be 1.60 for now
+
 ## bpaf [0.9.23], bpaf_derive [0.5.23] - 2026-02-03
 - code produced by derive macro is now won't trigger missing-docs lint
 
