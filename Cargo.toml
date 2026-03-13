@@ -1,6 +1,6 @@
 [package]
 name = "bpaf"
-version = "0.9.23"
+version = "0.9.24"
 edition = "2021"
 categories = ["command-line-interface"]
 description = "A simple Command Line Argument Parser with parser combinators"
