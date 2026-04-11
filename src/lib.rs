@@ -1523,3 +1523,30 @@ pub fn choice<T: 'static>(parsers: impl IntoIterator<Item = Box<dyn Parser<T>>>)
     }
     this
 }
+
+/// Parse the application name
+///
+/// If you are using [`OptionParser::run`] then it should just work. If you are using
+/// some variation of [`OptionParser::run_inner`] you'll need to set the application
+/// name using [`Args::set_name`].
+///
+#[cfg_attr(not(doctest), doc = include_str!("docs2/appname.md"))]
+pub fn appname() -> impl Parser<String> {
+    ParseAppname
+}
+
+#[derive(Debug, Copy, Clone)]
+struct ParseAppname;
+impl Parser<String> for ParseAppname {
+    fn eval(&self, args: &mut State) -> Result<String, Error> {
+        Ok(args
+            .path
+            .first()
+            .cloned()
+            .unwrap_or_else(|| String::from("app")))
+    }
+
+    fn meta(&self) -> Meta {
+        Meta::Skip
+    }
+}
