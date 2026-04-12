@@ -489,9 +489,9 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
             }
         }
         HelpItem::AdjacentStart { inner, .. } => {
-            buf.token(Token::BlockStart(Block::Section3));
+            buf.token(Token::BlockStart(Block::Section4));
             buf.write_meta(inner, true);
-            buf.token(Token::BlockEnd(Block::Section3));
+            buf.token(Token::BlockEnd(Block::Section4));
         }
         HelpItem::AdjacentStop { .. } => {
             buf.token(Token::BlockStart(Block::Block));

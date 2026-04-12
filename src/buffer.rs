@@ -275,6 +275,10 @@ pub(crate) enum Block {
     /// level 3 section header, "group_help" header, etc.
     Section3,
 
+    // 2 margin
+    /// Same as level 3, but with no `###` in markdown
+    Section4,
+
     // inline, 4 margin, no nesting
     /// -h, --help
     ItemTerm,
