@@ -1,0 +1,9 @@
+(function() {
+    const implementors = Object.fromEntries([["bpaf",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"bpaf/doc/enum.Style.html\" title=\"enum bpaf::doc::Style\">Style</a>",0],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"bpaf/enum.ShellComp.html\" title=\"enum bpaf::ShellComp\">ShellComp</a>",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"enum\" href=\"bpaf/doc/enum.Section.html\" title=\"enum bpaf::doc::Section\">Section</a>&lt;'a&gt;",0],["impl&lt;'a&gt; <a class=\"trait\" href=\"https://doc.rust-lang.org/1.94.1/core/marker/trait.Copy.html\" title=\"trait core::marker::Copy\">Copy</a> for <a class=\"struct\" href=\"bpaf/doc/struct.MetaInfo.html\" title=\"struct bpaf::doc::MetaInfo\">MetaInfo</a>&lt;'a&gt;",0]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":59,"fragment_lengths":[1042]}
