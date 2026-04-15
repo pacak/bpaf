@@ -52,11 +52,11 @@ pub(crate) enum HelpItem<'a> {
         env: Option<&'static str>,
         help: Option<&'a Doc>,
     },
-    AnywhereStart {
+    AdjacentStart {
         inner: &'a Meta,
         ty: HiTy,
     },
-    AnywhereStop {
+    AdjacentStop {
         ty: HiTy,
     },
 }
@@ -70,8 +70,8 @@ impl HelpItem<'_> {
             | HelpItem::Argument { help, .. } => help.is_some(),
             HelpItem::GroupStart { .. } | HelpItem::DecorSuffix { .. } => true,
             HelpItem::GroupEnd { .. }
-            | HelpItem::AnywhereStart { .. }
-            | HelpItem::AnywhereStop { .. } => false,
+            | HelpItem::AdjacentStart { .. }
+            | HelpItem::AdjacentStop { .. } => false,
         }
     }
 
@@ -80,8 +80,8 @@ impl HelpItem<'_> {
             HelpItem::GroupStart { ty, .. }
             | HelpItem::DecorSuffix { ty, .. }
             | HelpItem::GroupEnd { ty }
-            | HelpItem::AnywhereStart { ty, .. }
-            | HelpItem::AnywhereStop { ty } => *ty,
+            | HelpItem::AdjacentStart { ty, .. }
+            | HelpItem::AdjacentStop { ty } => *ty,
             HelpItem::Any {
                 anywhere: false, ..
             }
@@ -131,7 +131,7 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
             self.cur += 1;
 
             let keep = match item {
-                HelpItem::AnywhereStart { ty, .. } => {
+                HelpItem::AdjacentStart { ty, .. } => {
                     self.block = ItemBlock::Anywhere(*ty);
                     *ty == self.target
                 }
@@ -139,7 +139,7 @@ impl<'a, 'b> Iterator for HelpItemsIter<'a, 'b> {
                     self.block = ItemBlock::Decor(*ty);
                     *ty == self.target
                 }
-                HelpItem::GroupEnd { ty, .. } | HelpItem::AnywhereStop { ty, .. } => {
+                HelpItem::GroupEnd { ty, .. } | HelpItem::AdjacentStop { ty, .. } => {
                     self.block = ItemBlock::No;
                     *ty == self.target
                 }
@@ -206,12 +206,12 @@ impl<'a> HelpItems<'a> {
                 }
                 Meta::Adjacent(m) => {
                     if let Some(ty) = m.peek_front_ty() {
-                        hi.items.push(HelpItem::AnywhereStart {
+                        hi.items.push(HelpItem::AdjacentStart {
                             inner: m.as_ref(),
                             ty,
                         });
                         go(hi, m, no_ss);
-                        hi.items.push(HelpItem::AnywhereStop { ty });
+                        hi.items.push(HelpItem::AdjacentStop { ty });
                     }
                 }
                 Meta::CustomUsage(x, _)
@@ -488,12 +488,12 @@ fn write_help_item(buf: &mut Doc, item: &HelpItem, include_env: bool) {
                 buf.token(Token::BlockEnd(Block::ItemBody));
             }
         }
-        HelpItem::AnywhereStart { inner, .. } => {
-            buf.token(Token::BlockStart(Block::Section3));
+        HelpItem::AdjacentStart { inner, .. } => {
+            buf.token(Token::BlockStart(Block::Section4));
             buf.write_meta(inner, true);
-            buf.token(Token::BlockEnd(Block::Section3));
+            buf.token(Token::BlockEnd(Block::Section4));
         }
-        HelpItem::AnywhereStop { .. } => {
+        HelpItem::AdjacentStop { .. } => {
             buf.token(Token::BlockStart(Block::Block));
             buf.token(Token::BlockEnd(Block::Block));
         }
@@ -582,8 +582,8 @@ impl Dedup {
             HelpItem::DecorSuffix { .. } => std::mem::take(&mut self.keep),
             HelpItem::GroupStart { .. }
             | HelpItem::GroupEnd { .. }
-            | HelpItem::AnywhereStart { .. }
-            | HelpItem::AnywhereStop { .. } => {
+            | HelpItem::AdjacentStart { .. }
+            | HelpItem::AdjacentStop { .. } => {
                 self.keep = true;
                 true
             }

@@ -259,7 +259,9 @@ impl Doc {
                             res.push_str("<p>");
                         }
                         Block::Meta => todo!(),
-                        Block::Section3 => res.push_str("<div style='padding-left: 0.5em'>"),
+                        Block::Section3 | Block::Section4 => {
+                            res.push_str("<div style='padding-left: 0.5em'>")
+                        }
                         Block::Mono | Block::TermRef => {}
                         Block::InlineBlock => {
                             skip.push();
@@ -294,7 +296,7 @@ impl Doc {
                             res.push_str("</p>");
                         }
                         Block::Mono | Block::TermRef => {}
-                        Block::Section3 => res.push_str("</div>"),
+                        Block::Section3 | Block::Section4 => res.push_str("</div>"),
                         Block::Meta => todo!(),
                     }
                 }
@@ -395,7 +397,7 @@ impl Doc {
                         Block::Section2 => {
                             res.push_str("");
                         }
-                        Block::ItemTerm => {
+                        Block::ItemTerm | Block::Section4 => {
                             new_markdown_line(&mut res);
                             empty_term = matches!(
                                 self.tokens.get(ix + 1),
@@ -431,7 +433,11 @@ impl Doc {
                 Token::BlockEnd(b) => {
                     change_to_markdown_style(&mut res, &mut cur_style, Styles::default());
                     match b {
-                        Block::Header | Block::Block | Block::Section3 | Block::Section2 => {
+                        Block::Header
+                        | Block::Block
+                        | Block::Section3
+                        | Block::Section2
+                        | Block::Section4 => {
                             res.push('\n');
                         }
 

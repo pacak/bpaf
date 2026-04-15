@@ -84,8 +84,8 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
                         | HelpItem::GroupStart { .. }
                         | HelpItem::GroupEnd { .. }
                         | HelpItem::Positional { .. }
-                        | HelpItem::AnywhereStart { .. }
-                        | HelpItem::AnywhereStop { .. }
+                        | HelpItem::AdjacentStart { .. }
+                        | HelpItem::AdjacentStop { .. }
                         | HelpItem::Any { .. } => {}
                     }
                 }
@@ -108,8 +108,8 @@ pub(crate) fn suggest(args: &State, meta: &Meta) -> Option<(usize, Suggestion)> 
             | HelpItem::DecorSuffix { .. }
             | HelpItem::GroupStart { .. }
             | HelpItem::GroupEnd { .. }
-            | HelpItem::AnywhereStart { .. }
-            | HelpItem::AnywhereStop { .. }
+            | HelpItem::AdjacentStart { .. }
+            | HelpItem::AdjacentStop { .. }
             | HelpItem::Any { .. } => {}
         }
     }

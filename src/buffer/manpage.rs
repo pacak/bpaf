@@ -190,7 +190,7 @@ impl Doc {
                 Token::BlockStart(block) => {
                     //
                     match block {
-                        Block::Header | Block::Section2 | Block::Section3 => {
+                        Block::Header | Block::Section2 | Block::Section3 | Block::Section4 => {
                             capture.1 = true;
                         }
                         Block::ItemTerm => {
@@ -218,7 +218,7 @@ impl Doc {
                             roff.control("SH", [capture.0.to_uppercase()]);
                             capture.0.clear();
                         }
-                        Block::Section2 | Block::Section3 => {
+                        Block::Section2 | Block::Section3 | Block::Section4 => {
                             capture.1 = false;
                             roff.control("SS", [capture.0.to_uppercase()]);
                             capture.0.clear();

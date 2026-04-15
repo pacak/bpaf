@@ -10,6 +10,7 @@ fn write_updated(new_val: &str, path: impl AsRef<std::path::Path>) -> std::io::R
         .write(true)
         .read(true)
         .create(true)
+        .truncate(false)
         .open(path)?;
     let mut current_val = String::new();
     file.read_to_string(&mut current_val)?;
@@ -35,7 +36,11 @@ fn simple() {
         .help("Log in as this user")
         .argument::<String>("USER");
 
-    let options = construct!(kraken, user)
+    let a = short('a').req_flag(());
+    let b = positional::<usize>("B");
+    let oddpos = construct!(a, b).adjacent();
+
+    let options = construct!(kraken, user, oddpos)
         .to_options()
         .descr("I am a program and I do things")
         .header("Sometimes they even work.")

@@ -271,7 +271,7 @@ impl Doc {
                             pending_newline = true;
                             margins.push(margin);
                         }
-                        Block::Section3 => {
+                        Block::Section3 | Block::Section4 => {
                             pending_newline = true;
                             margins.push(margin + 2);
                         }
@@ -310,6 +310,7 @@ impl Doc {
                         Block::Header
                         | Block::Section2
                         | Block::Section3
+                        | Block::Section4
                         | Block::ItemTerm
                         | Block::DefinitionList
                         | Block::Meta

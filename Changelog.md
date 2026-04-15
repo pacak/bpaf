@@ -1,5 +1,11 @@
 # Change Log
 
+## bpaf [0.9.25] - 2026-04-15
+- Change rendering of an adjacent block in Markdown - this is no longer a `###`
+  but a regular line item instead. Header messes up with generated navigation on
+  some pages
+- `app_name` - parser that extracts the executable name
+
 ## bpaf [0.9.24] - 2026-03-13
 - a less confusing error message when invalid user input mixes with parsers that
   can succeed with no input, see #442
