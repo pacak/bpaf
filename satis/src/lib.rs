@@ -565,15 +565,19 @@ impl Snippet {
         let cache = load_cached(&binary.name, &self.prompt, &self.shell)?;
 
         let mut term = Terminal::start(self, binary)?;
-        let _ = term.await_expected(self.shell.started(), self.shell.is_incremental())?;
+        term.await_expected(self.shell.started())?;
 
         term.user_input(&prompt)?;
         let raw = if !self.expected.is_empty() && self.shell.is_incremental() {
-            term.await_expected(&self.expected, self.shell.is_incremental())?
+            term.await_expected(
+                &self.expected,
+                self.shell.is_incremental(),
+                cached_data.as_deref(),
+            )?
         } else if let Op::Timeout { timeout } = op {
-            term.await_timeout(timeout)?
+            term.await_timeout(timeout, cached_data.as_deref())?
         } else {
-            term.await_timeout(std::time::Duration::from_millis(300))?
+            term.await_timeout(std::time::Duration::from_millis(300), cache.as_deref())?
         };
 
         if cache.is_none_or(|old| old != raw) {

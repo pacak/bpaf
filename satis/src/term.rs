@@ -147,11 +147,33 @@ impl Terminal {
 
     /// Wait for new data stop appearing
     ///
-    /// Exit after a `timeout` since the last update
-    pub fn await_timeout(&mut self, timeout: std::time::Duration) -> anyhow::Result<Vec<u8>> {
+    /// When cache is available - tries to use it to avoid waiting for a full `timeout`
+    /// after shell is already finished.
+    ///
+    /// For that it tracks what was produced and compares it with what's in cache.
+    /// At the very first mismatch the cache is useless so we have to wait for the full `timeout` to
+    /// rebuild it, but if there's no mismatches we can exit as soon as we get all the expected
+    /// data.
+    pub fn await_timeout(
+        &mut self,
+        timeout: std::time::Duration,
+        cached: Option<&[u8]>,
+    ) -> anyhow::Result<Vec<u8>> {
         self.stream.flush()?;
+        let mut invalidated = false;
+        let mut seen = 0;
         while self.more_data(timeout)? {
             self.fetch_next_chunk()?;
+            if !invalidated
+                && cached.is_some_and(|cache| {
+                    let chunk = seen..self.output.len();
+                    invalidated |= cache[chunk.clone()] != self.output[chunk];
+                    seen = self.output.len();
+                    self.output.len() == cache.len()
+                })
+            {
+                break;
+            }
         }
         Ok(std::mem::take(&mut self.output))
     }
@@ -165,13 +187,22 @@ impl Terminal {
     /// If the check is incremental - can exit if the input can't contain the value - for
     /// shells that render things left to right is helps to detect issues much earlier.
     /// Might not hold if shells render things out of order. Fish?
-    pub fn await_expected(&mut self, value: &str, is_incremental: bool) -> anyhow::Result<Vec<u8>> {
+    pub fn await_expected(
+        &mut self,
+        value: &str,
+        is_incremental: bool,
+        cached: Option<&[u8]>,
+    ) -> anyhow::Result<Vec<u8>> {
         self.stream.flush()?;
         while self.more_data(std::time::Duration::from_secs(5))? {
             self.fetch_next_chunk()?;
+
+            if cached.is_some_and(|cache| self.output == cache) {
+                break;
+            }
             let contents = self.term.screen().contents();
             if contents == value || (is_incremental && !value.starts_with(&contents)) {
-                return Ok(std::mem::take(&mut self.output));
+                break;
             }
         }
         Ok(std::mem::take(&mut self.output))
