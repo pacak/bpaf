@@ -158,7 +158,9 @@ impl Terminal {
 
     /// Wait for the expected input
     ///
-    /// Exit if the screen contains `value`
+    /// Exit if the screen is the `value`
+    ///
+    /// Mostly useful to detect when the shell is done initializing:
     ///
     /// If the check is incremental - can exit if the input can't contain the value - for
     /// shells that render things left to right is helps to detect issues much earlier.

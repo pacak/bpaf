@@ -12,6 +12,63 @@ mod config;
 mod term;
 pub use config::config_from_cargo;
 
+mod cache {
+    use crate::config::Shell;
+    use anyhow::Context as _;
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    use std::path::PathBuf;
+
+    fn cache_dir() -> PathBuf {
+        let mut path = std::env::current_dir().unwrap_or_default();
+        // TODO - this relies on it being a cargo app
+        path.push("target/satis_cache");
+        path
+    }
+
+    fn cache_key(app: &str, prompt: &str, shell: &Shell) -> u64 {
+        let mut hasher = DefaultHasher::new();
+        app.hash(&mut hasher);
+        prompt.hash(&mut hasher);
+        shell.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    fn cache_path(app: &str, prompt: &str, shell: &Shell) -> PathBuf {
+        let mut path = cache_dir();
+        path.push(format!("{:x}.bin", cache_key(app, prompt, shell)));
+        path
+    }
+
+    pub(crate) fn load_cached(
+        app: &str,
+        prompt: &str,
+        shell: &Shell,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
+        let path = cache_path(app, prompt, shell);
+        match std::fs::read(&path) {
+            Ok(data) => Ok(Some(data)),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(e).with_context(|| format!("reading cache file {path:?}")),
+        }
+    }
+
+    pub(crate) fn save_cached(
+        app: &str,
+        prompt: &str,
+        shell: &Shell,
+        data: &[u8],
+    ) -> anyhow::Result<()> {
+        let path = cache_path(app, prompt, shell);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .with_context(|| format!("creating cache dir {parent:?}"))?;
+        }
+        std::fs::write(&path, data).with_context(|| format!("writing cache file {path:?}"))
+    }
+}
+
+use crate::cache::*;
+
 use crate::config::{Binary, Shell};
 
 pub fn prepare_binaries(
@@ -475,36 +532,40 @@ impl Snippet {
         let prompt = self.prompt.replace("<TAB>", "\t");
         if prompt == self.prompt {
             println!("Ignoring the execution test for now");
-            Ok(false)
-        } else {
-            let mut term = Terminal::start(self, binary)?;
-
-            // wait for shell to start before performing the completions
-            term.await_expected(self.shell.started(), self.shell.is_incremental())?;
-
-            // then feed the prompt and wait for it to settle down
-            term.user_input(&prompt)?;
-            if !self.expected.is_empty() && self.shell.is_incremental() {
-                term.await_expected(&self.expected, self.shell.is_incremental())?;
-            } else if let Op::Timeout { timeout } = op {
-                term.await_timeout(timeout)?;
-            } else {
-                term.await_timeout(std::time::Duration::from_millis(300))?;
-            }
-            let mut actual = String::new();
-            for line in term.screen().contents().lines() {
-                actual.push_str(line.trim_end());
-                actual.push('\n');
-            }
-            actual.truncate(actual.trim_end().len());
-            let matches = self.expected == actual;
-            self.stage = if matches {
-                Stage::Matches
-            } else {
-                Stage::Mismatch(actual)
-            };
-            Ok(matches)
+            return Ok(false);
         }
+
+        let cache = load_cached(&binary.name, &self.prompt, &self.shell)?;
+
+        let mut term = Terminal::start(self, binary)?;
+        let _ = term.await_expected(self.shell.started(), self.shell.is_incremental())?;
+
+        term.user_input(&prompt)?;
+        let raw = if !self.expected.is_empty() && self.shell.is_incremental() {
+            term.await_expected(&self.expected, self.shell.is_incremental())?
+        } else if let Op::Timeout { timeout } = op {
+            term.await_timeout(timeout)?
+        } else {
+            term.await_timeout(std::time::Duration::from_millis(300))?
+        };
+
+        if cache.is_none_or(|old| old != raw) {
+            save_cached(&binary.name, &self.prompt, &self.shell, &raw)?;
+        }
+
+        let mut actual = String::new();
+        for line in term.screen().contents().lines() {
+            actual.push_str(line.trim_end());
+            actual.push('\n');
+        }
+        actual.truncate(actual.trim_end().len());
+        let matches = self.expected == actual;
+        self.stage = if matches {
+            Stage::Matches
+        } else {
+            Stage::Mismatch { actual }
+        };
+        Ok(matches)
     }
 }
 

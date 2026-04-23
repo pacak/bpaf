@@ -30,7 +30,7 @@ pub struct MkComplete {
     pub to_config: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Shell {
     Bash,
     Zsh,
