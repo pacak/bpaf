@@ -457,8 +457,8 @@ impl Shell {
     fn is_incremental(self) -> bool {
         match self {
             Shell::Bash => true,
-            Shell::Zsh => true,
-            Shell::Fish => true,
+            Shell::Zsh => false,
+            Shell::Fish => false,
         }
     }
 }
@@ -484,10 +484,12 @@ impl Snippet {
 
             // then feed the prompt and wait for it to settle down
             term.user_input(&prompt)?;
-            if self.expected.is_empty() {
-                term.await_timeout(std::time::Duration::from_millis(300))?;
-            } else {
+            if !self.expected.is_empty() && self.shell.is_incremental() {
                 term.await_expected(&self.expected, self.shell.is_incremental())?;
+            } else if let Op::Timeout { timeout } = op {
+                term.await_timeout(timeout)?;
+            } else {
+                term.await_timeout(std::time::Duration::from_millis(300))?;
             }
             let mut actual = String::new();
             for line in term.screen().contents().lines() {

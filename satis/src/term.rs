@@ -45,6 +45,7 @@ pub struct Terminal {
     poll: Poll,
     events: Events,
     tempdir: TempDir,
+    output: Vec<u8>,
 }
 
 fn check_err(val: i32) -> std::io::Result<i32> {
@@ -111,6 +112,7 @@ impl Terminal {
             poll,
             events,
             tempdir,
+            output: Vec::new(),
         })
     }
 
@@ -131,6 +133,7 @@ impl Terminal {
             if len == 0 {
                 break Ok(());
             }
+            self.output.extend_from_slice(&buf[..len]);
             self.term.process(&buf[..len]);
             let cb = self.term.callbacks_mut();
             while cb.cnt > 0 {
@@ -145,12 +148,12 @@ impl Terminal {
     /// Wait for new data stop appearing
     ///
     /// Exit after a `timeout` since the last update
-    pub fn await_timeout(&mut self, timeout: std::time::Duration) -> anyhow::Result<()> {
+    pub fn await_timeout(&mut self, timeout: std::time::Duration) -> anyhow::Result<Vec<u8>> {
         self.stream.flush()?;
         while self.more_data(timeout)? {
             self.fetch_next_chunk()?;
         }
-        Ok(())
+        Ok(std::mem::take(&mut self.output))
     }
 
     /// Wait for the expected input
@@ -160,16 +163,16 @@ impl Terminal {
     /// If the check is incremental - can exit if the input can't contain the value - for
     /// shells that render things left to right is helps to detect issues much earlier.
     /// Might not hold if shells render things out of order. Fish?
-    pub fn await_expected(&mut self, value: &str, is_incremental: bool) -> anyhow::Result<()> {
+    pub fn await_expected(&mut self, value: &str, is_incremental: bool) -> anyhow::Result<Vec<u8>> {
         self.stream.flush()?;
         while self.more_data(std::time::Duration::from_secs(5))? {
             self.fetch_next_chunk()?;
             let contents = self.term.screen().contents();
             if contents == value || (is_incremental && !value.starts_with(&contents)) {
-                return Ok(());
+                return Ok(std::mem::take(&mut self.output));
             }
         }
-        Ok(())
+        Ok(std::mem::take(&mut self.output))
     }
 
     pub fn screen(&self) -> &Screen {
