@@ -167,7 +167,8 @@ impl Terminal {
             if !invalidated
                 && cached.is_some_and(|cache| {
                     let chunk = seen..self.output.len();
-                    invalidated |= cache[chunk.clone()] != self.output[chunk];
+                    invalidated |=
+                        chunk.end > cache.len() || cache[chunk.clone()] != self.output[chunk];
                     seen = self.output.len();
                     self.output.len() == cache.len()
                 })
@@ -182,30 +183,20 @@ impl Terminal {
     ///
     /// Exit if the screen is the `value`
     ///
-    /// Mostly useful to detect when the shell is done initializing:
-    ///
-    /// If the check is incremental - can exit if the input can't contain the value - for
-    /// shells that render things left to right is helps to detect issues much earlier.
-    /// Might not hold if shells render things out of order. Fish?
-    pub fn await_expected(
-        &mut self,
-        value: &str,
-        is_incremental: bool,
-        cached: Option<&[u8]>,
-    ) -> anyhow::Result<Vec<u8>> {
+    /// Mostly useful to detect when the shell is done initializing
+    pub fn await_expected(&mut self, value: &str) -> anyhow::Result<()> {
         self.stream.flush()?;
         while self.more_data(std::time::Duration::from_secs(5))? {
             self.fetch_next_chunk()?;
-
-            if cached.is_some_and(|cache| self.output == cache) {
-                break;
-            }
-            let contents = self.term.screen().contents();
-            if contents == value || (is_incremental && !value.starts_with(&contents)) {
-                break;
+            if self.term.screen().contents() == value {
+                return Ok(());
             }
         }
-        Ok(std::mem::take(&mut self.output))
+        anyhow::ensure!(
+            self.term.screen().contents() == value,
+            "After awaiting for {value:?} we still didn't get it"
+        );
+        Ok(())
     }
 
     pub fn screen(&self) -> &Screen {

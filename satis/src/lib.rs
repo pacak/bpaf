@@ -538,13 +538,6 @@ impl Shell {
             Shell::Fish => todo!(),
         }
     }
-    fn is_incremental(self) -> bool {
-        match self {
-            Shell::Bash => true,
-            Shell::Zsh => false,
-            Shell::Fish => false,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -568,14 +561,8 @@ impl Snippet {
         term.await_expected(self.shell.started())?;
 
         term.user_input(&prompt)?;
-        let raw = if !self.expected.is_empty() && self.shell.is_incremental() {
-            term.await_expected(
-                &self.expected,
-                self.shell.is_incremental(),
-                cached_data.as_deref(),
-            )?
-        } else if let Op::Timeout { timeout } = op {
-            term.await_timeout(timeout, cached_data.as_deref())?
+        let raw = if let Op::Timeout { timeout } = op {
+            term.await_timeout(timeout, cache.as_deref())?
         } else {
             term.await_timeout(std::time::Duration::from_millis(300), cache.as_deref())?
         };
