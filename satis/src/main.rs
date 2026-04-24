@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use bpaf::Bpaf;
-use satis::{Md, Op, Terminal, config_from_cargo, op, prepare_binaries};
+use satis::{Md, Op, config_from_cargo, evict_old_cache_entries, op, prepare_binaries};
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
@@ -19,6 +19,7 @@ struct Opts {
 
 fn main() -> anyhow::Result<()> {
     let opts = opts().run();
+    evict_old_cache_entries();
     let mut binaries = config_from_cargo()?.expect("Cargo.toml only for now");
 
     // TODO

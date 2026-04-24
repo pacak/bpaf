@@ -65,9 +65,36 @@ mod cache {
         }
         std::fs::write(&path, data).with_context(|| format!("writing cache file {path:?}"))
     }
+
+    pub fn evict_old_cache_entries() {
+        let dir = cache_dir();
+        let Ok(entries) = std::fs::read_dir(&dir) else {
+            return;
+        };
+
+        let cutoff =
+            std::time::SystemTime::now().checked_sub(std::time::Duration::from_secs(86400));
+
+        for entry in entries {
+            let Ok(entry) = entry else { continue };
+            let path = entry.path();
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            let Ok(modified) = metadata.modified() else {
+                continue;
+            };
+
+            if let Some(cutoff) = cutoff
+                && modified < cutoff
+            {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+    }
 }
 
-use crate::cache::*;
+pub use crate::cache::*;
 
 use crate::config::{Binary, Shell};
 
