@@ -2,8 +2,9 @@ use anyhow::Context;
 use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::OsStr,
-    path::{Path, PathBuf},
+    path::PathBuf,
     process::Command,
+    time::Duration,
 };
 use tempdir::TempDir;
 pub use term::Terminal;
@@ -11,6 +12,54 @@ pub use term::Terminal;
 mod config;
 mod term;
 pub use config::config_from_cargo;
+
+#[derive(Debug, Clone)]
+pub struct FileOp {
+    pub file: PathBuf,
+    pub indices: Option<Vec<usize>>,
+}
+
+/// File operations
+///
+/// Parses a list of files, each file can be followed by zero or more indices
+pub fn parse_file_op() -> impl bpaf::Parser<Vec<FileOp>> {
+    fn parse_file_set(xs: Vec<std::ffi::OsString>) -> Result<Vec<FileOp>, String> {
+        let mut res = Vec::new();
+        let mut ix = 0;
+        let mut indices = Vec::new();
+
+        while let Some(file) = xs.get(ix) {
+            let file = PathBuf::from(file);
+            if file.extension().is_none_or(|e| e != "md") {
+                return Err(format!("Expected an .md file, got {file:?}"));
+            }
+            while let Some(value) = xs
+                .get(ix + 1)
+                .and_then(|v| v.to_str())
+                .and_then(|v| v.parse::<usize>().ok())
+            {
+                indices.push(value);
+                ix += 1;
+            }
+
+            ix += 1;
+            res.push(FileOp {
+                file,
+                indices: (!indices.is_empty()).then_some(std::mem::take(&mut indices)),
+            });
+        }
+
+        if res.is_empty() {
+            return Err("You need to specify at least one file".to_string());
+        }
+        Ok(res)
+    }
+    use bpaf::*;
+    positional::<std::ffi::OsString>("FILE/IX")
+        .help("One or more files, each file can be followed by zero or more indices")
+        .many()
+        .parse(parse_file_set)
+}
 
 mod cache {
     use crate::config::Shell;
@@ -395,8 +444,9 @@ impl Shell {
 }
 
 impl Md {
-    pub fn open(path: impl AsRef<Path>) -> anyhow::Result<Self> {
-        let path = path.as_ref();
+    pub fn open(file: &FileOp) -> anyhow::Result<Self> {
+        let path = &file.file;
+
         let payload = std::fs::read_to_string(path)
             .with_context(|| format!("Reading problem definition from {path:?}"))?;
 
@@ -496,25 +546,6 @@ mod tests {
     }
 }
 
-pub fn op() -> impl bpaf::Parser<Op> {
-    use bpaf::*;
-    let timeout = std::time::Duration::from_millis(5000);
-    let force = short('f')
-        .long("force")
-        .help("Check with 5000ms timeout")
-        .req_flag(Op::Timeout { timeout });
-
-    let custom = short('t')
-        .long("timeout")
-        .help("Check with a custom timeout (in ms)")
-        .argument::<u64>("MS")
-        .map(|timeout| Op::Timeout {
-            timeout: std::time::Duration::from_millis(timeout),
-        });
-    let timeout = std::time::Duration::from_millis(300);
-    construct!([force, custom]).fallback(Op::Timeout { timeout })
-}
-
 #[derive(Debug, Clone, Copy)]
 /// Operation to perform
 ///
@@ -548,7 +579,7 @@ pub enum BinarySource {
 }
 
 impl Snippet {
-    pub fn check(&mut self, binary: &Binary, op: Op) -> anyhow::Result<bool> {
+    pub fn check(&mut self, binary: &Binary, timeout: Duration) -> anyhow::Result<bool> {
         let prompt = self.prompt.replace("<TAB>", "\t");
         if prompt == self.prompt {
             println!("Ignoring the execution test for now");
@@ -561,9 +592,7 @@ impl Snippet {
         term.await_expected(self.shell.started())?;
 
         term.user_input(&prompt)?;
-        let raw = match op {
-            Op::Timeout { timeout } => term.await_timeout(timeout, cache.as_deref())?,
-        };
+        let raw = term.await_timeout(timeout, cache.as_deref())?;
 
         if cache.is_none_or(|old| old != raw) {
             save_cached(&binary.name, &self.prompt, &self.shell, &raw)?;

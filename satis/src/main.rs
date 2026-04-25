@@ -1,20 +1,32 @@
-use std::path::PathBuf;
+use std::time::Duration;
 
 use bpaf::Bpaf;
-use satis::{Md, Op, config_from_cargo, evict_old_cache_entries, op, prepare_binaries};
+use satis::{
+    FileOp, Md, Op, config_from_cargo, evict_old_cache_entries, parse_file_op, prepare_binaries,
+};
+
+const DEFAULT_TIMEOUT: Duration = std::time::Duration::from_millis(300);
 
 #[derive(Debug, Clone, Bpaf)]
 #[bpaf(options)]
 struct Opts {
-    #[bpaf(external)]
-    op: Op,
+    /// Check with a custom timeout (in ms)
+    #[bpaf(short, long, argument::<u64>("DUR"), map(Duration::from_millis), fallback(DEFAULT_TIMEOUT))]
+    timeout: Duration,
+
+    /// Save changes to file(s)
+    #[bpaf(short, long)]
+    apply: bool,
 
     /// Print more details
     #[bpaf(short, long)]
     verbose: bool,
 
-    #[bpaf(positional("FILE"), some("You need to specify at least one file"))]
-    file: Vec<PathBuf>,
+    /// Run as many tests as possible without stopping at the first failure
+    no_fail_fast: bool,
+
+    #[bpaf(external(parse_file_op))]
+    file: Vec<FileOp>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -39,7 +51,9 @@ fn main() -> anyhow::Result<()> {
     let mut failures = Vec::new();
     for snippet in mds.iter_mut().flat_map(Md::snippets_mut) {
         let bin = binaries.get(snippet.bin()).unwrap();
-        if !snippet.check(bin, opts.op)? {
+        if !snippet.check(bin, opts.timeout)? {
+            failures.push(snippet.to_string());
+        } else if opts.verbose {
             println!("{snippet}");
         }
 
