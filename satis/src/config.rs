@@ -60,6 +60,13 @@ impl Cli {
                         to_config: String::new(),
                     },
                 ),
+                (
+                    Shell::Fish,
+                    MkComplete {
+                        arg: String::from("--bpaf-complete-style-fish"),
+                        to_config: String::new(),
+                    },
+                ),
             ]
             .into(),
         }

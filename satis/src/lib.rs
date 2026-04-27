@@ -290,7 +290,24 @@ impl Shell {
 
                 run_shell.env("PS1", "zsh%% ");
             }
-            Shell::Fish => todo!(),
+            Shell::Fish => {
+                use std::io::Write;
+                let fish_conf = home.join("fish");
+                let comp_dir = fish_conf.join("completions");
+                std::fs::create_dir_all(&comp_dir)?;
+
+                let mut cfg = std::fs::File::create(fish_conf.join("config.fish"))?;
+                writeln!(cfg, "fish_config theme choose None")?;
+                writeln!(cfg, "set -U fish_greeting \"\"")?;
+                writeln!(cfg, "function fish_title\nend")?;
+                writeln!(cfg, "function fish_prompt\n    printf 'fish> '\nend")?;
+
+                let app = &binary.name;
+                let mut comp = std::fs::File::create(comp_dir.join(format!("{app}.fish")))?;
+                comp.write_all(&script)?;
+
+                run_shell.env("XDG_CONFIG_HOME", home);
+            }
         }
         Ok(ShellInstance { tempdir, run_shell })
     }
@@ -566,7 +583,7 @@ impl Shell {
         match self {
             Shell::Bash => "bash$ ",
             Shell::Zsh => "zsh% ",
-            Shell::Fish => todo!(),
+            Shell::Fish => "fish> ",
         }
     }
 }
