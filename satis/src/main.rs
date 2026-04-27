@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bpaf::Bpaf;
 use satis::{
-    FileOp, Md, Op, config_from_cargo, evict_old_cache_entries, parse_file_op, prepare_binaries,
+    FileOp, Md, config_from_cargo, evict_old_cache_entries, parse_file_op, prepare_binaries,
 };
 
 const DEFAULT_TIMEOUT: Duration = std::time::Duration::from_millis(300);
@@ -64,6 +64,14 @@ fn main() -> anyhow::Result<()> {
 
     for failure in &failures {
         println!("{failure}");
+    }
+
+    if opts.apply {
+        for md in &mut mds {
+            if md.changed() {
+                md.save()?;
+            }
+        }
     }
 
     Ok(())

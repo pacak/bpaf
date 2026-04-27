@@ -2,6 +2,7 @@ use anyhow::Context;
 use std::{
     collections::{BTreeMap, BTreeSet},
     ffi::OsStr,
+    fmt::Write,
     path::PathBuf,
     process::Command,
     time::Duration,
@@ -536,6 +537,13 @@ impl Md {
             active,
         })
     }
+
+    pub fn changed(&self) -> bool {
+        self.chunks.iter().any(|c| match c {
+            Chunk::Text(_) => false,
+            Chunk::Chunk(snippet) => matches!(snippet.stage, Stage::Mismatch { .. }),
+        })
+    }
 }
 
 #[cfg(test)]
@@ -672,5 +680,25 @@ impl Md {
                     .is_none_or(|a| a.contains(&ix))
                     .then_some(snippet)
             })
+    }
+
+    pub fn save(&mut self) -> anyhow::Result<()> {
+        let mut out = String::new();
+        for chunk in &self.chunks {
+            match chunk {
+                Chunk::Text(t) => out.push_str(t),
+                Chunk::Chunk(snippet) => {
+                    let expected = match &snippet.stage {
+                        Stage::Mismatch { actual } => actual.as_str(),
+                        _ => snippet.expected.as_str(),
+                    };
+                    writeln!(out, "```console")?;
+                    writeln!(out, "{} {}", snippet.shell, snippet.prompt)?;
+                    writeln!(out, "{expected}\n```")?;
+                }
+            }
+        }
+        std::fs::write(&self.path, out)
+            .with_context(|| format!("Writing changes to {:?}", self.path))
     }
 }
