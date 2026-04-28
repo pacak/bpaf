@@ -1,18 +1,18 @@
 use anyhow::Context;
 use std::{
     collections::{BTreeMap, BTreeSet},
-    ffi::OsStr,
+    ffi::{OsStr, OsString},
     fmt::Write,
     path::PathBuf,
     process::Command,
     time::Duration,
 };
 use tempdir::TempDir;
-pub use term::Terminal;
+pub use term::{Session, Terminal};
 
 mod config;
 mod term;
-pub use config::config_from_cargo;
+pub use config::{Binary, Shell, config_from_cargo};
 
 #[derive(Debug, Clone)]
 pub struct FileOp {
@@ -75,17 +75,18 @@ mod cache {
         path
     }
 
-    fn cache_key(app: &str, prompt: &str, shell: &Shell) -> u64 {
+    fn cache_key(app: &str, prompt: &str, shell: &Shell, reuse: bool) -> u64 {
         let mut hasher = DefaultHasher::new();
         app.hash(&mut hasher);
         prompt.hash(&mut hasher);
         shell.hash(&mut hasher);
+        reuse.hash(&mut hasher);
         hasher.finish()
     }
 
-    fn cache_path(app: &str, prompt: &str, shell: &Shell) -> PathBuf {
+    fn cache_path(app: &str, prompt: &str, shell: &Shell, reuse: bool) -> PathBuf {
         let mut path = cache_dir();
-        path.push(format!("{:x}.bin", cache_key(app, prompt, shell)));
+        path.push(format!("{:x}.bin", cache_key(app, prompt, shell, reuse)));
         path
     }
 
@@ -93,8 +94,9 @@ mod cache {
         app: &str,
         prompt: &str,
         shell: &Shell,
+        reuse: bool,
     ) -> anyhow::Result<Option<Vec<u8>>> {
-        let path = cache_path(app, prompt, shell);
+        let path = cache_path(app, prompt, shell, reuse);
         match std::fs::read(&path) {
             Ok(data) => Ok(Some(data)),
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
@@ -107,8 +109,9 @@ mod cache {
         prompt: &str,
         shell: &Shell,
         data: &[u8],
+        reuse: bool,
     ) -> anyhow::Result<()> {
-        let path = cache_path(app, prompt, shell);
+        let path = cache_path(app, prompt, shell, reuse);
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("creating cache dir {parent:?}"))?;
@@ -145,8 +148,6 @@ mod cache {
 }
 
 pub use crate::cache::*;
-
-use crate::config::{Binary, Shell};
 
 pub fn prepare_binaries(
     mds: &[Md],
@@ -192,27 +193,44 @@ pub fn prepare_binaries(
     Ok(())
 }
 
-// 1. make home dir that would normalize the behavior
-// 2. set PATH to include the binary under test
-// 3. setup the completion
-pub(crate) struct ShellInstance {
+// EnvSetup holds the prepared tempdir and config files for a (binary, shell) pair.
+// Can be reused to spawn multiple shell processes or a persistent session.
+pub(crate) struct EnvSetup {
     pub(crate) tempdir: TempDir,
-    pub(crate) run_shell: Command,
+    shell: Shell,
+    path: OsString,
 }
 
-// Binary - information about the binary - path and instructions to compile.
-// Shell - enum Zsh/Bash/Fish, given Binary can generate MkComplete.
-// ShellInstance - prepared tempdir + a command to spawn the test.
-// MkComplete - instructions to update the tempdir in ShellInstance with shell completion.
-//              gets deserialized from a config or gets generated from Cargo.toml
-// Terminal - pty with a shell running inside, takes input, produces outputs
-// Cli - currently just bpaf. helps to fill in missing details in Binary
-//
-// Shell + Binary = MkComplete
+impl EnvSetup {
+    /// Build a fresh Command pointing to this environment.
+    pub(crate) fn make_command(&self) -> Command {
+        let mut run_shell = Command::new(self.shell);
+        run_shell.env_clear();
+        run_shell.env("TERM", "xterm");
+        run_shell.env("LC_ALL", "en_US.UTF-8");
+        run_shell.env("PATH", &self.path);
+        run_shell.env("HOME", self.tempdir.as_ref());
+
+        match self.shell {
+            Shell::Bash => {
+                run_shell.env("PS1", "bash$ ");
+            }
+            Shell::Zsh => {
+                run_shell.env("PS1", "zsh%% ");
+            }
+            Shell::Fish => {
+                run_shell.env("XDG_CONFIG_HOME", self.tempdir.as_ref());
+            }
+        }
+        run_shell
+    }
+}
 
 pub const BASH_COMP: &str = "/usr/share/bash-completion/bash_completion";
 impl Shell {
-    pub(crate) fn prepare(self, binary: &Binary) -> anyhow::Result<ShellInstance> {
+    /// Create the environment: tempdir, fetch completion script, write config files.
+    /// Returns EnvSetup that can spawn multiple shell processes from the same env.
+    pub(crate) fn prepare_env(self, binary: &Binary) -> anyhow::Result<EnvSetup> {
         let prefix = format!("shell-tester-{self:?}").to_lowercase();
         let tempdir = TempDir::new(&prefix)?;
         let home = tempdir.as_ref();
@@ -246,13 +264,6 @@ impl Shell {
         }
         let script = output.stdout;
 
-        let mut run_shell = Command::new(self);
-        run_shell.env_clear();
-        run_shell.env("TERM", "xterm");
-        run_shell.env("LC_ALL", "C");
-        run_shell.env("PATH", &path);
-        run_shell.env("HOME", home);
-
         match self {
             Shell::Bash => {
                 use std::io::Write;
@@ -269,8 +280,6 @@ impl Shell {
 
                 let inputrc = home.join(".inputrc");
                 std::fs::write(&inputrc, "")?;
-
-                run_shell.env("PS1", "bash$ ");
             }
             Shell::Zsh => {
                 use std::io::Write;
@@ -288,8 +297,6 @@ impl Shell {
                     home.join(".zsh").join(PathBuf::from(format!("_{app}"))),
                 )?;
                 comp.write_all(&script)?;
-
-                run_shell.env("PS1", "zsh%% ");
             }
             Shell::Fish => {
                 use std::io::Write;
@@ -306,11 +313,13 @@ impl Shell {
                 let app = &binary.name;
                 let mut comp = std::fs::File::create(comp_dir.join(format!("{app}.fish")))?;
                 comp.write_all(&script)?;
-
-                run_shell.env("XDG_CONFIG_HOME", home);
             }
         }
-        Ok(ShellInstance { tempdir, run_shell })
+        Ok(EnvSetup {
+            tempdir,
+            shell: self,
+            path,
+        })
     }
 }
 
@@ -361,6 +370,11 @@ impl Snippet {
             .split_whitespace()
             .next()
             .unwrap_or(&self.prompt)
+    }
+
+    /// Get the shell for this snippet.
+    pub fn shell(&self) -> Shell {
+        self.shell
     }
 }
 
@@ -429,7 +443,7 @@ impl std::fmt::Display for Chunk {
 
 #[derive(Debug)]
 pub struct Md {
-    path: PathBuf,
+    pub path: PathBuf,
     chunks: Vec<Chunk>,
     active: Option<BTreeSet<usize>>,
 }
@@ -596,13 +610,6 @@ impl Shell {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum BinarySource {
-    CargoExample(String),
-    CargoBin(String),
-    Path(String, PathBuf),
-}
-
 impl Snippet {
     pub fn check(&mut self, binary: &Binary, timeout: Duration) -> anyhow::Result<bool> {
         let prompt = self.prompt.replace("<TAB>", "\t");
@@ -611,16 +618,20 @@ impl Snippet {
             return Ok(false);
         }
 
-        let cache = load_cached(&binary.name, &self.prompt, &self.shell)?;
+        let cache = load_cached(&binary.name, &self.prompt, &self.shell, false)?;
 
-        let mut term = Terminal::start(self, binary)?;
+        let env = self
+            .shell
+            .prepare_env(binary)
+            .with_context(|| format!("Preparing {binary:?} shell"))?;
+        let mut term = Terminal::from_env(env)?;
         term.await_expected(self.shell.started())?;
 
         term.user_input(&prompt)?;
         let raw = term.await_timeout(timeout, cache.as_deref())?;
 
         if cache.is_none_or(|old| old != raw) {
-            save_cached(&binary.name, &self.prompt, &self.shell, &raw)?;
+            save_cached(&binary.name, &self.prompt, &self.shell, &raw, false)?;
         }
 
         let mut actual = String::new();
