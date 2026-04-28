@@ -376,6 +376,10 @@ impl Snippet {
     pub fn shell(&self) -> Shell {
         self.shell
     }
+
+    pub fn is_mismatch(&self) -> bool {
+        matches!(self.stage, Stage::Mismatch { .. })
+    }
 }
 
 #[derive(Debug, Clone)]

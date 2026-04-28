@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use bpaf::Bpaf;
+use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use satis::{
-    FileOp, Md, Session, Shell, config_from_cargo, evict_old_cache_entries, parse_file_op,
+    FileOp, Md, Session, Shell, Snippet, config_from_cargo, evict_old_cache_entries, parse_file_op,
     prepare_binaries,
 };
 
@@ -32,17 +33,22 @@ struct Opts {
     #[bpaf(short, long)]
     reuse: bool,
 
+    /// Run tests concurrently, when possible
+    #[bpaf(short('j'), long)]
+    concurrent: bool,
+
     #[bpaf(external(parse_file_op))]
     file: Vec<FileOp>,
 }
 
 /// A group of snippets that share the same (binary, shell) and come from the same file.
-struct Group {
+struct Group<'a> {
+    #[allow(dead_code)]
     file_ix: usize,
     bin_name: String,
-    #[allow(dead_code)] // Used for debugging/logging
+    #[allow(dead_code)]
     shell: Shell,
-    snippet_indices: Vec<usize>,
+    snippets: Vec<&'a mut Snippet>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -58,61 +64,57 @@ fn main() -> anyhow::Result<()> {
 
     prepare_binaries(&mds, &mut binaries, opts.verbose)?;
 
-    let mut failures = Vec::new();
-
     if opts.reuse {
-        // Build groups: for each file, collect snippets grouped by (bin, shell)
-        let groups = build_groups(&mds);
+        let mut groups = build_groups(
+            mds.iter_mut()
+                .enumerate()
+                .flat_map(|(file_ix, md)| md.snippets_mut().map(move |snippet| (file_ix, snippet)))
+                .collect(),
+        );
 
-        for group in groups {
-            let bin = &binaries[&group.bin_name];
-
-            // Create a session from the first snippet in the group
-            let first_snippet = mds[group.file_ix]
-                .snippets()
-                .nth(group.snippet_indices[0])
-                .unwrap();
-            let mut session = Session::new(first_snippet, bin)?;
-
-            // Run all snippets in this group
-            for snippet_ix in &group.snippet_indices {
-                let Some(snippet) = mds[group.file_ix].snippets_mut().nth(*snippet_ix) else {
-                    let md = &mds[group.file_ix];
-                    let actual = md.snippets().count();
-                    let fname = &md.path;
-                    anyhow::bail!(
-                        "Trying to run {snippet_ix} (zero based) of {fname:?}, but there's only {} snippets there",
-                        actual
-                    );
-                };
-                if !session.check_snippet(snippet, opts.timeout)? {
-                    failures.push(snippet.to_string());
-                } else if opts.verbose {
-                    println!("{snippet}");
+        if opts.concurrent {
+            groups.par_iter_mut().try_for_each(|group| {
+                let mut session = Session::new(group.snippets[0], &binaries[&group.bin_name])?;
+                for snippet in &mut group.snippets {
+                    session.check_snippet(snippet, opts.timeout)?;
                 }
-
-                if !failures.is_empty() && !opts.keep_going {
-                    break;
+                anyhow::Ok(())
+            })?;
+        } else {
+            for group in groups {
+                let mut session = Session::new(group.snippets[0], &binaries[&group.bin_name])?;
+                for snippet in group.snippets {
+                    if !session.check_snippet(snippet, opts.timeout)? && !opts.keep_going {
+                        break;
+                    }
                 }
             }
         }
     } else {
-        for snippet in mds.iter_mut().flat_map(Md::snippets_mut) {
-            let bin = binaries.get(snippet.bin()).unwrap();
-            if !snippet.check(bin, opts.timeout)? {
-                failures.push(snippet.to_string());
-            } else if opts.verbose {
-                println!("{snippet}");
-            }
-
-            if !failures.is_empty() && !opts.keep_going {
-                break;
+        if opts.concurrent {
+            mds.iter_mut()
+                .flat_map(Md::snippets_mut)
+                .collect::<Vec<_>>()
+                .par_iter_mut()
+                .try_for_each(|snippet| {
+                    let bin = &binaries[snippet.bin()];
+                    snippet.check(bin, opts.timeout)?;
+                    anyhow::Ok(())
+                })?;
+        } else {
+            for snippet in mds.iter_mut().flat_map(Md::snippets_mut) {
+                let bin = binaries.get(snippet.bin()).unwrap();
+                if !snippet.check(bin, opts.timeout)? && !opts.keep_going {
+                    break;
+                }
             }
         }
     }
 
-    for failure in &failures {
-        println!("{failure}");
+    for snippet in mds.iter().flat_map(Md::snippets) {
+        if opts.verbose || snippet.is_mismatch() {
+            println!("{snippet}");
+        }
     }
 
     if opts.apply {
@@ -127,39 +129,47 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Build grouped snippet references: file order preserved, grouped by (bin, shell).
-fn build_groups(mds: &[Md]) -> Vec<Group> {
-    // For each file, collect (snippet_ix, bin_name, shell) for all active snippets
-    // Then group by (bin_name, shell) within each file.
+fn build_groups(for_groups: Vec<(usize, &mut Snippet)>) -> Vec<Group<'_>> {
     let mut groups: Vec<Group> = Vec::new();
 
-    for (file_ix, md) in mds.iter().enumerate() {
-        // Collect snippet info for this file
-        let snippet_info: Vec<(usize, String, Shell)> = md
-            .snippets()
-            .enumerate()
-            .map(|(ix, s)| (ix, s.bin().to_string(), s.shell()))
-            .collect();
+    let mut current_file_ix: Option<usize> = None;
+    let mut group_map: BTreeMap<(String, Shell), Vec<&mut Snippet>> = BTreeMap::new();
+    let mut group_order: Vec<(String, Shell)> = Vec::new();
 
-        // Group by (bin_name, shell), preserving order of first appearance
-        let mut group_map: BTreeMap<(String, Shell), Vec<usize>> = BTreeMap::new();
-        // Also track insertion order
-        let mut group_order: Vec<(String, Shell)> = Vec::new();
-
-        for (snippet_ix, bin_name, shell) in snippet_info {
-            let key = (bin_name.clone(), shell);
-            if !group_map.contains_key(&key) {
-                group_order.push(key.clone());
+    for (file_ix, snippet) in for_groups {
+        if let Some(cur) = current_file_ix {
+            if cur != file_ix {
+                for (bin_name, shell) in group_order.drain(..) {
+                    let snippets = group_map.remove(&(bin_name.clone(), shell)).unwrap();
+                    groups.push(Group {
+                        file_ix: cur,
+                        bin_name,
+                        shell,
+                        snippets,
+                    });
+                }
+                group_map.clear();
+                current_file_ix = Some(file_ix);
             }
-            group_map.entry(key).or_default().push(snippet_ix);
+        } else {
+            current_file_ix = Some(file_ix);
         }
 
+        let key = (snippet.bin().to_string(), snippet.shell());
+        if !group_map.contains_key(&key) {
+            group_order.push(key.clone());
+        }
+        group_map.entry(key).or_default().push(snippet);
+    }
+
+    if let Some(cur) = current_file_ix {
         for (bin_name, shell) in group_order {
-            let snippet_indices = group_map.remove(&(bin_name.clone(), shell)).unwrap();
+            let snippets = group_map.remove(&(bin_name.clone(), shell)).unwrap();
             groups.push(Group {
-                file_ix,
+                file_ix: cur,
                 bin_name,
                 shell,
-                snippet_indices,
+                snippets,
             });
         }
     }
