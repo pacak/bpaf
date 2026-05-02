@@ -380,6 +380,10 @@ impl Snippet {
     pub fn is_mismatch(&self) -> bool {
         matches!(self.stage, Stage::Mismatch { .. })
     }
+
+    pub fn prompt(&self) -> &str {
+        &self.prompt
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -612,6 +616,14 @@ impl Shell {
             Shell::Fish => "fish> ",
         }
     }
+
+    fn complete_rev(self) -> usize {
+        match self {
+            Shell::Bash => 10,
+            Shell::Zsh => 7,
+            Shell::Fish => 9,
+        }
+    }
 }
 
 impl Snippet {
@@ -651,6 +663,32 @@ impl Snippet {
             Stage::Mismatch { actual }
         };
         Ok(matches)
+    }
+
+    pub fn run_raw(&self, binary: &Binary) -> anyhow::Result<String> {
+        let mut cmd = Command::new(&binary.name);
+        cmd.env("PATH", &binary.path);
+
+        let mut cmd_line = self.prompt.as_str();
+        while let Some(stripped) = cmd_line.strip_suffix("<TAB>") {
+            cmd_line = stripped;
+        }
+
+        if self.prompt.contains("<TAB>") {
+            cmd.env("BPAF_COMPLETE_REV", self.shell.complete_rev().to_string());
+        }
+
+        let args: Vec<&str> = cmd_line.split_whitespace().collect();
+        cmd.args(&args[1..]);
+        if cmd_line.ends_with(' ') {
+            cmd.arg("");
+        }
+
+        let output = cmd
+            .output()
+            .with_context(|| format!("running {:?} with args {:?}", binary.name, args))?;
+
+        Ok(String::from_utf8_lossy(&output.stdout).into_owned())
     }
 }
 

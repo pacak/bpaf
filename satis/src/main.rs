@@ -37,6 +37,10 @@ struct Opts {
     #[bpaf(short('j'), long)]
     concurrent: bool,
 
+    /// Capture and print raw output from completions (bpaf only)
+    #[bpaf(long)]
+    raw: bool,
+
     #[bpaf(external(parse_file_op))]
     file: Vec<FileOp>,
 }
@@ -63,6 +67,16 @@ fn main() -> anyhow::Result<()> {
         .collect::<anyhow::Result<Vec<_>>>()?;
 
     prepare_binaries(&mds, &mut binaries, opts.verbose)?;
+
+    if opts.raw {
+        for snippet in mds.iter().flat_map(Md::snippets) {
+            let bin = &binaries[snippet.bin()];
+            let output = snippet.run_raw(bin)?;
+            println!("--- {}", snippet.prompt().replace("<TAB>", ""));
+            print!("{}", output);
+        }
+        std::process::exit(0);
+    }
 
     if opts.reuse {
         let mut groups = build_groups(
