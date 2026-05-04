@@ -129,25 +129,33 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Build grouped snippet references: file order preserved, grouped by (bin, shell).
-fn build_groups(for_groups: Vec<(usize, &mut Snippet)>) -> Vec<Group<'_>> {
+fn build_groups(file_snippets: Vec<(usize, &mut Snippet)>) -> Vec<Group<'_>> {
+    fn flush_groups<'a>(
+        file_ix: usize,
+        groups: &mut Vec<Group<'a>>,
+        group_order: &mut Vec<(String, Shell)>,
+        group_map: &mut BTreeMap<(String, Shell), Vec<&'a mut Snippet>>,
+    ) {
+        for (bin_name, shell) in group_order.drain(..) {
+            let snippets = group_map.remove(&(bin_name.clone(), shell)).unwrap();
+            groups.push(Group {
+                file_ix,
+                bin_name,
+                shell,
+                snippets,
+            });
+        }
+    }
     let mut groups: Vec<Group> = Vec::new();
 
     let mut current_file_ix: Option<usize> = None;
     let mut group_map: BTreeMap<(String, Shell), Vec<&mut Snippet>> = BTreeMap::new();
     let mut group_order: Vec<(String, Shell)> = Vec::new();
 
-    for (file_ix, snippet) in for_groups {
+    for (file_ix, snippet) in file_snippets {
         if let Some(cur) = current_file_ix {
             if cur != file_ix {
-                for (bin_name, shell) in group_order.drain(..) {
-                    let snippets = group_map.remove(&(bin_name.clone(), shell)).unwrap();
-                    groups.push(Group {
-                        file_ix: cur,
-                        bin_name,
-                        shell,
-                        snippets,
-                    });
-                }
+                flush_groups(cur, &mut groups, &mut group_order, &mut group_map);
                 group_map.clear();
                 current_file_ix = Some(file_ix);
             }
@@ -163,15 +171,7 @@ fn build_groups(for_groups: Vec<(usize, &mut Snippet)>) -> Vec<Group<'_>> {
     }
 
     if let Some(cur) = current_file_ix {
-        for (bin_name, shell) in group_order {
-            let snippets = group_map.remove(&(bin_name.clone(), shell)).unwrap();
-            groups.push(Group {
-                file_ix: cur,
-                bin_name,
-                shell,
-                snippets,
-            });
-        }
+        flush_groups(cur, &mut groups, &mut group_order, &mut group_map);
     }
 
     groups
