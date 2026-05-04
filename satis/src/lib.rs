@@ -8,7 +8,7 @@ use std::{
     time::Duration,
 };
 use tempdir::TempDir;
-pub use term::{Session, Terminal};
+pub use term::Session;
 
 mod config;
 mod term;
@@ -628,41 +628,8 @@ impl Shell {
 
 impl Snippet {
     pub fn check(&mut self, binary: &Binary, timeout: Duration) -> anyhow::Result<bool> {
-        let prompt = self.prompt.replace("<TAB>", "\t");
-        if prompt == self.prompt {
-            println!("Ignoring the execution test for now");
-            return Ok(false);
-        }
-
-        let cache = load_cached(&binary.name, &self.prompt, &self.shell, false)?;
-
-        let env = self
-            .shell
-            .prepare_env(binary)
-            .with_context(|| format!("Preparing {binary:?} shell"))?;
-        let mut term = Terminal::from_env(env)?;
-        term.await_expected(self.shell.started())?;
-
-        term.user_input(&prompt)?;
-        let raw = term.await_timeout(timeout, cache.as_deref())?;
-
-        if cache.is_none_or(|old| old != raw) {
-            save_cached(&binary.name, &self.prompt, &self.shell, &raw, false)?;
-        }
-
-        let mut actual = String::new();
-        for line in term.screen().contents().lines() {
-            actual.push_str(line.trim_end());
-            actual.push('\n');
-        }
-        actual.truncate(actual.trim_end().len());
-        let matches = self.expected == actual;
-        self.stage = if matches {
-            Stage::Matches
-        } else {
-            Stage::Mismatch { actual }
-        };
-        Ok(matches)
+        let mut session = Session::new(self, binary)?;
+        session.check_snippet(self, timeout)
     }
 
     pub fn run_raw(&self, binary: &Binary) -> anyhow::Result<String> {
