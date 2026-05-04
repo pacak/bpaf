@@ -33,6 +33,10 @@ struct Opts {
     #[bpaf(short, long)]
     reuse: bool,
 
+    /// Prints the input and output only for snippets instead of a diff format
+    #[bpaf(short, long)]
+    output: bool,
+
     /// Run tests concurrently, when possible
     #[bpaf(short('j'), long)]
     concurrent: bool,
@@ -127,7 +131,12 @@ fn main() -> anyhow::Result<()> {
 
     for snippet in mds.iter().flat_map(Md::snippets) {
         if opts.verbose || snippet.is_mismatch() {
-            println!("{snippet}");
+            if opts.output {
+                println!("{}", snippet.prompt());
+                println!("{}", snippet.output());
+            } else {
+                println!("{snippet}");
+            }
         }
     }
 

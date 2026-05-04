@@ -384,6 +384,14 @@ impl Snippet {
     pub fn prompt(&self) -> &str {
         &self.prompt
     }
+
+    pub fn output(&self) -> &str {
+        if let Stage::Mismatch { actual } = &self.stage {
+            actual.as_str()
+        } else {
+            &self.expected
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
