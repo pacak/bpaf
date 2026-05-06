@@ -129,8 +129,19 @@ fn main() -> anyhow::Result<()> {
         }
     }
 
+    if opts.verbose {
+        for md in &mut mds {
+            md.populate_comments();
+        }
+    }
+
     for snippet in mds.iter().flat_map(Md::snippets) {
         if opts.verbose || snippet.is_mismatch() {
+            if let Some(text) = &snippet.comment {
+                for text in text.lines() {
+                    println!("/// {text}");
+                }
+            }
             if opts.output {
                 println!("{}", snippet.prompt());
                 println!("{}", snippet.output());

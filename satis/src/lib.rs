@@ -344,6 +344,8 @@ pub struct Snippet {
     /// Expected to output
     expected: String,
     stage: Stage,
+    /// Last paragraph of the preceding text block is a comment
+    pub comment: Option<String>,
 }
 #[derive(Debug, Clone)]
 pub enum Stage {
@@ -359,6 +361,7 @@ impl Snippet {
             prompt: String::new(),
             expected: String::new(),
             stage: Stage::Pending,
+            comment: None,
         }
     }
 
@@ -423,6 +426,7 @@ impl std::fmt::Display for Snippet {
             prompt,
             expected,
             stage,
+            comment: _,
         } = self;
 
         writeln!(f, "```console")?;
@@ -528,6 +532,7 @@ impl Md {
                     shell,
                     prompt,
                     stage: _,
+                    comment: _,
                 }) => match snip_stage {
                     SnipStage::Shell => {
                         if line == "```" {
@@ -573,6 +578,29 @@ impl Md {
             Chunk::Text(_) => false,
             Chunk::Chunk(snippet) => matches!(snippet.stage, Stage::Mismatch { .. }),
         })
+    }
+
+    /// Last separate line from the preceding text block is a comment
+    ///
+    /// Useful for debugging with -v
+    pub fn populate_comments(&mut self) {
+        let mut comment: Option<String> = None;
+        for chunk in &mut self.chunks {
+            match chunk {
+                Chunk::Text(t) => {
+                    let trimmed = t.trim();
+                    let trimmed = trimmed.rsplit_once("\n\n").map_or(trimmed, |(_, c)| c);
+                    comment = if trimmed.is_empty() {
+                        None
+                    } else {
+                        Some(trimmed.to_string())
+                    };
+                }
+                Chunk::Chunk(snippet) => {
+                    snippet.comment = comment.take();
+                }
+            }
+        }
     }
 }
 
