@@ -142,6 +142,14 @@ fn main() -> anyhow::Result<()> {
                     println!("/// {text}");
                 }
             }
+            if opts.verbose
+                && snippet.shell() == Shell::Zsh
+                && snippet.output().lines().count() == 1
+            {
+                println!(
+                    "\x1b[0;31mNote, this only fills in the prefix. To show the completion variants you need to press TAB twice\x1b[0;0m"
+                );
+            }
             if opts.output {
                 println!("{}", snippet.prompt());
                 println!("{}", snippet.output());
