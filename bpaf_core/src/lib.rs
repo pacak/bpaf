@@ -980,17 +980,15 @@ impl<'a, 'p> Executor<'a, 'p> {
                             pos,
                             name: conflicted_name,
                         } => {
-                            if unexpected_name.is_some_and(|n| &n == conflicted_name) {
+                            if unexpected_name
+                                .as_ref()
+                                .is_some_and(|n| n == conflicted_name)
+                            {
                                 return Problem::ConflictPos {
                                     accepted: self.ctx.args[*pos].clone(),
                                     unexpected: value.to_os_string(),
                                 };
                             }
-
-                            return Problem::ConflictPos {
-                                accepted: self.ctx.args[*pos].clone(),
-                                unexpected: value.to_os_string(),
-                            };
                         }
                         Conflict::Pos { pos } => {
                             return Problem::ConflictPos {
