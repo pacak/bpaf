@@ -8,10 +8,12 @@ jobs:
     name: Deploy master docs to github pages
     runs-on: ubuntu-latest
     concurrency: ci-${{ github.ref }}
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable

@@ -11,9 +11,11 @@ jobs:
   windows:
     name: Tests on windows
     runs-on: windows-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -26,11 +28,13 @@ jobs:
   linux:
     name: Tests, formatting and clippy on linux
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       RUSTDOCFLAGS: -Dwarnings
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -70,9 +74,11 @@ jobs:
   compat:
     name: Tests on linux with 1.71 toolchain
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Install rust toolchain
         uses: dtolnay/rust-toolchain@stable
