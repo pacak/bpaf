@@ -44,6 +44,20 @@ impl Named {
     fn get_env(&self) -> Option<OsString> {
         self.env.iter().find_map(std::env::var_os)
     }
+
+    pub(crate) fn missing_item(&self, meta: Option<Metavar>) -> MissingItem {
+        if let Some(name) = self.name_long_or_short() {
+            MissingItem::Named { name, meta }
+        } else if let Some(env_name) = self.env.first() {
+            MissingItem::Custom {
+                item: Cow::Owned(format!("missing `{env_name}`")),
+            }
+        } else {
+            MissingItem::Custom {
+                item: Cow::Borrowed("missing named item"),
+            }
+        }
+    }
 }
 
 /// Match a named item with a short name: `-v` or `-b name`
@@ -309,11 +323,7 @@ impl<T: Clone + 'static> Parser for Flag<T> {
         } else if self.named.get_env().is_some() {
             Ok(self.present.clone())
         } else {
-            let item = MissingItem::Named {
-                name: self.named.name_long_or_short().unwrap(), // TODO - handle env
-                meta: None,
-            };
-            Err(Error::missing(item))
+            Err(Error::missing(self.named.missing_item(None)))
         }
     }
 
@@ -377,11 +387,7 @@ where
         } else if let Some(os) = self.named.get_env() {
             parse_os_str(&os).map_err(|p| Error::Problem(u32::MAX, p))
         } else {
-            let item = MissingItem::Named {
-                name: self.named.name_long_or_short().unwrap(), // TODO - handle env
-                meta: Some(self.metavar),
-            };
-            Err(Error::missing(item))
+            Err(Error::missing(self.named.missing_item(Some(self.metavar))))
         }
     }
 
