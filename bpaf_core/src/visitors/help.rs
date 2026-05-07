@@ -437,14 +437,6 @@ impl Help<'_> {
             self.output.push_str(footer);
         }
     }
-    pub(crate) fn render(mut self) -> Styled {
-        self.prepare_output();
-
-        Styled {
-            tab: self.max_tab + 2,
-            raw: self.output,
-        }
-    }
 }
 
 #[test]

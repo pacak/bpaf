@@ -3,8 +3,8 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, error::ParseFailure, info::Info,
-    repeat::*, visitors::help::Help,
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, completions::CompHelp,
+    error::ParseFailure, info::Info, repeat::*, visitors::help::Help,
 };
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
@@ -227,6 +227,17 @@ pub trait Parser {
         crate::api::composite::Sum {
             items: vec![self.into_rc(), other.into_rc()],
         }
+    }
+
+    /// Override help description when used shell completion
+    ///
+    /// Full help message might be too verbose for use in shell completion,
+    /// with this method you can override it for completion purposes only
+    fn comp_help(self, help: &'static str) -> CompHelp<Self>
+    where
+        Self: Sized,
+    {
+        CompHelp { inner: self, help }
     }
 }
 

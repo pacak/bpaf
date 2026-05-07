@@ -1,9 +1,10 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Error, Exit, Item, Kind, Lit, Name, ParseFailure, Parser, Problem, RawCtx, RcParser, Task,
-    VKind, Visited,
+    Error, Exit, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx, RcParser,
+    Task, VKind, Visited,
+    arg::lex_os_arg,
     args::Args,
-    complete::{complete_command, handle_subparser_complete},
+    complete::handle_subparser_complete,
     error::MissingItem,
     info::*,
     traits::{Leaf, VisitGroup},
@@ -115,7 +116,10 @@ impl<T: 'static> OptionParser<T> {
             Some(custom) => custom,
             None => &Custom::default(),
         };
-        let args = args.into();
+
+        let mut args = args.into();
+        args.check_complete()?;
+
         let ctx = RawCtx::new(&args, custom);
         Ok(self.run_in_ctx(false, ctx)?)
     }
@@ -134,7 +138,17 @@ impl<T: 'static> OptionParser<T> {
                 std::process::exit(1);
             }
             Err(ParseFailure::Console(o)) => {
-                print!("{o}");
+                use std::io::Write;
+                #[cfg(unix)]
+                {
+                    std::io::stdout().write_all(o.as_bytes()).unwrap();
+                }
+                #[cfg(not(unix))]
+                {
+                    // bpaf uses ParseFailure::Console only for autocomplete
+                    // and it is not supported on windows
+                    print!("{o}");
+                }
                 std::process::exit(0);
             }
         }
@@ -170,7 +184,10 @@ impl<T: 'static> OptionParser<T> {
     pub fn command(self, name: impl Into<Cow<'static, str>>) -> Command<T> {
         let name = Lit(Name::Long(name.into()));
         Command {
-            names: vec![name],
+            names: Literal {
+                names: vec![name],
+                help: self.info.descr,
+            },
             inner: self,
             lazy: false,
         }
@@ -223,13 +240,13 @@ impl<T: 'static> Command<T> {
 
     pub fn long(mut self, name: impl Into<Cow<'static, str>>) -> Self {
         let lit = Lit(Name::Long(name.into()));
-        self.names.push(lit);
+        self.names.names.push(lit);
         self
     }
 
     pub fn short(mut self, name: char) -> Self {
         let lit = Lit(Name::Short(name));
-        self.names.push(lit);
+        self.names.names.push(lit);
         self
     }
 }
@@ -237,29 +254,29 @@ impl<T: 'static> Command<T> {
 impl<T: 'static> Parser for Command<T> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_literal(&self.names).await;
-        let res = res.map_err(|err| complete_command(&self.names, err));
-        if res?.is_none() {
+        let res = ctx.parse_literal(&self.names).await?;
+        if res.is_none() {
             let missing = MissingItem::Lit {
-                value: self.names[0].clone(),
+                value: self.names.names[0].clone(),
             };
             return Err(Error::Missing(missing));
         };
-        let Some(Lit(Name::Long(n))) = self.names.first().as_ref() else {
+        // TODO - can use value returned in `res` here
+        let Some(Lit(Name::Long(n))) = self.names.names.first().as_ref() else {
             unreachable!("For commands first name should always be a long one, by construction");
         };
 
         let inner = ctx.fork(Some(n.as_ref()));
         inner.cursor.update(|c| c + 1);
         let res = self.inner.run_in_ctx(self.lazy, inner.clone());
-        ctx.consume(inner.cursor.get() - ctx.cursor.get());
+        ctx.consume(inner.cursor.get() - ctx.cursor.get() - 1);
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let item = Item::Command {
-            names: &self.names,
+            names: &self.names.names,
             descr: self.inner.info.descr,
             inner: &self.inner,
         };
@@ -270,7 +287,7 @@ impl<T: 'static> Parser for Command<T> {
 impl<T> Leaf for Command<T> {}
 
 pub struct Command<T> {
-    names: Vec<Lit<'static>>,
+    names: Literal,
     inner: OptionParser<T>,
     lazy: bool,
 }

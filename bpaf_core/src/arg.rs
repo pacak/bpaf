@@ -2,7 +2,7 @@ use std::{borrow::Cow, ffi::OsStr};
 
 use crate::{Lit, Name};
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Adjacency {
     // for short arguments `-foutput`, for long - not possible
     Immediate,

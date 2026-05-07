@@ -71,7 +71,9 @@ impl<T: 'static> Parser for Anything<T> {
     type Output = T;
 
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
-        let r = ctx.await_passing_check(self.check.clone()).await?;
+        let r = ctx
+            .await_passing_check(self.meta, self.check.clone())
+            .await?;
 
         if r {
             self.join.take()

@@ -837,3 +837,14 @@ fn no_misleading_no_such_flag() {
     let expected = "`--name` expects a value\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn any_keeps_track_of_current_value() {
+    let parser = any::<&str, usize>("N", |s: &str| s.parse::<usize>().ok())
+        .parse(|n: usize| if n > 100 { Err("too large") } else { Ok(n) })
+        .to_options();
+
+    let r = parser.run_inner("200").unwrap_err().unwrap_stderr();
+    let expected = "couldn't parse `200`: too large\n";
+    assert_eq!(r, expected);
+}

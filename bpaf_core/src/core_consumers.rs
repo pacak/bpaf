@@ -6,7 +6,21 @@
 //! only bits here know about consuming, cursor, and events.
 //! Everything here is either fixed type or (in rare cases &dyn...)
 
-use crate::*;
+use crate::{
+    Arg, CReq, Conflict, Error, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
+    Reason, Scope, TChange, TTarget, arg, error::CV, lex_os_arg, r#yield,
+};
+use std::{ffi::OsStr, rc::Rc};
+
+/// Register triggers, yield for wakeup, then de-register triggers.
+/// Used by all async parser methods to wait for a trigger event.
+macro_rules! with_trigger_and_yield {
+    ($self:ident, $targets:expr) => {{
+        $self.with_trigger(TChange::Add, $targets);
+        r#yield().await;
+        $self.with_trigger(TChange::Remove, $targets);
+    }};
+}
 
 impl TTarget {
     fn into_conflict(self, pos: u32) -> Option<Conflict> {
@@ -39,67 +53,180 @@ impl<'p> RawCtx<'p> {
         self.current_task.borrow_mut().consumed += cnt;
     }
 
-    async fn wait_for(
+    pub(crate) async fn parse_pos(
         &self,
-        items: impl IntoIterator<Item = TTarget> + Clone,
-    ) -> Result<Option<Arg<'p>>, Error> {
-        self.with_trigger(TChange::Add, items.clone());
-        r#yield().await; // wait for a trigger, resumes in the middle of a stage 1
-        self.with_trigger(TChange::Remove, items.clone());
-        self.reason_to_arg(items)
-    }
-
-    pub(crate) async fn parse_pos(&self) -> Result<Option<&'p OsStr>, Error> {
-        Ok(self.wait_for([TTarget::Pos]).await?.map(|arg| match arg {
-            Arg::Named { .. } => unreachable!(),
-            Arg::Pos { value } => {
+        help: Option<&'static str>,
+        meta: Metavar,
+    ) -> Result<Option<&'p OsStr>, Error> {
+        with_trigger_and_yield!(self, [TTarget::Pos]);
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(Arg::Pos { value }) => {
                 self.consume(1);
                 *self.current_value.borrow_mut() = Some(value);
-                value
+                Ok(Some(value))
             }
-        }))
+            Reason::Arg(_) => unreachable!(),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+            Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts([TTarget::Pos])),
+            r @ (Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
+            Reason::Complete(shell, creqs) => match creqs.as_slice() {
+                [CReq::Value { value }] => {
+                    let prefix_value = if value.is_empty() {
+                        meta.to_string()
+                    } else {
+                        (*value).to_owned()
+                    };
+                    let cv = CV {
+                        has_value: true,
+                        prefix_len: 0,
+                        prefix_value,
+                        meta_only: value.is_empty(),
+                        help,
+                        shell: *shell,
+                    };
+                    Err(Error::CompValue(cv))
+                }
+                _ => unreachable!(),
+            },
+        }
     }
 
     pub(crate) async fn await_passing_check(
         &self,
+        meta: Metavar,
         check: Rc<dyn Fn(&OsStr) -> bool>,
     ) -> Result<bool, Error> {
-        let ok = self.wait_for([TTarget::Check(check)]).await?.is_some();
-        if ok {
-            self.consume(1);
+        with_trigger_and_yield!(self, [TTarget::Check(check.clone())]);
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(_) => {
+                self.consume(1);
+                *self.current_value.borrow_mut() = Some(self.args[self.cursor.get()].as_os_str());
+                Ok(true)
+            }
+            Reason::Kill(KillReason::Conflict) => Err(Error::Silent("Killed by conflict")),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(false),
+            r @ (Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
+            Reason::Complete(shell, _) => {
+                let value = self.args[self.cursor.get()].as_os_str();
+                let prefix_value = if value.is_empty() {
+                    meta.to_string()
+                } else {
+                    value.to_string_lossy().into_owned()
+                };
+                let cv = CV {
+                    prefix_value,
+                    has_value: true,
+                    prefix_len: 0,
+                    help: None,
+                    shell: *shell,
+                    meta_only: value.is_empty(),
+                };
+                Err(Error::CompValue(cv))
+            }
         }
-        Ok(ok)
     }
 
     /// Wake up on one of the literals, return it
     pub(crate) async fn parse_literal(
         &self,
-        names: &[Lit<'static>],
+        literal: &Literal,
     ) -> Result<Option<Lit<'static>>, Error> {
-        let res = self
-            .wait_for(names.iter().cloned().map(TTarget::Literal))
-            .await?;
-
-        Ok(match res {
-            Some(Arg::Pos { value }) => arg::as_name(value).map(|v| v.into_owned()),
-            _ => None,
-        })
+        with_trigger_and_yield!(self, literal.triggers());
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(Arg::Pos { value }) => {
+                self.consume(1);
+                Ok(Some(arg::as_name(value).unwrap().into_owned()))
+            }
+            Reason::Arg(_) => unreachable!(),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+            Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(literal.triggers())),
+            r @ (Reason::Kill(_) | Reason::Pass | Reason::Push | Reason::ChildProgress(_)) => {
+                unreachable!("non-leaf wakeup: {r:?}")
+            }
+            Reason::Complete(shell, creqs) => {
+                let best = literal.names.iter().find(|n| {
+                    creqs
+                        .iter()
+                        .any(|creq| matches!(creq, CReq::Literal { name } if *n == name))
+                });
+                let cv = CV {
+                    prefix_value: best.unwrap().to_string(),
+                    has_value: false,
+                    prefix_len: 0,
+                    help: literal.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+                Err(Error::CompValue(cv))
+            }
+        }
     }
 
     pub(crate) async fn parse_arg(
         &self,
-        names: &[Name<'static>],
+        named: &Named,
+        meta: Metavar,
     ) -> Result<Option<&'p OsStr>, Error> {
-        match self
-            .wait_for(names.iter().cloned().map(TTarget::Arg))
-            .await?
-        {
-            Some(arg) => self.parse_arg_consume(arg),
-            None => Ok(None),
+        with_trigger_and_yield!(self, named.arg_triggers());
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(arg) => self.parse_arg_consume(arg.clone(), meta, named.help),
+
+            Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.arg_triggers())),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
+
+            r @ (Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
+
+            Reason::Complete(shell, creqs) => {
+                let mut value_adj = None;
+                let best = named.all_names_long_first().find(|n| {
+                    creqs.iter().any(|creq| match creq {
+                        CReq::Named { name } => *n == name,
+                        CReq::NamedValue { name, adj, value } if *n == name => {
+                            value_adj = Some((*adj, *value));
+                            true
+                        }
+                        _ => false,
+                    })
+                });
+                let best = best.unwrap();
+
+                let mut prefix_value = best.to_string();
+                let mut value_len = 0;
+                if let Some((a, v)) = value_adj {
+                    use std::fmt::Write as _;
+                    value_len = v.len();
+                    _ = write!(&mut prefix_value, "{a}{v}");
+                }
+                let prefix_len = prefix_value.len() as u32 - value_len as u32;
+                let cv = CV {
+                    prefix_value,
+                    has_value: value_adj.is_some(),
+                    prefix_len,
+                    help: named.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+
+                Err(Error::CompValue(cv))
+            }
         }
     }
 
-    pub(self) fn parse_arg_consume(&self, arg: Arg<'p>) -> Result<Option<&'p OsStr>, Error> {
+    pub(self) fn parse_arg_consume(
+        &self,
+        arg: Arg<'p>,
+        meta: Metavar,
+        help: Option<&'static str>,
+    ) -> Result<Option<&'p OsStr>, Error> {
         match arg {
             Arg::Pos { .. } => unreachable!(),
             Arg::Named { name, value: None } => {
@@ -124,14 +251,27 @@ impl<'p> RawCtx<'p> {
                     )),
                     Arg::Pos { value } => {
                         self.consume(2);
-                        if self.args.complete && cursor + 1 == self.args.len() {
-                            let req = match value.to_str() {
-                                Some(prefix) => CompleteReq::Literal {
-                                    prefix: prefix.into(),
-                                },
-                                None => CompleteReq::Value(value.to_os_string()),
+                        // Unlike most of the parsers, arguments can trigger completions
+                        // in two possible ways: to complete the name and to complete the value.
+                        // Second case becomes active when user types the name, a space and, then
+                        // tries to complete the value
+                        if cursor + 1 == self.args.len()
+                            && let Some(shell) = self.args.complete
+                        {
+                            let prefix_value = if value.is_empty() {
+                                meta.to_string()
+                            } else {
+                                value.to_string_lossy().into_owned()
                             };
-                            return Err(Error::CompReq(req));
+                            let cv = CV {
+                                prefix_value,
+                                has_value: true,
+                                prefix_len: 0,
+                                help,
+                                shell: shell.into(),
+                                meta_only: value.is_empty(),
+                            };
+                            return Err(Error::CompValue(cv));
                         }
                         *self.current_value.borrow_mut() = Some(value);
                         Ok(Some(value))
@@ -154,25 +294,45 @@ impl<'p> RawCtx<'p> {
     /// - `Ok(true)` when encounters a name
     /// - `Ok(false)` when it gets terminated by "no such item"
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
-    pub(crate) async fn parse_flag(&self, names: &[Name<'static>]) -> Result<bool, Error> {
-        match self
-            .wait_for(names.iter().cloned().map(TTarget::Flag))
-            .await?
-        {
-            Some(arg) => self.parse_flag_consume(arg),
-            None => Ok(false),
+    pub(crate) async fn parse_flag(&self, named: &Named) -> Result<bool, Error> {
+        with_trigger_and_yield!(self, named.flag_triggers());
+        match &*self.wakeup_reason.borrow() {
+            Reason::Arg(arg) => self.parse_flag_consume(arg),
+            Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.flag_triggers())),
+            Reason::Kill(KillReason::NoMatchingInput) => Ok(false),
+            r @ (Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
+
+            Reason::Complete(shell, creqs) => {
+                let best = named.all_names_long_first().find(|n| {
+                    creqs
+                        .iter()
+                        .any(|creq| matches!(creq, CReq::Named { name } if *n == name))
+                });
+                let cv = CV {
+                    prefix_value: best.unwrap().to_string(),
+                    has_value: false,
+                    prefix_len: 0,
+                    help: named.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+                Err(Error::CompValue(cv))
+            }
         }
     }
 
     /// Consume a present argument, advance
     #[inline(always)]
-    pub(self) fn parse_flag_consume(&self, arg: Arg) -> Result<bool, Error> {
+    pub(self) fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
         match arg {
             Arg::Named { name, value } => match value {
                 Some((adj, val)) => {
                     let problem = Problem::ExpectedFlag {
-                        name: name.into_owned(),
-                        adj,
+                        name: name.clone().into_owned(),
+                        adj: *adj,
                         value: val.to_os_string(),
                     };
                     let pos = self.cursor.get();
@@ -188,7 +348,7 @@ impl<'p> RawCtx<'p> {
     }
 
     /// All the `items` where killed as we parsed an item at current cursor position
-    fn record_conflicts(&self, items: impl IntoIterator<Item = TTarget>) {
+    fn record_conflicts(&self, items: impl IntoIterator<Item = TTarget>) -> Error {
         // The idea for conflict tracking is to record that we could have consumed
         // a flag / literal, but instead consumed something else at a given cursor position
         //
@@ -198,26 +358,7 @@ impl<'p> RawCtx<'p> {
         self.conflicts
             .borrow_mut()
             .extend(items.into_iter().filter_map(|t| t.into_conflict(pos)));
-    }
-
-    fn reason_to_arg(
-        &self,
-        items: impl IntoIterator<Item = TTarget> + Clone,
-    ) -> Result<Option<Arg<'p>>, Error> {
-        match &*self.wakeup_reason.borrow() {
-            Reason::Arg(arg) => Ok(Some(arg.clone())),
-            Reason::Kill(KillReason::Conflict) => {
-                self.record_conflicts(items);
-                Err(Error::Silent("Killed by conflict"))
-            }
-            Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
-            r @ (Reason::Kill(KillReason::TooShort)
-            | Reason::Pass
-            | Reason::Push
-            | Reason::ChildProgress(_)) => todo!("{r:?}"),
-
-            Reason::Complete(complete) => Err(Error::CompReq(complete.clone())),
-        }
+        Error::Silent("Killed by conflict")
     }
 
     /// Keep track of children progress and trim under-consuming ones
@@ -267,5 +408,20 @@ impl<'p> RawCtx<'p> {
             }
             r#yield().await; // end of stage 2
         }
+    }
+}
+
+impl Named {
+    fn flag_triggers(&self) -> impl Iterator<Item = TTarget> {
+        self.names.iter().cloned().map(TTarget::Flag)
+    }
+    fn arg_triggers(&self) -> impl Iterator<Item = TTarget> {
+        self.names.iter().cloned().map(TTarget::Arg)
+    }
+}
+
+impl Literal {
+    fn triggers(&self) -> impl Iterator<Item = TTarget> {
+        self.names.iter().cloned().map(TTarget::Literal)
     }
 }

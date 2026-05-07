@@ -21,10 +21,28 @@ struct DaemonOpts {
     group: String,
 }
 
+// 1. need to know where to get the binary from
+// 2. need to know how to get shell completions for different shells
+// 3. need a place to store the cache
+
 fn main() {
     let verbose = short('v').help("switch verbosity on").switch();
-    let user = short('u').help("daemon user").argument::<String>("USER");
-    let group = short('g').help("daemon group").argument::<String>("GROUP");
+    let user = short('u')
+        .long("user")
+        .help("daemon user")
+        .argument::<String>("USER")
+        .complete(|f: &str| {
+            let f = f.strip_prefix('"').unwrap_or(f);
+            ["alice", "bob"]
+                .iter()
+                .filter(|&u| u.starts_with(f))
+                .map(|u| (u.to_string(), None))
+                .collect::<Vec<_>>()
+        });
+    let group = short('g')
+        .long("group")
+        .help("daemon group")
+        .argument::<String>("GROUP");
     let daemon_opts = construct!(DaemonOpts { user, group });
     let opt = construct!(Cmdline {
         verbose,
