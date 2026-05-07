@@ -11,7 +11,7 @@
 use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 
 use crate::{
-    Error, KillReason, Lit, Metavar, Name, ParseFailure, Reason, Scope, Triggers,
+    Error, Id, KillReason, Lit, Metavar, Name, ParseFailure, Reason, Scope, Triggers,
     arg::{Adjacency, Arg},
     error::CompValue,
     pecking::PeckingOrder,
@@ -380,21 +380,6 @@ pub(crate) enum CReq<'a> {
     Literal { name: Lit<'a> },
 }
 
-impl CReq<'_> {
-    /// Prefer long name where possible
-    pub(crate) fn improve(&mut self, other: Self) {
-        let CReq::Named { name: n1, .. } = self else {
-            return;
-        };
-        let CReq::Named { name: n2, .. } = other else {
-            return;
-        };
-        if matches!(n1, Name::Short(_)) && matches!(n2, Name::Long(_)) {
-            *n1 = n2;
-        }
-    }
-}
-
 pub(crate) fn handle_subparser_complete(err: Error) -> Error {
     match err {
         Error::CompReply(CompReply(items)) => ParseFailure::Console(items).into(),
@@ -403,7 +388,7 @@ pub(crate) fn handle_subparser_complete(err: Error) -> Error {
     }
 }
 
-/// For each possible set of triggers also return what
+/// Collect all the possible triggers that can fire given a possibly incomplete input
 pub(crate) fn orders_by_prefix<'a, 'b>(
     arg: Arg<'b>,
     triggers: &'a Triggers,
@@ -491,6 +476,7 @@ where
     };
 
     out.sort_by(|v1, v2| v1.0.cmp(&v2.0));
+
     out
 }
 
@@ -504,7 +490,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
 
         let arg = crate::arg::lex_os_arg(arg_os);
 
-        let mut m = BTreeMap::default();
+        let mut m = BTreeMap::<Id, Vec<CReq<'p>>>::default();
         // Normally we traverse each pecking order at once since only sum items can run
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
@@ -513,15 +499,15 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             self.to_wake.extend(self.mixer.for_wake(&self.tasks));
 
             for id in self.to_wake.drain(..) {
-                m.entry(id)
-                    .and_modify(|prev: &mut CReq| prev.improve(req.clone()))
-                    .or_insert(req.clone());
+                m.entry(id).or_default().push(req.clone());
             }
         }
 
         // TODO - add all the active checks here?
         for id in self.triggers.checks.keys() {
-            m.insert(*id, CReq::Value { value: arg_os });
+            m.entry(*id)
+                .or_default()
+                .push(CReq::Value { value: arg_os });
         }
 
         // even if there's nothing to return - let's produce an empty set of results so we

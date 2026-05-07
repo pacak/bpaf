@@ -449,7 +449,7 @@ enum Reason<'p> {
     /// Notification from the executor to sums about children making progress
     ChildProgress(Vec1<Id>),
 
-    Complete(complete::ShellRender, CReq<'p>),
+    Complete(complete::ShellRender, Vec<CReq<'p>>),
 }
 
 fn make_chan<T: 'static>() -> (ExitHandle<T>, JoinHandle<T>) {
@@ -1322,8 +1322,8 @@ impl Mixer {
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 enum Name<'a> {
-    Long(Cow<'a, str>),
     Short(char),
+    Long(Cow<'a, str>),
 }
 
 impl std::fmt::Display for Name<'_> {

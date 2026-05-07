@@ -75,18 +75,20 @@ impl<'p> RawCtx<'p> {
             | Reason::Pass
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
-            Reason::Complete(shell, creq) => match creq {
-                CReq::Named { .. } | CReq::NamedValue { .. } | CReq::Literal { .. } => {
-                    unreachable!()
-                }
-                CReq::Value { value } => Err(Error::CompValue(CompValue {
+            Reason::Complete(shell, creqs) => {
+                let value = creqs.iter().find_map(|creq| match creq {
+                    CReq::Value { value } => Some(*value),
+                    _ => None,
+                });
+                let value = value.unwrap();
+                Err(Error::CompValue(CompValue {
                     name: None,
-                    value: Box::from(*value),
+                    value: Box::from(value),
                     meta,
                     shell: *shell,
                     help,
-                })),
-            },
+                }))
+            }
         }
     }
 
@@ -138,17 +140,18 @@ impl<'p> RawCtx<'p> {
             r @ (Reason::Kill(_) | Reason::Pass | Reason::Push | Reason::ChildProgress(_)) => {
                 unreachable!("non-leaf wakeup: {r:?}")
             }
-            Reason::Complete(shell, creq) => match creq {
-                CReq::Literal { name } => Err(Error::CompReply(complete::CompReply::literal(
+            Reason::Complete(shell, creqs) => {
+                let best = literal.names.iter().find(|n| {
+                    creqs
+                        .iter()
+                        .any(|creq| matches!(creq, CReq::Literal { name } if *n == name))
+                });
+                Err(Error::CompReply(complete::CompReply::literal(
                     *shell,
-                    name,
+                    best.unwrap(),
                     literal.help,
-                ))),
-
-                CReq::Named { .. } | CReq::NamedValue { .. } | CReq::Value { .. } => {
-                    unreachable!("Non-literal wakeup")
-                }
-            },
+                )))
+            }
         }
     }
 
@@ -169,24 +172,35 @@ impl<'p> RawCtx<'p> {
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
-            Reason::Complete(shell, creq) => match creq {
-                CReq::Named { name } => Err(Error::CompReply(CompReply::named(
-                    *shell,
-                    name,
-                    Some(meta),
-                    named.help,
-                ))),
-                CReq::NamedValue { name, adj, value } => Err(Error::CompValue(CompValue {
-                    name: Some(format!("{name}{adj}").into_boxed_str()),
-                    value: Box::from(*value),
-                    meta,
-                    shell: *shell,
-                    help: named.help,
-                })),
-                CReq::Value { .. } | CReq::Literal { .. } => {
-                    unreachable!("Non-flag wakeup: {creq:?} for {named:?}")
+            Reason::Complete(shell, creqs) => {
+                let best = named.names.iter().find(|n| {
+                    creqs.iter().any(|creq| match creq {
+                        CReq::Named { name } => *n == name,
+                        CReq::NamedValue { name, .. } => *n == name,
+                        _ => false,
+                    })
+                });
+                let best = best.unwrap();
+                let value_match = creqs.iter().find_map(|creq| match creq {
+                    CReq::NamedValue { name, adj, value } if *name == *best => Some((adj, *value)),
+                    _ => None,
+                });
+                match value_match {
+                    Some((adj, value)) => Err(Error::CompValue(CompValue {
+                        name: Some(format!("{best}{adj}").into_boxed_str()),
+                        value: Box::from(value),
+                        meta,
+                        shell: *shell,
+                        help: named.help,
+                    })),
+                    None => Err(Error::CompReply(CompReply::named(
+                        *shell,
+                        best,
+                        Some(meta),
+                        named.help,
+                    ))),
                 }
-            },
+            }
         }
     }
 
@@ -267,16 +281,15 @@ impl<'p> RawCtx<'p> {
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
-            Reason::Complete(shell, creq) => match creq {
-                CReq::Named { name } => {
-                    let reply = complete::CompReply::named(*shell, name, None, named.help);
-                    Err(Error::CompReply(reply))
-                }
-
-                CReq::NamedValue { .. } | CReq::Value { .. } | CReq::Literal { .. } => {
-                    unreachable!("Non-flag wakeup: {creq:?} for {named:?}")
-                }
-            },
+            Reason::Complete(shell, creqs) => {
+                let best = named.names.iter().find(|n| {
+                    creqs
+                        .iter()
+                        .any(|creq| matches!(creq, CReq::Named { name } if *n == name))
+                });
+                let reply = complete::CompReply::named(*shell, best.unwrap(), None, named.help);
+                Err(Error::CompReply(reply))
+            }
         }
     }
 
