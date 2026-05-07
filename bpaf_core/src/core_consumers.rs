@@ -71,10 +71,10 @@ impl<'p> RawCtx<'p> {
             Reason::Arg(_) => unreachable!(),
             Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts([TTarget::Pos])),
-            Reason::Kill(KillReason::TooShort)
+            r @ (Reason::Kill(KillReason::TooShort)
             | Reason::Pass
             | Reason::Push
-            | Reason::ChildProgress(_) => unreachable!(),
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, creq) => match creq {
                 CReq::Named { .. } | CReq::NamedValue { .. } | CReq::Literal { .. } => {
                     unreachable!()
@@ -101,11 +101,12 @@ impl<'p> RawCtx<'p> {
                 self.consume(1);
                 Ok(true)
             }
+            Reason::Kill(KillReason::Conflict) => Err(Error::Silent("Killed by conflict")),
             Reason::Kill(KillReason::NoMatchingInput) => Ok(false),
-            Reason::Kill(KillReason::TooShort) | Reason::Kill(KillReason::Conflict) => {
-                unreachable!()
-            }
-            Reason::Pass | Reason::Push | Reason::ChildProgress(_) => unreachable!(),
+            r @ (Reason::Kill(KillReason::TooShort)
+            | Reason::Pass
+            | Reason::Push
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, _) => {
                 let value = Box::from(self.args[self.cursor.get()].as_os_str());
                 let cv = CompValue {
@@ -135,7 +136,7 @@ impl<'p> RawCtx<'p> {
             Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(literal.triggers())),
             r @ (Reason::Kill(_) | Reason::Pass | Reason::Push | Reason::ChildProgress(_)) => {
-                unreachable!("{r:?}")
+                unreachable!("non-leaf wakeup: {r:?}")
             }
             Reason::Complete(shell, creq) => match creq {
                 CReq::Literal { name } => Err(Error::CompReply(complete::CompReply::literal(
@@ -163,10 +164,10 @@ impl<'p> RawCtx<'p> {
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.arg_triggers())),
             Reason::Kill(KillReason::NoMatchingInput) => Ok(None),
 
-            Reason::Kill(KillReason::TooShort)
+            r @ (Reason::Kill(KillReason::TooShort)
             | Reason::Pass
             | Reason::Push
-            | Reason::ChildProgress(_) => unreachable!("Non-leaf wakeup reason"),
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
             Reason::Complete(shell, creq) => match creq {
                 CReq::Named { name } => Err(Error::CompReply(CompReply::named(
@@ -261,10 +262,10 @@ impl<'p> RawCtx<'p> {
             Reason::Arg(arg) => self.parse_flag_consume(arg),
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.flag_triggers())),
             Reason::Kill(KillReason::NoMatchingInput) => Ok(false),
-            Reason::Kill(KillReason::TooShort)
+            r @ (Reason::Kill(KillReason::TooShort)
             | Reason::Pass
             | Reason::Push
-            | Reason::ChildProgress(_) => unreachable!("Non-leaf wakeup reason"),
+            | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
             Reason::Complete(shell, creq) => match creq {
                 CReq::Named { name } => {
