@@ -1,6 +1,5 @@
 use crate::complete::{CompReply, ShellRender};
 use crate::{Metavar, Name, Parser, construct, long, positional, pure, short};
-use std::ffi::OsString;
 
 #[test]
 fn simple_complete_command() {
@@ -144,11 +143,11 @@ fn short_name() -> Name<'static> {
 fn named_dumbtab() {
     // no help
     let r = CompReply::named(ShellRender::DumbTab, &short_name(), None, None);
-    assert_eq!(r.0, OsString::from("-x\n"));
+    assert_eq!(r.0, "-x\n");
 
     // help
     let r = CompReply::named(ShellRender::DumbTab, &short_name(), None, Some("help text"));
-    assert_eq!(r.0, OsString::from("-x\thelp text\n"));
+    assert_eq!(r.0, "-x\thelp text\n");
 
     // no help
     let r = CompReply::named(
@@ -157,7 +156,7 @@ fn named_dumbtab() {
         Some(Metavar("META")),
         None,
     );
-    assert_eq!(r.0, OsString::from("-x=META\n"));
+    assert_eq!(r.0, "-x=META\n");
 
     // help
     let r = CompReply::named(
@@ -166,14 +165,14 @@ fn named_dumbtab() {
         Some(Metavar("META")),
         Some("help text"),
     );
-    assert_eq!(r.0, OsString::from("-x=META\thelp text\n"));
+    assert_eq!(r.0, "-x=META\thelp text\n");
 }
 
 #[test]
 fn named_dumb() {
     // no help, no meta
     let r = CompReply::named(ShellRender::Dumb, &short_name(), None, None);
-    assert_eq!(r.0, OsString::from("-x\n"));
+    assert_eq!(r.0, "-x\n");
     // help, with meta
     let r = CompReply::named(
         ShellRender::Dumb,
@@ -190,17 +189,13 @@ fn named_zsh() {
     let r = CompReply::named(ShellRender::Zsh, &short_name(), None, None);
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x'\n"
     );
 
     let r = CompReply::named(ShellRender::Zsh, &short_name(), Some(Metavar("META")), None);
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x=META'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x=META'\n"
     );
 
     let r = CompReply::named(
@@ -211,17 +206,13 @@ fn named_zsh() {
     );
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x=<HOST:PORT>'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x')\ncompadd -l -d _bpaf_descr -- '-x=<HOST:PORT>'\n"
     );
 
     let r = CompReply::named(ShellRender::Zsh, &short_name(), None, Some("help text"));
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x  -- help text')\ncompadd -l -d _bpaf_descr -- '-x'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x  -- help text')\ncompadd -l -d _bpaf_descr -- '-x'\n"
     );
 
     let r = CompReply::named(
@@ -232,9 +223,7 @@ fn named_zsh() {
     );
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x  -- help text')\ncompadd -l -d _bpaf_descr -- '-x=META'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x  -- help text')\ncompadd -l -d _bpaf_descr -- '-x=META'\n"
     );
 
     // With complex metavar and help text
@@ -246,18 +235,14 @@ fn named_zsh() {
     );
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x  -- connect to host')\ncompadd -l -d _bpaf_descr -- '-x=<HOST:PORT>'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x  -- connect to host')\ncompadd -l -d _bpaf_descr -- '-x=<HOST:PORT>'\n"
     );
 
     // Special characters in description
     let r = CompReply::named(ShellRender::Zsh, &short_name(), None, Some("it's a [test]"));
     assert_eq!(
         r.0,
-        OsString::from(
-            "local -a _bpaf_descr\n_bpaf_descr=('-x  -- it's a [test]')\ncompadd -l -d _bpaf_descr -- '-x'\n"
-        )
+        "local -a _bpaf_descr\n_bpaf_descr=('-x  -- it's a [test]')\ncompadd -l -d _bpaf_descr -- '-x'\n"
     );
 }
 

@@ -8,12 +8,7 @@
 //! 4. those errors are combined until the top level
 //! 5. at the top level - something renders them to the console output
 
-use std::{
-    collections::BTreeMap,
-    ffi::{OsStr, OsString},
-    fmt::Write as _,
-    str::FromStr,
-};
+use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 
 use crate::{
     Error, KillReason, Lit, Metavar, Name, ParseFailure, Reason, Scope, Triggers,
@@ -22,7 +17,7 @@ use crate::{
     pecking::PeckingOrder,
 };
 
-fn append_help(buf: &mut OsString, rev: ShellRender, help: Option<&str>) {
+fn append_help(buf: &mut String, rev: ShellRender, help: Option<&str>) {
     match rev {
         ShellRender::Dumb => {}
         ShellRender::Test | ShellRender::DumbTab => {
@@ -38,42 +33,42 @@ impl CompReply {
     #[inline(never)]
     pub(crate) fn literal(rev: ShellRender, name: &Lit, help: Option<&str>) -> Self {
         use std::fmt::Write;
-        let mut buf = OsString::new();
+        let mut buf = String::new();
 
         match rev {
             ShellRender::Test => {
-                buf.push("lit: ");
+                buf.push_str("lit: ");
                 _ = write!(&mut buf, "{name}");
                 if let Some(h) = help {
-                    buf.push("\t");
-                    buf.push(h);
+                    buf.push_str("\t");
+                    buf.push_str(h);
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
             ShellRender::Zsh => {
-                buf.push("local -a _bpaf_descr\n");
-                buf.push("_bpaf_descr=('");
+                buf.push_str("local -a _bpaf_descr\n");
+                buf.push_str("_bpaf_descr=('");
                 zsh_push_single_quoted(&mut buf, &name.to_string());
                 if let Some(h) = help {
-                    buf.push("  -- ");
+                    buf.push_str("  -- ");
                     zsh_push_compadd_description(&mut buf, h);
                 }
-                buf.push("')\n");
-                buf.push("compadd -l -d _bpaf_descr -- '");
+                buf.push_str("')\n");
+                buf.push_str("compadd -l -d _bpaf_descr -- '");
                 zsh_push_single_quoted(&mut buf, &name.to_string());
-                buf.push("'\n");
+                buf.push_str("'\n");
             }
             ShellRender::Dumb => {
                 _ = write!(&mut buf, "{name}");
-                buf.push("\n");
+                buf.push_str("\n");
             }
             ShellRender::DumbTab => {
                 _ = write!(&mut buf, "{name}");
                 if let Some(h) = help {
-                    buf.push("\t");
-                    buf.push(h);
+                    buf.push_str("\t");
+                    buf.push_str(h);
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
         }
         Self(buf)
@@ -87,29 +82,29 @@ impl CompReply {
         help: Option<&str>,
     ) -> Self {
         use std::fmt::Write;
-        let mut buf = OsString::new();
+        let mut buf = String::new();
 
         if rev == ShellRender::Test {
-            buf.push("named: ");
+            buf.push_str("named: ");
         }
 
         match rev {
             ShellRender::Zsh => {
-                buf.push("local -a _bpaf_descr\n");
-                buf.push("_bpaf_descr=('");
+                buf.push_str("local -a _bpaf_descr\n");
+                buf.push_str("_bpaf_descr=('");
                 zsh_push_single_quoted(&mut buf, &name.to_string());
                 if let Some(h) = help {
-                    buf.push("  -- ");
+                    buf.push_str("  -- ");
                     zsh_push_compadd_description(&mut buf, h);
                 }
-                buf.push("')\n");
-                buf.push("compadd -l -d _bpaf_descr -- '");
+                buf.push_str("')\n");
+                buf.push_str("compadd -l -d _bpaf_descr -- '");
                 zsh_push_single_quoted(&mut buf, &name.to_string());
                 if let Some(m) = meta {
-                    buf.push("=");
+                    buf.push_str("=");
                     zsh_push_single_quoted(&mut buf, &m.to_string());
                 }
-                buf.push("'\n");
+                buf.push_str("'\n");
             }
             ShellRender::Dumb => {
                 if meta.is_some() {
@@ -117,16 +112,16 @@ impl CompReply {
                 } else {
                     _ = write!(&mut buf, "{name}");
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
             ShellRender::Test | ShellRender::DumbTab => {
                 _ = write!(&mut buf, "{name}");
                 if let Some(m) = meta {
-                    buf.push("=");
+                    buf.push_str("=");
                     _ = write!(&mut buf, "{m}");
                 }
                 append_help(&mut buf, rev, help);
-                buf.push("\n");
+                buf.push_str("\n");
             }
         }
 
@@ -138,13 +133,13 @@ impl CompReply {
 ///
 /// Can contain multiple lines,
 #[derive(Clone, Default, Debug)]
-pub(crate) struct CompReply(pub(crate) OsString);
+pub(crate) struct CompReply(pub(crate) String);
 
 impl std::ops::Add for CompReply {
     type Output = Self;
 
     fn add(mut self, rhs: Self) -> Self::Output {
-        self.0.push(&rhs.0);
+        self.0.push_str(&rhs.0);
         self
     }
 }
@@ -286,7 +281,7 @@ impl crate::args::Args {
             && value.is_none()
             && self.items.len() == 1
         {
-            let script = OsString::from(Shell::from_str(shell)?.render_for(&self.app));
+            let script = Shell::from_str(shell)?.render_for(&self.app);
             Err(ParseFailure::Console(script))
         } else {
             Ok(())
@@ -301,8 +296,8 @@ impl From<CompReply> for Error {
 }
 
 impl CompValue {
-    pub(crate) fn into_os(self) -> OsString {
-        self.into_reply().0
+    pub(crate) fn into_os(self) -> std::ffi::OsString {
+        self.into_reply().0.into()
     }
     pub(crate) fn into_reply(self) -> CompReply {
         let CompValue {
@@ -313,34 +308,34 @@ impl CompValue {
             help,
         }: CompValue = self;
 
-        let mut buf = OsString::new();
+        let mut buf = String::new();
 
         match shell {
             ShellRender::Test => {
-                buf.push("unh: ");
+                buf.push_str("unh: ");
                 if let Some(prefix) = &name {
-                    buf.push(prefix.as_ref());
+                    buf.push_str(prefix.as_ref());
                 }
                 if value.is_empty() {
                     _ = write!(&mut buf, "{meta}");
                 } else {
-                    buf.push(&value);
+                    buf.push_str(&value.to_string_lossy());
                 }
                 if value.is_empty() {
                     if let Some(h) = help {
-                        buf.push("\t");
-                        buf.push(h);
+                        buf.push_str("\t");
+                        buf.push_str(h);
                     }
                 } else {
-                    buf.push("\t");
+                    buf.push_str("\t");
                     _ = write!(&mut buf, "{meta}");
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
             ShellRender::Zsh => {
                 if let Some(prefix) = &name {
-                    buf.push("local -a _bpaf_descr\n");
-                    buf.push("_bpaf_descr=('");
+                    buf.push_str("local -a _bpaf_descr\n");
+                    buf.push_str("_bpaf_descr=('");
                     zsh_push_single_quoted(&mut buf, prefix.as_ref());
                     if value.is_empty() {
                         zsh_push_single_quoted(&mut buf, &meta.to_string());
@@ -348,18 +343,18 @@ impl CompValue {
                         zsh_push_single_quoted(&mut buf, value.to_str().unwrap_or(""));
                     }
                     if let Some(h) = help {
-                        buf.push("  -- ");
+                        buf.push_str("  -- ");
                         zsh_push_compadd_description(&mut buf, h);
                     }
-                    buf.push("')\n");
-                    buf.push("compadd -l -d _bpaf_descr -- '");
+                    buf.push_str("')\n");
+                    buf.push_str("compadd -l -d _bpaf_descr -- '");
                     zsh_push_single_quoted(&mut buf, prefix.as_ref());
                     if value.is_empty() {
                         zsh_push_single_quoted(&mut buf, &meta.to_string());
                     } else {
                         zsh_push_single_quoted(&mut buf, value.to_str().unwrap_or(""));
                     }
-                    buf.push("'\n");
+                    buf.push_str("'\n");
                 } else {
                     // Positional argument - use compadd
                     let val_str = if value.is_empty() {
@@ -372,34 +367,34 @@ impl CompValue {
             }
             ShellRender::Dumb => {
                 if let Some(prefix) = &name {
-                    buf.push(prefix.as_ref());
+                    buf.push_str(prefix.as_ref());
                 }
                 if value.is_empty() {
                     _ = write!(&mut buf, "{meta}");
                 } else {
-                    buf.push(&value);
+                    buf.push_str(&value.to_string_lossy());
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
             ShellRender::DumbTab => {
                 if let Some(prefix) = &name {
-                    buf.push(prefix.as_ref());
+                    buf.push_str(prefix.as_ref());
                 }
                 if value.is_empty() {
                     _ = write!(&mut buf, "{meta}");
                 } else {
-                    buf.push(&value);
+                    buf.push_str(&value.to_string_lossy());
                 }
                 if value.is_empty() {
                     if let Some(h) = help {
-                        buf.push("\t");
-                        buf.push(h);
+                        buf.push_str("\t");
+                        buf.push_str(h);
                     }
                 } else {
-                    buf.push("\t");
+                    buf.push_str("\t");
                     _ = write!(&mut buf, "{meta}");
                 }
-                buf.push("\n");
+                buf.push_str("\n");
             }
         }
 
@@ -408,9 +403,9 @@ impl CompValue {
 }
 
 impl ShellRender {
-    fn debug(&self, buf: &mut OsString, text: &str) {
+    fn debug(&self, buf: &mut String, text: &str) {
         if *self == ShellRender::Test {
-            buf.push(text)
+            buf.push_str(text)
         }
     }
 }
@@ -418,47 +413,47 @@ impl ShellRender {
 /// Escape a string for safe inclusion inside a zsh single-quoted context.
 /// In single quotes, only single quotes themselves need escaping,
 /// using the '\'' pattern (end quote, escaped quote, start quote).
-fn zsh_push_single_quoted(buf: &mut OsString, s: &str) {
+fn zsh_push_single_quoted(buf: &mut String, s: &str) {
     let mut utf8 = [0; 4];
     for c in s.chars() {
         if c == '\'' {
-            buf.push("'\\''");
+            buf.push_str("'\\''");
         } else {
-            buf.push(&c.encode_utf8(&mut utf8));
+            buf.push_str(&c.encode_utf8(&mut utf8));
         }
     }
 }
 
 /// Filter a string for use as a description in _arguments spec.
 /// Removes characters that would break single-quoted parsing.
-fn zsh_push_description(buf: &mut OsString, s: &str) {
+fn zsh_push_description(buf: &mut String, s: &str) {
     let mut utf8 = [0; 4];
     for c in s.chars() {
         // Skip characters that would break _arguments spec parsing inside single quotes
         if matches!(c, '\'' | '"' | '[' | ']') {
             continue;
         }
-        buf.push(&c.encode_utf8(&mut utf8));
+        buf.push_str(&c.encode_utf8(&mut utf8));
     }
 }
 
 /// Write a description for compadd display string.
 /// Format: "VALUE  -- Description"
 /// No special filtering needed beyond single-quote escaping.
-fn zsh_push_compadd_description(buf: &mut OsString, s: &str) {
+fn zsh_push_compadd_description(buf: &mut String, s: &str) {
     zsh_push_single_quoted_part(buf, s);
 }
 
 /// Write a TAG name for _arguments, stripping angle brackets.
 /// Angle brackets in TAG prevent description from displaying.
-fn zsh_push_tag(buf: &mut OsString, s: &str) {
+fn zsh_push_tag(buf: &mut String, s: &str) {
     let mut utf8 = [0; 4];
     for c in s.chars() {
         // Skip angle brackets - they break description display in TAG position
         if matches!(c, '<' | '>') {
             continue;
         }
-        buf.push(&c.encode_utf8(&mut utf8));
+        buf.push_str(&c.encode_utf8(&mut utf8));
     }
 }
 
@@ -467,25 +462,25 @@ fn zsh_push_tag(buf: &mut OsString, s: &str) {
 ///   local -a _bpaf_descr
 ///   _bpaf_descr=('VALUE  -- HINT')
 ///   compadd -l -d _bpaf_descr -- 'VALUE'
-fn zsh_push_compadd_value(buf: &mut OsString, _desc: &str, value: &str, hint: Option<&str>) {
-    buf.push("local -a _bpaf_descr\n");
-    buf.push("_bpaf_descr=('");
+fn zsh_push_compadd_value(buf: &mut String, _desc: &str, value: &str, hint: Option<&str>) {
+    buf.push_str("local -a _bpaf_descr\n");
+    buf.push_str("_bpaf_descr=('");
     zsh_push_single_quoted(buf, value);
     if let Some(h) = hint {
-        buf.push("  -- ");
+        buf.push_str("  -- ");
         zsh_push_compadd_description(buf, h);
     }
-    buf.push("')\n");
-    buf.push("compadd -l -d _bpaf_descr -- '");
+    buf.push_str("')\n");
+    buf.push_str("compadd -l -d _bpaf_descr -- '");
     zsh_push_single_quoted(buf, value);
-    buf.push("'\n");
+    buf.push_str("'\n");
 }
 
 /// Write content without single-quote escaping (for display strings).
-fn zsh_push_single_quoted_part(buf: &mut OsString, s: &str) {
+fn zsh_push_single_quoted_part(buf: &mut String, s: &str) {
     let mut utf8 = [0; 4];
     for c in s.chars() {
-        buf.push(&c.encode_utf8(&mut utf8));
+        buf.push_str(&c.encode_utf8(&mut utf8));
     }
 }
 
@@ -504,7 +499,7 @@ pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
 
     let value = value.to_string_lossy();
 
-    let mut buf = OsString::new();
+    let mut buf = String::new();
 
     // For zsh positional arguments, collect all values to generate compadd calls
     if shell == ShellRender::Zsh && name.is_none() {
@@ -512,23 +507,23 @@ pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
         if values.is_empty() {
             return Error::CompReply(CompReply(buf));
         }
-        buf.push("local -a _bpaf_descr\n");
+        buf.push_str("local -a _bpaf_descr\n");
         for (v, hint) in &values {
-            buf.push("_bpaf_descr+=('");
+            buf.push_str("_bpaf_descr+=('");
             zsh_push_single_quoted(&mut buf, v.as_str());
             if let Some(h) = hint {
-                buf.push("  -- ");
+                buf.push_str("  -- ");
                 zsh_push_compadd_description(&mut buf, h.as_str());
             }
-            buf.push("')\n");
+            buf.push_str("')\n");
         }
-        buf.push("compadd -l -d _bpaf_descr -- ");
+        buf.push_str("compadd -l -d _bpaf_descr -- ");
         for (v, _hint) in &values {
-            buf.push("'");
+            buf.push_str("'");
             zsh_push_single_quoted(&mut buf, v.as_str());
-            buf.push("' ");
+            buf.push_str("' ");
         }
-        buf.push("\n");
+        buf.push_str("\n");
         return Error::CompReply(CompReply(buf));
     }
 
@@ -537,30 +532,30 @@ pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
         match shell {
             ShellRender::Test | ShellRender::DumbTab | ShellRender::Dumb => {
                 if let Some(name) = &name {
-                    buf.push(name.as_ref());
+                    buf.push_str(name.as_ref());
                 }
-                buf.push(&value);
+                buf.push_str(&value);
                 if let Some(hint) = &hint {
                     _ = writeln!(&mut buf, "\t{hint}");
                 } else {
-                    buf.push("\n");
+                    buf.push_str("\n");
                 }
             }
             ShellRender::Zsh => {
                 if let Some(prefix) = &name {
-                    buf.push("local -a _bpaf_descr\n");
-                    buf.push("_bpaf_descr=('");
+                    buf.push_str("local -a _bpaf_descr\n");
+                    buf.push_str("_bpaf_descr=('");
                     zsh_push_single_quoted(&mut buf, prefix.as_ref());
                     zsh_push_single_quoted(&mut buf, &value);
                     if let Some(h) = &hint {
-                        buf.push("  -- ");
+                        buf.push_str("  -- ");
                         zsh_push_compadd_description(&mut buf, h);
                     }
-                    buf.push("')\n");
-                    buf.push("compadd -l -d _bpaf_descr -- '");
+                    buf.push_str("')\n");
+                    buf.push_str("compadd -l -d _bpaf_descr -- '");
                     zsh_push_single_quoted(&mut buf, prefix.as_ref());
                     zsh_push_single_quoted(&mut buf, &value);
-                    buf.push("'\n");
+                    buf.push_str("'\n");
                 }
             }
         }
@@ -613,7 +608,7 @@ impl CReq<'_> {
 pub(crate) fn handle_subparser_complete(err: Error) -> Error {
     match err {
         Error::CompReply(CompReply(items)) => ParseFailure::Console(items).into(),
-        Error::CompValue(cv) => ParseFailure::Console(cv.into_os()).into(),
+        Error::CompValue(cv) => ParseFailure::Console(cv.into_reply().0).into(),
         _ => err,
     }
 }

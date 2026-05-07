@@ -258,7 +258,7 @@ impl std::fmt::Display for ParseFailure {
 pub enum ParseFailure {
     Stdout(Styled),
     Stderr(Styled),
-    Console(OsString),
+    Console(String),
 }
 
 impl ParseFailure {
@@ -288,7 +288,7 @@ impl ParseFailure {
     pub fn unwrap_stdout(self) -> String {
         match self {
             ParseFailure::Stdout(s) => s.mono(),
-            ParseFailure::Console(c) => c.to_string_lossy().to_string(),
+            ParseFailure::Console(c) => c,
             ParseFailure::Stderr(e) => unwrap_failed(
                 "called `ParseFailure::unwrap_stdout()` on Stderr",
                 &e.mono(),
@@ -321,7 +321,7 @@ impl From<Error> for ParseFailure {
             Error::Silent(reason) => {
                 ParseFailure::stderr(format!("internal error, got unexpected silent {reason}"))
             }
-            Error::CompValue(comp_value) => ParseFailure::Console(comp_value.into_os()),
+            Error::CompValue(comp_value) => ParseFailure::Console(comp_value.into_reply().0),
         }
     }
 }

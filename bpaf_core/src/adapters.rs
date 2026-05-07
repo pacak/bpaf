@@ -141,16 +141,13 @@ impl<T: 'static> OptionParser<T> {
                 use std::io::Write;
                 #[cfg(unix)]
                 {
-                    use std::os::unix::ffi::OsStrExt;
-                    std::io::stdout()
-                        .write_all(o.as_os_str().as_bytes())
-                        .unwrap();
+                    std::io::stdout().write_all(o.as_bytes()).unwrap();
                 }
                 #[cfg(not(unix))]
                 {
                     // bpaf uses ParseFailure::Console only for autocomplete
                     // and it is not supported on windows
-                    print!("{}", o.to_string_lossy());
+                    print!("{o}");
                 }
                 std::process::exit(0);
             }
