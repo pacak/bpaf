@@ -34,21 +34,17 @@ impl<T> Vec1<T> {
     }
 
     pub(crate) fn push(&mut self, val: T) {
-        *self = if let Vec1(Vec1Int::Vec(items)) = self
-            && items.is_empty()
-        {
-            Vec1(Vec1Int::One(val))
-        } else {
-            let mut dummy = Vec1::default();
-
-            std::mem::swap(&mut dummy, self);
-            Vec1(match dummy.0 {
-                Vec1Int::One(m) => Vec1Int::Vec(vec![m, val]),
-                Vec1Int::Vec(mut items) => {
-                    items.push(val);
-                    Vec1Int::Vec(items)
-                }
-            })
+        match std::mem::replace(self, Vec1(Vec1Int::Vec(Vec::new()))) {
+            Vec1(Vec1Int::One(first)) => {
+                *self = Vec1(Vec1Int::Vec(vec![first, val]));
+            }
+            Vec1(Vec1Int::Vec(items)) if items.is_empty() => {
+                *self = Vec1(Vec1Int::One(val));
+            }
+            Vec1(Vec1Int::Vec(mut items)) => {
+                items.push(val);
+                *self = Vec1(Vec1Int::Vec(items));
+            }
         }
     }
 
