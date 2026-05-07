@@ -848,3 +848,16 @@ fn any_keeps_track_of_current_value() {
     let expected = "couldn't parse `200`: too large\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn conflicts_with_any_are_okay() {
+    let a = any::<&str, usize>("A", |s: &str| s.parse::<usize>().ok());
+    let b = short('f').flag(1, 0);
+    let parser = a.or_else(b).to_options();
+
+    let r = parser.run_inner("-f").unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner("15").unwrap();
+    assert_eq!(r, 15);
+}
