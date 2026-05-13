@@ -1113,6 +1113,35 @@ fn adjacent_for_struct() {
 }
 
 #[test]
+fn adjacent_with_group_help() {
+    let top: Top = parse_quote! {
+        #[bpaf(adjacent)]
+        /// help text
+        struct Opts {
+            a: String,
+            b: String,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opts() -> impl ::bpaf::Parser<Opts> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let a = ::bpaf::short('a').argument::<String>("ARG");
+                let b = ::bpaf::short('b').argument::<String>("ARG");
+                ::bpaf::construct!(Opts { a, b, })
+            }
+            .adjacent()
+            .group_help("help text")
+        }
+    };
+
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn box_for_struct() {
     let top: Top = parse_quote! {
         #[bpaf(boxed)]
