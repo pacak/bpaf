@@ -306,8 +306,8 @@ impl ToTokens for Top {
                         #[allow(unused_imports)]
                         use ::bpaf::Parser;
                         #body
-                        #group_help
                         #adjacent
+                        #group_help
                         #(.#attrs)*
                         #boxed
                     }

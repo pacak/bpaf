@@ -1,5 +1,8 @@
 # Change Log
 
+## bpaf [0.9.26], bpaf_derive [0.5.26] - 2026-05-13
+- Support struct level doc comments along with `adjacent` (#453)
+
 ## bpaf [0.9.25] - 2026-04-15
 - Change rendering of an adjacent block in Markdown - this is no longer a `###`
   but a regular line item instead. Header messes up with generated navigation on
