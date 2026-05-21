@@ -13,13 +13,25 @@ use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 use crate::{
     Error, Id, KillReason, Lit, Metavar, Name, ParseFailure, Reason, Scope, Triggers,
     arg::{Adjacency, Arg},
-    error::CompValue,
+    error::CV,
     pecking::PeckingOrder,
 };
 
-struct CompItem<'a> {
+pub(crate) struct CompItem<'a> {
     value: String,
     help: Option<&'a str>,
+}
+
+impl From<CV> for CompReply {
+    fn from(value: CV) -> Self {
+        let ci = CompItem {
+            value: value.prefix_value,
+            help: value.help,
+        };
+        let mut res = String::new();
+        ci.render(value.shell, &mut res);
+        CompReply(res)
+    }
 }
 
 impl CompItem<'_> {
@@ -91,7 +103,6 @@ impl CompReply {
     #[inline(never)]
     pub(crate) fn literal(rev: ShellRender, name: &Lit, help: Option<&'static str>) -> Self {
         let mut buf = String::new();
-        rev.describe_test(&mut buf, "lit: ");
         let ci = CompItem {
             value: name.to_string(),
             help,
@@ -108,8 +119,6 @@ impl CompReply {
         help: Option<&'static str>,
     ) -> Self {
         let mut buf = String::new();
-
-        rev.describe_test(&mut buf, "named: ");
 
         let ci = CompItem {
             value: name.to_string(),
@@ -163,14 +172,6 @@ pub(crate) enum ShellRender {
     Dumb,
     /// Zsh specifically
     Zsh,
-}
-
-impl ShellRender {
-    fn describe_test(self, buf: &mut String, text: &str) {
-        if self == ShellRender::Test {
-            buf.push_str(text);
-        }
-    }
 }
 
 impl From<Shell> for ShellRender {
@@ -294,53 +295,32 @@ impl From<CompReply> for Error {
     }
 }
 
-impl CompValue {
-    pub(crate) fn into_reply(self) -> CompReply {
-        let CompValue {
-            name,
-            value,
-            meta,
-            shell,
-            help,
-        }: CompValue = self;
-
-        let mut buf = String::new();
-        shell.describe_test(&mut buf, "unh: ");
-
-        let ci = CompItem {
-            value: if value.is_empty() {
-                meta.to_string()
-            } else {
-                value.to_string_lossy().into_owned()
-            },
-            help,
-        };
-        ci.render(shell, &mut buf);
-
-        CompReply(buf)
-    }
-}
-
-/// Dump
+/// Dump expand possible completions and dump them as CompReply
+///
+/// Can't keep intermediate representation in the error since it doesn't support
+/// multiple of them. On the other hand, it's not needed.
 pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
-    let Error::CompValue(CompValue {
-        name,
-        value,
-        meta: _,
-        shell,
+    let Error::CompValue(CV {
+        mut prefix_value,
+        has_value: true,
+        prefix_len,
         help: _,
+        shell,
+        meta_only,
     }) = err
     else {
         return err;
     };
-
-    let value = value.to_string_lossy();
+    let len = prefix_len as usize;
+    if meta_only {
+        prefix_value.clear();
+    }
 
     let mut buf = String::new();
+    let (name, vprefix) = prefix_value.split_at(len);
 
-    for (mut value, help) in completer(&value) {
-        shell.describe_test(&mut buf, "val: ");
-        if let Some(name) = &name {
+    for (mut value, help) in completer(vprefix) {
+        if !name.is_empty() {
             value = format!("{name}{value}");
         }
         let ci = CompItem {
@@ -369,12 +349,12 @@ pub(crate) enum CReq<'a> {
     NamedValue {
         name: Name<'a>,
         adj: Adjacency,
-        value: &'a OsStr,
+        value: &'a str,
     },
 
     /// An attempt to complete a positional value or a named value but the value is
     /// not adjacent to the name
-    Value { value: &'a OsStr },
+    Value { value: &'a str },
 
     /// An attempt to complete a literal string
     Literal { name: Lit<'a> },
@@ -383,7 +363,7 @@ pub(crate) enum CReq<'a> {
 pub(crate) fn handle_subparser_complete(err: Error) -> Error {
     match err {
         Error::CompReply(CompReply(items)) => ParseFailure::Console(items).into(),
-        Error::CompValue(cv) => ParseFailure::Console(cv.into_reply().0).into(),
+        Error::CompValue(cv) => ParseFailure::Console(CompReply::from(cv).0).into(),
         _ => err,
     }
 }
@@ -429,24 +409,26 @@ where
             name,
             value: Some((adj, value)),
         } => {
-            if let Some(order) = triggers.args.get(&name) {
+            if let Some(order) = triggers.args.get(&name)
+                && let Some(value) = value.to_str()
+            {
                 let req = CReq::NamedValue { name, adj, value };
                 out.push((req, order));
             }
         }
         Arg::Pos { value } if strict_pos => {
-            let req = CReq::Value { value };
-            out.push((req, &triggers.pos))
+            if let Some(value) = value.to_str() {
+                let req = CReq::Value { value };
+                out.push((req, &triggers.pos))
+            }
         }
-        Arg::Pos { value: os_val } => {
-            let Some(value) = os_val.to_str() else {
-                let req = CReq::Value { value: os_val };
-                out.push((req, &triggers.pos));
-                todo!("Completing non-utf?");
+        Arg::Pos { value } => {
+            let Some(value) = value.to_str() else {
+                return out;
             };
 
             if !value.starts_with("-") {
-                let req = CReq::Value { value: os_val };
+                let req = CReq::Value { value };
                 out.push((req, &triggers.pos))
             }
 
@@ -490,6 +472,11 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
 
         let arg = crate::arg::lex_os_arg(arg_os);
 
+        let Some(value) = arg_os.to_str() else {
+            // Explicitly ignoring non-utf8 items. Produce an empty completion result
+            return Some(Err(Error::CompReply(CompReply::default()))); // TODO - this can be const
+        };
+
         let mut m = BTreeMap::<Id, Vec<CReq<'p>>>::default();
         // Normally we traverse each pecking order at once since only sum items can run
         // in parallel, but for autocomplete any item from a prod can run so we'll run
@@ -503,11 +490,8 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             }
         }
 
-        // TODO - add all the active checks here?
         for id in self.triggers.checks.keys() {
-            m.entry(*id)
-                .or_default()
-                .push(CReq::Value { value: arg_os });
+            m.entry(*id).or_default().push(CReq::Value { value });
         }
 
         // even if there's nothing to return - let's produce an empty set of results so we

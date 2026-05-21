@@ -8,10 +8,7 @@
 
 use crate::{
     Arg, CReq, Conflict, Error, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
-    Reason, Scope, TChange, TTarget, arg,
-    complete::{self, CompReply},
-    error::CompValue,
-    lex_os_arg, r#yield,
+    Reason, Scope, TChange, TTarget, arg, error::CV, lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
 
@@ -75,20 +72,25 @@ impl<'p> RawCtx<'p> {
             | Reason::Pass
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
-            Reason::Complete(shell, creqs) => {
-                let value = creqs.iter().find_map(|creq| match creq {
-                    CReq::Value { value } => Some(*value),
-                    _ => None,
-                });
-                let value = value.unwrap();
-                Err(Error::CompValue(CompValue {
-                    name: None,
-                    value: Box::from(value),
-                    meta,
-                    shell: *shell,
-                    help,
-                }))
-            }
+            Reason::Complete(shell, creqs) => match creqs.as_slice() {
+                [CReq::Value { value }] => {
+                    let prefix_value = if value.is_empty() {
+                        meta.to_string()
+                    } else {
+                        (*value).to_owned()
+                    };
+                    let cv = CV {
+                        has_value: true,
+                        prefix_len: 0,
+                        prefix_value,
+                        meta_only: value.is_empty(),
+                        help,
+                        shell: *shell,
+                    };
+                    Err(Error::CompValue(cv))
+                }
+                _ => unreachable!(),
+            },
         }
     }
 
@@ -110,13 +112,19 @@ impl<'p> RawCtx<'p> {
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, _) => {
-                let value = Box::from(self.args[self.cursor.get()].as_os_str());
-                let cv = CompValue {
-                    name: None,
-                    value,
-                    meta,
+                let value = self.args[self.cursor.get()].as_os_str();
+                let prefix_value = if value.is_empty() {
+                    meta.to_string()
+                } else {
+                    value.to_string_lossy().into_owned()
+                };
+                let cv = CV {
+                    prefix_value,
+                    has_value: true,
+                    prefix_len: 0,
+                    help: None,
                     shell: *shell,
-                    help: None, // TODO - we might have help from check!
+                    meta_only: value.is_empty(),
                 };
                 Err(Error::CompValue(cv))
             }
@@ -146,11 +154,15 @@ impl<'p> RawCtx<'p> {
                         .iter()
                         .any(|creq| matches!(creq, CReq::Literal { name } if *n == name))
                 });
-                Err(Error::CompReply(complete::CompReply::literal(
-                    *shell,
-                    best.unwrap(),
-                    literal.help,
-                )))
+                let cv = CV {
+                    prefix_value: best.unwrap().to_string(),
+                    has_value: false,
+                    prefix_len: 0,
+                    help: literal.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+                Err(Error::CompValue(cv))
             }
         }
     }
@@ -173,33 +185,35 @@ impl<'p> RawCtx<'p> {
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
             Reason::Complete(shell, creqs) => {
+                let mut value_adj = None;
                 let best = named.names.iter().find(|n| {
                     creqs.iter().any(|creq| match creq {
                         CReq::Named { name } => *n == name,
-                        CReq::NamedValue { name, .. } => *n == name,
+                        CReq::NamedValue { name, adj, value } if *n == name => {
+                            value_adj = Some((*adj, *value));
+                            true
+                        }
                         _ => false,
                     })
                 });
                 let best = best.unwrap();
-                let value_match = creqs.iter().find_map(|creq| match creq {
-                    CReq::NamedValue { name, adj, value } if *name == *best => Some((adj, *value)),
-                    _ => None,
-                });
-                match value_match {
-                    Some((adj, value)) => Err(Error::CompValue(CompValue {
-                        name: Some(format!("{best}{adj}").into_boxed_str()),
-                        value: Box::from(value),
-                        meta,
-                        shell: *shell,
-                        help: named.help,
-                    })),
-                    None => Err(Error::CompReply(CompReply::named(
-                        *shell,
-                        best,
-                        Some(meta),
-                        named.help,
-                    ))),
+
+                let mut prefix_value = best.to_string();
+                let prefix_len = prefix_value.len() as u32;
+                if let Some((a, v)) = value_adj {
+                    use std::fmt::Write as _;
+                    _ = write!(&mut prefix_value, "{a}{v}");
                 }
+                let cv = CV {
+                    prefix_value,
+                    has_value: value_adj.is_some(),
+                    prefix_len,
+                    help: named.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+
+                Err(Error::CompValue(dbg!(cv)))
             }
         }
     }
@@ -241,13 +255,20 @@ impl<'p> RawCtx<'p> {
                         if cursor + 1 == self.args.len()
                             && let Some(shell) = self.args.complete
                         {
-                            return Err(Error::CompValue(CompValue {
-                                name: None,
-                                value: Box::from(value),
-                                meta,
-                                shell: shell.into(),
+                            let prefix_value = if value.is_empty() {
+                                meta.to_string()
+                            } else {
+                                value.to_string_lossy().into_owned()
+                            };
+                            let cv = CV {
+                                prefix_value,
+                                has_value: true,
+                                prefix_len: 0,
                                 help,
-                            }));
+                                shell: shell.into(),
+                                meta_only: value.is_empty(),
+                            };
+                            return Err(Error::CompValue(cv));
                         }
                         *self.current_value.borrow_mut() = Some(value);
                         Ok(Some(value))
@@ -287,8 +308,15 @@ impl<'p> RawCtx<'p> {
                         .iter()
                         .any(|creq| matches!(creq, CReq::Named { name } if *n == name))
                 });
-                let reply = complete::CompReply::named(*shell, best.unwrap(), None, named.help);
-                Err(Error::CompReply(reply))
+                let cv = CV {
+                    prefix_value: best.unwrap().to_string(),
+                    has_value: false,
+                    prefix_len: 0,
+                    help: named.help,
+                    shell: *shell,
+                    meta_only: false,
+                };
+                Err(Error::CompValue(cv))
             }
         }
     }

@@ -10,14 +10,14 @@ fn simple_complete_command() {
     let parser = construct!(ab, c).to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    let expected = "lit: alpha\n\
-                    named: -b\n\
-                    named: -c\n";
+    let expected = "alpha\n\
+                    -b\n\
+                    -c\n";
 
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("", "-b")).unwrap_err().unwrap_stdout();
-    let expected = "named: -b\n";
+    let expected = "-b\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("-b -c", "")).unwrap_err().unwrap_stdout();
@@ -25,12 +25,22 @@ fn simple_complete_command() {
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("alpha", "")).unwrap_err().unwrap_stdout();
-    let expected = "named: -a\n";
+    let expected = "-a\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("-b", "")).unwrap_err().unwrap_stdout();
-    let expected = "named: -c\n";
+    let expected = "-c\n";
     assert_eq!(r, expected);
+}
+
+#[test]
+fn simple_long_argument() {
+    let name = long("name")
+        .help("A custom name")
+        .argument::<String>("NAME");
+    let parser = name.to_options();
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--name\tA custom name\n");
 }
 
 #[test]
@@ -49,38 +59,38 @@ fn simple_complete_named() {
     let parser = construct!(abc, name).to_options();
 
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
-    let expected = "named: --missy\tMissy - short for missle launcher\n\
-                    named: --missle-launcher\tA full name - Missle Launcher\n\
-                    named: -m\tA short flag\n\
-                    named: --name\tA custom name\n";
+    let expected = "--missy\tMissy - short for missle launcher\n\
+                    --missle-launcher\tA full name - Missle Launcher\n\
+                    -m\tA short flag\n\
+                    --name\tA custom name\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
-    let expected = "named: --missy\tMissy - short for missle launcher\n\
-                    named: --missle-launcher\tA full name - Missle Launcher\n\
-                    named: --name\tA custom name\n";
+    let expected = "--missy\tMissy - short for missle launcher\n\
+                    --missle-launcher\tA full name - Missle Launcher\n\
+                    --name\tA custom name\n";
     assert_eq!(r, expected);
 
     let r = parser
         .run_inner(("--name=bob", "--missy"))
         .unwrap_err()
         .unwrap_stdout();
-    let expected = "named: --missy\tMissy - short for missle launcher\n";
+    let expected = "--missy\tMissy - short for missle launcher\n";
     assert_eq!(r, expected);
 
     let r = parser
         .run_inner(("--name=bob", "--miss"))
         .unwrap_err()
         .unwrap_stdout();
-    let expected = "named: --missy\tMissy - short for missle launcher\n\
-                    named: --missle-launcher\tA full name - Missle Launcher\n";
+    let expected = "--missy\tMissy - short for missle launcher\n\
+                    --missle-launcher\tA full name - Missle Launcher\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    let expected = "named: --missy\tMissy - short for missle launcher\n\
-                    named: --missle-launcher\tA full name - Missle Launcher\n\
-                    named: -m\tA short flag\n\
-                    named: --name\tA custom name\n";
+    let expected = "--missy\tMissy - short for missle launcher\n\
+                    --missle-launcher\tA full name - Missle Launcher\n\
+                    -m\tA short flag\n\
+                    --name\tA custom name\n";
     assert_eq!(r, expected);
 }
 
@@ -97,7 +107,7 @@ fn simple_complete_for_value() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner(("-b", "13")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "val: 1342\n");
+    assert_eq!(r, "1342\n");
 
     let r = parser.run_inner(("-b=", "")).unwrap_err().unwrap_stderr();
     assert_eq!(
@@ -112,7 +122,7 @@ fn simple_complete_for_value() {
     );
 
     let r = parser.run_inner(("", "-b=")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "val: -b=0\n");
+    assert_eq!(r, "-b=0\n");
 }
 
 #[test]
@@ -124,14 +134,14 @@ fn strict_pos_works() {
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
-    let expected = "named: -a\tshort help\n\
-                    unh: X\tpos help\n\
-                    lit: ket\tket descr\n";
+    let expected = "-a\tshort help\n\
+                    X\tpos help\n\
+                    ket\tket descr\n";
     //    let expected = "-a (Some(\"short help\"))\n\"\" (Some(\"X\"))\nket (Some(\"ket descr\"))\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
-    let expected = "unh: X\tpos help\n";
+    let expected = "X\tpos help\n";
     assert_eq!(r, expected);
 }
 
