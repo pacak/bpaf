@@ -237,3 +237,88 @@ fn comp_names_with_prefix_works() {
 struct Opts {
     value: String,
 }
+
+#[test]
+fn multi_value_nested_completion() {
+    fn first_completer(prefix: &str) -> Vec<(String, Option<String>)> {
+        let mut names = Vec::new();
+        let mut push = |name: &str, help: &str| {
+            if name.starts_with(prefix) {
+                names.push((name.to_owned(), Some(help.to_owned())));
+            }
+        };
+        push("alpha", "First value");
+        push("beta", "Second value");
+        names
+    }
+
+    fn second_completer(prefix: &str) -> Vec<(String, Option<String>)> {
+        let mut names = Vec::new();
+        let mut push = |name: &str, help: &str| {
+            if name.starts_with(prefix) {
+                names.push((name.to_owned(), Some(help.to_owned())));
+            }
+        };
+        push("one", "First option");
+        push("two", "Second option");
+        names
+    }
+
+    let first = positional::<String>("FIRST").complete(first_completer);
+    let second = positional::<String>("SECOND").complete(second_completer);
+    let inner = construct!(first, second);
+    let nested = long("multi")
+        .short('m')
+        .help("multi value parser")
+        .nest(inner);
+    let parser = nested.to_options();
+
+    // Test completing the trigger name
+    let r = parser.run_inner(("", "-m")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-m\tmulti value parser\n");
+
+    let r = parser.run_inner(("", "--m")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--multi\tmulti value parser\n");
+
+    // Test completing first parser values (after trigger, show completions)
+    let r = parser
+        .run_inner(("--multi", ""))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha\tFirst value\nbeta\tSecond value\n");
+
+    // Test completing first parser values with prefix
+    let r = parser
+        .run_inner(("--multi", "a"))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "alpha\tFirst value\n");
+
+    // Test completing second parser values (after first value)
+    let r = parser
+        .run_inner(("--multi alpha", ""))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "one\tFirst option\ntwo\tSecond option\n");
+
+    // Test completing second parser values with prefix
+    let r = parser
+        .run_inner(("--multi alpha", "o"))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "one\tFirst option\n");
+
+    // Test with short flag
+    let r = parser.run_inner(("-m", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alpha\tFirst value\nbeta\tSecond value\n");
+
+    // Test completing both values in sequence with short flag
+    let r = parser.run_inner(("-m", "b")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "beta\tSecond value\n");
+
+    let r = parser
+        .run_inner(("-m beta", "t"))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "two\tSecond option\n");
+}
