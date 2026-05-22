@@ -1,6 +1,31 @@
 use crate::{Metavar, Name, Parser, construct, long, positional, pure, short};
 
 #[test]
+fn name_should_be_included() {
+    let a = short('a')
+        .long("aaa")
+        .argument::<String>("A")
+        .help("Aaaaa!!!")
+        .complete(|_| vec![("bbb".to_string(), None)]);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a\tAaaaa!!!\n");
+
+    let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a\tAaaaa!!!\n");
+
+    let r = parser.run_inner(("", "-a=")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=bbb\n");
+
+    let r = parser
+        .run_inner(("", "--aaa="))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--aaa=bbb\n");
+}
+
+#[test]
 fn simple_complete_command() {
     let a = short('a').req_flag('a').to_options().command("alpha");
     let b = short('b').req_flag('b');

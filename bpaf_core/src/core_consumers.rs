@@ -199,11 +199,13 @@ impl<'p> RawCtx<'p> {
                 let best = best.unwrap();
 
                 let mut prefix_value = best.to_string();
-                let prefix_len = prefix_value.len() as u32;
+                let mut value_len = 0;
                 if let Some((a, v)) = value_adj {
                     use std::fmt::Write as _;
+                    value_len = v.len();
                     _ = write!(&mut prefix_value, "{a}{v}");
                 }
+                let prefix_len = prefix_value.len() as u32 - value_len as u32;
                 let cv = CV {
                     prefix_value,
                     has_value: value_adj.is_some(),
@@ -213,7 +215,7 @@ impl<'p> RawCtx<'p> {
                     meta_only: false,
                 };
 
-                Err(Error::CompValue(dbg!(cv)))
+                Err(Error::CompValue(cv))
             }
         }
     }
