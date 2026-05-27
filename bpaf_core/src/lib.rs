@@ -4,6 +4,7 @@ mod anything;
 mod arg;
 mod args;
 mod complete;
+mod completions;
 mod console_writer;
 mod consumers;
 mod core_consumers;
@@ -185,6 +186,7 @@ use crate::{
 pub use crate::{
     adapters::OptionParser,
     anything::{any, any_from_str},
+    completions::CompHelp,
     consumers::*,
     help_cmd::help_command,
     traits::{Parser, Visited},

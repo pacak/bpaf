@@ -1,4 +1,84 @@
-use crate::{Metavar, Name, Parser, construct, long, positional, pure, short};
+use crate::{Parser, construct, long, positional, pure, short};
+
+#[test]
+fn comp_help_overrides_long_help() {
+    let parser = long("verbose")
+        .help("This is a very long and detailed description of the verbose argument")
+        .argument::<String>("VERBOSE")
+        .comp_help("verbose mode")
+        .to_options();
+
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--verbose\tverbose mode\n");
+}
+
+#[test]
+fn comp_help_with_short_and_long() {
+    let parser = short('v')
+        .long("verbose")
+        .help("A very long and detailed description that is too verbose for shell completions to display comfortably")
+        .argument::<String>("VERBOSE")
+        .comp_help("less verbose").to_options();
+
+    let r = parser.run_inner(("", "-v")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-v\tless verbose\n");
+
+    let r = parser.run_inner(("", "--v")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--verbose\tless verbose\n");
+}
+
+#[test]
+fn comp_help_with_argument() {
+    let parser = long("output")
+        .help("Specifies the output file path where the result will be written.")
+        .argument::<String>("FILE")
+        .comp_help("output file")
+        .to_options();
+
+    let r = parser.run_inner(("", "--o")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--output\toutput file\n");
+}
+
+#[test]
+fn comp_help_with_flag() {
+    let parser = long("verbose")
+        .help("This is a very long and detailed description of the verbose flag")
+        .switch()
+        .comp_help("verbose mode")
+        .to_options();
+
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--verbose\tverbose mode\n");
+}
+
+#[test]
+fn comp_help_with_short_flag() {
+    let parser = short('v')
+        .long("verbose")
+        .help("A very long and detailed description that is too verbose for shell completions to display comfortably")
+        .switch()
+        .comp_help("verbose").to_options();
+
+    let r = parser.run_inner(("", "-v")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-v\tverbose\n");
+
+    let r = parser.run_inner(("", "--v")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--verbose\tverbose\n");
+}
+
+#[test]
+fn comp_help_with_literal() {
+    use crate::literal;
+
+    let parser = literal("build")
+        .help("A very long and detailed description of the build command")
+        .switch()
+        .comp_help("build project")
+        .to_options();
+
+    let r = parser.run_inner(("", "b")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "build\tbuild project\n");
+}
 
 #[test]
 fn name_should_be_included() {
