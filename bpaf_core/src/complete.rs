@@ -99,36 +99,6 @@ impl CompItem<'_> {
     }
 }
 
-impl CompReply {
-    #[inline(never)]
-    pub(crate) fn literal(rev: ShellRender, name: &Lit, help: Option<&'static str>) -> Self {
-        let mut buf = String::new();
-        let ci = CompItem {
-            value: name.to_string(),
-            help,
-        };
-        ci.render(rev, &mut buf);
-        Self(buf)
-    }
-
-    #[inline(never)]
-    pub(crate) fn named(
-        rev: ShellRender,
-        name: &Name,
-        meta: Option<Metavar>,
-        help: Option<&'static str>,
-    ) -> Self {
-        let mut buf = String::new();
-
-        let ci = CompItem {
-            value: name.to_string(),
-            help,
-        };
-        ci.render(rev, &mut buf);
-        Self(buf)
-    }
-}
-
 /// A generated shell completion reply
 ///
 /// Can contain multiple lines,

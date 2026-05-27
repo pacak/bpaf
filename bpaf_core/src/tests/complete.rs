@@ -1,4 +1,3 @@
-use crate::complete::{CompReply, ShellRender};
 use crate::{Metavar, Name, Parser, construct, long, positional, pure, short};
 
 #[test]
@@ -143,99 +142,6 @@ fn strict_pos_works() {
     let r = parser.run_inner(("--", "")).unwrap_err().unwrap_stdout();
     let expected = "X\tpos help\n";
     assert_eq!(r, expected);
-}
-
-fn short_name() -> Name<'static> {
-    Name::Short('x')
-}
-
-#[test]
-fn named_dumbtab() {
-    // no help
-    let r = CompReply::named(ShellRender::DumbTab, &short_name(), None, None);
-    assert_eq!(r.0, "-x\n");
-
-    // help
-    let r = CompReply::named(ShellRender::DumbTab, &short_name(), None, Some("help text"));
-    assert_eq!(r.0, "-x\thelp text\n");
-
-    // no help
-    let r = CompReply::named(
-        ShellRender::DumbTab,
-        &short_name(),
-        Some(Metavar("META")),
-        None,
-    );
-    assert_eq!(r.0, "-x\n");
-
-    // help
-    let r = CompReply::named(
-        ShellRender::DumbTab,
-        &short_name(),
-        Some(Metavar("META")),
-        Some("help text"),
-    );
-    assert_eq!(r.0, "-x\thelp text\n");
-}
-
-#[test]
-fn named_dumb() {
-    // no help, no meta
-    let r = CompReply::named(ShellRender::Dumb, &short_name(), None, None);
-    assert_eq!(r.0, "-x\n");
-    // help, with meta
-    let r = CompReply::named(
-        ShellRender::Dumb,
-        &short_name(),
-        Some(Metavar("META")),
-        Some("help text"),
-    )
-    .0;
-    assert_eq!(r, "-x\n");
-}
-
-#[test]
-fn named_zsh() {
-    let r = CompReply::named(ShellRender::Zsh, &short_name(), None, None);
-    assert_eq!(r.0, "compadd -- -x\n");
-
-    let r = CompReply::named(ShellRender::Zsh, &short_name(), Some(Metavar("META")), None);
-    assert_eq!(r.0, "compadd -- -x\n");
-
-    let r = CompReply::named(
-        ShellRender::Zsh,
-        &short_name(),
-        Some(Metavar("HOST:PORT")),
-        None,
-    );
-    assert_eq!(r.0, "compadd -- -x\n");
-
-    let r = CompReply::named(ShellRender::Zsh, &short_name(), None, Some("help text"));
-    assert_eq!(r.0, "compadd -l -d '(-x\\ \\ --\\ help\\ text)' -- -x\n");
-
-    let r = CompReply::named(
-        ShellRender::Zsh,
-        &short_name(),
-        Some(Metavar("META")),
-        Some("help text"),
-    );
-    assert_eq!(r.0, "compadd -l -d '(-x\\ \\ --\\ help\\ text)' -- -x\n");
-
-    // With complex metavar and help text
-    let r = CompReply::named(
-        ShellRender::Zsh,
-        &short_name(),
-        Some(Metavar("HOST:PORT")),
-        Some("help text"),
-    );
-    assert_eq!(r.0, "compadd -l -d '(-x\\ \\ --\\ help\\ text)' -- -x\n");
-
-    // Special characters in description
-    let r = CompReply::named(ShellRender::Zsh, &short_name(), None, Some("it's a [test]"));
-    assert_eq!(
-        r.0,
-        "compadd -l -d '(-x\\ \\ --\\ it\\'s\\ a\\ [test])' -- -x\n"
-    );
 }
 
 #[test]
