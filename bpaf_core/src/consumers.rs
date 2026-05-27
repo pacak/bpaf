@@ -182,6 +182,7 @@ impl<T: 'static> Parser for Nested<T> {
             Nest::Keyword(kw) => kw.eval(ctx.clone()).await?,
         };
         let inner = ctx.fork(None);
+        // advance past the trigger name in the forked context
         inner.cursor.update(|c| c + 1);
 
         let (out, handle) = make_chan();
@@ -190,6 +191,8 @@ impl<T: 'static> Parser for Nested<T> {
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None);
         let res = handle.take();
+        // outer parser already consumed 1 for the trigger;
+        // the -1 undoes the manual +1 above so we only count the inner parser's consumption
         ctx.consume(inner.cursor.get() - 1 - ctx.cursor.get());
 
         match (res, executor_res) {

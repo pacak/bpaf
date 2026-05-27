@@ -267,8 +267,11 @@ impl<T: 'static> Parser for Command<T> {
         };
 
         let inner = ctx.fork(Some(n.as_ref()));
+        // advance past the trigger name in the forked context
         inner.cursor.update(|c| c + 1);
         let res = self.inner.run_in_ctx(self.lazy, inner.clone());
+        // parse_literal already consumed 1 for the trigger;
+        // the -1 undoes the manual +1 above so we only count the inner parser's consumption
         ctx.consume(inner.cursor.get() - ctx.cursor.get() - 1);
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
