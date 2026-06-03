@@ -84,18 +84,16 @@ pub mod api {
                 }
                 visitor.pop_group();
             }
+
             async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
                 let id = ctx.current_task.borrow().id;
-                let mut scopes = Vec::new();
-                let handles = self
-                    .items
-                    .iter()
-                    .map(|parser| {
-                        let (h, scope) = ctx.scoped_spawn(parser, Kind::Sum);
-                        scopes.push(scope);
-                        h
-                    })
-                    .collect::<Vec<_>>();
+                let mut scopes = Vec::with_capacity(self.items.len());
+                let mut handles = Vec::with_capacity(self.items.len());
+                for parser in &self.items {
+                    let (h, scope) = ctx.scoped_spawn(parser, Kind::Sum);
+                    scopes.push(scope);
+                    handles.push(h);
+                }
                 ctx.pending_ops.borrow_mut().push_back(Op::RegisterSum {
                     id,
                     scope: Scope {
