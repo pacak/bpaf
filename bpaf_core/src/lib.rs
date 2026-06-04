@@ -492,6 +492,19 @@ impl<'p> RawCtx<'p> {
     /// TODO: this whole function is a mess, starting from a name and up to
     /// control flow...
     pub(crate) async fn is_outconsumed_leaf(&self, success: bool) -> bool {
+        // If killed by TooShort or Conflict, it means another branch consumed and this one was
+        // killed as a result. Mark as outconsumed if parser succeeded.
+        // Note: NoMatchingInput is NOT outconsumed - it just means there's no more input.
+        if matches!(
+            &*self.wakeup_reason.borrow(),
+            Reason::Kill(KillReason::TooShort) | Reason::Kill(KillReason::Conflict)
+        ) {
+            let mut st = self.current_task.borrow_mut();
+            st.state = TaskState::Failure;
+            st.consumed = 0;
+            return success;
+        }
+
         // The only possible scenario for a consuming leaf is getting an `Arg`
         if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
             self.current_task.borrow_mut().state = TaskState::from(success);

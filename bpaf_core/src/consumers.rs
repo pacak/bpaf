@@ -552,7 +552,16 @@ pub struct Pure<T> {
 
 impl<T: 'static + Clone> Parser for Pure<T> {
     type Output = T;
-    async fn eval<'p>(&'p self, _ctx: Ctx<'p>) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
+        let id = ctx.current_task.borrow().id;
+        let scope = Scope {
+            start: id,
+            end: Id(id.0 + 1),
+        };
+        ctx.early_exit.borrow_mut().insert(scope);
+        r#yield().await;
+        ctx.early_exit.borrow_mut().remove(&scope);
+
         Ok(self.value.clone())
     }
 

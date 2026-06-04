@@ -718,8 +718,10 @@ fn pure_conflicts() {
     let b = pure('c');
     let parser = construct!([b, a]).to_options();
 
+    // flag consumed - it takes priority
     let r = parser.run_inner("-a").unwrap();
-    assert_eq!(r, 'c');
+    assert_eq!(r, 'a');
+    // same consumed length, pure takes priority since it's first
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, 'c');
 
@@ -728,10 +730,12 @@ fn pure_conflicts() {
     let b = pure('c');
     let parser = construct!([a, b]).to_options();
 
-    let r = parser.run_inner("").unwrap();
-    assert_eq!(r, 'b');
+    // flag consumed - it takes priority
     let r = parser.run_inner("-a").unwrap();
     assert_eq!(r, 'a');
+    // same consumed length, flag takes priority since it's first
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 'b');
 }
 
 #[test]
