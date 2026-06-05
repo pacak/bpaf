@@ -235,6 +235,7 @@ impl<'p> RawCtx<'p> {
                     return Err(Error::Problem(
                         cursor - 1,
                         Problem::WrongArgument {
+                            meta,
                             name: name.into_owned(),
                             value: None,
                         },
@@ -245,8 +246,9 @@ impl<'p> RawCtx<'p> {
                     Arg::Named { .. } => Err(Error::Problem(
                         pos,
                         Problem::WrongArgument {
+                            meta,
                             name: name.into_owned(),
-                            value: Some(next.to_os_string()),
+                            value: Some(next.to_string_lossy().into_owned()),
                         },
                     )),
                     Arg::Pos { value } => {
@@ -333,7 +335,7 @@ impl<'p> RawCtx<'p> {
                     let problem = Problem::ExpectedFlag {
                         name: name.clone().into_owned(),
                         adj: *adj,
-                        value: val.to_os_string(),
+                        value: val.to_string_lossy().into_owned(),
                     };
                     let pos = self.cursor.get();
                     Err(Error::Problem(pos, problem))

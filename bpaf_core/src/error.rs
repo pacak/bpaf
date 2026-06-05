@@ -1,6 +1,4 @@
 #![allow(private_interfaces)] // Name is private at the moment
-use std::{borrow::Cow, ffi::OsString};
-
 use crate::{
     Lit, Metavar, Name,
     arg::Adjacency,
@@ -8,88 +6,99 @@ use crate::{
     console_writer::Styled,
 };
 
+const I: &str = crate::console_writer::Style::Invalid.ansi(); // invalid
+const V: &str = crate::console_writer::Style::Valid.ansi(); // valid
+const R: &str = crate::console_writer::Style::Text.ansi(); // reset
+const M: &str = crate::console_writer::Style::Metavar.ansi(); // metavar
+const Q: &str = crate::console_writer::Style::MonoTick.ansi(); // quote
+
 #[derive(Debug)]
 pub enum Problem {
+    /// Parser inside of a `.parse()` had failed
+    /// The original value is available for [`Leaf`] parsers
+    /// and not available for composite ones.
     Parse {
         value: Option<String>,
         error: String,
     },
-    // TODO - pass Metavar?
+    /// An argument expected a value, got either nothing at all or a named value
     WrongArgument {
+        meta: Metavar,
         name: Name<'static>,
-        value: Option<OsString>,
+        value: Option<String>,
     },
-    Unconsumed {
-        value: OsString,
-    },
+    /// Got a named value that conflicts with a different value
     Conflict {
-        accepted: OsString,
+        accepted: String,
         unexpected: Name<'static>,
     },
 
+    /// Got a positional value that might conflict with a different value
+    ///
+    /// Unlike named conflict we are not 100% sure about that - positional items
+    /// are all alike
     ConflictPos {
-        accepted: OsString,
-        unexpected: OsString,
+        accepted: String,
+        unexpected: String,
     },
+    /// Got something we don't know how to parse and there's no matching conflict
+    /// that can apply
+    Unconsumed { value: String },
+
+    /// Managed to parse a value successfully, but check inside of a .guard() failed
+    ///
+    /// For Leaf parsers we have a value we are trying to parse, for non leaf - there's no value
     GuardFailed {
         message: &'static str,
-        range: Option<OsString>,
+        range: Option<String>,
     },
-    OnlyOnce {
-        name: Name<'static>,
-    },
-    OnlyOnceInGroup {
-        group: String,
-        name: char,
-        ix: u32,
-    },
-    DidYouMean {
-        target: Name<'static>,
-        best: Name<'static>,
-    },
-    DidYouMeanCmd {
-        target: String,
-        best: String,
-    },
+    /// We managed to parse a similar named value before, we might be able to parse
+    /// it later if something restarts, but
+    OnlyOnce { name: Name<'static> },
+    /// We are parsing a group of stacked short flags. A char `name` at position `ix` was valid
+    /// before we started parsing, but we can't parse it now. Maybe it was used more than once,
+    /// maybe it conflicts with something else.
+    OnlyOnceInGroup { group: String, name: char, ix: u32 },
+    /// Expected a flag, but got it with an attached value.
     ExpectedFlag {
         name: Name<'static>,
         adj: Adjacency,
-        value: OsString,
+        value: String,
     },
-    Static(&'static str),
-    TryDDash {
-        name: String,
+    /// Got an unknown name, found something very close to it
+    DidYouName {
+        target: Name<'static>,
+        best: Name<'static>,
     },
-    Dynamic {
-        err: String,
-    },
-    NotStrict {
-        metavar: Metavar,
-    },
-    NotAdjacent {
-        name: OsString,
-        value: OsString,
-    },
+    /// Got an unknown literal, found something very close to it
+    DidYouMeanLit { target: String, best: String },
+    /// found an input that looks like a valid long name, but lacks a single dash at the front
+    TryDDash { name: String },
+
+    /// A missing item kind of error that can't be caught, should be already rendered
+    Dynamic { err: String },
+    /// a positional value that was marked as a strict one is located either before `--` or `--` is
+    /// not present at all
+    NotStrict { metavar: Metavar, string: String },
+    /// a named value was marked as adjacent only, but was entered as two separate items
+    NotAdjacent { name: String, value: String },
 }
 
 impl std::fmt::Display for Problem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Problem::Parse { value: None, error } => {
-                write!(f, "couldn't parse: {error}")
+                write!(f, "parse error: {error}")
             }
             Problem::Parse {
                 value: Some(value),
                 error,
             } => {
-                write!(f, "couldn't parse `{value}`: {error}")
+                write!(f, "couldn't parse {Q}{I}{value}{R}{Q}: {error}")
             }
+
             Problem::Unconsumed { value } => {
-                write!(
-                    f,
-                    "`{}` is not expected in this context",
-                    value.to_string_lossy()
-                )
+                write!(f, "{Q}{I}{value}{R}{Q} is not expected in this context")
             }
             Problem::Conflict {
                 accepted,
@@ -97,8 +106,7 @@ impl std::fmt::Display for Problem {
             } => {
                 write!(
                     f,
-                    "`{unexpected}` cannot be used at the same time as `{}`",
-                    accepted.to_string_lossy(),
+                    "{Q}{I}{unexpected}{R}{Q} cannot be used at the same time as {Q}{V}{accepted}{R}{Q}"
                 )
             }
             Problem::ConflictPos {
@@ -107,70 +115,77 @@ impl std::fmt::Display for Problem {
             } => {
                 write!(
                     f,
-                    "`{}` cannot be used at the same time as `{}`",
-                    unexpected.to_string_lossy(),
-                    accepted.to_string_lossy(),
+                    "can't parse {Q}{I}{unexpected}{R}{Q}, likely conflicts with {Q}{V}{accepted}{R}{Q}"
                 )
-            }
-            Problem::WrongArgument { name, value: None } => {
-                write!(f, "`{name}` expects a value")
             }
             Problem::WrongArgument {
                 name,
+                meta,
+                value: None,
+            } => {
+                write!(f, "{Q}{I}{name}{R}{Q} expects a value {Q}{M}{meta}{R}{Q}")
+            }
+            Problem::WrongArgument {
+                name,
+                meta,
                 value: Some(value),
             } => {
-                let s = value.to_string_lossy();
                 write!(
                     f,
-                    "`{name}` requires an argument TODO, got a flag {s}, try {name}={s}"
+                    "{Q}{V}{name}{R}{Q} requires an argument {Q}{M}{meta}{R}{Q}, got a flag {Q}{I}{value}{R}{Q}, try {Q}{V}{name}={value}{R}{Q} to use it as an argument"
                 )
             }
             Problem::GuardFailed { message, range } => match range {
-                Some(r) => write!(f, "`{}`: {message}", r.to_string_lossy()),
-                None => f.write_str(message),
+                Some(r) => write!(f, "{Q}{I}{r}{R}{Q}: {message}"),
+                None => write!(f, "{message}"),
             },
             Problem::OnlyOnce { name } => {
                 write!(
                     f,
-                    "argument `{name}` cannot be used multiple times in this context"
+                    "argument {Q}{V}{name}{R}{Q} cannot be used multiple times in this context"
                 )
             }
             Problem::OnlyOnceInGroup { group, name, ix } => {
                 write!(
                     f,
-                    "can't parse `{name}` (item {ix}) while parsing `{group}` as a set of short flags"
+                    "can't parse {Q}{I}{name}{R}{Q} (item {ix}) while parsing {Q}{V}{group}{R}{Q} as a set of stacked short flags"
                 )
             }
-            Problem::DidYouMean { target, best } => {
-                write!(f, "no such flag: `{target}`, did you mean `{best}`?")
+            Problem::DidYouName { target, best } => {
+                write!(
+                    f,
+                    "no such flag: {Q}{I}{target}{R}{Q}, did you mean {Q}{V}{best}{R}{Q}?"
+                )
             }
-            Problem::DidYouMeanCmd { target, best } => {
-                write!(f, "no such command: `{target}`, did you mean `{best}`?")
+            Problem::DidYouMeanLit { target, best } => {
+                write!(
+                    f,
+                    "no such command: {Q}{I}{target}{R}{Q}, did you mean {Q}{V}{best}{R}{Q}?"
+                )
             }
             Problem::ExpectedFlag { name, adj, value } => {
                 write!(
                     f,
-                    "the app can accept `{name}` as a flag, but got `{name}{adj}{}`",
-                    value.to_string_lossy()
+                    "the app can accept {Q}{V}{name}{R}{Q} as a flag, but got {Q}{I}{name}{adj}{value}{I}{Q}"
                 )
             }
-            Problem::Static(msg) => write!(f, "{msg}"),
             Problem::TryDDash { name } => {
                 write!(
                     f,
-                    "no such flag: `-{name}` (with one dash), did you mean `--{name}`?"
+                    "no such flag: {Q}{I}-{name}{R}{Q} (with one dash), did you mean {Q}{V}--{name}{R}{Q}?"
                 )
             }
             Problem::Dynamic { err } => write!(f, "{err}"),
-            Problem::NotStrict { metavar } => {
-                write!(f, "expected `{metavar}` to be on the right side of `--`")
+            Problem::NotStrict { metavar, string } => {
+                write!(
+                    f,
+                    "expected {Q}{I}{string}{R}{Q} ({M}{metavar}{R}) to follow {Q}{V}--{R}{Q}"
+                )
             }
             Problem::NotAdjacent { name, value } => {
                 write!(
                     f,
-                    "Expected value to be adjacent to {name}, try {name}={value}",
-                    name = name.to_string_lossy(),
-                    value = value.to_string_lossy(),
+                    "expected value to be adjacent to {V}{name}{R}, try {V}{name}={value}{R}"
                 )
             }
         }
@@ -241,22 +256,28 @@ pub enum MissingItem {
     Lit {
         value: Lit<'static>,
     },
+    EnvVar {
+        var_name: &'static str,
+    },
     Custom {
-        item: Cow<'static, str>,
+        item: String,
     },
 }
 
 impl std::fmt::Display for MissingItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MissingItem::Named { name, meta: None } => write!(f, "missing `{name}`"),
+            MissingItem::Named { name, meta: None } => write!(f, "missing {Q}{V}{name}{R}{Q}"),
             MissingItem::Named {
                 name,
                 meta: Some(meta),
-            } => write!(f, "missing `{name} {meta}`"),
-            MissingItem::Pos { meta } => write!(f, "missing `{meta}`"),
-            MissingItem::Lit { value } => write!(f, "missing `{value}`"),
-            MissingItem::Custom { item: rendered } => f.write_str(rendered),
+            } => write!(f, "missing {Q}{V}{name}={meta}{R}{Q}"),
+            MissingItem::Pos { meta } => write!(f, "missing {Q}{M}{meta}{R}{Q}"),
+            MissingItem::Lit { value } => write!(f, "missing {Q}{V}{value}{R}{Q}"),
+            MissingItem::EnvVar { var_name } => {
+                write!(f, "env variable {Q}{V}{var_name}{R}{Q} is not set")
+            }
+            MissingItem::Custom { item } => write!(f, "{item}"),
         }
     }
 }

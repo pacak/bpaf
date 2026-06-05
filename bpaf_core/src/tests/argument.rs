@@ -6,7 +6,7 @@ fn restrict_to_adjacent() {
     let parser = a.to_options();
 
     let r = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
-    let expected = "Expected value to be adjacent to -a, try -a=42\n";
+    let expected = "expected value to be adjacent to -a, try -a=42\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-a=42").unwrap();

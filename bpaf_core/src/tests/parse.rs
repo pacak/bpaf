@@ -17,13 +17,13 @@ fn is_odd_arg() {
     assert_eq!(r, 4);
 
     let r = parser.run_inner("-a 3").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `3`: Value must be even\n");
+    assert_eq!(r, "couldn't parse '3': Value must be even\n");
 
     let r = parser.run_inner("-a3").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `3`: Value must be even\n");
+    assert_eq!(r, "couldn't parse '3': Value must be even\n");
 
     let r = parser.run_inner("-a=3").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `3`: Value must be even\n");
+    assert_eq!(r, "couldn't parse '3': Value must be even\n");
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn is_odd_pos() {
     assert_eq!(r, 4);
 
     let r = parser.run_inner("3").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `3`: Value must be even\n");
+    assert_eq!(r, "couldn't parse '3': Value must be even\n");
 }
 
 #[test]
@@ -63,5 +63,5 @@ fn leaf_only() {
 
     let r = parser.run_inner("-a 1 -b 2").unwrap_err().unwrap_stderr();
 
-    assert_eq!(r, "couldn't parse: Value must be even\n");
+    assert_eq!(r, "parse error: Value must be even\n");
 }

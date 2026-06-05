@@ -555,14 +555,14 @@ impl<'p> RawCtx<'p> {
 
     /// After consumption, when called from a leaf node returns what was consumed
     /// as a string
-    pub(crate) fn leaf_consumed(&self) -> Option<OsString> {
+    pub(crate) fn leaf_consumed(&self) -> Option<String> {
         let (start, end) = self.leaf_range()?;
-        let mut out = OsString::new();
+        let mut out = String::new();
         for (ix, i) in (start..end).enumerate() {
             if ix > 0 {
-                out.push(" ");
+                out.push(' ');
             }
-            out.push(&self.args.items[i as usize]);
+            out.push_str(&self.args.items[i as usize].to_string_lossy());
         }
         Some(out)
     }
@@ -957,7 +957,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                         && &unexpected == dropped
                     {
                         return Problem::Conflict {
-                            accepted: self.ctx.args[*pos].clone(),
+                            accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
                             unexpected: unexpected.into_owned(),
                         };
                     }
@@ -997,15 +997,15 @@ impl<'a, 'p> Executor<'a, 'p> {
                                 .is_some_and(|n| n == conflicted_name)
                             {
                                 return Problem::ConflictPos {
-                                    accepted: self.ctx.args[*pos].clone(),
-                                    unexpected: value.to_os_string(),
+                                    accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
+                                    unexpected: value.to_string_lossy().into_owned(),
                                 };
                             }
                         }
                         Conflict::Pos { pos } => {
                             return Problem::ConflictPos {
-                                accepted: self.ctx.args[*pos].clone(),
-                                unexpected: value.to_os_string(),
+                                accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
+                                unexpected: value.to_string_lossy().into_owned(),
                             };
                         }
                     }
@@ -1021,7 +1021,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             }
         }
         Problem::Unconsumed {
-            value: unexpected.to_os_string(),
+            value: unexpected.to_string_lossy().into_owned(),
         }
     }
 

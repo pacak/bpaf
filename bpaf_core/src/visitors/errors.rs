@@ -98,7 +98,7 @@ impl<'a> BetterName<'a> {
     }
     pub(crate) fn into_problem(self) -> Option<Problem> {
         if self.distance < 0.4 {
-            Some(Problem::DidYouMean {
+            Some(Problem::DidYouName {
                 target: Name::Long(std::borrow::Cow::Owned(self.target.to_string())),
                 best: Name::Long(std::borrow::Cow::Owned(self.best.to_string())),
             })
@@ -194,7 +194,7 @@ impl<'a> ValidCommand<'a> {
     }
     pub(crate) fn into_problem(self) -> Option<Problem> {
         if self.distance < 0.4 {
-            Some(Problem::DidYouMeanCmd {
+            Some(Problem::DidYouMeanLit {
                 target: self.target.to_owned(),
                 best: self.best.to_owned(),
             })

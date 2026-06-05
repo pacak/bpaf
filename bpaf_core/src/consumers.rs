@@ -56,14 +56,10 @@ impl Named {
     pub(crate) fn missing_item(&self, meta: Option<Metavar>) -> MissingItem {
         if let Some(name) = self.name_long_or_short() {
             MissingItem::Named { name, meta }
-        } else if let Some(env_name) = self.env.first() {
-            MissingItem::Custom {
-                item: Cow::Owned(format!("missing `{env_name}`")),
-            }
+        } else if let Some(var_name) = self.env.first() {
+            MissingItem::EnvVar { var_name }
         } else {
-            MissingItem::Custom {
-                item: Cow::Borrowed("missing named item"),
-            }
+            unreachable!("Named starts either with name or an env var")
         }
     }
 }
@@ -391,8 +387,8 @@ where
         if let Some(os) = res {
             if self.adjacent && ctx.current_task.borrow().consumed == 2 {
                 let cursor = ctx.cursor.get();
-                let name = ctx.args[cursor].clone();
-                let value = ctx.args[cursor + 1].clone();
+                let name = ctx.args[cursor].to_string_lossy().into_owned();
+                let value = ctx.args[cursor + 1].to_string_lossy().into_owned();
                 let problem = Problem::NotAdjacent { name, value };
                 Err(Error::Problem(cursor, problem))
             } else {
@@ -528,6 +524,7 @@ where
             let cursor = ctx.cursor.get();
             let problem = Problem::NotStrict {
                 metavar: self.metavar,
+                string: os.to_string_lossy().into_owned(),
             };
             Err(Error::Problem(cursor, problem))
         } else {

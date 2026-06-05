@@ -4,13 +4,13 @@ fn parse_failed_msg() {
     let parser = short('a').argument::<usize>("A").to_options();
 
     let r = parser.run_inner("-a 34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse '34x': invalid digit found in string\n");
 
     let r = parser.run_inner("-a=34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse '34x': invalid digit found in string\n");
 
     let r = parser.run_inner("-a34x").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `34x`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse '34x': invalid digit found in string\n");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn flag_or_arg() {
 
 #[test]
 fn arg_or_flag() {
-    // behavior should be identical to `flag_or_arg`
+    // behavior should be identical to 'flag_or_arg'
     let a = short('a').req_flag(0);
     let b = short('a').argument::<usize>("A");
     let parser = construct!([b, a]).to_options();
@@ -309,7 +309,7 @@ fn unexpected_in_pure_optional() {
 
     let r = parser.run_inner("asdf").unwrap_err().unwrap_stderr();
 
-    let expected = "`asdf` is not expected in this context\n";
+    let expected = "'asdf' is not expected in this context\n";
     assert_eq!(r, expected);
 }
 

@@ -11,7 +11,7 @@ fn or_fail() {
     assert_eq!(r, 42);
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "this is error, failed with missing `-a`\n");
+    assert_eq!(r, "this is error, failed with missing '-a'\n");
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn or_success() {
     assert_eq!(r, 42);
 
     let r = parser.run_inner("").unwrap_err().unwrap_stdout();
-    assert_eq!(r, "Ok, failed with missing `-a`\n");
+    assert_eq!(r, "Ok, failed with missing '-a'\n");
 }
 
 #[test]
@@ -39,7 +39,7 @@ fn then_fail() {
     assert_eq!(r, "this is fail of code 42\n");
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `-a`\n");
+    assert_eq!(r, "missing '-a'\n");
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn then_success() {
     assert_eq!(r, "this is ok\n");
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `-a`\n");
+    assert_eq!(r, "missing '-a'\n");
 }
 
 #[test]

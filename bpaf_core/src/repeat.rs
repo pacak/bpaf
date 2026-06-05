@@ -180,7 +180,7 @@ impl<T: 'static> Parser for Many1<T> {
         let res = parse_many(&self.inner, ctx, 0, u32::MAX).await?;
         if res.is_empty() {
             Err(Error::missing(MissingItem::Custom {
-                item: self.message.into(),
+                item: self.message.to_string(),
             }))
         } else {
             Ok(res)

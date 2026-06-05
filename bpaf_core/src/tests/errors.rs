@@ -11,7 +11,7 @@ fn this_or_that_odd() {
     let parser = construct!([ab, cd]).to_options();
 
     let res = parser.run_inner("-a -b -c").unwrap_err().unwrap_stderr();
-    assert_eq!(res, "`-c` cannot be used at the same time as `-b`\n");
+    assert_eq!(res, "'-c' cannot be used at the same time as '-b'\n");
 }
 
 #[test]
@@ -23,21 +23,21 @@ fn unsigned_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "`-a` requires an argument TODO, got a flag -2, try -a=-2\n"
+        "'-a' requires an argument 'N', got a flag '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` expects a value\n");
+    assert_eq!(r, "'-a' expects a value 'N'\n");
 
     // -2 is a valid flag, -42 is not
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "`-a` requires an argument TODO, got a flag -42, try -a=-42\n"
+        "'-a' requires an argument 'N', got a flag '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `-42`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse '-42': invalid digit found in string\n");
 }
 
 #[test]
@@ -49,17 +49,17 @@ fn signed_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "`-a` requires an argument TODO, got a flag -2, try -a=-2\n"
+        "'-a' requires an argument 'N', got a flag '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` expects a value\n");
+    assert_eq!(r, "'-a' expects a value 'N'\n");
 
     // -2 is a valid flag, -42 is not
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "`-a` requires an argument TODO, got a flag -42, try -a=-42\n"
+        "'-a' requires an argument 'N', got a flag '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap();
@@ -73,12 +73,12 @@ fn cannot_be_used_partial_arg() {
     let parser = construct!([a, b]).to_options();
 
     let res = parser.run_inner("-a -b").unwrap_err().unwrap_stderr();
-    assert_eq!(res, "`-b` cannot be used at the same time as `-a`\n");
+    assert_eq!(res, "'-b' cannot be used at the same time as '-a'\n");
 
     let res = parser.run_inner("-b -a").unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "`-b` requires an argument TODO, got a flag -a, try -b=-a\n"
+        "'-b' requires an argument 'ARG', got a flag '-a', try '-b=-a' to use it as an argument\n"
     );
 }
 
@@ -101,7 +101,7 @@ fn better_error_with_enum() {
         .unwrap_stderr();
     assert_eq!(
         res,
-        "`--beta` cannot be used at the same time as `--alpha`\n"
+        "'--beta' cannot be used at the same time as '--alpha'\n"
     );
 
     let res = foo
@@ -110,7 +110,7 @@ fn better_error_with_enum() {
         .unwrap_stderr();
     assert_eq!(
         res,
-        "`--gamma` cannot be used at the same time as `--alpha`\n"
+        "'--gamma' cannot be used at the same time as '--alpha'\n"
     );
 
     let res = foo
@@ -119,7 +119,7 @@ fn better_error_with_enum() {
         .unwrap_stderr();
     assert_eq!(
         res,
-        "`--gamma` cannot be used at the same time as `--beta`\n"
+        "'--gamma' cannot be used at the same time as '--beta'\n"
     );
 
     let res = foo
@@ -128,7 +128,7 @@ fn better_error_with_enum() {
         .unwrap_stderr();
     assert_eq!(
         res,
-        "`--beta` cannot be used at the same time as `--alpha`\n"
+        "'--beta' cannot be used at the same time as '--alpha'\n"
     );
 }
 
@@ -141,7 +141,7 @@ fn guard_on_arg() {
 
     let res = parser.run_inner("-a 30").unwrap_err().unwrap_stderr();
 
-    assert_eq!(res, "`-a 30`: too high\n");
+    assert_eq!(res, "'-a 30': too high\n");
 }
 
 #[test]
@@ -164,7 +164,7 @@ fn strict_positional_argument() {
     let parser = a.to_options();
 
     let r = parser.run_inner("-a -- 10").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `--`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse '--': invalid digit found in string\n");
 }
 
 #[test]
@@ -176,10 +176,10 @@ fn not_expected_at_all() {
         .run_inner("--megapotato")
         .unwrap_err()
         .unwrap_stderr();
-    assert_eq!(r, "`--megapotato` is not expected in this context\n");
+    assert_eq!(r, "'--megapotato' is not expected in this context\n");
 
     let r = parser.run_inner("megapotato").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`megapotato` is not expected in this context\n");
+    assert_eq!(r, "'megapotato' is not expected in this context\n");
 }
 
 #[test]
@@ -191,19 +191,19 @@ fn cannot_be_used_twice() {
     let r = parser.run_inner("-a -b -a").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "argument `-a` cannot be used multiple times in this context\n"
+        "argument '-a' cannot be used multiple times in this context\n"
     );
 
     let r = parser.run_inner("-a -a").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "argument `-a` cannot be used multiple times in this context\n"
+        "argument '-a' cannot be used multiple times in this context\n"
     );
 
     let r = parser.run_inner("-abba").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "can't parse `a` (item 4) while parsing `-abba` as a set of short flags\n"
+        "can't parse 'a' (item 4) while parsing '-abba' as a set of stacked short flags\n"
     );
 }
 
@@ -213,8 +213,8 @@ fn should_not_split_adjacent_options() {
     let b = pure(()).to_options().command("hello");
     let parser = construct!(a, b).to_options();
     let r = parser.run_inner("-ahello").unwrap_err().unwrap_stderr();
-    // can probably suggest splitting here too: `-a` `hello`
-    let expected = "the app can accept `-a` as a flag, but got `-ahello`\n";
+    // can probably suggest splitting here too: '-a' 'hello'
+    let expected = "the app can accept '-a' as a flag, but got '-ahello'\n";
     assert_eq!(r, expected);
 }
 
@@ -228,11 +228,11 @@ fn should_not_split_adjacent_ambig_options() {
 
     // this happens inside of the command context - a is not known.
     let r = parser.run_inner("hello -a 3").unwrap_err().unwrap_stderr();
-    let expected = "`-a` is not expected in this context\n";
+    let expected = "'-a' is not expected in this context\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-ahello").unwrap_err().unwrap_stderr();
-    let expected = "the app can accept `-a` as a flag, but got `-ahello`\n";
+    let expected = "the app can accept '-a' as a flag, but got '-ahello'\n";
     assert_eq!(r, expected);
 
     // this one is okay, try to parse -a as argument - it fails because "hello" is not a number, then
@@ -248,7 +248,7 @@ fn adjacent_option_complains_to() {
     let r = parser.run_inner("-ayam").unwrap_err().unwrap_stderr();
 
     // TODO - this should point to the whole "-ayam" thing
-    assert_eq!(r, "couldn't parse `yam`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse 'yam': invalid digit found in string\n");
 }
 
 #[test]
@@ -257,7 +257,7 @@ fn missing_flag() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `-a`\n");
+    assert_eq!(r, "missing '-a'\n");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn missing_arg() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `-a A`\n");
+    assert_eq!(r, "missing '-a=A'\n");
 }
 
 #[test]
@@ -275,7 +275,7 @@ fn missing_pos() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `A`\n");
+    assert_eq!(r, "missing 'A'\n");
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn missing_cmd() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `cmd`\n");
+    assert_eq!(r, "missing 'cmd'\n");
 }
 
 #[test]
@@ -294,10 +294,10 @@ fn some_pos_with_invalid_flag() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner("-c 12").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context\n");
+    assert_eq!(r, "'-c' is not expected in this context\n");
 
     let r = parser.run_inner("12 -c").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context\n");
+    assert_eq!(r, "'-c' is not expected in this context\n");
 }
 
 #[test]
@@ -307,23 +307,23 @@ fn pos_with_invalid_arg() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner("-c 12").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context\n");
+    assert_eq!(r, "'-c' is not expected in this context\n");
 
     let r = parser.run_inner("12 -c").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context\n");
+    assert_eq!(r, "'-c' is not expected in this context\n");
 
     let r = parser.run_inner("-c t").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-c` is not expected in this context\n");
+    assert_eq!(r, "'-c' is not expected in this context\n");
 
     let r = parser.run_inner("t -c").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse `t`: invalid digit found in string\n");
+    assert_eq!(r, "couldn't parse 't': invalid digit found in string\n");
 }
 
 #[test]
 fn strictly_positional_help() {
     let parser = long("hhhh").switch().to_options();
     let r = parser.run_inner("-- --help").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`--help` is not expected in this context\n");
+    assert_eq!(r, "'--help' is not expected in this context\n");
 }
 
 #[test]
@@ -332,7 +332,7 @@ fn hidden_required_field_is_valid_but_strange() {
     // to explain stuff, but not in help or usage
     let parser = short('a').req_flag(()).hide().to_options();
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `-a`\n");
+    assert_eq!(r, "missing '-a'\n");
 }
 
 #[test]
@@ -352,7 +352,7 @@ fn two_required_fields_first_missing() {
     let b = long("b").argument::<u32>("B");
     let parser = construct!(a, b).to_options();
     let r = parser.run_inner("--b 1").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing `--a A`\n");
+    assert_eq!(r, "missing '--a=A'\n");
 }
 
 #[test]
@@ -368,7 +368,7 @@ fn used_only_once_is_more_important_error() {
         .unwrap_stderr();
     assert_eq!(
         err,
-        "argument `--filter` cannot be used multiple times in this context\n"
+        "argument '--filter' cannot be used multiple times in this context\n"
     );
 
     let err = parser
@@ -377,7 +377,7 @@ fn used_only_once_is_more_important_error() {
         .unwrap_stderr();
     assert_eq!(
         err,
-        "argument `--sort` cannot be used multiple times in this context\n"
+        "argument '--sort' cannot be used multiple times in this context\n"
     );
 }
 
@@ -399,7 +399,7 @@ fn ambiguity() {
 
     let r = parser.run_inner("-b").unwrap_err().unwrap_stderr();
     // single char typos are too random
-    assert_eq!(r, "`-b` is not expected in this context\n");
+    assert_eq!(r, "'-b' is not expected in this context\n");
 }
 
 #[test]
@@ -419,7 +419,7 @@ fn ambiguity_2() {
 
     let r = parser.run_inner("-aaaaaa").unwrap_err().unwrap_stderr();
     // TODO - this is actually ambiguity error asking you to split it
-    assert_eq!(r, "the app can accept `-a` as a flag, but got `-aaaaaa`\n");
+    assert_eq!(r, "the app can accept '-a' as a flag, but got '-aaaaaa'\n");
 }
 
 #[test]
@@ -432,10 +432,10 @@ fn short_cmd() {
         .to_options();
 
     let r = parser.run_inner("bet").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "no such command: `bet`, did you mean `beta`?\n");
+    assert_eq!(r, "no such command: 'bet', did you mean 'beta'?\n");
 
     let r = parser.run_inner("c").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`c` is not expected in this context\n");
+    assert_eq!(r, "'c' is not expected in this context\n");
 }
 
 #[test]
@@ -447,7 +447,7 @@ fn double_dashes_fallback() {
 
     assert_eq!(
         r,
-        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?\n"
+        "no such flag: '-llvm' (with one dash), did you mean '--llvm'?\n"
     );
 }
 
@@ -460,7 +460,7 @@ fn double_dashes_no_fallback() {
 
     assert_eq!(
         r,
-        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?\n"
+        "no such flag: '-llvm' (with one dash), did you mean '--llvm'?\n"
     );
 }
 
@@ -473,7 +473,7 @@ fn double_dash_with_optional_positional() {
     let r = parser.run_inner("make -llvm").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "no such flag: `-llvm` (with one dash), did you mean `--llvm`?\n"
+        "no such flag: '-llvm' (with one dash), did you mean '--llvm'?\n"
     );
 }
 
@@ -500,7 +500,7 @@ fn double_dash_with_optional_positional() {
 //         .unwrap_stderr();
 //     assert_eq!(
 //         r,
-//         "flag `--oneline` is not valid in this context, did you mean to pass it to command `log`?"
+//         "flag '--oneline' is not valid in this context, did you mean to pass it to command 'log'?"
 //     );
 // }
 //
@@ -532,7 +532,7 @@ fn double_dash_with_optional_positional() {
 //         r,
 //         // everything before ":" comes from bpaf, after ":" - it's an error specific
 //         // to FromStr instance.
-//         "couldn't parse `tru`: provided string was not `true` or `false`"
+//         "couldn't parse 'tru': provided string was not 'true' or 'false'"
 //     );
 //
 //     let r = parser
@@ -540,7 +540,7 @@ fn double_dash_with_optional_positional() {
 //         .unwrap_err()
 //         .unwrap_stderr();
 //
-//     assert_eq!(r, "no such flag: `--bool-fla`, did you mean `--bool-flag`?");
+//     assert_eq!(r, "no such flag: '--bool-fla', did you mean '--bool-flag'?");
 //
 //     let r = parser
 //         .run_inner(&["--bool-flag", "--bool-flag"])
@@ -549,7 +549,7 @@ fn double_dash_with_optional_positional() {
 //
 //     assert_eq!(
 //         r,
-//         "expected `--setBool`, got `--bool-flag`. Pass `--help` for usage information"
+//         "expected '--setBool', got '--bool-flag'. Pass '--help' for usage information"
 //     );
 // }
 //
@@ -558,15 +558,15 @@ fn suggest_typo_fix() {
     let p = long("flag").switch().to_options();
 
     let r = p.run_inner("--fla").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?\n");
+    assert_eq!(r, "no such flag: '--fla', did you mean '--flag'?\n");
 
     let r = p.run_inner("--fla --fla").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "no such flag: `--fla`, did you mean `--flag`?\n");
+    assert_eq!(r, "no such flag: '--fla', did you mean '--flag'?\n");
 
     let r = p.run_inner("--flag --flag").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "argument `--flag` cannot be used multiple times in this context\n"
+        "argument '--flag' cannot be used multiple times in this context\n"
     );
 }
 //
@@ -599,13 +599,13 @@ fn suggest_typo_fix() {
 //         .run_inner(&["-a", "erg"])
 //         .unwrap_err()
 //         .unwrap_stderr();
-//     assert_eq!(r, "`-a` is not expected in this context");
+//     assert_eq!(r, "'-a' is not expected in this context");
 //
 //     let r = commands()
 //         .run_inner(&["arguments", "-a", "erg"])
 //         .unwrap_err()
 //         .unwrap_stderr();
-//     assert_eq!(r, "`-a` is not expected in this context");
+//     assert_eq!(r, "'-a' is not expected in this context");
 //
 //     let r = arguments()
 //         .to_options()
@@ -650,7 +650,7 @@ fn big_conflict() {
     let parser = construct!([ab, cd]).to_options();
 
     let r = parser.run_inner("-a -b -c -d").unwrap_err().unwrap_stderr();
-    let expected = "`-c` cannot be used at the same time as `-a`\n";
+    let expected = "'-c' cannot be used at the same time as '-a'\n";
     assert_eq!(r, expected);
 }
 
@@ -661,10 +661,10 @@ fn conflict_flag_pos() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`42` cannot be used at the same time as `-a`\n");
+    assert_eq!(r, "can't parse '42', likely conflicts with '-a'\n");
 
     let r = parser.run_inner("42 -a").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` cannot be used at the same time as `42`\n");
+    assert_eq!(r, "'-a' cannot be used at the same time as '42'\n");
 }
 
 #[test]
@@ -674,10 +674,10 @@ fn conflict_flag_command() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser.run_inner("42 -a").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-a` cannot be used at the same time as `42`\n");
+    assert_eq!(r, "'-a' cannot be used at the same time as '42'\n");
 
     let r = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`42` cannot be used at the same time as `-a`\n");
+    assert_eq!(r, "can't parse '42', likely conflicts with '-a'\n");
 }
 
 #[test]
@@ -687,11 +687,11 @@ fn conflict_pos_command() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser.run_inner("32 42").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`42` cannot be used at the same time as `32`\n");
+    assert_eq!(r, "can't parse '42', likely conflicts with '32'\n");
 
     // 42 is both a valid positional and a valid command name, so both succeed
     let r = parser.run_inner("42 32").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`32` is not expected in this context\n");
+    assert_eq!(r, "'32' is not expected in this context\n");
 }
 
 #[test]
@@ -705,8 +705,9 @@ fn this_shouldnt_pass() {
     let parser = construct!([ab, cd]).to_options();
     let r = parser.run_inner("-abcd").unwrap_err().unwrap_stderr();
 
-    // TODO: Can I make it "`-c` cannot be used at the same time as `-a`"?
-    let expected = "can't parse `c` (item 3) while parsing `-abcd` as a set of short flags\n";
+    // TODO: Can I make it "'-c' cannot be used at the same time as '-a'"?
+    let expected =
+        "can't parse 'c' (item 3) while parsing '-abcd' as a set of stacked short flags\n";
     assert_eq!(r, expected);
 }
 
@@ -745,7 +746,7 @@ fn pure_works() {
     assert_eq!(r, 'b');
 
     let r = parser.run_inner("-b").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`-b` is not expected in this context\n");
+    assert_eq!(r, "'-b' is not expected in this context\n");
 }
 
 #[test]
@@ -756,7 +757,7 @@ fn pair_of_pos() {
 
     let r = parser.run_inner("4.0 33").unwrap_err().unwrap_stderr();
 
-    let expected = "couldn't parse `4.0`: invalid digit found in string\n";
+    let expected = "couldn't parse '4.0': invalid digit found in string\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("33 4.0").unwrap();
@@ -769,7 +770,7 @@ fn strict_pos_msg() {
     let parser = a.to_options();
 
     let r = parser.run_inner("32").unwrap_err().unwrap_stderr();
-    let expected = "expected `A` to be on the right side of `--`\n";
+    let expected = "expected '32' (A) to follow '--'\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-- -32").unwrap();
@@ -786,7 +787,7 @@ fn lazy_command_conflict() {
     let parser = construct!(ab, c).to_options();
 
     let r = parser.run_inner("alpha beta").unwrap_err().unwrap_stderr();
-    let expected = "`beta` cannot be used at the same time as `alpha`\n";
+    let expected = "can't parse 'beta', likely conflicts with 'alpha'\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("alpha -c").unwrap();
@@ -800,7 +801,7 @@ fn literal_conflict() {
     let parser = a.or_else(b).to_options();
 
     let r = parser.run_inner("alpha beta").unwrap_err().unwrap_stderr();
-    let expected = "`beta` cannot be used at the same time as `alpha`\n";
+    let expected = "can't parse 'beta', likely conflicts with 'alpha'\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("beta").unwrap();
@@ -817,14 +818,14 @@ fn conflict_with_argument() {
         .run_inner("--name Bob --noname")
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "`--noname` cannot be used at the same time as `--name`\n";
+    let expected = "'--noname' cannot be used at the same time as '--name'\n";
     assert_eq!(r, expected);
 
     let r = parser
         .run_inner("--noname --name Bob")
         .unwrap_err()
         .unwrap_stderr();
-    let expected = "`--name` cannot be used at the same time as `--noname`\n";
+    let expected = "'--name' cannot be used at the same time as '--noname'\n";
     assert_eq!(r, expected);
 }
 
@@ -838,7 +839,7 @@ fn no_misleading_no_such_flag() {
     let parser = construct!([edit_manifest, rename]).to_options();
 
     let r = parser.run_inner("--name").unwrap_err().unwrap_stderr();
-    let expected = "`--name` expects a value\n";
+    let expected = "'--name' expects a value 'NAME'\n";
     assert_eq!(r, expected);
 }
 
@@ -849,7 +850,7 @@ fn any_keeps_track_of_current_value() {
         .to_options();
 
     let r = parser.run_inner("200").unwrap_err().unwrap_stderr();
-    let expected = "couldn't parse `200`: too large\n";
+    let expected = "couldn't parse '200': too large\n";
     assert_eq!(r, expected);
 }
 
@@ -877,17 +878,17 @@ fn pos1_vs_pos3() {
 
     let r = parser.run_inner("2 3 4").unwrap_err().unwrap_stderr();
     // This error message can be confusing, but that's a fault of the parser.
-    // While `bcd` can succeed - the moment we parse "2" with both `a` and `b`
+    // While 'bcd' can succeed - the moment we parse "2" with both 'a' and 'b'
     // we must made a decision what to kill or keep running - without knowing
-    // what parsers are left. To avoid data loss `a` must return the result.
-    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+    // what parsers are left. To avoid data loss 'a' must return the result.
+    assert_eq!(r, "can't parse '3', likely conflicts with '2'\n");
 
     let r = parser.run_inner("2 3").unwrap_err().unwrap_stderr();
     // this test case illustrates the problem that the previous case is trying to avoid.
-    // Suppose we didn't produce the result with `a` and proceeded parsing with `c`.
-    // So far so good, but then we've reached the end of the input. `bcd` can't succeed
-    // but `a` can't succeed either since it didn't consume "3".
-    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+    // Suppose we didn't produce the result with 'a' and proceeded parsing with 'c'.
+    // So far so good, but then we've reached the end of the input. 'bcd' can't succeed
+    // but 'a' can't succeed either since it didn't consume "3".
+    assert_eq!(r, "can't parse '3', likely conflicts with '2'\n");
 
     let r = parser.run_inner("1").unwrap();
     assert_eq!(r, 10);
@@ -906,18 +907,18 @@ fn pos2_vs_pos3() {
 
     // let r = parser.run_inner("2 3 4").unwrap_err().unwrap_stderr();
     // // This error message can be confusing, but that's a fault of the parser.
-    // // While `bcd` can succeed - the moment we parse "2" with both `a` and `b`
+    // // While 'bcd' can succeed - the moment we parse "2" with both 'a' and 'b'
     // // we must made a decision what to kill or keep running - without knowing
-    // // what parsers are left. To avoid data loss `a` must return the result.
-    // assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+    // // what parsers are left. To avoid data loss 'a' must return the result.
+    // assert_eq!(r, "'3' cannot be used at the same time as '2'\n");
 
     let r = parser.run_inner("1 2").unwrap();
     // this test case illustrates the problem that the previous case is trying to avoid.
-    // Suppose we didn't produce the result with `a` and proceeded parsing with `c`.
-    // So far so good, but then we've reached the end of the input. `bcd` can't succeed
-    // but `a` can't succeed either since it didn't consume "3".
+    // Suppose we didn't produce the result with 'a' and proceeded parsing with 'c'.
+    // So far so good, but then we've reached the end of the input. 'bcd' can't succeed
+    // but 'a' can't succeed either since it didn't consume "3".
     assert_eq!(r, 3);
 
     let r = parser.run_inner("1 2 3").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "`3` cannot be used at the same time as `2`\n");
+    assert_eq!(r, "can't parse '3', likely conflicts with '2'\n");
 }

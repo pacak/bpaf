@@ -216,13 +216,13 @@ fn simple_complete_for_value() {
     let r = parser.run_inner(("-b=", "")).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "couldn't parse ``: cannot parse integer from empty string\n"
+        "couldn't parse '': cannot parse integer from empty string\n"
     );
 
     let r = parser.run_inner(("-b=", "x")).unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "couldn't parse ``: cannot parse integer from empty string\n"
+        "couldn't parse '': cannot parse integer from empty string\n"
     );
 
     let r = parser.run_inner(("", "-b=")).unwrap_err().unwrap_stdout();

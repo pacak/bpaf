@@ -659,7 +659,7 @@ Available options:
 //     let parser = a.to_options().help_parser(h).version_parser(v);
 //
 //     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
-//     assert_eq!(r, "`--help` is not expected in this context");
+//     assert_eq!(r, "'--help' is not expected in this context");
 //
 //     let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
 //     let expected = "Usage: app [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
@@ -815,7 +815,7 @@ Available options:
     assert_eq!(r, expected);
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
-    let expected = "`--help` is not expected in this context\n";
+    let expected = "'--help' is not expected in this context\n";
     assert_eq!(r, expected);
 }
 
@@ -919,6 +919,6 @@ fn version_works() {
         .unwrap_err()
         .unwrap_stderr();
 
-    let expected = "`--version` is not expected in this context\n";
+    let expected = "'--version' is not expected in this context\n";
     assert_eq!(r, expected);
 }

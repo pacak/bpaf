@@ -5,7 +5,7 @@ use crate::{
     arg::lex_os_arg,
     args::Args,
     complete::handle_subparser_complete,
-    console_writer2::Colorscheme,
+    console_writer::Colorscheme,
     error::MissingItem,
     info::*,
     traits::{Leaf, VisitGroup},
@@ -468,7 +468,7 @@ impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for Pure
     async fn eval<'p>(&'p self, _ctx: crate::Ctx<'p>) -> Result<T, Error> {
         (self.act)().map_err(|err| {
             Error::Missing(MissingItem::Custom {
-                item: err.to_string().into(),
+                item: err.to_string(),
             })
         })
     }
