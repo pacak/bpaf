@@ -5,6 +5,7 @@ use crate::{
     arg::lex_os_arg,
     args::Args,
     complete::handle_subparser_complete,
+    console_writer2::Colorscheme,
     error::MissingItem,
     info::*,
     traits::{Leaf, VisitGroup},
@@ -127,29 +128,30 @@ impl<T: 'static> OptionParser<T> {
     pub fn run(&self) -> T {
         match self.run_inner(std::env::args_os()) {
             Ok(r) => r,
-            Err(ParseFailure::Stdout(o)) => {
-                let o = o.mono();
-                print!("{o}");
-                std::process::exit(0);
-            }
-            Err(ParseFailure::Stderr(o)) => {
-                let o = o.mono();
-                print!("{o}");
-                std::process::exit(1);
-            }
-            Err(ParseFailure::Console(o)) => {
-                use std::io::Write;
-                #[cfg(unix)]
-                {
-                    std::io::stdout().write_all(o.as_bytes()).unwrap();
-                }
-                #[cfg(not(unix))]
-                {
-                    // bpaf uses ParseFailure::Console only for autocomplete
-                    // and it is not supported on windows
-                    print!("{o}");
-                }
-                std::process::exit(0);
+            Err(e) => {
+                let term = std::io::IsTerminal::is_terminal(&std::io::stdout());
+
+                let (code, text) = match e {
+                    ParseFailure::Stdout(raw) => {
+                        let enc = if term {
+                            raw.apply(&Colorscheme::BRIGHT)
+                        } else {
+                            raw.mono()
+                        };
+                        (0, enc)
+                    }
+                    ParseFailure::Stderr(raw) => {
+                        let enc = if term {
+                            raw.apply(&Colorscheme::BRIGHT)
+                        } else {
+                            raw.mono()
+                        };
+                        (1, enc)
+                    }
+                    ParseFailure::Console(o) => (0, o),
+                };
+                print!("{text}");
+                std::process::exit(code)
             }
         }
     }
