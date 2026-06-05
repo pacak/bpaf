@@ -146,13 +146,13 @@ impl std::fmt::Debug for Colorscheme {
 
 impl Colorscheme {
     pub const DULL: Self = Self {
-        emphasis: "\x1b[4m\x1b1m", // underline + bold
-        literal: "\x1b4m",         // bold
-        metavar: "\x1b[1m",        // underline
-        header: "\x1b[4m\x1b1m",   // underline + bold
-        invalid: "\x1b[31m",       // red
-        valid: "\x1b[32m",         // green
-        text: "\x1b[0m]",          // reset
+        emphasis: "\x1b[4m\x1b[1m", // underline + bold
+        literal: "\x1b[4m",         // bold
+        metavar: "\x1b[1m",         // underline
+        header: "\x1b[4m\x1b[1m",   // underline + bold
+        invalid: "\x1b[31m",        // red
+        valid: "\x1b[32m",          // green
+        text: "\x1b[0m",            // reset
     };
     pub const BRIGHT: Self = Self {
         emphasis: "\x1b[1m\x1b[33m", // bold yellow
@@ -161,7 +161,7 @@ impl Colorscheme {
         header: "\x1b[1m\x1b[36m",   // bold
         invalid: "\x1b[31m",         // red
         valid: "\x1b[32m",           // green
-        text: "\x1b[0m]",            // reset
+        text: "\x1b[0m",             // reset
     };
 }
 
