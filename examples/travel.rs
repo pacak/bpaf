@@ -64,7 +64,7 @@ fn main() {
 a pair of speed and distance or by time.
 
 This example defines two separate travel segments, one given by speed/distance combo and one by time
-    travel --km 180 --kph 35 --time";
+    travel --km 180 --kph 35 --time 300";
     let decorated = parser.to_options().descr(descr).header(header);
 
     // help message tries to explain what's needed:
