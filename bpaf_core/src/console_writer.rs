@@ -90,6 +90,7 @@ fn write_styled(
     let word_width: usize = crate::miniansi::split(from)
         .map(|f| match f {
             Frag::Str(s) => char_width(s),
+            Frag::Code(Style::MonoTick) if scheme.is_none() => 1,
             Frag::Code(_) => 0,
         })
         .sum();
@@ -115,7 +116,9 @@ fn write_styled(
 
             Frag::Code(code) => {
                 if let Some(scheme) = scheme {
-                    output.push_str(scheme[code])
+                    output.push_str(scheme[code]);
+                } else if code == Style::MonoTick {
+                    output.push('\'');
                 }
             }
         }
@@ -146,6 +149,7 @@ impl std::ops::Index<Style> for Colorscheme {
             Style::Header => &self.header,
             Style::Valid => &self.valid,
             Style::Invalid => &self.invalid,
+            Style::MonoTick => &"",
         }
     }
 }
@@ -188,6 +192,7 @@ impl Style {
             Style::Header => "\u{1B}[4m",   // underline
             Style::Valid => "\u{1B}[5m",    // rapid blink
             Style::Invalid => "\u{1B}[6m",  // crossed-out
+            Style::MonoTick => "\u{1B}[7m",
         }
     }
 }
@@ -204,6 +209,7 @@ impl TryFrom<u8> for Style {
             b'4' => Ok(Style::Header),
             b'5' => Ok(Style::Valid),
             b'6' => Ok(Style::Invalid),
+            b'7' => Ok(Style::MonoTick),
             _ => Err(()),
         }
     }
@@ -231,6 +237,9 @@ pub enum Style {
 
     /// Invalid input given by user - used to display invalid parts of the input
     Invalid,
+
+    /// Backtick that gets inserted only in monochrome mode
+    MonoTick,
 }
 
 #[inline(never)]
