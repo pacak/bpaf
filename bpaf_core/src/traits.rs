@@ -3,8 +3,15 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest, adapters::*, completions::CompHelp,
-    error::ParseFailure, info::Info, repeat::*, visitors::help::Help,
+    Ctx, Error, Exit, Lit, Metavar, Named, Nest,
+    adapters::{
+        Fallback, Group, Guard, Hide, Map, OptionParser, Optional, OrExit, Parse, ThenExit,
+        WithOffset,
+    },
+    completions::CompHelp,
+    error::ParseFailure,
+    info::Info,
+    repeat::{Collect, Count, Last, Many, Many1},
 };
 use std::{marker::PhantomData, pin::Pin, rc::Rc};
 
