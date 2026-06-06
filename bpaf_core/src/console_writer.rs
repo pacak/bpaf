@@ -44,6 +44,7 @@ fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String 
         let mut cursor = 0;
         match line.split_once('\t') {
             Some((key, help)) => {
+                // don't insert linebreaks into "key" section of the help message
                 write_styled(0, usize::MAX, key, scheme, &mut cursor, &mut out, false);
                 if cursor > tab && !help.is_empty() {
                     out.push_str("  ");
@@ -54,6 +55,7 @@ fn apply_style(input: &str, tab: usize, scheme: Option<&Colorscheme>) -> String 
             }
 
             None => {
+                // don't insert extra linebreaks for lines that start with two spaces
                 if line.starts_with("  ") {
                     write_styled(0, usize::MAX, line, scheme, &mut cursor, &mut out, false);
                 } else {
@@ -76,7 +78,7 @@ fn write_styled(
     scheme: Option<&Colorscheme>,
     cursor: &mut usize,
     output: &mut String,
-    mut pending_sep: bool,
+    pending_sep: bool,
 ) {
     use crate::miniansi::Frag;
 
@@ -85,21 +87,30 @@ fn write_styled(
         *cursor = start;
     }
 
+    let word_width: usize = crate::miniansi::split(from)
+        .map(|f| match f {
+            Frag::Str(s) => char_width(s),
+            Frag::Code(_) => 0,
+        })
+        .sum();
+
+    let sep = pending_sep as usize;
+    if *cursor + sep + word_width > end {
+        output.push('\n');
+        *cursor = start;
+        if start > 0 {
+            output.extend(std::iter::repeat_n(' ', start));
+        }
+    } else if pending_sep {
+        output.push(' ');
+        *cursor += 1;
+    }
+
     for item in crate::miniansi::split(from) {
         match item {
             Frag::Str(s) => {
-                *cursor += char_width(s) + pending_sep as usize;
-                if *cursor > end {
-                    output.push('\n');
-                    *cursor = start;
-                    if start > 0 {
-                        output.extend(std::iter::repeat_n(' ', start));
-                    }
-                } else if pending_sep {
-                    output.push(' ');
-                }
-                pending_sep = false;
                 output.push_str(s);
+                *cursor += char_width(s);
             }
 
             Frag::Code(code) => {
@@ -222,19 +233,60 @@ pub enum Style {
     Invalid,
 }
 
-#[test]
-fn render_simple() {
-    let r = apply_style("a\tb", 10, None);
-    assert_eq!(r, "a         b\n");
-
-    let r = apply_style("a\n\tb", 6, None);
-    assert_eq!(r, "a\n      b\n");
-
-    let r = apply_style("a b c d", 3, None);
-    assert_eq!(r, "a b c d\n");
-}
-
 #[inline(never)]
 pub(crate) fn char_width(s: &str) -> usize {
     s.chars().count()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Colorscheme, Style, apply_style};
+    #[test]
+    fn render_simple() {
+        let r = apply_style("a\tb", 10, None);
+        assert_eq!(r, "a         b\n");
+
+        let r = apply_style("a\n\tb", 6, None);
+        assert_eq!(r, "a\n      b\n");
+
+        let r = apply_style("a b c d", 3, None);
+        assert_eq!(r, "a b c d\n");
+    }
+
+    #[test]
+    fn code_stays_with_adjacent_word_on_wrap() {
+        let long_a = "a".repeat(120);
+        let input = format!(
+            "foo {E}{long_a}{T}",
+            E = Style::Emphasis.ansi(),
+            T = Style::Text.ansi()
+        );
+        let r = apply_style(&input, 0, Some(&Colorscheme::DULL));
+
+        let mut lines = r.lines();
+        let first = lines.next().unwrap();
+        let second = lines.next().unwrap();
+        assert_eq!(lines.next(), None);
+
+        assert_eq!(first, "foo");
+        assert!(!first.contains(Colorscheme::DULL[Style::Emphasis]));
+
+        let em = Colorscheme::DULL[Style::Emphasis];
+        let reset = Colorscheme::DULL[Style::Text];
+        assert!(second.starts_with(em));
+        assert!(second.ends_with(&format!("{long_a}{reset}")));
+    }
+
+    #[test]
+    fn code_stays_with_word_when_word_fits() {
+        let input = format!("{}foo{}", Style::Emphasis.ansi(), Style::Text.ansi());
+        let r = apply_style(&input, 0, Some(&Colorscheme::DULL));
+
+        let expected = format!(
+            "{E}foo{T}\n",
+            E = Colorscheme::DULL[Style::Emphasis],
+            T = Colorscheme::DULL[Style::Text],
+        );
+        assert_eq!(r, expected);
+    }
 }
