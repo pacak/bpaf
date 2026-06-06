@@ -93,7 +93,6 @@ macro_rules! prod {
                 type Output = ($($f::Output),+);
 
                 async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
-                    use $crate::Parser;
                     $( let $f = ctx.spawn(Kind::Prod, &self.$f); )+
                     ctx.wait_for_children().await;
                     let mut err = None;
