@@ -185,6 +185,7 @@ pub use crate::{
     adapters::OptionParser,
     anything::{any, any_from_str},
     completions::CompHelp,
+    console_writer::{Colorscheme, Style},
     consumers::*,
     help_cmd::help_command,
     traits::{Parser, Visited},

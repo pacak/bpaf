@@ -129,25 +129,13 @@ impl<T: 'static> OptionParser<T> {
         match self.run_inner(std::env::args_os()) {
             Ok(r) => r,
             Err(e) => {
-                let term = std::io::IsTerminal::is_terminal(&std::io::stdout());
-
+                let mut cs = self.info.get_colorscheme();
+                if !std::io::IsTerminal::is_terminal(&std::io::stdout()) {
+                    cs = None;
+                }
                 let (code, text) = match e {
-                    ParseFailure::Stdout(raw) => {
-                        let enc = if term {
-                            raw.apply(&Colorscheme::BRIGHT)
-                        } else {
-                            raw.mono()
-                        };
-                        (0, enc)
-                    }
-                    ParseFailure::Stderr(raw) => {
-                        let enc = if term {
-                            raw.apply(&Colorscheme::BRIGHT)
-                        } else {
-                            raw.mono()
-                        };
-                        (1, enc)
-                    }
+                    ParseFailure::Stdout(raw) => (0, raw.with_cs(cs)),
+                    ParseFailure::Stderr(raw) => (1, raw.with_cs(cs)),
                     ParseFailure::Console(o) => (0, o),
                 };
                 print!("{text}");

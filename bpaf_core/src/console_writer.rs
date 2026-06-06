@@ -31,6 +31,14 @@ impl Styled {
     pub fn apply(&self, scheme: &Colorscheme) -> String {
         apply_style(&self.raw, self.tab, Some(scheme))
     }
+
+    pub(crate) fn with_cs(&self, colorscheme: Option<&Colorscheme>) -> String {
+        if let Some(cs) = colorscheme {
+            self.apply(cs)
+        } else {
+            self.mono()
+        }
+    }
 }
 
 /// Apply color scheme, split long lines and layout tab column

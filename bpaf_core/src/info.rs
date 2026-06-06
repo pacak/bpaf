@@ -15,6 +15,16 @@ pub struct Info {
     pub(crate) custom: Option<Box<Custom>>,
 }
 
+impl Info {
+    pub(crate) fn get_colorscheme(&self) -> Option<&'static Colorscheme> {
+        if let Some(custom) = &self.custom {
+            custom.colorscheme
+        } else {
+            Some(&Colorscheme::BRIGHT)
+        }
+    }
+}
+
 impl<T> OptionParser<T> {
     fn custom(&mut self) -> &mut Custom {
         self.info.custom.get_or_insert_default()
@@ -26,7 +36,7 @@ impl<T> OptionParser<T> {
         self
     }
 
-    pub fn colorscheme(mut self, colorscheme: Colorscheme) -> Self {
+    pub fn colorscheme(mut self, colorscheme: &'static Colorscheme) -> Self {
         self.custom().colorscheme = Some(colorscheme);
         self
     }
@@ -63,7 +73,7 @@ pub struct Custom {
     // --help or -h
     pub(crate) help: Option<RcParser<Help>>,
     pub(crate) version: Option<RcParser<()>>,
-    pub(crate) colorscheme: Option<Colorscheme>,
+    pub(crate) colorscheme: Option<&'static Colorscheme>,
 }
 
 impl Custom {
