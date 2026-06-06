@@ -63,8 +63,6 @@ pub struct Custom {
     // --help or -h
     pub(crate) help: Option<RcParser<Help>>,
     pub(crate) version: Option<RcParser<()>>,
-    pub(crate) complete_start: Option<RcParser<Rev>>,
-    pub(crate) complete_dump: Option<RcParser<()>>,
     pub(crate) colorscheme: Option<Colorscheme>,
 }
 
