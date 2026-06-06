@@ -284,6 +284,8 @@ pub enum Item<'a> {
     Positional {
         meta: Metavar,
         help: Option<&'a str>,
+        /// Is the item "strict positional" that needs to be to the right of `--`?
+        strict: bool,
     },
     Command {
         names: &'a [Lit<'static>],

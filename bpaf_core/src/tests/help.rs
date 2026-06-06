@@ -922,3 +922,29 @@ fn version_works() {
     let expected = "'--version' is not expected in this context\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn positional_strict() {
+    let parser = positional::<String>("A")
+        .help("help for A")
+        .strict()
+        .to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -- A
+
+Available positional items:
+    A           help for A
+
+Available options:
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-- value").unwrap();
+    assert_eq!(r, "value");
+
+    let r = parser.run_inner("value").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected 'value' (A) to follow '--'\n");
+}

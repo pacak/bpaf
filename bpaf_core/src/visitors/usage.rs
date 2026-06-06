@@ -48,8 +48,12 @@ impl Usage<'_> {
                                 _ = write!(&mut out, "={M}{meta}{T}");
                             }
                         }
-                        Put::Pos { meta } => {
-                            _ = write!(&mut out, "{M}{meta}{T}");
+                        Put::Pos { meta, strict } => {
+                            if *strict {
+                                _ = write!(&mut out, "-- {M}{meta}{T}");
+                            } else {
+                                _ = write!(&mut out, "{M}{meta}{T}");
+                            }
                         }
                         Put::Command => {
                             _ = write!(&mut out, "{M}COMMAND{T} ...");
@@ -172,7 +176,11 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 },
                 None => return,
             },
-            Item::Positional { meta, help: _ } => Put::Pos { meta },
+            Item::Positional {
+                meta,
+                help: _,
+                strict,
+            } => Put::Pos { meta, strict },
             Item::Command { .. } => Put::Command,
             Item::Nested { outer, inner } => {
                 match outer {
@@ -357,6 +365,7 @@ enum Put<'a> {
     },
     Pos {
         meta: Metavar,
+        strict: bool,
     },
 
     Command,

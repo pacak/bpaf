@@ -87,6 +87,7 @@ impl<T: 'static> Parser for Anything<T> {
         visitor.item(Item::Positional {
             meta: self.meta,
             help: self.help,
+            strict: false,
         })
     }
 }

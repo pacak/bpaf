@@ -232,7 +232,11 @@ impl<'a> Visitor<'a> for Help<'a> {
                     self.env_status(place, env);
                 }
             }
-            Item::Positional { meta, help } => {
+            Item::Positional {
+                meta,
+                help,
+                strict: _,
+            } => {
                 _ = write!(&mut self[place], "    {meta}");
                 self.track_tab(meta.width());
                 self.help(place, help);

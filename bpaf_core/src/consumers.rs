@@ -536,6 +536,7 @@ where
         let item = Item::Positional {
             meta: self.metavar,
             help: self.help,
+            strict: self.strict,
         };
         visitor.item(item);
     }
