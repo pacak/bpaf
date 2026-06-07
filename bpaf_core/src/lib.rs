@@ -200,7 +200,7 @@ use crate::{
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{BTreeMap, VecDeque},
     ffi::{OsStr, OsString},
     fmt::Write,
     marker::PhantomData,
@@ -668,7 +668,6 @@ struct Executor<'a, 'p> {
     to_wake: Vec<Id>,
     to_propagate: VecDeque<TaskInfo>,
     sums: BTreeMap<Id, Scope>,
-    triggers: Triggers,
     mixer: Mixer,
     visited: &'a dyn Visited,
 }
@@ -681,7 +680,6 @@ impl<'a, 'p> Executor<'a, 'p> {
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
             sums: BTreeMap::new(),
-            triggers: Default::default(),
             visited,
             mixer: Default::default(),
         }
@@ -706,7 +704,8 @@ impl<'a, 'p> Executor<'a, 'p> {
                 value: None,
             });
 
-            self.mixer.populate_short_flag(&name, &self.triggers);
+            self.mixer
+                .populate_short_flag(&name, &*self.ctx.triggers.borrow());
             let mut cnt = 0;
             for id in self.mixer.for_wake(&self.tasks) {
                 cnt += 1;
@@ -760,72 +759,6 @@ impl<'a, 'p> Executor<'a, 'p> {
                 }
                 Op::DeregisterSum { id } => {
                     self.sums.remove(&id);
-                }
-                Op::Trigger {
-                    change,
-                    target,
-                    parent,
-                    id,
-                    kind,
-                } => {
-                    let triggers = &mut self.triggers;
-
-                    fn remove_from<K: Eq + std::hash::Hash>(
-                        map: &mut HashMap<K, PeckingOrder>,
-                        name: K,
-                        id: Id,
-                    ) {
-                        use std::collections::hash_map::Entry;
-                        if let Entry::Occupied(mut e) = map.entry(name) {
-                            if e.get_mut().remove(id) {
-                                e.remove();
-                            }
-                        } else {
-                            todo!("Trying to remove something that isn't there?");
-                        }
-                    }
-                    match (change, target) {
-                        (TChange::Add, TTarget::Arg(name)) => {
-                            triggers
-                                .args
-                                .entry(name)
-                                .or_default()
-                                .insert(parent, id, kind);
-                        }
-                        (TChange::Add, TTarget::Flag(name)) => {
-                            triggers
-                                .flags
-                                .entry(name)
-                                .or_default()
-                                .insert(parent, id, kind);
-                        }
-                        (TChange::Add, TTarget::Pos) => triggers.pos.insert(parent, id, kind),
-                        (TChange::Add, TTarget::Check(check)) => {
-                            triggers.checks.insert(id, check);
-                        }
-                        (TChange::Add, TTarget::Literal(name)) => {
-                            triggers
-                                .literal
-                                .entry(name)
-                                .or_default()
-                                .insert(parent, id, kind);
-                        }
-                        (TChange::Remove, TTarget::Arg(name)) => {
-                            remove_from(&mut triggers.args, name, id);
-                        }
-                        (TChange::Remove, TTarget::Flag(name)) => {
-                            remove_from(&mut triggers.flags, name, id);
-                        }
-                        (TChange::Remove, TTarget::Pos) => {
-                            triggers.pos.remove(id);
-                        }
-                        (TChange::Remove, TTarget::Check(_)) => {
-                            triggers.checks.remove(&id);
-                        }
-                        (TChange::Remove, TTarget::Literal(name)) => {
-                            remove_from(&mut triggers.literal, name, id);
-                        }
-                    }
                 }
             }
         }
@@ -929,13 +862,6 @@ impl<'a, 'p> Executor<'a, 'p> {
         );
 
         assert!(self.ctx.pending_ops.borrow().is_empty());
-        assert!(
-            self.ctx
-                .pending_ops
-                .borrow()
-                .iter()
-                .all(|po| matches!(po, Op::Trigger { .. }))
-        );
         assert!(self.tasks.is_empty());
         assert!(
             self.sums.is_empty(),
@@ -1056,7 +982,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         };
 
         // pre-populate pecking order with any check wakeups that can match
-        for (id, check) in self.triggers.checks.iter() {
+        for (id, check) in self.ctx.triggers.borrow().checks.iter() {
             if check(front) {
                 // Here we rely on checks idempotence, run all the checks
                 // at once, collect those that succeed and let usual mixer
@@ -1067,9 +993,11 @@ impl<'a, 'p> Executor<'a, 'p> {
             }
         }
 
-        let mgroup = self
-            .mixer
-            .populate(&arg, &self.triggers, self.ctx.strict_pos.get());
+        let mgroup = self.mixer.populate(
+            &arg,
+            &*self.ctx.triggers.borrow(),
+            self.ctx.strict_pos.get(),
+        );
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
@@ -1191,26 +1119,6 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 }
 
-type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
-/// A collection of mappings from values encountered in arguments to
-/// tasks scheduled to consume them, in some priority order
-#[derive(Default)]
-struct Triggers {
-    // `-f`, `--foo`
-    flags: HashMap<Name<'static>, PeckingOrder>,
-    // `-f=bar` `--foo=bar`, `-fbar`
-    args: HashMap<Name<'static>, PeckingOrder>,
-    // `foo`
-    pos: PeckingOrder,
-    // `-1`
-    checks: BTreeMap<Id, DynamicOsStrCheck>,
-    // `a`, `alpha`
-    literal: HashMap<Lit<'static>, PeckingOrder>,
-}
-
-// reactor - listens for readiness, notifies tasks
-// executor - runs ready tasks
-
 impl<'p> RawCtx<'p> {
     pub async fn wait_for_children(&self) {
         if self.current_task.borrow().pending > 0 {
@@ -1260,6 +1168,7 @@ impl<'p> RawCtx<'p> {
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
+            triggers: Default::default(),
             custom,
             path,
             current_value: Default::default(),

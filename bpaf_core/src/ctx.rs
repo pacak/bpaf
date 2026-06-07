@@ -3,8 +3,9 @@
 
 use std::{
     cell::{Cell, RefCell},
-    collections::{BTreeSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ffi::OsStr,
+    hash::Hash,
     rc::Rc,
 };
 
@@ -12,9 +13,27 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Kind, Parent, Reason, TChange, TTarget, Task, TaskInfo, args::Args,
-    info::Custom,
+    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TChange, TTarget, Task, TaskInfo,
+    args::Args, info::Custom,
 };
+
+type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
+
+/// A collection of mappings from values encountered in arguments to
+/// tasks scheduled to consume them, in some priority order
+#[derive(Default)]
+pub(crate) struct Triggers {
+    // `-f`, `--foo`
+    pub(crate) flags: HashMap<Name<'static>, PeckingOrder>,
+    // `-f=bar` `--foo=bar`, `-fbar`
+    pub(crate) args: HashMap<Name<'static>, PeckingOrder>,
+    // `foo`
+    pub(crate) pos: PeckingOrder,
+    // `-1`
+    pub(crate) checks: BTreeMap<Id, DynamicOsStrCheck>,
+    // `a`, `alpha`
+    pub(crate) literal: HashMap<Lit<'static>, PeckingOrder>,
+}
 
 /// State shared between all the parsers, used via [`Ctx`] alias
 pub struct RawCtx<'p> {
@@ -60,6 +79,9 @@ pub struct RawCtx<'p> {
     /// Needs to live here so it gets shared to nested parsers that get a new executor
     pub(crate) strict_pos: Cell<bool>,
 
+    /// Trigger registry - maps argument patterns to parser tasks
+    pub(crate) triggers: RefCell<Triggers>,
+
     pub(crate) custom: &'p Custom,
 }
 
@@ -80,13 +102,6 @@ pub(crate) enum Op<'p> {
         scope: Scope,
         reason: KillReason,
     },
-    Trigger {
-        change: TChange,
-        target: TTarget,
-        parent: Parent,
-        id: Id,
-        kind: Kind,
-    },
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -104,3 +119,41 @@ impl Scope {
         self.start <= id && id < self.end
     }
 }
+
+impl<'p> RawCtx<'p> {
+    pub(crate) fn add_named_trigger<K: Eq + Hash + Clone>(
+        &self,
+        names: &[K],
+        getmap: impl FnOnce(&mut Triggers) -> &mut HashMap<K, PeckingOrder>,
+    ) {
+        let cur = self.current_task.borrow();
+        let mut t = self.triggers.borrow_mut();
+        let map = getmap(&mut t);
+        for name in names.iter().cloned() {
+            map.entry(name)
+                .or_default()
+                .insert(cur.parent_id, cur.id, cur.parent_kind);
+        }
+    }
+
+    pub(crate) fn remove_named_trigger<K: Eq + Hash + Clone>(
+        &self,
+        names: &[K],
+
+        getmap: impl FnOnce(&mut Triggers) -> &mut HashMap<K, PeckingOrder>,
+    ) {
+        use std::collections::hash_map::Entry;
+
+        let cur = self.current_task.borrow();
+        let mut t = self.triggers.borrow_mut();
+        let map = getmap(&mut t);
+        for name in names.iter().cloned() {
+            if let Entry::Occupied(mut e) = map.entry(name)
+                && e.get_mut().remove(cur.id)
+            {
+                e.remove();
+            }
+        }
+    }
+
+ }

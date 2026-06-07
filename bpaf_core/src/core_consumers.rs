@@ -8,19 +8,9 @@
 
 use crate::{
     Arg, CReq, Conflict, Error, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
-    Reason, Scope, TChange, TTarget, arg, error::CV, lex_os_arg, r#yield,
+    Reason, Scope, TTarget, arg, error::CV, lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
-
-/// Register triggers, yield for wakeup, then de-register triggers.
-/// Used by all async parser methods to wait for a trigger event.
-macro_rules! with_trigger_and_yield {
-    ($self:ident, $targets:expr) => {{
-        $self.with_trigger(TChange::Add, $targets);
-        r#yield().await;
-        $self.with_trigger(TChange::Remove, $targets);
-    }};
-}
 
 impl TTarget {
     fn into_conflict(self, pos: u32) -> Option<Conflict> {
@@ -35,20 +25,6 @@ impl TTarget {
 }
 
 impl<'p> RawCtx<'p> {
-    fn with_trigger(&self, change: TChange, items: impl IntoIterator<Item = TTarget>) {
-        let cur = self.current_task.borrow();
-        let mut pending = self.pending_ops.borrow_mut();
-        for target in items {
-            pending.push_back(Op::Trigger {
-                change,
-                target,
-                parent: cur.parent_id,
-                id: cur.id,
-                kind: cur.parent_kind,
-            });
-        }
-    }
-
     pub(crate) fn consume(&self, cnt: u32) {
         self.current_task.borrow_mut().consumed += cnt;
     }
@@ -58,7 +34,18 @@ impl<'p> RawCtx<'p> {
         help: Option<&'static str>,
         meta: Metavar,
     ) -> Result<Option<&'p OsStr>, Error> {
-        with_trigger_and_yield!(self, [TTarget::Pos]);
+        {
+            let cur = *self.current_task.borrow();
+            self.triggers
+                .borrow_mut()
+                .pos
+                .insert(cur.parent_id, cur.id, cur.parent_kind);
+        }
+        r#yield().await;
+        {
+            let cur = *self.current_task.borrow();
+            self.triggers.borrow_mut().pos.remove(cur.id);
+        }
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(Arg::Pos { value }) => {
                 self.consume(1);
@@ -99,7 +86,18 @@ impl<'p> RawCtx<'p> {
         meta: Metavar,
         check: Rc<dyn Fn(&OsStr) -> bool>,
     ) -> Result<bool, Error> {
-        with_trigger_and_yield!(self, [TTarget::Check(check.clone())]);
+        {
+            let cur = *self.current_task.borrow();
+            self.triggers
+                .borrow_mut()
+                .checks
+                .insert(cur.id, check.clone());
+        }
+        r#yield().await;
+        {
+            let cur = *self.current_task.borrow();
+            self.triggers.borrow_mut().checks.remove(&cur.id);
+        }
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(_) => {
                 self.consume(1);
@@ -137,7 +135,9 @@ impl<'p> RawCtx<'p> {
         &self,
         literal: &Literal,
     ) -> Result<Option<Lit<'static>>, Error> {
-        with_trigger_and_yield!(self, literal.triggers());
+        self.add_named_trigger(&literal.names, |t| &mut t.literal);
+        r#yield().await;
+        self.remove_named_trigger(&literal.names, |t| &mut t.literal);
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(Arg::Pos { value }) => {
                 self.consume(1);
@@ -173,7 +173,9 @@ impl<'p> RawCtx<'p> {
         named: &Named,
         meta: Metavar,
     ) -> Result<Option<&'p OsStr>, Error> {
-        with_trigger_and_yield!(self, named.arg_triggers());
+        self.add_named_trigger(&named.names, |t| &mut t.args);
+        r#yield().await;
+        self.remove_named_trigger(&named.names, |t| &mut t.args);
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(arg) => self.parse_arg_consume(arg.clone(), meta, named.help),
 
@@ -297,7 +299,10 @@ impl<'p> RawCtx<'p> {
     /// - `Ok(false)` when it gets terminated by "no such item"
     /// - `Err(Error::Killed)` when it gets out-consumed by something else
     pub(crate) async fn parse_flag(&self, named: &Named) -> Result<bool, Error> {
-        with_trigger_and_yield!(self, named.flag_triggers());
+        self.add_named_trigger(&named.names, |t| &mut t.flags);
+        r#yield().await;
+        self.remove_named_trigger(&named.names, |t| &mut t.flags);
+
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(arg) => self.parse_flag_consume(arg),
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.flag_triggers())),

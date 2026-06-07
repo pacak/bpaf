@@ -449,7 +449,9 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         // Normally we traverse each pecking order at once since only sum items can run
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
-        for (req, order) in orders_by_prefix(arg, &self.triggers, self.ctx.strict_pos.get()) {
+        for (req, order) in
+            orders_by_prefix(arg, &*self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
+        {
             self.mixer.push_peck(order);
             self.to_wake.extend(self.mixer.for_wake(&self.tasks));
 
@@ -458,7 +460,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             }
         }
 
-        for id in self.triggers.checks.keys() {
+        for id in self.ctx.triggers.borrow().checks.keys() {
             m.entry(*id).or_default().push(CReq::Value { value });
         }
 
