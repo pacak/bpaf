@@ -82,6 +82,14 @@ pub trait Parser {
         }
     }
 
+    /// Mark this parser as an anchor start parser.
+    fn anchor_start(self) -> crate::adapters::AnchorStart<Self>
+    where
+        Self: Sized,
+    {
+        crate::adapters::AnchorStart { inner: self }
+    }
+
     fn many(self) -> Many<Self::Output>
     where
         Self: Sized + 'static,

@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Error, Exit, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx, RcParser,
-    Task, VKind, Visited,
+    Error, Exit, Id, Item, KillReason, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem,
+    RawCtx, RcParser, Reason, Task, VKind, Visited,
     arg::lex_os_arg,
     args::Args,
     complete::handle_subparser_complete,
@@ -544,3 +544,41 @@ impl<P: Parser> Parser for OrExit<P> {
     }
 }
 impl<P: Parser + Leaf> Leaf for OrExit<P> {}
+
+/// Run inner parser before and separately of everything else.
+///
+/// Multiple anchored parsers run sequentially, first encountered - first run
+pub struct AnchorStart<P> {
+    pub(crate) inner: P,
+}
+
+impl<P: Parser> Parser for AnchorStart<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
+        let inner = ctx.fork(None);
+        let (out, handle) = crate::make_chan();
+        let act = inner.make_act(out, &self.inner);
+        let info = inner.make_child_info(Kind::Prod);
+        inner.add_task(Task { act, info });
+        let executor_res = inner.execute(true, &self.inner, None);
+        let res = handle.take();
+        ctx.cursor.set(inner.cursor.get());
+        match (res, executor_res) {
+            (res @ Ok(_), Ok(_)) => Ok(res?),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
+            (Err(e1), Err(e2)) => Err(e1 + e2),
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        let is_err = match visitor.identify() {
+            VKind::Error => false,
+            VKind::Usage | VKind::Help | VKind::Custom => true,
+        };
+        if is_err {
+            // not really improving the error message
+            self.inner.visit(visitor);
+        }
+    }
+}

@@ -635,7 +635,6 @@ impl<'p> RawCtx<'p> {
         if self.poll_in_context(&mut task) {
             let mut cur = self.current_task.borrow_mut();
             cur.pending -= 1;
-            debug_assert_eq!(task.info.consumed, 0);
         } else {
             self.pending_ops.borrow_mut().push_back(Op::Spawn(task));
         }

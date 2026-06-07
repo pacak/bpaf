@@ -357,3 +357,46 @@ fn command_inner_consumes_multiple_then_outer_continues() {
     let r = parser.run_inner("cmd a b c").unwrap();
     assert_eq!(r, (("a".to_string(), "b".to_string()), "c".to_string()));
 }
+
+#[test]
+fn anchor_start_with_keyword() {
+    let anchor = literal("asm").req_flag(()).optional().anchor_start();
+    let name = positional::<String>("NAME");
+    let parser = construct!(anchor, name).to_options();
+
+    let r = parser.run_inner("asm hello").unwrap();
+    assert_eq!(r, (Some(()), "hello".to_string()));
+
+    let r = parser.run_inner("hello").unwrap();
+    assert_eq!(r, (None, "hello".to_string()));
+}
+
+#[test]
+fn anchor_start_with_optional_inner() {
+    let anchor = literal("asm").switch().anchor_start();
+    let name = positional::<String>("NAME");
+    let parser = construct!(name, anchor).to_options();
+
+    let r = parser.run_inner("asm hello").unwrap();
+    assert_eq!(r, ("hello".to_string(), true));
+
+    let r = parser.run_inner("hello").unwrap();
+    assert_eq!(r, ("hello".to_string(), false));
+}
+
+#[test]
+fn anchor_start_with_short_literal() {
+    // Test with a short literal
+    let anchor = long("a").short('a').switch().anchor_start();
+    let name = positional::<String>("NAME");
+    let parser = construct!(anchor, name).to_options();
+
+    let r = parser.run_inner("-a hello").unwrap();
+    assert_eq!(r, (true, "hello".to_string()));
+
+    let r = parser.run_inner("hello").unwrap();
+    assert_eq!(r, (false, "hello".to_string()));
+
+    let r = parser.run_inner("hello -a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'-a' is not expected in this context\n");
+}
