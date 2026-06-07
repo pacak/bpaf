@@ -101,6 +101,26 @@ fn fallback_to_usage() {
 }
 
 #[test]
+fn fallback_to_usage_with_some() {
+    let a = short('a')
+        .argument::<String>("VAL")
+        .help("a value")
+        .some("specify value")
+        .to_options()
+        .fallback_to_usage();
+
+    let r = a.run_inner("").unwrap_err().unwrap_stdout();
+    let expected = "\
+Usage: app -a=VAL...
+
+Available options:
+    -a=VAL      a value
+    -h, --help  Prints help information
+";
+    assert_eq!(r, expected);
+}
+
+#[test]
 fn fallback_to_usage_nested() {
     let a = short('a')
         .argument::<usize>("A")
