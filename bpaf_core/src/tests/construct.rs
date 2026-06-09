@@ -134,3 +134,91 @@ fn make_struct2_named() {
     let r = parser.run_inner("-a -b").unwrap();
     assert_eq!(r, Ab(true, true));
 }
+
+#[test]
+fn into_box_basic() {
+    let a = short('a').switch();
+    let boxed = a.into_box();
+    let parser = boxed.to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn into_box_no_flag() {
+    let a = short('a').switch();
+    let boxed = a.into_box();
+    let parser = boxed.to_options();
+    let r = parser.run_inner("").unwrap();
+    assert!(!r);
+}
+
+#[test]
+fn into_box_then_into_rc() {
+    let a = short('a').switch();
+    let boxed = a.into_box();
+    let rc = boxed.into_rc();
+    let parser = rc.to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn into_rc_then_into_box() {
+    let a = short('a').switch();
+    let rc = a.into_rc();
+    let boxed = rc.into_box();
+    let parser = boxed.to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn into_box_idempotent() {
+    let a = short('a').switch();
+    let boxed = a.into_box();
+    let boxed2 = boxed.into_box();
+    let parser = boxed2.to_options();
+    let r = parser.run_inner("-a").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn into_box_in_construct() {
+    struct MkFoo {
+        a: BoxParser<bool>,
+        b: BoxParser<bool>,
+    }
+
+    impl Parser for MkFoo {
+        type Output = (bool, bool);
+
+        async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+            let a = ctx.spawn(Kind::Prod, &self.a);
+            let b = ctx.spawn(Kind::Prod, &self.b);
+            r#yield().await;
+
+            let mut err = None;
+            let a = a.take().map_err(|e| e.append_to(&mut err));
+            let b = b.take().map_err(|e| e.append_to(&mut err));
+            if let Some(err) = err {
+                Err(err)
+            } else {
+                Ok((a?, b?))
+            }
+        }
+
+        fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+            visitor.push_group(VisitGroup::Prod);
+            self.a.visit(visitor);
+            self.b.visit(visitor);
+            visitor.pop_group();
+        }
+    }
+
+    let a = short('a').switch().into_box();
+    let b = short('b').switch().into_box();
+    let parser = MkFoo { a, b }.to_options();
+    let r = parser.run_inner("-a -b").unwrap();
+    assert_eq!(r, (true, true));
+}

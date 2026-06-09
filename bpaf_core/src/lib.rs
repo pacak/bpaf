@@ -45,7 +45,7 @@ pub mod api {
         use crate::{
             Ctx, Kind, Parser, Scope,
             error::Error,
-            traits::{RcParser, VisitGroup, Visitor},
+            traits::{BoxParser, RcParser, VisitGroup, Visitor},
         };
 
         #[cfg(doc)]
@@ -190,7 +190,7 @@ pub use crate::{
 use crate::{
     error::{Error, ParseFailure, Problem},
     pecking::PeckingOrder,
-    traits::{RcParser, VisitGroup, Visitor, *},
+    traits::{BoxParser, RcParser, VisitGroup, Visitor, *},
 };
 
 use std::{

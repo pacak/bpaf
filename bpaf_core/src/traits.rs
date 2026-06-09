@@ -13,7 +13,7 @@ use crate::{
     info::Info,
     repeat::{Collect, Count, Last, Many, Many1},
 };
-use std::{marker::PhantomData, pin::Pin, rc::Rc};
+use std::{boxed::Box, marker::PhantomData, pin::Pin, rc::Rc};
 
 /// This mostly exists to allow Executor and various helpers to depend on visits
 /// without having to expose them to all the parser details
@@ -39,6 +39,14 @@ pub trait Parser {
         Self: Sized + 'static,
     {
         RcParser(Rc::new(self))
+    }
+
+    /// Convert the parser into a boxed version
+    fn into_box(self) -> BoxParser<Self::Output>
+    where
+        Self: Sized + 'static,
+    {
+        BoxParser(Box::new(self))
     }
 
     fn map<F, R>(self, map: F) -> Map<Self, F, R>
@@ -392,13 +400,33 @@ impl<T: 'static> Parser for RcParser<T> {
     }
 }
 
-/// Reference counted boxed [`Parser<T>`](Parser) - it is cheap to clone
+/// Reference counted boxed [`Parser<Output = T>`](Parser) - it is cheap to clone
 #[repr(transparent)]
 pub struct RcParser<T>(Rc<dyn DynParser<T>>);
 
 impl<T> Clone for RcParser<T> {
     fn clone(&self) -> Self {
         Self(self.0.clone())
+    }
+}
+
+/// Heap allocated boxed [`Parser<Output = T>`](Parser)
+#[repr(transparent)]
+pub struct BoxParser<T>(Box<dyn DynParser<T>>);
+
+impl<T: 'static> Parser for BoxParser<T> {
+    type Output = T;
+
+    fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<T, Error>> {
+        self.0.as_ref().dyn_eval(ctx)
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.0.as_ref().dyn_visit(visitor)
+    }
+
+    fn into_box(self) -> Self {
+        self
     }
 }
 
