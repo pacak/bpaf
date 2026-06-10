@@ -167,7 +167,7 @@ impl<T: 'static> OptionParser<T> {
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1 + e2),
+            (Err(e1), Err(e2)) => Err(e1.combine(e2, Kind::Prod)),
         }
     }
 
@@ -246,10 +246,10 @@ impl<T: 'static> Parser for Command<T> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_literal(&self.names).await?;
         if res.is_none() {
-            let missing = MissingItem::Lit {
-                value: self.names.names[0].clone(),
+            let missing = MissingItem::Cmd {
+                _value: self.names.names[0].clone(),
             };
-            return Err(Error::Missing(missing));
+            return Err(Error::missing(missing));
         };
         // TODO - can use value returned in `res` here
         let Some(Lit(Name::Long(n))) = self.names.names.first().as_ref() else {
@@ -491,7 +491,7 @@ impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for Pure
     type Output = T;
     async fn eval<'p>(&'p self, _ctx: crate::Ctx<'p>) -> Result<T, Error> {
         (self.act)().map_err(|err| {
-            Error::Missing(MissingItem::Custom {
+            Error::missing(MissingItem::Custom {
                 item: err.to_string(),
             })
         })
@@ -603,7 +603,7 @@ impl<P: Parser> Parser for AnchorStart<P> {
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1 + e2),
+            (Err(e1), Err(e2)) => Err(e1.combine(e2, Kind::Prod)),
         }
     }
 

@@ -19,19 +19,19 @@ fn default_value_using_pure_with_ok() {
 #[test]
 fn default_value_using_pure_with_err1() {
     // error from pure_with behaves similar to a "missing" errors:
-    // earlier missing error takes priority
+    // it is a higher priority error
     let a = short('t').argument::<u32>("N");
     let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
 
     let opts = construct!([a, b]).to_options();
     let e = opts.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!("missing '-t=N'\n", e);
+    assert_eq!("some-err\n", e);
 }
 
 #[test]
 fn default_value_using_pure_with_err2() {
     // error from pure_with behaves similar to a "missing" errors:
-    // earlier missing error takes priority
+    // it is a higher priority error
     let a = short('t').argument::<u32>("N");
     let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
 

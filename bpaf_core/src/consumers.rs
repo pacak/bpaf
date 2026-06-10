@@ -194,7 +194,7 @@ impl<T: 'static> Parser for Nested<T> {
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1 + e2),
+            (Err(e1), Err(e2)) => Err(e1.combine(e2, Kind::Sum)),
         }
     }
 

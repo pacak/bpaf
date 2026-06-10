@@ -113,7 +113,7 @@ pub mod api {
                 let mut val = None;
                 for h in handles {
                     match h.take() {
-                        Err(err) => acc = acc + err,
+                        Err(err) => acc = acc.combine(err, Kind::Sum),
                         Ok(v) if consumed => return Ok(v),
                         Ok(v) => val = val.or(Some(v)),
                     }
@@ -237,13 +237,6 @@ pub mod __private {
     pub use ::std::compile_error;
 }
 
-impl std::ops::Add for Error {
-    type Output = Error;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        self.combine(rhs)
-    }
-}
 
 #[derive(Debug, Copy, Clone)]
 enum TChange {

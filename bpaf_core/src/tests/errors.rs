@@ -284,7 +284,7 @@ fn missing_cmd() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'cmd'\n");
+    assert_eq!(r, "missing 'COMMAND ...'\n");
 }
 
 #[test]
@@ -921,4 +921,48 @@ fn pos2_vs_pos3() {
 
     let r = parser.run_inner("1 2 3").unwrap_err().unwrap_stderr();
     assert_eq!(r, "can't parse '3', likely conflicts with '2'\n");
+}
+
+#[test]
+fn missing_product() {
+    let a = positional::<usize>("A");
+    let b = positional::<usize>("B");
+    let parser = (a, b).to_options();
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "missing 'A', and more\n");
+}
+
+#[test]
+fn missing_sum() {
+    let a = positional::<usize>("A");
+    let b = positional::<usize>("B");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "missing 'A', or more\n");
+}
+
+#[test]
+fn missing_mix() {
+    let a = positional::<usize>("A");
+    let b = positional::<usize>("B");
+    let c = positional::<usize>("C");
+    let d = positional::<usize>("D");
+    let ab = (a, b);
+    let cd = (c, d);
+    let parser = construct!([ab, cd]).to_options();
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "missing 'A', and more\n");
+}
+
+#[test]
+fn missing_some_takes_priority_and_unaffected() {
+    let a = positional::<usize>("A").map(|x| vec![x]);
+    let b = short('v').req_flag(0).some("several verbosities");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "several verbosities\n");
 }
