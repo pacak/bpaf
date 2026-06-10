@@ -827,14 +827,6 @@ impl<'a, 'p> Executor<'a, 'p> {
         self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
         self.process_scheduled();
 
-        // then do it one more time...
-        // If there's no tasks active - this is a very fast no-op,
-        // but we could have some tasks spawned by variants of .many
-        // Killing them again will ensure `many` sees that parser is
-        // not advancing and it will exit, producing the result as expected
-        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
-        self.process_scheduled();
-
         assert!(
             self.tasks.is_empty(),
             "All tasks should be terminated when exiting execution"
@@ -930,23 +922,38 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
     }
 
+    /// Terminate all the tasks in `scope` with the `reason`
+    ///
+    /// It will poll inner tasks as necessary, it won't poll any tasks outside of the scope
     fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) -> bool {
-        let mut advanced = false;
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
-        for (_, mut task) in self
-            .tasks
-            .extract_if(scope.start..scope.end, |_, t| t.info.pending == 0)
-        {
-            let done = self.ctx.poll_in_context(&mut task);
-            assert!(done);
-            if task.info.parent_id == Parent(0) {
-                continue;
+        let mut killed_anything = false;
+        let mut final_pass = false;
+        // the idea is to avoid touching tasks with parents outside of the scope until the last pass
+        loop {
+            self.process_scheduled();
+            *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
+            let mut pending_inner_this_loop = false;
+            for (_, mut task) in self.tasks.extract_if(scope.start..scope.end, |_, t| {
+                let ready = t.info.pending == 0;
+                let inner = scope.contains(t.info.parent_id.as_id());
+                pending_inner_this_loop |= !ready && inner;
+                (inner || final_pass) && ready
+            }) {
+                let done = self.ctx.poll_in_context(&mut task);
+                assert!(done);
+                killed_anything = true;
+                // there's no more pushing to be done
+                if task.info.parent_id == Parent(0) {
+                    continue;
+                }
+                self.to_propagate.push_back(task.info);
             }
-            advanced = true;
-            self.to_propagate.push_back(task.info);
+            self.propagate();
+            if final_pass {
+                break killed_anything;
+            }
+            final_pass = !pending_inner_this_loop;
         }
-        self.propagate();
-        advanced
     }
 
     /// Run the first stage of the trigger
