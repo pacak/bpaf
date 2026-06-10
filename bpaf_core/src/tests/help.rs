@@ -891,9 +891,9 @@ fn help_command_works() {
     let a = short('a')
         .switch()
         .to_options()
-        .descr("does alpha")
+        .descr("does alpha (descr)")
         .command("alpha")
-        .help("do alpha");
+        .help("do alpha (help)");
     let b = short('b')
         .switch()
         .to_options()
@@ -909,7 +909,7 @@ fn help_command_works() {
     let parser = help_command(cmds).to_options();
 
     let r = parser.run_inner("help alpha").unwrap_err().unwrap_stdout();
-    let expected = "do alpha
+    let expected = "does alpha (descr)
 
 Usage: app alpha [-a]
 
@@ -923,6 +923,21 @@ Available options:
         .run_inner("alpha --help")
         .unwrap_err()
         .unwrap_stdout();
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    alpha       do alpha (help)
+    beta        do beta
+    gamma       do gamma
+    help NAME
+    NAME        Display help for subcommand NAME
+";
     assert_eq!(r, expected);
 }
 

@@ -243,13 +243,13 @@ impl<'a> Visitor<'a> for Help<'a> {
             }
             Item::Command {
                 names,
-                descr,
+                help,
                 inner: _,
             } => {
                 let name = lit_name(names);
                 _ = write!(&mut self[place], "{name:#}");
                 self.track_tab(name.col_width());
-                self.help(place, descr);
+                self.help(place, help);
             }
             Item::Nested { outer, inner } => {
                 let before = self[place].len();

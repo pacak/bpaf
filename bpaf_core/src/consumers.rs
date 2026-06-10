@@ -285,7 +285,7 @@ impl<T: Clone + 'static> Parser for Keyword<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
         let item = Item::Command {
             names: &self.named.names,
-            descr: self.named.help,
+            help: self.named.help,
             inner: &(),
         };
         visitor.item(item);
