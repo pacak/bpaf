@@ -62,8 +62,10 @@ fn leaf_only() {
         .to_options();
 
     let r = parser.run_inner("-a 1 -b 2").unwrap_err().unwrap_stderr();
-
     assert_eq!(r, "parse error: Value must be even\n");
+
+    let r = parser.run_inner("-a 2 -b 2").unwrap();
+    assert_eq!(r, 4);
 }
 
 #[test]
@@ -95,4 +97,26 @@ fn fallback_with_err() {
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "nope\n");
+}
+
+#[test]
+fn failure_is_not_stupid_1() {
+    let a = short('a').argument::<u32>("A");
+    let b = pure(()).parse::<_, u32, String>(|_| Err("nope".to_string()));
+    let parser = construct!(a, b).to_options();
+
+    let res = parser.run_inner("-a 42").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "parse error: nope\n");
+}
+
+#[test]
+fn failure_is_not_stupid_2() {
+    let a = short('a').argument::<u32>("A");
+    let b = short('b').argument::<u32>("B");
+    let parser = construct!(a, b)
+        .parse::<_, (), String>(|_| Err("nope".to_string()))
+        .to_options();
+
+    let res = parser.run_inner("-a 42 -b 42").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "parse error: nope\n");
 }

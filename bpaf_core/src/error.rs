@@ -82,6 +82,8 @@ pub enum Problem {
     NotStrict { metavar: Metavar, string: String },
     /// a named value was marked as adjacent only, but was entered as two separate items
     NotAdjacent { name: String, value: String },
+    /// parser failed with a missing item, executor find something it can't consume
+    MissingGot { missing: Missing, value: String },
 }
 
 impl std::fmt::Display for Problem {
@@ -187,6 +189,20 @@ impl std::fmt::Display for Problem {
                     f,
                     "expected value to be adjacent to {V}{name}{R}, try {V}{name}={value}{R}"
                 )
+            }
+            Problem::MissingGot {
+                missing:
+                    missing @ Missing {
+                        item: MissingItem::Custom { .. },
+                        ..
+                    },
+                ..
+            } => {
+                // keep the error from `.some("error")` separately even if there's unexpected input
+                writeln!(f, "{missing}")
+            }
+            Problem::MissingGot { missing, value } => {
+                write!(f, "{missing}, got {Q}{value}{Q}")
             }
         }
     }
@@ -368,14 +384,14 @@ impl std::fmt::Display for MissingCount {
 impl std::fmt::Display for MissingItem {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MissingItem::Named { name, meta: None } => write!(f, "missing {Q}{V}{name}{R}{Q}"),
+            MissingItem::Named { name, meta: None } => write!(f, "expected {Q}{V}{name}{R}{Q}"),
             MissingItem::Named {
                 name,
                 meta: Some(meta),
-            } => write!(f, "missing {Q}{V}{name}={meta}{R}{Q}"),
-            MissingItem::Pos { meta } => write!(f, "missing {Q}{M}{meta}{R}{Q}"),
-            MissingItem::Lit { value } => write!(f, "missing {Q}{V}{value}{R}{Q}"),
-            MissingItem::Cmd { _value: _ } => write!(f, "missing {Q}{V}COMMAND ...{R}{Q}"),
+            } => write!(f, "expected {Q}{V}{name}={meta}{R}{Q}"),
+            MissingItem::Pos { meta } => write!(f, "expected {Q}{M}{meta}{R}{Q}"),
+            MissingItem::Lit { value } => write!(f, "expected {Q}{V}{value}{R}{Q}"),
+            MissingItem::Cmd { _value: _ } => write!(f, "expected {Q}{V}COMMAND ...{R}{Q}"),
 
             MissingItem::EnvVar { var_name } => {
                 write!(f, "env variable {Q}{V}{var_name}{R}{Q} is not set")
@@ -467,6 +483,14 @@ impl From<Error> for ParseFailure {
 }
 
 impl Error {
+    pub(crate) fn with_executor(self, e: Error) -> Self {
+        match (self, e) {
+            (Error::Missing(missing), Error::Problem(offset, Problem::Unconsumed { value })) => {
+                Error::Problem(offset, Problem::MissingGot { missing, value })
+            }
+            (e1, e2) => e1.combine(e2, Kind::Prod),
+        }
+    }
     pub(crate) fn combine(self, e2: Error, kind: Kind) -> Error {
         match (self, e2) {
             // If we failed to expand `CompValue` right away

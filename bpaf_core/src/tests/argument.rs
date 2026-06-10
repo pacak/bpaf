@@ -29,7 +29,7 @@ fn parse_errors() {
 
     let r = parser.run_inner("-b 123x").unwrap_err().unwrap_stderr();
 
-    let expected = "'-b' is not expected in this context\n";
+    let expected = "expected '-a=ARG', got '-b'\n";
     assert_eq!(expected, r);
 
     let r = parser.run_inner("-a 123 -b").unwrap_err().unwrap_stderr();

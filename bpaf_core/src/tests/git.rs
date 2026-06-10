@@ -50,7 +50,7 @@ fn setup() -> OptionParser<Opt> {
 fn no_command() {
     let parser = setup();
 
-    let expected_err = "missing 'COMMAND ...'\n";
+    let expected_err = "expected 'COMMAND ...'\n";
     assert_eq!(
         expected_err,
         parser.run_inner("").unwrap_err().unwrap_stderr()

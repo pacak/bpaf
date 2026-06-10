@@ -1430,6 +1430,7 @@ mod tests {
     mod algebra;
     mod any;
     mod argument;
+    mod command;
     mod complete;
     mod construct;
     mod errors;

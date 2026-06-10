@@ -167,7 +167,7 @@ impl<T: 'static> OptionParser<T> {
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.combine(e2, Kind::Prod)),
+            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
         }
     }
 
@@ -605,7 +605,7 @@ impl<P: Parser> Parser for AnchorStart<P> {
         match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.combine(e2, Kind::Prod)),
+            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
         }
     }
 

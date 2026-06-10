@@ -81,6 +81,15 @@ fn parse_optional_temp() {
 
     let r = parser.run_inner("-b4").unwrap();
     assert_eq!(r, (None, 4));
+
+    let r = parser.run_inner("-a pi").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'pi': invalid digit found in string\n");
+
+    let r = parser.run_inner("-a=pi").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'pi': invalid digit found in string\n");
+
+    let r = parser.run_inner("-api").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'pi': invalid digit found in string\n");
 }
 
 #[test]
@@ -88,6 +97,20 @@ fn many_works() {
     let parser = short('a').req_flag(()).many().to_options();
     let r = parser.run_inner("-a -a -a").unwrap();
     assert_eq!(r, &[(), (), ()]);
+}
+
+#[test]
+fn many_error_handling() {
+    let p = short('p').argument::<u32>("P").many().to_options();
+
+    let res = p.run_inner("").unwrap();
+    assert_eq!(res, Vec::new());
+
+    let res = p.run_inner("-p 3").unwrap();
+    assert_eq!(&res, &[3]);
+
+    let res = p.run_inner("-p pi").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "couldn't parse 'pi': invalid digit found in string\n");
 }
 
 #[test]
@@ -346,6 +369,28 @@ fn command_inner_consumes_nothing_then_outer_continues() {
 }
 
 #[test]
+fn command_resets_left_head_state() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Foo {
+        Bar1 { a: u32 },
+        Bar2 { b: () },
+    }
+
+    let a = short('a').argument::<u32>("A").fallback(0);
+    let b = short('b').req_flag(());
+
+    let p1 = construct!(Foo::Bar1 { a });
+    let p2 = construct!(Foo::Bar2 { b });
+    let cmd = construct!([p1, p2])
+        .to_options()
+        .command("cmd")
+        .to_options();
+
+    let r = cmd.run_inner("cmd -b").unwrap();
+    assert_eq!(r, Foo::Bar2 { b: () });
+}
+
+#[test]
 fn command_inner_consumes_multiple_then_outer_continues() {
     let x = positional::<String>("X");
     let y = positional::<String>("Y");
@@ -399,4 +444,26 @@ fn anchor_start_with_short_literal() {
 
     let r = parser.run_inner("hello -a").unwrap_err().unwrap_stderr();
     assert_eq!(r, "'-a' is not expected in this context\n");
+}
+
+#[test]
+fn many_doesnt_panic() {
+    let parser = short('a').switch().many().count().to_options();
+
+    let r = parser.run_inner("-aaa").unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 1);
+}
+
+#[test]
+fn some_doesnt_panic() {
+    let parser = short('a').switch().some("want").count().to_options();
+
+    let r = parser.run_inner("-aaa").unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 1);
 }

@@ -257,7 +257,7 @@ fn missing_flag() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing '-a'\n");
+    assert_eq!(r, "expected '-a'\n");
 }
 
 #[test]
@@ -266,7 +266,7 @@ fn missing_arg() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing '-a=A'\n");
+    assert_eq!(r, "expected '-a=A'\n");
 }
 
 #[test]
@@ -275,7 +275,7 @@ fn missing_pos() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'A'\n");
+    assert_eq!(r, "expected 'A'\n");
 }
 
 #[test]
@@ -284,17 +284,17 @@ fn missing_cmd() {
     let parser = a.to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'COMMAND ...'\n");
+    assert_eq!(r, "expected 'COMMAND ...'\n");
 }
 
 #[test]
 fn some_pos_with_invalid_flag() {
     let a = short('a').switch();
-    let b = positional::<usize>("B").some("Want B");
+    let b = positional::<usize>("B").some("You have to specify at least one B");
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner("-c 12").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "'-c' is not expected in this context\n");
+    assert_eq!(r, "You have to specify at least one B\n");
 
     let r = parser.run_inner("12 -c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "'-c' is not expected in this context\n");
@@ -307,13 +307,13 @@ fn pos_with_invalid_arg() {
     let parser = construct!(a, b).to_options();
 
     let r = parser.run_inner("-c 12").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "'-c' is not expected in this context\n");
+    assert_eq!(r, "expected 'B', got '-c'\n");
 
     let r = parser.run_inner("12 -c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "'-c' is not expected in this context\n");
 
     let r = parser.run_inner("-c t").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "'-c' is not expected in this context\n");
+    assert_eq!(r, "expected 'B', got '-c'\n");
 
     let r = parser.run_inner("t -c").unwrap_err().unwrap_stderr();
     assert_eq!(r, "couldn't parse 't': invalid digit found in string\n");
@@ -332,7 +332,11 @@ fn hidden_required_field_is_valid_but_strange() {
     // to explain stuff, but not in help or usage
     let parser = short('a').req_flag(()).hide().to_options();
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing '-a'\n");
+    assert_eq!(r, "expected '-a'\n");
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app\n\nAvailable options:\n    -h, --help  Prints help information\n";
+    assert_eq!(r, expected);
 }
 
 #[test]
@@ -352,7 +356,7 @@ fn two_required_fields_first_missing() {
     let b = long("b").argument::<u32>("B");
     let parser = construct!(a, b).to_options();
     let r = parser.run_inner("--b 1").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing '--a=A'\n");
+    assert_eq!(r, "expected '--a=A'\n");
 }
 
 #[test]
@@ -428,14 +432,63 @@ fn short_cmd() {
         .req_flag(())
         .to_options()
         .command("beta")
-        //        .short('b') // TODO
+        .short('b')
         .to_options();
 
     let r = parser.run_inner("bet").unwrap_err().unwrap_stderr();
     assert_eq!(r, "no such command: 'bet', did you mean 'beta'?\n");
 
     let r = parser.run_inner("c").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "'c' is not expected in this context\n");
+    assert_eq!(r, "expected 'COMMAND ...', got 'c'\n");
+}
+
+#[test]
+fn did_you_mean_inside_command() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = construct!([a, b]).to_options().command("cmd").to_options();
+
+    let r = parser.run_inner("cmd --fla").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such flag: '--fla', did you mean '--flag'?\n");
+
+    let r = parser
+        .run_inner("cmd --flag --parametr")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--parametr', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("cmd --parametr --flag")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--parametr', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("cmd --parameter --flag")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--flag' cannot be used at the same time as '--parameter'\n"
+    );
+
+    let r = parser
+        .run_inner("cmd --flag --parameter")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--parameter' cannot be used at the same time as '--flag'\n"
+    );
+
+    let r = parser.run_inner("--fla").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected 'COMMAND ...', got '--fla'\n");
 }
 
 #[test]
@@ -552,7 +605,7 @@ fn double_dash_with_optional_positional() {
 //         "expected '--setBool', got '--bool-flag'. Pass '--help' for usage information"
 //     );
 // }
-//
+
 #[test]
 fn suggest_typo_fix() {
     let p = long("flag").switch().to_options();
@@ -569,7 +622,21 @@ fn suggest_typo_fix() {
         "argument '--flag' cannot be used multiple times in this context\n"
     );
 }
-//
+
+#[test]
+fn did_you_mean_argument() {
+    let parser = long("flag").argument::<String>("VAL").to_options();
+
+    let res = parser.run_inner("--fla").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "no such flag: '--fla', did you mean '--flag'?\n");
+
+    let res = parser
+        .run_inner("--flg=hellop")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(res, "no such flag: '--flg', did you mean '--flag'?\n");
+}
+
 // #[test]
 // fn better_error_message_with_typos() {
 //     #[derive(Bpaf, Clone, Debug)]
@@ -930,7 +997,7 @@ fn missing_product() {
     let parser = (a, b).to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'A', and more\n");
+    assert_eq!(r, "expected 'A', and more\n");
 }
 
 #[test]
@@ -940,7 +1007,7 @@ fn missing_sum() {
     let parser = construct!([a, b]).to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'A', or more\n");
+    assert_eq!(r, "expected 'A', or more\n");
 }
 
 #[test]
@@ -954,7 +1021,7 @@ fn missing_mix() {
     let parser = construct!([ab, cd]).to_options();
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "missing 'A', and more\n");
+    assert_eq!(r, "expected 'A', and more\n");
 }
 
 #[test]
@@ -965,4 +1032,100 @@ fn missing_some_takes_priority_and_unaffected() {
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "several verbosities\n");
+}
+
+#[test]
+fn no_fallback_out_of_command_parser() {
+    let alt1 = positional::<String>("NAME").to_options().command("cmd");
+    let alt2 = pure(String::new());
+    let parser = construct!([alt1, alt2]).to_options();
+
+    let res = parser.run_inner("cmd").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "expected 'NAME'\n");
+
+    let res = parser.run_inner("cmd a").unwrap();
+    assert_eq!(res, "a");
+
+    let res = parser.run_inner("").unwrap();
+    assert_eq!(res, "");
+}
+
+#[test]
+fn did_you_mean_two_and_arguments() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = cargo_helper("cmd", construct!(a, b)).to_options();
+
+    let r = parser
+        .run_inner("--flag --parametr")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--parametr', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("--flag --paramet=value")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--paramet', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("--parameter --flg")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "no such flag: '--flg', did you mean '--flag'?\n");
+
+    let r = parser.run_inner("--fla").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such flag: '--fla', did you mean '--flag'?\n");
+}
+
+#[test]
+fn did_you_mean_two_or_arguments() {
+    let a = long("flag").switch();
+    let b = long("parameter").switch();
+    let parser = cargo_helper("cmd", construct!([a, b])).to_options();
+
+    let r = parser.run_inner("--fla").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such flag: '--fla', did you mean '--flag'?\n");
+
+    let r = parser
+        .run_inner("--flag --parametr")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--parametr', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("--parametr --flag")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "no such flag: '--parametr', did you mean '--parameter'?\n"
+    );
+
+    let r = parser
+        .run_inner("--parameter --flag")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--flag' cannot be used at the same time as '--parameter'\n"
+    );
+
+    let r = parser
+        .run_inner("--flag --parameter")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--parameter' cannot be used at the same time as '--flag'\n"
+    );
 }

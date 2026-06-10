@@ -44,159 +44,7 @@ Available options:
 }
 
 #[test]
-fn hidden_env() {
-    let name = "BPAF_SECRET_API_KEY2";
-    let visible = long("key")
-        .help("use this secret key\n two lines")
-        .argument::<String>("KEY");
-    let hidden = env(name).argument("KEY");
-    let parser = construct!([visible, hidden]).to_options();
-
-    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
-
-    let expected = "\
-Usage: --key=KEY
-
-Available options:
-        --key=KEY  use this secret key
-                   two lines
-    -h, --help     Prints help information
-";
-
-    assert_eq!(help, expected);
-
-    let r = parser.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!(r, "environment variable `BPAF_SECRET_API_KEY2` is not set");
-}
-
-#[test]
-fn env_variable() {
-    let name = "BPAF_SECRET_API_KEY";
-    let parser = long("key")
-        .env(name)
-        .help("use this secret key\ntwo lines")
-        .argument::<String>("KEY")
-        .to_options();
-
-    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
-    let expected_help = "\
-Usage: --key=KEY
-
-Available options:
-        --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY: N/A]
-    -h, --help     Prints help information
-";
-    assert_eq!(expected_help, help);
-
-    let help = parser.run_inner(&["-h"]).unwrap_err().unwrap_stdout();
-    let expected_help = "\
-Usage: --key=KEY
-
-Available options:
-        --key=KEY  use this secret key two lines
-                   [env:BPAF_SECRET_API_KEY = \"top s3cr3t\"]
-    -h, --help     Prints help information
-";
-    assert_eq!(expected_help, help);
-
-    let res = parser.run_inner(&["--key", "secret"]).unwrap();
-    assert_eq!(res, "secret");
-
-    let res = parser.run_inner(&[]).unwrap();
-    assert_eq!(res, "top s3cr3t");
-}
-
-#[test]
-fn default_plays_nicely_with_command() {
-    #[derive(Debug, Clone)]
-    enum Foo {
-        Foo,
-        Bar,
-    }
-    impl Default for Foo {
-        fn default() -> Self {
-            Foo::Bar
-        }
-    }
-
-    let cmd = pure(Foo::Foo)
-        .to_options()
-        .descr("inner")
-        .command("foo")
-        .help("foo")
-        .fallback(Default::default());
-
-    let parser = cmd.to_options().descr("outer");
-
-    let help = parser
-        .run_inner(&["foo", "--help"])
-        .unwrap_err()
-        .unwrap_stdout();
-
-    let expected_help =
-        "inner\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
-
-    assert_eq!(expected_help, help);
-
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-
-    let expected_help = "\
-outer
-
-Usage: [COMMAND ...]
-
-Available options:
-    -h, --help  Prints help information
-
-Available commands:
-    foo         foo
-";
-
-    assert_eq!(expected_help, help);
-}
-
-#[test]
-fn command_with_aliases() {
-    let inner = pure(()).to_options().descr("inner descr");
-    let cmd = inner.command("foo").long("bar").short('f').short('b');
-    let parser = cmd.to_options().descr("outer");
-
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
-
-    let expected_help = "\
-outer
-
-Usage: COMMAND ...
-
-Available options:
-    -h, --help  Prints help information
-
-Available commands:
-    foo, f      inner descr
-";
-    assert_eq!(expected_help, help);
-
-    let help = parser
-        .run_inner(&["f", "--help"])
-        .unwrap_err()
-        .unwrap_stdout();
-
-    let expected_help = "inner descr\n\nUsage: foo \n\nAvailable options:\n    -h, --help  Prints help information\n";
-    assert_eq!(expected_help, help);
-
-    // hidden and visible aliases are working
-    parser.run_inner(&["foo"]).unwrap();
-    parser.run_inner(&["f"]).unwrap();
-    parser.run_inner(&["bar"]).unwrap();
-    parser.run_inner(&["b"]).unwrap();
-
-    // and "k" isn't a thing
-    parser.run_inner(&["k"]).unwrap_err();
-}
-
-#[test]
-fn help_for_options() {
+fn help_for_options_and_linebreaks_in_help() {
     let a = short('a').help("help for\na").switch();
     let b = short('c')
         .env("BbBbB")
@@ -207,25 +55,25 @@ fn help_for_options() {
         .help("help for\nccc")
         .argument::<String>("CCC");
     let parser = construct!(a, b, c).to_options();
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
-    let expected_help = "\
-Usage: [-a] -c=B --bbbbb=CCC
+    let expected = "\
+Usage: app [-a] -c=B --bbbbb=CCC
 
 Available options:
     -a               help for a
     -c=B             help for b
-                     [env:BbBbB: N/A]
-        --bbbbb=CCC  help for ccc
-                     [env:ccccCCccc: N/A]
+                     [env:BbBbB is not set]
+         --bbbbb=CCC  help for ccc
+                     [env:ccccCCccc is not set]
     -h, --help       Prints help information
 ";
 
-    assert_eq!(expected_help, help);
+    assert_eq!(help, expected);
 }
 
 #[test]
-fn help_for_commands() {
+fn help_for_commands_and_linebreaks() {
     let d = pure(())
         .to_options()
         .command("thing_d")
@@ -251,70 +99,6 @@ Available commands:
     thing_h
 ";
     assert_eq!(expected_help, help);
-}
-
-#[test]
-fn many_doesnt_panic() {
-    let parser = short('a').switch().many().map(|m| m.len()).to_options();
-    let r = parser.run_inner(&["-aaa"]).unwrap();
-    assert_eq!(r, 3);
-}
-
-#[test]
-fn some_doesnt_panic() {
-    let parser = short('a').switch().some("").map(|m| m.len()).to_options();
-    let r = parser.run_inner(&["-aaa"]).unwrap();
-    assert_eq!(r, 3);
-}
-
-#[test]
-fn command_resets_left_head_state() {
-    #[derive(Debug, Eq, PartialEq)]
-    enum Foo {
-        Bar1 { a: u32 },
-        Bar2 { b: () },
-    }
-
-    let a = short('a').argument::<u32>("A").fallback(0);
-    let b = short('b').req_flag(());
-
-    let p1 = construct!(Foo::Bar1 { a });
-    let p2 = construct!(Foo::Bar2 { b });
-    let cmd = construct!([p1, p2])
-        .to_options()
-        .command("cmd")
-        .to_options();
-
-    let xx = cmd.run_inner(&["cmd", "-b"]).unwrap();
-    assert_eq!(xx, Foo::Bar2 { b: () });
-}
-
-#[test]
-fn command_preserves_custom_failure_message() {
-    let msg = "need more cheese";
-    let inner = fail::<()>(msg).to_options();
-
-    let err = inner.run_inner(&[]).unwrap_err().unwrap_stderr();
-    assert_eq!(err, "need more cheese");
-
-    let outer = inner.command("feed").to_options();
-
-    let err = outer.run_inner(&["feed"]).unwrap_err().unwrap_stderr();
-    assert_eq!(err, "need more cheese");
-}
-
-#[test]
-fn optional_error_handling() {
-    let p = short('p').argument::<u32>("P").optional().to_options();
-
-    let res = p.run_inner(&[]).unwrap();
-    assert_eq!(res, None);
-
-    let res = p.run_inner(&["-p", "3"]).unwrap();
-    assert_eq!(res, Some(3));
-
-    let res = p.run_inner(&["-p", "pi"]).unwrap_err().unwrap_stderr();
-    assert_eq!(res, "couldn't parse `pi`: invalid digit found in string");
 }
 
 #[test]

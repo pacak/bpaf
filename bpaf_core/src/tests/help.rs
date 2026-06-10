@@ -977,7 +977,7 @@ Available options:
     assert_eq!(r, expected);
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
-    let expected = "'--help' is not expected in this context\n";
+    let expected = "expected '-a', got '--help'\n";
     assert_eq!(r, expected);
 }
 
