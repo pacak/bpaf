@@ -147,7 +147,7 @@ impl std::fmt::Display for Lit<'_> {
         match self.0 {
             ShortLong::Short(s) => write!(f, "{L}{s}{T}"),
             ShortLong::Long(l) => write!(f, "{L}{l}{T}"),
-            ShortLong::Both(s, l) => write!(f, "{L}{s}{T}, {L}{l}{T}"),
+            ShortLong::Both(s, l) => write!(f, "{L}{l}{T}, {L}{s}{T}"),
         }
     }
 }

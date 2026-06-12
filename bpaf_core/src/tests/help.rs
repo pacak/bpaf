@@ -172,7 +172,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    c, cmd      help for cmd
+    cmd, c      help for cmd
 ";
     assert_eq!(r, expected);
 

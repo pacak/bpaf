@@ -17,7 +17,7 @@ Available options:
     -h, --help  Prints help information
 
 Available commands:
-    f, foo      inner descr
+    foo, f      inner descr
 ";
     assert_eq!(expected_help, help);
 
