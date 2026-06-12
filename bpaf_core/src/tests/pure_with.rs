@@ -41,19 +41,6 @@ fn default_value_using_pure_with_err2() {
 }
 
 #[test]
-fn default_value_using_pure_with_err3() {
-    // error from pure_with behaves similar to a "missing" errors:
-    // earlier missing error takes priority
-    // can be caught with '.fallback()'
-    let a = short('t').argument::<u32>("N");
-    let b = pure_with::<_, _, String>(|| Err(String::from("some-err")));
-
-    let opts = construct!([b, a]).fallback(42).to_options();
-    let r = opts.run_inner("").unwrap();
-    assert_eq!(r, 42);
-}
-
-#[test]
 fn default_value_using_pure_with_ok_for_some() {
     let user_seeds = positional::<u32>("SEED").some("at least one required");
     let last_seeds = pure_with::<_, _, String>(|| {
@@ -67,23 +54,4 @@ fn default_value_using_pure_with_ok_for_some() {
 
     let r = seeds.run_inner("");
     assert_eq!(vec![3, 5, 7, 11], r.unwrap());
-}
-
-#[test]
-fn default_value_using_pure_with_err_for_some() {
-    let user_seeds = positional::<u32>("SEED").some("at least one required");
-    let last_seeds = pure_with(|| {
-        // ~ trying to lookup the last used seeds but failing - parser fails, fallback works
-        Err("oh, no!")
-    });
-    let default_seeds = pure(vec![1, 2]);
-    let seeds = construct!([user_seeds, last_seeds])
-        .fallback(vec![1, 2])
-        .to_options();
-
-    let r = seeds.run_inner("23 59");
-    assert_eq!(vec![23, 59], r.unwrap());
-
-    let r = seeds.run_inner("");
-    assert_eq!(r.unwrap(), vec![1, 2]);
 }

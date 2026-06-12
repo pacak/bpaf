@@ -1,14 +1,13 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Error, Exit, Id, Item, KillReason, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem,
-    RawCtx, RcParser, Reason, Task, VKind, Visited,
-    arg::lex_os_arg,
+    Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
+    RcParser, Scope, Task, VKind, Visited,
     args::Args,
     complete::handle_subparser_complete,
-    console_writer::Colorscheme,
     error::MissingItem,
     info::*,
     traits::{Leaf, VisitGroup},
+    r#yield,
 };
 use std::{borrow::Cow, marker::PhantomData};
 
@@ -491,11 +490,20 @@ pub struct PureWith<F> {
 
 impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
     type Output = T;
-    async fn eval<'p>(&'p self, _ctx: crate::Ctx<'p>) -> Result<T, Error> {
+    async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        let id = ctx.current_task.borrow().id;
+        let scope = Scope {
+            start: id,
+            end: Id(id.0 + 1),
+        };
+        ctx.early_exit.borrow_mut().insert(scope);
+        r#yield().await;
+        ctx.early_exit.borrow_mut().remove(&scope);
         (self.act)().map_err(|err| {
-            Error::missing(MissingItem::Custom {
-                item: err.to_string(),
-            })
+            let problem = Problem::Dynamic {
+                err: err.to_string(),
+            };
+            Error::Problem(ctx.cursor.get(), problem)
         })
     }
 
