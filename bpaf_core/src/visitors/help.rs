@@ -274,7 +274,7 @@ impl<'a> Visitor<'a> for Help<'a> {
         match item {
             Item::OptionParser { info, inner } => {
                 if let Some(descr) = info.descr {
-                    self.copy_text(Place::Body, descr);
+                    self.copy_text(Place::Body, false, descr);
                     self.output.push('\n');
                 }
                 if let Some(usage) = info.usage {
@@ -289,7 +289,7 @@ impl<'a> Visitor<'a> for Help<'a> {
 
                 if let Some(header) = info.header {
                     self.output.push('\n');
-                    self.copy_text(Place::Body, header);
+                    self.copy_text(Place::Body, false, header);
                 }
 
                 self.footer = info.footer;
@@ -482,8 +482,30 @@ impl Help<'_> {
         self.place
     }
 
-    fn copy_text(&mut self, place: Place, text: &str) {
-        self[place].push_str(text);
+    fn copy_text(&mut self, place: Place, tab: bool, text: &str) {
+        // Preserve linebreaks followed by a line that starts with a space.
+        // Preserve empty lines.
+        // Linebreaks are removed otherwise.
+        let mut first = true;
+        let mut prev_empty = false;
+        for line in text.lines() {
+            if !first {
+                let join = if prev_empty || line.starts_with(' ') || line.is_empty() {
+                    '\n'
+                } else {
+                    ' '
+                };
+                self[place].push(join);
+
+                if tab && join == '\n' {
+                    self[place].push('\t');
+                }
+            }
+            self[place].push_str(line);
+
+            prev_empty = line.is_empty();
+            first = false;
+        }
         self[place].push('\n');
     }
 
@@ -503,7 +525,7 @@ impl Help<'_> {
             if !self.detailed {
                 help = help.split_once("\n\n").map_or(help, |h| h.0);
             }
-            self.copy_text(place, help);
+            self.copy_text(place, true, help);
         } else {
             self[place].push('\n');
         }
