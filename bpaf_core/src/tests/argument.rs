@@ -203,3 +203,89 @@ fn missing_value_handler_adjacent_interaction() {
     let r = parser.run_inner("-a").unwrap();
     assert_eq!(r, 99);
 }
+
+#[test]
+fn strange_short_option() {
+    use crate::*;
+    let parser = short('O').argument::<String>("ARG").to_options();
+    let r = parser.run_inner("-Obits=2048").unwrap();
+    assert_eq!(r, "bits=2048");
+}
+
+#[test]
+fn generic_argument_field() {
+    use std::str::FromStr;
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct Poly<T> {
+        field: T,
+    }
+
+    fn poly<T>(name: &'static str) -> impl Parser<Output = Poly<T>>
+    where
+        T: FromStr + 'static,
+        <T as FromStr>::Err: std::fmt::Display,
+    {
+        let field = long(name).argument("ARG");
+        construct!(Poly { field })
+    }
+
+    let a = poly::<usize>("usize").optional();
+    let b = poly::<u32>("u32").optional();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("--usize 12").unwrap();
+    assert_eq!(r, (Some(Poly { field: 12 }), None));
+
+    let r = parser.run_inner("--u32 12").unwrap();
+    assert_eq!(r, (None, Some(Poly { field: 12 })));
+
+    let r = parser.run_inner("--u32 12 --usize 24").unwrap();
+    assert_eq!(r, (Some(Poly { field: 24 }), Some(Poly { field: 12 })));
+}
+
+#[test]
+fn no_argument_problematic() {
+    let a = short('a').argument::<i32>("N").negative_lit();
+    let b = short('2').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-a -42").unwrap();
+    assert_eq!(r, (-42, false));
+
+    // this here shows why negative_lit must be an opt in
+    let r = parser.run_inner("-a -2").unwrap();
+    assert_eq!(r, (-2, false));
+}
+
+#[test]
+fn no_argument() {
+    let a = short('a').argument::<i32>("N").negative_lit();
+    let b = short('k').switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("-a -42").unwrap();
+    assert_eq!(r, (-42, false));
+
+    let r = parser.run_inner("-a -k").unwrap_err().unwrap_stderr();
+    let expected = "couldn't parse '-k': invalid digit found in string\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn strict_positional_argument() {
+    let a = short('a').argument::<String>("N");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -- 10").unwrap_err().unwrap_stderr();
+    let expected =
+        "'-a' requires an argument 'N', got '--', try '-a=--' to use it as an argument\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a --").unwrap_err().unwrap_stderr();
+    let expected =
+        "'-a' requires an argument 'N', got '--', try '-a=--' to use it as an argument\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a=--").unwrap();
+    assert_eq!(r, "--");
+}

@@ -135,6 +135,19 @@ fn flag_group_works_switch() {
 }
 
 #[test]
+fn combine_flags_by_order() {
+    let a = short('a').req_flag(true);
+    let b = short('A').req_flag(false);
+    let parser = construct!([a, b]).many().to_options();
+
+    let r = parser.run_inner("-a -A -A -A -a").unwrap();
+    assert_eq!(&r, &[true, false, false, false, true]);
+
+    let r = parser.run_inner("-aAAAa").unwrap();
+    assert_eq!(&r, &[true, false, false, false, true]);
+}
+
+#[test]
 fn many_with_optional() {
     let a = short('a').req_flag(()).optional();
     let b = short('b').argument::<u32>("B");
@@ -347,6 +360,53 @@ fn pure_pair() {
 }
 
 #[test]
+fn sneaky_command() {
+    #[derive(Debug, Eq, PartialEq)]
+    enum Cmd {
+        A(bool),
+        B(bool),
+    }
+
+    for sneaky in [false, true] {
+        let cmd = short('f')
+            .switch()
+            .to_options()
+            .command("hello")
+            .map(Cmd::A);
+        let b = short('f').switch().map(Cmd::B);
+
+        // the point is to be able to dynamically select between different parsers
+        let maybe_cmd = if sneaky {
+            construct!(cmd).into_box()
+        } else {
+            let nope = fail("no sneaky");
+            construct!(nope).into_box()
+        };
+        let parser = construct!([maybe_cmd, b]).to_options();
+
+        let r = parser.run_inner("hello");
+        if sneaky {
+            assert_eq!(r.unwrap(), Cmd::A(false));
+        } else {
+            assert_eq!(r.unwrap_err().unwrap_stderr(), "no sneaky\n");
+        }
+
+        let r = parser.run_inner("-f").unwrap();
+        assert_eq!(r, Cmd::B(true));
+    }
+}
+
+#[test]
+fn fail_vs_switch() {
+    let a = short('f').flag(1, 2);
+    let b = fail("oh noes");
+    let parser = construct!([a, b]).to_options();
+
+    let r = parser.run_inner("-f").unwrap();
+    assert_eq!(r, 1);
+}
+
+#[test]
 fn command_inner_consumes_then_outer_continues() {
     let inner = positional::<String>("X").to_options().command("cmd").lazy();
     let outer = positional::<String>("Y");
@@ -466,4 +526,49 @@ fn some_doesnt_panic() {
 
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, 1);
+}
+
+#[test]
+fn many_env() {
+    let parser = short('v')
+        .env("CARGO_PKG_NAME")
+        .argument::<String>("USER")
+        .many()
+        .to_options();
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, vec!["bpaf_core".to_owned()]);
+}
+
+#[test]
+fn env_hidden_arg() {
+    let parser = env("CARGO_PKG_NAME")
+        .argument::<String>("USER")
+        .to_options();
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, "bpaf_core");
+}
+
+#[test]
+fn env_hidden_switch() {
+    let parser = env("CARGO_PKG_NAME").switch().to_options();
+    let r = parser.run_inner("").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn env_hidden_flag() {
+    let parser = env("CARGO_PKG_NAME").flag(true, false).to_options();
+    let r = parser.run_inner("").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn some_env() {
+    let parser = short('v')
+        .env("CARGO_PKG_NAME")
+        .argument::<String>("USER")
+        .some("a")
+        .to_options();
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, vec!["bpaf_core".to_owned()]);
 }

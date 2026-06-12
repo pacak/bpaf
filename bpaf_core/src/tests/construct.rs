@@ -22,6 +22,42 @@ fn make_tuple_func_no_arg() {
 }
 
 #[test]
+fn empty_struct() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct Foo {}
+    let parser = construct!(Foo {}).to_options();
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, Foo {});
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: app\n\nAvailable options:\n    -h, --help  Prints help information\n"
+    );
+}
+
+#[test]
+fn empty_tuple() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    struct Foo();
+    // can't be 'Foo ()' - it's not a function, but {} works.
+    //
+    // Whole things is a moot point. If you want a parser that does
+    // nothing but produces something - use 'pure(Foo())'
+    let parser = construct!(Foo {}).to_options();
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, Foo());
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: app\n\nAvailable options:\n    -h, --help  Prints help information\n"
+    );
+}
+
+#[test]
 fn make_struct_var() {
     struct A {
         a: bool,

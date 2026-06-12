@@ -154,6 +154,26 @@ Available options:
 }
 
 #[test]
+fn fallback_to_custom_usage() {
+    let parser = short('p')
+        .req_flag(1)
+        .to_options()
+        .usage("Usage: hey [-p]")
+        .fallback_to_usage();
+    let expected =
+        "Usage: hey [-p]\n\nAvailable options:\n    -p\n    -h, --help  Prints help information\n";
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stdout();
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-p").unwrap();
+    assert_eq!(r, 1);
+}
+
+#[test]
 fn fallback_to_usage_nested() {
     let a = short('a')
         .argument::<usize>("A")
@@ -766,21 +786,6 @@ Available commands:
 //     assert_eq!(r, ((true, false), true));
 // }
 //
-// #[test]
-// fn custom_help_and_version() {
-//     let h = short('H').long("halp").help("halps you");
-//     let v = short('v').long("release").help("prints release id");
-//     let a = short('a').switch();
-//     let parser = a.to_options().help_parser(h).version_parser(v);
-//
-//     let r = parser.run_inner("--help").unwrap_err().unwrap_stderr();
-//     assert_eq!(r, "'--help' is not expected in this context");
-//
-//     let r = parser.run_inner(&["--halp"]).unwrap_err().unwrap_stdout();
-//     let expected = "Usage: app [-a]\n\nAvailable options:\n    -a\n    -H, --halp  halps you\n";
-//     assert_eq!(r, expected);
-// }
-//
 #[test]
 fn various_name_lengths_under() {
     let parser = short('a')
@@ -862,10 +867,15 @@ fn help_and_version_newline() {
     let parser = short('a').switch().to_options().version("1");
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
-    assert_eq!(
-        r,
-        "Usage: app [-a]\n\nAvailable options:\n    -a\n    -h, --help     Prints help information\n    -V, --version  Prints version information\n"
-    );
+
+    let expected = "Usage: app [-a]
+
+Available options:
+    -a
+    -h, --help     Prints help information
+    -V, --version  Prints version information
+";
+    assert_eq!(r, expected);
 
     let r = parser.run_inner("--version").unwrap_err().unwrap_stdout();
     assert_eq!(r, "Version: 1\n");
@@ -1157,6 +1167,64 @@ Usage: app bar [-b]
 Available options:
     -b
     -h, --help  Prints help information
+";
+    assert_eq!(expected_help, help);
+}
+
+#[test]
+fn help_for_options_and_linebreaks_in_help() {
+    let a = short('a').help("help for\na").switch();
+    let b = short('c')
+        .env("BbBbB")
+        .help("help for\nb")
+        .argument::<String>("B");
+    let c = long("bbbbb")
+        .env("ccccCCccc")
+        .help("help for\nccc")
+        .argument::<String>("CCC");
+    let parser = construct!(a, b, c).to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "\
+Usage: app [-a] -c=B --bbbbb=CCC
+
+Available options:
+    -a               help for a
+    -c=B             help for b
+                     [env:BbBbB is not set]
+        --bbbbb=CCC  help for ccc
+                     [env:ccccCCccc is not set]
+    -h, --help       Prints help information
+";
+
+    assert_eq!(help, expected);
+}
+
+#[test]
+fn help_for_commands_and_linebreaks() {
+    let d = pure(())
+        .to_options()
+        .command("thing_d")
+        .help("help for d\ntwo lines");
+    let e = pure(())
+        .to_options()
+        .command("thing_e")
+        .short('e')
+        .help("help for e\ntwo lines");
+    let h = pure(()).to_options().command("thing_h");
+    let parser = construct!([d, e, h]).to_options();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected_help = "\
+Usage: app COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    thing_d     help for d two lines
+    thing_e, e  help for e two lines
+    thing_h
 ";
     assert_eq!(expected_help, help);
 }

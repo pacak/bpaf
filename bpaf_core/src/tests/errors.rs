@@ -23,7 +23,7 @@ fn unsigned_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a '-2', try '-a=-2' to use it as an argument\n"
+        "'-a' requires an argument 'N', got '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
@@ -33,7 +33,7 @@ fn unsigned_argument() {
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a '-42', try '-a=-42' to use it as an argument\n"
+        "'-a' requires an argument 'N', got '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap_err().unwrap_stderr();
@@ -49,7 +49,7 @@ fn signed_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a '-2', try '-a=-2' to use it as an argument\n"
+        "'-a' requires an argument 'N', got '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
@@ -59,7 +59,7 @@ fn signed_argument() {
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a '-42', try '-a=-42' to use it as an argument\n"
+        "'-a' requires an argument 'N', got '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap();
@@ -78,8 +78,29 @@ fn cannot_be_used_partial_arg() {
     let res = parser.run_inner("-b -a").unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "'-b' requires an argument 'ARG', got a '-a', try '-b=-a' to use it as an argument\n"
+        "'-b' requires an argument 'ARG', got '-a', try '-b=-a' to use it as an argument\n"
     );
+}
+
+#[test]
+fn option_requires_other_option_v1() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(a, b).optional().to_options();
+
+    let r = parser.run_inner("-a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected '-b=B'\n");
+}
+
+#[test]
+// same as '_v1', legacy test - order was much more previously
+fn option_requires_other_option_v2() {
+    let a = short('a').switch();
+    let b = short('b').argument::<String>("B");
+    let parser = construct!(b, a).optional().to_options();
+
+    let r = parser.run_inner("-a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected '-b=B'\n");
 }
 
 #[test]
@@ -163,9 +184,11 @@ fn strict_positional_argument() {
     let a = short('a').argument::<usize>("N");
     let parser = a.to_options();
 
+    // '-' and '--' are positional items
+    // TODO - old version (and smarter parsers) treat it as absent
     let r = parser.run_inner("-a -- 10").unwrap_err().unwrap_stderr();
     let expected =
-        "'-a' requires an argument 'N', got a '--', try '-a=--' to use it as an argument\n";
+        "'-a' requires an argument 'N', got '--', try '-a=--' to use it as an argument\n";
     assert_eq!(r, expected);
 }
 
@@ -177,7 +200,7 @@ fn passing_ddash_to_arg_works() {
     let r = parser.run_inner("-a --").unwrap_err().unwrap_stderr();
 
     let expected =
-        "'-a' requires an argument 'DD', got a '--', try '-a=--' to use it as an argument\n";
+        "'-a' requires an argument 'DD', got '--', try '-a=--' to use it as an argument\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-a=--").unwrap();
@@ -233,6 +256,9 @@ fn should_not_split_adjacent_options() {
     // can probably suggest splitting here too: '-a' 'hello'
     let expected = "the app can accept '-a' as a flag, but got '-ahello'\n";
     assert_eq!(r, expected);
+
+    let r = parser.run_inner("hell").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such command: 'hell', did you mean 'hello'?\n");
 }
 
 #[test]
@@ -250,6 +276,10 @@ fn should_not_split_adjacent_ambig_options() {
 
     let r = parser.run_inner("-ahello").unwrap_err().unwrap_stderr();
     let expected = "the app can accept '-a' as a flag, but got '-ahello'\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a=hello").unwrap_err().unwrap_stderr();
+    let expected = "the app can accept '-a' as a flag, but got '-a=hello'\n";
     assert_eq!(r, expected);
 
     // this one is okay, try to parse -a as argument - it fails because "hello" is not a number, then
@@ -284,6 +314,24 @@ fn missing_arg() {
 
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected '-a=A'\n");
+}
+
+#[test]
+fn command_with_req_parameters() {
+    let p = positional::<String>("X")
+        .to_options()
+        .command("cmd")
+        .fallback(String::new())
+        .to_options();
+
+    let r = p.run_inner("").unwrap();
+    assert_eq!(r, "");
+
+    let r = p.run_inner("cmd").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected 'X'\n");
+
+    let r = p.run_inner("cmd bob").unwrap();
+    assert_eq!(r, "bob");
 }
 
 #[test]
@@ -344,10 +392,22 @@ fn strictly_positional_help() {
 }
 
 #[test]
+fn double_dash_is_pos_only_just_once() {
+    let parser = positional::<String>("POS").many().to_options();
+
+    let r = parser.run_inner("--").unwrap();
+    assert_eq!(r, Vec::<String>::new());
+
+    let r = parser.run_inner("-- --").unwrap();
+    assert_eq!(r, vec!["--".to_string()]);
+}
+
+#[test]
 fn hidden_required_field_is_valid_but_strange() {
     // hidden stuff shows up in error messages when it is needed
     // to explain stuff, but not in help or usage
     let parser = short('a').req_flag(()).hide().to_options();
+
     let r = parser.run_inner("").unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected '-a'\n");
 
@@ -444,6 +504,17 @@ fn ambiguity_2() {
 }
 
 #[test]
+fn reject_fbar() {
+    let parser = short('f').argument::<String>("F").to_options();
+
+    let r = parser.run_inner("-fbar baz").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'baz' is not expected in this context\n");
+
+    let r = parser.run_inner("-fbar").unwrap();
+    assert_eq!(r, "bar");
+}
+
+#[test]
 fn short_cmd() {
     let parser = long("alpha")
         .req_flag(())
@@ -535,6 +606,55 @@ fn double_dashes_no_fallback() {
 }
 
 #[test]
+fn suggestion_for_equals_1() {
+    let parser = short('p').long("par").argument::<String>("P").to_options();
+
+    let r = parser.run_inner("-p --bar").unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "'-p' requires an argument 'P', got '--bar', try '-p=--bar' to use it as an argument\n"
+    );
+
+    let r = parser.run_inner("--par --bar").unwrap_err().unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--par' requires an argument 'P', got '--bar', try '--par=--bar' to use it as an argument\n"
+    );
+
+    let r = parser
+        .run_inner("--par --bar=baz")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "'--par' requires an argument 'P', got '--bar=baz', try '--par=--bar=baz' to use it as an argument\n"
+    );
+}
+
+#[test]
+fn inside_out_command_parser() {
+    let parser = long("oneline")
+        .switch()
+        .to_options()
+        .command("cmd")
+        .to_options();
+
+    let r = parser.run_inner("cmd --oneline").unwrap();
+    assert!(r);
+
+    // Can't parse "--oneline log" because oneline could be an argument instead of a flag
+    // so log might not be a command, but we can try to make a better suggestion.
+    let r = parser
+        .run_inner("--oneline log")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        "flag '--oneline' is not valid in this context, did you mean to pass it to command 'cmd'?\n"
+    );
+}
+
+#[test]
 fn double_dash_with_optional_positional() {
     let a = long("llvm").req_flag(());
     let pos = positional::<String>("FILE").optional();
@@ -575,53 +695,90 @@ fn double_dash_with_optional_positional() {
 // }
 //
 //
-// #[test]
-// fn ux_discussion() {
-//     #[derive(Debug, Clone, Bpaf)]
-//     #[bpaf(adjacent)]
-//     pub struct ConfigSetBool {
-//         /// Set <key> to <bool>
-//         #[bpaf(long("setBool"))]
-//         set_bool: (),
-//         /// Configuration key
-//         #[bpaf(positional("key"))]
-//         key: String,
-//         /// Configuration Value (bool)
-//         #[bpaf(positional("bool"))]
-//         value: bool,
-//     }
-//
-//     let aa = long("bool-flag").switch();
-//     let parser = construct!(config_set_bool(), aa).to_options();
-//
-//     let r = parser
-//         .run_inner(&["--setBool", "key", "tru"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//     assert_eq!(
-//         r,
-//         // everything before ":" comes from bpaf, after ":" - it's an error specific
-//         // to FromStr instance.
-//         "couldn't parse 'tru': provided string was not 'true' or 'false'"
-//     );
-//
-//     let r = parser
-//         .run_inner(&["--bool-fla"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//
-//     assert_eq!(r, "no such flag: '--bool-fla', did you mean '--bool-flag'?");
-//
-//     let r = parser
-//         .run_inner(&["--bool-flag", "--bool-flag"])
-//         .unwrap_err()
-//         .unwrap_stderr();
-//
-//     assert_eq!(
-//         r,
-//         "expected '--setBool', got '--bool-flag'. Pass '--help' for usage information"
-//     );
-// }
+
+#[test]
+fn nested_in_flag() {
+    let key = positional::<String>("key").help("config key");
+    let val = positional::<bool>("bool").help("config value");
+    let inner = construct!(key, val);
+    let set = long("setBool").help("Set <key> to <value>").nest(inner);
+
+    let aa = long("bool-flag").switch();
+    let parser = construct!(set, aa).to_options();
+
+    let r = parser
+        .run_inner("--setBool key tru")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        // everything before ":" comes from bpaf, after ":" - it's an error specific
+        // to FromStr instance.
+        "couldn't parse 'tru': provided string was not `true` or `false`\n"
+    );
+
+    let r = parser.run_inner("--bool-fla").unwrap_err().unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "no such flag: '--bool-fla', did you mean '--bool-flag'?\n"
+    );
+
+    let r = parser.run_inner("--setBoo").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "no such flag: '--setBoo', did you mean '--setBool'?\n");
+
+    let r = parser
+        .run_inner("--bool-flag --bool-flag")
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "argument '--bool-flag' cannot be used multiple times in this context\n"
+    );
+}
+
+#[test]
+fn nested_in_keyword() {
+    let key = positional::<String>("key").help("config key");
+    let val = positional::<bool>("bool").help("config value");
+    let inner = construct!(key, val);
+    let set = literal("setBool").help("Set <key> to <value>").nest(inner);
+
+    let aa = long("bool-flag").switch();
+    let parser = construct!(set, aa).to_options();
+
+    let r = parser
+        .run_inner("setBool key tru")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(
+        r,
+        // everything before ":" comes from bpaf, after ":" - it's an error specific
+        // to FromStr instance.
+        "couldn't parse 'tru': provided string was not `true` or `false`\n"
+    );
+
+    let r = parser.run_inner("--bool-fla").unwrap_err().unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "no such flag: '--bool-fla', did you mean '--bool-flag'?\n"
+    );
+
+    let r = parser.run_inner("setBoo").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected 'setBool', got 'setBoo'\n"); // TODO - improve?
+
+    let r = parser
+        .run_inner("--bool-flag --bool-flag")
+        .unwrap_err()
+        .unwrap_stderr();
+
+    assert_eq!(
+        r,
+        "argument '--bool-flag' cannot be used multiple times in this context\n"
+    );
+}
 
 #[test]
 fn suggest_typo_fix() {
@@ -915,6 +1072,7 @@ fn conflict_with_argument() {
 
 #[test]
 fn no_misleading_no_such_flag() {
+    // <flox/flox#3411>
     // Simulates an enum with alternative variants (e.g. derive enum with or_else)
     let edit_manifest = long("file").argument::<String>("FILE").optional();
 
@@ -1145,4 +1303,152 @@ fn did_you_mean_two_or_arguments() {
         r,
         "'--parameter' cannot be used at the same time as '--flag'\n"
     );
+
+    let r = parser.run_inner("cmd --flag").unwrap();
+    assert!(r);
+
+    let r = parser.run_inner("--flag").unwrap();
+    assert!(r);
+
+    let r = parser.run_inner("cm").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'cm' is not expected in this context\n");
+}
+
+#[test]
+fn argument_missing_value_or_else_winner_consumed() {
+    // When the winning branch DID consume the flag, the error should NOT propagate.
+    // '--name' as a switch vs '--name' as an argument.
+    let flag_parser = long("name").switch();
+    let arg_parser = long("name").argument::<String>("NAME").map(|_| false);
+    let parser = construct!([flag_parser, arg_parser]).to_options();
+
+    let r = parser.run_inner("--name").unwrap();
+    assert!(r);
+}
+
+#[test]
+fn argument_missing_value_with_catch() {
+    // .optional().catch() should not swallow NoArgument - the user explicitly
+    // provided the flag, so the missing value should always be reported.
+    let name = long("name").argument::<usize>("NAME").optional().catch();
+    let file = long("file").argument::<usize>("FILE").optional();
+    let parser = construct!(name, file).to_options();
+
+    let r = parser.run_inner("--name").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'--name' expects a value 'NAME'\n");
+
+    let r = parser.run_inner("--name nope").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'nope': invalid digit found in string\n");
+}
+
+#[test]
+fn cargo_show_asm_issue_guard() {
+    let target_dir = short('t').argument::<String>("T").guard(|_| false, "nope");
+    let verbosity = short('v').switch();
+    let inner = construct!(target_dir, verbosity);
+    let parser = cargo_helper("asm", inner).to_options();
+
+    let res = parser.run_inner("asm -t x").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "'-t x': nope\n");
+
+    let res = parser.run_inner("-t x").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "'-t x': nope\n");
+}
+
+#[test]
+fn cargo_show_asm_issue_from_str() {
+    let target_dir = short('t').argument::<usize>("T");
+    let verbosity = short('v').switch();
+    let inner = construct!(target_dir, verbosity);
+    let parser = cargo_helper("asm", inner).to_options();
+
+    let res = parser.run_inner("asm -t x").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "couldn't parse 'x': invalid digit found in string\n");
+
+    let res = parser.run_inner("-t x").unwrap_err().unwrap_stderr();
+    assert_eq!(res, "couldn't parse 'x': invalid digit found in string\n");
+}
+
+#[test]
+fn better_error_message_with_typos() {
+    #[derive(Clone, Debug)]
+    #[allow(dead_code)]
+    enum Commands {
+        Lines {},
+        Arguments(Arguments),
+    }
+
+    #[derive(Clone, Debug)]
+    #[allow(dead_code)]
+    struct Arguments {
+        env: Vec<String>,
+        args: Vec<String>,
+    }
+    let args = positional::<String>("POS")
+        .help("Multi\n Line\n Comments")
+        .many();
+    let env = short('e').argument("Arg").many();
+
+    let arguments = construct!(Arguments { env, args }).into_rc();
+
+    let parser = arguments
+        .clone()
+        .to_options()
+        .command("arguments")
+        .map(Commands::Arguments)
+        .or_else(
+            pure(Commands::Lines {})
+                .to_options()
+                .command("lines")
+                .help("Multi\n Line\n Comment"),
+        )
+        .to_options();
+
+    let r = parser.run_inner("-a erg").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected 'COMMAND ...', got '-a'\n");
+
+    let r = parser.run_inner("-e erg").unwrap_err().unwrap_stderr();
+    let expected =
+        "flag '-e' is not valid in this context, did you mean to pass it to command 'arguments'?\n";
+    assert_eq!(r, expected);
+
+    let r = parser
+        .run_inner("arguments -a erg")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "'-a' is not expected in this context\n");
+
+    let r = arguments
+        .to_options()
+        .run_inner("--help")
+        .unwrap_err()
+        .unwrap_stdout();
+    let expected = "Usage: app [-e=<Arg>]... [POS]...
+
+Available positional items:
+    POS         Multi
+                Line
+                Comments
+
+Available options:
+    -e=<Arg>
+    -h, --help  Prints help information
+";
+
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app COMMAND ...
+
+Available options:
+    -h, --help  Prints help information
+
+Available commands:
+    arguments
+    lines       Multi
+                Line
+                Comment
+";
+    assert_eq!(r, expected);
 }

@@ -1659,10 +1659,10 @@ mod tests {
     mod offset;
     mod osstring;
     mod parse;
+    mod positionals;
     mod pure_with;
     mod repeat;
     mod sum;
     mod unsorted;
     mod usage;
-    // mod wake;
 }

@@ -1,7 +1,5 @@
-#![deny(missing_docs)]
-
-//! hi
-use bpaf::{Bpaf, Parser};
+use crate::*;
+use bpaf_derive::Bpaf;
 
 #[test]
 fn help_with_default_parse() {

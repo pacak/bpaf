@@ -161,6 +161,41 @@ fn can_catch_missing_in_some() {
 }
 
 #[test]
+fn can_handle_missing_in_many() {
+    let parser = positional::<u32>("A")
+        .many()
+        .map(|items| if items.is_empty() { vec![42] } else { items })
+        .to_options();
+
+    let r = parser.run_inner("1").unwrap();
+    assert_eq!(r, &[1]);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, &[42]);
+}
+
+#[test]
+fn parse_some_catch() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    enum A {
+        U32(u32),
+        S(String),
+    }
+    let a1 = short('a').argument("N").map(A::U32).some("A").hide();
+    let a2 = short('a').argument("S").map(A::S).some("A").hide();
+    let parser = construct!([a1, a2]).to_options();
+
+    let r = parser.run_inner("-a 10").unwrap();
+    assert_eq!(r, vec![A::U32(10)]);
+
+    let r = parser.run_inner("-a x").unwrap();
+    assert_eq!(r, vec![A::S("x".to_string())]);
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "A\n");
+}
+
+#[test]
 fn no_dataloss_with_some() {
     let a = short('a').argument::<u32>("A");
     let b = short('b').argument::<u32>("B");
@@ -288,4 +323,50 @@ fn opt_many_req() {
 
     let r = parser.run_inner("-aa").unwrap();
     assert_eq!(r, vec![Some(true), Some(true)]);
+}
+#[test]
+fn parse_many_errors_positional() {
+    let p = positional::<u32>("N").many().to_options();
+
+    let r = p.run_inner("1 2 3").unwrap();
+    assert_eq!(r, vec![1, 2, 3]);
+
+    let r = p.run_inner("1 2 x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'x': invalid digit found in string\n");
+}
+
+#[test]
+fn parse_collect_flag() {
+    let p = short('p')
+        .argument::<u32>("N")
+        .collect::<Vec<_>>()
+        .to_options();
+
+    let r = p.run_inner("-p 1 -p 2").unwrap();
+    assert_eq!(r, vec![1, 2]);
+
+    let r = p.run_inner("-p 1 -p x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'x': invalid digit found in string\n");
+}
+
+#[test]
+fn parse_many_errors_flag() {
+    let p = short('p').argument::<u32>("N").many().to_options();
+
+    let r = p.run_inner("-p 1 -p 2").unwrap();
+    assert_eq!(r, vec![1, 2]);
+
+    let r = p.run_inner("-p 1 -p x").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse 'x': invalid digit found in string\n");
+}
+
+#[test]
+fn optional_bool_states() {
+    let parser = short('a').switch().optional().to_options();
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, Some(true));
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, Some(false));
 }

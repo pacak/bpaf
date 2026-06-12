@@ -46,6 +46,17 @@ fn is_odd_pos() {
 }
 
 #[test]
+fn from_str_works_with_parse() {
+    use std::str::FromStr;
+    let parser = positional::<String>("A")
+        .parse(|s| usize::from_str(&s))
+        .to_options();
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
+}
+
+#[test]
 fn leaf_only() {
     let a = short('a').argument::<u32>("A");
     let b = short('b').argument::<u32>("B");

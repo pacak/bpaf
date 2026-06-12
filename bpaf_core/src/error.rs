@@ -139,7 +139,7 @@ impl std::fmt::Display for Problem {
             } => {
                 write!(
                     f,
-                    "{Q}{V}{name}{R}{Q} requires an argument {Q}{M}{meta}{R}{Q}, got a {Q}{I}{value}{R}{Q}, try {Q}{V}{name}={value}{R}{Q} to use it as an argument"
+                    "{Q}{V}{name}{R}{Q} requires an argument {Q}{M}{meta}{R}{Q}, got {Q}{I}{value}{R}{Q}, try {Q}{V}{name}={value}{R}{Q} to use it as an argument"
                 )
             }
             Problem::GuardFailed { message, range } => match range {
