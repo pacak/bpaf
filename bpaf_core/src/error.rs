@@ -193,7 +193,7 @@ impl std::fmt::Display for Problem {
             Problem::MissingGot {
                 missing:
                     missing @ Missing {
-                        item: MissingItem::Custom { .. },
+                        item: MissingItem::Some { .. },
                         ..
                     },
                 ..
@@ -304,7 +304,7 @@ impl MissingItem {
     fn pick(self, other: Self) -> Self {
         use MissingItem as M;
         match (self, other) {
-            (c @ M::Custom { .. }, _) | (_, c @ M::Custom { .. }) => c,
+            (c @ M::Some { .. }, _) | (_, c @ M::Some { .. }) => c,
             (cmd @ M::Cmd { .. }, _) | (_, cmd @ M::Cmd { .. }) => cmd,
             (pos @ M::Pos { .. }, _) | (_, pos @ M::Pos { .. }) => pos,
             (lit @ M::Lit { .. }, _) | (_, lit @ M::Lit { .. }) => lit,
@@ -352,8 +352,11 @@ pub enum MissingItem {
     EnvVar {
         var_name: &'static str,
     },
-    /// Not an actually missing item, but an error message that pretends to be one
-    Custom {
+    /// Not an actually missing item, but an error message from `.some("msg")` that pretends to be one
+    ///
+    /// Obeys mostly the same rules as missing item (can be caught, lower priority), but renders
+    /// a bit differently to avoid confusing wording
+    Some {
         item: String,
     },
 }
@@ -362,7 +365,7 @@ impl std::fmt::Display for Missing {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if matches!(
             self.item,
-            MissingItem::Custom { .. } | MissingItem::Cmd { .. }
+            MissingItem::Some { .. } | MissingItem::Cmd { .. }
         ) {
             write!(f, "{}", self.item)
         } else {
@@ -396,7 +399,7 @@ impl std::fmt::Display for MissingItem {
             MissingItem::EnvVar { var_name } => {
                 write!(f, "env variable {Q}{V}{var_name}{R}{Q} is not set")
             }
-            MissingItem::Custom { item } => write!(f, "{item}"),
+            MissingItem::Some { item } => write!(f, "{item}"),
         }
     }
 }
