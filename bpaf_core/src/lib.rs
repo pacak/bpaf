@@ -43,7 +43,7 @@ pub mod api {
         //! - [`Literal::nest`]
 
         use crate::{
-            Ctx, Kind, Op, Parser, Scope,
+            Ctx, Kind, Parser, Scope,
             error::Error,
             traits::{RcParser, VisitGroup, Visitor},
         };
@@ -94,20 +94,16 @@ pub mod api {
                     scopes.push(scope);
                     handles.push(h);
                 }
-                ctx.pending_ops.borrow_mut().push_back(Op::RegisterSum {
+                ctx.sums.borrow_mut().insert(
                     id,
-                    scope: Scope {
+                    Scope {
                         start: id,
                         end: scopes.last().unwrap().end,
                     },
-                });
+                );
                 ctx.wait_for_children().await; // give children a chance to start
                 ctx.all_children_finish(scopes).await;
-                // If there's only one surviving branch - there won't be a sum
-                // to de-register. But sometimes we do so let's clean it up
-                ctx.pending_ops
-                    .borrow_mut()
-                    .push_back(Op::DeregisterSum { id });
+                ctx.sums.borrow_mut().remove(&id);
 
                 let mut acc = Error::Silent("Empty Sum?");
 
@@ -667,7 +663,6 @@ struct Executor<'a, 'p> {
     tasks: BTreeMap<Id, Task<'p>>,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<TaskInfo>,
-    sums: BTreeMap<Id, Scope>,
     mixer: Mixer,
     visited: &'a dyn Visited,
 }
@@ -679,7 +674,6 @@ impl<'a, 'p> Executor<'a, 'p> {
             tasks: BTreeMap::new(),
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
-            sums: BTreeMap::new(),
             visited,
             mixer: Default::default(),
         }
@@ -745,9 +739,6 @@ impl<'a, 'p> Executor<'a, 'p> {
                     let old = self.tasks.insert(task.info.id, task);
                     debug_assert!(old.is_none(), "Duplicated task id?");
                 }
-                Op::RegisterSum { id, scope } => {
-                    self.sums.insert(id, scope);
-                }
                 Op::KillScope {
                     scope,
                     cursor,
@@ -756,9 +747,6 @@ impl<'a, 'p> Executor<'a, 'p> {
                     let old = self.ctx.cursor.replace(cursor);
                     self.kill_in_scope(scope, reason);
                     self.ctx.cursor.set(old);
-                }
-                Op::DeregisterSum { id } => {
-                    self.sums.remove(&id);
                 }
             }
         }
@@ -863,11 +851,10 @@ impl<'a, 'p> Executor<'a, 'p> {
 
         assert!(self.ctx.pending_ops.borrow().is_empty());
         assert!(self.tasks.is_empty());
-        assert!(
-            self.sums.is_empty(),
-            "All sums should be removed, {:?}",
-            self.sums
-        );
+        {
+            let sums = self.ctx.sums.borrow();
+            assert!(sums.is_empty(), "All sums should be removed, {:?}", sums);
+        }
 
         Ok(())
     }
@@ -1045,7 +1032,38 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
     }
 
-    // Propagate trigger results to parents recursively
+    /// Notify sums about children making progress
+    ///
+    /// Only sum items that made progress should continue - to avoid the data loss.
+    fn notify_sums(&mut self, advancing: &Vec1<Id>) {
+        // This should be cheap. `advancing` should have just one item, notifying
+        // iterates through all the sums in the current level - should be small and we
+        // are not even checking all of them
+        *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
+        assert!(self.to_wake.is_empty(), "should be left empty by stage 2");
+
+        let sums = self.ctx.sums.borrow();
+        for id in advancing.as_slice().iter() {
+            for (sid, range) in sums.iter() {
+                if range.contains(*id) {
+                    self.to_wake.push(*sid);
+                }
+                // we don't have to go though the whole sums set, once
+                // sum ids start after current id - they can't possibly contain the item.
+                if *sid > *id {
+                    break;
+                }
+            }
+        }
+        drop(sums);
+        for sid in self.to_wake.drain(..) {
+            let task = self.tasks.get_mut(&sid).unwrap();
+            let r = self.ctx.poll_in_context(task);
+            assert!(!r);
+        }
+    }
+
+    /// Propagate trigger results to parents recursively
     fn propagate(&mut self) {
         // part 1, letting sums upstream know what branches are advancing so they can terminate
         // those that don't.
@@ -1056,24 +1074,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 advancing.push(info.id)
             }
         }
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
-        // This should be cheap. `advancing` should have just one item, notifying
-        // iterates through all the sums in the current level - should be small and we
-        // are not even checking all of them
-        for id in advancing.as_slice().iter().copied() {
-            for (sid, range) in self.sums.iter() {
-                if range.contains(id) {
-                    let task = self.tasks.get_mut(sid).unwrap();
-                    let r = self.ctx.poll_in_context(task);
-                    assert!(!r);
-                }
-                // we don't have to go though the whole sums set, once
-                // sum ids start after current id - they can't possibly contain the item.
-                if *sid > id {
-                    break;
-                }
-            }
-        }
+        self.notify_sums(&advancing);
 
         // part 2, pushing parsed results up
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
@@ -1164,6 +1165,7 @@ impl<'p> RawCtx<'p> {
             cursor: Cell::new(cursor),
             early_exit: Default::default(),
             pending_ops: Default::default(),
+            sums: Default::default(),
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),

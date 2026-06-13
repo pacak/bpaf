@@ -82,6 +82,8 @@ pub struct RawCtx<'p> {
     /// Trigger registry - maps argument patterns to parser tasks
     pub(crate) triggers: RefCell<Triggers>,
 
+    pub(crate) sums: RefCell<BTreeMap<Id, Scope>>,
+
     pub(crate) custom: &'p Custom,
 }
 
@@ -90,13 +92,6 @@ pub type Ctx<'p> = Rc<RawCtx<'p>>;
 #[derive(Debug)]
 pub(crate) enum Op<'p> {
     Spawn(Task<'p>),
-    RegisterSum {
-        id: Id,
-        scope: Scope,
-    },
-    DeregisterSum {
-        id: Id,
-    },
     KillScope {
         cursor: u32,
         scope: Scope,
