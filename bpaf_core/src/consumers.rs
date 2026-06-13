@@ -320,12 +320,10 @@ impl<T: Clone + 'static> Parser for Flag<T> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_flag(&self.named).await?;
-        if res {
+        if res || self.named.get_env().is_some() {
             Ok(self.present.clone())
         } else if let Some(absent) = &self.absent {
             Ok(absent.clone())
-        } else if self.named.get_env().is_some() {
-            Ok(self.present.clone())
         } else {
             Err(Error::missing(self.named.missing_item(None)))
         }
