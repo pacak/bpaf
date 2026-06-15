@@ -79,8 +79,15 @@ impl<P: Parser> Parser for Optional<P> {
         match optional(ctx.clone(), &self.inner).await {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
-            Optionality::Failed(_) if self.catch => {
+            Optionality::Failed(e) if self.catch => {
                 ctx.current_task.borrow_mut().consumed = 0;
+                if let crate::Error::Problem(_, ref problem) = e {
+                    let pos = ctx.cursor.get();
+                    let msg = problem.to_string();
+                    ctx.conflicts
+                        .borrow_mut()
+                        .push(crate::Conflict::Caught { pos, msg });
+                }
                 Ok(None)
             }
             Optionality::Failed(e) => Err(e),

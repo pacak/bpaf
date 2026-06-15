@@ -421,6 +421,8 @@ enum Conflict {
     Lit { pos: u32, name: Lit<'static> },
     /// Positional item
     Pos { pos: u32 },
+    /// An error caught by `.catch()` that should be displayed if there's no alternative
+    Caught { pos: u32, msg: String },
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -828,6 +830,19 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 
     fn complain_about(&self, unexpected: &OsStr) -> Problem {
+        // Check for caught errors first - errors that were stored by .catch()
+        let pos = self.ctx.cursor.get();
+        for conflict in self.ctx.conflicts.borrow().iter() {
+            if let Conflict::Caught {
+                pos: caught_pos,
+                msg,
+            } = conflict
+                && *caught_pos == pos
+            {
+                return Problem::Dynamic { err: msg.clone() };
+            }
+        }
+
         match lex_os_arg(unexpected) {
             Arg::Named {
                 name: unexpected,
@@ -870,6 +885,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 for conflict in self.ctx.conflicts.borrow().iter() {
                     match conflict {
                         Conflict::Named { .. } => {}
+                        Conflict::Caught { .. } => {}
                         Conflict::Lit {
                             pos,
                             name: conflicted_name,
