@@ -47,7 +47,7 @@ where
     F: Fn(&str) -> Option<T> + 'static,
 {
     fn into_boxed(self, h: ExitHandle<T>) -> Rc<dyn Fn(&OsStr) -> bool> {
-        Rc::new(move |s: &OsStr| match s.to_str().and_then(|v| self(v)) {
+        Rc::new(move |s: &OsStr| match s.to_str().and_then(&self) {
             Some(v) => {
                 h.exit(Ok(v));
                 true

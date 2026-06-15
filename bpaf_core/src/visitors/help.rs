@@ -25,7 +25,7 @@ const H: &str = Style::Header.ansi();
 
 use super::ShortLong;
 use crate::{
-    Custom, Flag, Item, Nest, VKind, Visited,
+    Flag, Item, Nest, VKind, Visited,
     console_writer::{MAX_TAB, Style, Styled, char_width},
     traits::Gr,
     visitors::{VisitGroup, Visitor, usage::Usage},

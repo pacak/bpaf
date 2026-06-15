@@ -159,7 +159,7 @@ async fn parse_many<'p, T: 'static>(
             // - no more data available
             // - got enough parses to satisfy the constraint
             // - no data is lost
-            Optionality::Missing(e) if res.len() >= min as usize => break,
+            Optionality::Missing(_e) if res.len() >= min as usize => break,
             Optionality::Missing(e) | Optionality::Failed(e) => return Err(e),
         }
 

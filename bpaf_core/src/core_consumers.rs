@@ -13,13 +13,11 @@ use crate::{
 use std::{ffi::OsStr, rc::Rc};
 
 impl TTarget {
-    fn into_conflict(self, pos: u32) -> Option<Conflict> {
+    fn into_conflict(self, pos: u32) -> Conflict {
         match self {
-            TTarget::Arg(name) | TTarget::Flag(name) => Some(Conflict::Named { pos, name }),
-            TTarget::Pos => Some(Conflict::Pos { pos }),
-            TTarget::Check(_) => None, // TODO ... technically I can store check inside of here and
-            // invoke it later..
-            TTarget::Literal(name) => Some(Conflict::Lit { pos, name }),
+            TTarget::Arg(name) | TTarget::Flag(name) => Conflict::Named { pos, name },
+            TTarget::Pos => Conflict::Pos { pos },
+            TTarget::Literal(name) => Conflict::Lit { pos, name },
         }
     }
 }
@@ -364,7 +362,7 @@ impl<'p> RawCtx<'p> {
         let pos = self.cursor.get();
         self.conflicts
             .borrow_mut()
-            .extend(items.into_iter().filter_map(|t| t.into_conflict(pos)));
+            .extend(items.into_iter().map(|t| t.into_conflict(pos)));
         Error::Silent("Killed by conflict")
     }
 

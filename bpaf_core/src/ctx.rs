@@ -13,8 +13,8 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TChange, TTarget, Task, TaskInfo,
-    args::Args, info::Custom,
+    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, Task, TaskInfo, args::Args,
+    info::Custom,
 };
 
 type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;

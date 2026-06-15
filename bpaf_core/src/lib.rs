@@ -45,7 +45,7 @@ pub mod api {
         use crate::{
             Ctx, Kind, Parser, Scope,
             error::Error,
-            traits::{BoxParser, RcParser, VisitGroup, Visitor},
+            traits::{RcParser, VisitGroup, Visitor},
         };
 
         #[cfg(doc)]
@@ -190,7 +190,7 @@ pub use crate::{
 use crate::{
     error::{Error, ParseFailure, Problem},
     pecking::PeckingOrder,
-    traits::{BoxParser, RcParser, VisitGroup, Visitor, *},
+    traits::{RcParser, VisitGroup, Visitor, *},
 };
 
 use std::{
@@ -237,18 +237,11 @@ pub mod __private {
     pub use ::std::compile_error;
 }
 
-#[derive(Debug, Copy, Clone)]
-enum TChange {
-    Add,
-    Remove,
-}
-
 #[derive(Clone)]
 enum TTarget {
     Arg(Name<'static>),
     Flag(Name<'static>),
     Pos,
-    Check(Rc<dyn Fn(&OsStr) -> bool>),
     Literal(Lit<'static>),
 }
 
@@ -258,7 +251,6 @@ impl std::fmt::Debug for TTarget {
             Self::Arg(arg0) => f.debug_tuple("Arg").field(arg0).finish(),
             Self::Flag(arg0) => f.debug_tuple("Flag").field(arg0).finish(),
             Self::Pos => write!(f, "Pos"),
-            Self::Check(_) => f.debug_tuple("Any").field(&"...").finish(),
             Self::Literal(arg0) => f.debug_tuple("Literal").field(arg0).finish(),
         }
     }
@@ -409,13 +401,6 @@ impl Parent {
 
     fn is_root(&self) -> bool {
         *self == Parent(0)
-    }
-}
-
-impl Id {
-    #[cfg(test)]
-    fn as_parent(&self) -> Parent {
-        Parent(self.0)
     }
 }
 
@@ -690,7 +675,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             });
 
             self.mixer
-                .populate_short_flag(&name, &*self.ctx.triggers.borrow());
+                .populate_short_flag(&name, &self.ctx.triggers.borrow());
             let mut cnt = 0;
             for id in self.mixer.for_wake(&self.tasks) {
                 cnt += 1;
@@ -978,11 +963,9 @@ impl<'a, 'p> Executor<'a, 'p> {
             }
         }
 
-        let mgroup = self.mixer.populate(
-            &arg,
-            &*self.ctx.triggers.borrow(),
-            self.ctx.strict_pos.get(),
-        );
+        let mgroup =
+            self.mixer
+                .populate(&arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get());
 
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 

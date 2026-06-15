@@ -450,7 +450,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
         for (req, order) in
-            orders_by_prefix(arg, &*self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
+            orders_by_prefix(arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
         {
             self.mixer.push_peck(order);
             self.to_wake.extend(self.mixer.for_wake(&self.tasks));

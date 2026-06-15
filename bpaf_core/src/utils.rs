@@ -55,13 +55,6 @@ impl<T> Vec1<T> {
         }
     }
 }
-impl<T: Ord> Vec1<T> {
-    pub(crate) fn sort(&mut self) {
-        if let Vec1Int::Vec(items) = &mut self.0 {
-            items.sort()
-        }
-    }
-}
 
 impl<T> std::ops::Add for Vec1<T> {
     type Output = Self;

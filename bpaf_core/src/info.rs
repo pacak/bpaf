@@ -54,13 +54,6 @@ pub enum Help {
     Full,
 }
 
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum Rev {
-    Bash,
-    Zsh,
-    Fish,
-}
-
 #[derive(Debug, Clone, Eq, PartialEq, Copy)]
 pub(crate) enum Extra {
     Help,
