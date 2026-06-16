@@ -61,9 +61,7 @@ impl<T: 'static> Parser for Last<T> {
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
         visitor.push_group(VisitGroup::Many);
-        visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
-        visitor.pop_group();
         visitor.pop_group();
     }
 }
