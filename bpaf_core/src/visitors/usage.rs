@@ -31,6 +31,7 @@ impl Usage<'_> {
             _ => &self.events,
         };
 
+        let mut wrote_strict_this_prod = false;
         for event in events.iter() {
             match event {
                 Event::Put(put) => {
@@ -49,8 +50,9 @@ impl Usage<'_> {
                             }
                         }
                         Put::Pos { meta, strict } => {
-                            if *strict {
+                            if *strict && !wrote_strict_this_prod {
                                 _ = write!(&mut out, "-- {M}{meta}{T}");
+                                wrote_strict_this_prod = true;
                             } else {
                                 _ = write!(&mut out, "{M}{meta}{T}");
                             }
@@ -122,6 +124,7 @@ impl Usage<'_> {
                             }
                         }
                         VG::Prod => {
+                            wrote_strict_this_prod = false;
                             if g.visible {
                                 out.push(if g.optional { ']' } else { ')' });
                             }
@@ -243,12 +246,23 @@ impl<'a> Visitor<'a> for Usage<'a> {
             *siblings += 1;
         }
         self.group_start.push(self.events.len());
-        self.events.push(Event::Group(Group {
+        let mut g = Group {
             group,
             children: 0,
             optional: false,
             visible: true,
-        }));
+        };
+        if let Some(Event::Group(parent)) = self.events.last() {
+            use VisitGroup as VG;
+            #[expect(clippy::single_match, reason = "I expect to add more rules")]
+            match (parent.group, g.group) {
+                (VG::Optional, VG::Many) => {
+                    g.optional = true;
+                }
+                _ => {}
+            }
+        }
+        self.events.push(Event::Group(g));
     }
 
     // rules:
@@ -260,7 +274,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
     // 6. replace Optional Prod (Sum) with Prod (Sum) { optional: true }
     // 7. replace Optional of Optional with a single optional layer
     //
-    // Many and Optional can have only one child
+    // Many and Optional can have only one child.
 
     fn pop_group(&mut self) {
         use VisitGroup as VG;
@@ -309,26 +323,50 @@ impl<'a> Visitor<'a> for Usage<'a> {
                     parent.children += child.children - 1;
                     false
                 }
-                (VG::Many, VG::Many) => true,         // XXX
-                (VG::Many, VG::Optional) => true,     // XXX
-                (VG::Many, VG::Prod) => true,         // XXX
-                (VG::Many, VG::Sum) => true,          // XXX
-                (VG::Optional, VG::Many) => true,     // XXX
-                (VG::Optional, VG::Optional) => true, // XXX
-                (VG::Optional, VG::Prod | VG::Sum) => {
-                    child.optional = true;
-                    parent.optional = true; // TODO use hidden
+                // Many keeps everything visible - each layer carries distinct
+                // semantics that should be rendered independently.
+                (VG::Many, VG::Many) => true, // nested repetitions: each renders its own `...`
+                (VG::Many, VG::Optional) => true, // `.many()` internal `[xxx]...` pattern
+                (VG::Many, VG::Prod | VG::Sum) => {
+                    // When Many wraps Sum/Prod and Many itself carries the optional
+                    // flag propagate it to the inner group
+                    // so [(xxx)...] renders as [xxx]...
+                    child.optional |= parent.optional;
+                    // repeated group: `(xxx)...` or `[xxx]...`
+                    // repeated alternatives: `(xxx | yyy)...`
                     true
                 }
-                (VG::Prod, VG::Many) => true,     // XXX
-                (VG::Prod, VG::Optional) => true, // XXX
-                (VG::Prod, VG::Sum) => true,      // XXX
-                (VG::Sum, VG::Many) => true,      // XXX
+                (VG::Optional, VG::Many) => {
+                    // `.optional().many()` - outer Optional later
+                    //   collapses with Many's internal Optional
+                    parent.optional = true;
+                    true
+                }
+                (VG::Optional, VG::Optional) => {
+                    // rule 7: collapsed nested optionals render as a single layer
+                    // retain childn's optionality in parent
+                    parent.optional |= child.optional;
+                    false
+                }
+                // rule 6: Optional + Prod/Sum -> Prod/Sum renders `[...]` instead of `(...)`,
+                (VG::Optional, VG::Prod | VG::Sum) => {
+                    child.optional = true;
+                    parent.optional = true; // suppress Optional's own bracket
+                    true
+                }
+                // Prod keeps everything visible - each is a distinct element inside the product.
+                (VG::Prod, VG::Many) => true, // repetition inside product: `(xxx)...`
+                (VG::Prod, VG::Optional) => true, // optional item inside product: `[xxx]`
+                (VG::Prod, VG::Sum) => true,  // alternatives inside product: `(xxx | yyy)`
+                // Sum keeps everything visible except Prod, whose brackets are redundant
+                // inside the sum's alternation.
+                (VG::Sum, VG::Many) => true, // repetition inside alternatives: `(xxx | yyy)...`
                 (VG::Sum, VG::Prod) => {
-                    child.visible = false;
-                    true // XXX
+                    child.visible = false; // hide Prod brackets, Sum already wraps in `(xxx | yyy)`
+                    true
                 }
             };
+
             if keep {
                 self.events.push(Event::Pop)
             } else {
@@ -383,6 +421,7 @@ struct Group {
     group: VisitGroup,
     children: usize,
     visible: bool,
+    /// Indicates that the group is optional rather than mandatory. Wraps contents in [xxx]
     optional: bool,
 }
 
