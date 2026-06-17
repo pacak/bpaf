@@ -170,10 +170,7 @@ use crate::{
     info::{Custom, Extra, Info},
     pecking::Mixer,
     utils::Vec1,
-    visitors::{
-        errors::{BetterName, IsAcceptedOnce, IsDDash, ValidCommand},
-        help::render_help,
-    },
+    visitors::help::render_help,
 };
 
 #[doc(inline)]
@@ -830,6 +827,10 @@ impl<'a, 'p> Executor<'a, 'p> {
     }
 
     fn complain_about(&self, unexpected: &OsStr) -> Problem {
+        use crate::visitors::errors::{
+            BetterName, IsAcceptedOnce, IsDDash, IsInCommand, ValidCommand,
+        };
+
         // Check for caught errors first - errors that were stored by .catch()
         let pos = self.ctx.cursor.get();
         for conflict in self.ctx.conflicts.borrow().iter() {

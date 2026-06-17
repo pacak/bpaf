@@ -1,4 +1,4 @@
-use crate::{Flag, Nest, visitors::VKind};
+use crate::{Flag, Lit, Nest, visitors::VKind};
 
 use super::*;
 /// Check if parser accepts a certain named item only once
@@ -260,6 +260,73 @@ impl Visitor<'_> for IsDDash {
             | Item::Command { .. }
             | Item::Section { .. }
             | Item::Rendered { .. } => {}
+        }
+    }
+
+    fn push_group(&mut self, _: VisitGroup) {}
+
+    fn pop_group(&mut self) {}
+
+    fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
+}
+
+/// Given a named item, check if there's a command at current level
+/// that accepts it, and remember the command name.
+pub(crate) struct IsInCommand<'a> {
+    /// name we are looking for
+    target: &'a Name<'a>,
+    /// A candidate command, if we found it
+    candidate: Option<&'a Lit<'static>>,
+    current_command: Option<&'a Lit<'static>>,
+}
+
+impl<'a> IsInCommand<'a> {
+    pub(crate) fn new(target: &'a Name<'a>) -> Self {
+        Self {
+            target,
+            candidate: None,
+            current_command: None,
+        }
+    }
+    pub(crate) fn into_problem(self) -> Option<Problem> {
+        let cmd = self.candidate?;
+        Some(Problem::TryInCommand {
+            cmd: cmd.clone(),
+            name: self.target.clone().into_owned(),
+        })
+    }
+}
+
+impl<'a> Visitor<'a> for IsInCommand<'a> {
+    fn item(&mut self, item: Item<'a>) {
+        if self.candidate.is_some() {
+            return;
+        }
+        match item {
+            Item::OptionParser { inner, .. } => inner.vi(self),
+            Item::Command { names, inner, .. } => {
+                if self.current_command.is_none() {
+                    self.current_command = names.first();
+                    inner.vi(self);
+                    self.current_command = None;
+                }
+            }
+            Item::Flag { named }
+            | Item::Arg { named, .. }
+            | Item::Nested {
+                outer: Nest::Named(Flag { named, .. }),
+                ..
+            } => {
+                if self.current_command.is_some() && named.names.contains(self.target) {
+                    self.candidate = self.current_command;
+                }
+            }
+            Item::Positional { .. }
+            | Item::Section { .. }
+            | Item::Rendered { .. }
+            | Item::Nested { .. } => {}
         }
     }
 

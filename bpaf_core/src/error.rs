@@ -84,6 +84,11 @@ pub enum Problem {
     NotAdjacent { name: String, value: String },
     /// parser failed with a missing item, executor find something it can't consume
     MissingGot { missing: Missing, value: String },
+    /// flag `name` is not valid in this context, but can be passed to `cmd`
+    TryInCommand {
+        cmd: Lit<'static>,
+        name: Name<'static>,
+    },
 }
 
 impl std::fmt::Display for Problem {
@@ -203,6 +208,12 @@ impl std::fmt::Display for Problem {
             }
             Problem::MissingGot { missing, value } => {
                 write!(f, "{missing}, got {Q}{value}{Q}")
+            }
+            Problem::TryInCommand { cmd, name } => {
+                write!(
+                    f,
+                    "flag {Q}{name}{Q} is not valid in this context, did you mean to pass it to command {Q}{cmd}{Q}?"
+                )
             }
         }
     }
