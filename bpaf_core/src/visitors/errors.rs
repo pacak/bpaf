@@ -1,6 +1,11 @@
-use crate::{Flag, Lit, Nest, visitors::VKind};
+use crate::{Flag, Lit, Nest, Problem, Visitor, traits::VKind};
 
 use super::*;
+
+pub(crate) trait ProblemVisitor<'a>: Visitor<'a> {
+    fn see_problem(&self) -> Option<Problem>;
+}
+
 /// Check if parser accepts a certain named item only once
 #[derive(Debug)]
 pub(crate) struct IsAcceptedOnce<'a> {
@@ -26,7 +31,10 @@ impl<'a> IsAcceptedOnce<'a> {
             in_many: 0,
         }
     }
-    pub(crate) fn into_problem(self) -> Option<Problem> {
+}
+
+impl<'a> ProblemVisitor<'a> for IsAcceptedOnce<'a> {
+    fn see_problem(&self) -> Option<Problem> {
         match self.known {
             KnownName::No | KnownName::Many => None,
             KnownName::Single => Some(Problem::OnlyOnce {
@@ -96,7 +104,10 @@ impl<'a> BetterName<'a> {
             best: "",
         }
     }
-    pub(crate) fn into_problem(self) -> Option<Problem> {
+}
+
+impl<'a> ProblemVisitor<'a> for BetterName<'a> {
+    fn see_problem(&self) -> Option<Problem> {
         if self.distance < 0.4 {
             Some(Problem::DidYouName {
                 target: Name::Long(std::borrow::Cow::Owned(self.target.to_string())),
@@ -192,7 +203,10 @@ impl<'a> ValidCommand<'a> {
             best: "",
         }
     }
-    pub(crate) fn into_problem(self) -> Option<Problem> {
+}
+
+impl<'a> ProblemVisitor<'a> for ValidCommand<'a> {
+    fn see_problem(&self) -> Option<Problem> {
         if self.distance < 0.4 {
             Some(Problem::DidYouMeanLit {
                 target: self.target.to_owned(),
@@ -228,8 +242,13 @@ impl IsDDash {
             exists: false,
         })
     }
-    pub(crate) fn into_problem(self) -> Option<Problem> {
-        self.exists.then_some(Problem::TryDDash { name: self.name })
+}
+
+impl<'a> ProblemVisitor<'a> for IsDDash {
+    fn see_problem(&self) -> Option<Problem> {
+        self.exists.then_some(Problem::TryDDash {
+            name: self.name.clone(),
+        })
     }
 }
 
@@ -290,7 +309,10 @@ impl<'a> IsInCommand<'a> {
             current_command: None,
         }
     }
-    pub(crate) fn into_problem(self) -> Option<Problem> {
+}
+
+impl<'a> ProblemVisitor<'a> for IsInCommand<'a> {
+    fn see_problem(&self) -> Option<Problem> {
         let cmd = self.candidate?;
         Some(Problem::TryInCommand {
             cmd: cmd.clone(),
@@ -335,6 +357,27 @@ impl<'a> Visitor<'a> for IsInCommand<'a> {
     fn pop_group(&mut self) {}
 
     fn identify(&self) -> crate::VKind {
+        VKind::Error
+    }
+}
+
+impl<'a> Visitor<'a> for Vec<&mut dyn ProblemVisitor<'a>> {
+    fn item(&mut self, item: Item<'a>) {
+        for v in self.iter_mut() {
+            v.item(item);
+        }
+    }
+    fn push_group(&mut self, group: VisitGroup) {
+        for v in self.iter_mut() {
+            v.push_group(group);
+        }
+    }
+    fn pop_group(&mut self) {
+        for v in self.iter_mut() {
+            v.pop_group();
+        }
+    }
+    fn identify(&self) -> VKind {
         VKind::Error
     }
 }

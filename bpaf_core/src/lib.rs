@@ -170,7 +170,7 @@ use crate::{
     info::{Custom, Extra, Info},
     pecking::Mixer,
     utils::Vec1,
-    visitors::help::render_help,
+    visitors::{errors::IsInCommand, help::render_help},
 };
 
 #[doc(inline)]
@@ -828,7 +828,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
     fn complain_about(&self, unexpected: &OsStr) -> Problem {
         use crate::visitors::errors::{
-            BetterName, IsAcceptedOnce, IsDDash, IsInCommand, ValidCommand,
+            BetterName, IsAcceptedOnce, IsDDash, ProblemVisitor, ValidCommand,
         };
 
         // Check for caught errors first - errors that were stored by .catch()
@@ -862,21 +862,26 @@ impl<'a, 'p> Executor<'a, 'p> {
                 }
 
                 // is this an only once name or a typo?
-                let once = IsAcceptedOnce::new(&unexpected);
-                let better = match &unexpected {
+                let mut once = IsAcceptedOnce::new(&unexpected);
+                let mut better = match &unexpected {
                     Name::Short(_) => None,
                     Name::Long(cow) => Some(BetterName::new(cow)),
                 };
-                let is_ddash = IsDDash::attempt(&unexpected, value.as_ref());
-                let mut visitors = (once, better, is_ddash);
+                let mut is_ddash = IsDDash::attempt(&unexpected, value.as_ref());
+                let mut vc = IsInCommand::new(&unexpected);
+
+                let mut visitors: Vec<&mut dyn ProblemVisitor<'_>> = Vec::new();
+                visitors.push(&mut once);
+                if let Some(b) = better.as_mut() {
+                    visitors.push(b);
+                }
+                if let Some(d) = is_ddash.as_mut() {
+                    visitors.push(d);
+                }
+                visitors.push(&mut vc);
+
                 self.visited.vi(&mut visitors);
-                if let Some(problem) = visitors.0.into_problem() {
-                    return problem;
-                }
-                if let Some(problem) = visitors.1.and_then(|v| v.into_problem()) {
-                    return problem;
-                }
-                if let Some(problem) = visitors.2.and_then(|v| v.into_problem()) {
+                if let Some(problem) = visitors.iter().find_map(|v| v.see_problem()) {
                     return problem;
                 }
             }
@@ -913,7 +918,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 if let Some(target) = value.to_str() {
                     let mut is_command = ValidCommand::new(target);
                     self.visited.vi(&mut is_command);
-                    if let Some(problem) = is_command.into_problem() {
+                    if let Some(problem) = is_command.see_problem() {
                         return problem;
                     }
                 }
