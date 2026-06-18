@@ -187,15 +187,26 @@ impl<T: 'static> Parser for Nested<T> {
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None);
         let res = handle.take();
+
+        let r = match (res, executor_res) {
+            (res @ Ok(_), Ok(_)) => Ok(res?),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
+            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
+        };
+
+        if let Err(crate::Error::Problem(_, ref problem)) = r {
+            let pos = ctx.cursor.get();
+            let msg = problem.to_string();
+            ctx.conflicts
+                .borrow_mut()
+                .push(crate::Conflict::Caught { pos, msg });
+        }
+
         // outer parser already consumed 1 for the trigger;
         // the -1 undoes the manual +1 above so we only count the inner parser's consumption
         ctx.consume(inner.cursor.get() - 1 - ctx.cursor.get());
 
-        match (res, executor_res) {
-            (res @ Ok(_), Ok(_)) => Ok(res?),
-            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
-        }
+        r
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
