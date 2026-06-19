@@ -148,12 +148,15 @@ async fn parse_many<'p, T: 'static>(
         ctx.next_free.set(start);
         match optional(ctx.clone(), parser).await {
             Optionality::Parsed(v) => res.push(v),
-
-            Optionality::Summoned(v) if res.is_empty() => res.push(v),
             // if value was produced without consuming anything - values
             // past the first one are not helpful (and they will never stop)
-            Optionality::Summoned(_) => break,
-
+            // include the first one in the result, but stop the loop after that
+            Optionality::Summoned(v) => {
+                if res.is_empty() {
+                    res.push(v);
+                }
+                break;
+            }
             // - no more data available
             // - got enough parses to satisfy the constraint
             // - no data is lost
