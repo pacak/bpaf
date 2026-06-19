@@ -13,6 +13,103 @@ fn last_works() {
 }
 
 #[test]
+fn last_single_item() {
+    let p = positional::<u32>("P").last();
+    let parser = p.to_options();
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 42);
+
+    let r = parser.run_inner("10 20 30").unwrap();
+    assert_eq!(r, 30);
+}
+
+#[test]
+fn count_positionals() {
+    let p = positional::<u32>("P").count();
+    let parser = p.to_options();
+
+    let r = parser.run_inner("10 20 30").unwrap();
+    assert_eq!(r, 3usize);
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 0);
+}
+
+#[test]
+fn count_req_flags() {
+    let v = short('v').req_flag(true).count();
+    let parser = v.to_options();
+
+    let r = parser.run_inner("-v -v -v").unwrap();
+    assert_eq!(r, 3);
+
+    let r = parser.run_inner("-v").unwrap();
+    assert_eq!(r, 1);
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, 0);
+}
+
+#[test]
+fn count_in_construct() {
+    let a = positional::<u32>("A");
+    let b = positional::<u32>("B").count();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("10 20 30 40").unwrap();
+    assert_eq!(r, (10, 3usize));
+
+    let r = parser.run_inner("42").unwrap();
+    assert_eq!(r, (42, 0));
+}
+
+#[test]
+fn last_in_construct() {
+    let a = positional::<u32>("A");
+    let b = positional::<u32>("B").last();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser.run_inner("10 20 30 40").unwrap();
+    assert_eq!(r, (10, 40));
+
+    let r = parser.run_inner("10 20").unwrap();
+    assert_eq!(r, (10, 20));
+}
+
+#[test]
+fn last_of_req_flag() {
+    let v = short('v').req_flag(true).last();
+    let parser = v.to_options();
+
+    let r = parser.run_inner("-v -v -v").unwrap();
+    assert!(r);
+
+    let r = parser.run_inner("-v").unwrap();
+    assert!(r);
+
+    let r = parser.run_inner("").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected '-v'\n");
+}
+
+#[test]
+fn last_with_parse_filter() {
+    let p = positional::<u32>("P")
+        .parse(|v| if v > 10 { Ok(v) } else { Err("too small") })
+        .last();
+    let parser = p.to_options();
+
+    let r = parser.run_inner("20 30 40").unwrap();
+    assert_eq!(r, 40);
+
+    let r = parser.run_inner("5 20 30").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "couldn't parse '5': too small\n");
+}
+
+#[test]
 fn last_fallback() {
     let p = positional::<u32>("P").last().fallback(42);
     let parser = p.to_options();

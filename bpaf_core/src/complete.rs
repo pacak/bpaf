@@ -473,7 +473,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         for (id, reason) in m {
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(shell.into(), reason);
 
-            let mut task = self.tasks.remove(&id).unwrap();
+            let mut task = self.tasks.remove(id).unwrap();
             let r = self.ctx.poll_in_context(&mut task);
             if task.info.parent_id.is_root() {
                 continue;

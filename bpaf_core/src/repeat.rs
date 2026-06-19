@@ -16,7 +16,8 @@ impl<T: 'static> Parser for Count<T> {
         let mut cnt = 0;
 
         let start = ctx.next_free.get();
-        loop {
+
+        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
             ctx.next_free.set(start);
             match optional(ctx.clone(), &self.inner).await {
                 Optionality::Parsed(_) => cnt += 1,
@@ -25,6 +26,7 @@ impl<T: 'static> Parser for Count<T> {
                 Optionality::Failed(e) => return Err(e),
             }
         }
+        Ok(cnt)
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
@@ -46,7 +48,7 @@ impl<T: 'static> Parser for Last<T> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         let start = ctx.next_free.get();
         let mut prev = None;
-        loop {
+        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
             ctx.next_free.set(start);
             let this = optional(ctx.clone(), &self.inner).await;
             match (prev, this) {
@@ -57,6 +59,7 @@ impl<T: 'static> Parser for Last<T> {
                 (Some(_), Optionality::Failed(e)) => return Err(e),
             }
         }
+        Ok(prev.unwrap())
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {

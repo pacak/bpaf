@@ -118,15 +118,12 @@ impl Mixer {
     }
 
     /// Goes though all the candidates and returns those that should be executed
-    pub(crate) fn for_wake(
-        &mut self,
-        tasks: &std::collections::BTreeMap<Id, crate::Task>,
-    ) -> std::vec::Drain<'_, Id> {
+    pub(crate) fn for_wake(&mut self, tasks: &crate::Tasks) -> std::vec::Drain<'_, Id> {
         self.candidates.make_contiguous().sort();
         'outer: while let Some(mut id) = self.candidates.pop_front() {
             let candidate = id;
             'inner: while id != Id(0) {
-                let task = &tasks[&id];
+                let task = &tasks[id];
                 id = task.info.parent_id.as_id();
                 if !self.seen.insert(id) {
                     // false - seen already

@@ -17,6 +17,7 @@ mod miniansi;
 mod os_str;
 mod pecking;
 mod repeat;
+mod tasks;
 mod traits;
 mod utils;
 mod visitors;
@@ -194,7 +195,7 @@ use crate::{
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::{BTreeMap, VecDeque},
+    collections::VecDeque,
     ffi::{OsStr, OsString},
     fmt::Write,
     marker::PhantomData,
@@ -639,12 +640,14 @@ impl<'p> RawCtx<'p> {
     }
 }
 
+use crate::tasks::Tasks;
+
 /// Executor connected to a context
 ///
 /// Created with [`Executor::new`]
 struct Executor<'a, 'p> {
     ctx: Ctx<'p>,
-    tasks: BTreeMap<Id, Task<'p>>,
+    tasks: Tasks<'p>,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<TaskInfo>,
     mixer: Mixer,
@@ -655,7 +658,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn new(ctx: Ctx<'p>, visited: &'a dyn Visited) -> Self {
         Self {
             ctx,
-            tasks: BTreeMap::new(),
+            tasks: Tasks::new(),
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
             visited,
@@ -687,7 +690,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             let mut cnt = 0;
             for id in self.mixer.for_wake(&self.tasks) {
                 cnt += 1;
-                let task = &mut self.tasks.get_mut(&id).unwrap();
+                let task = &mut self.tasks[id];
                 let r = self.ctx.poll_in_context(task);
                 assert!(!r); // this breaks the API
                 if task.info.consumed != 1 {
@@ -944,34 +947,36 @@ impl<'a, 'p> Executor<'a, 'p> {
     ///
     /// It will poll inner tasks as necessary, it won't poll any tasks outside of the scope
     fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) -> bool {
+        let mut state = self.tasks.drain_tasks_rev(scope);
         let mut killed_anything = false;
-        let mut final_pass = false;
-        // the idea is to avoid touching tasks with parents outside of the scope until the last pass
-        loop {
-            self.process_scheduled();
+        self.propagate();
+        self.process_scheduled();
+        while let Some(mut task) = self.tasks.drain_next(&mut state) {
+            assert!(self.ctx.pending_ops.borrow().is_empty());
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
-            let mut pending_inner_this_loop = false;
-            for (_, mut task) in self.tasks.extract_if(scope.start..scope.end, |_, t| {
-                let ready = t.info.pending == 0;
-                let inner = scope.contains(t.info.parent_id.as_id());
-                pending_inner_this_loop |= !ready && inner;
-                (inner || final_pass) && ready
-            }) {
-                let done = self.ctx.poll_in_context(&mut task);
-                assert!(done);
-                killed_anything = true;
-                // there's no more pushing to be done
-                if task.info.parent_id == Parent(0) {
-                    continue;
-                }
+
+            let done = self.ctx.poll_in_context(&mut task);
+            killed_anything |= done;
+            assert!(done);
+            // there's no more pushing to be done
+            if task.info.parent_id.is_root() {
+                continue;
+            }
+            let pid = task.info.parent_id.as_id();
+
+            if scope.contains(pid) {
+                // Parent is inside the killed scope and will be killed in a later iteration.
+                let parent = &mut self.tasks[pid];
+                parent.info.pending -= 1;
+                parent.info.consumed += task.info.consumed;
+            } else {
+                // Parent sits outside the killed scope - schedule a re-poll
+                // once all its other children are done.
                 self.to_propagate.push_back(task.info);
             }
-            self.propagate();
-            if final_pass {
-                break killed_anything;
-            }
-            final_pass = !pending_inner_this_loop;
         }
+        self.propagate();
+        killed_anything
     }
 
     /// Run the first stage of the trigger
@@ -1004,7 +1009,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
         let mut best_size = 0;
         for id in self.mixer.for_wake(&self.tasks) {
-            let task = &mut self.tasks.get_mut(&id).unwrap();
+            let task = &mut self.tasks[id];
             let r = self.ctx.poll_in_context(task);
             assert!(!r, "task should not finish during this stage");
             self.to_wake.push(id);
@@ -1021,7 +1026,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// task are either allowed to run or are being terminated
     fn stage_2(&mut self, best_size: u32) {
         for id in self.to_wake.drain(..) {
-            let Some(mut task) = self.tasks.remove(&id) else {
+            let Some(mut task) = self.tasks.remove(id) else {
                 unreachable!("Second stage got a task {id:?} that isn't in tasks?");
             };
             let term = task.info.consumed < best_size;
@@ -1034,6 +1039,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             if self.ctx.poll_in_context(&mut task) {
                 let consumed = if term { 0 } else { task.info.consumed };
                 if task.info.parent_id.is_root() {
+                    // the parent is root = there's no task to wake up
                     continue;
                 }
                 self.to_propagate.push_back(TaskInfo {
@@ -1071,7 +1077,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
         drop(sums);
         for sid in self.to_wake.drain(..) {
-            let task = self.tasks.get_mut(&sid).unwrap();
+            let task = &mut self.tasks[sid];
             let r = self.ctx.poll_in_context(task);
             assert!(!r);
         }
@@ -1094,11 +1100,10 @@ impl<'a, 'p> Executor<'a, 'p> {
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
         while let Some(info) = self.to_propagate.pop_front() {
             let id = info.parent_id.as_id();
-            let std::collections::btree_map::Entry::Occupied(mut occ_task) = self.tasks.entry(id)
-            else {
-                todo!("Unknown task {id:?} in propagete?")
-            };
-            let task = occ_task.get_mut();
+            let mut task = self
+                .tasks
+                .remove(id)
+                .unwrap_or_else(|| panic!("Unknown task {id:?} in propagate?"));
             task.info.pending -= 1;
             task.info.consumed += info.consumed;
 
@@ -1109,16 +1114,16 @@ impl<'a, 'p> Executor<'a, 'p> {
                 && task.info.pending > 0
             {
                 *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(Vec1::new(info.id));
-                self.ctx.poll_in_context(task);
+                self.ctx.poll_in_context(&mut task);
                 *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
             };
 
             if task.info.pending > 0 {
+                self.tasks.insert(id, task);
                 continue;
             }
 
-            if self.ctx.poll_in_context(task) {
-                let task = occ_task.remove();
+            if self.ctx.poll_in_context(&mut task) {
                 if task.info.parent_id.is_root() {
                     // the parent is root = there's no task to wake up
                     continue;
@@ -1129,6 +1134,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                     task.info.pending > 0,
                     "{task:?} didn't exit and didn't spawn children"
                 );
+                self.tasks.insert(id, task);
             }
         }
     }
