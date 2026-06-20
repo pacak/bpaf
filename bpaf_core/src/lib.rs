@@ -424,8 +424,16 @@ enum Conflict {
 
 #[derive(Copy, Clone, Debug)]
 enum KillReason {
+    /// Terminate this parser, record a conflict
     Conflict,
     NoMatchingInput,
+    /// Terminate this parser without recording a conflict.
+    ///
+    /// This one is used when multiple parsers respond to the
+    /// same trigger and some consume more than others. Usually it's
+    /// `--foo` as a flag vs `--foo bar` as an argument.
+    /// Recording conflict here will result in an unhelpful
+    /// "`--foo` cannot be used with `--foo`"
     TooShort,
 }
 
