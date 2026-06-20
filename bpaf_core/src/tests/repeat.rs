@@ -120,3 +120,75 @@ fn catch_on_option() {
     let r = parser.run_inner("1 42").unwrap();
     assert_eq!(r, (Some(1), 42));
 }
+
+#[test]
+fn many_many_switch() {
+    let a = short('a').switch().many().many();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, vec![vec![true, true]]);
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, vec![vec![true, true]]);
+}
+
+#[test]
+fn many_many_req() {
+    let a = short('a').req_flag(true).many().many();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, vec![vec![true, true]]);
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, vec![vec![true, true]]);
+}
+
+#[test]
+fn many_opt_switch() {
+    let a = short('a').switch().many().optional();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, Some(vec![true, true]));
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, Some(vec![true, true]));
+}
+
+#[test]
+fn many_opt_req() {
+    let a = short('a').req_flag(true).many().optional();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, Some(vec![true, true]));
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, Some(vec![true, true]));
+}
+
+#[test]
+fn opt_many_switch() {
+    let a = short('a').switch().optional().many();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, vec![Some(true), Some(true)]);
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, vec![Some(true), Some(true)]);
+}
+
+#[test]
+fn opt_many_req() {
+    let a = short('a').req_flag(true).optional().many();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a -a").unwrap();
+    assert_eq!(r, vec![Some(true), Some(true)]);
+
+    let r = parser.run_inner("-aa").unwrap();
+    assert_eq!(r, vec![Some(true), Some(true)]);
+}
