@@ -11,7 +11,7 @@
 use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 
 use crate::{
-    Ctx, Error, Id, KillReason, Lit, Name, ParseFailure, Reason, Scope, Triggers,
+    Ctx, Error, Id, KillReason, Lit, Name, ParseFailure, Reason, Triggers,
     arg::{Adjacency, Arg},
     error::CV,
     pecking::PeckingOrder,
@@ -453,7 +453,8 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             orders_by_prefix(arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
         {
             self.mixer.push_peck(order);
-            self.to_wake.extend(self.mixer.for_wake(&self.tasks));
+            self.to_wake
+                .extend(self.mixer.for_wake(&self.ctx.shared.tasks.borrow()));
 
             for id in self.to_wake.drain(..) {
                 m.entry(id).or_default().push(req.clone());
@@ -473,7 +474,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         for (id, reason) in m {
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(shell.into(), reason);
 
-            let mut task = self.tasks.remove(id).unwrap();
+            let mut task = self.ctx.shared.tasks.borrow_mut().remove(id).unwrap();
             let r = self.ctx.poll_in_context(&mut task);
             if task.info.parent_id.is_root() {
                 continue;
@@ -481,7 +482,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             self.to_propagate.push_back(task.info);
             assert!(r);
         }
-        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+        self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         self.propagate();
         Some(Ok(()))
     }

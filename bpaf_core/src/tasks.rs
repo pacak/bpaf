@@ -28,8 +28,10 @@ impl<'a> Tasks<'a> {
         self.0.get_mut(to_ix(id)).and_then(|slot| slot.take())
     }
 
-    pub(crate) fn is_empty(&self) -> bool {
-        self.0.iter().all(|t| t.is_none())
+    pub(crate) fn is_empty_in_scope(&self, scope: Scope) -> bool {
+        let start = scope.start.0.saturating_sub(1) as usize;
+        let end = (scope.end.0.saturating_sub(1) as usize).min(self.0.len());
+        self.0[start..end].iter().all(|t| t.is_none())
     }
 }
 

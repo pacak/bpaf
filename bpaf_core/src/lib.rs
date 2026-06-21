@@ -195,7 +195,7 @@ use crate::{
 use std::{
     borrow::Cow,
     cell::{Cell, RefCell},
-    collections::VecDeque,
+    collections::{BTreeMap, VecDeque},
     ffi::{OsStr, OsString},
     fmt::Write,
     marker::PhantomData,
@@ -593,9 +593,9 @@ impl<'p> RawCtx<'p> {
         parser: &'p impl Parser<Output = T>,
         kind: Kind,
     ) -> (JoinHandle<T>, Scope) {
-        let start = Id(self.next_free.get());
+        let start = Id(self.shared.next_free.get());
         let h = self.spawn(kind, parser);
-        let end = Id(self.next_free.get());
+        let end = Id(self.shared.next_free.get());
         (h, Scope { start, end })
     }
 
@@ -603,8 +603,8 @@ impl<'p> RawCtx<'p> {
     fn make_child_info(&self, kind: Kind) -> TaskInfo {
         let mut cur = self.current_task.borrow_mut();
         cur.pending += 1;
-        let id = self.next_free.get();
-        self.next_free.set(id + 1);
+        let id = self.shared.next_free.get();
+        self.shared.next_free.set(id + 1);
         TaskInfo {
             id: Id(id),
             consumed: 0,
@@ -647,7 +647,7 @@ use crate::tasks::Tasks;
 /// Created with [`Executor::new`]
 struct Executor<'a, 'p> {
     ctx: Ctx<'p>,
-    tasks: Tasks<'p>,
+    scope_start: Id,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<TaskInfo>,
     mixer: Mixer,
@@ -655,14 +655,21 @@ struct Executor<'a, 'p> {
 }
 
 impl<'a, 'p> Executor<'a, 'p> {
-    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited) -> Self {
+    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited, scope_start: Id) -> Self {
         Self {
             ctx,
-            tasks: Tasks::new(),
+            scope_start,
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
             visited,
             mixer: Default::default(),
+        }
+    }
+
+    fn current_scope(&self) -> Scope {
+        Scope {
+            start: self.scope_start,
+            end: Id(self.ctx.shared.next_free.get()),
         }
     }
 
@@ -672,7 +679,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         if res.is_ok() {
             self.ctx.cursor.update(|c| c + 1);
         } else {
-            self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+            self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         }
         res
     }
@@ -688,10 +695,17 @@ impl<'a, 'p> Executor<'a, 'p> {
             self.mixer
                 .populate_short_flag(&name, &self.ctx.triggers.borrow());
             let mut cnt = 0;
-            for id in self.mixer.for_wake(&self.tasks) {
+            let ids = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
+            for id in ids {
                 cnt += 1;
-                let task = &mut self.tasks[id];
-                let r = self.ctx.poll_in_context(task);
+                let mut task = self
+                    .ctx
+                    .shared
+                    .tasks
+                    .borrow_mut()
+                    .remove(id)
+                    .unwrap_or_else(|| panic!("Task {id:?} not found in group"));
+                let r = self.ctx.poll_in_context(&mut task);
                 assert!(!r); // this breaks the API
                 if task.info.consumed != 1 {
                     // but this is a problem, should generate an error message that we can't parse
@@ -699,6 +713,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                     todo!("should have consumed a single item")
                 }
                 self.to_wake.push(task.info.id);
+                self.ctx.shared.tasks.borrow_mut().insert(id, task);
             }
             if cnt == 0 {
                 let mut group = String::with_capacity(names.len() + 1);
@@ -723,7 +738,12 @@ impl<'a, 'p> Executor<'a, 'p> {
         while let Some(op) = { self.ctx.pending_ops.borrow_mut().pop_front() } {
             match op {
                 Op::Spawn(task) => {
-                    let old = self.tasks.insert(task.info.id, task);
+                    let old = self
+                        .ctx
+                        .shared
+                        .tasks
+                        .borrow_mut()
+                        .insert(task.info.id, task);
                     debug_assert!(old.is_none(), "Duplicated task id?");
                 }
                 Op::KillScope {
@@ -808,7 +828,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             }
 
             if self.to_wake.is_empty() {
-                self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+                self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor.get();
                 return Err(Error::Problem(pos, self.complain_about(front)));
             }
@@ -820,20 +840,35 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
 
         // terminate all the currently active tasks
-        self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
+        self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         self.process_scheduled();
 
-        assert!(
-            self.tasks.is_empty(),
-            "All tasks should be terminated when exiting execution"
-        );
+        {
+            let tasks = self.ctx.shared.tasks.borrow();
+            assert!(
+                tasks.is_empty_in_scope(self.current_scope()),
+                "All tasks in executor scope should be terminated when exiting execution"
+            );
 
-        assert!(self.ctx.pending_ops.borrow().is_empty());
-        assert!(self.tasks.is_empty());
+            assert!(self.ctx.pending_ops.borrow().is_empty());
+            assert!(tasks.is_empty_in_scope(self.current_scope()));
+        }
+
         {
             let sums = self.ctx.sums.borrow();
-            assert!(sums.is_empty(), "All sums should be removed, {:?}", sums);
+            let in_scope: Vec<_> = sums
+                .keys()
+                .filter(|k| self.current_scope().contains(**k))
+                .collect();
+            assert!(
+                in_scope.is_empty(),
+                "All sums in executor scope should be removed, {:?}",
+                in_scope
+            );
         }
+
+        // reset next_free to reclaim the ID range for this executor
+        self.ctx.shared.next_free.set(self.scope_start.0);
 
         Ok(())
     }
@@ -947,11 +982,11 @@ impl<'a, 'p> Executor<'a, 'p> {
     ///
     /// It will poll inner tasks as necessary, it won't poll any tasks outside of the scope
     fn kill_in_scope(&mut self, scope: Scope, reason: KillReason) -> bool {
-        let mut state = self.tasks.drain_tasks_rev(scope);
+        let mut state = self.ctx.shared.tasks.borrow().drain_tasks_rev(scope);
         let mut killed_anything = false;
         self.propagate();
         self.process_scheduled();
-        while let Some(mut task) = self.tasks.drain_next(&mut state) {
+        while let Some(mut task) = { self.ctx.shared.tasks.borrow_mut().drain_next(&mut state) } {
             assert!(self.ctx.pending_ops.borrow().is_empty());
             *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
 
@@ -966,7 +1001,8 @@ impl<'a, 'p> Executor<'a, 'p> {
 
             if scope.contains(pid) {
                 // Parent is inside the killed scope and will be killed in a later iteration.
-                let parent = &mut self.tasks[pid];
+                let mut tasks = self.ctx.shared.tasks.borrow_mut();
+                let parent = &mut tasks[pid];
                 parent.info.pending -= 1;
                 parent.info.consumed += task.info.consumed;
             } else {
@@ -1008,13 +1044,20 @@ impl<'a, 'p> Executor<'a, 'p> {
         *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
         let mut best_size = 0;
-        for id in self.mixer.for_wake(&self.tasks) {
-            let task = &mut self.tasks[id];
-            let r = self.ctx.poll_in_context(task);
+        let to_wake = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
+        for id in to_wake {
+            let mut task = self
+                .ctx
+                .shared
+                .tasks
+                .borrow_mut()
+                .remove(id)
+                .unwrap_or_else(|| panic!("Task {id:?} not found in stage_1"));
+            let r = self.ctx.poll_in_context(&mut task);
             assert!(!r, "task should not finish during this stage");
             self.to_wake.push(id);
-
             best_size = best_size.max(task.info.consumed);
+            self.ctx.shared.tasks.borrow_mut().insert(id, task);
         }
         *self.ctx.current_value.borrow_mut() = None;
         (best_size, mgroup)
@@ -1026,7 +1069,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// task are either allowed to run or are being terminated
     fn stage_2(&mut self, best_size: u32) {
         for id in self.to_wake.drain(..) {
-            let Some(mut task) = self.tasks.remove(id) else {
+            let Some(mut task) = self.ctx.shared.tasks.borrow_mut().remove(id) else {
                 unreachable!("Second stage got a task {id:?} that isn't in tasks?");
             };
             let term = task.info.consumed < best_size;
@@ -1065,6 +1108,9 @@ impl<'a, 'p> Executor<'a, 'p> {
         let sums = self.ctx.sums.borrow();
         for id in advancing.as_slice().iter() {
             for (sid, range) in sums.iter() {
+                if !self.current_scope().contains(*sid) {
+                    continue;
+                }
                 if range.contains(*id) {
                     self.to_wake.push(*sid);
                 }
@@ -1077,9 +1123,16 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
         drop(sums);
         for sid in self.to_wake.drain(..) {
-            let task = &mut self.tasks[sid];
-            let r = self.ctx.poll_in_context(task);
+            let mut task = self
+                .ctx
+                .shared
+                .tasks
+                .borrow_mut()
+                .remove(sid)
+                .unwrap_or_else(|| panic!("Task {sid:?} not found in notify_sums"));
+            let r = self.ctx.poll_in_context(&mut task);
             assert!(!r);
+            self.ctx.shared.tasks.borrow_mut().insert(sid, task);
         }
     }
 
@@ -1101,7 +1154,10 @@ impl<'a, 'p> Executor<'a, 'p> {
         while let Some(info) = self.to_propagate.pop_front() {
             let id = info.parent_id.as_id();
             let mut task = self
+                .ctx
+                .shared
                 .tasks
+                .borrow_mut()
                 .remove(id)
                 .unwrap_or_else(|| panic!("Unknown task {id:?} in propagate?"));
             task.info.pending -= 1;
@@ -1119,7 +1175,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             };
 
             if task.info.pending > 0 {
-                self.tasks.insert(id, task);
+                self.ctx.shared.tasks.borrow_mut().insert(id, task);
                 continue;
             }
 
@@ -1134,7 +1190,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                     task.info.pending > 0,
                     "{task:?} didn't exit and didn't spawn children"
                 );
-                self.tasks.insert(id, task);
+                self.ctx.shared.tasks.borrow_mut().insert(id, task);
             }
         }
     }
@@ -1150,10 +1206,7 @@ impl<'p> RawCtx<'p> {
 
 impl<'p> RawCtx<'p> {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork<'o>(&'o self, level: Option<&str>) -> Ctx<'o>
-    where
-        'p: 'o,
-    {
+    pub(crate) fn fork(&self, level: Option<&str>) -> Ctx<'p> {
         let mut path = self.path.clone();
         if let Some(name) = level {
             path.push(' ');
@@ -1172,6 +1225,8 @@ impl<'p> RawCtx<'p> {
             args,
             custom,
             help_and_version: extra,
+            tasks: RefCell::new(Tasks::new()),
+            next_free: Cell::new(1),
         });
         Self::make(args.app.clone(), shared, 0, false)
     }
@@ -1183,8 +1238,8 @@ impl<'p> RawCtx<'p> {
             cursor: Cell::new(cursor),
             early_exit: Default::default(),
             pending_ops: Default::default(),
-            sums: Default::default(),
-            next_free: Cell::new(1),
+            sums: Rc::new(RefCell::new(BTreeMap::new())),
+
             wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
@@ -1199,8 +1254,9 @@ impl<'p> RawCtx<'p> {
         lazy: bool,
         parser: &dyn Visited,
         info: Option<&Info>,
+        scope_start: u32,
     ) -> Result<(), Error> {
-        let r = Executor::new(self.clone(), parser).execute();
+        let r = Executor::new(self.clone(), parser, Id(scope_start)).execute();
 
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
             if lazy {
@@ -1211,12 +1267,16 @@ impl<'p> RawCtx<'p> {
             };
 
             let ctx = self.fork(None);
-            let (handle, act) = ctx.make_raw_task(self.shared.help_and_version);
+            let (handle, act) = ctx.make_raw_task(ctx.shared.help_and_version);
+
+            let alt_scope_start = ctx.shared.next_free.get();
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
-
-            if Executor::new(ctx.clone(), parser).execute().is_ok() {
+            if Executor::new(ctx.clone(), parser, Id(alt_scope_start))
+                .execute()
+                .is_ok()
+            {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {

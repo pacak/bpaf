@@ -16,6 +16,7 @@ use crate::{
     Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, Task, TaskInfo,
     args::Args,
     info::{Custom, Extra},
+    tasks::Tasks,
     traits::BoxParser,
 };
 
@@ -47,6 +48,14 @@ pub(crate) struct SharedCtx<'p> {
 
     /// instantiated --help/--version parser
     pub(crate) help_and_version: &'p BoxParser<Extra>,
+
+    /// Global task pool shared across contexts from fork
+    pub(crate) tasks: RefCell<Tasks<'p>>,
+
+    /// Next free Id
+    ///
+    /// Tasks can use it to allocate `Id`s for children tasks including overriding it temporary
+    pub(crate) next_free: Cell<u32>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -61,11 +70,6 @@ pub struct RawCtx<'p> {
     /// When there's no matching triggers executor will try to terminate anything inside of
     /// the each pair. This allows is necessary for things like `.optional()` and `.many()` to work
     pub(crate) early_exit: RefCell<BTreeSet<Scope>>,
-
-    /// Next free Id
-    ///
-    /// Tasks can use it to allocate `Id`s for children tasks including overriding
-    pub(crate) next_free: Cell<u32>,
 
     pub(crate) shared: Rc<SharedCtx<'p>>,
     pub(crate) path: String,
@@ -95,7 +99,7 @@ pub struct RawCtx<'p> {
     /// Trigger registry - maps argument patterns to parser tasks
     pub(crate) triggers: RefCell<Triggers>,
 
-    pub(crate) sums: RefCell<BTreeMap<Id, Scope>>,
+    pub(crate) sums: Rc<RefCell<BTreeMap<Id, Scope>>>,
 }
 
 pub type Ctx<'p> = Rc<RawCtx<'p>>;
@@ -117,10 +121,6 @@ pub(crate) struct Scope {
 }
 
 impl Scope {
-    pub(crate) const ALL: Scope = Scope {
-        start: Id(0),
-        end: Id(u32::MAX),
-    };
     pub(crate) fn contains(&self, id: Id) -> bool {
         self.start <= id && id < self.end
     }

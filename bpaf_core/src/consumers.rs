@@ -178,6 +178,7 @@ impl<T: 'static> Parser for Nested<T> {
             Nest::Keyword(kw) => kw.eval(ctx.clone()).await?,
         };
         let inner = ctx.fork(None);
+        let scope_start = inner.shared.next_free.get();
         // advance past the trigger name in the forked context
         inner.cursor.update(|c| c + 1);
 
@@ -185,7 +186,7 @@ impl<T: 'static> Parser for Nested<T> {
         let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
-        let executor_res = inner.execute(true, &self.inner, None);
+        let executor_res = inner.execute(true, &self.inner, None, scope_start);
         let res = handle.take();
 
         let r = match (res, executor_res) {

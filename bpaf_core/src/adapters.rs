@@ -152,13 +152,14 @@ impl<T: 'static> OptionParser<T> {
     }
 
     fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
+        let scope_start = ctx.shared.next_free.get();
         let (handle, act) = ctx.make_raw_task(&self.inner);
 
         let no_input = ctx.shared.args.len() == ctx.cursor.get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
-        let executor_res = ctx.execute(lazy, self, Some(&self.info));
+        let executor_res = ctx.execute(lazy, self, Some(&self.info), scope_start);
 
         let res = handle.take();
         if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
@@ -611,11 +612,12 @@ impl<P: Parser> Parser for AnchorStart<P> {
 
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
         let inner = ctx.fork(None);
+        let scope_start = inner.shared.next_free.get();
         let (out, handle) = crate::make_chan();
         let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
-        let executor_res = inner.execute(true, &self.inner, None);
+        let executor_res = inner.execute(true, &self.inner, None, scope_start);
         let res = handle.take();
         ctx.cursor.set(inner.cursor.get());
         match (res, executor_res) {
