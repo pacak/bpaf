@@ -101,7 +101,10 @@ impl Custom {
         Some(OnlyParser { inner })
     }
 
-    pub(crate) fn create(&self, version: Option<&'static str>) -> impl Parser<Output = Extra> {
+    pub(crate) fn create(
+        &self,
+        version: Option<&'static str>,
+    ) -> impl Parser<Output = Extra> + 'static {
         let help = self.make_help();
         let version = self.make_version(version);
 

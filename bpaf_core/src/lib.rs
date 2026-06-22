@@ -1161,8 +1161,12 @@ impl<'p> RawCtx<'p> {
         )
     }
 
-    pub(crate) fn new(args: &'p Args, custom: &'p Custom) -> Ctx<'p> {
-        let shared = Rc::new(SharedCtx { args, custom });
+    pub(crate) fn new(args: &'p Args, custom: &'p Custom, extra: &'p BoxParser<Extra>) -> Ctx<'p> {
+        let shared = Rc::new(SharedCtx {
+            args,
+            custom,
+            help_and_version: extra,
+        });
         Self::make(args.app.clone(), shared, 0, false)
     }
 
@@ -1196,10 +1200,12 @@ impl<'p> RawCtx<'p> {
             if lazy {
                 return Ok(());
             }
-            let Some(info) = info else { return r };
-            let extra = self.shared.custom.create(info.version);
+            if info.is_none() {
+                return r;
+            };
+
             let ctx = self.fork(None);
-            let (handle, act) = ctx.make_raw_task(&extra);
+            let (handle, act) = ctx.make_raw_task(self.shared.help_and_version);
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
@@ -1211,7 +1217,7 @@ impl<'p> RawCtx<'p> {
                             Extra::Help | Extra::LongHelp => {
                                 ParseFailure::Stdout(crate::visitors::help::render_help(
                                     parser,
-                                    Some(&extra),
+                                    Some(self.shared.help_and_version),
                                     &ctx.path,
                                     xtra == Extra::LongHelp,
                                 ))

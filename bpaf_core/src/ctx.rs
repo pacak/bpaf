@@ -13,8 +13,10 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, Task, TaskInfo, args::Args,
-    info::Custom,
+    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, Task, TaskInfo,
+    args::Args,
+    info::{Custom, Extra},
+    traits::BoxParser,
 };
 
 type DynamicOsStrCheck = Rc<dyn Fn(&OsStr) -> bool>;
@@ -42,6 +44,9 @@ pub(crate) struct SharedCtx<'p> {
 
     /// customizations: style, --help and --version parsers
     pub(crate) custom: &'p Custom,
+
+    /// instantiated --help/--version parser
+    pub(crate) help_and_version: &'p BoxParser<Extra>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias

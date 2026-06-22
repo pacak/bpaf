@@ -123,11 +123,12 @@ impl<T: 'static> OptionParser<T> {
             Some(custom) => custom,
             None => &Custom::default(),
         };
+        let help_and_version = custom.create(self.info.version).into_box();
 
         let mut args = args.into();
         args.check_complete()?;
 
-        let ctx = RawCtx::new(&args, custom);
+        let ctx = RawCtx::new(&args, custom, &help_and_version);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -164,7 +165,7 @@ impl<T: 'static> OptionParser<T> {
             return Err(Error::Final(ParseFailure::Stdout(
                 crate::visitors::help::render_help(
                     self,
-                    Some(&ctx.shared.custom.create(self.info.version)),
+                    Some(ctx.shared.help_and_version),
                     &ctx.path,
                     false,
                 ),
