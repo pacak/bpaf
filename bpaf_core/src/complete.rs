@@ -472,7 +472,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         }
 
         for (id, reason) in m {
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Complete(shell.into(), reason);
+            *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Complete(shell.into(), reason);
 
             let mut task = self.ctx.shared.tasks.borrow_mut().remove(id).unwrap();
             let r = self.ctx.poll_in_context(&mut task);

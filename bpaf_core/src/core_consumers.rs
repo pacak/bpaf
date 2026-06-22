@@ -44,7 +44,7 @@ impl<'p> RawCtx<'p> {
             let cur = *self.current_task.borrow();
             self.triggers.borrow_mut().pos.remove(cur.id);
         }
-        match &*self.wakeup_reason.borrow() {
+        match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(Arg::Pos { value }) => {
                 self.consume(1);
                 *self.current_value.borrow_mut() = Some(value);
@@ -96,7 +96,7 @@ impl<'p> RawCtx<'p> {
             let cur = *self.current_task.borrow();
             self.triggers.borrow_mut().checks.remove(&cur.id);
         }
-        match &*self.wakeup_reason.borrow() {
+        match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(_) => {
                 self.consume(1);
                 *self.current_value.borrow_mut() =
@@ -137,7 +137,7 @@ impl<'p> RawCtx<'p> {
         self.add_named_trigger(&literal.names, |t| &mut t.literal);
         r#yield().await;
         self.remove_named_trigger(&literal.names, |t| &mut t.literal);
-        match &*self.wakeup_reason.borrow() {
+        match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(Arg::Pos { value }) => {
                 self.consume(1);
                 Ok(Some(arg::as_name(value).unwrap().into_owned()))
@@ -175,7 +175,7 @@ impl<'p> RawCtx<'p> {
         self.add_named_trigger(&named.names, |t| &mut t.args);
         r#yield().await;
         self.remove_named_trigger(&named.names, |t| &mut t.args);
-        match &*self.wakeup_reason.borrow() {
+        match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(arg) => self.parse_arg_consume(arg.clone(), meta, named.help),
 
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.arg_triggers())),
@@ -302,7 +302,7 @@ impl<'p> RawCtx<'p> {
         r#yield().await;
         self.remove_named_trigger(&named.names, |t| &mut t.flags);
 
-        match &*self.wakeup_reason.borrow() {
+        match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(arg) => self.parse_flag_consume(arg),
             Reason::Kill(KillReason::Conflict) => Err(self.record_conflicts(named.flag_triggers())),
             Reason::Kill(KillReason::NoMatchingInput) => Ok(false),
@@ -382,7 +382,7 @@ impl<'p> RawCtx<'p> {
     #[inline(never)]
     pub(crate) async fn all_children_finish(&self, mut scopes: Vec<Scope>) {
         loop {
-            match *self.wakeup_reason.borrow() {
+            match *self.shared.wakeup_reason.borrow() {
                 Reason::ChildProgress(ref ids) => {
                     scopes.retain(|scope| {
                         let lives = ids.as_slice().iter().any(|id| scope.contains(*id));

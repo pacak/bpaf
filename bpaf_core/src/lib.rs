@@ -479,7 +479,7 @@ impl<'p> RawCtx<'p> {
         // killed as a result. Mark as outconsumed if parser succeeded.
         // Note: NoMatchingInput is NOT outconsumed - it just means there's no more input.
         if matches!(
-            &*self.wakeup_reason.borrow(),
+            &*self.shared.wakeup_reason.borrow(),
             Reason::Kill(KillReason::TooShort) | Reason::Kill(KillReason::Conflict)
         ) {
             let mut st = self.current_task.borrow_mut();
@@ -489,7 +489,7 @@ impl<'p> RawCtx<'p> {
         }
 
         // The only possible scenario for a consuming leaf is getting an `Arg`
-        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
+        if !matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
             self.current_task.borrow_mut().state = TaskState::from(success);
             return false;
         }
@@ -504,7 +504,7 @@ impl<'p> RawCtx<'p> {
         // surviving gets Pass, one that consumed less - `NoPass`, but we want to preserve the
         // error message so return true only when there's an OK result we don't want.
         let killed = matches!(
-            &*self.wakeup_reason.borrow(),
+            &*self.shared.wakeup_reason.borrow(),
             Reason::Kill(KillReason::TooShort)
         );
 
@@ -520,7 +520,7 @@ impl<'p> RawCtx<'p> {
 
     /// After consumption when called from a leaf node returns what was consumed
     pub(crate) fn leaf_range(&self) -> Option<(u32, u32)> {
-        if !matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
+        if !matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
             return None;
         }
         let start = self.cursor.get();
@@ -529,7 +529,7 @@ impl<'p> RawCtx<'p> {
     }
 
     pub(crate) fn leaf_cursor(&self) -> u32 {
-        if matches!(&*self.wakeup_reason.borrow(), Reason::Arg(_)) {
+        if matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
             self.cursor.get()
         } else {
             u32::MAX
@@ -617,11 +617,13 @@ impl<'p> RawCtx<'p> {
 
     #[inline(never)]
     fn add_task(&self, mut task: Task<'p>) {
-        *self.wakeup_reason.borrow_mut() = Reason::Pass;
+        let prev = std::mem::replace(&mut *self.shared.wakeup_reason.borrow_mut(), Reason::Pass);
         if self.poll_in_context(&mut task) {
+            *self.shared.wakeup_reason.borrow_mut() = prev;
             let mut cur = self.current_task.borrow_mut();
             cur.pending -= 1;
         } else {
+            *self.shared.wakeup_reason.borrow_mut() = prev;
             self.pending_ops.borrow_mut().push_back(Op::Spawn(task));
         }
     }
@@ -687,7 +689,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
         for (ix, name) in names.iter().copied().enumerate() {
             // set a wakeup reason, just in case
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
+            *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
                 name: Name::Short(name),
                 value: None,
             });
@@ -763,6 +765,13 @@ impl<'a, 'p> Executor<'a, 'p> {
         let mut prev_pos = self.ctx.cursor.get();
         let mut duds = 0;
 
+        // Save wakeup_reason so that nested executor runs don't leak
+        // their modifications back to the parent.
+        let saved_reason = std::mem::replace(
+            &mut *self.ctx.shared.wakeup_reason.borrow_mut(),
+            Reason::Pass,
+        );
+
         // We'll stop once there's no more data or no more candidates to run
         loop {
             // If we want to track progress by having pending parsers - we need to
@@ -791,6 +800,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             };
 
             if let Some(out) = self.check_autocomplete(front) {
+                *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
                 return out;
             }
 
@@ -830,6 +840,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             if self.to_wake.is_empty() {
                 self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
                 let pos = self.ctx.cursor.get();
+                *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
                 return Err(Error::Problem(pos, self.complain_about(front)));
             }
 
@@ -870,6 +881,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         // reset next_free to reclaim the ID range for this executor
         self.ctx.shared.next_free.set(self.scope_start.0);
 
+        *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
         Ok(())
     }
 
@@ -988,7 +1000,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         self.process_scheduled();
         while let Some(mut task) = { self.ctx.shared.tasks.borrow_mut().drain_next(&mut state) } {
             assert!(self.ctx.pending_ops.borrow().is_empty());
-            *self.ctx.wakeup_reason.borrow_mut() = Reason::Kill(reason);
+            *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Kill(reason);
 
             let done = self.ctx.poll_in_context(&mut task);
             killed_anything |= done;
@@ -1041,7 +1053,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             self.mixer
                 .populate(&arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get());
 
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Arg(arg);
+        *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
         let mut best_size = 0;
         let to_wake = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
@@ -1073,7 +1085,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 unreachable!("Second stage got a task {id:?} that isn't in tasks?");
             };
             let term = task.info.consumed < best_size;
-            *self.ctx.wakeup_reason.borrow_mut() = if term {
+            *self.ctx.shared.wakeup_reason.borrow_mut() = if term {
                 Reason::Kill(KillReason::TooShort)
             } else {
                 Reason::Pass
@@ -1102,7 +1114,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         // This should be cheap. `advancing` should have just one item, notifying
         // iterates through all the sums in the current level - should be small and we
         // are not even checking all of them
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
+        *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
         assert!(self.to_wake.is_empty(), "should be left empty by stage 2");
 
         let sums = self.ctx.sums.borrow();
@@ -1150,7 +1162,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         self.notify_sums(&advancing);
 
         // part 2, pushing parsed results up
-        *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
+        *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Push;
         while let Some(info) = self.to_propagate.pop_front() {
             let id = info.parent_id.as_id();
             let mut task = self
@@ -1169,9 +1181,10 @@ impl<'a, 'p> Executor<'a, 'p> {
                 && info.parent_kind == Kind::Sum
                 && task.info.pending > 0
             {
-                *self.ctx.wakeup_reason.borrow_mut() = Reason::ChildProgress(Vec1::new(info.id));
+                *self.ctx.shared.wakeup_reason.borrow_mut() =
+                    Reason::ChildProgress(Vec1::new(info.id));
                 self.ctx.poll_in_context(&mut task);
-                *self.ctx.wakeup_reason.borrow_mut() = Reason::Push;
+                *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Push;
             };
 
             if task.info.pending > 0 {
@@ -1227,6 +1240,7 @@ impl<'p> RawCtx<'p> {
             help_and_version: extra,
             tasks: RefCell::new(Tasks::new()),
             next_free: Cell::new(1),
+            wakeup_reason: RefCell::new(Reason::Pass),
         });
         Self::make(args.app.clone(), shared, 0, false)
     }
@@ -1236,11 +1250,11 @@ impl<'p> RawCtx<'p> {
             shared,
             current_task: Default::default(),
             cursor: Cell::new(cursor),
+
             early_exit: Default::default(),
             pending_ops: Default::default(),
             sums: Rc::new(RefCell::new(BTreeMap::new())),
 
-            wakeup_reason: RefCell::new(Reason::Pass),
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
             triggers: Default::default(),

@@ -56,6 +56,9 @@ pub(crate) struct SharedCtx<'p> {
     ///
     /// Tasks can use it to allocate `Id`s for children tasks including overriding it temporary
     pub(crate) next_free: Cell<u32>,
+
+    /// When task is woken up this contains a reason for it
+    pub(crate) wakeup_reason: RefCell<Reason<'p>>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -77,9 +80,6 @@ pub struct RawCtx<'p> {
 
     /// Value we are parsing - positional value itself or argument part of option_argument
     pub(crate) current_value: RefCell<Option<&'p OsStr>>,
-
-    /// When task is woken up this contains a reason for it
-    pub(crate) wakeup_reason: RefCell<Reason<'p>>,
 
     /// Reference to [`TaskInfo`] for the current task
     ///

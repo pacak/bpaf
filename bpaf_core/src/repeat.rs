@@ -17,7 +17,10 @@ impl<T: 'static> Parser for Count<T> {
 
         let start = ctx.shared.next_free.get();
 
-        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
+        while matches!(
+            &*ctx.shared.wakeup_reason.borrow(),
+            Reason::Pass | Reason::Push
+        ) {
             ctx.shared.next_free.set(start);
             match optional(ctx.clone(), &self.inner).await {
                 Optionality::Parsed(_) => cnt += 1,
@@ -48,7 +51,10 @@ impl<T: 'static> Parser for Last<T> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         let start = ctx.shared.next_free.get();
         let mut prev = None;
-        while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
+        while matches!(
+            &*ctx.shared.wakeup_reason.borrow(),
+            Reason::Pass | Reason::Push
+        ) {
             ctx.shared.next_free.set(start);
             let this = optional(ctx.clone(), &self.inner).await;
             match (prev, this) {
@@ -147,7 +153,10 @@ async fn parse_many<'p, T: 'static>(
 ) -> Result<Vec<T>, Error> {
     let mut res = Vec::new();
     let start = ctx.shared.next_free.get();
-    while matches!(&*ctx.wakeup_reason.borrow(), Reason::Pass | Reason::Push) {
+    while matches!(
+        &*ctx.shared.wakeup_reason.borrow(),
+        Reason::Pass | Reason::Push
+    ) {
         ctx.shared.next_free.set(start);
         match optional(ctx.clone(), parser).await {
             Optionality::Parsed(v) => res.push(v),
