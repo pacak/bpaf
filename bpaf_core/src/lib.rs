@@ -296,6 +296,8 @@ struct TaskInfo {
     // there's no pending children - if we can return immediately
     pending: u32,
     state: TaskState,
+    /// If true, this task (and all its children) use the global trigger set
+    global: bool,
 }
 
 /// Tracks tasks state
@@ -327,6 +329,7 @@ impl Default for TaskInfo {
             consumed: 0,
             pending: 0,
             state: TaskState::Pending,
+            global: false,
         }
     }
 }
@@ -419,26 +422,41 @@ enum Conflict {
         pos: u32,
         name: Name<'static>,
         id: Id,
+        global: bool,
     },
     /// Literal - command
     Lit {
         pos: u32,
         name: Lit<'static>,
         id: Id,
+        global: bool,
     },
     /// Positional item
-    Pos { pos: u32, id: Id },
+    Pos { pos: u32, id: Id, global: bool },
     /// An error caught by `.catch()` that should be displayed if there's no alternative
-    Caught { pos: u32, msg: String, id: Id },
+    Caught {
+        pos: u32,
+        msg: String,
+        id: Id,
+        global: bool,
+    },
 }
 
 impl Conflict {
     fn id(&self) -> Id {
         match self {
-            Conflict::Named { id, .. } => *id,
-            Conflict::Lit { id, .. } => *id,
-            Conflict::Pos { id, .. } => *id,
-            Conflict::Caught { id, .. } => *id,
+            Conflict::Named { id, .. }
+            | Conflict::Lit { id, .. }
+            | Conflict::Pos { id, .. }
+            | Conflict::Caught { id, .. } => *id,
+        }
+    }
+    fn global(&self) -> bool {
+        match self {
+            Conflict::Named { global, .. }
+            | Conflict::Lit { global, .. }
+            | Conflict::Pos { global, .. }
+            | Conflict::Caught { global, .. } => *global,
         }
     }
 }
@@ -587,6 +605,25 @@ impl<'p> RawCtx<'p> {
         Box::pin(async move {
             let mut res: Result<T, Error> = parser.eval(ctx.clone()).await;
             let is_final = matches!(res, Ok(_) | Err(Error::Final(_)));
+
+            // For global parsers we need to stash the error in case it fails
+            // to parse in the inner context so inner context can access it.
+            // Otherwise, the value remains unconsumed and the inner context
+            // complains about it in a confusing way
+            if let Err(Error::Problem(pos, p)) = &res
+                && ctx.current_value.borrow().is_some()
+                && let cur = ctx.shared.current_task.borrow()
+                && cur.global
+            {
+                let problem = Conflict::Caught {
+                    pos: *pos,
+                    msg: p.to_string(),
+                    id: cur.id,
+                    global: cur.global,
+                };
+                ctx.shared.conflicts.borrow_mut().push(problem);
+            }
+
             if ctx.is_outconsumed_leaf(is_final).await {
                 res = Err(Error::OUTCONSUMED);
             }
@@ -631,6 +668,7 @@ impl<'p> RawCtx<'p> {
             parent_id: Parent(cur.id.0),
             pending: 0,
             state: TaskState::Pending,
+            global: cur.global,
         }
     }
 
@@ -650,7 +688,9 @@ impl<'p> RawCtx<'p> {
 
     /// Check if task is done
     ///
-    /// Polls a [`Task`] with shared [`TaskInfo`] set to the right value
+    /// Polls a [`Task`] with shared [`TaskInfo`] set to the right value.
+    /// For global tasks, swaps local and global trigger sets so trigger
+    /// operations operate on the global set.
     fn poll_in_context(&self, task: &mut Task) -> bool {
         use std::task::{Context, Waker};
         const NOOP: Context<'static> = Context::from_waker(Waker::noop());
@@ -676,10 +716,17 @@ struct Executor<'a, 'p> {
     to_propagate: VecDeque<TaskInfo>,
     mixer: Mixer,
     visited: &'a dyn Visited,
+    /// Is this a full parser with help and everything?
+    ///
+    /// Set to `true` for command parsers and similar,
+    /// Set to `false` for nested parsers.
+    ///
+    /// global parsers run only in full parsers
+    full_parser: bool,
 }
 
 impl<'a, 'p> Executor<'a, 'p> {
-    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited, scope_start: Id) -> Self {
+    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited, scope_start: Id, full_parser: bool) -> Self {
         Self {
             ctx,
             scope_start,
@@ -687,6 +734,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             to_propagate: VecDeque::new(),
             visited,
             mixer: Default::default(),
+            full_parser,
         }
     }
 
@@ -867,16 +915,12 @@ impl<'a, 'p> Executor<'a, 'p> {
         self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         self.process_scheduled();
 
-        {
-            let tasks = self.ctx.shared.tasks.borrow();
-            assert!(
-                tasks.is_empty_in_scope(self.current_scope()),
-                "All tasks in executor scope should be terminated when exiting execution"
-            );
-
-            assert!(self.ctx.shared.pending_ops.borrow().is_empty());
-            assert!(tasks.is_empty_in_scope(self.current_scope()));
-        }
+        assert!(self.ctx.shared.pending_ops.borrow().is_empty());
+        self.ctx
+            .shared
+            .tasks
+            .borrow_mut()
+            .assert_no_tasks_past_end(self.scope_start.0);
 
         {
             let sums = self.ctx.shared.sums.borrow();
@@ -921,9 +965,10 @@ impl<'a, 'p> Executor<'a, 'p> {
                 pos: caught_pos,
                 msg,
                 id,
+                global,
             } = conflict
                 && *caught_pos == pos
-                && scope.contains(*id)
+                && (scope.contains(*id) || *global)
             {
                 return Problem::Dynamic { err: msg.clone() };
             }
@@ -940,9 +985,10 @@ impl<'a, 'p> Executor<'a, 'p> {
                         pos,
                         name: dropped,
                         id,
+                        global,
                     } = conflict
                         && &unexpected == dropped
-                        && scope.contains(*id)
+                        && (scope.contains(*id) || *global)
                     {
                         return Problem::Conflict {
                             accepted: self.ctx.shared.args[*pos].to_string_lossy().into_owned(),
@@ -979,7 +1025,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 let unexpected_name = arg::as_name(value);
                 // is it a conflict?
                 for conflict in self.ctx.shared.conflicts.borrow().iter() {
-                    if !scope.contains(conflict.id()) {
+                    if !scope.contains(conflict.id()) && !conflict.global() {
                         continue;
                     }
                     match conflict {
@@ -1072,12 +1118,25 @@ impl<'a, 'p> Executor<'a, 'p> {
             lex_os_arg(front)
         };
 
-        let mgroup = self.mixer.populate(
-            front,
-            &arg,
-            &self.ctx.triggers.borrow(),
-            self.ctx.strict_pos.get(),
-        );
+        let mut mgroup = None;
+
+        if self.full_parser {
+            mgroup = self.mixer.populate(
+                front,
+                &arg,
+                &self.ctx.shared.global_triggers.borrow(),
+                self.ctx.strict_pos.get(),
+            );
+        }
+
+        if self.mixer.is_empty() && mgroup.is_none() {
+            mgroup = self.mixer.populate(
+                front,
+                &arg,
+                &self.ctx.triggers.borrow(),
+                self.ctx.strict_pos.get(),
+            );
+        }
 
         *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
@@ -1136,7 +1195,8 @@ impl<'a, 'p> Executor<'a, 'p> {
     /// Notify sums about children making progress
     ///
     /// Only sum items that made progress should continue - to avoid the data loss.
-    fn notify_sums(&mut self, advancing: &Vec1<Id>) {
+    /// When `global_advance` is true, all sums are notified regardless of executor scope.
+    fn notify_sums(&mut self, advancing: &Vec1<Id>, global_advance: bool) {
         // This should be cheap. `advancing` should have just one item, notifying
         // iterates through all the sums in the current level - should be small and we
         // are not even checking all of them
@@ -1146,7 +1206,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         let sums = self.ctx.shared.sums.borrow();
         for id in advancing.as_slice().iter() {
             for (sid, range) in sums.iter() {
-                if !self.current_scope().contains(*sid) {
+                if !global_advance && !self.current_scope().contains(*sid) {
                     continue;
                 }
                 if range.contains(*id) {
@@ -1180,12 +1240,16 @@ impl<'a, 'p> Executor<'a, 'p> {
         // those that don't.
         // not reusing capacity, in most cases it will be exactly one branch advancing
         let mut advancing = Vec1::default();
+        let mut global_advance = false;
         for info in self.to_propagate.iter().copied() {
             if info.consumed > 0 {
-                advancing.push(info.id)
+                advancing.push(info.id);
+                if info.global {
+                    global_advance = true;
+                }
             }
         }
-        self.notify_sums(&advancing);
+        self.notify_sums(&advancing, global_advance);
 
         // part 2, pushing parsed results up
         *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Push;
@@ -1263,6 +1327,7 @@ impl<'p> RawCtx<'p> {
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
             cursor: Cell::new(0),
+            global_triggers: Rc::new(RefCell::new(Triggers::default())),
             current_task: RefCell::new(TaskInfo::default()),
             sums: RefCell::new(BTreeMap::new()),
             pending_ops: RefCell::new(VecDeque::new()),
@@ -1291,7 +1356,7 @@ impl<'p> RawCtx<'p> {
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<(), Error> {
-        let r = Executor::new(self.clone(), parser, Id(scope_start)).execute();
+        let r = Executor::new(self.clone(), parser, Id(scope_start), info.is_some()).execute();
 
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
             if lazy {
@@ -1312,7 +1377,7 @@ impl<'p> RawCtx<'p> {
             let task = Task { act, info };
             ctx.add_task(task);
             assert!(ctx.shared.pending_ops.borrow().is_empty());
-            let exec_res = Executor::new(ctx.clone(), parser, Id(alt_scope_start)).execute();
+            let exec_res = Executor::new(ctx.clone(), parser, Id(alt_scope_start), false).execute();
             assert!(ctx.shared.pending_ops.borrow().is_empty());
             ctx.shared.current_task.replace(saved_current);
             if exec_res.is_ok() {
@@ -1576,6 +1641,7 @@ mod tests {
     mod errors;
     mod flag;
     mod git;
+    mod global;
     mod help;
     mod nested;
     mod offset;

@@ -27,12 +27,6 @@ impl<'a> Tasks<'a> {
     pub(crate) fn remove(&mut self, id: Id) -> Option<Task<'a>> {
         self.0.get_mut(to_ix(id)).and_then(|slot| slot.take())
     }
-
-    pub(crate) fn is_empty_in_scope(&self, scope: Scope) -> bool {
-        let start = scope.start.0.saturating_sub(1) as usize;
-        let end = (scope.end.0.saturating_sub(1) as usize).min(self.0.len());
-        self.0[start..end].iter().all(|t| t.is_none())
-    }
 }
 
 impl<'a> Index<Id> for Tasks<'a> {
@@ -77,5 +71,14 @@ impl<'a> Tasks<'a> {
             }
         }
         None
+    }
+
+    /// Assert that there's no leftover tasks past the end
+    ///
+    /// And truncate the inner vector to make iterations faster
+    pub(crate) fn assert_no_tasks_past_end(&mut self, end: u32) {
+        let start = end.saturating_sub(1) as usize;
+        assert!(self.0[start..].iter().all(|t| t.is_none()));
+        self.0.truncate(start);
     }
 }

@@ -205,14 +205,15 @@ impl<T: 'static> Parser for Nested<T> {
         let consumed = end - saved - 1;
 
         if let Err(crate::Error::Problem(_, ref problem)) = r {
-            let id = ctx.shared.current_task.borrow().id;
+            let cur = ctx.shared.current_task.borrow();
             ctx.shared
                 .conflicts
                 .borrow_mut()
                 .push(crate::Conflict::Caught {
                     pos: saved,
                     msg: problem.to_string(),
-                    id,
+                    id: cur.id,
+                    global: cur.global,
                 });
         }
 

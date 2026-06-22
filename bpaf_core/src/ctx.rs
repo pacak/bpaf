@@ -2,7 +2,7 @@
 //! trying to run them, but async monad is very limited in Rust so shared state in [`Rc`] it is.
 
 use std::{
-    cell::{Cell, RefCell},
+    cell::{Cell, RefCell, RefMut},
     collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     ffi::OsStr,
     hash::Hash,
@@ -63,6 +63,11 @@ pub(crate) struct SharedCtx<'p> {
     /// When task is woken up this contains a reason for it
     pub(crate) wakeup_reason: RefCell<Reason<'p>>,
 
+    /// Global trigger set, shared across all executor scopes.
+    ///
+    /// Tasks marked with [`global`](crate::Parser::global) register their triggers here.
+    pub(crate) global_triggers: Rc<RefCell<Triggers>>,
+
     /// Reference to [`TaskInfo`] for the current task
     ///
     /// Executor sets it to the right value when polling a task.
@@ -101,6 +106,9 @@ pub struct RawCtx<'p> {
     pub(crate) strict_pos: Cell<bool>,
 
     /// Trigger registry - maps argument patterns to parser tasks
+    ///
+    /// Per-executor (local) trigger set. Replaced with
+    /// [`SharedCtx::global_triggers`] when polling a global task.
     pub(crate) triggers: RefCell<Triggers>,
 }
 
@@ -128,23 +136,31 @@ impl Scope {
 }
 
 impl<'p> RawCtx<'p> {
+    /// Returns a mutable borrow of the trigger set appropriate for the current task.
+    ///
+    /// Global tasks borrow [`SharedCtx::global_triggers`], others
+    /// borrow the per-executor local [`triggers`](RawCtx::triggers).
+    pub(crate) fn task_triggers(&self) -> RefMut<'_, Triggers> {
+        if self.shared.current_task.borrow().global {
+            self.shared.global_triggers.borrow_mut()
+        } else {
+            self.triggers.borrow_mut()
+        }
+    }
+
     pub(crate) fn add_named_trigger<K: Eq + Hash + Clone>(
         &self,
         names: &[K],
         getmap: impl FnOnce(&mut Triggers) -> &mut HashMap<K, PeckingOrder>,
     ) {
         let cur = self.shared.current_task.borrow();
-        let mut t = self.triggers.borrow_mut();
+        let mut t = self.task_triggers();
         let map = getmap(&mut t);
         for name in names.iter().cloned() {
             map.entry(name)
                 .or_default()
                 .insert(cur.parent_id, cur.id, cur.parent_kind);
         }
-    }
-
-    pub(crate) fn cursor(&self) -> &Cell<u32> {
-        &self.shared.cursor
     }
 
     pub(crate) fn remove_named_trigger<K: Eq + Hash + Clone>(
@@ -156,7 +172,7 @@ impl<'p> RawCtx<'p> {
         use std::collections::hash_map::Entry;
 
         let cur = self.shared.current_task.borrow();
-        let mut t = self.triggers.borrow_mut();
+        let mut t = self.task_triggers();
         let map = getmap(&mut t);
         for name in names.iter().cloned() {
             if let Entry::Occupied(mut e) = map.entry(name)
@@ -165,5 +181,9 @@ impl<'p> RawCtx<'p> {
                 e.remove();
             }
         }
+    }
+
+    pub(crate) fn cursor(&self) -> &Cell<u32> {
+        &self.shared.cursor
     }
 }

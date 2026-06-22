@@ -5,8 +5,8 @@
 use crate::{
     Ctx, Error, Exit, Lit, Metavar, Named, Nest,
     adapters::{
-        Fallback, FallbackWith, Group, Guard, Hide, Map, OptionParser, Optional, OrExit, Parse,
-        ThenExit, WithOffset,
+        Fallback, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser, Optional, OrExit,
+        Parse, ThenExit, WithOffset,
     },
     completions::CompHelp,
     error::ParseFailure,
@@ -268,6 +268,18 @@ pub trait Parser {
         Self: Sized,
     {
         CompHelp { inner: self, help }
+    }
+
+    /// Mark this parser as global - its triggers are shared across all executor scopes.
+    ///
+    /// Global tasks' triggers are visible to every subcommand and nested executor,
+    /// and when a global task advances it notifies all sums, not just those within
+    /// the current executor scope.
+    fn global(self) -> Global<Self>
+    where
+        Self: Sized,
+    {
+        Global { inner: self }
     }
 }
 

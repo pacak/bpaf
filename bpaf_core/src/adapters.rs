@@ -1,6 +1,6 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
-    Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
+    Ctx, Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
     RcParser, Scope, Task, TaskInfo, VKind, Visited,
     args::Args,
     complete::handle_subparser_complete,
@@ -84,11 +84,16 @@ impl<P: Parser> Parser for Optional<P> {
                 if let crate::Error::Problem(_, ref problem) = e {
                     let pos = ctx.cursor().get();
                     let msg = problem.to_string();
-                    let id = ctx.shared.current_task.borrow().id;
+                    let cur = ctx.shared.current_task.borrow();
                     ctx.shared
                         .conflicts
                         .borrow_mut()
-                        .push(crate::Conflict::Caught { pos, msg, id });
+                        .push(crate::Conflict::Caught {
+                            pos,
+                            msg,
+                            id: cur.id,
+                            global: cur.global,
+                        });
                 }
                 Ok(None)
             }
@@ -647,5 +652,28 @@ impl<P: Parser> Parser for AnchorStart<P> {
             // not really improving the error message
             self.inner.visit(visitor);
         }
+    }
+}
+
+/// Mark this parser and all its descendants as using the global trigger set.
+///
+/// Global triggers persist across all executor scopes (including forked
+/// contexts from subcommands) and are shared by all running executors.
+pub struct Global<P> {
+    pub(crate) inner: P,
+}
+
+impl<P: Parser> Parser for Global<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
+        ctx.shared.current_task.borrow_mut().global = true;
+        let f = ctx.spawn(Kind::Prod, &self.inner);
+        ctx.wait_for_children().await;
+        f.take()
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        self.inner.visit(visitor);
     }
 }

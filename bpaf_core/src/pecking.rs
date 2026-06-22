@@ -100,6 +100,9 @@ impl Mixer {
     pub(crate) fn candidates_len(&self) -> usize {
         self.candidates.len()
     }
+    pub(crate) fn is_empty(&self) -> bool {
+        self.candidates.is_empty()
+    }
 
     pub(crate) fn push_peck(&mut self, order: &PeckingOrder) {
         match &order.0 {

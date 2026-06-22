@@ -13,11 +13,21 @@ use crate::{
 use std::{ffi::OsStr, rc::Rc};
 
 impl TTarget {
-    fn into_conflict(self, pos: u32, id: Id) -> Conflict {
+    fn into_conflict(self, pos: u32, id: Id, global: bool) -> Conflict {
         match self {
-            TTarget::Arg(name) | TTarget::Flag(name) => Conflict::Named { pos, name, id },
-            TTarget::Pos => Conflict::Pos { pos, id },
-            TTarget::Literal(name) => Conflict::Lit { pos, name, id },
+            TTarget::Arg(name) | TTarget::Flag(name) => Conflict::Named {
+                pos,
+                name,
+                id,
+                global,
+            },
+            TTarget::Pos => Conflict::Pos { pos, id, global },
+            TTarget::Literal(name) => Conflict::Lit {
+                pos,
+                name,
+                id,
+                global,
+            },
         }
     }
 }
@@ -34,15 +44,14 @@ impl<'p> RawCtx<'p> {
     ) -> Result<Option<&'p OsStr>, Error> {
         {
             let cur = *self.shared.current_task.borrow();
-            self.triggers
-                .borrow_mut()
+            self.task_triggers()
                 .pos
                 .insert(cur.parent_id, cur.id, cur.parent_kind);
         }
         r#yield().await;
         {
             let cur = *self.shared.current_task.borrow();
-            self.triggers.borrow_mut().pos.remove(cur.id);
+            self.task_triggers().pos.remove(cur.id);
         }
         match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(Arg::Pos { value }) => {
@@ -86,15 +95,12 @@ impl<'p> RawCtx<'p> {
     ) -> Result<bool, Error> {
         {
             let cur = *self.shared.current_task.borrow();
-            self.triggers
-                .borrow_mut()
-                .checks
-                .insert(cur.id, check.clone());
+            self.task_triggers().checks.insert(cur.id, check.clone());
         }
         r#yield().await;
         {
             let cur = *self.shared.current_task.borrow();
-            self.triggers.borrow_mut().checks.remove(&cur.id);
+            self.task_triggers().checks.remove(&cur.id);
         }
         match &*self.shared.wakeup_reason.borrow() {
             Reason::Arg(_) => {
@@ -361,11 +367,12 @@ impl<'p> RawCtx<'p> {
         // We do this so when we encounter something we can't parse - we check if it was ever
         // possible to parse it before. This gives a position we parsed instead
         let pos = self.cursor().get();
-        let id = self.shared.current_task.borrow().id;
-        self.shared
-            .conflicts
-            .borrow_mut()
-            .extend(items.into_iter().map(|t| t.into_conflict(pos, id)));
+        let cur = self.shared.current_task.borrow();
+        self.shared.conflicts.borrow_mut().extend(
+            items
+                .into_iter()
+                .map(|t| t.into_conflict(pos, cur.id, cur.global)),
+        );
         Error::Silent("Killed by conflict")
     }
 
