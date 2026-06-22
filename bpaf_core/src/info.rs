@@ -121,7 +121,7 @@ impl<P: Parser> Parser for OnlyParser<P> {
 
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Self::Output, Error> {
         let r = self.inner.eval(ctx.clone()).await?;
-        if ctx.current_task.borrow().consumed == ctx.shared.args.len() {
+        if ctx.shared.current_task.borrow().consumed == ctx.shared.args.len() {
             Ok(r)
         } else {
             Err(Error::Silent("Must be the only item"))

@@ -87,7 +87,7 @@ pub mod api {
             }
 
             async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-                let id = ctx.current_task.borrow().id;
+                let id = ctx.shared.current_task.borrow().id;
                 let mut scopes = Vec::with_capacity(self.items.len());
                 let mut handles = Vec::with_capacity(self.items.len());
                 for parser in &self.items {
@@ -108,7 +108,7 @@ pub mod api {
 
                 let mut acc = Error::Silent("Empty Sum?");
 
-                let consumed = ctx.current_task.borrow().consumed > 0;
+                let consumed = ctx.shared.current_task.borrow().consumed > 0;
 
                 // prefer final error if present or the earliest result
                 let mut val = None;
@@ -282,7 +282,7 @@ pub enum Kind {
 /// Shared state and meta info about tasks
 ///
 /// Used by the executor but also shared with the task itself as it runs in
-/// [`Ctx::current_task`]
+/// [`SharedCtx::current_task`]
 #[derive(Debug, Clone, Copy)]
 struct TaskInfo {
     /// Current task Id
@@ -482,7 +482,7 @@ impl<'p> RawCtx<'p> {
             &*self.shared.wakeup_reason.borrow(),
             Reason::Kill(KillReason::TooShort) | Reason::Kill(KillReason::Conflict)
         ) {
-            let mut st = self.current_task.borrow_mut();
+            let mut st = self.shared.current_task.borrow_mut();
             st.state = TaskState::Failure;
             st.consumed = 0;
             return success;
@@ -490,14 +490,14 @@ impl<'p> RawCtx<'p> {
 
         // The only possible scenario for a consuming leaf is getting an `Arg`
         if !matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
-            self.current_task.borrow_mut().state = TaskState::from(success);
+            self.shared.current_task.borrow_mut().state = TaskState::from(success);
             return false;
         }
         // if parser fails to produce a result due to validation or `FromStr`
         // we reset `consumed` back to zero so more conservative parallel branches
         // that did manage to produce a result can succeed
         if !success {
-            self.current_task.borrow_mut().consumed = 0;
+            self.shared.current_task.borrow_mut().consumed = 0;
         }
 
         r#yield().await; // between stage_1 and stage_2
@@ -508,7 +508,7 @@ impl<'p> RawCtx<'p> {
             Reason::Kill(KillReason::TooShort)
         );
 
-        let mut st = self.current_task.borrow_mut();
+        let mut st = self.shared.current_task.borrow_mut();
         st.state = TaskState::from(success && !killed);
 
         if killed {
@@ -524,7 +524,7 @@ impl<'p> RawCtx<'p> {
             return None;
         }
         let start = self.cursor().get();
-        let end = start + self.current_task.borrow().consumed;
+        let end = start + self.shared.current_task.borrow().consumed;
         (end > start).then_some((start, end))
     }
 
@@ -601,7 +601,7 @@ impl<'p> RawCtx<'p> {
 
     #[inline(never)]
     fn make_child_info(&self, kind: Kind) -> TaskInfo {
-        let mut cur = self.current_task.borrow_mut();
+        let mut cur = self.shared.current_task.borrow_mut();
         cur.pending += 1;
         let id = self.shared.next_free.get();
         self.shared.next_free.set(id + 1);
@@ -620,7 +620,7 @@ impl<'p> RawCtx<'p> {
         let prev = std::mem::replace(&mut *self.shared.wakeup_reason.borrow_mut(), Reason::Pass);
         if self.poll_in_context(&mut task) {
             *self.shared.wakeup_reason.borrow_mut() = prev;
-            let mut cur = self.current_task.borrow_mut();
+            let mut cur = self.shared.current_task.borrow_mut();
             cur.pending -= 1;
         } else {
             *self.shared.wakeup_reason.borrow_mut() = prev;
@@ -634,10 +634,12 @@ impl<'p> RawCtx<'p> {
     fn poll_in_context(&self, task: &mut Task) -> bool {
         use std::task::{Context, Waker};
         const NOOP: Context<'static> = Context::from_waker(Waker::noop());
-        std::mem::swap(&mut task.info, &mut self.current_task.borrow_mut());
+
+        std::mem::swap(&mut task.info, &mut self.shared.current_task.borrow_mut());
         #[expect(const_item_mutation)]
         let done = task.act.as_mut().poll(&mut NOOP).is_ready();
-        std::mem::swap(&mut task.info, &mut self.current_task.borrow_mut());
+        std::mem::swap(&mut task.info, &mut self.shared.current_task.borrow_mut());
+
         done
     }
 }
@@ -1211,7 +1213,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
 impl<'p> RawCtx<'p> {
     pub async fn wait_for_children(&self) {
-        if self.current_task.borrow().pending > 0 {
+        if self.shared.current_task.borrow().pending > 0 {
             Yield(false).await;
         }
     }
@@ -1237,6 +1239,7 @@ impl<'p> RawCtx<'p> {
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
             cursor: Cell::new(0),
+            current_task: RefCell::new(TaskInfo::default()),
         });
         Self::make(args.app.clone(), shared, false)
     }
@@ -1244,7 +1247,6 @@ impl<'p> RawCtx<'p> {
     fn make<'o>(path: String, shared: Rc<SharedCtx<'o>>, strict_pos: bool) -> Ctx<'o> {
         Rc::new(RawCtx {
             shared,
-            current_task: Default::default(),
 
             early_exit: Default::default(),
             pending_ops: Default::default(),
@@ -1279,13 +1281,15 @@ impl<'p> RawCtx<'p> {
             let (handle, act) = ctx.make_raw_task(ctx.shared.help_and_version);
 
             let alt_scope_start = ctx.shared.next_free.get();
+            // See `OptionParser::run_in_ctx` for why we reset `current_task`
+            // around the inner executor.
+            let saved_current = ctx.shared.current_task.replace(TaskInfo::default());
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
-            if Executor::new(ctx.clone(), parser, Id(alt_scope_start))
-                .execute()
-                .is_ok()
-            {
+            let exec_res = Executor::new(ctx.clone(), parser, Id(alt_scope_start)).execute();
+            ctx.shared.current_task.replace(saved_current);
+            if exec_res.is_ok() {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {

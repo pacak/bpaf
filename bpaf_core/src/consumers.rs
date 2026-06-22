@@ -183,11 +183,16 @@ impl<T: 'static> Parser for Nested<T> {
         let saved = ctx.cursor().get();
         ctx.cursor().set(saved + 1);
 
+        let saved_current = inner
+            .shared
+            .current_task
+            .replace(crate::TaskInfo::default());
         let (out, handle) = make_chan();
         let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None, scope_start);
+        inner.shared.current_task.replace(saved_current);
         let res = handle.take();
 
         let r = match (res, executor_res) {
@@ -397,7 +402,7 @@ where
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
         let res = ctx.parse_arg(&self.named, self.metavar).await?;
         if let Some(os) = res {
-            if self.adjacent && ctx.current_task.borrow().consumed == 2 {
+            if self.adjacent && ctx.shared.current_task.borrow().consumed == 2 {
                 let cursor = ctx.cursor().get();
                 let name = ctx.shared.args[cursor].to_string_lossy().into_owned();
                 let value = ctx.shared.args[cursor + 1].to_string_lossy().into_owned();
@@ -571,7 +576,7 @@ pub struct Pure<T> {
 impl<T: 'static + Clone> Parser for Pure<T> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let id = ctx.current_task.borrow().id;
+        let id = ctx.shared.current_task.borrow().id;
         let scope = Scope {
             start: id,
             end: Id(id.0 + 1),

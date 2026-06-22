@@ -62,6 +62,11 @@ pub(crate) struct SharedCtx<'p> {
 
     /// When task is woken up this contains a reason for it
     pub(crate) wakeup_reason: RefCell<Reason<'p>>,
+
+    /// Reference to [`TaskInfo`] for the current task
+    ///
+    /// Executor sets it to the right value when polling a task.
+    pub(crate) current_task: RefCell<TaskInfo>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -82,11 +87,6 @@ pub struct RawCtx<'p> {
 
     /// Value we are parsing - positional value itself or argument part of option_argument
     pub(crate) current_value: RefCell<Option<&'p OsStr>>,
-
-    /// Reference to [`TaskInfo`] for the current task
-    ///
-    /// Executor sets it to the right value when polling a task
-    pub(crate) current_task: RefCell<TaskInfo>,
 
     /// We keep track of all the early terminated branches, saving each termination along with
     /// the position - from that we'll deduce conflict info
@@ -134,7 +134,7 @@ impl<'p> RawCtx<'p> {
         names: &[K],
         getmap: impl FnOnce(&mut Triggers) -> &mut HashMap<K, PeckingOrder>,
     ) {
-        let cur = self.current_task.borrow();
+        let cur = self.shared.current_task.borrow();
         let mut t = self.triggers.borrow_mut();
         let map = getmap(&mut t);
         for name in names.iter().cloned() {
@@ -156,7 +156,7 @@ impl<'p> RawCtx<'p> {
     ) {
         use std::collections::hash_map::Entry;
 
-        let cur = self.current_task.borrow();
+        let cur = self.shared.current_task.borrow();
         let mut t = self.triggers.borrow_mut();
         let map = getmap(&mut t);
         for name in names.iter().cloned() {

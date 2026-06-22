@@ -24,7 +24,7 @@ impl TTarget {
 
 impl<'p> RawCtx<'p> {
     pub(crate) fn consume(&self, cnt: u32) {
-        self.current_task.borrow_mut().consumed += cnt;
+        self.shared.current_task.borrow_mut().consumed += cnt;
     }
 
     pub(crate) async fn parse_pos(
@@ -33,7 +33,7 @@ impl<'p> RawCtx<'p> {
         meta: Metavar,
     ) -> Result<Option<&'p OsStr>, Error> {
         {
-            let cur = *self.current_task.borrow();
+            let cur = *self.shared.current_task.borrow();
             self.triggers
                 .borrow_mut()
                 .pos
@@ -41,7 +41,7 @@ impl<'p> RawCtx<'p> {
         }
         r#yield().await;
         {
-            let cur = *self.current_task.borrow();
+            let cur = *self.shared.current_task.borrow();
             self.triggers.borrow_mut().pos.remove(cur.id);
         }
         match &*self.shared.wakeup_reason.borrow() {
@@ -85,7 +85,7 @@ impl<'p> RawCtx<'p> {
         check: Rc<dyn Fn(&OsStr) -> bool>,
     ) -> Result<bool, Error> {
         {
-            let cur = *self.current_task.borrow();
+            let cur = *self.shared.current_task.borrow();
             self.triggers
                 .borrow_mut()
                 .checks
@@ -93,7 +93,7 @@ impl<'p> RawCtx<'p> {
         }
         r#yield().await;
         {
-            let cur = *self.current_task.borrow();
+            let cur = *self.shared.current_task.borrow();
             self.triggers.borrow_mut().checks.remove(&cur.id);
         }
         match &*self.shared.wakeup_reason.borrow() {
@@ -402,11 +402,11 @@ impl<'p> RawCtx<'p> {
                         // De-registering the sum avoids extra wakeups.
                         self.sums
                             .borrow_mut()
-                            .remove(&self.current_task.borrow().id);
+                            .remove(&self.shared.current_task.borrow().id);
                     }
                 }
                 Reason::Push => {
-                    if self.current_task.borrow().pending == 0 {
+                    if self.shared.current_task.borrow().pending == 0 {
                         break;
                     }
                 }

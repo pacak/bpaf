@@ -73,7 +73,7 @@ fn arrange<T: 'static>(
 
     let run: Box<dyn Fn(Ctx) -> Box<dyn FnOnce() -> Result<[Result<T, Error>; 4], Error>>> =
         Box::new(move |ctx: Ctx| {
-            let cur_kind = ctx.current_task.borrow().parent_kind;
+            let cur_kind = ctx.shared.current_task.borrow().parent_kind;
             let info1234 = ctx.make_child_info(cur_kind);
             let info12 = ctx.make_child_info(kind_1234);
             let info34 = ctx.make_child_info(kind_1234);
@@ -123,7 +123,7 @@ fn arrange<T: 'static>(
                     ..info1234
                 },
             });
-            ctx.current_task.borrow_mut().pending -= 6;
+            ctx.shared.current_task.borrow_mut().pending -= 6;
 
             Box::new(|| Ok([ha.take(), hb.take(), hc.take(), hd.take()]))
         });

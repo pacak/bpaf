@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
     Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
-    RcParser, Scope, Task, VKind, Visited,
+    RcParser, Scope, Task, TaskInfo, VKind, Visited,
     args::Args,
     complete::handle_subparser_complete,
     error::MissingItem,
@@ -46,12 +46,12 @@ pub(crate) async fn optional<'p, T: 'static>(
     ctx: crate::Ctx<'p>,
     parser: &'p impl Parser<Output = T>,
 ) -> Optionality<T> {
-    let before = ctx.current_task.borrow().consumed;
+    let before = ctx.shared.current_task.borrow().consumed;
     let (handle, scope) = ctx.scoped_spawn(parser, Kind::Sum);
     ctx.early_exit.borrow_mut().insert(scope);
     ctx.wait_for_children().await;
     ctx.early_exit.borrow_mut().remove(&scope);
-    let stalled = ctx.current_task.borrow().consumed == before;
+    let stalled = ctx.shared.current_task.borrow().consumed == before;
     match handle.take() {
         Ok(v) if stalled => Optionality::Summoned(v),
         Ok(v) => Optionality::Parsed(v),
@@ -80,7 +80,7 @@ impl<P: Parser> Parser for Optional<P> {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
             Optionality::Failed(e) if self.catch => {
-                ctx.current_task.borrow_mut().consumed = 0;
+                ctx.shared.current_task.borrow_mut().consumed = 0;
                 if let crate::Error::Problem(_, ref problem) = e {
                     let pos = ctx.cursor().get();
                     let msg = problem.to_string();
@@ -153,13 +153,15 @@ impl<T: 'static> OptionParser<T> {
 
     fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let scope_start = ctx.shared.next_free.get();
-        let (handle, act) = ctx.make_raw_task(&self.inner);
 
+        let saved_current = ctx.shared.current_task.replace(TaskInfo::default());
+        let (handle, act) = ctx.make_raw_task(&self.inner);
         let no_input = ctx.shared.args.len() == ctx.cursor().get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
         let executor_res = ctx.execute(lazy, self, Some(&self.info), scope_start);
+        ctx.shared.current_task.replace(saved_current);
 
         let res = handle.take();
         if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
@@ -501,7 +503,7 @@ pub struct PureWith<F> {
 impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for PureWith<F> {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<T, Error> {
-        let id = ctx.current_task.borrow().id;
+        let id = ctx.shared.current_task.borrow().id;
         let scope = Scope {
             start: id,
             end: Id(id.0 + 1),
@@ -553,7 +555,7 @@ where
     type Output = (Option<u32>, P::Output);
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<(Option<u32>, P::Output), Error> {
         let t = self.inner.eval(ctx.clone()).await?;
-        let consumed = ctx.current_task.borrow().consumed > 0;
+        let consumed = ctx.shared.current_task.borrow().consumed > 0;
         Ok((consumed.then_some(ctx.cursor().get()), t))
     }
 
@@ -615,11 +617,13 @@ impl<P: Parser> Parser for AnchorStart<P> {
         let inner = ctx.fork(None);
         let scope_start = inner.shared.next_free.get();
         let saved = ctx.cursor().get();
+        let saved_current = inner.shared.current_task.replace(TaskInfo::default());
         let (out, handle) = crate::make_chan();
         let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None, scope_start);
+        inner.shared.current_task.replace(saved_current);
         let res = handle.take();
         let r = match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
