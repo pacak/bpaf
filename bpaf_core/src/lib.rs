@@ -655,6 +655,32 @@ impl<'p> RawCtx<'p> {
         (h, Scope { start, end })
     }
 
+    /// Run a `parser` in an inner executor
+    fn run_inner_executor<T: 'static>(
+        self: &Ctx<'p>,
+        lazy: bool,
+        parser: &'p impl Parser<Output = T>,
+        visited: &dyn Visited,
+        info: Option<&Info>,
+        scope_start: u32,
+    ) -> Result<T, Error> {
+        let saved_current = self.shared.current_task.replace(TaskInfo::default());
+        let (handle, act) = self.make_raw_task(parser);
+        let task_info = self.make_child_info(Kind::Prod);
+        self.add_task(Task {
+            act,
+            info: task_info,
+        });
+        let executor_res = self.execute(lazy, visited, info, scope_start);
+        self.shared.current_task.replace(saved_current);
+        let res = handle.take();
+        match (res, executor_res) {
+            (res @ Ok(_), Ok(_)) => Ok(res?),
+            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
+            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
+        }
+    }
+
     #[inline(never)]
     fn make_child_info(&self, kind: Kind) -> TaskInfo {
         let mut cur = self.shared.current_task.borrow_mut();
@@ -1349,6 +1375,7 @@ impl<'p> RawCtx<'p> {
         })
     }
 
+    #[inline(never)]
     fn execute(
         self: &Ctx<'p>,
         lazy: bool,

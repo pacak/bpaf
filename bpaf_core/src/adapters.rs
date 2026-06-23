@@ -1,7 +1,7 @@
 //! Adapters that implement functionality used by the [`Parser`] trait
 use crate::{
     Ctx, Error, Exit, Id, Item, Kind, Lit, Literal, Name, ParseFailure, Parser, Problem, RawCtx,
-    RcParser, Scope, Task, TaskInfo, VKind, Visited,
+    RcParser, Scope, VKind, Visited,
     args::Args,
     complete::handle_subparser_complete,
     error::MissingItem,
@@ -160,31 +160,19 @@ impl<T: 'static> OptionParser<T> {
 
     fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let scope_start = ctx.shared.next_free.get();
-
-        let saved_current = ctx.shared.current_task.replace(TaskInfo::default());
-        let (handle, act) = ctx.make_raw_task(&self.inner);
         let no_input = ctx.shared.args.len() == ctx.cursor().get();
-        let info = ctx.make_child_info(Kind::Prod);
-        let task = Task { act, info };
-        ctx.add_task(task);
-        let executor_res = ctx.execute(lazy, self, Some(&self.info), scope_start);
-        ctx.shared.current_task.replace(saved_current);
-
-        let res = handle.take();
-        if self.info.fallback_to_usage && no_input && matches!(&res, Err(Error::Missing(_))) {
-            return Err(Error::Final(ParseFailure::Stdout(
+        let result = ctx.run_inner_executor(lazy, &self.inner, self, Some(&self.info), scope_start);
+        if self.info.fallback_to_usage && no_input && matches!(&result, Err(Error::Missing(_))) {
+            Err(Error::Final(ParseFailure::Stdout(
                 crate::visitors::help::render_help(
                     self,
                     Some(ctx.shared.help_and_version),
                     &ctx.path,
                     false,
                 ),
-            )));
-        }
-        match (res, executor_res) {
-            (res @ Ok(_), Ok(_)) => Ok(res?),
-            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
+            )))
+        } else {
+            result
         }
     }
 
@@ -624,19 +612,8 @@ impl<P: Parser> Parser for AnchorStart<P> {
         let inner = ctx.fork(None);
         let scope_start = inner.shared.next_free.get();
         let saved = ctx.cursor().get();
-        let saved_current = inner.shared.current_task.replace(TaskInfo::default());
-        let (out, handle) = crate::make_chan();
-        let act = inner.make_act(out, &self.inner);
-        let info = inner.make_child_info(Kind::Prod);
-        inner.add_task(Task { act, info });
-        let executor_res = inner.execute(true, &self.inner, None, scope_start);
-        inner.shared.current_task.replace(saved_current);
-        let res = handle.take();
-        let r = match (res, executor_res) {
-            (res @ Ok(_), Ok(_)) => Ok(res?),
-            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
-        };
+
+        let r = inner.run_inner_executor(true, &self.inner, &self.inner, None, scope_start);
         if r.is_err() {
             ctx.cursor().set(saved);
         }

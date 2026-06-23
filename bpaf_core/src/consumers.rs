@@ -183,23 +183,7 @@ impl<T: 'static> Parser for Nested<T> {
         let saved = ctx.cursor().get();
         ctx.cursor().set(saved + 1);
 
-        let saved_current = inner
-            .shared
-            .current_task
-            .replace(crate::TaskInfo::default());
-        let (out, handle) = make_chan();
-        let act = inner.make_act(out, &self.inner);
-        let info = inner.make_child_info(Kind::Prod);
-        inner.add_task(Task { act, info });
-        let executor_res = inner.execute(true, &self.inner, None, scope_start);
-        inner.shared.current_task.replace(saved_current);
-        let res = handle.take();
-
-        let r = match (res, executor_res) {
-            (res @ Ok(_), Ok(_)) => Ok(res?),
-            (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
-            (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
-        };
+        let r = inner.run_inner_executor(true, &self.inner, &self.inner, None, scope_start);
 
         let end = ctx.cursor().get();
         let consumed = end - saved - 1;
