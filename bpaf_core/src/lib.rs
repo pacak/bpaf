@@ -728,6 +728,21 @@ impl<'p> RawCtx<'p> {
 
         done
     }
+
+    /// Poll a task by id, expecting it should not complete
+    fn poll_incomplete(&self, id: Id) -> TaskInfo {
+        let mut task = self
+            .shared
+            .tasks
+            .borrow_mut()
+            .remove(id)
+            .unwrap_or_else(|| panic!("Task {id:?} not found"));
+        let done = self.poll_in_context(&mut task);
+        assert!(!done, "task should not finish during this stage");
+        let info = task.info;
+        self.shared.tasks.borrow_mut().insert(id, task);
+        info
+    }
 }
 
 use crate::tasks::Tasks;
@@ -796,22 +811,13 @@ impl<'a, 'p> Executor<'a, 'p> {
             let ids = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
             for id in ids {
                 cnt += 1;
-                let mut task = self
-                    .ctx
-                    .shared
-                    .tasks
-                    .borrow_mut()
-                    .remove(id)
-                    .unwrap_or_else(|| panic!("Task {id:?} not found in group"));
-                let r = self.ctx.poll_in_context(&mut task);
-                assert!(!r); // this breaks the API
-                if task.info.consumed != 1 {
+                let info = self.ctx.poll_incomplete(id);
+                if info.consumed != 1 {
                     // but this is a problem, should generate an error message that we can't parse
                     // current argument...
                     todo!("should have consumed a single item")
                 }
-                self.to_wake.push(task.info.id);
-                self.ctx.shared.tasks.borrow_mut().insert(id, task);
+                self.to_wake.push(info.id);
             }
             if cnt == 0 {
                 let mut group = String::with_capacity(names.len() + 1);
@@ -1169,18 +1175,9 @@ impl<'a, 'p> Executor<'a, 'p> {
         let mut best_size = 0;
         let to_wake = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
         for id in to_wake {
-            let mut task = self
-                .ctx
-                .shared
-                .tasks
-                .borrow_mut()
-                .remove(id)
-                .unwrap_or_else(|| panic!("Task {id:?} not found in stage_1"));
-            let r = self.ctx.poll_in_context(&mut task);
-            assert!(!r, "task should not finish during this stage");
+            let info = self.ctx.poll_incomplete(id);
             self.to_wake.push(id);
-            best_size = best_size.max(task.info.consumed);
-            self.ctx.shared.tasks.borrow_mut().insert(id, task);
+            best_size = best_size.max(info.consumed);
         }
         *self.ctx.current_value.borrow_mut() = None;
         (best_size, mgroup)
@@ -1247,16 +1244,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
         drop(sums);
         for sid in self.to_wake.drain(..) {
-            let mut task = self
-                .ctx
-                .shared
-                .tasks
-                .borrow_mut()
-                .remove(sid)
-                .unwrap_or_else(|| panic!("Task {sid:?} not found in notify_sums"));
-            let r = self.ctx.poll_in_context(&mut task);
-            assert!(!r);
-            self.ctx.shared.tasks.borrow_mut().insert(sid, task);
+            self.ctx.poll_incomplete(sid);
         }
     }
 
