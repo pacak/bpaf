@@ -396,8 +396,8 @@ where
         if let Some(os) = res {
             if self.adjacent && ctx.current_task.borrow().consumed == 2 {
                 let cursor = ctx.cursor.get();
-                let name = ctx.args[cursor].to_string_lossy().into_owned();
-                let value = ctx.args[cursor + 1].to_string_lossy().into_owned();
+                let name = ctx.shared.args[cursor].to_string_lossy().into_owned();
+                let value = ctx.shared.args[cursor + 1].to_string_lossy().into_owned();
                 let problem = Problem::NotAdjacent { name, value };
                 Err(Error::Problem(cursor, problem))
             } else {

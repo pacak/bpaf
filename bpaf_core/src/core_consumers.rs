@@ -99,7 +99,8 @@ impl<'p> RawCtx<'p> {
         match &*self.wakeup_reason.borrow() {
             Reason::Arg(_) => {
                 self.consume(1);
-                *self.current_value.borrow_mut() = Some(self.args[self.cursor.get()].as_os_str());
+                *self.current_value.borrow_mut() =
+                    Some(self.shared.args[self.cursor.get()].as_os_str());
                 Ok(true)
             }
             Reason::Kill(KillReason::Conflict) => Err(Error::Silent("Killed by conflict")),
@@ -109,7 +110,7 @@ impl<'p> RawCtx<'p> {
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, _) => {
-                let value = self.args[self.cursor.get()].as_os_str();
+                let value = self.shared.args[self.cursor.get()].as_os_str();
                 let prefix_value = if value.is_empty() {
                     meta.to_string()
                 } else {
@@ -231,7 +232,7 @@ impl<'p> RawCtx<'p> {
             Arg::Pos { .. } => unreachable!(),
             Arg::Named { name, value: None } => {
                 let cursor = self.cursor.get() + 1;
-                let Some(next) = self.args.get(cursor) else {
+                let Some(next) = self.shared.args.get(cursor) else {
                     return Err(Error::Problem(
                         cursor - 1,
                         Problem::WrongArgument {
@@ -257,8 +258,8 @@ impl<'p> RawCtx<'p> {
                         // in two possible ways: to complete the name and to complete the value.
                         // Second case becomes active when user types the name, a space and, then
                         // tries to complete the value
-                        if cursor + 1 == self.args.len()
-                            && let Some(shell) = self.args.complete
+                        if cursor + 1 == self.shared.args.len()
+                            && let Some(shell) = self.shared.args.complete
                         {
                             let prefix_value = if value.is_empty() {
                                 meta.to_string()

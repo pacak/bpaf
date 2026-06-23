@@ -433,8 +433,8 @@ where
 impl<'a, 'p> crate::Executor<'a, 'p> {
     pub(crate) fn check_autocomplete(&mut self, arg_os: &'p OsStr) -> Option<Result<(), Error>> {
         // complete should only do anything when requested and we are at the very last item
-        let shell = self.ctx.args.complete?;
-        if self.ctx.cursor.get() + 1 != self.ctx.args.len() {
+        let shell = self.ctx.shared.args.complete?;
+        if self.ctx.cursor.get() + 1 != self.ctx.shared.args.len() {
             return None;
         }
 
@@ -559,7 +559,7 @@ impl Fs {
 
 impl Completer<()> for Fs {
     fn invoke(&self, ctx: &Ctx, prefix: &str) -> Vec<(String, Option<String>)> {
-        if matches!(ctx.args.complete, Some(Shell::Test)) {
+        if matches!(ctx.shared.args.complete, Some(Shell::Test)) {
             let help = format!("prefix: {:?}, suffix: {:?}", self.prefix, self.suffix);
             return vec![(format!("{prefix:?}"), Some(help))];
         }

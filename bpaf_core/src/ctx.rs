@@ -35,6 +35,15 @@ pub(crate) struct Triggers {
     pub(crate) literal: HashMap<Lit<'static>, PeckingOrder>,
 }
 
+/// State shared between forked contexts
+pub(crate) struct SharedCtx<'p> {
+    /// Arguments we are parsing
+    pub(crate) args: &'p Args,
+
+    /// customizations: style, --help and --version parsers
+    pub(crate) custom: &'p Custom,
+}
+
 /// State shared between all the parsers, used via [`Ctx`] alias
 pub struct RawCtx<'p> {
     /// Scheduled ops
@@ -53,8 +62,7 @@ pub struct RawCtx<'p> {
     /// Tasks can use it to allocate `Id`s for children tasks including overriding
     pub(crate) next_free: Cell<u32>,
 
-    /// Arguments we are parsing as well as a cursor
-    pub(crate) args: &'p Args,
+    pub(crate) shared: Rc<SharedCtx<'p>>,
     pub(crate) path: String,
     pub(crate) cursor: Cell<u32>,
 
@@ -83,8 +91,6 @@ pub struct RawCtx<'p> {
     pub(crate) triggers: RefCell<Triggers>,
 
     pub(crate) sums: RefCell<BTreeMap<Id, Scope>>,
-
-    pub(crate) custom: &'p Custom,
 }
 
 pub type Ctx<'p> = Rc<RawCtx<'p>>;

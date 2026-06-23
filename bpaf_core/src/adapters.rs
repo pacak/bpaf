@@ -153,7 +153,7 @@ impl<T: 'static> OptionParser<T> {
     fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let (handle, act) = ctx.make_raw_task(&self.inner);
 
-        let no_input = ctx.args.len() == ctx.cursor.get();
+        let no_input = ctx.shared.args.len() == ctx.cursor.get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
@@ -164,7 +164,7 @@ impl<T: 'static> OptionParser<T> {
             return Err(Error::Final(ParseFailure::Stdout(
                 crate::visitors::help::render_help(
                     self,
-                    Some(&ctx.custom.create(self.info.version)),
+                    Some(&ctx.shared.custom.create(self.info.version)),
                     &ctx.path,
                     false,
                 ),

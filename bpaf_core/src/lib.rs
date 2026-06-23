@@ -163,6 +163,7 @@ pub mod api {
 }
 
 use crate::{
+    SharedCtx,
     arg::{Adjacency, Arg, lex_os_arg},
     args::Args,
     complete::CReq,
@@ -543,7 +544,7 @@ impl<'p> RawCtx<'p> {
             if ix > 0 {
                 out.push(' ');
             }
-            out.push_str(&self.args.items[i as usize].to_string_lossy());
+            out.push_str(&self.shared.args.items[i as usize].to_string_lossy());
         }
         Some(out)
     }
@@ -748,7 +749,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             if prev_pos == self.ctx.cursor.get() {
                 duds += 1;
                 if duds == 10 {
-                    let front = &self.ctx.args[self.ctx.cursor.get()];
+                    let front = &self.ctx.shared.args[self.ctx.cursor.get()];
                     unreachable!(
                         "We made a lot of iterations trying to parse {front:?} but made no progress. \
                                   This shouldn't be reachable, please report it as a bug."
@@ -762,7 +763,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
-            let Some(front) = self.ctx.args.get(self.ctx.cursor.get()) else {
+            let Some(front) = self.ctx.shared.args.get(self.ctx.cursor.get()) else {
                 break;
             };
 
@@ -863,7 +864,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                         && &unexpected == dropped
                     {
                         return Problem::Conflict {
-                            accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
+                            accepted: self.ctx.shared.args[*pos].to_string_lossy().into_owned(),
                             unexpected: unexpected.into_owned(),
                         };
                     }
@@ -909,14 +910,16 @@ impl<'a, 'p> Executor<'a, 'p> {
                                 .is_some_and(|n| n == conflicted_name)
                             {
                                 return Problem::ConflictPos {
-                                    accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
+                                    accepted: self.ctx.shared.args[*pos]
+                                        .to_string_lossy()
+                                        .into_owned(),
                                     unexpected: value.to_string_lossy().into_owned(),
                                 };
                             }
                         }
                         Conflict::Pos { pos } => {
                             return Problem::ConflictPos {
-                                accepted: self.ctx.args[*pos].to_string_lossy().into_owned(),
+                                accepted: self.ctx.shared.args[*pos].to_string_lossy().into_owned(),
                                 unexpected: value.to_string_lossy().into_owned(),
                             };
                         }
@@ -1152,26 +1155,20 @@ impl<'p> RawCtx<'p> {
         }
         Self::make(
             path,
-            self.args,
+            self.shared.clone(),
             self.cursor.get(),
             self.strict_pos.get(),
-            self.custom,
         )
     }
 
     pub(crate) fn new(args: &'p Args, custom: &'p Custom) -> Ctx<'p> {
-        Self::make(args.app.clone(), args, 0, false, custom)
+        let shared = Rc::new(SharedCtx { args, custom });
+        Self::make(args.app.clone(), shared, 0, false)
     }
 
-    fn make<'o>(
-        path: String,
-        args: &'o Args,
-        cursor: u32,
-        strict_pos: bool,
-        custom: &'o Custom,
-    ) -> Ctx<'o> {
+    fn make<'o>(path: String, shared: Rc<SharedCtx<'o>>, cursor: u32, strict_pos: bool) -> Ctx<'o> {
         Rc::new(RawCtx {
-            args,
+            shared,
             current_task: Default::default(),
             cursor: Cell::new(cursor),
             early_exit: Default::default(),
@@ -1182,7 +1179,6 @@ impl<'p> RawCtx<'p> {
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
             triggers: Default::default(),
-            custom,
             path,
             current_value: Default::default(),
         })
@@ -1201,7 +1197,7 @@ impl<'p> RawCtx<'p> {
                 return Ok(());
             }
             let Some(info) = info else { return r };
-            let extra = self.custom.create(info.version);
+            let extra = self.shared.custom.create(info.version);
             let ctx = self.fork(None);
             let (handle, act) = ctx.make_raw_task(&extra);
             let info = ctx.make_child_info(Kind::Prod);
@@ -1427,7 +1423,7 @@ impl<P: Parser> Parser for Cargo<P> {
     type Output = P::Output;
 
     fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> {
-        if ctx.args.get(0).is_some_and(|v| v == self.name) {
+        if ctx.shared.args.get(0).is_some_and(|v| v == self.name) {
             ctx.cursor.update(|c| c + 1);
         }
         self.inner.eval(ctx)
