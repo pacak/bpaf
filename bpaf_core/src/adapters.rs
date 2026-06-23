@@ -60,7 +60,7 @@ pub(crate) async fn optional<'p, T: 'static>(
                 Optionality::Missing(Error::Missing(i))
             } else {
                 Optionality::Failed(Error::Problem(
-                    ctx.cursor.get(),
+                    ctx.cursor().get(),
                     Problem::Dynamic { err: i.to_string() },
                 ))
             }
@@ -82,7 +82,7 @@ impl<P: Parser> Parser for Optional<P> {
             Optionality::Failed(e) if self.catch => {
                 ctx.current_task.borrow_mut().consumed = 0;
                 if let crate::Error::Problem(_, ref problem) = e {
-                    let pos = ctx.cursor.get();
+                    let pos = ctx.cursor().get();
                     let msg = problem.to_string();
                     ctx.conflicts
                         .borrow_mut()
@@ -155,7 +155,7 @@ impl<T: 'static> OptionParser<T> {
         let scope_start = ctx.shared.next_free.get();
         let (handle, act) = ctx.make_raw_task(&self.inner);
 
-        let no_input = ctx.shared.args.len() == ctx.cursor.get();
+        let no_input = ctx.shared.args.len() == ctx.cursor().get();
         let info = ctx.make_child_info(Kind::Prod);
         let task = Task { act, info };
         ctx.add_task(task);
@@ -266,12 +266,13 @@ impl<T: 'static> Parser for Command<T> {
         };
 
         let inner = ctx.fork(Some(n.as_ref()));
-        // advance past the trigger name in the forked context
-        inner.cursor.update(|c| c + 1);
+        // cursor is now shared between ctx and inner;
+        // save position, advance past trigger, run inner, then restore
+        let saved = ctx.cursor().get();
+        ctx.cursor().set(saved + 1);
         let res = self.inner.run_in_ctx(self.lazy, inner.clone());
-        // parse_literal already consumed 1 for the trigger;
-        // the -1 undoes the manual +1 above so we only count the inner parser's consumption
-        ctx.consume(inner.cursor.get() - ctx.cursor.get() - 1);
+        ctx.consume(ctx.cursor().get() - saved - 1);
+        ctx.cursor().set(saved);
         let res = res.map_err(handle_subparser_complete);
         res.map_err(Error::finalize_problems)
     }
@@ -512,7 +513,7 @@ impl<T: 'static, E: ToString + 'static, F: Fn() -> Result<T, E>> Parser for Pure
             let problem = Problem::Dynamic {
                 err: err.to_string(),
             };
-            Error::Problem(ctx.cursor.get(), problem)
+            Error::Problem(ctx.cursor().get(), problem)
         })
     }
 
@@ -553,7 +554,7 @@ where
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<(Option<u32>, P::Output), Error> {
         let t = self.inner.eval(ctx.clone()).await?;
         let consumed = ctx.current_task.borrow().consumed > 0;
-        Ok((consumed.then_some(ctx.cursor.get()), t))
+        Ok((consumed.then_some(ctx.cursor().get()), t))
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
@@ -613,18 +614,22 @@ impl<P: Parser> Parser for AnchorStart<P> {
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
         let inner = ctx.fork(None);
         let scope_start = inner.shared.next_free.get();
+        let saved = ctx.cursor().get();
         let (out, handle) = crate::make_chan();
         let act = inner.make_act(out, &self.inner);
         let info = inner.make_child_info(Kind::Prod);
         inner.add_task(Task { act, info });
         let executor_res = inner.execute(true, &self.inner, None, scope_start);
         let res = handle.take();
-        ctx.cursor.set(inner.cursor.get());
-        match (res, executor_res) {
+        let r = match (res, executor_res) {
             (res @ Ok(_), Ok(_)) => Ok(res?),
             (Ok(_), Err(e)) | (Err(e), Ok(_)) => Err(e),
             (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
+        };
+        if r.is_err() {
+            ctx.cursor().set(saved);
         }
+        r
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {

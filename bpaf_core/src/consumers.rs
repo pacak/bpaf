@@ -179,8 +179,9 @@ impl<T: 'static> Parser for Nested<T> {
         };
         let inner = ctx.fork(None);
         let scope_start = inner.shared.next_free.get();
-        // advance past the trigger name in the forked context
-        inner.cursor.update(|c| c + 1);
+        // cursor is now shared; save, advance past trigger, run inner, then restore
+        let saved = ctx.cursor().get();
+        ctx.cursor().set(saved + 1);
 
         let (out, handle) = make_chan();
         let act = inner.make_act(out, &self.inner);
@@ -195,17 +196,18 @@ impl<T: 'static> Parser for Nested<T> {
             (Err(e1), Err(e2)) => Err(e1.with_executor(e2)),
         };
 
+        let end = ctx.cursor().get();
+        let consumed = end - saved - 1;
+
         if let Err(crate::Error::Problem(_, ref problem)) = r {
-            let pos = ctx.cursor.get();
-            let msg = problem.to_string();
-            ctx.conflicts
-                .borrow_mut()
-                .push(crate::Conflict::Caught { pos, msg });
+            ctx.conflicts.borrow_mut().push(crate::Conflict::Caught {
+                pos: saved,
+                msg: problem.to_string(),
+            });
         }
 
-        // outer parser already consumed 1 for the trigger;
-        // the -1 undoes the manual +1 above so we only count the inner parser's consumption
-        ctx.consume(inner.cursor.get() - 1 - ctx.cursor.get());
+        ctx.consume(consumed);
+        ctx.cursor().set(saved);
 
         r
     }
@@ -396,7 +398,7 @@ where
         let res = ctx.parse_arg(&self.named, self.metavar).await?;
         if let Some(os) = res {
             if self.adjacent && ctx.current_task.borrow().consumed == 2 {
-                let cursor = ctx.cursor.get();
+                let cursor = ctx.cursor().get();
                 let name = ctx.shared.args[cursor].to_string_lossy().into_owned();
                 let value = ctx.shared.args[cursor + 1].to_string_lossy().into_owned();
                 let problem = Problem::NotAdjacent { name, value };
@@ -514,7 +516,7 @@ impl<T: 'static> Positional<T> {
 }
 
 fn problem_at_pos(ctx: &Ctx, p: Problem) -> Error {
-    Error::Problem(ctx.cursor.get(), p)
+    Error::Problem(ctx.cursor().get(), p)
 }
 
 impl<T> Parser for Positional<T>
@@ -531,7 +533,7 @@ where
             return Err(Error::missing(item));
         };
         if self.strict && !ctx.strict_pos.get() {
-            let cursor = ctx.cursor.get();
+            let cursor = ctx.cursor().get();
             let problem = Problem::NotStrict {
                 metavar: self.metavar,
                 string: os.to_string_lossy().into_owned(),

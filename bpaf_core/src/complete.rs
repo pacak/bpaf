@@ -434,7 +434,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
     pub(crate) fn check_autocomplete(&mut self, arg_os: &'p OsStr) -> Option<Result<(), Error>> {
         // complete should only do anything when requested and we are at the very last item
         let shell = self.ctx.shared.args.complete?;
-        if self.ctx.cursor.get() + 1 != self.ctx.shared.args.len() {
+        if self.ctx.cursor().get() + 1 != self.ctx.shared.args.len() {
             return None;
         }
 

@@ -523,14 +523,14 @@ impl<'p> RawCtx<'p> {
         if !matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
             return None;
         }
-        let start = self.cursor.get();
+        let start = self.cursor().get();
         let end = start + self.current_task.borrow().consumed;
         (end > start).then_some((start, end))
     }
 
     pub(crate) fn leaf_cursor(&self) -> u32 {
         if matches!(&*self.shared.wakeup_reason.borrow(), Reason::Arg(_)) {
-            self.cursor.get()
+            self.cursor().get()
         } else {
             u32::MAX
         }
@@ -679,7 +679,7 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn execute_group(&mut self, group: Group) -> Result<(), Error> {
         let res = self.execute_group_inner(&group.0);
         if res.is_ok() {
-            self.ctx.cursor.update(|c| c + 1);
+            self.ctx.cursor().update(|c| c + 1);
         } else {
             self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
         }
@@ -724,7 +724,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
                 let ix = ix as u32 + 1;
                 let problem = Problem::OnlyOnceInGroup { group, name, ix };
-                return Err(Error::Problem(self.ctx.cursor.get(), problem));
+                return Err(Error::Problem(self.ctx.cursor().get(), problem));
             }
 
             self.stage_2(1);
@@ -753,16 +753,16 @@ impl<'a, 'p> Executor<'a, 'p> {
                     cursor,
                     reason,
                 } => {
-                    let old = self.ctx.cursor.replace(cursor);
+                    let old = self.ctx.cursor().replace(cursor);
                     self.kill_in_scope(scope, reason);
-                    self.ctx.cursor.set(old);
+                    self.ctx.cursor().set(old);
                 }
             }
         }
     }
 
     fn execute(&mut self) -> Result<(), Error> {
-        let mut prev_pos = self.ctx.cursor.get();
+        let mut prev_pos = self.ctx.cursor().get();
         let mut duds = 0;
 
         // Save wakeup_reason so that nested executor runs don't leak
@@ -778,10 +778,10 @@ impl<'a, 'p> Executor<'a, 'p> {
             // also avoid loops where the same parser gets spawned and consumes nothing.
             // Currently all the repeated parsers makes sure to handle this, but this
             // makes a good sanity check.
-            if prev_pos == self.ctx.cursor.get() {
+            if prev_pos == self.ctx.cursor().get() {
                 duds += 1;
                 if duds == 10 {
-                    let front = &self.ctx.shared.args[self.ctx.cursor.get()];
+                    let front = &self.ctx.shared.args[self.ctx.cursor().get()];
                     unreachable!(
                         "We made a lot of iterations trying to parse {front:?} but made no progress. \
                                   This shouldn't be reachable, please report it as a bug."
@@ -790,12 +790,12 @@ impl<'a, 'p> Executor<'a, 'p> {
             } else {
                 duds = 0;
             }
-            prev_pos = self.ctx.cursor.get();
+            prev_pos = self.ctx.cursor().get();
 
             assert!(self.to_propagate.is_empty());
             self.process_scheduled();
 
-            let Some(front) = self.ctx.shared.args.get(self.ctx.cursor.get()) else {
+            let Some(front) = self.ctx.shared.args.get(self.ctx.cursor().get()) else {
                 break;
             };
 
@@ -806,7 +806,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
             if !self.ctx.strict_pos.get() && front == "--" {
                 self.ctx.strict_pos.set(true);
-                self.ctx.cursor.update(|c| c + 1);
+                self.ctx.cursor().update(|c| c + 1);
                 continue;
             }
 
@@ -839,7 +839,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
             if self.to_wake.is_empty() {
                 self.kill_in_scope(self.current_scope(), KillReason::NoMatchingInput);
-                let pos = self.ctx.cursor.get();
+                let pos = self.ctx.cursor().get();
                 *self.ctx.shared.wakeup_reason.borrow_mut() = saved_reason;
                 return Err(Error::Problem(pos, self.complain_about(front)));
             }
@@ -847,7 +847,7 @@ impl<'a, 'p> Executor<'a, 'p> {
             self.stage_2(best_size);
             self.propagate();
 
-            self.ctx.cursor.update(|c| c + best_size);
+            self.ctx.cursor().update(|c| c + best_size);
         }
 
         // terminate all the currently active tasks
@@ -891,7 +891,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         };
 
         // Check for caught errors first - errors that were stored by .catch()
-        let pos = self.ctx.cursor.get();
+        let pos = self.ctx.cursor().get();
         for conflict in self.ctx.conflicts.borrow().iter() {
             if let Conflict::Caught {
                 pos: caught_pos,
@@ -1225,12 +1225,7 @@ impl<'p> RawCtx<'p> {
             path.push(' ');
             path.push_str(name);
         }
-        Self::make(
-            path,
-            self.shared.clone(),
-            self.cursor.get(),
-            self.strict_pos.get(),
-        )
+        Self::make(path, self.shared.clone(), self.strict_pos.get())
     }
 
     pub(crate) fn new(args: &'p Args, custom: &'p Custom, extra: &'p BoxParser<Extra>) -> Ctx<'p> {
@@ -1241,15 +1236,15 @@ impl<'p> RawCtx<'p> {
             tasks: RefCell::new(Tasks::new()),
             next_free: Cell::new(1),
             wakeup_reason: RefCell::new(Reason::Pass),
+            cursor: Cell::new(0),
         });
-        Self::make(args.app.clone(), shared, 0, false)
+        Self::make(args.app.clone(), shared, false)
     }
 
-    fn make<'o>(path: String, shared: Rc<SharedCtx<'o>>, cursor: u32, strict_pos: bool) -> Ctx<'o> {
+    fn make<'o>(path: String, shared: Rc<SharedCtx<'o>>, strict_pos: bool) -> Ctx<'o> {
         Rc::new(RawCtx {
             shared,
             current_task: Default::default(),
-            cursor: Cell::new(cursor),
 
             early_exit: Default::default(),
             pending_ops: Default::default(),
@@ -1510,7 +1505,7 @@ impl<P: Parser> Parser for Cargo<P> {
 
     fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> {
         if ctx.shared.args.get(0).is_some_and(|v| v == self.name) {
-            ctx.cursor.update(|c| c + 1);
+            ctx.cursor().update(|c| c + 1);
         }
         self.inner.eval(ctx)
     }

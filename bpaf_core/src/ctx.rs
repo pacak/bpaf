@@ -43,6 +43,9 @@ pub(crate) struct SharedCtx<'p> {
     /// Arguments we are parsing
     pub(crate) args: &'p Args,
 
+    /// Current position in the argument list
+    pub(crate) cursor: Cell<u32>,
+
     /// customizations: style, --help and --version parsers
     pub(crate) custom: &'p Custom,
 
@@ -76,7 +79,6 @@ pub struct RawCtx<'p> {
 
     pub(crate) shared: Rc<SharedCtx<'p>>,
     pub(crate) path: String,
-    pub(crate) cursor: Cell<u32>,
 
     /// Value we are parsing - positional value itself or argument part of option_argument
     pub(crate) current_value: RefCell<Option<&'p OsStr>>,
@@ -140,6 +142,10 @@ impl<'p> RawCtx<'p> {
                 .or_default()
                 .insert(cur.parent_id, cur.id, cur.parent_kind);
         }
+    }
+
+    pub(crate) fn cursor(&self) -> &Cell<u32> {
+        &self.shared.cursor
     }
 
     pub(crate) fn remove_named_trigger<K: Eq + Hash + Clone>(

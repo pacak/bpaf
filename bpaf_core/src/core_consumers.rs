@@ -100,7 +100,7 @@ impl<'p> RawCtx<'p> {
             Reason::Arg(_) => {
                 self.consume(1);
                 *self.current_value.borrow_mut() =
-                    Some(self.shared.args[self.cursor.get()].as_os_str());
+                    Some(self.shared.args[self.cursor().get()].as_os_str());
                 Ok(true)
             }
             Reason::Kill(KillReason::Conflict) => Err(Error::Silent("Killed by conflict")),
@@ -110,7 +110,7 @@ impl<'p> RawCtx<'p> {
             | Reason::Push
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, _) => {
-                let value = self.shared.args[self.cursor.get()].as_os_str();
+                let value = self.shared.args[self.cursor().get()].as_os_str();
                 let prefix_value = if value.is_empty() {
                     meta.to_string()
                 } else {
@@ -231,7 +231,7 @@ impl<'p> RawCtx<'p> {
         match arg {
             Arg::Pos { .. } => unreachable!(),
             Arg::Named { name, value: None } => {
-                let cursor = self.cursor.get() + 1;
+                let cursor = self.cursor().get() + 1;
                 let Some(next) = self.shared.args.get(cursor) else {
                     return Err(Error::Problem(
                         cursor - 1,
@@ -242,7 +242,7 @@ impl<'p> RawCtx<'p> {
                         },
                     ));
                 };
-                let pos = self.cursor.get();
+                let pos = self.cursor().get();
                 match lex_os_arg(next) {
                     Arg::Named { .. } => Err(Error::Problem(
                         pos,
@@ -341,7 +341,7 @@ impl<'p> RawCtx<'p> {
                         adj: *adj,
                         value: val.to_string_lossy().into_owned(),
                     };
-                    let pos = self.cursor.get();
+                    let pos = self.cursor().get();
                     Err(Error::Problem(pos, problem))
                 }
                 None => {
@@ -360,7 +360,7 @@ impl<'p> RawCtx<'p> {
         //
         // We do this so when we encounter something we can't parse - we check if it was ever
         // possible to parse it before. This gives a position we parsed instead
-        let pos = self.cursor.get();
+        let pos = self.cursor().get();
         self.conflicts
             .borrow_mut()
             .extend(items.into_iter().map(|t| t.into_conflict(pos)));
@@ -389,7 +389,7 @@ impl<'p> RawCtx<'p> {
                         if !lives {
                             let op = Op::KillScope {
                                 scope: *scope,
-                                cursor: self.cursor.get(),
+                                cursor: self.cursor().get(),
                                 reason: KillReason::Conflict,
                             };
                             self.pending_ops.borrow_mut().push_back(op);
