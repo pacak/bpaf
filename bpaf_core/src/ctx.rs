@@ -13,7 +13,7 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, Task, TaskInfo,
+    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TaskInfo,
     args::Args,
     info::{Custom, Extra},
     tasks::Tasks,
@@ -77,7 +77,7 @@ pub struct RawCtx<'p> {
     /// Scheduled ops
     ///
     /// Holds other operations that might need access to tasks or other internal structures
-    pub(crate) pending_ops: RefCell<VecDeque<Op<'p>>>,
+    pub(crate) pending_ops: RefCell<VecDeque<Op>>,
 
     /// Early exit ranges
     ///
@@ -108,8 +108,7 @@ pub struct RawCtx<'p> {
 pub type Ctx<'p> = Rc<RawCtx<'p>>;
 
 #[derive(Debug)]
-pub(crate) enum Op<'p> {
-    Spawn(Task<'p>),
+pub(crate) enum Op {
     KillScope {
         cursor: u32,
         scope: Scope,

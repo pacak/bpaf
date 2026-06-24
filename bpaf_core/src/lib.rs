@@ -624,7 +624,8 @@ impl<'p> RawCtx<'p> {
             cur.pending -= 1;
         } else {
             *self.shared.wakeup_reason.borrow_mut() = prev;
-            self.pending_ops.borrow_mut().push_back(Op::Spawn(task));
+            let old = self.shared.tasks.borrow_mut().insert(task.info.id, task);
+            debug_assert!(old.is_none(), "Duplicated task id?");
         }
     }
 
@@ -741,15 +742,6 @@ impl<'a, 'p> Executor<'a, 'p> {
     fn process_scheduled(&mut self) {
         while let Some(op) = { self.ctx.pending_ops.borrow_mut().pop_front() } {
             match op {
-                Op::Spawn(task) => {
-                    let old = self
-                        .ctx
-                        .shared
-                        .tasks
-                        .borrow_mut()
-                        .insert(task.info.id, task);
-                    debug_assert!(old.is_none(), "Duplicated task id?");
-                }
                 Op::KillScope {
                     scope,
                     cursor,
