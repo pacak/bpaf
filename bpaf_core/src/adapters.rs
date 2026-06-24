@@ -84,9 +84,11 @@ impl<P: Parser> Parser for Optional<P> {
                 if let crate::Error::Problem(_, ref problem) = e {
                     let pos = ctx.cursor().get();
                     let msg = problem.to_string();
-                    ctx.conflicts
+                    let id = ctx.shared.current_task.borrow().id;
+                    ctx.shared
+                        .conflicts
                         .borrow_mut()
-                        .push(crate::Conflict::Caught { pos, msg });
+                        .push(crate::Conflict::Caught { pos, msg, id });
                 }
                 Ok(None)
             }

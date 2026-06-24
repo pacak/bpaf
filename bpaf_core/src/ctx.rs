@@ -75,6 +75,9 @@ pub(crate) struct SharedCtx<'p> {
     ///
     /// Holds other operations that might need access to tasks or other internal structures
     pub(crate) pending_ops: RefCell<VecDeque<Op>>,
+
+    /// Conflict records - early terminated branches saved for error reporting
+    pub(crate) conflicts: RefCell<Vec<Conflict>>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -90,10 +93,6 @@ pub struct RawCtx<'p> {
 
     /// Value we are parsing - positional value itself or argument part of option_argument
     pub(crate) current_value: RefCell<Option<&'p OsStr>>,
-
-    /// We keep track of all the early terminated branches, saving each termination along with
-    /// the position - from that we'll deduce conflict info
-    pub(crate) conflicts: RefCell<Vec<Conflict>>,
 
     /// Treat the rest of the items as strictly positional - we'll set it if we ever encounter a
     /// bare `--` during parsing

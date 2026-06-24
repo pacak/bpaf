@@ -7,17 +7,17 @@
 //! Everything here is either fixed type or (in rare cases &dyn...)
 
 use crate::{
-    Arg, CReq, Conflict, Error, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
+    Arg, CReq, Conflict, Error, Id, KillReason, Lit, Literal, Metavar, Named, Op, Problem, RawCtx,
     Reason, Scope, TTarget, arg, error::CV, lex_os_arg, r#yield,
 };
 use std::{ffi::OsStr, rc::Rc};
 
 impl TTarget {
-    fn into_conflict(self, pos: u32) -> Conflict {
+    fn into_conflict(self, pos: u32, id: Id) -> Conflict {
         match self {
-            TTarget::Arg(name) | TTarget::Flag(name) => Conflict::Named { pos, name },
-            TTarget::Pos => Conflict::Pos { pos },
-            TTarget::Literal(name) => Conflict::Lit { pos, name },
+            TTarget::Arg(name) | TTarget::Flag(name) => Conflict::Named { pos, name, id },
+            TTarget::Pos => Conflict::Pos { pos, id },
+            TTarget::Literal(name) => Conflict::Lit { pos, name, id },
         }
     }
 }
@@ -361,9 +361,11 @@ impl<'p> RawCtx<'p> {
         // We do this so when we encounter something we can't parse - we check if it was ever
         // possible to parse it before. This gives a position we parsed instead
         let pos = self.cursor().get();
-        self.conflicts
+        let id = self.shared.current_task.borrow().id;
+        self.shared
+            .conflicts
             .borrow_mut()
-            .extend(items.into_iter().map(|t| t.into_conflict(pos)));
+            .extend(items.into_iter().map(|t| t.into_conflict(pos, id)));
         Error::Silent("Killed by conflict")
     }
 

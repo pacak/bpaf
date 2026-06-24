@@ -415,13 +415,32 @@ pub use ctx::*;
 /// "we could have been consume `name`, but we consumed whatever was at `pos` instead"
 enum Conflict {
     /// Named item - flag, argument
-    Named { pos: u32, name: Name<'static> },
+    Named {
+        pos: u32,
+        name: Name<'static>,
+        id: Id,
+    },
     /// Literal - command
-    Lit { pos: u32, name: Lit<'static> },
+    Lit {
+        pos: u32,
+        name: Lit<'static>,
+        id: Id,
+    },
     /// Positional item
-    Pos { pos: u32 },
+    Pos { pos: u32, id: Id },
     /// An error caught by `.catch()` that should be displayed if there's no alternative
-    Caught { pos: u32, msg: String },
+    Caught { pos: u32, msg: String, id: Id },
+}
+
+impl Conflict {
+    fn id(&self) -> Id {
+        match self {
+            Conflict::Named { id, .. } => *id,
+            Conflict::Lit { id, .. } => *id,
+            Conflict::Pos { id, .. } => *id,
+            Conflict::Caught { id, .. } => *id,
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -872,6 +891,16 @@ impl<'a, 'p> Executor<'a, 'p> {
             );
         }
 
+        // Clear conflicts created within this executor's scope
+        {
+            let scope = self.current_scope();
+            self.ctx
+                .shared
+                .conflicts
+                .borrow_mut()
+                .retain(|c| !scope.contains(c.id()));
+        }
+
         // reset next_free to reclaim the ID range for this executor
         self.ctx.shared.next_free.set(self.scope_start.0);
 
@@ -886,12 +915,15 @@ impl<'a, 'p> Executor<'a, 'p> {
 
         // Check for caught errors first - errors that were stored by .catch()
         let pos = self.ctx.cursor().get();
-        for conflict in self.ctx.conflicts.borrow().iter() {
+        let scope = self.current_scope();
+        for conflict in self.ctx.shared.conflicts.borrow().iter() {
             if let Conflict::Caught {
                 pos: caught_pos,
                 msg,
+                id,
             } = conflict
                 && *caught_pos == pos
+                && scope.contains(*id)
             {
                 return Problem::Dynamic { err: msg.clone() };
             }
@@ -903,9 +935,14 @@ impl<'a, 'p> Executor<'a, 'p> {
                 value,
             } => {
                 // is it a conflict?
-                for conflict in self.ctx.conflicts.borrow().iter() {
-                    if let Conflict::Named { pos, name: dropped } = conflict
+                for conflict in self.ctx.shared.conflicts.borrow().iter() {
+                    if let Conflict::Named {
+                        pos,
+                        name: dropped,
+                        id,
+                    } = conflict
                         && &unexpected == dropped
+                        && scope.contains(*id)
                     {
                         return Problem::Conflict {
                             accepted: self.ctx.shared.args[*pos].to_string_lossy().into_owned(),
@@ -941,13 +978,17 @@ impl<'a, 'p> Executor<'a, 'p> {
             Arg::Pos { value } => {
                 let unexpected_name = arg::as_name(value);
                 // is it a conflict?
-                for conflict in self.ctx.conflicts.borrow().iter() {
+                for conflict in self.ctx.shared.conflicts.borrow().iter() {
+                    if !scope.contains(conflict.id()) {
+                        continue;
+                    }
                     match conflict {
                         Conflict::Named { .. } => {}
                         Conflict::Caught { .. } => {}
                         Conflict::Lit {
                             pos,
                             name: conflicted_name,
+                            ..
                         } => {
                             if unexpected_name
                                 .as_ref()
@@ -961,7 +1002,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                                 };
                             }
                         }
-                        Conflict::Pos { pos } => {
+                        Conflict::Pos { pos, .. } => {
                             return Problem::ConflictPos {
                                 accepted: self.ctx.shared.args[*pos].to_string_lossy().into_owned(),
                                 unexpected: value.to_string_lossy().into_owned(),
@@ -1234,6 +1275,7 @@ impl<'p> RawCtx<'p> {
             current_task: RefCell::new(TaskInfo::default()),
             sums: RefCell::new(BTreeMap::new()),
             pending_ops: RefCell::new(VecDeque::new()),
+            conflicts: RefCell::new(Vec::new()),
         });
         Self::make(args.app.clone(), shared, false)
     }
@@ -1244,7 +1286,6 @@ impl<'p> RawCtx<'p> {
 
             early_exit: Default::default(),
 
-            conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
             triggers: Default::default(),
             path,
