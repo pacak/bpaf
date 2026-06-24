@@ -1072,21 +1072,12 @@ impl<'a, 'p> Executor<'a, 'p> {
             lex_os_arg(front)
         };
 
-        // pre-populate pecking order with any check wakeups that can match
-        for (id, check) in self.ctx.triggers.borrow().checks.iter() {
-            if check(front) {
-                // Here we rely on checks idempotence, run all the checks
-                // at once, collect those that succeed and let usual mixer
-                // mechanism to wake up those that will advance.
-                // If task won't get a chance to run - we'll try to wake it up later
-                // and the check should update the inner state.
-                self.mixer.push(*id);
-            }
-        }
-
-        let mgroup =
-            self.mixer
-                .populate(&arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get());
+        let mgroup = self.mixer.populate(
+            front,
+            &arg,
+            &self.ctx.triggers.borrow(),
+            self.ctx.strict_pos.get(),
+        );
 
         *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(arg);
 
@@ -1360,7 +1351,27 @@ impl Mixer {
         self.pecking_push(triggers.flags.get(&Name::Short(*name)));
     }
 
-    fn populate(&mut self, arg: &Arg, triggers: &Triggers, strict_pos: bool) -> Option<Group> {
+    fn populate(
+        &mut self,
+        front: &OsStr,
+        arg: &Arg,
+        triggers: &Triggers,
+        strict_pos: bool,
+    ) -> Option<Group> {
+        if !strict_pos {
+            // pre-populate pecking order with any check wakeups that can match
+            for (id, check) in triggers.checks.iter() {
+                if check(front) {
+                    // Here we rely on checks idempotence, run all the checks
+                    // at once, collect those that succeed and let usual mixer
+                    // mechanism to wake up those that will advance.
+                    // If task won't get a chance to run - we'll try to wake it up later
+                    // and the check should update the inner state.
+                    self.push(*id);
+                }
+            }
+        }
+
         match arg {
             Arg::Named {
                 name: name @ Name::Long(_),
