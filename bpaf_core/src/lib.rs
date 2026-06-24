@@ -740,7 +740,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
     /// Process scheduled operations
     fn process_scheduled(&mut self) {
-        while let Some(op) = { self.ctx.pending_ops.borrow_mut().pop_front() } {
+        while let Some(op) = { self.ctx.shared.pending_ops.borrow_mut().pop_front() } {
             match op {
                 Op::KillScope {
                     scope,
@@ -855,7 +855,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 "All tasks in executor scope should be terminated when exiting execution"
             );
 
-            assert!(self.ctx.pending_ops.borrow().is_empty());
+            assert!(self.ctx.shared.pending_ops.borrow().is_empty());
             assert!(tasks.is_empty_in_scope(self.current_scope()));
         }
 
@@ -993,7 +993,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         self.propagate();
         self.process_scheduled();
         while let Some(mut task) = { self.ctx.shared.tasks.borrow_mut().drain_next(&mut state) } {
-            assert!(self.ctx.pending_ops.borrow().is_empty());
+            assert!(self.ctx.shared.pending_ops.borrow().is_empty());
             *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Kill(reason);
 
             let done = self.ctx.poll_in_context(&mut task);
@@ -1233,6 +1233,7 @@ impl<'p> RawCtx<'p> {
             cursor: Cell::new(0),
             current_task: RefCell::new(TaskInfo::default()),
             sums: RefCell::new(BTreeMap::new()),
+            pending_ops: RefCell::new(VecDeque::new()),
         });
         Self::make(args.app.clone(), shared, false)
     }
@@ -1242,7 +1243,6 @@ impl<'p> RawCtx<'p> {
             shared,
 
             early_exit: Default::default(),
-            pending_ops: Default::default(),
 
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),
@@ -1279,7 +1279,9 @@ impl<'p> RawCtx<'p> {
             let info = ctx.make_child_info(Kind::Prod);
             let task = Task { act, info };
             ctx.add_task(task);
+            assert!(ctx.shared.pending_ops.borrow().is_empty());
             let exec_res = Executor::new(ctx.clone(), parser, Id(alt_scope_start)).execute();
+            assert!(ctx.shared.pending_ops.borrow().is_empty());
             ctx.shared.current_task.replace(saved_current);
             if exec_res.is_ok() {
                 match handle.take() {

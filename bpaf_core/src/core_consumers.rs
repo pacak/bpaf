@@ -392,7 +392,7 @@ impl<'p> RawCtx<'p> {
                                 cursor: self.cursor().get(),
                                 reason: KillReason::Conflict,
                             };
-                            self.pending_ops.borrow_mut().push_back(op);
+                            self.shared.pending_ops.borrow_mut().push_back(op);
                         }
                         lives
                     });

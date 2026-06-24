@@ -70,15 +70,15 @@ pub(crate) struct SharedCtx<'p> {
 
     /// Active sum parsers and their scopes
     pub(crate) sums: RefCell<BTreeMap<Id, Scope>>,
-}
 
-/// State shared between all the parsers, used via [`Ctx`] alias
-pub struct RawCtx<'p> {
     /// Scheduled ops
     ///
     /// Holds other operations that might need access to tasks or other internal structures
     pub(crate) pending_ops: RefCell<VecDeque<Op>>,
+}
 
+/// State shared between all the parsers, used via [`Ctx`] alias
+pub struct RawCtx<'p> {
     /// Early exit ranges
     ///
     /// When there's no matching triggers executor will try to terminate anything inside of
