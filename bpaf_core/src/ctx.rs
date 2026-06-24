@@ -67,6 +67,9 @@ pub(crate) struct SharedCtx<'p> {
     ///
     /// Executor sets it to the right value when polling a task.
     pub(crate) current_task: RefCell<TaskInfo>,
+
+    /// Active sum parsers and their scopes
+    pub(crate) sums: RefCell<BTreeMap<Id, Scope>>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
@@ -100,8 +103,6 @@ pub struct RawCtx<'p> {
 
     /// Trigger registry - maps argument patterns to parser tasks
     pub(crate) triggers: RefCell<Triggers>,
-
-    pub(crate) sums: Rc<RefCell<BTreeMap<Id, Scope>>>,
 }
 
 pub type Ctx<'p> = Rc<RawCtx<'p>>;

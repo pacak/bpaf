@@ -95,7 +95,7 @@ pub mod api {
                     scopes.push(scope);
                     handles.push(h);
                 }
-                ctx.sums.borrow_mut().insert(
+                ctx.shared.sums.borrow_mut().insert(
                     id,
                     Scope {
                         start: id,
@@ -104,7 +104,7 @@ pub mod api {
                 );
                 ctx.wait_for_children().await; // give children a chance to start
                 ctx.all_children_finish(scopes).await;
-                ctx.sums.borrow_mut().remove(&id);
+                ctx.shared.sums.borrow_mut().remove(&id);
 
                 let mut acc = Error::Silent("Empty Sum?");
 
@@ -868,7 +868,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         }
 
         {
-            let sums = self.ctx.sums.borrow();
+            let sums = self.ctx.shared.sums.borrow();
             let in_scope: Vec<_> = sums
                 .keys()
                 .filter(|k| self.current_scope().contains(**k))
@@ -1119,7 +1119,7 @@ impl<'a, 'p> Executor<'a, 'p> {
         *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::ChildProgress(advancing.clone());
         assert!(self.to_wake.is_empty(), "should be left empty by stage 2");
 
-        let sums = self.ctx.sums.borrow();
+        let sums = self.ctx.shared.sums.borrow();
         for id in advancing.as_slice().iter() {
             for (sid, range) in sums.iter() {
                 if !self.current_scope().contains(*sid) {
@@ -1240,6 +1240,7 @@ impl<'p> RawCtx<'p> {
             wakeup_reason: RefCell::new(Reason::Pass),
             cursor: Cell::new(0),
             current_task: RefCell::new(TaskInfo::default()),
+            sums: RefCell::new(BTreeMap::new()),
         });
         Self::make(args.app.clone(), shared, false)
     }
@@ -1250,7 +1251,6 @@ impl<'p> RawCtx<'p> {
 
             early_exit: Default::default(),
             pending_ops: Default::default(),
-            sums: Rc::new(RefCell::new(BTreeMap::new())),
 
             conflicts: Default::default(),
             strict_pos: Cell::new(strict_pos),

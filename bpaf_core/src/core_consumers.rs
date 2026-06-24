@@ -400,7 +400,8 @@ impl<'p> RawCtx<'p> {
                         // This is an optimization. Once there's only one branch
                         // left in a sum - it's not different from a regular parser.
                         // De-registering the sum avoids extra wakeups.
-                        self.sums
+                        self.shared
+                            .sums
                             .borrow_mut()
                             .remove(&self.shared.current_task.borrow().id);
                     }
