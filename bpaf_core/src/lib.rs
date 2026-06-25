@@ -660,7 +660,7 @@ impl<'p> RawCtx<'p> {
         self: &Ctx<'p>,
         lazy: bool,
         parser: &'p impl Parser<Output = T>,
-        visited: &dyn Visited,
+        visited: &'p dyn Visited,
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<T, Error> {
@@ -1346,6 +1346,7 @@ impl<'p> RawCtx<'p> {
             sums: RefCell::new(BTreeMap::new()),
             pending_ops: RefCell::new(VecDeque::new()),
             conflicts: RefCell::new(Vec::new()),
+            parsers: RefCell::new(Vec::new()),
         });
         Self::make(args.app.clone(), shared, false)
     }
@@ -1367,11 +1368,13 @@ impl<'p> RawCtx<'p> {
     fn execute(
         self: &Ctx<'p>,
         lazy: bool,
-        parser: &dyn Visited,
+        parser: &'p dyn Visited,
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<(), Error> {
+        self.shared.parsers.borrow_mut().push(parser);
         let r = Executor::new(self.clone(), parser, Id(scope_start), info.is_some()).execute();
+        self.shared.parsers.borrow_mut().pop();
 
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
             if lazy {
@@ -1399,14 +1402,8 @@ impl<'p> RawCtx<'p> {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
-                            Extra::Help | Extra::LongHelp => {
-                                ParseFailure::Stdout(crate::visitors::help::render_help(
-                                    parser,
-                                    Some(self.shared.help_and_version),
-                                    &ctx.path,
-                                    xtra == Extra::LongHelp,
-                                ))
-                            }
+                            Extra::Help => ctx.render_help_for(parser, false),
+                            Extra::LongHelp => ctx.render_help_for(parser, true),
                             Extra::Version(v) => ParseFailure::stdout(format!("Version: {v}\n")),
                         }));
                     }

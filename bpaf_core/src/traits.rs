@@ -375,6 +375,8 @@ pub enum VisitGroup {
     Prod,
     /// sum group, exactly one member must succeed
     Sum,
+    /// items visible across all subcommands
+    Global,
 }
 
 /// Helper trait that allows shoving non-dyn compatible trait [`Parser`] into an [`Rc`]

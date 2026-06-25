@@ -24,6 +24,22 @@ fn simple_global_parser() {
 }
 
 #[test]
+fn double_simple_global_parser() {
+    let g = short('g').switch().global().global();
+    let p = pure(42).to_options().command("cmd");
+    let parser = construct!(g, p).to_options();
+
+    let r = parser.run_inner("cmd -g").unwrap();
+    assert_eq!(r, (true, 42));
+
+    let r = parser.run_inner("-g cmd").unwrap();
+    assert_eq!(r, (true, 42));
+
+    let r = parser.run_inner("cmd").unwrap();
+    assert_eq!(r, (false, 42));
+}
+
+#[test]
 fn global_with_conflict() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b').default();
@@ -603,4 +619,41 @@ fn global_arg_guard_inner() {
 
     let r = parser.run_inner("cmd").unwrap_err().unwrap_stderr();
     assert_eq!(r, "expected '-r=N'\n");
+}
+
+#[test]
+fn global_help_section() {
+    let g = short('g').switch().help("A global flag").global();
+    let i = short('i').switch().help("Inner flag");
+    let o = short('o').switch().help("Outer flag");
+    let cmd = i.to_options().command("cmd");
+    let parser = construct!(o, g, cmd).to_options();
+
+    let r = parser.run_inner("cmd --help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app cmd [-i]
+
+Available options:
+    -i          Inner flag
+    -h, --help  Prints help information
+
+Global options:
+    -g          A global flag
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app [-o] -g COMMAND ...
+
+Available options:
+    -o          Outer flag
+    -h, --help  Prints help information
+
+Available commands:
+    cmd
+
+Global options:
+    -g          A global flag
+";
+
+    assert_eq!(r, expected);
 }

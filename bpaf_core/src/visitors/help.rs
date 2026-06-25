@@ -31,26 +31,109 @@ use crate::{
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
+impl<'a> Help<'a> {
+    fn new(path: &'a str, detailed: bool) -> Help<'a> {
+        Help {
+            path,
+            detailed,
+            ..Help::default()
+        }
+    }
+
+    fn render(mut self) -> Styled {
+        self.prepare_output();
+        Styled {
+            raw: self.output,
+            tab: self.max_tab + 2,
+        }
+    }
+}
+
+struct GlobalOnly<'h> {
+    help: Help<'h>,
+    stack: Vec<VisitGroup>,
+    global: usize,
+}
+impl<'h> GlobalOnly<'h> {
+    fn new(help: Help<'h>) -> Self {
+        Self {
+            help,
+            stack: Vec::new(),
+            global: 0,
+        }
+    }
+}
+
+impl<'a> Visitor<'a> for GlobalOnly<'a> {
+    fn item(&mut self, item: Item<'a>) {
+        if self.global > 0 {
+            self.help.item(item)
+        }
+        match item {
+            Item::OptionParser { inner, .. } | Item::Command { inner, .. } => inner.vi(self),
+            Item::Flag { .. }
+            | Item::Arg { .. }
+            | Item::Positional { .. }
+            | Item::Section { .. }
+            | Item::Nested { .. }
+            | Item::Rendered { .. } => {}
+        }
+    }
+
+    fn identify(&self) -> VKind {
+        self.help.identify()
+    }
+
+    fn push_group(&mut self, group: VisitGroup) {
+        if group == VisitGroup::Global {
+            self.global += 1;
+        }
+        self.stack.push(group);
+        if self.global > 0 {
+            self.help.push_group(group);
+        }
+    }
+
+    fn pop_group(&mut self) {
+        if self.global > 0 {
+            self.help.pop_group();
+        }
+        let group = self.stack.pop().unwrap();
+        if group == VisitGroup::Global {
+            self.global -= 1;
+        }
+    }
+}
+
+impl crate::RawCtx<'_> {
+    pub(crate) fn render_help_for(
+        &self,
+        parser: &dyn Visited,
+        detailed: bool,
+    ) -> crate::error::ParseFailure {
+        let h = Help::new(&self.path, detailed);
+        let mut g = GlobalOnly::new(h);
+        for p in self.shared.parsers.borrow().iter() {
+            p.vi(&mut g);
+        }
+        parser.vi(&mut g.help);
+        self.shared.help_and_version.vi(&mut g.help);
+        crate::error::ParseFailure::Stdout(g.help.render())
+    }
+}
+
 pub fn render_help(
     parser: &dyn Visited,
     extra: Option<&dyn Visited>,
     path: &str,
     detailed: bool,
 ) -> Styled {
-    let mut h = Help {
-        path,
-        detailed,
-        ..Default::default()
-    };
+    let mut h = Help::new(path, detailed);
     parser.vi(&mut h);
     if let Some(extra) = extra {
         extra.vi(&mut h);
     }
-    h.prepare_output();
-    Styled {
-        raw: h.output,
-        tab: h.max_tab + 2,
-    }
+    h.render()
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
@@ -126,6 +209,7 @@ enum Place {
     Command,
     Section,
     Body,
+    Global,
 }
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
@@ -135,6 +219,7 @@ pub struct Help<'a> {
     place: Place,
     footer: Option<&'a str>,
     in_section: usize,
+    in_global: usize,
 
     /// current section, if in one, empty otherwise
     current: String,
@@ -145,6 +230,7 @@ pub struct Help<'a> {
     named: String,
     pos: String,
     commands: String,
+    global: String,
     /// Maximum seen tab slice (under the limit)
     max_tab: usize,
 
@@ -162,6 +248,7 @@ impl std::ops::Index<Place> for Help<'_> {
             Place::Command => &self.commands,
             Place::Section => &self.current,
             Place::Body => &self.output,
+            Place::Global => &self.global,
         }
     }
 }
@@ -174,6 +261,7 @@ impl std::ops::IndexMut<Place> for Help<'_> {
             Place::Command => &mut self.commands,
             Place::Section => &mut self.current,
             Place::Body => &mut self.output,
+            Place::Global => &mut self.global,
         }
     }
 }
@@ -324,9 +412,17 @@ impl<'a> Visitor<'a> for Help<'a> {
         }
     }
 
-    fn push_group(&mut self, _: VisitGroup) {}
+    fn push_group(&mut self, group: VisitGroup) {
+        if matches!(group, VisitGroup::Global) {
+            self.in_global += 1;
+        }
+    }
 
-    fn pop_group(&mut self) {}
+    fn pop_group(&mut self) {
+        if self.in_global > 0 {
+            self.in_global -= 1;
+        }
+    }
 
     fn identify(&self) -> VKind {
         VKind::Help
@@ -366,6 +462,7 @@ impl Help<'_> {
     fn place_for(&mut self, item: &Item) -> Place {
         self.place = match &item {
             _ if self.in_section > 0 => Place::Section,
+            _ if self.in_global > 0 => Place::Global,
             Item::Flag { .. } | Item::Arg { .. } => Place::Named,
             Item::Positional { .. } => Place::Pos,
             Item::Command { .. } => Place::Command,
@@ -434,6 +531,12 @@ impl Help<'_> {
             self.output.push('\n');
             _ = writeln!(&mut self.output, "{H}Available commands:{T}");
             self.output.push_str(&self.commands);
+        }
+
+        if !self.global.is_empty() {
+            self.output.push('\n');
+            _ = writeln!(&mut self.output, "{H}Global options:{T}");
+            self.output.push_str(&self.global);
         }
 
         if let Some(footer) = self.footer {

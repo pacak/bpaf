@@ -364,7 +364,7 @@ impl<P: Parser, F: Fn(&P::Output) -> bool> Parser for Guard<P, F> {
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
-        self.inner.visit(visitor);
+        self.inner.visit(visitor)
     }
 }
 
@@ -651,6 +651,8 @@ impl<P: Parser> Parser for Global<P> {
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Global);
         self.inner.visit(visitor);
+        visitor.pop_group();
     }
 }

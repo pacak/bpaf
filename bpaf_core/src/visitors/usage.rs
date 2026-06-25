@@ -102,6 +102,9 @@ impl Usage<'_> {
                                 out.push(if *optional { '[' } else { '(' });
                             }
                         }
+                        VisitGroup::Global => {
+                            // transparent in usage
+                        }
                     }
                     stack.push(*g);
                     sep = get_sep(&stack);
@@ -134,6 +137,9 @@ impl Usage<'_> {
                                 out.push(if g.optional { ']' } else { ')' });
                             }
                         }
+                        VG::Global => {
+                            // transparent in usage
+                        }
                     }
                     sep = get_sep(&stack);
                 }
@@ -155,7 +161,7 @@ fn get_sep(stack: &[Group]) -> &'static str {
         .iter()
         .rev()
         .find_map(|g| match g.group {
-            VisitGroup::Many | VisitGroup::Optional => None,
+            VisitGroup::Many | VisitGroup::Optional | VisitGroup::Global => None,
             VisitGroup::Prod => Some(" "),
             VisitGroup::Sum => Some(" | "),
         })
@@ -310,6 +316,17 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 .map(|i| i.as_group().unwrap());
 
             let keep = match (parent.group, child.group) {
+                (_, VG::Global) => {
+                    // Global is transparent - its children belong to the parent
+                    parent.children += child.children - 1;
+                    false
+                }
+                (VG::Global, _) => {
+                    // parent is Global, child's items should propagate up
+                    parent.children += child.children - 1;
+                    parent.optional = child.optional;
+                    false
+                }
                 _ if child.children == 0 => {
                     parent.children -= 1;
                     false

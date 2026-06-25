@@ -13,7 +13,7 @@ use std::{
 use crate::Executor;
 
 use crate::{
-    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TaskInfo,
+    Conflict, Id, KillReason, Lit, Name, PeckingOrder, Reason, TaskInfo, Visited,
     args::Args,
     info::{Custom, Extra},
     tasks::Tasks,
@@ -83,6 +83,8 @@ pub(crate) struct SharedCtx<'p> {
 
     /// Conflict records - early terminated branches saved for error reporting
     pub(crate) conflicts: RefCell<Vec<Conflict>>,
+
+    pub(crate) parsers: RefCell<Vec<&'p dyn Visited>>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias
