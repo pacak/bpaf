@@ -381,6 +381,10 @@ impl<T> Argument<T> {
         self.adjacent = true;
         self
     }
+
+    pub fn negative_lit(self) -> NegArgument<T> {
+        NegArgument { inner: self }
+    }
 }
 
 impl<T> Parser for Argument<T>
@@ -417,6 +421,50 @@ where
     }
 }
 impl<T> Leaf for Argument<T> {}
+
+pub struct NegArgument<T> {
+    inner: Argument<T>,
+}
+
+impl<T> Parser for NegArgument<T>
+where
+    T: FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    type Output = T;
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
+        let r = self.inner.eval(ctx.clone()).await;
+        let Err(Error::Problem(
+            ix,
+            Problem::WrongArgument {
+                meta: _,
+                name: _,
+                value: Some(value),
+            },
+        )) = r
+        else {
+            return r;
+        };
+
+        match value.parse::<T>() {
+            Ok(v) => {
+                ctx.consume(2);
+                Ok(v)
+            }
+            Err(err) => Err(Error::Problem(
+                ix,
+                Problem::Parse {
+                    value: Some(value),
+                    error: err.to_string(),
+                },
+            )),
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.inner.visit(visitor)
+    }
+}
 
 impl<T> Argument<T> {
     pub fn help(mut self, help: &'static str) -> Self {
