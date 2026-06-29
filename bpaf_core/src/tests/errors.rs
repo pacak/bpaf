@@ -23,7 +23,7 @@ fn unsigned_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a flag '-2', try '-a=-2' to use it as an argument\n"
+        "'-a' requires an argument 'N', got a '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
@@ -33,7 +33,7 @@ fn unsigned_argument() {
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a flag '-42', try '-a=-42' to use it as an argument\n"
+        "'-a' requires an argument 'N', got a '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap_err().unwrap_stderr();
@@ -49,7 +49,7 @@ fn signed_argument() {
     let r = parser.run_inner("-a -2").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a flag '-2', try '-a=-2' to use it as an argument\n"
+        "'-a' requires an argument 'N', got a '-2', try '-a=-2' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-2 -a").unwrap_err().unwrap_stderr();
@@ -59,7 +59,7 @@ fn signed_argument() {
     let r = parser.run_inner("-a -42").unwrap_err().unwrap_stderr();
     assert_eq!(
         r,
-        "'-a' requires an argument 'N', got a flag '-42', try '-a=-42' to use it as an argument\n"
+        "'-a' requires an argument 'N', got a '-42', try '-a=-42' to use it as an argument\n"
     );
 
     let r = parser.run_inner("-a=-42 -2").unwrap();
@@ -78,7 +78,7 @@ fn cannot_be_used_partial_arg() {
     let res = parser.run_inner("-b -a").unwrap_err().unwrap_stderr();
     assert_eq!(
         res,
-        "'-b' requires an argument 'ARG', got a flag '-a', try '-b=-a' to use it as an argument\n"
+        "'-b' requires an argument 'ARG', got a '-a', try '-b=-a' to use it as an argument\n"
     );
 }
 
@@ -164,7 +164,24 @@ fn strict_positional_argument() {
     let parser = a.to_options();
 
     let r = parser.run_inner("-a -- 10").unwrap_err().unwrap_stderr();
-    assert_eq!(r, "couldn't parse '--': invalid digit found in string\n");
+    let expected =
+        "'-a' requires an argument 'N', got a '--', try '-a=--' to use it as an argument\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn passing_ddash_to_arg_works() {
+    let a = short('a').argument::<String>("DD");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-a --").unwrap_err().unwrap_stderr();
+
+    let expected =
+        "'-a' requires an argument 'DD', got a '--', try '-a=--' to use it as an argument\n";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner("-a=--").unwrap();
+    assert_eq!(r, "--");
 }
 
 #[test]

@@ -536,15 +536,15 @@ fn global_flag_completion() {
         .global();
     let parser = g.to_options();
 
-    // Global flag should appear when completing `-`
+    // Global flag should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--glob\tGlobal flag\n");
 
-    // Global flag should appear when completing `--g`
+    // Global flag should appear when completing '--g'
     let r = parser.run_inner(("", "--g")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--glob\tGlobal flag\n");
 
-    // Global flag should appear when completing `-g`
+    // Global flag should appear when completing '-g'
     let r = parser.run_inner(("", "-g")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-g\tGlobal flag\n");
 
@@ -562,15 +562,15 @@ fn global_argument_completion() {
         .global();
     let parser = a.to_options();
 
-    // Global argument should appear when completing `-`
+    // Global argument should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--arg\tGlobal argument\n");
 
-    // Global argument should appear when completing `--a`
+    // Global argument should appear when completing '--a'
     let r = parser.run_inner(("", "--a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "--arg\tGlobal argument\n");
 
-    // Global argument should appear when completing `-a`
+    // Global argument should appear when completing '-a'
     let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\tGlobal argument\n");
 }
@@ -595,18 +595,18 @@ fn global_alongside_local_completion() {
     let l = long("loc").switch().help("Local flag");
     let parser = construct!(g, l).to_options();
 
-    // Both global and local parsers should appear when completing `-`
+    // Both global and local parsers should appear when completing '-'
     let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
     let expected = "--glob\tGlobal flag\n\
                     --loc\tLocal flag\n";
     assert_eq!(r, expected);
 
-    // Only local should match `--l`
+    // Only local should match '--l'
     let r = parser.run_inner(("", "--l")).unwrap_err().unwrap_stdout();
     let expected = "--loc\tLocal flag\n";
     assert_eq!(r, expected);
 
-    // Only global should match `--g`
+    // Only global should match '--g'
     let r = parser.run_inner(("", "--g")).unwrap_err().unwrap_stdout();
     let expected = "--glob\tGlobal flag\n";
     assert_eq!(r, expected);
@@ -643,7 +643,6 @@ fn global_flag_in_command_with_local_completion() {
     let expected = "--glob\tGlobal flag\n";
     assert_eq!(r, expected);
 
-    // Inside command: check that global shows for `--g` prefix
     let r = parser
         .run_inner(("cmd", "--g"))
         .unwrap_err()

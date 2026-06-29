@@ -249,6 +249,7 @@ impl<'p> RawCtx<'p> {
                     ));
                 };
                 let pos = self.cursor().get();
+
                 match lex_os_arg(next) {
                     Arg::Named { .. } => Err(Error::Problem(
                         pos,
@@ -259,6 +260,16 @@ impl<'p> RawCtx<'p> {
                         },
                     )),
                     Arg::Pos { value } => {
+                        if value == "--" {
+                            return Err(Error::Problem(
+                                pos,
+                                Problem::WrongArgument {
+                                    meta,
+                                    name: name.into_owned(),
+                                    value: Some(next.to_string_lossy().into_owned()),
+                                },
+                            ));
+                        }
                         self.consume(2);
                         // Unlike most of the parsers, arguments can trigger completions
                         // in two possible ways: to complete the name and to complete the value.
