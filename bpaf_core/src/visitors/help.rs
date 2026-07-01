@@ -106,17 +106,13 @@ impl<'a> Visitor<'a> for GlobalOnly<'a> {
 }
 
 impl crate::RawCtx<'_> {
-    pub(crate) fn render_help_for(
-        &self,
-        parser: &dyn Visited,
-        detailed: bool,
-    ) -> crate::error::ParseFailure {
+    pub(crate) fn render_help(&self, detailed: bool) -> crate::error::ParseFailure {
         let h = Help::new(&self.path, detailed);
         let mut g = GlobalOnly::new(h);
         for p in self.shared.parsers.borrow().iter() {
             p.vi(&mut g);
         }
-        parser.vi(&mut g.help);
+        self.visited.vi(&mut g.help);
         self.shared.help_and_version.vi(&mut g.help);
         crate::error::ParseFailure::Stdout(g.help.render())
     }

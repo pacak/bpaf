@@ -112,6 +112,8 @@ pub struct RawCtx<'p> {
     /// Per-executor (local) trigger set. Replaced with
     /// [`SharedCtx::global_triggers`] when polling a global task.
     pub(crate) triggers: RefCell<Triggers>,
+
+    pub(crate) visited: &'p dyn Visited,
 }
 
 pub type Ctx<'p> = Rc<RawCtx<'p>>;

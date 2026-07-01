@@ -135,7 +135,7 @@ impl<T: 'static> OptionParser<T> {
         let mut args = args.into();
         args.check_complete()?;
 
-        let ctx = RawCtx::new(&args, custom, &help_and_version);
+        let ctx = RawCtx::new(&args, custom, &help_and_version, self);
         Ok(self.run_in_ctx(false, ctx)?)
     }
 
@@ -161,7 +161,7 @@ impl<T: 'static> OptionParser<T> {
     fn run_in_ctx<'p>(&'p self, lazy: bool, ctx: crate::Ctx<'p>) -> Result<T, Error> {
         let scope_start = ctx.shared.next_free.get();
         let no_input = ctx.shared.args.len() == ctx.cursor().get();
-        let result = ctx.run_inner_executor(lazy, &self.inner, self, Some(&self.info), scope_start);
+        let result = ctx.run_inner_executor(lazy, &self.inner, Some(&self.info), scope_start);
         if self.info.fallback_to_usage && no_input && matches!(&result, Err(Error::Missing(_))) {
             Err(Error::Final(ParseFailure::Stdout(
                 crate::visitors::help::render_help(
@@ -262,7 +262,7 @@ impl<T: 'static> Parser for Command<T> {
             unreachable!("For commands first name should always be a long one, by construction");
         };
 
-        let inner = ctx.fork(Some(n.as_ref()));
+        let inner = ctx.fork(Some(n.as_ref()), &self.inner);
         // cursor is now shared between ctx and inner;
         // save position, advance past trigger, run inner, then restore
         let saved = ctx.cursor().get();
@@ -609,11 +609,11 @@ impl<P: Parser> Parser for AnchorStart<P> {
     type Output = P::Output;
 
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<P::Output, Error> {
-        let inner = ctx.fork(None);
+        let inner = ctx.fork(None, &self.inner);
         let scope_start = inner.shared.next_free.get();
         let saved = ctx.cursor().get();
 
-        let r = inner.run_inner_executor(true, &self.inner, &self.inner, None, scope_start);
+        let r = inner.run_inner_executor(true, &self.inner, None, scope_start);
         if r.is_err() {
             ctx.cursor().set(saved);
         }

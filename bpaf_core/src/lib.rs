@@ -660,7 +660,6 @@ impl<'p> RawCtx<'p> {
         self: &Ctx<'p>,
         lazy: bool,
         parser: &'p impl Parser<Output = T>,
-        visited: &'p dyn Visited,
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<T, Error> {
@@ -671,7 +670,7 @@ impl<'p> RawCtx<'p> {
             act,
             info: task_info,
         });
-        let executor_res = self.execute(lazy, visited, info, scope_start);
+        let executor_res = self.execute(lazy, info, scope_start);
         self.shared.current_task.replace(saved_current);
         let res = handle.take();
         match (res, executor_res) {
@@ -750,13 +749,12 @@ use crate::tasks::Tasks;
 /// Executor connected to a context
 ///
 /// Created with [`Executor::new`]
-struct Executor<'a, 'p> {
+struct Executor<'p> {
     ctx: Ctx<'p>,
     scope_start: Id,
     to_wake: Vec<Id>,
     to_propagate: VecDeque<TaskInfo>,
     mixer: Mixer,
-    visited: &'a dyn Visited,
     /// Is this a full parser with help and everything?
     ///
     /// Set to `true` for command parsers and similar,
@@ -766,14 +764,13 @@ struct Executor<'a, 'p> {
     full_parser: bool,
 }
 
-impl<'a, 'p> Executor<'a, 'p> {
-    fn new(ctx: Ctx<'p>, visited: &'a dyn Visited, scope_start: Id, full_parser: bool) -> Self {
+impl<'p> Executor<'p> {
+    fn new(ctx: Ctx<'p>, scope_start: Id, full_parser: bool) -> Self {
         Self {
             ctx,
             scope_start,
             to_wake: Vec::new(),
             to_propagate: VecDeque::new(),
-            visited,
             mixer: Default::default(),
             full_parser,
         }
@@ -1048,7 +1045,7 @@ impl<'a, 'p> Executor<'a, 'p> {
                 }
                 visitors.push(&mut vc);
 
-                self.visited.vi(&mut visitors);
+                self.ctx.visited.vi(&mut visitors);
                 if let Some(problem) = visitors.iter().find_map(|v| v.see_problem()) {
                     return problem;
                 }
@@ -1091,7 +1088,7 @@ impl<'a, 'p> Executor<'a, 'p> {
 
                 if let Some(target) = value.to_str() {
                     let mut is_command = ValidCommand::new(target);
-                    self.visited.vi(&mut is_command);
+                    self.ctx.visited.vi(&mut is_command);
                     if let Some(problem) = is_command.see_problem() {
                         return problem;
                     }
@@ -1323,16 +1320,21 @@ impl<'p> RawCtx<'p> {
 
 impl<'p> RawCtx<'p> {
     /// Create a copy of a context suitable to run an executor
-    pub(crate) fn fork(&self, level: Option<&str>) -> Ctx<'p> {
+    pub(crate) fn fork(&self, level: Option<&str>, visited: &'p dyn Visited) -> Ctx<'p> {
         let mut path = self.path.clone();
         if let Some(name) = level {
             path.push(' ');
             path.push_str(name);
         }
-        Self::make(path, self.shared.clone(), self.strict_pos.get())
+        Self::make(path, self.shared.clone(), self.strict_pos.get(), visited)
     }
 
-    pub(crate) fn new(args: &'p Args, custom: &'p Custom, extra: &'p BoxParser<Extra>) -> Ctx<'p> {
+    pub(crate) fn new(
+        args: &'p Args,
+        custom: &'p Custom,
+        extra: &'p BoxParser<Extra>,
+        visited: &'p dyn Visited,
+    ) -> Ctx<'p> {
         let shared = Rc::new(SharedCtx {
             args,
             custom,
@@ -1348,10 +1350,15 @@ impl<'p> RawCtx<'p> {
             conflicts: RefCell::new(Vec::new()),
             parsers: RefCell::new(Vec::new()),
         });
-        Self::make(args.app.clone(), shared, false)
+        Self::make(args.app.clone(), shared, false, visited)
     }
 
-    fn make<'o>(path: String, shared: Rc<SharedCtx<'o>>, strict_pos: bool) -> Ctx<'o> {
+    fn make<'o>(
+        path: String,
+        shared: Rc<SharedCtx<'o>>,
+        strict_pos: bool,
+        visited: &'o dyn Visited,
+    ) -> Ctx<'o> {
         Rc::new(RawCtx {
             shared,
 
@@ -1361,6 +1368,7 @@ impl<'p> RawCtx<'p> {
             triggers: Default::default(),
             path,
             current_value: Default::default(),
+            visited,
         })
     }
 
@@ -1368,12 +1376,11 @@ impl<'p> RawCtx<'p> {
     fn execute(
         self: &Ctx<'p>,
         lazy: bool,
-        parser: &'p dyn Visited,
         info: Option<&Info>,
         scope_start: u32,
     ) -> Result<(), Error> {
-        self.shared.parsers.borrow_mut().push(parser);
-        let r = Executor::new(self.clone(), parser, Id(scope_start), info.is_some()).execute();
+        self.shared.parsers.borrow_mut().push(self.visited);
+        let r = Executor::new(self.clone(), Id(scope_start), info.is_some()).execute();
         self.shared.parsers.borrow_mut().pop();
 
         if matches!(r, Err(Error::Problem(_, Problem::Unconsumed { .. }))) {
@@ -1384,7 +1391,7 @@ impl<'p> RawCtx<'p> {
                 return r;
             };
 
-            let ctx = self.fork(None);
+            let ctx = self.fork(None, self.visited);
             let (handle, act) = ctx.make_raw_task(ctx.shared.help_and_version);
 
             let alt_scope_start = ctx.shared.next_free.get();
@@ -1395,15 +1402,15 @@ impl<'p> RawCtx<'p> {
             let task = Task { act, info };
             ctx.add_task(task);
             assert!(ctx.shared.pending_ops.borrow().is_empty());
-            let exec_res = Executor::new(ctx.clone(), parser, Id(alt_scope_start), false).execute();
+            let exec_res = Executor::new(ctx.clone(), Id(alt_scope_start), false).execute();
             assert!(ctx.shared.pending_ops.borrow().is_empty());
             ctx.shared.current_task.replace(saved_current);
             if exec_res.is_ok() {
                 match handle.take() {
                     Ok(xtra) => {
                         return Err(Error::Final(match xtra {
-                            Extra::Help => ctx.render_help_for(parser, false),
-                            Extra::LongHelp => ctx.render_help_for(parser, true),
+                            Extra::Help => ctx.render_help(false),
+                            Extra::LongHelp => ctx.render_help(true),
                             Extra::Version(v) => ParseFailure::stdout(format!("Version: {v}\n")),
                         }));
                     }

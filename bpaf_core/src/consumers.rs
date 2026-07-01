@@ -177,13 +177,13 @@ impl<T: 'static> Parser for Nested<T> {
             Nest::Named(named) => named.eval(ctx.clone()).await?,
             Nest::Keyword(kw) => kw.eval(ctx.clone()).await?,
         };
-        let inner = ctx.fork(None);
+        let inner = ctx.fork(None, &self.inner);
         let scope_start = inner.shared.next_free.get();
         // cursor is now shared; save, advance past trigger, run inner, then restore
         let saved = ctx.cursor().get();
         ctx.cursor().set(saved + 1);
 
-        let r = inner.run_inner_executor(true, &self.inner, &self.inner, None, scope_start);
+        let r = inner.run_inner_executor(true, &self.inner, None, scope_start);
 
         let end = ctx.cursor().get();
         let consumed = end - saved - 1;
