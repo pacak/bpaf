@@ -79,6 +79,8 @@ pub(crate) struct SharedCtx<'p> {
     pub(crate) conflicts: RefCell<Vec<Conflict>>,
 
     pub(crate) parsers: RefCell<Vec<&'p dyn Visited>>,
+
+    pub(crate) vault: RefCell<crate::vault::Storage>,
 }
 
 /// State shared between all the parsers, used via [`Ctx`] alias

@@ -20,6 +20,7 @@ mod repeat;
 mod tasks;
 mod traits;
 mod utils;
+mod vault;
 mod visitors;
 
 pub mod api {
@@ -184,6 +185,7 @@ pub use crate::{
     consumers::*,
     help_cmd::help_command,
     traits::{Parser, Visited},
+    vault::Key,
 };
 
 use crate::{
@@ -1347,6 +1349,7 @@ impl<'p> RawCtx<'p> {
             pending_ops: RefCell::new(VecDeque::new()),
             conflicts: RefCell::new(Vec::new()),
             parsers: RefCell::new(Vec::new()),
+            vault: RefCell::new(vault::Storage::default()),
         });
         Self::make(args.app.clone(), shared, false, visited)
     }
@@ -1670,4 +1673,5 @@ mod tests {
     mod sum;
     mod unsorted;
     mod usage;
+    mod vault;
 }

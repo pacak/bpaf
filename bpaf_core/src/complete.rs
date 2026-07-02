@@ -637,3 +637,12 @@ impl Completer<()> for Fs {
         results
     }
 }
+
+impl<F> Completer<u8> for F
+where
+    F: Fn(&mut crate::vault::Storage, &str) -> Vec<(String, Option<String>)> + 'static,
+{
+    fn invoke(&self, ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self(&mut ctx.shared.vault.borrow_mut(), input)
+    }
+}

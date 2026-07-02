@@ -12,6 +12,7 @@ use crate::{
     error::ParseFailure,
     info::Info,
     repeat::{Collect, Count, Last, Many, Many1},
+    vault::Vault,
 };
 use std::{boxed::Box, marker::PhantomData, pin::Pin, rc::Rc};
 
@@ -72,6 +73,16 @@ pub trait Parser {
             ctx: PhantomData,
             f,
         }
+    }
+
+    fn vault<F, E, R>(self, f: F) -> Vault<Self, F>
+    where
+        Self: Sized,
+        F: for<'v> Fn(&'v mut crate::vault::Storage, Self::Output) -> Result<R, E>,
+        E: ToString,
+        R: 'static,
+    {
+        Vault { inner: self, op: f }
     }
 
     fn optional(self) -> Optional<Self>
