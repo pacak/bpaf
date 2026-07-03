@@ -392,11 +392,5 @@ fn command_inner_consumes_multiple_then_outer_continues() {
 
     // cmd consumes "cmd" "a" "b", outer consumes "c"
     let r = parser.run_inner("cmd a b c").unwrap();
-    assert_eq!(
-        r,
-        (
-            ("a".to_string(), "b".to_string()),
-            "c".to_string()
-        )
-    );
+    assert_eq!(r, (("a".to_string(), "b".to_string()), "c".to_string()));
 }
