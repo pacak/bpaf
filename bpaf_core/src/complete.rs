@@ -286,10 +286,17 @@ pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
         prefix_value.clear();
     }
 
-    let mut buf = String::new();
     let (name, vprefix) = prefix_value.split_at(len);
+    render_completions(name, shell, completer(vprefix))
+}
+pub(crate) fn render_completions(
+    name: &str,
+    shell: ShellRender,
+    vals: Vec<(String, Option<String>)>,
+) -> Error {
+    let mut buf = String::new();
 
-    for (mut value, help) in completer(vprefix) {
+    for (mut value, help) in vals {
         if !name.is_empty() {
             value = format!("{name}{value}");
         }
