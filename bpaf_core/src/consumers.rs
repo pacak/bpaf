@@ -2,7 +2,7 @@ use std::{marker::PhantomData, str::FromStr};
 
 use crate::{
     adapters::PureWith,
-    complete::{StringCompleter, complete_value},
+    complete::{Completer, complete_value},
     error::MissingItem,
     os_str::parse_os_str,
 };
@@ -405,27 +405,27 @@ impl<T> Argument<T> {
 
 /// # complete for argument
 impl<T: 'static> Argument<T> {
-    pub fn complete<F>(self, completer: F) -> WithComplete<Argument<T>>
+    pub fn complete<C, F: Completer<C>>(self, completer: F) -> WithComplete<Argument<T>, F, C>
     where
         Self: Sized,
-        F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
     {
         WithComplete {
             inner: self,
-            completer: Box::new(completer),
+            ctr: completer,
+            ctx: PhantomData,
         }
     }
 }
 /// # complete for positional
 impl<T: 'static> Positional<T> {
-    pub fn complete<F>(self, completer: F) -> WithComplete<Positional<T>>
+    pub fn complete<C, F: Completer<C>>(self, completer: F) -> WithComplete<Positional<T>, F, C>
     where
         Self: Sized,
-        F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
     {
         WithComplete {
             inner: self,
-            completer: Box::new(completer),
+            ctr: completer,
+            ctx: PhantomData,
         }
     }
 }
@@ -438,21 +438,23 @@ impl<T> Positional<T> {
     }
 }
 
-pub struct WithComplete<P> {
+pub struct WithComplete<P, F, C> {
     inner: P,
-    completer: StringCompleter,
+    ctr: F,
+    ctx: PhantomData<C>,
 }
 
-impl<P> Parser for WithComplete<P>
+impl<P, F, C> Parser for WithComplete<P, F, C>
 where
     P: Parser,
+    F: Completer<C>,
 {
     type Output = P::Output;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
         self.inner
-            .eval(ctx)
+            .eval(ctx.clone())
             .await
-            .map_err(|err| complete_value(err, &self.completer))
+            .map_err(|err| complete_value(err, &self.ctr, &ctx))
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
@@ -460,7 +462,7 @@ where
     }
 }
 
-impl<P: Leaf> Leaf for WithComplete<P> {}
+impl<P: Leaf, F, C> Leaf for WithComplete<P, F, C> {}
 
 /// A parser for positional items - parses operands using [`FromStr`]
 pub struct Positional<T> {

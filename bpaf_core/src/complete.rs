@@ -11,7 +11,7 @@
 use std::{collections::BTreeMap, ffi::OsStr, fmt::Write as _, str::FromStr};
 
 use crate::{
-    Error, Id, KillReason, Lit, Metavar, Name, ParseFailure, Reason, Scope, Triggers,
+    Ctx, Error, Id, KillReason, Lit, Name, ParseFailure, Reason, Scope, Triggers,
     arg::{Adjacency, Arg},
     error::CV,
     pecking::PeckingOrder,
@@ -113,8 +113,6 @@ impl std::ops::Add for CompReply {
         self
     }
 }
-
-pub(crate) type StringCompleter = Box<dyn Fn(&str) -> Vec<(String, Option<String>)>>;
 
 /// What is the current shell
 ///
@@ -269,7 +267,7 @@ impl From<CompReply> for Error {
 ///
 /// Can't keep intermediate representation in the error since it doesn't support
 /// multiple of them. On the other hand, it's not needed.
-pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
+pub(crate) fn complete_value<C, F: Completer<C>>(err: Error, completer: &F, ctx: &Ctx) -> Error {
     let Error::CompValue(CV {
         mut prefix_value,
         has_value: true,
@@ -287,7 +285,7 @@ pub(crate) fn complete_value(err: Error, completer: &StringCompleter) -> Error {
     }
 
     let (name, vprefix) = prefix_value.split_at(len);
-    render_completions(name, shell, completer(vprefix))
+    render_completions(name, shell, completer.invoke(ctx, vprefix))
 }
 pub(crate) fn render_completions(
     name: &str,
@@ -492,5 +490,57 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         self.kill_in_scope(Scope::ALL, KillReason::NoMatchingInput);
         self.propagate();
         Some(Ok(()))
+    }
+}
+
+pub trait Completer<M>: 'static {
+    fn invoke(&self, ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)>;
+}
+
+/// Generic completer
+#[allow(dead_code)]
+pub enum Generic {}
+impl<F> Completer<Generic> for F
+where
+    F: Fn(&str) -> Vec<(String, Option<String>)> + 'static,
+{
+    fn invoke(&self, _ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self(input)
+    }
+}
+
+impl Completer<()> for &'static [&'static str] {
+    fn invoke(&self, _ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self.iter()
+            .filter(|v| v.starts_with(input))
+            .map(|v| (v.to_string(), None))
+            .collect()
+    }
+}
+
+impl Completer<()> for &'static [(&'static str, &'static str)] {
+    fn invoke(&self, _ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self.iter()
+            .filter(|(v, _)| v.starts_with(input))
+            .map(|(v, h)| (v.to_string(), Some(h.to_string())))
+            .collect()
+    }
+}
+
+impl Completer<()> for Vec<String> {
+    fn invoke(&self, _ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self.iter()
+            .filter(|v| v.starts_with(input))
+            .map(|v| (v.clone(), None))
+            .collect()
+    }
+}
+
+impl Completer<()> for Vec<(String, String)> {
+    fn invoke(&self, _ctx: &Ctx, input: &str) -> Vec<(String, Option<String>)> {
+        self.iter()
+            .filter(|(v, _)| v.starts_with(input))
+            .map(|(v, h)| (v.clone(), Some(h.clone())))
+            .collect()
     }
 }

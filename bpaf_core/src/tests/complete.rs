@@ -86,7 +86,7 @@ fn name_should_be_included() {
         .long("aaa")
         .argument::<String>("A")
         .help("Aaaaa!!!")
-        .complete(|_| vec![("bbb".to_string(), None)]);
+        .complete(|_: &str| vec![("bbb".to_string(), None)]);
     let parser = a.to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
@@ -201,7 +201,7 @@ fn simple_complete_named() {
 #[test]
 fn simple_complete_for_value() {
     let a = short('a').req_flag(());
-    let b = short('b').argument::<u32>("B").complete(|s| {
+    let b = short('b').argument::<u32>("B").complete(|s: &str| {
         if s.starts_with("13") {
             vec![(format!("{s}42"), None)]
         } else {
@@ -401,4 +401,128 @@ fn multi_value_nested_completion() {
         .unwrap_err()
         .unwrap_stdout();
     assert_eq!(r, "two\tSecond option\n");
+}
+
+#[test]
+fn completer_static_str_slice() {
+    let names: &'static [&'static str] = &["alice", "bob", "carol"];
+    let a = short('a').argument::<String>("A").complete(names);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(("", "-a=")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=alice\n-a=bob\n-a=carol\n");
+
+    let r = parser.run_inner(("", "-a=b")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=bob\n");
+
+    let r = parser.run_inner(("", "-a=c")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=carol\n");
+
+    let r = parser.run_inner(("", "-a=x")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "");
+
+    let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alice\nbob\ncarol\n");
+
+    let r = parser.run_inner(("-a", "a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alice\n");
+}
+
+#[test]
+fn completer_static_str_pairs() {
+    let names: &'static [(&'static str, &'static str)] = &[
+        ("alice", "Alice's Adventures"),
+        ("bob", "Bob's Life"),
+        ("carol", "Carol's World"),
+    ];
+    let a = short('a').argument::<String>("A").complete(names);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(("", "-a=")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "-a=alice\tAlice's Adventures\n\
+         -a=bob\tBob's Life\n\
+         -a=carol\tCarol's World\n"
+    );
+
+    let r = parser.run_inner(("", "-a=b")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=bob\tBob's Life\n");
+
+    let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "alice\tAlice's Adventures\n\
+         bob\tBob's Life\n\
+         carol\tCarol's World\n"
+    );
+
+    let r = parser.run_inner(("-a", "a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alice\tAlice's Adventures\n");
+}
+
+#[test]
+fn completer_vec_string() {
+    let names = vec![
+        "delta".to_string(),
+        "echo".to_string(),
+        "foxtrot".to_string(),
+    ];
+    let a = short('a').argument::<String>("A").complete(names);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(("", "-a=")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=delta\n-a=echo\n-a=foxtrot\n");
+
+    let r = parser.run_inner(("", "-a=e")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=echo\n");
+
+    let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "delta\necho\nfoxtrot\n");
+
+    let r = parser.run_inner(("-a", "d")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "delta\n");
+}
+
+#[test]
+fn completer_vec_pairs() {
+    let names = vec![
+        ("delta".to_string(), "Fourth letter".to_string()),
+        ("echo".to_string(), "Fifth letter".to_string()),
+    ];
+    let a = short('a').argument::<String>("A").complete(names);
+    let parser = a.to_options();
+
+    let r = parser.run_inner(("", "-a=")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "-a=delta\tFourth letter\n\
+         -a=echo\tFifth letter\n"
+    );
+
+    let r = parser.run_inner(("", "-a=d")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a=delta\tFourth letter\n");
+
+    let r = parser.run_inner(("-a", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "delta\tFourth letter\n\
+         echo\tFifth letter\n"
+    );
+
+    let r = parser.run_inner(("-a", "d")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "delta\tFourth letter\n");
+}
+
+#[test]
+fn completer_static_str_slice_positional() {
+    let names: &'static [&'static str] = &["alice", "bob", "carol"];
+    let p = positional::<String>("NAME").complete(names);
+    let parser = construct!(p).to_options();
+
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "alice\nbob\ncarol\n");
+
+    let r = parser.run_inner(("", "b")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "bob\n");
 }
