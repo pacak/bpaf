@@ -544,3 +544,73 @@ impl Completer<()> for Vec<(String, String)> {
             .collect()
     }
 }
+
+#[derive(Default)]
+pub struct Fs {
+    suffix: Option<&'static str>,
+    prefix: Option<&'static str>,
+}
+
+impl Fs {
+    pub fn suffix(mut self, mask: &'static str) -> Self {
+        self.suffix = Some(mask);
+        self
+    }
+
+    pub fn prefix(mut self, mask: &'static str) -> Self {
+        self.prefix = Some(mask);
+        self
+    }
+}
+
+impl Completer<()> for Fs {
+    fn invoke(&self, ctx: &Ctx, prefix: &str) -> Vec<(String, Option<String>)> {
+        if matches!(ctx.args.complete, Some(Shell::Test)) {
+            let help = format!("prefix: {:?}, suffix: {:?}", self.prefix, self.suffix);
+            return vec![(format!("{prefix:?}"), Some(help))];
+        }
+
+        let (dir, file_prefix) = if let Some(pos) = prefix.rfind('/') {
+            let (d, f) = prefix.split_at(pos + 1);
+            (d.to_string(), f)
+        } else {
+            (String::new(), prefix)
+        };
+
+        let dir_path = if dir.is_empty() {
+            std::path::Path::new(".")
+        } else {
+            std::path::Path::new(&dir)
+        };
+
+        let mut results = Vec::new();
+        let read_dir = match std::fs::read_dir(dir_path) {
+            Ok(rd) => rd,
+            Err(_) => return results,
+        };
+
+        for entry in read_dir.flatten().take(100) {
+            let path = entry.path();
+            let Some(file_name) = path.file_name() else {
+                continue;
+            };
+            let file_name = file_name.to_string_lossy().into_owned();
+
+            if !file_name.starts_with(file_prefix) {
+                continue;
+            }
+
+            let is_dir = entry.file_type().is_ok_and(|ft| ft.is_dir());
+
+            if is_dir {
+                results.push((format!("{dir}{file_name}/"), None));
+            } else if self.prefix.is_none_or(|m| file_name.starts_with(m))
+                && self.suffix.is_none_or(|m| file_name.ends_with(m))
+            {
+                results.push((format!("{dir}{file_name}"), None));
+            }
+        }
+
+        results
+    }
+}

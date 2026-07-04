@@ -3,7 +3,7 @@ mod adapters;
 mod anything;
 mod arg;
 mod args;
-mod complete;
+pub mod complete;
 mod completions;
 mod console_writer;
 mod consumers;
