@@ -1500,6 +1500,14 @@ impl Mixer {
                     && !strict_pos
                 {
                     self.pecking_push(triggers.literal.get(&name));
+                    // Single-char bare word could be a command registered as
+                    // Name::Long (e.g. command("a")), so also check that variant
+                    if let Lit(Name::Short(_)) = &name
+                        && let Some(s) = value.to_str()
+                    {
+                        let long = Lit(Name::Long(Cow::Borrowed(s)));
+                        self.pecking_push(triggers.literal.get(&long));
+                    }
                 }
                 self.pecking_push(Some(&triggers.pos));
             }
