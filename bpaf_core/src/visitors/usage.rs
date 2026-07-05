@@ -99,7 +99,15 @@ impl Usage<'_> {
                         }
                         VisitGroup::Sum => {
                             if *visible {
+                                // Like Prod/Optional: emit separator before the opening
+                                // bracket if this is not the first element in the parent,
+                                // then mark `first = false` so items inside don't get
+                                // the Sum's `" | "` separator prepended.
+                                if !first {
+                                    out.push_str(sep);
+                                }
                                 out.push(if *optional { '[' } else { '(' });
+                                first = true;
                             }
                         }
                         VisitGroup::Global => {
@@ -374,7 +382,9 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 // Prod keeps everything visible - each is a distinct element inside the product.
                 (VG::Prod, VG::Many) => true, // repetition inside product: `(xxx)...`
                 (VG::Prod, VG::Optional) => true, // optional item inside product: `[xxx]`
-                (VG::Prod, VG::Sum) => true,  // alternatives inside product: `(xxx | yyy)`
+                // Keep Sum visible for genuine alternation; collapse when command
+                // dedup has left only one alternative - no brackets needed.
+                (VG::Prod, VG::Sum) => child.children > 1,
                 // Sum keeps everything visible except Prod, whose brackets are redundant
                 // inside the sum's alternation.
                 (VG::Sum, VG::Many) => true, // repetition inside alternatives: `(xxx | yyy)...`

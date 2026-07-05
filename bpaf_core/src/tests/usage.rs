@@ -504,6 +504,21 @@ fn optional_strict() {
     assert_eq!(usage(&parser), "[-- A]");
 }
 
+#[test]
+fn commands_and_adjacent() {
+    let eat = pure(()).to_options().command("eat").lazy();
+
+    let sleep = pure(()).to_options().command("sleep").lazy();
+
+    let cmds = construct!([eat, sleep]);
+    let switch = short('s').switch();
+
+    let parser = construct!(switch, cmds).to_options();
+
+    let expected = "[-s] COMMAND ...";
+    assert_eq!(usage(&parser), expected);
+}
+
 // #[test]
 // fn many_strict() {
 //     let a = short('a').switch();
