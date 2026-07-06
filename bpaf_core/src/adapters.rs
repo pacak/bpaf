@@ -45,9 +45,19 @@ pub(crate) enum Optionality<T> {
 pub(crate) async fn optional<'p, T: 'static>(
     ctx: crate::Ctx<'p>,
     parser: &'p impl Parser<Output = T>,
+    restore_to: &mut Option<u32>,
 ) -> Optionality<T> {
     let before = ctx.shared.current_task.borrow().consumed;
     let (handle, scope) = ctx.scoped_spawn(parser, Kind::Sum);
+    if let Some(restore) = restore_to {
+        let after = ctx.shared.next_free.get();
+        assert!(
+            after <= *restore,
+            "scoped_spawn allocated IDs {after} past restore target {}",
+            *restore
+        );
+        ctx.shared.next_free.set(*restore);
+    }
     ctx.early_exit.borrow_mut().insert(scope);
     ctx.wait_for_children().await;
     ctx.early_exit.borrow_mut().remove(&scope);
@@ -76,7 +86,8 @@ pub struct Optional<P> {
 impl<P: Parser> Parser for Optional<P> {
     type Output = Option<P::Output>;
     async fn eval<'p>(&'p self, ctx: crate::Ctx<'p>) -> Result<Option<P::Output>, Error> {
-        match optional(ctx.clone(), &self.inner).await {
+        let mut none = None;
+        match optional(ctx.clone(), &self.inner, &mut none).await {
             Optionality::Parsed(v) | Optionality::Summoned(v) => Ok(Some(v)),
             Optionality::Missing(_) => Ok(None),
             Optionality::Failed(e) if self.catch => {

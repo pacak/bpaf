@@ -370,3 +370,20 @@ fn optional_bool_states() {
     let r = parser.run_inner("").unwrap();
     assert_eq!(r, Some(false));
 }
+
+#[test]
+fn many_with_adjacent_leaf_leaves_no_leftovers() {
+    let b = positional::<usize>("x");
+    let ab = short('a').nest(b).many();
+    let bc = short('a').switch();
+    let parser = construct!(ab, bc).to_options();
+
+    let r = parser.run_inner("-a").unwrap();
+    assert_eq!(r, (Vec::new(), true));
+
+    let r = parser.run_inner("-a 10").unwrap();
+    assert_eq!(r, (vec![10], false));
+
+    let r = parser.run_inner("").unwrap();
+    assert_eq!(r, (Vec::new(), false));
+}
