@@ -211,7 +211,15 @@ impl<T: 'static> Parser for Nested<T> {
         ctx.consume(consumed);
         ctx.cursor().set(saved);
 
-        r
+        match r {
+            // the trigger value was there so we can't simply handle
+            // missing value with `.fallback()` or similar
+            Err(crate::Error::Missing(m)) => Err(crate::Error::Problem(
+                saved,
+                Problem::Dynamic { err: m.to_string() },
+            )),
+            other => other,
+        }
     }
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {

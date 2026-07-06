@@ -378,8 +378,8 @@ fn many_with_adjacent_leaf_leaves_no_leftovers() {
     let bc = short('a').switch();
     let parser = construct!(ab, bc).to_options();
 
-    let r = parser.run_inner("-a").unwrap();
-    assert_eq!(r, (Vec::new(), true));
+    let r = parser.run_inner("-a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "expected '<x>'\n");
 
     let r = parser.run_inner("-a 10").unwrap();
     assert_eq!(r, (vec![10], false));

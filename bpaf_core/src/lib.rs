@@ -1663,6 +1663,7 @@ mod tests {
     mod adjacent;
     mod algebra;
     mod any;
+    mod anywhere;
     mod argument;
     mod command;
     mod complete;
