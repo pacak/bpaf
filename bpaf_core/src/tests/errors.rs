@@ -1476,3 +1476,34 @@ fn nested_keyword_error() {
     let expected = "flag '-i' is not valid in this context, but it can be used after 'all'\n";
     assert_eq!(r, expected);
 }
+
+#[test]
+fn anchor_start_error() {
+    let a = long("alpha").switch().anchor_start();
+    let b = long("beta").switch();
+    let parser = construct!(a, b).to_options();
+
+    let r = parser
+        .run_inner("--alph --beta")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "no such flag: '--alph', did you mean '--alpha'?\n");
+
+    let r = parser
+        .run_inner("--beta --alph")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "'--alph' is not expected in this context\n");
+
+    let r = parser
+        .run_inner("--beta --alpha")
+        .unwrap_err()
+        .unwrap_stderr();
+    assert_eq!(r, "'--alpha' is not expected in this context\n");
+
+    let r = parser.run_inner("--alpha").unwrap();
+    assert_eq!(r, (true, false));
+
+    let r = parser.run_inner("--beta").unwrap();
+    assert_eq!(r, (false, true));
+}
