@@ -16,7 +16,7 @@ use crate::{
     custom_path::CratePathReplacer,
     field::StructField,
     help::Help,
-    td::{CommandCfg, EAttr, Ed, Mode, OptionsCfg, ParserCfg, TopInfo},
+    td::{CommandCfg, EAttr, Ed, Mode, NestCfg, OptionsCfg, ParserCfg, TopInfo},
     utils::{LineIter, to_kebab_case, to_snake_case},
 };
 
@@ -465,6 +465,7 @@ impl ParsedEnumBranch {
         let mut attrs = Vec::with_capacity(ea.len());
         let mut has_options = None;
         let mut fallback_usage = false;
+        let mut nest = None;
         for attr in ea {
             match attr {
                 EAttr::NamedCommand(_) => {
@@ -509,6 +510,30 @@ impl ParsedEnumBranch {
                 }
                 EAttr::FallbackUsage => fallback_usage = true,
                 EAttr::ToOptions => unreachable!(),
+
+                EAttr::Nest => {
+                    nest = Some(NestCfg::default());
+                    if let FieldSet::Unit(_, _, _) = branch.fields {
+                        let ident = &branch.ident;
+                        let enum_name = &branch.enum_name;
+                        branch.fields = FieldSet::Pure(parse_quote!(::bpaf::pure(#enum_name #ident)));
+                    }
+                }
+                EAttr::NestShort(n) => {
+                    if let Some(ref mut cfg) = nest {
+                        cfg.short.push(n.unwrap_or_else(|| ident_to_short(&branch.ident)));
+                    }
+                }
+                EAttr::NestLong(n) => {
+                    if let Some(ref mut cfg) = nest {
+                        cfg.long.push(n.unwrap_or_else(|| ident_to_long(&branch.ident)));
+                    }
+                }
+                EAttr::NestHelp(h) => {
+                    if let Some(ref mut cfg) = nest {
+                        cfg.help = Some(h);
+                    }
+                }
             }
         }
 
@@ -521,12 +546,24 @@ impl ParsedEnumBranch {
                 split_ehelp_into(h, opts_at, &mut attrs);
             }
         }
-        branch.set_inplicit_name();
-        if let Some(help) = help {
-            branch.push_help(help);
+
+        if let Some(ref mut nest) = nest {
+            if nest.long.is_empty() && nest.short.is_empty() {
+                nest.long.push(ident_to_long(&branch.ident));
+            }
+            if let Some(h) = help {
+                if nest.help.is_none() {
+                    nest.help = Some(h);
+                }
+            }
+        } else {
+            branch.set_inplicit_name();
+            if let Some(help) = help {
+                branch.push_help(help);
+            }
         }
 
-        Ok(Some(EnumBranch { branch, attrs }))
+        Ok(Some(EnumBranch { branch, attrs, nest }))
     }
 }
 
@@ -546,12 +583,24 @@ pub(crate) struct EnumBranch {
     // {{{
     branch: Branch,
     attrs: Vec<EAttr>,
+    nest: Option<NestCfg>,
 }
 
 impl ToTokens for EnumBranch {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let EnumBranch { branch, attrs } = self;
-        quote!(#branch #(.#attrs)*).to_tokens(tokens);
+        let EnumBranch { branch, attrs, nest } = self;
+        if let Some(nest) = nest {
+            let names: Vec<StrictName> = nest
+                .short
+                .iter()
+                .map(|c| StrictName::Short { name: c.clone() })
+                .chain(nest.long.iter().map(|s| StrictName::Long { name: s.clone() }))
+                .collect();
+            let help = nest.help.iter();
+            quote!(::bpaf:: #( #names .)* #(help(#help).)* nest(#branch) #(.#attrs)*).to_tokens(tokens);
+        } else {
+            quote!(#branch #(.#attrs)*).to_tokens(tokens);
+        }
     }
 }
 

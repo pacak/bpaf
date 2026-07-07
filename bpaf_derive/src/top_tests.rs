@@ -1413,6 +1413,270 @@ fn custom_bpaf_path_parser() {
     assert_eq!(input.to_token_stream().to_string(), expected.to_string());
 }
 
+#[test]
+fn enum_nest_named() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            /// Add a file
+            #[bpaf(nest, short('a'), long("add"))]
+            Add {
+                #[bpaf(positional("FILE"))]
+                files: PathBuf,
+            }
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').long("add").help("Add a file").nest({
+                let files = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add { files, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_named_implicit_name() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            /// Add a file
+            #[bpaf(nest)]
+            Add {
+                #[bpaf(positional("FILE"))]
+                files: PathBuf,
+            }
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("add").help("Add a file").nest({
+                let files = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add { files, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_unnamed() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            /// Add a file
+            #[bpaf(nest, short('a'), long("add"))]
+            Add(#[bpaf(positional("FILE"))] PathBuf),
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').long("add").help("Add a file").nest({
+                let f0 = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add(f0, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_unit() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            #[bpaf(nest, short('s'))]
+            Status,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('s').nest(::bpaf::pure(Opt::Status))
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_auto_short() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            #[bpaf(nest, short, long("add"))]
+            Add {
+                #[bpaf(positional("FILE"))]
+                files: PathBuf,
+            }
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').long("add").nest({
+                let files = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add { files, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_auto_long() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            #[bpaf(nest, short('a'), long)]
+            Add {
+                #[bpaf(positional("FILE"))]
+                files: PathBuf,
+            }
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').long("add").nest({
+                let files = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add { files, })
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_multiple_names() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            #[bpaf(nest, short('a'), short('b'), long("x"), long("y"))]
+            Add(#[bpaf(positional("FILE"))] PathBuf),
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').short('b').long("x").long("y").nest({
+                let f0 = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add(f0, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_doc_help() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            /// Add a file
+            #[bpaf(nest, short('a'))]
+            Add(#[bpaf(positional("FILE"))] PathBuf),
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').help("Add a file").nest({
+                let f0 = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add(f0, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_with_hide() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            #[bpaf(nest, short('a'), hide)]
+            Add(#[bpaf(positional("FILE"))] PathBuf),
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').nest({
+                let f0 = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add(f0, ))
+            })
+            .hide()
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_nest_help_override() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            /// Doc help
+            #[bpaf(nest, short('a'), help("Override"))]
+            Add(#[bpaf(positional("FILE"))] PathBuf),
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::short('a').help("Override").nest({
+                let f0 = ::bpaf::positional::<PathBuf>("FILE");
+                ::bpaf::construct!(Opt::Add(f0, ))
+            })
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
+fn enum_short_variant_name() {
+    let top: Top = parse_quote! {
+        enum Opt {
+            A,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn opt() -> impl ::bpaf::Parser<Output=Opt> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            ::bpaf::long("a").req_flag(Opt::A)
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
 /*
 #[test]
 fn push_down_command() {

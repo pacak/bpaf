@@ -310,6 +310,14 @@ pub(crate) struct Ed {
 pub(crate) enum VariantMode {
     Command,
     Parser,
+    Nest,
+}
+
+#[derive(Debug, Default, Clone)]
+pub(crate) struct NestCfg {
+    pub(crate) short: Vec<LitChar>,
+    pub(crate) long: Vec<LitStr>,
+    pub(crate) help: Option<Help>,
 }
 
 impl Parse for Ed {
@@ -321,6 +329,8 @@ impl Parse for Ed {
             let first = input.fork().parse::<Ident>()?;
             if first == "command" {
                 VariantMode::Command
+            } else if first == "nest" {
+                VariantMode::Nest
             } else {
                 VariantMode::Parser
             }
@@ -330,14 +340,30 @@ impl Parse for Ed {
             let kw = input.parse::<Ident>()?;
 
             if kw == "command" {
+                if matches!(mode, VariantMode::Nest) {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "\"command\" can't be used together with \"nest\"",
+                    ));
+                }
                 attrs.push(if let Some(name) = parse_opt_arg(input)? {
                     EAttr::NamedCommand(name)
                 } else {
                     EAttr::UnnamedCommand
                 });
+            } else if kw == "nest" {
+                if matches!(mode, VariantMode::Command) {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "\"nest\" can't be used together with \"command\"",
+                    ));
+                }
+                attrs.push(EAttr::Nest);
             } else if kw == "short" {
                 if matches!(mode, VariantMode::Command) {
                     attrs.push(EAttr::CommandShort(parse_arg(input)?));
+                } else if matches!(mode, VariantMode::Nest) {
+                    attrs.push(EAttr::NestShort(parse_opt_arg(input)?));
                 } else {
                     attrs.push(EAttr::UnitShort(parse_opt_arg(input)?));
                 }
@@ -346,8 +372,19 @@ impl Parse for Ed {
             } else if kw == "long" {
                 if matches!(mode, VariantMode::Command) {
                     attrs.push(EAttr::CommandLong(parse_arg(input)?));
+                } else if matches!(mode, VariantMode::Nest) {
+                    attrs.push(EAttr::NestLong(parse_opt_arg(input)?));
                 } else {
                     attrs.push(EAttr::UnitLong(parse_opt_arg(input)?));
+                }
+            } else if kw == "help" {
+                if matches!(mode, VariantMode::Nest) {
+                    attrs.push(EAttr::NestHelp(parse_arg(input)?));
+                } else {
+                    return Err(Error::new_spanned(
+                        kw,
+                        "\"help\" is not supported in this context",
+                    ));
                 }
             } else if kw == "fallback_to_usage" {
                 if matches!(mode, VariantMode::Command) {
@@ -408,6 +445,11 @@ pub(crate) enum EAttr {
     Usage(Box<Expr>),
     Env(Box<Expr>),
     ToOptions,
+
+    Nest,
+    NestShort(Option<LitChar>),
+    NestLong(Option<LitStr>),
+    NestHelp(Help),
 }
 
 impl ToTokens for EAttr {
@@ -426,7 +468,8 @@ impl ToTokens for EAttr {
             Self::Hide => quote!(hide()),
             Self::FallbackUsage => quote!(fallback_to_usage()),
 
-            Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_) => unreachable!(),
+            Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_)
+            | Self::Nest | Self::NestShort(_) | Self::NestLong(_) | Self::NestHelp(_) => unreachable!(),
         }
         .to_tokens(tokens);
     }
