@@ -1005,7 +1005,13 @@ impl<'p> Executor<'p> {
             }
         }
 
-        match lex_os_arg(unexpected) {
+        let arg = if self.ctx.strict_pos.get() {
+            Arg::Pos { value: unexpected }
+        } else {
+            lex_os_arg(unexpected)
+        };
+
+        match arg {
             Arg::Named {
                 name: unexpected,
                 value,

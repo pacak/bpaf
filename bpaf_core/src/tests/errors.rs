@@ -1507,3 +1507,17 @@ fn anchor_start_error() {
     let r = parser.run_inner("--beta").unwrap();
     assert_eq!(r, (false, true));
 }
+
+#[test]
+fn pos_and_named() {
+    let parser = short('a').switch().to_options();
+
+    let r = parser.run_inner("-- -a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'-a' is not expected in this context\n");
+
+    let r = parser.run_inner("-a -- -a").unwrap_err().unwrap_stderr();
+    assert_eq!(r, "'-a' is not expected in this context\n");
+
+    let r = parser.run_inner("-a --").unwrap();
+    assert!(r);
+}
