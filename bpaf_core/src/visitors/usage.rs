@@ -34,6 +34,16 @@ impl Usage<'_> {
         let mut wrote_strict_this_prod = false;
         for event in events.iter() {
             match event {
+                Event::BraceOpen => {
+                    if !first {
+                        out.push(' ');
+                    }
+                    out.push('{');
+                    first = true;
+                }
+                Event::BraceClose => {
+                    out.push('}');
+                }
                 Event::Put(put) => {
                     if !first {
                         out.push_str(sep);
@@ -213,19 +223,24 @@ impl<'a> Visitor<'a> for Usage<'a> {
                         return;
                     }
                 }
-                self.events.push(Event::Put(Put::Text {
-                    text: Cow::Borrowed("{"),
-                }));
                 let mut u = Usage::default();
                 inner.vi(&mut u);
+                // Force product-style rendering at the top level inside nested:
+                // replace the outermost Sum with Prod (inner Sums stay intact)
+                if let Some(Event::Group(g)) = u.events.first_mut()
+                    && g.group == VisitGroup::Sum
+                {
+                    g.group = VisitGroup::Prod;
+                }
                 let mut inner_usage = String::new();
                 u.render_to(&mut inner_usage);
-                self.events.push(Event::Put(Put::Text {
-                    text: Cow::Owned(inner_usage),
-                }));
-                self.events.push(Event::Put(Put::Text {
-                    text: Cow::Borrowed("}"),
-                }));
+                if !inner_usage.is_empty() {
+                    self.events.push(Event::BraceOpen);
+                    self.events.push(Event::Put(Put::Text {
+                        text: Cow::Owned(inner_usage),
+                    }));
+                    self.events.push(Event::BraceClose);
+                }
                 return;
             }
             Item::OptionParser { inner, info: _ } => {
@@ -457,6 +472,8 @@ enum Event<'a> {
     Put(Put<'a>),
     Group(Group),
     Pop,
+    BraceOpen,
+    BraceClose,
 }
 
 impl Event<'_> {

@@ -519,6 +519,37 @@ fn commands_and_adjacent() {
     assert_eq!(usage(&parser), expected);
 }
 
+#[test]
+fn nest_usage() {
+    let num = short('n')
+        .long("num")
+        .argument::<u32>("N")
+        .help("Number to add");
+    let add = long("add").short('a').nest(num);
+
+    let doctor = long("doctor").help("Run diag").req_flag(0);
+    let check = long("check").help("Perform the check").nest(pure(42));
+    let parser = construct!([add, doctor, check]).to_options();
+
+    let expected = "(-a {-n=N} | --doctor | --check)";
+    assert_eq!(usage(&parser), expected);
+}
+
+#[test]
+fn nest_usage_preserves_inner_sum() {
+    // Top level of the nested parser is a product, but inner sums should stay
+    let a = short('a').req_flag(0);
+    let b = short('b').req_flag(1);
+    let c = short('c').req_flag(2);
+    let bc = construct!([b, c]);
+    let inner = construct!(a, bc);
+    let add = long("add").short('d').nest(inner);
+    let parser = add.to_options();
+
+    let expected = "-d {-a (-b | -c)}";
+    assert_eq!(usage(&parser), expected);
+}
+
 // #[test]
 // fn many_strict() {
 //     let a = short('a').switch();

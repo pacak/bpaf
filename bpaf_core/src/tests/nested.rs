@@ -12,7 +12,7 @@ fn basic_two_item_arg() {
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected = "\
-Usage: app [-l] -s { KEY VAL }
+Usage: app [-l] -s {KEY VAL}
 
 Available options:
     -l, --long         with some help
@@ -66,4 +66,50 @@ fn lit() {
 
     let r = parser.run_inner("set").unwrap();
     assert!(r);
+}
+
+#[test]
+fn chezmoi_nest() {
+    #[derive(Debug, Clone, Eq, PartialEq)]
+    enum Op {
+        Add { num: u32 },
+        Doctor,
+        Check,
+    }
+
+    let num = short('n')
+        .long("num")
+        .argument::<u32>("N")
+        .help("Number to add");
+    let add = construct!(Op::Add { num });
+    let add = long("add").short('a').nest(add);
+
+    let doctor = long("doctor").help("Run diag").req_flag(Op::Doctor);
+    let check = long("check")
+        .help("Perform the check")
+        .nest(pure(Op::Check));
+    let parser = construct!([add, doctor, check]).to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    assert_eq!(
+        r,
+        "Usage: app (-a {-n=N} | --doctor | --check)
+
+Available options:
+    -a, --add -n=N
+    -n, --num=N     Number to add
+        --doctor    Run diag
+        --check     Perform the check
+    -h, --help      Prints help information
+"
+    );
+
+    let r = parser.run_inner("--add --num 42").unwrap();
+    assert_eq!(r, Op::Add { num: 42 });
+
+    let r = parser.run_inner("--doctor").unwrap();
+    assert_eq!(r, Op::Doctor);
+
+    let r = parser.run_inner("--check").unwrap();
+    assert_eq!(r, Op::Check);
 }
