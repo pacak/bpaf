@@ -22,21 +22,13 @@ impl FromStr for Style {
 }
 
 /// Parser for `--style`
-fn style() -> impl Parser<Style> {
+fn style() -> impl Parser<Output = Style> {
     const DEFAULT: Style = Style::InPath;
-
-    fn complete_fn(input: &String) -> Vec<(&'static str, Option<&'static str>)> {
-        [("path", Some("Is path")), ("src", Some("Is src"))]
-            .into_iter()
-            .filter(|(name, _)| name.starts_with(input))
-            .collect()
-    }
-
     short('t')
         .long("style")
         .help("help message for style")
         .argument::<String>("STYLE")
-        .complete(complete_fn)
+        .complete(&[("path", "Is path"), ("src", "Is src")][..])
         .parse(|x| x.parse())
         .fallback(DEFAULT)
 }
@@ -45,34 +37,33 @@ fn style() -> impl Parser<Style> {
 #[bpaf(options, version)]
 pub enum Options {
     /// Process a single file (containing settings).
-    Process(#[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))] PathBuf),
+    Process(#[bpaf(positional("FILE"), complete(complete::Fs::default()))] PathBuf),
+
+    #[bpaf(nest, short, long)]
+    /// Add a file
     Add {
-        /// Add a file
-        #[bpaf(short('a'), long("add"))]
-        _a: (),
         #[bpaf(external)]
         style: Style,
-        #[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))]
+        #[bpaf(positional("FILE"), complete(complete::Fs::default()))]
         files: Vec<PathBuf>,
     },
+
+    /// Smartly add a file
+    #[bpaf(nest, short('s'), long("smart-add"))]
     Smart {
-        /// Smartly add a file
-        #[bpaf(short('s'), long("smart-add"))]
-        _a: (),
         #[bpaf(external)]
         style: Style,
-        #[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))]
+        #[bpaf(positional("FILE"), complete(complete::Fs::default()))]
         files: Vec<PathBuf>,
     },
-    Doctor {
-        /// Perform environment sanity check
-        #[bpaf(long("doctor"))]
-        _a: (),
-    },
+
+    /// Perform environment sanity check
+    #[bpaf(long("doctor"))]
+    Doctor,
+
+    /// Perform self update
+    #[bpaf(nest, short('u'), long("upgrade"))]
     Update {
-        /// Perform self update
-        #[bpaf(short('u'), long("upgrade"))]
-        _a: (),
         /// Do not ask for confirmation before applying updates
         #[bpaf(long("no-confirm"))]
         no_confirm: bool,
@@ -83,55 +74,37 @@ pub enum Options {
 fn completion_test_1() {
     let parser = options();
 
-    let r = parser
-        .run_inner(Args::from(&[""]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
 
     let expected = "\
---add\t--add\t\tAdd a file
---style\t--style=STYLE\t\thelp message for style
---smart-add\t--smart-add\t\tSmartly add a file
---style\t--style=STYLE\t\thelp message for style
---doctor\t--doctor\t\tPerform environment sanity check
---upgrade\t--upgrade\t\tPerform self update
---no-confirm\t--no-confirm\t\tDo not ask for confirmation before applying updates
-
-File { mask: None }
-File { mask: None }
-File { mask: None }
+\"\"\tprefix: None, suffix: None
+--add\tAdd a file
+--smart-add\tSmartly add a file
+--doctor\tPerform environment sanity check
+--upgrade\tPerform self update
 ";
     assert_eq!(r, expected);
 
-    let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-    assert_eq!(r, expected);
-
-    let r = parser
-        .run_inner(Args::from(&["--s"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-
-    // style is valid in two different branches, as far as bpaf is concerned they might be
-    // different. Hopefully shell can deduplicate it?
+    let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
     let expected = "\
---style\t--style=STYLE\t\thelp message for style
---smart-add\t--smart-add\t\tSmartly add a file
---style\t--style=STYLE\t\thelp message for style
-
+--add\tAdd a file
+--smart-add\tSmartly add a file
+--doctor\tPerform environment sanity check
+--upgrade\tPerform self update
 ";
     assert_eq!(r, expected);
 
+    let r = parser.run_inner(("", "--s")).unwrap_err().unwrap_stdout();
+    let expected = "--smart-add\tSmartly add a file\n";
+    assert_eq!(r, expected);
+
     let r = parser
-        .run_inner(Args::from(&["--smart-add", ""]).set_comp(0))
+        .run_inner(("--smart-add", ""))
         .unwrap_err()
         .unwrap_stdout();
     let expected = "\
---style\t--style=STYLE\t\thelp message for style
-
-File { mask: None }
+--style\thelp message for style
+\"\"\tprefix: None, suffix: None
 ";
     assert_eq!(r, expected);
 }
@@ -139,10 +112,11 @@ File { mask: None }
 #[test]
 fn completion_test_2() {
     #[derive(Debug, Bpaf, Clone)]
+    #[allow(dead_code)]
     #[bpaf(options, version)]
     pub enum Options {
         /// Process a single file (containing settings).
-        Process(#[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))] PathBuf),
+        Process(#[bpaf(positional("FILE"), complete(complete::Fs::default()))] PathBuf),
 
         /// Perform environment sanity check
         #[bpaf(long("doctor"))]
@@ -151,16 +125,34 @@ fn completion_test_2() {
 
     let parser = options();
 
-    let r = parser
-        .run_inner(Args::from(&["-"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
-
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
---doctor\t--doctor\t\tPerform environment sanity check
+Usage: app (FILE | --doctor)
 
-File { mask: None }
+Available positional items:
+    FILE
+
+Available options:
+        --doctor   Perform environment sanity check
+    -h, --help     Prints help information
+    -V, --version  Prints version information
 ";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    let expected = "\
+--doctor\tPerform environment sanity check
+";
+    assert_eq!(r, expected);
+
+    // "-" is a valid filename, so Option::Process succeeds, Doctor is killed. No input
+    let r = parser.run_inner(("-", "")).unwrap_err().unwrap_stdout();
+    let expected = "";
+    assert_eq!(r, expected);
+
+    // --doctor doesn't fit, but "hello" is a valid filename prefix
+    let r = parser.run_inner(("", "hello")).unwrap_err().unwrap_stdout();
+    let expected = "\"hello\"\tprefix: None, suffix: None\n";
     assert_eq!(r, expected);
 }
 
@@ -168,9 +160,10 @@ File { mask: None }
 fn completion_test_3() {
     #[derive(Debug, Bpaf, Clone)]
     #[bpaf(options, version)]
+    #[allow(dead_code)]
     pub enum Options {
         /// Process a single file (containing settings).
-        Process(#[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))] PathBuf),
+        Process(#[bpaf(positional("FILE"), complete(complete::Fs::default()))] PathBuf),
 
         /// Perform environment sanity check
         #[bpaf(long("doctor"))]
@@ -183,17 +176,23 @@ fn completion_test_3() {
 
     let parser = options();
 
+    let r = parser.run_inner(("", "--")).unwrap_err().unwrap_stdout();
+    let expected = "--doctor\tPerform environment sanity check
+--document\tPrint docs
+";
+    assert_eq!(r, expected);
+
+    let r = parser.run_inner(("", "--doc")).unwrap_err().unwrap_stdout();
+    let expected = "--doctor\tPerform environment sanity check
+--document\tPrint docs
+";
+    assert_eq!(r, expected);
+
     let r = parser
-        .run_inner(Args::from(&["--"]).set_comp(0))
+        .run_inner(("", "--doct"))
         .unwrap_err()
         .unwrap_stdout();
-
-    let expected = "\
---doctor\t--doctor\t\tPerform environment sanity check
---document\t--document\t\tPrint docs
-
-File { mask: None }
-";
+    let expected = "--doctor\tPerform environment sanity check\n";
     assert_eq!(r, expected);
 }
 
@@ -201,9 +200,10 @@ File { mask: None }
 fn completion_test_4() {
     #[derive(Debug, Bpaf, Clone)]
     #[bpaf(options, version)]
+    #[allow(dead_code)]
     pub enum Options {
         /// Process a single file (containing settings).
-        Process(#[bpaf(positional("FILE"), complete_shell(ShellComp::File{mask: None}))] PathBuf),
+        Process(#[bpaf(positional("FILE"), complete(complete::Fs::default()))] PathBuf),
 
         /// Perform environment sanity check
         #[bpaf(long("doctor"))]
@@ -216,15 +216,11 @@ fn completion_test_4() {
 
     let parser = options();
 
-    let r = parser
-        .run_inner(Args::from(&["--d"]).set_comp(0))
-        .unwrap_err()
-        .unwrap_stdout();
+    let r = parser.run_inner(("", "--d")).unwrap_err().unwrap_stdout();
 
     let expected = "\
---doctor\t--doctor\t\tPerform environment sanity check
---document\t--document\t\tPrint docs
-
+--doctor\tPerform environment sanity check
+--document\tPrint docs
 ";
 
     assert_eq!(r, expected);
