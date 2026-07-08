@@ -1,8 +1,8 @@
 use crate::field::*;
 use pretty_assertions::assert_eq;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{parse, parse::Parse, parse2, parse_quote, Result};
+use quote::{ToTokens, quote};
+use syn::{Result, parse, parse::Parse, parse_quote, parse2};
 
 #[derive(Debug)]
 struct UnnamedField {

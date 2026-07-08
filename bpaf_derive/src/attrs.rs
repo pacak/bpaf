@@ -1,8 +1,9 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Attribute, Error, Expr, Ident, LitChar, LitStr, Path, Result, Type,
     parse::{Parse, ParseStream},
-    token, Attribute, Error, Expr, Ident, LitChar, LitStr, Path, Result, Type,
+    token,
 };
 
 use crate::{
@@ -150,9 +151,16 @@ impl StrictName {
             Name::Short { name: None, span } => match ident {
                 Some(name) => {
                     let derived_name = to_kebab_case(&name.to_string()).chars().next().unwrap();
-                    Self::Short { name: LitChar::new(derived_name, span) }
+                    Self::Short {
+                        name: LitChar::new(derived_name, span),
+                    }
                 }
-                None => return Err(Error::new(span, "Can't derive an explicit name for unnamed struct, try adding a name here like short('f')", ))
+                None => {
+                    return Err(Error::new(
+                        span,
+                        "Can't derive an explicit name for unnamed struct, try adding a name here like short('f')",
+                    ));
+                }
             },
             Name::Long {
                 name: Some(name), ..
@@ -160,9 +168,16 @@ impl StrictName {
             Name::Long { name: None, span } => match ident {
                 Some(name) => {
                     let derived_name = to_kebab_case(&name.to_string());
-                    Self::Long{ name: LitStr::new(&derived_name, span) }
+                    Self::Long {
+                        name: LitStr::new(&derived_name, span),
+                    }
                 }
-                None => return Err(Error::new(span, "Can't derive an explicit name for unnamed struct, try adding a name here like long(\"arg\")", ))
+                None => {
+                    return Err(Error::new(
+                        span,
+                        "Can't derive an explicit name for unnamed struct, try adding a name here like long(\"arg\")",
+                    ));
+                }
             },
             Name::Env { name, .. } => Self::Env { name },
         })

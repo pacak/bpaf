@@ -1,8 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::{
-    parse::{Parse, ParseStream},
     Expr, Result,
+    parse::{Parse, ParseStream},
 };
 
 #[derive(Debug, Clone)]

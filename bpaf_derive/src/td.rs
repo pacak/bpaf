@@ -3,10 +3,11 @@ use crate::{
     help::Help,
     utils::{parse_arg, parse_opt_arg},
 };
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
+    Error, Expr, Ident, LitChar, LitStr, Result,
     parse::{Parse, ParseStream},
-    parse_quote, token, Error, Expr, Ident, LitChar, LitStr, Result,
+    parse_quote, token,
 };
 
 // 1. options[("name")] and command[("name")] must be first in line and change parsing mode
@@ -223,9 +224,9 @@ impl Parse for TopInfo {
                     opts.fallback_usage = true;
                 } else {
                     return Err(Error::new_spanned(
-                    kw,
-                    "This annotation only makes sense in combination with `options` or `command`",
-                ));
+                        kw,
+                        "This annotation only makes sense in combination with `options` or `command`",
+                    ));
                 }
             } else if kw == "short" {
                 let short = parse_arg(input)?;

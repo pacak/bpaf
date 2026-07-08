@@ -1,16 +1,16 @@
 use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    parse::ParseStream, parse_quote, spanned::Spanned, token, Attribute, Error, Ident, LitStr,
-    Result, Type, Visibility,
+    Attribute, Error, Ident, LitStr, Result, Type, Visibility, parse::ParseStream, parse_quote,
+    spanned::Spanned, token,
 };
 
 use crate::{
     attrs::{
-        parse_bpaf_doc_attrs, Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse,
-        StrictName, TurboFish,
+        Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse, StrictName, TurboFish,
+        parse_bpaf_doc_attrs,
     },
-    field::{split_type, Shape},
+    field::{Shape, split_type},
     help::Help,
     utils::to_snake_case,
 };
@@ -197,7 +197,7 @@ impl StructField {
                     return Err(Error::new(
                         span,
                         "Can't derive name for this external, try specifying one",
-                    ))
+                    ));
                 }
             }
         }

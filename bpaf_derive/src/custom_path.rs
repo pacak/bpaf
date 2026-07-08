@@ -1,8 +1,8 @@
 use syn::{
+    PathSegment, UseName, UsePath, UseRename, UseTree,
     punctuated::Punctuated,
     token::{self, PathSep},
     visit_mut::{self, VisitMut},
-    PathSegment, UseName, UsePath, UseRename, UseTree,
 };
 
 /// Implements [`syn::visit_mut::VisitMut`] to find
@@ -137,11 +137,16 @@ impl CratePathReplacer {
                         tree: Box::new(suffix_tree),
                     })
                 } else {
-                    unreachable!("If the last part of the matched input was a path, then there must be some suffix left to attach to complete it.")
+                    unreachable!(
+                        "If the last part of the matched input was a path, then there must be some suffix left to attach to complete it."
+                    )
                 }
             }
             UseTree::Name(_) => {
-                assert!(suffix.is_none(), "If the last part of the matched input was a syn::UseTree::Name, then there shouldn't be any suffix left to attach to the prefix.");
+                assert!(
+                    suffix.is_none(),
+                    "If the last part of the matched input was a syn::UseTree::Name, then there shouldn't be any suffix left to attach to the prefix."
+                );
                 UseTree::Name(UseName {
                     ident: rev_target_ids
                         .next()
@@ -149,7 +154,10 @@ impl CratePathReplacer {
                 })
             }
             UseTree::Rename(original_rename) => {
-                assert!(suffix.is_none(), "If the last part of the matched input was a syn::UseTree::Rename, then there shouldn't be any suffix left to attach to the prefix.");
+                assert!(
+                    suffix.is_none(),
+                    "If the last part of the matched input was a syn::UseTree::Rename, then there shouldn't be any suffix left to attach to the prefix."
+                );
                 UseTree::Rename(UseRename {
                     ident: rev_target_ids.next().expect(
                         "error while making a `UseTree::Rename`: target should not be empty",
