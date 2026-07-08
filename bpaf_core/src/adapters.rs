@@ -453,6 +453,64 @@ impl<T, P> Fallback<T, P> {
     }
 }
 
+pub struct FallbackStr<P> {
+    pub(crate) inner: P,
+    pub(crate) fallback: &'static str,
+    pub(crate) pprint: Option<fn(&str) -> String>,
+}
+impl<P: Leaf> Leaf for FallbackStr<P> {}
+
+impl<P> Parser for FallbackStr<P>
+where
+    P: Parser,
+    P::Output: std::str::FromStr,
+    <P::Output as std::str::FromStr>::Err: ToString,
+{
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
+        match self.inner.eval(ctx.clone()).await {
+            Err(Error::Missing(_)) => match self.fallback.parse() {
+                Ok(v) => Ok(v),
+                Err(e) => Err(Error::Problem(
+                    ctx.leaf_cursor(),
+                    Problem::Dynamic { err: e.to_string() },
+                )),
+            },
+            otherwise => otherwise,
+        }
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn crate::traits::Visitor<'a>) {
+        visitor.push_group(VisitGroup::Optional);
+        self.inner.visit(visitor);
+        if let Some(f) = self.pprint
+            && matches!(visitor.identify(), crate::VKind::Help)
+        {
+            let text = f(self.fallback);
+            visitor.item(Item::Rendered { text: &text, gr: None });
+        }
+        visitor.pop_group();
+    }
+}
+
+impl<P> FallbackStr<P> {
+    pub fn display_fallback(mut self) -> Self {
+        self.pprint = Some(|value| format!("\t[default: {}]", value));
+        self
+    }
+
+    pub fn debug_fallback(mut self) -> Self {
+        self.pprint = Some(|value| format!("\t[default: {:?}]", value));
+        self
+    }
+
+    pub fn format_fallback(mut self, format: fn(&str) -> String) -> Self {
+        self.pprint = Some(format);
+        self
+    }
+}
+
 pub struct FallbackWith<P, F, E> {
     pub(crate) inner: P,
     pub(crate) fallback: F,

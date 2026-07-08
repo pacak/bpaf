@@ -1675,6 +1675,7 @@ mod tests {
     mod complete;
     mod construct;
     mod errors;
+    mod fallback;
     mod flag;
     mod git;
     mod global;

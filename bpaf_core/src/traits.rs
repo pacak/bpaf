@@ -5,8 +5,8 @@
 use crate::{
     Ctx, Error, Exit, Lit, Metavar, Named, Nest,
     adapters::{
-        Fallback, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser, Optional, OrExit,
-        Parse, ThenExit, WithOffset,
+        Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
+        Optional, OrExit, Parse, ThenExit, WithOffset,
     },
     completions::CompHelp,
     error::ParseFailure,
@@ -201,6 +201,17 @@ pub trait Parser {
         Fallback {
             inner: self,
             value,
+            pprint: None,
+        }
+    }
+
+    fn fallback_str(self, value: &'static str) -> FallbackStr<Self>
+    where
+        Self: Sized,
+    {
+        FallbackStr {
+            inner: self,
+            fallback: value,
             pprint: None,
         }
     }
