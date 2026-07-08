@@ -34,11 +34,10 @@ pub(crate) fn split_type(ty: &Type) -> Shape {
     }
 
     fn try_split_type(ty: &Type) -> Option<Shape> {
-        if let Type::Tuple(syn::TypeTuple { elems, .. }) = ty {
-            if elems.is_empty() {
+        if let Type::Tuple(syn::TypeTuple { elems, .. }) = ty
+            && elems.is_empty() {
                 return Some(Shape::Unit);
             }
-        }
 
         let last = match ty {
             Type::Path(p) => p.path.segments.last()?,

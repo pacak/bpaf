@@ -54,33 +54,6 @@ pub(crate) enum Mode {
 }
 
 #[derive(Debug)]
-pub(crate) enum HelpMsg {
-    Lit(String),
-    Custom(Box<Expr>),
-}
-
-impl From<String> for HelpMsg {
-    fn from(value: String) -> Self {
-        Self::Lit(value)
-    }
-}
-
-impl From<Box<Expr>> for HelpMsg {
-    fn from(value: Box<Expr>) -> Self {
-        Self::Custom(value)
-    }
-}
-
-impl ToTokens for HelpMsg {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        match self {
-            HelpMsg::Lit(l) => l.to_tokens(tokens),
-            HelpMsg::Custom(l) => l.to_tokens(tokens),
-        }
-    }
-}
-
-#[derive(Debug)]
 pub(crate) struct TopInfo {
     /// Should visibility for generated function to be inherited?
     pub(crate) private: bool,
@@ -468,8 +441,13 @@ impl ToTokens for EAttr {
             Self::Hide => quote!(hide()),
             Self::FallbackUsage => quote!(fallback_to_usage()),
 
-            Self::UnnamedCommand | Self::UnitShort(_) | Self::UnitLong(_)
-            | Self::Nest | Self::NestShort(_) | Self::NestLong(_) | Self::NestHelp(_) => unreachable!(),
+            Self::UnnamedCommand
+            | Self::UnitShort(_)
+            | Self::UnitLong(_)
+            | Self::Nest
+            | Self::NestShort(_)
+            | Self::NestLong(_)
+            | Self::NestHelp(_) => unreachable!(),
         }
         .to_tokens(tokens);
     }

@@ -186,8 +186,8 @@ impl CratePathReplacer {
     /// Replaces the prefix of `input` with those of [`target`](Self::target) if
     /// the `input` path's prefix matches [`query`](Self::query).
     fn replace_item_use_if_match(&self, input: &mut syn::ItemUse) {
-        if self.item_use_global_match(input) {
-            if let Some((matched_prefix, suffix)) = Self::item_use_segments_match(
+        if self.item_use_global_match(input)
+            && let Some((matched_prefix, suffix)) = Self::item_use_segments_match(
                 &input.tree,
                 self.query.segments.len(),
                 self.query.segments.iter(),
@@ -196,7 +196,6 @@ impl CratePathReplacer {
                 input.leading_colon = self.target.leading_colon;
                 input.tree = self.append_suffix_to_target(matched_prefix, suffix);
             }
-        }
     }
 }
 

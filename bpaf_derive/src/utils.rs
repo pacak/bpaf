@@ -112,8 +112,10 @@ fn check_to_snake_case() {
 ///
 /// - adjacent non empty strings are combined: with a single line newline:
 ///   ["foo", "bar"] => ["foo\nbar"]
+///
 /// - single empty lines are stripped and used to represent logical blocks:
 ///   ["foo", "bar", "", "baz"] => ["foo\nbar", "baz"]
+///
 /// strip single empty lines,
 pub(crate) struct LineIter<'a> {
     strings: std::str::Lines<'a>,

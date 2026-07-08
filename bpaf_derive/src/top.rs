@@ -130,21 +130,18 @@ fn split_options_help(h: Help, opts: &mut OptionsCfg) {
         }
         Help::Doc(c) => {
             let mut chunks = LineIter::from(c.as_str());
-            if let Some(s) = chunks.next() {
-                if opts.descr.is_none() {
+            if let Some(s) = chunks.next()
+                && opts.descr.is_none() {
                     opts.descr = Some(Help::Doc(s));
                 }
-            }
-            if let Some(s) = chunks.next() {
-                if !s.is_empty() && opts.header.is_none() {
+            if let Some(s) = chunks.next()
+                && !s.is_empty() && opts.header.is_none() {
                     opts.header = Some(Help::Doc(s));
                 }
-            }
-            if let Some(s) = chunks.rest() {
-                if opts.footer.is_none() {
+            if let Some(s) = chunks.rest()
+                && opts.footer.is_none() {
                     opts.footer = Some(Help::Doc(s));
                 }
-            }
         }
     }
 }
@@ -157,11 +154,10 @@ fn split_ehelp_into(h: Help, opts_at: usize, attrs: &mut Vec<EAttr>) {
             if let Some(s) = chunks.next() {
                 attrs.insert(opts_at, EAttr::Descr(Help::Doc(s)));
             }
-            if let Some(s) = chunks.next() {
-                if !s.is_empty() {
+            if let Some(s) = chunks.next()
+                && !s.is_empty() {
                     attrs.insert(opts_at, EAttr::Header(Help::Doc(s)));
                 }
-            }
             if let Some(s) = chunks.rest() {
                 attrs.insert(opts_at, EAttr::Footer(Help::Doc(s)));
             }
@@ -551,11 +547,10 @@ impl ParsedEnumBranch {
             if nest.long.is_empty() && nest.short.is_empty() {
                 nest.long.push(ident_to_long(&branch.ident));
             }
-            if let Some(h) = help {
-                if nest.help.is_none() {
+            if let Some(h) = help
+                && nest.help.is_none() {
                     nest.help = Some(h);
                 }
-            }
         } else {
             branch.set_inplicit_name();
             if let Some(help) = help {
@@ -636,8 +631,8 @@ impl Branch {
     }
 
     fn set_inplicit_name(&mut self) {
-        if let FieldSet::Unit(_, names, _) = &mut self.fields {
-            if !names
+        if let FieldSet::Unit(_, names, _) = &mut self.fields
+            && !names
                 .iter()
                 .any(|n| matches!(n, StrictName::Long { .. } | StrictName::Short { .. }))
             {
@@ -645,7 +640,6 @@ impl Branch {
                     name: ident_to_long(&self.ident),
                 });
             }
-        }
     }
     fn push_help(&mut self, help: Help) {
         if let FieldSet::Unit(_, _, h) = &mut self.fields {

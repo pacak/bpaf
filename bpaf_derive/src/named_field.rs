@@ -255,8 +255,7 @@ impl StructField {
         if let Consumer::Argument { ty, .. }
         | Consumer::Positional { ty, .. }
         | Consumer::Any { ty, .. } = &mut cons
-        {
-            if ty.is_none() {
+            && ty.is_none() {
                 match &shape {
                     Shape::Optional(t) | Shape::Multiple(t) | Shape::Direct(t) => {
                         *ty = Some(t.clone());
@@ -264,7 +263,6 @@ impl StructField {
                     _ => {}
                 }
             }
-        }
 
         if derived_consumer {
             for pp in &postpr {
