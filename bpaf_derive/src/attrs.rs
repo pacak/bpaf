@@ -250,6 +250,7 @@ impl ToTokens for PostDecor {
             PostDecor::FormatFallback { formatter, .. } => quote!(format_fallback(#formatter)),
             PostDecor::Fallback { value, .. } => quote!(fallback(#value)),
             PostDecor::FallbackWith { f, .. } => quote!(fallback_with(#f)),
+            PostDecor::FallbackStr { value, .. } => quote!(fallback_str(#value)),
             PostDecor::Last { .. } => quote!(last()),
             PostDecor::GroupHelp { doc, .. } => quote!(group_help(#doc)),
             PostDecor::Guard { check, msg, .. } => quote!(guard(#check, #msg)),
@@ -327,6 +328,10 @@ pub(crate) enum PostDecor {
         span: Span,
         f: Box<Expr>,
     },
+    FallbackStr {
+        span: Span,
+        value: LitStr,
+    },
     Last {
         span: Span,
     },
@@ -362,6 +367,7 @@ impl PostDecor {
             | Self::Fallback { span, .. }
             | Self::Last { span }
             | Self::FallbackWith { span, .. }
+            | Self::FallbackStr { span, .. }
             | Self::GroupHelp { span, .. }
             | Self::Guard { span, .. }
             | Self::Hide { span }
@@ -544,6 +550,9 @@ impl PostDecor {
         } else if kw == "fallback_with" {
             let f = parse_expr(input)?;
             Self::FallbackWith { span, f }
+        } else if kw == "fallback_str" {
+            let value = parse_lit_str(input)?;
+            Self::FallbackStr { span, value }
         } else if kw == "group_help" {
             let doc = parse_expr(input)?;
             Self::GroupHelp { span, doc }

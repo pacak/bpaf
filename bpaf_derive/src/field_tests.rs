@@ -134,6 +134,18 @@ fn derive_fallback_with() {
 }
 
 #[test]
+fn derive_fallback_str() {
+    let input: NamedField = parse_quote! {
+        #[bpaf(fallback_str("42"))]
+        number: f64
+    };
+    let output = quote! {
+        ::bpaf::long("number").argument::<f64>("ARG").fallback_str("42")
+    };
+    assert_eq!(input.to_token_stream().to_string(), output.to_string());
+}
+
+#[test]
 fn derive_external_help() {
     let input: NamedField = parse_quote! {
         /// help

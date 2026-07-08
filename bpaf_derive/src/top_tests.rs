@@ -1086,6 +1086,30 @@ fn fallback_for_struct() {
 }
 
 #[test]
+fn fallback_str_for_struct() {
+    let top: Top = parse_quote! {
+        #[bpaf(fallback_str("10"))]
+        struct Value {
+            count: usize,
+        }
+    };
+
+    let expected = quote! {
+        #[doc(hidden)]
+        fn value() -> impl ::bpaf::Parser<Output=Value> {
+            #[allow(unused_imports)]
+            use ::bpaf::Parser;
+            {
+                let count = ::bpaf::long("count").argument::<usize>("ARG");
+                ::bpaf::construct!(Value { count, })
+            }
+            .fallback_str("10")
+        }
+    };
+    assert_eq!(top.to_token_stream().to_string(), expected.to_string());
+}
+
+#[test]
 fn adjacent_for_struct() {
     let top: Top = parse_quote! {
         #[bpaf(adjacent)]
