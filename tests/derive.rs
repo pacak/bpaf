@@ -1,5 +1,5 @@
-use crate::*;
-use bpaf_derive::Bpaf;
+use bpaf::*;
+//use bpaf_derive::Bpaf;
 
 #[test]
 fn help_with_default_parse() {
@@ -21,15 +21,12 @@ fn help_with_default_parse() {
 
     let parser = action();
 
-    let help = parser
-        .run_inner(&["add", "--help"])
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner("add --help").unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Add a new TODO item
 
-Usage: add ITEM
+Usage: app add ITEM
 
 Available positional items:
     ITEM        Item to track
@@ -39,10 +36,10 @@ Available options:
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected_help = "\
-Usage: [COMMAND ...]
+Usage: app [COMMAND ...]
 
 Available options:
     -h, --help        Prints help information
@@ -71,32 +68,32 @@ fn command_and_fallback() {
     use bpaf::Parser;
     let parser = action().fallback(Action::NoAction).to_options();
 
-    let help = parser
-        .run_inner(&["add", "--help"])
-        .unwrap_err()
-        .unwrap_stdout();
+    let help = parser.run_inner("add --help").unwrap_err().unwrap_stdout();
 
     let expected_help = "\
 Add a new TODO item
 
-Usage: add ARG
+Usage: app add ARG
+
+Available positional items:
+    ARG
 
 Available options:
     -h, --help  Prints help information
 ";
     assert_eq!(expected_help, help);
 
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
 
     let expected_help = "\
-Usage: [COMMAND ...]
+Usage: app [COMMAND ...]
 
 Available options:
     -h, --help  Prints help information
 
 Available commands:
     add         Add a new TODO item
-    no-action   Does nothing
+    no-action   Does nothing in two lines
 ";
     assert_eq!(expected_help, help);
 }
@@ -108,9 +105,9 @@ fn single_unit_command() {
     struct One;
 
     let parser = one().to_options();
-    let help = parser.run_inner(&["--help"]).unwrap_err().unwrap_stdout();
+    let help = parser.run_inner("--help").unwrap_err().unwrap_stdout();
     let expected = "\
-Usage: COMMAND ...
+Usage: app COMMAND ...
 
 Available options:
     -h, --help  Prints help information
@@ -120,7 +117,7 @@ Available commands:
 ";
     assert_eq!(help, expected);
 
-    let r = parser.run_inner(&["one"]).unwrap();
+    let r = parser.run_inner("one").unwrap();
     assert_eq!(r, One);
 }
 
@@ -134,4 +131,17 @@ fn pure_optional() {
     }
 
     assert_eq!(opts().run_inner("").unwrap().foo, None);
+}
+
+#[test]
+fn fallback_to_str_works() {
+    #[derive(Debug, Clone, Bpaf)]
+    #[bpaf(options)]
+    struct Opts {
+        #[bpaf(argument, fallback_str("42"))]
+        num: u32,
+    }
+
+    let r = opts().run_inner("").unwrap();
+    assert_eq!(r.num, 42);
 }
