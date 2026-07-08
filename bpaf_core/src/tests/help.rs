@@ -674,7 +674,7 @@ fn fallback_format_simple_arg() {
         .help("help for a")
         .argument("NUM")
         .fallback(42)
-        .format_fallback(|i, f| write!(f, "**{i}**"))
+        .format_fallback(|i| format!("\t[default: **{i}**]"))
         .to_options();
 
     let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();

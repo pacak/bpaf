@@ -201,7 +201,7 @@ pub trait Parser {
         Fallback {
             inner: self,
             value,
-            value_str: None,
+            pprint: None,
         }
     }
 

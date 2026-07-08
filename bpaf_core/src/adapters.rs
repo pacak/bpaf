@@ -398,10 +398,10 @@ impl<P: Parser> Parser for Hide<P> {
 }
 
 impl<P: Leaf> Leaf for Hide<P> {}
-pub struct Fallback<T, P> {
+pub struct Fallback<T: 'static, P> {
     pub(crate) inner: P,
     pub(crate) value: T,
-    pub(crate) value_str: Option<String>,
+    pub(crate) pprint: Option<fn(&T) -> String>,
 }
 
 impl<T, P: Leaf> Leaf for Fallback<T, P> {}
@@ -417,10 +417,14 @@ impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
-        if let Some(text) = self.value_str.as_deref()
+        if let Some(f) = self.pprint
             && matches!(visitor.identify(), crate::VKind::Help)
         {
-            visitor.item(Item::Rendered { text, gr: None });
+            let text = f(&self.value);
+            visitor.item(Item::Rendered {
+                text: &text,
+                gr: None,
+            });
         }
         visitor.pop_group();
     }
@@ -428,26 +432,23 @@ impl<T: 'static + Clone, P: Parser<Output = T>> Parser for Fallback<T, P> {
 
 impl<T: 'static + std::fmt::Debug, P> Fallback<T, P> {
     pub fn debug_fallback(mut self) -> Self {
-        self.value_str = Some(format!("\t[default: {:?}]", self.value));
+        self.pprint = Some(|value| format!("\t[default: {:?}]", value));
         self
     }
 }
 
 impl<T: 'static + std::fmt::Display, P> Fallback<T, P> {
     pub fn display_fallback(mut self) -> Self {
-        self.value_str = Some(format!("\t[default: {}]", self.value));
+        self.pprint = Some(|value| format!("\t[default: {}]", value));
         self
     }
 }
 
 impl<T, P> Fallback<T, P> {
-    /// Show a fallback value in a help using custom call to [`write!`]
-    /// `.format_fallback(|v, f| write!(f, "{v}"))`
-    pub fn format_fallback(
-        mut self,
-        format: impl Fn(&T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result,
-    ) -> Self {
-        self.value_str = Some(format!("\t[default: {}]", DisplayWith(&self.value, format)));
+    /// Show a fallback value in a help using custom format
+    /// `.format_fallback(|v| format!("{v}"))`
+    pub fn format_fallback(mut self, format: fn(&T) -> String) -> Self {
+        self.pprint = Some(format);
         self
     }
 }
@@ -485,19 +486,6 @@ where
         visitor.push_group(VisitGroup::Optional);
         self.inner.visit(visitor);
         visitor.pop_group();
-    }
-}
-
-/// Helper for [`Fallback`] that allows using a custom formatter
-struct DisplayWith<'a, T, F>(&'a T, F);
-
-impl<'a, T, F: Fn(&'a T, &mut std::fmt::Formatter<'_>) -> std::fmt::Result> std::fmt::Display
-    for DisplayWith<'a, T, F>
-{
-    #[inline(always)]
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let Self(value, display) = self;
-        display(value, f)
     }
 }
 
