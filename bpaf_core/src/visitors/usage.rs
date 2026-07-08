@@ -187,11 +187,11 @@ fn get_sep(stack: &[Group]) -> &'static str {
 }
 
 impl<'a> Visitor<'a> for Usage<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item<'t>(&mut self, item: Item<'a, 't>) {
         if let Some(siblings) = self.siblings_mut() {
             *siblings += 1;
         }
-        let put = match item {
+        let put: Put<'a> = match item {
             Item::Flag { named } => match ShortOrLong::from_named(named) {
                 Some(name) => Put::Named { name, meta: None },
                 None => return,
@@ -260,7 +260,7 @@ impl<'a> Visitor<'a> for Usage<'a> {
                 return;
             }
             Item::Rendered { text, gr: _ } => Put::Text {
-                text: Cow::Borrowed(text),
+                text: Cow::Owned(text.to_owned()),
             },
         };
         self.events.push(Event::Put(put))

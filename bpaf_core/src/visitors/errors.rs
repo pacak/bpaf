@@ -45,7 +45,7 @@ impl<'a> ProblemVisitor<'a> for IsAcceptedOnce<'a> {
 }
 
 impl<'a> Visitor<'a> for IsAcceptedOnce<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { info: _, inner } => inner.vi(self),
             Item::Flag { named }
@@ -120,7 +120,7 @@ impl<'a> ProblemVisitor<'a> for BetterName<'a> {
 }
 
 impl<'a> Visitor<'a> for BetterName<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { info: _, inner } => inner.vi(self),
             Item::Flag { named }
@@ -163,7 +163,7 @@ pub(crate) struct ValidCommand<'a> {
 }
 
 impl<'a> Visitor<'a> for ValidCommand<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item(&mut self, item: Item<'a, '_>) {
         match item {
             Item::OptionParser { inner, .. } => inner.vi(self),
             Item::Command { names, .. } => {
@@ -253,7 +253,7 @@ impl<'a> ProblemVisitor<'a> for IsDDash {
 }
 
 impl Visitor<'_> for IsDDash {
-    fn item(&mut self, item: Item<'_>) {
+    fn item(&mut self, item: Item<'_, '_>) {
         if self.exists {
             return;
         }
@@ -340,7 +340,7 @@ impl<'a> ProblemVisitor<'a> for IsInCommand<'a> {
 }
 
 impl<'a> Visitor<'a> for IsInCommand<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item(&mut self, item: Item<'a, '_>) {
         if self.candidate.is_some() {
             return;
         }
@@ -397,7 +397,7 @@ impl<'a> Visitor<'a> for IsInCommand<'a> {
 }
 
 impl<'a> Visitor<'a> for Vec<&mut dyn ProblemVisitor<'a>> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item(&mut self, item: Item<'a, '_>) {
         for v in self.iter_mut() {
             v.item(item);
         }

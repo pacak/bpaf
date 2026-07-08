@@ -302,14 +302,14 @@ pub enum VKind {
     Custom,
 }
 pub trait Visitor<'a> {
-    fn item(&mut self, item: Item<'a>);
+    fn item<'t>(&mut self, item: Item<'a, 't>);
     fn identify(&self) -> VKind;
     fn push_group(&mut self, group: VisitGroup);
     fn pop_group(&mut self);
 }
 
 #[derive(Clone, Copy)]
-pub enum Item<'a> {
+pub enum Item<'a, 't> {
     /// Top level of the parser, should be visited just once, at the beginning of the evaluation
     OptionParser {
         /// Parser information - header, description, footer
@@ -365,7 +365,7 @@ pub enum Item<'a> {
     /// Already rendered fragment to be used by Usage and Help visitors and ignored by all others
     Rendered {
         gr: Option<Gr>,
-        text: &'a str,
+        text: &'t str,
     },
 }
 

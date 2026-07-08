@@ -65,7 +65,7 @@ impl<'h> GlobalOnly<'h> {
 }
 
 impl<'a> Visitor<'a> for GlobalOnly<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item<'t>(&mut self, item: Item<'a, 't>) {
         if self.global > 0 {
             self.help.item(item)
         }
@@ -263,7 +263,7 @@ impl std::ops::IndexMut<Place> for Help<'_> {
 }
 
 impl<'a> Visitor<'a> for Help<'a> {
-    fn item(&mut self, item: Item<'a>) {
+    fn item<'t>(&mut self, item: Item<'a, 't>) {
         use std::fmt::Write as _;
 
         let place = self.place_for(&item);

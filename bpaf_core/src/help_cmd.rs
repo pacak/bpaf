@@ -11,7 +11,7 @@ fn find_cmd<'a>(name: &str, parser: &'a dyn Visited) -> Option<&'a dyn Visited> 
         matched: Option<&'a dyn Visited>,
     }
     impl<'a> Visitor<'a> for X<'a, '_> {
-        fn item(&mut self, item: Item<'a>) {
+        fn item<'t>(&mut self, item: Item<'a, 't>) {
             if self.matched.is_some() {
                 return;
             }
