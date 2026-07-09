@@ -41,7 +41,7 @@ fn style() -> impl Parser<Style> {
         .fallback(DEFAULT)
 }
 
-#[derive(Debug, Bpaf)]
+#[derive(Debug, Clone, Bpaf)]
 #[bpaf(options, version)]
 pub enum Options {
     /// Process a single file (containing settings).

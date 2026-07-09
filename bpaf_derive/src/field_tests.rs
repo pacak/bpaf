@@ -577,24 +577,24 @@ fn optional_argument_with_name_complete() {
     let output = quote! {
         ::bpaf::long("config")
             .argument::<u64>("N")
-            .optional()
             .complete(magic)
+            .optional()
             .group("hi")
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }
 
 #[test]
-fn optional_argument_with_name_shell_complete() {
+fn many_argument_with_name_complete() {
     let input: NamedField = parse_quote! {
-        #[bpaf(argument("N"), complete_shell(magic))]
-        config: Option<u64>
+        #[bpaf(argument("N"), complete(magic))]
+        config: Vec<u64>
     };
     let output = quote! {
         ::bpaf::long("config")
             .argument::<u64>("N")
-            .optional()
-            .complete_shell(magic)
+            .complete(magic)
+            .many()
     };
     assert_eq!(input.to_token_stream().to_string(), output.to_string());
 }

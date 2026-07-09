@@ -7,8 +7,8 @@ use syn::{
 
 use crate::{
     attrs::{
-        Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse, StrictName, TurboFish,
-        parse_bpaf_doc_attrs,
+        Consumer, FieldAttrs, HelpPlacement, Name, Post, PostParse, StrictName,
+        TurboFish, parse_bpaf_doc_attrs,
     },
     field::{Shape, split_type},
     help::Help,
@@ -280,9 +280,18 @@ impl StructField {
         if !(postpr.iter().any(|p| matches!(p, Post::Parse(_)))
             || matches!(cons, Consumer::External { .. } | Consumer::Pure { .. }))
         {
+            let insert_pos = postpr
+                .iter()
+                .rposition(Post::is_immediate)
+                .map(|i| i + 1)
+                .unwrap_or(0);
             match shape {
-                Shape::Optional(_) => postpr.insert(0, Post::Parse(PostParse::Optional { span })),
-                Shape::Multiple(_) => postpr.insert(0, Post::Parse(PostParse::Many { span })),
+                Shape::Optional(_) => {
+                    postpr.insert(insert_pos, Post::Parse(PostParse::Optional { span }))
+                }
+                Shape::Multiple(_) => {
+                    postpr.insert(insert_pos, Post::Parse(PostParse::Many { span }))
+                }
                 Shape::Bool => {
                     if name.is_none()
                         && naming.is_empty()

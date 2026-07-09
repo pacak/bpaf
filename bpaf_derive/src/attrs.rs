@@ -391,6 +391,10 @@ impl Post {
             Post::Decor(d) => d.span(),
         }
     }
+
+    pub fn is_immediate(&self) -> bool {
+        matches!(self, Post::Decor(PostDecor::Complete { .. }))
+    }
 }
 
 #[derive(Default, Debug)]
