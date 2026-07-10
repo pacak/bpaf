@@ -526,3 +526,137 @@ fn completer_static_str_slice_positional() {
     let r = parser.run_inner(("", "b")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "bob\n");
 }
+
+#[test]
+fn global_flag_completion() {
+    let g = long("glob")
+        .short('g')
+        .switch()
+        .help("Global flag")
+        .global();
+    let parser = g.to_options();
+
+    // Global flag should appear when completing `-`
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+
+    // Global flag should appear when completing `--g`
+    let r = parser.run_inner(("", "--g")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+
+    // Global flag should appear when completing `-g`
+    let r = parser.run_inner(("", "-g")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-g\tGlobal flag\n");
+
+    // Global flag should appear with empty prefix
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+}
+
+#[test]
+fn global_argument_completion() {
+    let a = long("arg")
+        .short('a')
+        .help("Global argument")
+        .argument::<String>("VAL")
+        .global();
+    let parser = a.to_options();
+
+    // Global argument should appear when completing `-`
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--arg\tGlobal argument\n");
+
+    // Global argument should appear when completing `--a`
+    let r = parser.run_inner(("", "--a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--arg\tGlobal argument\n");
+
+    // Global argument should appear when completing `-a`
+    let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "-a\tGlobal argument\n");
+}
+
+#[test]
+fn global_positional_completion() {
+    let p = positional::<String>("NAME").help("A name").global();
+    let parser = p.to_options();
+
+    // Global positional should show its metavar with empty prefix
+    let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "NAME\tA name\n");
+
+    // Global positional should show the typed value without its help
+    let r = parser.run_inner(("", "al")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "al\n");
+}
+
+#[test]
+fn global_alongside_local_completion() {
+    let g = long("glob").switch().help("Global flag").global();
+    let l = long("loc").switch().help("Local flag");
+    let parser = construct!(g, l).to_options();
+
+    // Both global and local parsers should appear when completing `-`
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    let expected = "--glob\tGlobal flag\n\
+                    --loc\tLocal flag\n";
+    assert_eq!(r, expected);
+
+    // Only local should match `--l`
+    let r = parser.run_inner(("", "--l")).unwrap_err().unwrap_stdout();
+    let expected = "--loc\tLocal flag\n";
+    assert_eq!(r, expected);
+
+    // Only global should match `--g`
+    let r = parser.run_inner(("", "--g")).unwrap_err().unwrap_stdout();
+    let expected = "--glob\tGlobal flag\n";
+    assert_eq!(r, expected);
+}
+
+#[test]
+fn global_flag_in_command_completion() {
+    let g = long("glob")
+        .short('g')
+        .switch()
+        .help("Global flag")
+        .global();
+    let cmd = pure(42).to_options().command("cmd");
+    let parser = construct!(g, cmd).to_options();
+
+    // Global flag should appear at top level
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+
+    // Global flag should also appear inside a command scope
+    let r = parser.run_inner(("cmd", "-")).unwrap_err().unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+}
+
+#[test]
+fn global_flag_in_command_with_local_completion() {
+    let g = long("glob").switch().help("Global flag").global();
+    let l = long("loc").switch().help("Local flag");
+    let cmd = construct!(l).to_options().command("cmd");
+    let parser = construct!(g, cmd).to_options();
+
+    // At top level: only global should appear (local is inside command)
+    let r = parser.run_inner(("", "-")).unwrap_err().unwrap_stdout();
+    let expected = "--glob\tGlobal flag\n";
+    assert_eq!(r, expected);
+
+    // Inside command: check that global shows for `--g` prefix
+    let r = parser
+        .run_inner(("cmd", "--g"))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(
+        r, "--glob\tGlobal flag\n",
+        "--g inside command should show global"
+    );
+
+    // Inside command: global flag shows alongside local for non-conflicting prefix
+    let r = parser
+        .run_inner(("cmd", "--g"))
+        .unwrap_err()
+        .unwrap_stdout();
+    assert_eq!(r, "--glob\tGlobal flag\n");
+}

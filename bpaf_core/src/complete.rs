@@ -344,7 +344,7 @@ pub(crate) fn handle_subparser_complete(err: Error) -> Error {
 
 /// Collect all the possible triggers that can fire given a possibly incomplete input
 pub(crate) fn orders_by_prefix<'a, 'b>(
-    arg: Arg<'b>,
+    arg: &Arg<'b>,
     triggers: &'a Triggers,
     strict_pos: bool,
 ) -> Vec<(CReq<'b>, &'a PeckingOrder)>
@@ -368,11 +368,11 @@ where
         }
         Arg::Named { name, value: None } => {
             let req = CReq::Named { name: name.clone() };
-            if let Some(order) = triggers.args.get(&name) {
+            if let Some(order) = triggers.args.get(name) {
                 out.push((req.clone(), order));
             }
 
-            if let Some(order) = triggers.flags.get(&name) {
+            if let Some(order) = triggers.flags.get(name) {
                 out.push((req.clone(), order));
             }
         }
@@ -380,10 +380,14 @@ where
             name,
             value: Some((adj, value)),
         } => {
-            if let Some(order) = triggers.args.get(&name)
+            if let Some(order) = triggers.args.get(name)
                 && let Some(value) = value.to_str()
             {
-                let req = CReq::NamedValue { name, adj, value };
+                let req = CReq::NamedValue {
+                    name: name.clone(),
+                    adj: *adj,
+                    value,
+                };
                 out.push((req, order));
             }
         }
@@ -450,7 +454,7 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
         // in parallel, but for autocomplete any item from a prod can run so we'll run
         // orders independent from each other
         for (req, order) in
-            orders_by_prefix(arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
+            orders_by_prefix(&arg, &self.ctx.triggers.borrow(), self.ctx.strict_pos.get())
         {
             self.mixer.push_peck(order);
             self.to_wake
@@ -461,8 +465,32 @@ impl<'a, 'p> crate::Executor<'a, 'p> {
             }
         }
 
+        // Also collect from global triggers - they should show up in autocomplete
+        // alongside local triggers, unlike stage_1 where global takes priority.
+        if self.full_parser {
+            for (req, order) in orders_by_prefix(
+                &arg,
+                &self.ctx.shared.global_triggers.borrow(),
+                self.ctx.strict_pos.get(),
+            ) {
+                self.mixer.push_peck(order);
+                self.to_wake
+                    .extend(self.mixer.for_wake(&self.ctx.shared.tasks.borrow()));
+
+                for id in self.to_wake.drain(..) {
+                    m.entry(id).or_default().push(req.clone());
+                }
+            }
+        }
+
         for id in self.ctx.triggers.borrow().checks.keys() {
             m.entry(*id).or_default().push(CReq::Value { value });
+        }
+
+        if self.full_parser {
+            for id in self.ctx.shared.global_triggers.borrow().checks.keys() {
+                m.entry(*id).or_default().push(CReq::Value { value });
+            }
         }
 
         // even if there's nothing to return - let's produce an empty set of results so we

@@ -78,7 +78,7 @@ impl<'p> RawCtx<'p> {
                         prefix_len: 0,
                         prefix_value,
                         meta_only: value.is_empty(),
-                        help,
+                        help: if value.is_empty() { help } else { None },
                         shell: *shell,
                     };
                     Err(Error::CompValue(cv))
