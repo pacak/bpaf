@@ -488,7 +488,10 @@ where
             && matches!(visitor.identify(), crate::VKind::Help)
         {
             let text = f(self.fallback);
-            visitor.item(Item::Rendered { text: &text, gr: None });
+            visitor.item(Item::Rendered {
+                text: &text,
+                gr: None,
+            });
         }
         visitor.pop_group();
     }

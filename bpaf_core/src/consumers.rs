@@ -137,13 +137,13 @@ impl Named {
         }
     }
 
-    pub fn argument<T>(self, metavar: &'static str) -> Argument<T> {
-        Argument {
+    pub fn argument<T>(self, metavar: &'static str) -> Argument<BasicArgument<T>> {
+        Argument(BasicArgument {
             named: self,
             metavar: Metavar(metavar),
             ctx: PhantomData,
             adjacent: false,
-        }
+        })
     }
 
     pub fn nest<T: 'static, P: Parser<Output = T> + 'static>(self, inner: P) -> Nested<T> {
@@ -384,43 +384,71 @@ impl<T: Clone> Flag<T> {
 /// Named argument. Parse `VALUE` in `--name VALUE` using [`FromStr`]
 ///
 /// Create it with [`Named::argument`]
-pub struct Argument<T> {
+pub struct Argument<I>(I);
+
+impl<I: ArgumentLike> Argument<I> {
+    pub fn adjacent(self) -> Self {
+        Argument(self.0.adjacent())
+    }
+
+    pub fn negative_lit(self) -> Argument<NegArgument<I>>
+    where
+        I::Output: FromStr + 'static,
+        <I::Output as std::str::FromStr>::Err: std::fmt::Display,
+    {
+        Argument(self.0.negative_lit())
+    }
+
+    pub fn on_missing_value<F: Fn() -> Result<I::Output, String>>(
+        self,
+        handler: F,
+    ) -> Argument<OnMissingValue<I, F>> {
+        Argument(self.0.on_missing_value(handler))
+    }
+}
+
+impl<P: Parser> Argument<P> {
+    pub fn complete<C, F: Completer<C>>(self, c: F) -> WithComplete<Argument<P>, F, C> {
+        WithComplete {
+            inner: self,
+            ctr: c,
+            ctx: PhantomData,
+        }
+    }
+}
+
+impl<P: Parser> Parser for Argument<P> {
+    type Output = P::Output;
+
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
+        self.0.eval(ctx).await
+    }
+
+    fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>) {
+        self.0.visit(visitor)
+    }
+}
+
+impl<P> Leaf for Argument<P> {}
+
+pub struct BasicArgument<T> {
     named: Named,
     metavar: Metavar,
     ctx: PhantomData<T>,
     adjacent: bool,
 }
 
-impl<T> Argument<T> {
-    pub fn adjacent(mut self) -> Self {
-        self.adjacent = true;
-        self
-    }
-
-    pub fn negative_lit(self) -> NegArgument<T> {
-        NegArgument { inner: self }
-    }
-
-    pub fn on_missing_value<F: Fn() -> Result<T, String>>(
-        self,
-        handler: F,
-    ) -> OnMissingValue<F, T> {
-        OnMissingValue { arg: self, handler }
-    }
-}
-
-pub struct OnMissingValue<F, T> {
-    arg: Argument<T>,
+pub struct OnMissingValue<P, F> {
+    arg: P,
     handler: F,
 }
 
-impl<F, T> Parser for OnMissingValue<F, T>
+impl<P, F> Parser for OnMissingValue<P, F>
 where
-    T: FromStr + 'static,
-    F: Fn() -> Result<T, String>,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
+    P: Parser,
+    F: Fn() -> Result<P::Output, String>,
 {
-    type Output = T;
+    type Output = P::Output;
 
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<Self::Output, Error> {
         let r = self.arg.eval(ctx.clone()).await;
@@ -449,7 +477,7 @@ where
     }
 }
 
-impl<T> Parser for Argument<T>
+impl<T> Parser for BasicArgument<T>
 where
     T: FromStr + 'static,
     <T as std::str::FromStr>::Err: std::fmt::Display,
@@ -482,19 +510,19 @@ where
         visitor.item(item);
     }
 }
-impl<T> Leaf for Argument<T> {}
 
-pub struct NegArgument<T> {
-    inner: Argument<T>,
+pub struct NegArgument<P> {
+    inner: P,
 }
 
-impl<T> Parser for NegArgument<T>
+impl<P> Parser for NegArgument<P>
 where
-    T: FromStr + 'static,
-    <T as std::str::FromStr>::Err: std::fmt::Display,
+    P: Parser,
+    P::Output: FromStr + 'static,
+    <P::Output as std::str::FromStr>::Err: std::fmt::Display,
 {
-    type Output = T;
-    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
+    type Output = P::Output;
+    async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<P::Output, Error> {
         let r = self.inner.eval(ctx.clone()).await;
         let Err(Error::Problem(
             ix,
@@ -508,7 +536,7 @@ where
             return r;
         };
 
-        match value.parse::<T>() {
+        match value.parse::<P::Output>() {
             Ok(v) => {
                 ctx.consume(2);
                 Ok(v)
@@ -528,26 +556,13 @@ where
     }
 }
 
-impl<T> Argument<T> {
+impl<T> Argument<BasicArgument<T>> {
     pub fn help(mut self, help: &'static str) -> Self {
-        self.named.help = Some(help);
+        self.0.named.help = Some(help);
         self
     }
 }
 
-/// # complete for argument
-impl<T: 'static> Argument<T> {
-    pub fn complete<C, F: Completer<C>>(self, completer: F) -> WithComplete<Argument<T>, F, C>
-    where
-        Self: Sized,
-    {
-        WithComplete {
-            inner: self,
-            ctr: completer,
-            ctx: PhantomData,
-        }
-    }
-}
 /// # complete for positional
 impl<T: 'static> Positional<T> {
     pub fn complete<C, F: Completer<C>>(self, completer: F) -> WithComplete<Positional<T>, F, C>
@@ -595,6 +610,64 @@ where
 }
 
 impl<P: Leaf, F, C> Leaf for WithComplete<P, F, C> {}
+
+/// Implementation details for the `Argument` parser
+///
+/// To make it optimal in the most common case scenarios we need a trait
+/// to deal with less common ones.
+///
+/// _Pay no attention to man behind the curtain._
+pub trait ArgumentLike: Parser + Sized {
+    fn adjacent(self) -> Self;
+
+    fn negative_lit(self) -> NegArgument<Self> {
+        NegArgument { inner: self }
+    }
+
+    fn on_missing_value<F: Fn() -> Result<Self::Output, String>>(
+        self,
+        handler: F,
+    ) -> OnMissingValue<Self, F> {
+        OnMissingValue { arg: self, handler }
+    }
+}
+
+impl<T> ArgumentLike for BasicArgument<T>
+where
+    T: FromStr + 'static,
+    <T as std::str::FromStr>::Err: std::fmt::Display,
+{
+    fn adjacent(mut self) -> Self {
+        self.adjacent = true;
+        self
+    }
+}
+
+impl<P> ArgumentLike for NegArgument<P>
+where
+    P: ArgumentLike,
+    P::Output: FromStr + 'static,
+    <P::Output as std::str::FromStr>::Err: std::fmt::Display,
+{
+    fn adjacent(self) -> Self {
+        NegArgument {
+            inner: self.inner.adjacent(),
+        }
+    }
+}
+
+impl<P, F> ArgumentLike for OnMissingValue<P, F>
+where
+    P: ArgumentLike,
+    F: Fn() -> Result<P::Output, String>,
+{
+    fn adjacent(self) -> Self {
+        OnMissingValue {
+            arg: self.arg.adjacent(),
+            handler: self.handler,
+        }
+    }
+}
 
 /// A parser for positional items - parses operands using [`FromStr`]
 pub struct Positional<T> {

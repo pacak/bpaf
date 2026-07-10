@@ -86,6 +86,50 @@ fn negative_literal_with_long() {
 }
 
 #[test]
+fn mix_of_all_arg_like_methods() {
+    fn missing() -> Result<u32, String> {
+        Ok(42)
+    }
+    let p1 = long("num")
+        .argument::<u32>("N")
+        .adjacent()
+        .negative_lit()
+        .on_missing_value(missing)
+        .into_box();
+
+    let p2 = long("num")
+        .argument::<u32>("N")
+        .negative_lit()
+        .adjacent()
+        .on_missing_value(missing)
+        .into_box();
+
+    let p3 = long("num")
+        .argument::<u32>("N")
+        .on_missing_value(missing)
+        .negative_lit()
+        .adjacent()
+        .into_box();
+
+    for p in [p1, p2, p3] {
+        let parser = p.to_options();
+
+        let r = parser.run_inner("--num").unwrap();
+        assert_eq!(r, 42);
+
+        let r = parser.run_inner("--num=69").unwrap();
+        assert_eq!(r, 69);
+
+        let r = parser
+            .run_inner("--num 131313")
+            .unwrap_err()
+            .unwrap_stderr();
+        let expected = "expected value to be adjacent to --num, try --num=131313\n";
+        assert_eq!(r, expected);
+    }
+}
+
+#[test]
 fn parse_errors() {
     let parser = short('a').argument::<i32>("ARG").to_options();
 
