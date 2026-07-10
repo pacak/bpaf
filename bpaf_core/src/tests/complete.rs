@@ -90,7 +90,7 @@ fn name_should_be_included() {
     let parser = a.to_options();
 
     let r = parser.run_inner(("", "")).unwrap_err().unwrap_stdout();
-    assert_eq!(r, "-a\tAaaaa!!!\n");
+    assert_eq!(r, "--aaa\tAaaaa!!!\n");
 
     let r = parser.run_inner(("", "-a")).unwrap_err().unwrap_stdout();
     assert_eq!(r, "-a\tAaaaa!!!\n");

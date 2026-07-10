@@ -32,6 +32,14 @@ impl Named {
         (short, long)
     }
 
+    /// Iterate names with long names first
+    pub(crate) fn all_names_long_first(&self) -> impl Iterator<Item = &Name<'static>> {
+        self.names
+            .iter()
+            .filter(|n| matches!(n, Name::Long(_)))
+            .chain(self.names.iter().filter(|n| matches!(n, Name::Short(_))))
+    }
+
     /// Get [`Name`] with a preference to long
     pub(crate) fn name_long_or_short(&self) -> Option<Name<'static>> {
         match self.get_short_and_long() {

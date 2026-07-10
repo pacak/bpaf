@@ -186,7 +186,7 @@ impl<'p> RawCtx<'p> {
 
             Reason::Complete(shell, creqs) => {
                 let mut value_adj = None;
-                let best = named.names.iter().find(|n| {
+                let best = named.all_names_long_first().find(|n| {
                     creqs.iter().any(|creq| match creq {
                         CReq::Named { name } => *n == name,
                         CReq::NamedValue { name, adj, value } if *n == name => {
@@ -305,7 +305,7 @@ impl<'p> RawCtx<'p> {
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
 
             Reason::Complete(shell, creqs) => {
-                let best = named.names.iter().find(|n| {
+                let best = named.all_names_long_first().find(|n| {
                     creqs
                         .iter()
                         .any(|creq| matches!(creq, CReq::Named { name } if *n == name))
