@@ -1488,27 +1488,14 @@ impl Mixer {
                 self.pecking_push(triggers.flags.get(name));
             }
             Arg::Named {
-                name: name @ Name::Short(short_name),
-                value: Some((Adjacency::Immediate, val)),
+                name: name @ Name::Short(_),
+                value: Some((Adjacency::Immediate, _)),
             } => {
-                let prev_len = self.candidates_len();
                 self.pecking_push(triggers.args.get(name));
-                if triggers.flags.contains_key(name)
-                    && self.candidates_len() == prev_len
-                    && let Some(chars) = val.to_str()
-                    && chars
-                        .chars()
-                        .all(|k| triggers.flags.contains_key(&Name::Short(k)))
-                {
-                    // There's no way to parse it as a single argument, but it might work
-                    // if we treat it as a merged group of single letter flags
-
-                    let mut group = vec![*short_name];
-                    group.extend(chars.chars());
+                if let Some(group) = short_flag_group(arg, triggers) {
                     return Some(Group(group));
-                } else {
-                    self.pecking_push(triggers.flags.get(name));
                 }
+                self.pecking_push(triggers.flags.get(name));
             }
             Arg::Pos { value } => {
                 if let Some(name) = arg::as_name(value)
@@ -1647,6 +1634,38 @@ pub fn success<T>(msg: impl Into<Styled>) -> Exit<T> {
         ctx: PhantomData,
         code: 0,
         msg: msg.into(),
+    }
+}
+
+/// Check if a named argument with an immediate value can be decomposed into a group
+/// of short flags.
+///
+/// For example, `-aaa` where `a` is a flag (not an argument) produces `Some(['a','a','a'])`.
+fn short_flag_group(arg: &arg::Arg, triggers: &Triggers) -> Option<Vec<char>> {
+    match arg {
+        arg::Arg::Named {
+            name: Name::Short(short_name),
+            value: Some((arg::Adjacency::Immediate, val)),
+        } => {
+            let chars = val.to_str()?;
+            let name = Name::Short(*short_name);
+            if triggers.args.contains_key(&name) {
+                return None;
+            }
+            if !triggers.flags.contains_key(&name) {
+                return None;
+            }
+            if !chars
+                .chars()
+                .all(|k| triggers.flags.contains_key(&Name::Short(k)))
+            {
+                return None;
+            }
+            let mut group = vec![*short_name];
+            group.extend(chars.chars());
+            Some(group)
+        }
+        _ => None,
     }
 }
 
