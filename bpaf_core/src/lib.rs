@@ -135,7 +135,16 @@ pub mod api {
                 //   anything. We want the error from the argument parser, otherwise the whole parser
                 //   will fail to make progress and we'll have to produce an error explaining the
                 //   unparsed trigger part of the argument.
-                if !consumed && matches!(&acc, Error::Final(_) | Error::Problem(_, _)) {
+                // - any sort of autocomplete
+                if !consumed
+                    && matches!(
+                        &acc,
+                        Error::Final(_)
+                            | Error::Problem(_, _)
+                            | Error::CompValue(_)
+                            | Error::CompReply(_)
+                    )
+                {
                     Err(acc)
                 } else {
                     val.ok_or(acc)
