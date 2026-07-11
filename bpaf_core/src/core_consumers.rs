@@ -32,6 +32,13 @@ impl TTarget {
     }
 }
 
+fn truncate_help(help: Option<&'static str>) -> Option<&'static str> {
+    match help?.split_once("\n\n") {
+        Some((first, _)) => Some(first),
+        None => help,
+    }
+}
+
 impl<'p> RawCtx<'p> {
     pub(crate) fn consume(&self, cnt: u32) {
         self.shared.current_task.borrow_mut().consumed += cnt;
@@ -78,7 +85,11 @@ impl<'p> RawCtx<'p> {
                         prefix_len: 0,
                         prefix_value,
                         meta_only: value.is_empty(),
-                        help: if value.is_empty() { help } else { None },
+                        help: if value.is_empty() {
+                            truncate_help(help)
+                        } else {
+                            None
+                        },
                         shell: *shell,
                     };
                     Err(Error::CompValue(cv))
@@ -164,7 +175,7 @@ impl<'p> RawCtx<'p> {
                     prefix_value: best.unwrap().to_string(),
                     has_value: false,
                     prefix_len: 0,
-                    help: literal.help,
+                    help: truncate_help(literal.help),
                     shell: *shell,
                     meta_only: false,
                 };
@@ -218,7 +229,7 @@ impl<'p> RawCtx<'p> {
                     prefix_value,
                     has_value: value_adj.is_some(),
                     prefix_len,
-                    help: named.help,
+                    help: truncate_help(named.help),
                     shell: *shell,
                     meta_only: false,
                 };
@@ -287,7 +298,7 @@ impl<'p> RawCtx<'p> {
                                 prefix_value,
                                 has_value: true,
                                 prefix_len: 0,
-                                help,
+                                help: truncate_help(help),
                                 shell: shell.into(),
                                 meta_only: value.is_empty(),
                             };
@@ -338,7 +349,7 @@ impl<'p> RawCtx<'p> {
                     prefix_value: best.unwrap().to_string(),
                     has_value: false,
                     prefix_len: 0,
-                    help: named.help,
+                    help: truncate_help(named.help),
                     shell: *shell,
                     meta_only: false,
                 };
