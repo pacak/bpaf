@@ -196,7 +196,6 @@ impl<T: 'static> OptionParser<T> {
             },
             inner: self,
             lazy: false,
-            help: None,
         }
     }
 
@@ -288,7 +287,7 @@ impl<T: 'static> Parser for Command<T> {
     fn visit<'a>(&'a self, visitor: &mut dyn crate::Visitor<'a>) {
         let item = Item::Command {
             names: &self.names.names,
-            help: self.help.or(self.inner.info.descr),
+            help: self.names.help,
             inner: &self.inner,
         };
         visitor.item(item);
@@ -300,13 +299,12 @@ impl<T> Leaf for Command<T> {}
 pub struct Command<T> {
     names: Literal,
     inner: OptionParser<T>,
-    help: Option<&'static str>,
     lazy: bool,
 }
 
 impl<T> Command<T> {
     pub fn help(mut self, help: &'static str) -> Self {
-        self.help = Some(help);
+        self.names.help = Some(help);
         self
     }
 }
