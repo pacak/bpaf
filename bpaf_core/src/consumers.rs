@@ -704,7 +704,7 @@ where
 {
     type Output = T;
     async fn eval<'p>(&'p self, ctx: Ctx<'p>) -> Result<T, Error> {
-        let res = ctx.parse_pos(self.help, self.metavar).await?;
+        let res = ctx.parse_pos(self.help, self.metavar, self.strict).await?;
 
         let Some(os) = res else {
             let item = MissingItem::Pos { meta: self.metavar };

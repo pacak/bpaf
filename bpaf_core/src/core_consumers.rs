@@ -48,6 +48,7 @@ impl<'p> RawCtx<'p> {
         &self,
         help: Option<&'static str>,
         meta: Metavar,
+        strict: bool,
     ) -> Result<Option<&'p OsStr>, Error> {
         {
             let cur = *self.shared.current_task.borrow();
@@ -75,7 +76,9 @@ impl<'p> RawCtx<'p> {
             | Reason::ChildProgress(_)) => unreachable!("non-leaf wakeup: {r:?}"),
             Reason::Complete(shell, creqs) => match creqs.as_slice() {
                 [CReq::Value { value }] => {
-                    let prefix_value = if value.is_empty() {
+                    let prefix_value = if strict && !self.strict_pos.get() {
+                        "--".to_owned()
+                    } else if value.is_empty() {
                         meta.to_string()
                     } else {
                         (*value).to_owned()
