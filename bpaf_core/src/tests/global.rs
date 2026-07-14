@@ -24,6 +24,25 @@ fn simple_global_parser() {
 }
 
 #[test]
+fn stacked_global_local() {
+    let g = short('g').switch().global();
+    let p = short('a').switch().to_options().command("cmd");
+    let parser = construct!(g, p).to_options();
+
+    let r = parser.run_inner("cmd -g").unwrap();
+    assert_eq!(r, (true, false));
+
+    let r = parser.run_inner("cmd -ag").unwrap();
+    assert_eq!(r, (true, true));
+
+    let r = parser.run_inner("-g cmd").unwrap();
+    assert_eq!(r, (true, false));
+
+    let r = parser.run_inner("cmd").unwrap();
+    assert_eq!(r, (false, false));
+}
+
+#[test]
 fn double_simple_global_parser() {
     let g = short('g').switch().global().global();
     let p = pure(42).to_options().command("cmd");

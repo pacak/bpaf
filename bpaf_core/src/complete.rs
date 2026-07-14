@@ -15,7 +15,6 @@ use crate::{
     arg::{Adjacency, Arg},
     error::CV,
     pecking::PeckingOrder,
-    short_flag_group,
 };
 
 pub(crate) struct CompItem<'a> {
@@ -495,11 +494,8 @@ impl<'p> crate::Executor<'p> {
             // Before returning empty, check if the argument could be a group of short flags
             // like `-aaa` where all chars are valid short flags. If so, emit the group
             // as the completion candidate.
-            let global = self.ctx.shared.global_triggers.borrow();
-            let local = self.ctx.triggers.borrow();
             let reply = if self.full_parser
-                && (short_flag_group(&arg, &global).is_some()
-                    || short_flag_group(&arg, &local).is_some())
+                && self.is_group_like(arg_os).is_some()
                 && let Some(s) = arg_os.to_str()
             {
                 CompReply(format!("{s}\n"))

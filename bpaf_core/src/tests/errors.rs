@@ -275,11 +275,11 @@ fn should_not_split_adjacent_ambig_options() {
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-ahello").unwrap_err().unwrap_stderr();
-    let expected = "the app can accept '-a' as a flag, but got '-ahello'\n";
+    let expected = "couldn't parse 'hello': invalid digit found in string\n";
     assert_eq!(r, expected);
 
     let r = parser.run_inner("-a=hello").unwrap_err().unwrap_stderr();
-    let expected = "the app can accept '-a' as a flag, but got '-a=hello'\n";
+    let expected = "couldn't parse 'hello': invalid digit found in string\n";
     assert_eq!(r, expected);
 
     // this one is okay, try to parse -a as argument - it fails because "hello" is not a number, then
@@ -498,9 +498,8 @@ fn ambiguity_2() {
         .guard(|_| false, "nope");
     let parser = construct!([a0, a1]).to_options();
 
-    let r = parser.run_inner("-aaaaaa").unwrap_err().unwrap_stderr();
-    // TODO - this is actually ambiguity error asking you to split it
-    assert_eq!(r, "the app can accept '-a' as a flag, but got '-aaaaaa'\n");
+    let r = parser.run_inner("-aaaaaa").unwrap();
+    assert_eq!(r, A::V(vec![true, true, true, true, true, true]));
 }
 
 #[test]

@@ -194,6 +194,15 @@ fn simple_alt_with_flags() {
 }
 
 #[test]
+fn simple_verbosity() {
+    let a = short('v').req_flag(()).count();
+    let parser = a.to_options();
+
+    let r = parser.run_inner("-vvv").unwrap();
+    assert_eq!(r, 3);
+}
+
+#[test]
 fn nested_alt_works() {
     let a = short('a').req_flag('a');
     let b = short('b').req_flag('b');

@@ -65,6 +65,14 @@ impl PeckingOrder {
         }
     }
 
+    pub(crate) fn first(&self) -> Option<Id> {
+        match &self.0 {
+            Pecking::Empty => None,
+            Pecking::Single { id, .. } => Some(*id),
+            Pecking::Set { set } => Some(*set.first_key_value()?.0),
+        }
+    }
+
     /// Remove an item from the pecking order, returns `true` if the order is now empty
     pub(crate) fn remove(&mut self, id: Id) -> bool {
         let ok = match &mut self.0 {
@@ -139,5 +147,11 @@ impl Mixer {
         self.candidates.clear();
         self.seen.clear();
         self.out.drain(..)
+    }
+
+    pub(crate) fn clear(&mut self) {
+        self.candidates.clear();
+        self.out.clear();
+        self.seen.clear();
     }
 }

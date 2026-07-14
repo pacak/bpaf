@@ -369,22 +369,18 @@ impl<'p> RawCtx<'p> {
     #[inline(always)]
     pub(self) fn parse_flag_consume(&self, arg: &Arg) -> Result<bool, Error> {
         match arg {
-            Arg::Named { name, value } => match value {
-                Some((adj, val)) => {
-                    let problem = Problem::ExpectedFlag {
-                        name: name.clone().into_owned(),
-                        adj: *adj,
-                        value: val.to_string_lossy().into_owned(),
-                    };
-                    let pos = self.cursor().get();
-                    Err(Error::Problem(pos, problem))
-                }
-                None => {
-                    self.consume(1);
-                    Ok(true)
-                }
-            },
-            Arg::Pos { value: _ } => unreachable!(),
+            Arg::Named {
+                name: _,
+                value: None,
+            } => {
+                self.consume(1);
+                Ok(true)
+            }
+            Arg::Pos { value: _ }
+            | Arg::Named {
+                name: _,
+                value: Some(_),
+            } => unreachable!(),
         }
     }
 

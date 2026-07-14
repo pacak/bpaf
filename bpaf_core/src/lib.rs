@@ -180,6 +180,7 @@ use crate::{
     complete::CReq,
     console_writer::Styled,
     info::{Extra, Info},
+    os_str::OsStrExt,
     pecking::Mixer,
     utils::Vec1,
     visitors::errors::IsInCommand,
@@ -795,8 +796,8 @@ impl<'p> Executor<'p> {
     }
 
     // try to parse a set of short flags `-vvv` as separate flags `-v -v -v`
-    fn execute_group(&mut self, group: Group) -> Result<(), Error> {
-        let res = self.execute_group_inner(&group.0);
+    fn execute_group(&mut self, input: &'p OsStr) -> Result<(), Error> {
+        let res = self.execute_group_inner(input);
         if res.is_ok() {
             self.ctx.cursor().update(|c| c + 1);
         } else {
@@ -805,44 +806,43 @@ impl<'p> Executor<'p> {
         res
     }
 
-    fn execute_group_inner(&mut self, names: &[char]) -> Result<(), Error> {
-        for (ix, name) in names.iter().copied().enumerate() {
-            // set a wakeup reason, just in case
-            *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(Arg::Named {
-                name: Name::Short(name),
-                value: None,
-            });
+    fn execute_group_inner(&mut self, mut input: &'p OsStr) -> Result<(), Error> {
+        let orig = input;
+        let mut ix = 0;
 
-            self.mixer
-                .populate_short_flag(&name, &self.ctx.triggers.borrow());
-            let mut cnt = 0;
+        while let Some((arg, rest)) = self.populate_group(input)
+            && !self.mixer.is_empty()
+        {
+            ix += 1;
+            *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(arg);
             let ids = self.mixer.for_wake(&self.ctx.shared.tasks.borrow());
             for id in ids {
-                cnt += 1;
                 let info = self.ctx.poll_incomplete(id);
                 if info.consumed != 1 {
                     // but this is a problem, should generate an error message that we can't parse
                     // current argument...
-                    todo!("should have consumed a single item")
+                    todo!("should have consumed a single item, it did {info:?}")
                 }
                 self.to_wake.push(info.id);
-            }
-            if cnt == 0 {
-                let mut group = String::with_capacity(names.len() + 1);
-                group.push('-');
-                group.extend(names.iter());
-
-                let ix = ix as u32 + 1;
-                let problem = Problem::OnlyOnceInGroup { group, name, ix };
-                return Err(Error::Problem(self.ctx.cursor().get(), problem));
             }
 
             self.stage_2(1);
             self.propagate();
             self.process_scheduled();
+            if rest.is_empty() {
+                return Ok(());
+            } else {
+                input = rest;
+            }
         }
-
-        Ok(())
+        let name = input
+            .next_char()
+            .expect("non-empty input after failed group parse")
+            .0;
+        let group = format!("-{}", orig.to_string_lossy());
+        let ix = ix as u32 + 1;
+        let problem = Problem::OnlyOnceInGroup { group, name, ix };
+        Err(Error::Problem(self.ctx.cursor().get(), problem))
     }
 
     /// Process scheduled operations
@@ -860,6 +860,67 @@ impl<'p> Executor<'p> {
                 }
             }
         }
+    }
+
+    fn is_group_like(&mut self, front: &'p OsStr) -> Option<&'p OsStr> {
+        if !matches!(
+            lex_os_arg(front),
+            Arg::Named {
+                name: Name::Short(_),
+                value: Some((Adjacency::Immediate, _)),
+            }
+        ) {
+            return None;
+        };
+        let input = front.next_char()?.1;
+        let mut current = input;
+
+        debug_assert!(self.mixer.is_empty());
+        loop {
+            let rest = self.populate_group(current)?.1;
+            self.mixer.clear();
+            if rest.is_empty() {
+                return Some(input);
+            } else {
+                current = rest;
+            }
+        }
+    }
+    fn populate_group(&mut self, input: &'p OsStr) -> Option<(Arg<'p>, &'p OsStr)> {
+        let (ch, rest) = input.next_char()?;
+        let name = Name::Short(ch);
+
+        if self.full_parser {
+            self.mixer
+                .populate_short_arg(ch, &self.ctx.shared.global_triggers);
+            if !self.mixer.is_empty() {
+                // global argument, e.g. -n value
+                let value = Some((Adjacency::Immediate, rest));
+                return Some((Arg::Named { name, value }, OsStr::new("")));
+            }
+
+            self.mixer
+                .populate_short_flag(ch, &self.ctx.shared.global_triggers);
+            if !self.mixer.is_empty() {
+                // global flag, e.g. -g where rest belongs to the next stacked flag
+                return Some((Arg::Named { name, value: None }, rest));
+            }
+        }
+
+        self.mixer.populate_short_arg(ch, &self.ctx.triggers);
+        if !self.mixer.is_empty() {
+            // local argument
+            let value = Some((Adjacency::Immediate, rest));
+            return Some((Arg::Named { name, value }, OsStr::new("")));
+        }
+
+        self.mixer.populate_short_flag(ch, &self.ctx.triggers);
+        if !self.mixer.is_empty() {
+            // local flag
+            return Some((Arg::Named { name, value: None }, rest));
+        }
+
+        None
     }
 
     fn execute(&mut self) -> Result<(), Error> {
@@ -921,12 +982,13 @@ impl<'p> Executor<'p> {
             // This can't be done in a single pass for two reasons:
             // - to know the biggest consumer we need to check all the candidates
             // - to release the triggers we need to release the reactor
-            let (best_size, mgroup) = self.stage_1(front);
+            let best_size = self.stage_1(front);
 
-            if let Some(group) = mgroup
-                && self.to_wake.is_empty()
+            if self.to_wake.is_empty()
+                && !self.ctx.strict_pos.get()
+                && let Some(front) = self.is_group_like(front)
             {
-                self.execute_group(group)?;
+                self.execute_group(front)?;
                 self.propagate();
                 continue;
             }
@@ -1157,31 +1219,19 @@ impl<'p> Executor<'p> {
     /// Run the first stage of the trigger
     ///
     /// Each task indicates how much it will consume if allowed to run till the end
-    fn stage_1(&mut self, front: &'p OsStr) -> (u32, Option<Group>) {
+    fn stage_1(&mut self, front: &'p OsStr) -> u32 {
         let arg = if self.ctx.strict_pos.get() {
             Arg::Pos { value: front }
         } else {
             lex_os_arg(front)
         };
 
-        let mut mgroup = None;
-
         if self.full_parser {
-            mgroup = self.mixer.populate(
-                front,
-                &arg,
-                &self.ctx.shared.global_triggers.borrow(),
-                self.ctx.strict_pos.get(),
-            );
+            self.mixer.populate(front, &arg, &self.ctx, true);
         }
 
-        if self.mixer.is_empty() && mgroup.is_none() {
-            mgroup = self.mixer.populate(
-                front,
-                &arg,
-                &self.ctx.triggers.borrow(),
-                self.ctx.strict_pos.get(),
-            );
+        if self.mixer.is_empty() {
+            self.mixer.populate(front, &arg, &self.ctx, false);
         }
 
         *self.ctx.shared.wakeup_reason.borrow_mut() = Reason::Arg(arg);
@@ -1194,7 +1244,7 @@ impl<'p> Executor<'p> {
             best_size = best_size.max(info.consumed);
         }
         *self.ctx.current_value.borrow_mut() = None;
-        (best_size, mgroup)
+        best_size
     }
 
     /// Run the second stage of the trigger
@@ -1439,25 +1489,23 @@ impl<'p> RawCtx<'p> {
     }
 }
 
-#[must_use]
-#[derive(Debug)]
-/// A collection of short flags we try to fall back to if we can't parse it as an argument
-///
-/// Created automatically by [`Mixer`]
-struct Group(Vec<char>);
-
 impl Mixer {
-    fn populate_short_flag(&mut self, name: &char, triggers: &Triggers) {
-        self.pecking_push(triggers.flags.get(&Name::Short(*name)));
+    fn populate_short_arg(&mut self, name: char, triggers: &RefCell<Triggers>) {
+        self.pecking_push(triggers.borrow().args.get(&Name::Short(name)));
     }
 
-    fn populate(
-        &mut self,
-        front: &OsStr,
-        arg: &Arg,
-        triggers: &Triggers,
-        strict_pos: bool,
-    ) -> Option<Group> {
+    fn populate_short_flag(&mut self, name: char, triggers: &RefCell<Triggers>) {
+        self.pecking_push(triggers.borrow().flags.get(&Name::Short(name)));
+    }
+
+    fn populate(&mut self, front: &OsStr, arg: &Arg, ctx: &Ctx, global: bool) {
+        let strict_pos = ctx.strict_pos.get();
+        let triggers = if global {
+            &ctx.shared.global_triggers.borrow()
+        } else {
+            &ctx.triggers.borrow()
+        };
+
         if !strict_pos {
             // pre-populate pecking order with any check wakeups that can match
             for (id, check) in triggers.checks.iter() {
@@ -1473,29 +1521,31 @@ impl Mixer {
         }
 
         match arg {
-            Arg::Named {
-                name: name @ Name::Long(_),
-                value: _,
-            } => {
+            Arg::Named { name, value } => {
                 self.pecking_push(triggers.args.get(name));
-                self.pecking_push(triggers.flags.get(name));
-            }
-            Arg::Named {
-                name: name @ Name::Short(_),
-                value: None | Some((Adjacency::WithEq, _)),
-            } => {
-                self.pecking_push(triggers.args.get(name));
-                self.pecking_push(triggers.flags.get(name));
-            }
-            Arg::Named {
-                name: name @ Name::Short(_),
-                value: Some((Adjacency::Immediate, _)),
-            } => {
-                self.pecking_push(triggers.args.get(name));
-                if let Some(group) = short_flag_group(arg, triggers) {
-                    return Some(Group(group));
+                let flags = triggers.flags.get(name);
+                if let Some((adj, value)) = value
+                    && let Some(po) = flags
+                    && let Some(id) = po.first()
+                    && let Name::Short(n) = name
+                {
+                    let problem = Problem::ExpectedFlag {
+                        name: Name::Short(*n),
+                        adj: *adj,
+                        value: value.to_string_lossy().to_string(),
+                    };
+                    let msg = problem.to_string();
+
+                    let conflict = Conflict::Caught {
+                        pos: ctx.cursor().get(),
+                        msg,
+                        id,
+                        global,
+                    };
+                    ctx.shared.conflicts.borrow_mut().push(conflict);
+                } else {
+                    self.pecking_push(flags);
                 }
-                self.pecking_push(triggers.flags.get(name));
             }
             Arg::Pos { value } => {
                 if let Some(name) = arg::as_name(value)
@@ -1514,7 +1564,6 @@ impl Mixer {
                 self.pecking_push(Some(&triggers.pos));
             }
         }
-        None
     }
 
     /// Add a nonempty pecking order to the mix
@@ -1634,38 +1683,6 @@ pub fn success<T>(msg: impl Into<Styled>) -> Exit<T> {
         ctx: PhantomData,
         code: 0,
         msg: msg.into(),
-    }
-}
-
-/// Check if a named argument with an immediate value can be decomposed into a group
-/// of short flags.
-///
-/// For example, `-aaa` where `a` is a flag (not an argument) produces `Some(['a','a','a'])`.
-fn short_flag_group(arg: &arg::Arg, triggers: &Triggers) -> Option<Vec<char>> {
-    match arg {
-        arg::Arg::Named {
-            name: Name::Short(short_name),
-            value: Some((arg::Adjacency::Immediate, val)),
-        } => {
-            let chars = val.to_str()?;
-            let name = Name::Short(*short_name);
-            if triggers.args.contains_key(&name) {
-                return None;
-            }
-            if !triggers.flags.contains_key(&name) {
-                return None;
-            }
-            if !chars
-                .chars()
-                .all(|k| triggers.flags.contains_key(&Name::Short(k)))
-            {
-                return None;
-            }
-            let mut group = vec![*short_name];
-            group.extend(chars.chars());
-            Some(group)
-        }
-        _ => None,
     }
 }
 
