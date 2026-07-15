@@ -85,7 +85,7 @@ fn fallback_with_strange_args_produces_same_results() {
 
 #[test]
 fn de_yoda() {
-    use bpaf::*;
+    use crate::*;
     let parser = construct!(a(short('a').switch()), b(short('b').switch())).to_options();
 
     let r = parser.run_inner(&[]).unwrap();
