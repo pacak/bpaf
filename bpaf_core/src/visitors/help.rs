@@ -27,6 +27,8 @@ use super::ShortLong;
 use crate::{
     Flag, Item, Nest, VKind, Visited,
     console_writer::{MAX_TAB, Style, Styled, char_width},
+    custom_help::Block,
+    miniansi::Frag,
     visitors::{VisitGroup, Visitor, usage::Usage},
 };
 
@@ -197,7 +199,7 @@ fn lit_name<'a>(names: &'a [crate::Lit<'a>]) -> Lit<'a> {
 
 #[cfg_attr(test, derive(Eq, PartialEq))]
 #[derive(Default, Debug, Clone, Copy)]
-enum Place {
+pub enum Place {
     #[default]
     Named,
     Pos,
@@ -375,14 +377,39 @@ impl<'a> Visitor<'a> for Help<'a> {
                 assert_eq!(descr, None);
             }
             Item::Rendered { text } => {
-                for line in text.lines() {
-                    if let Some((key, _)) = line.split_once('\t') {
-                        self.track_tab(crate::miniansi::text_len(key));
+                for frag in crate::miniansi::split::<Block>(text) {
+                    match frag {
+                        Frag::Code(Block::Start(Place::Section)) => {
+                            if self.depth == 0 {
+                                self.place = Place::Section;
+                            }
+                            self.depth += 1;
+                        }
+                        Frag::Code(Block::EndSection) => {
+                            self.depth -= 1;
+                        }
+                        Frag::Code(Block::Start(p)) => {
+                            if self.depth == 0 {
+                                self.place = p;
+                            }
+                        }
+                        Frag::Str(s) => {
+                            let buf = self.mut_buf();
+                            if !(buf.ends_with('\n') || buf.is_empty()) {
+                                buf.push('\n');
+                            }
+                            for line in s.lines() {
+                                if let Some((key, _)) = line.split_once('\t') {
+                                    self.track_tab(crate::miniansi::text_len(key));
+                                }
+                            }
+                            self.mut_buf().push_str(s);
+                            if !s.ends_with('\n') {
+                                self.mut_buf().push('\n');
+                            }
+                        }
                     }
                 }
-
-                self.mut_buf().push_str(text);
-                self.mut_buf().push('\n');
             }
         }
     }

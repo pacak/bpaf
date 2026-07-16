@@ -3,7 +3,7 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, Lit, Metavar, Named, Nest,
+    Ctx, Error, Exit, HelpLiteral, Lit, Metavar, Named, Nest,
     adapters::{
         Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
         Optional, OrExit, Parse, ThenExit, WithOffset,
@@ -33,6 +33,13 @@ pub trait Parser {
     fn eval<'p>(&'p self, ctx: Ctx<'p>) -> impl Future<Output = Result<Self::Output, Error>> + 'p;
 
     fn visit<'a>(&'a self, visitor: &mut dyn Visitor<'a>);
+
+    fn help_literal(self, text: &'static str) -> HelpLiteral<Self>
+    where
+        Self: Sized,
+    {
+        HelpLiteral { inner: self, text }
+    }
 
     /// Convert the parser into a boxed, reference counted version
     fn into_rc(self) -> RcParser<Self::Output>
@@ -374,6 +381,7 @@ pub enum Item<'a, 't> {
         inner: &'a dyn Visited,
     },
     /// Already rendered fragment to be used by Usage and Help visitors and ignored by all others
+    /// It can contain help group definitions, similar to .group_help("xxx") method
     Rendered {
         text: &'t str,
     },
