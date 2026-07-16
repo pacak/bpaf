@@ -115,7 +115,7 @@ fn write_styled(
         *cursor += 1;
     }
 
-    for item in crate::miniansi::split(from) {
+    for item in crate::miniansi::split::<Style>(from) {
         match item {
             Frag::Str(s) => {
                 output.push_str(s);
@@ -205,19 +205,19 @@ impl Style {
     }
 }
 
-impl TryFrom<u8> for Style {
+impl TryFrom<u32> for Style {
     type Error = ();
 
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
         match value {
-            b'0' => Ok(Style::Text),
-            b'1' => Ok(Style::Emphasis),
-            b'2' => Ok(Style::Literal),
-            b'3' => Ok(Style::Metavar),
-            b'4' => Ok(Style::Header),
-            b'5' => Ok(Style::Valid),
-            b'6' => Ok(Style::Invalid),
-            b'7' => Ok(Style::MonoTick),
+            0 => Ok(Style::Text),
+            1 => Ok(Style::Emphasis),
+            2 => Ok(Style::Literal),
+            3 => Ok(Style::Metavar),
+            4 => Ok(Style::Header),
+            5 => Ok(Style::Valid),
+            6 => Ok(Style::Invalid),
+            7 => Ok(Style::MonoTick),
             _ => Err(()),
         }
     }
