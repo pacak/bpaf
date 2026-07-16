@@ -26,7 +26,7 @@ impl ShortLong<'_> {
 }
 
 impl Named {
-    fn get_shortlong<'a>(&'a self) -> Option<ShortLong<'a>> {
+    pub(crate) fn get_shortlong<'a>(&'a self) -> Option<ShortLong<'a>> {
         match self.get_short_and_long() {
             (None, None) => None,
             (None, Some(l)) => Some(ShortLong::Long(l)),

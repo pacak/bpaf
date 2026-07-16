@@ -41,7 +41,7 @@ impl<'a> Help<'a> {
         }
     }
 
-    fn render(mut self) -> Styled {
+    pub(crate) fn render(mut self) -> Styled {
         self.prepare_output();
         Styled {
             raw: self.output,
@@ -377,6 +377,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                 assert_eq!(descr, None);
             }
             Item::Rendered { text } => {
+                let depth = self.depth;
                 for frag in crate::miniansi::split::<Block>(text) {
                     match frag {
                         Frag::Code(Block::Start(Place::Section)) => {
@@ -410,6 +411,7 @@ impl<'a> Visitor<'a> for Help<'a> {
                         }
                     }
                 }
+                self.depth = depth;
             }
         }
     }

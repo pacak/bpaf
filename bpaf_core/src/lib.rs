@@ -194,7 +194,7 @@ pub use crate::{
     completions::CompHelp,
     console_writer::{Colorscheme, Style},
     consumers::*,
-    custom_help::HelpLiteral,
+    custom_help::{HelpCallback, HelpItem, HelpLiteral},
     help_cmd::help_command,
     traits::{Parser, Visited},
     vault::Key,
@@ -1579,7 +1579,7 @@ impl Mixer {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-enum Name<'a> {
+pub enum Name<'a> {
     Short(char),
     Long(Cow<'a, str>),
 }

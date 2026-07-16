@@ -3,7 +3,7 @@
 #![cfg_attr(doc, warn(unused_imports))]
 
 use crate::{
-    Ctx, Error, Exit, HelpLiteral, Lit, Metavar, Named, Nest,
+    Ctx, Error, Exit, HelpCallback, HelpItem, HelpLiteral, Lit, Metavar, Named, Nest,
     adapters::{
         Fallback, FallbackStr, FallbackWith, Global, Group, Guard, Hide, Map, OptionParser,
         Optional, OrExit, Parse, ThenExit, WithOffset,
@@ -39,6 +39,17 @@ pub trait Parser {
         Self: Sized,
     {
         HelpLiteral { inner: self, text }
+    }
+
+    fn help_callback<F>(self, map: F) -> HelpCallback<Self, F>
+    where
+        Self: Sized,
+        F: Fn(Vec<HelpItem>) -> String,
+    {
+        HelpCallback {
+            inner: self,
+            cb: map,
+        }
     }
 
     /// Convert the parser into a boxed, reference counted version
