@@ -1296,3 +1296,24 @@ Available commands:
 ";
     assert_eq!(expected_help, help);
 }
+
+#[test]
+fn double_group_help() {
+    let a = short('a')
+        .switch()
+        .help("something")
+        .group_help("inner")
+        .group_help("outer");
+    let parser = a.to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+    let expected = "Usage: app [-a]
+
+outer
+    -a          something
+
+Available options:
+    -h, --help  Prints help information\n";
+
+    assert_eq!(r, expected);
+}
