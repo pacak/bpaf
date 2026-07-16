@@ -390,14 +390,7 @@ impl<'a> Visitor<'a> for Help<'a> {
             Item::Rendered { text, gr } => {
                 for line in text.lines() {
                     if let Some((key, _)) = line.split_once('\t') {
-                        self.track_tab(
-                            crate::miniansi::split(key)
-                                .map(|c| match c {
-                                    crate::miniansi::Frag::Str(s) => char_width(s),
-                                    crate::miniansi::Frag::Code(_) => 0,
-                                })
-                                .sum(),
-                        );
+                        self.track_tab(crate::miniansi::text_len(key));
                     }
                 }
 
@@ -507,12 +500,7 @@ impl Help<'_> {
 
     fn written_chars_since(&self, place: Place, before: usize) -> usize {
         let written = &self[place][before..];
-        crate::miniansi::split(written)
-            .map(|c| match c {
-                crate::miniansi::Frag::Str(s) => char_width(s),
-                crate::miniansi::Frag::Code(_) => 0,
-            })
-            .sum()
+        crate::miniansi::text_len(written)
     }
 
     fn help(&mut self, place: Place, help: Option<&str>) {

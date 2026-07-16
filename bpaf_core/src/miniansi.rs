@@ -28,6 +28,16 @@ fn next_code(input: &str) -> Option<(usize, Style)> {
     })
 }
 
+/// Calculate the input's length in characters
+pub(crate) fn text_len(input: &str) -> usize {
+    split(input)
+        .map(|c| match c {
+            crate::miniansi::Frag::Str(s) => crate::console_writer2::char_width(s),
+            crate::miniansi::Frag::Code(_) => 0,
+        })
+        .sum()
+}
+
 impl<'a> Iterator for SplitByCode<'a> {
     type Item = Frag<'a>;
 
