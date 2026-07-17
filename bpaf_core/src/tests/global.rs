@@ -676,3 +676,42 @@ Global options:
 
     assert_eq!(r, expected);
 }
+
+#[test]
+fn global_with_fallback() {
+    let a = short('a')
+        .argument::<u32>("A")
+        .help("aaa")
+        .fallback(10)
+        .display_fallback()
+        .global();
+    let b = short('b')
+        .argument::<u32>("B")
+        .help("bbb")
+        .global()
+        .fallback(20)
+        .display_fallback();
+    let c = short('c').switch();
+    let d = short('d').switch();
+    let e = short('e').switch();
+    let parser = construct!(c, a, d, b, e).to_options();
+
+    let r = parser.run_inner("--help").unwrap_err().unwrap_stdout();
+
+    let expected = "Usage: app [-c] -a=A [-d] [-b=B] [-e]
+
+Available options:
+    -c
+    -d
+    -e
+    -h, --help  Prints help information
+
+Global options:
+    -a=A        aaa
+                [default: 10]
+    -b=B        bbb
+                [default: 20]
+";
+
+    assert_eq!(r, expected);
+}
