@@ -1,7 +1,7 @@
 //! Overall rendering takes 2 stages:
 //! 1. collect info from the visitor. At this point we don't know what the tabstop is
-//!    so can't really render it into the final version. Info is collected into several
-//!    strings: one per predefined section, one for current section, one for accumulated sections.
+//!    so can't really render it into the final version. Info is collected into
+//!    strings: one per section group (named/pos/commands/global/sections).
 //!    Plus descr/header/footer.
 //! 2. convert it to final version with tabs expanded into spaces and colors applied
 //!
@@ -213,11 +213,10 @@ pub struct Help<'a> {
     pub(crate) path: &'a str,
     place: Place,
     footer: Option<&'a str>,
-    in_section: usize,
+    /// Nesting depth for Section/Nested contexts; place is only updated when depth == 0
+    depth: usize,
     in_global: usize,
 
-    /// current section, if in one, empty otherwise
-    current: String,
     /// All the nonstandard sections, can be empty
     sections: String,
 
@@ -241,7 +240,7 @@ impl std::ops::Index<Place> for Help<'_> {
             Place::Named => &self.named,
             Place::Pos => &self.pos,
             Place::Command => &self.commands,
-            Place::Section => &self.current,
+            Place::Section => &self.sections,
             Place::Body => &self.output,
             Place::Global => &self.global,
         }
@@ -254,7 +253,7 @@ impl std::ops::IndexMut<Place> for Help<'_> {
             Place::Named => &mut self.named,
             Place::Pos => &mut self.pos,
             Place::Command => &mut self.commands,
-            Place::Section => &mut self.current,
+            Place::Section => &mut self.sections,
             Place::Body => &mut self.output,
             Place::Global => &mut self.global,
         }
@@ -360,31 +359,23 @@ impl<'a> Visitor<'a> for Help<'a> {
                 self.track_tab(self.written_chars_since(place, before));
                 self.help(place, help);
 
-                self.in_section += 1;
+                self.depth += 1;
                 inner.vi(self);
-                self.in_section -= 1;
-                if self.in_section == 0 {
-                    let mut tmp = std::mem::take(&mut self.current);
-                    self[place].push_str(&tmp);
-                    std::mem::swap(&mut tmp, &mut self.current);
-                    self.current.clear();
-                }
+                self.depth -= 1;
             }
             Item::Section {
                 title,
                 descr,
                 inner,
             } => {
-                self.in_section += 1;
-                inner.vi(self);
-                self.in_section -= 1;
-                // throw away inner nested sections
-                if self.in_section == 0 {
+                if self.depth == 0 {
                     _ = writeln!(&mut self.sections, "{H}{title}{T}");
-                    self.sections.push_str(&self.current);
-                    assert_eq!(descr, None);
-                    self.current.clear();
+                    self.place = Place::Section;
                 }
+                self.depth += 1;
+                inner.vi(self);
+                self.depth -= 1;
+                assert_eq!(descr, None);
             }
             Item::Rendered { text } => {
                 for line in text.lines() {
@@ -437,23 +428,24 @@ impl Help<'_> {
     }
 
     fn place_for(&mut self, item: &Item) -> Place {
-        self.place = match &item {
-            _ if self.in_section > 0 => Place::Section,
-            _ if self.in_global > 0 => Place::Global,
-            Item::Flag { .. } | Item::Arg { .. } => Place::Named,
-            Item::Positional { .. } => Place::Pos,
-            Item::Command { .. } => Place::Command,
-            Item::Rendered { .. } => self.place,
-            Item::Nested {
-                outer: Nest::Named(_),
-                ..
-            } => Place::Named,
-            Item::Nested {
-                outer: Nest::Keyword(_),
-                ..
-            } => Place::Command,
-            _ => self.place,
-        };
+        if self.depth == 0 {
+            self.place = match item {
+                _ if self.in_global > 0 => Place::Global,
+                Item::Flag { .. } | Item::Arg { .. } => Place::Named,
+                Item::Positional { .. } => Place::Pos,
+                Item::Command { .. } => Place::Command,
+                Item::Rendered { .. } => self.place,
+                Item::Nested {
+                    outer: Nest::Named(_),
+                    ..
+                } => Place::Named,
+                Item::Nested {
+                    outer: Nest::Keyword(_),
+                    ..
+                } => Place::Command,
+                _ => self.place,
+            };
+        }
         self.place
     }
 
